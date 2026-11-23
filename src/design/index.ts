@@ -32,12 +32,14 @@ export { ConfirmDialogHost } from './confirmDialog'
 export { alertDialog, confirmDialog, confirmDialogWithToggle, promptDialog } from './confirmDialogStore'
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
 export { HoverCard, HoverCardContent, HoverCardTrigger } from './hoverCard'
-export { WorkbenchMenu } from './menu'
+export { WORKBENCH_MENU_TRIGGER_OPEN_CLASS, WorkbenchContextMenu, WorkbenchMenu } from './menu'
 export type {
+  WorkbenchContextMenuProps,
   WorkbenchMenuAction,
   WorkbenchMenuCheckbox,
   WorkbenchMenuGroup,
   WorkbenchMenuIcon,
+  WorkbenchMenuItems,
   WorkbenchMenuNode,
   WorkbenchMenuProps,
   WorkbenchMenuRadioGroup,

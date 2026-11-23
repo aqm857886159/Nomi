@@ -16,6 +16,10 @@
       "symbol": "WorkbenchMenu"
     },
     {
+      "path": "src/design/menu.tsx",
+      "symbol": "WorkbenchContextMenu"
+    },
+    {
       "path": "src/design/anchoredPopoverPlacement.ts",
       "symbol": "resolveAnchoredPopoverPlacement"
     },
@@ -35,5 +39,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-06",
-  "notes": "菜单锚点 anchorRect / point 二选一（按钮点开的给矩形），富内容浮层几何不与锚点相交、放不下收高度；节点浮条上的下拉只由 ToolbarActionMenu 渲染，锚点 = 触发区 × 整条浮条（docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json，类检查 menu.structure.test.ts / ToolbarActionMenu.structure.test.ts / tests/ux/design-lab/popupGeometry.census.mjs）。 2026-10-12：AnchoredPopover 用已安装 Floating UI autoUpdate 统一监测 anchor/layout/element/ancestor 变化并在卸载清理；画板打开富内容浮层时 opt-in animationFrame 跟随 React Flow transform。定位仍复用 resolveAnchoredPopoverPlacement，不增加第二定位器。 2026-10-12：boundaryRect 是通用可用工作区矩形；resolveAnchoredPopoverPlacement 支持非零 left/top。白板先复用该 helper 得到真实横向 span，再交既有 dock admission，不复制 clamp。 受控富内容统一通过既有 ToolbarActionMenu owner 的 ToolbarActionPanel；旧菜单和白板共用，不新增第二浮层定位。"
+  "notes": "菜单锚点 anchorRect / point 二选一（按钮点开的给矩形），富内容浮层几何不与锚点相交、放不下收高度；节点浮条上的下拉只由 ToolbarActionMenu 渲染，锚点 = 触发区 × 整条浮条（docs/fixes/2026-10-06-popup-covers-trigger.root-cause.json，类检查 menu.structure.test.ts / ToolbarActionMenu.structure.test.ts / tests/ux/design-lab/popupGeometry.census.mjs）。 2026-10-12：AnchoredPopover 用已安装 Floating UI autoUpdate 统一监测 anchor/layout/element/ancestor 变化并在卸载清理；画板打开富内容浮层时 opt-in animationFrame 跟随 React Flow transform。定位仍复用 resolveAnchoredPopoverPlacement，不增加第二定位器。 2026-10-12：boundaryRect 是通用可用工作区矩形；resolveAnchoredPopoverPlacement 支持非零 left/top。白板先复用该 helper 得到真实横向 span，再交既有 dock admission，不复制 clamp。 受控富内容统一通过既有 ToolbarActionMenu owner 的 ToolbarActionPanel；旧菜单和白板共用，不新增第二浮层定位。 2026-11-23：触发元素与菜单的状态绑定也归这里——有真实触发元素就走真触发器入口（行右键 WorkbenchContextMenu = Radix ContextMenu.Trigger asChild，按钮下拉 WorkbenchMenu trigger = DropdownMenu.Trigger asChild），Radix 把 data-state=open / aria-expanded / 焦点归还挂在真实元素上，打开态视觉只认 WORKBENCH_MENU_TRIGGER_OPEN_CLASS；point 只留给登记的 3 个无单一触发元素的手势文件 + 1 个冻结存量（menu.structure.test.ts），真浏览器真 CSS 守在 menuTriggerAndCascade.browser.test.ts（docs/engineering/direction-checks/2026-11-23-workbench-menu-trigger-contract.md）。"
 }

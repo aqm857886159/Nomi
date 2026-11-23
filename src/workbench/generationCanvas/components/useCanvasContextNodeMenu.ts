@@ -138,6 +138,10 @@ export function useCanvasContextNodeMenu({
   const activeContextPointerRef = React.useRef<ActiveContextPointer | null>(null)
 
   const prepareContextMenuPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target instanceof Element ? event.target : null
+    // 页内全屏层（GenerationPageLayer）或其它 Portal 挂在舞台 DOM 之外，但 React 捕获期仍沿 Fiber 树经过舞台；
+    // 目标不在舞台容器内时直接放行，既不记候选画布菜单，也不清画布选区。
+    if (!target || !stageRef.current?.contains(target)) return false
     pendingMenuRef.current = null
     const contextMenuPointer = isCanvasContextMenuPointer(event.button, event.ctrlKey, navigator.platform)
     activeContextPointerRef.current = contextMenuPointer
@@ -145,8 +149,7 @@ export function useCanvasContextNodeMenu({
       : null
     if (!contextMenuPointer || pendingConnectionSourceId) return false
     if (readOnly || !stageRef.current) return false
-    const target = event.target instanceof Element ? event.target : null
-    if (target?.closest(CONTEXT_TARGET_GUARD)) return false
+    if (target.closest(CONTEXT_TARGET_GUARD)) return false
 
     const nodeId = target?.closest(NODE_SELECTOR)?.getAttribute('data-node-id') || null
     const frameId = target?.closest(FRAME_SELECTOR)?.getAttribute('data-group-id') || null
@@ -177,6 +180,7 @@ export function useCanvasContextNodeMenu({
   }, [offsetRef, pendingConnectionSourceId, readOnly, stageRef, zoomRef])
 
   const handleContextMenuPointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Node) || !stageRef.current?.contains(event.target)) return
     const secondaryChord = (event.buttons & 3) === 3
     if (secondaryChord) {
       const active = activeContextPointerRef.current
@@ -194,7 +198,7 @@ export function useCanvasContextNodeMenu({
     const pending = pendingMenuRef.current
     if (!pending || pending.pointerId !== event.pointerId || pending.moved) return
     pending.moved = canvasDragExceededThreshold(pending.startX, pending.startY, event.clientX, event.clientY)
-  }, [])
+  }, [stageRef])
 
   const finishContextMenuPointerUp = React.useCallback((
     event: React.PointerEvent<HTMLDivElement>,
@@ -234,6 +238,7 @@ export function useCanvasContextNodeMenu({
   }, [clearSelection, ensureNodeSelected, onFrameMenu])
 
   const handleStageContextMenu = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Node) || !stageRef.current?.contains(event.target)) return
     const pending = pendingMenuRef.current
     const active = activeContextPointerRef.current
     if (activeContextPointerRef.current) activeContextPointerRef.current.contextMenuSeen = true
@@ -242,7 +247,7 @@ export function useCanvasContextNodeMenu({
     suppressNextContextMenuRef.current = false
     event.preventDefault()
     event.stopPropagation()
-  }, [])
+  }, [stageRef])
 
   React.useEffect(() => {
     const cancelPendingMenu = () => {

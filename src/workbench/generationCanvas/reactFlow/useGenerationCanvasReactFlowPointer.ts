@@ -62,12 +62,16 @@ export function useGenerationCanvasReactFlowPointer({
   React.useEffect(() => () => nativePanReconciler.cancel(), [nativePanReconciler])
 
   const handleCanvasPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (readOnly || !(event.target instanceof Element) || !event.target.closest('.react-flow__pane')) return
+    if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target)) return
+    if (readOnly || !event.target.closest('.react-flow__pane')) return
     canvasPointerStartRef.current = { x: event.clientX, y: event.clientY }
     canvasPanMovedRef.current = false
   }, [readOnly])
 
   const handleCanvasPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    // GenerationPageLayer / Radix Portal 等经 createPortal 挂在舞台 DOM 之外，但仍在 React Fiber 子树里；
+    // 舞台手势只管真正落在舞台容器内的 DOM 事件，不抢导演台等页内全屏层的右键与拖拽。
+    if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
     if (readOnly || event.pointerType === 'touch' || isCanvasMenuTarget(event.target)) return
     const isBlankPrimaryPan =
       event.button === 0 &&
@@ -137,6 +141,7 @@ export function useGenerationCanvasReactFlowPointer({
   }, [nativePanReconciler])
 
   const handleCanvasWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
     const nativeLeftPan = nativeLeftPanRef.current
     if (!nativeLeftPan) return
     nativeLeftPan.lastX = event.clientX
