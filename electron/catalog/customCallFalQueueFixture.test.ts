@@ -8,7 +8,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-const { requestJson } = vi.hoisted(() => ({ requestJson: vi.fn() }));
+const { requestBinary } = vi.hoisted(() => ({ requestBinary: vi.fn() }));
 
 vi.mock("electron", () => ({
   app: { getPath: () => process.cwd(), getAppPath: () => process.cwd() },
@@ -19,11 +19,13 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../vendor/vendorHttp", () => ({
-  requestJson,
-  requestMultipart: vi.fn(),
-  vendorResponseLimitForKind: () => 8 * 1024 * 1024,
-}));
+vi.mock("../vendor/vendorHttp", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../vendor/vendorHttp")>();
+  return {
+    ...actual,
+    requestBinary,
+  };
+});
 
 import { runCustomCallScript } from "./customCallRunner";
 import type { Model, Vendor } from "./types";
@@ -49,10 +51,14 @@ const model = {
 describe("generic custom call runner × real fal.ai queue fixture", () => {
   it("covers submit -> status queue/progress/completed -> result, including first/last frame and Key auth", async () => {
     const statusValues = ["IN_QUEUE", "IN_PROGRESS", "COMPLETED"];
-    requestJson.mockImplementation(async (_vendor, _apiKey, method: string, url: string) => {
-      if (method === "POST") return { request_id: "req-123", status: "IN_QUEUE" };
-      if (url.endsWith("/status")) return { request_id: "req-123", status: statusValues.shift() };
-      return { video: { url: "https://cdn.example.test/final.mp4" }, seed: 42 };
+    const jsonBinary = (payload: unknown) => ({
+      bytes: Buffer.from(JSON.stringify(payload), "utf8"),
+      contentType: "application/json",
+    });
+    requestBinary.mockImplementation(async (_vendor, _apiKey, method: string, url: string) => {
+      if (method === "POST") return jsonBinary({ request_id: "req-123", status: "IN_QUEUE" });
+      if (url.endsWith("/status")) return jsonBinary({ request_id: "req-123", status: statusValues.shift() });
+      return jsonBinary({ video: { url: "https://cdn.example.test/final.mp4" }, seed: 42 });
     });
 
     const script = `const endpoint = '/fal-ai/wan/v2.2-a14b/image-to-video'
@@ -85,8 +91,8 @@ return result.video.url`;
     });
 
     expect(result.assets).toEqual(["https://cdn.example.test/final.mp4"]);
-    expect(requestJson).toHaveBeenCalledTimes(5);
-    const submit = requestJson.mock.calls[0];
+    expect(requestBinary).toHaveBeenCalledTimes(5);
+    const submit = requestBinary.mock.calls[0];
     expect(submit[2]).toBe("POST");
     expect(submit[4]).toEqual({ Authorization: "Key fixture-secret" });
     expect(submit[6]).toMatchObject({

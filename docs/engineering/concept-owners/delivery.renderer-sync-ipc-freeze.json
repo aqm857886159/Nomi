@@ -7,17 +7,17 @@
   "fact_kind": "rule",
   "migration_status": "converged",
   "owner": {
-    "path": "scripts/check-renderer-sync-ipc.mjs",
-    "symbol": "decide"
+    "path": "scripts/t8-structural-guards.mjs",
+    "symbol": "rendererSyncIpcSelectors"
   },
   "write_api": [
     {
-      "path": "scripts/check-renderer-sync-ipc.mjs",
-      "symbol": "decide"
+      "path": "scripts/t8-structural-guards.mjs",
+      "symbol": "rendererSyncIpcSelectors"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-16",
-  "notes": "合同 docs/fixes/2026-10-16-composer-mount-path.root-cause.json：check-renderer-sync-ipc 的 decide 判冻结清单只减不增。"
+  "notes": "合同 docs/fixes/2026-10-16-composer-mount-path.root-cause.json：2026-11-23 T-8 收口迁入 ESLint renderer-sync-ipc/no-restricted-syntax（存量冻结在 eslint-suppressions.json 只减不增）。"
 }

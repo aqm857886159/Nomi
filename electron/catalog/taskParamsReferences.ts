@@ -89,8 +89,11 @@ export function hasImageEditReferences(request: TaskParamsInput, selected?: Para
     return declaredComfyReferences(extras, selected).some((reference) => reference.family === 'image');
   }
   if (firstReferenceImage(request, selected)) return true;
-  // extras.image：headless/老调用方的裸键口径（部分 curated body 直读 {{request.params.image}}）。
-  return containsRefUrl([extras.image, referenceInputParams(extras, selected)]);
+  // 任何在共享参考键表声明过的显式参考载体键（image / image_with_roles / image_urls …）一视同仁计入，不硬编码单个 image。
+  const declaredReferenceValues = Object.entries(extras)
+    .filter(([key]) => classifyReferenceKey(key) !== null)
+    .map(([, value]) => value);
+  return containsRefUrl([declaredReferenceValues, referenceInputParams(extras, selected)]);
 }
 
 /**

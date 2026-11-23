@@ -41,8 +41,6 @@ export const GATE_INPUTS = Object.freeze({
   'check:error-surface': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/error-surface-baseline.json'], entries: ['scripts/check-error-surface.mjs'] },
   // check-heavy-path.mjs：src / electron 下非测试 ts 源
   'check:heavy-path': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/heavy-path-baseline.json'], entries: ['scripts/check-heavy-path.mjs'] },
-  // check-builtin-vendor-literals.mjs：ROOTS = electron、src，扩展名 ts / tsx
-  'check:builtin-vendor-literals': { roots: ['electron','src'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-builtin-vendor-literals.mjs'] },
   // check-read-path-writes.mjs：src / electron 的 ts / tsx（AST）；反例测试 check-read-path-writes.node-test.mjs 读真实的 electron/projects/repository.ts
   'check:read-path-writes': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/read-path-writes-baseline.json'], entries: ['scripts/check-read-path-writes.mjs', 'scripts/check-read-path-writes.node-test.mjs'] },
   // check-batch-machines.mjs：src / electron 下非测试 ts 源
@@ -51,8 +49,6 @@ export const GATE_INPUTS = Object.freeze({
   'check:capability-lifecycle': { roots: ['src','electron'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-capability-lifecycle.mjs'] },
   // check-no-default-overwrite.mjs：src / electron / workers 的 ts / tsx（AST）
   'check:no-default-overwrite': { roots: ['src','electron','workers'], exts: ['ts','tsx'], files: ['scripts/no-default-overwrite-baseline.json'], entries: ['scripts/check-no-default-overwrite.mjs'] },
-  // check-main-console.mjs：electron 主进程里的 console 调用
-  'check:main-console': { roots: ['electron'], exts: ['ts','tsx','mts','cts'], files: [], entries: ['scripts/check-main-console.mjs'] },
   // check-asset-evidence.mjs：electron 下非测试 ts 源
   'check:asset-evidence': { roots: ['electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/asset-evidence-baseline.json'], entries: ['scripts/check-asset-evidence.mjs'] },
   // check-media-import-owner.mjs：媒体导入口的唯一 owner，扫 electron / src
