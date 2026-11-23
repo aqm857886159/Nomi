@@ -2,7 +2,7 @@ t8-r6c-verify：通过
 
 - 验收线：t8-r6c-verify
 - 实现线：t8-r6c-impl
-- 验收 HEAD：c4e6c59a67a56c1aa56d5a1e23d2caaeed5c23d7
+- 验收 HEAD：87ef9f870f01ac7022cb41f74ae20a92699df5fe
 - 审批设计卡基线：`docs/plan/2026-11-24-unified-undo-history.md`（★1–★9 Row C）
 - Schema-v3 根因合同：`docs/fixes/2026-11-24-canvas-undo-patches-and-gesture-invariants.root-cause.json`
 - 提交链：`e516cec67`（前置特征测试）→ `a0cbd550d`（Immer 补丁栈替换并同提交删除 `canvasUndoJournal.ts`）→ `c08ce03cf`（场景登记与桌面证据）→ `ecb02a676`（并入 6B 基线）→ `eef1a564d`（干净工作树 5 轮性能基线）→ `c4e6c59a6`（`canvasControlsStructure.test.ts:85` 1 行测试对齐，`25/25` 通过）
@@ -78,3 +78,14 @@ t8-r6c-verify：通过
   - `zh-CN` 与 `en` 双轨在异步结果落盘后连按 10 次 `⌘Z`，节点、媒体尺寸 `1200×800`、`assetId: "paid-asset"`、`runId: "paid-record"`、`settledStatus: "success"` 与版本 100% 保留，`paidCalls = 0`。
   - `v0.24.1 → 6C → v0.24.1` 与 `6B → 6C → 6B` 双向往返打开均保留分镜、画布节点 ID 与 6C 编辑提示词，磁盘无新增历史格式。
 - **诚实未验证边界**：本机严禁消费真实付费 API 额度（`NOMI_SPEND_OK` 未设），真实付费抽检记为 `unverified` 留待协调周四复核；原生 Windows 桌面端 `Ctrl+Z` 与 Windows 安装包运行态记为 `unverified`。
+
+## 6. CI 修复与 `origin/main` 合入独立复验（`87ef9f870f01ac7022cb41f74ae20a92699df5fe`）
+
+- **修复核查**：
+  - `git diff origin/main HEAD --exit-code -- src/workbench/generationCanvas/components/canvasDraggingFlag.ts` 返回 0（零改动，静态依赖循环已彻底消除）；
+  - `src/workbench/generationCanvas/events/canvasUndoJournal.ts` 保持彻底删除状态；
+  - 节点与组拖拽已恢复忽略 Escape 的契约（松手一次提交，一次 Undo 回到起点），提交日志与增量 diff 均含 **0 处**本机路径泄露。
+- **独立复跑全绿（`EXIT=0`）**：
+  - `pnpm exec vitest run --maxWorkers=2 src/workbench/generationCanvas/store/canvasPatchHistory.characterization.test.ts tests/ux/selection-drag-lifecycle.test.mjs`：**2 passed · 37/37 passed**（22 + 15）；
+  - `node ./scripts/check-boundaries.mjs`：**✅ 3238 模块 · 53/53 基线冻结 · 0 新增越界/硬环**；
+  - `pnpm run check:filesize`、`node scripts/check-root-cause-contracts.mjs`、`node scripts/check-boundary-owners.mjs`（2141 条）、`tsc -p tsconfig.app.json --noEmit`、`tsc -p electron/tsconfig.json --noEmit`、`node scripts/check-test-types.mjs`（`src/ 0 错`）、`NOMI_BASE_REF=origin/main node scripts/lint-changed.mjs`（143 文件 0 错 0 新增警告）：**✅ 全绿**。
