@@ -3,6 +3,7 @@ import { ipcMain, type IpcMainInvokeEvent, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { assertTrustedSender } from '../ipcSenderGuard'
 import { LANE_IPC_CHANNELS, type LaneWorkspaceHandle, type LaneWorkspaceProjection } from '../shared/agentLane/laneContracts'
+import { trimWorkspaceProjectionForIpc } from '../shared/agentLane/laneProjection'
 import { LaneCommandError, parseLaneCommand } from './laneCommandCodec'
 import { laneErrorCodeOf } from '../shared/agentLane/laneErrorCodes'
 import { logError } from '../logging/logger'
@@ -120,7 +121,10 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
               const closing = close()
               void replace(async () => { await closing }).catch(error => logError('agent', 'workspace-terminal-close-failed', error))
             }
-            if (!target.isDestroyed()) target.send(LANE_IPC_CHANNELS.projection, { ...projection, workspaceId })
+            if (!target.isDestroyed()) {
+              const trimmed = trimWorkspaceProjectionForIpc(projection)
+              target.send(LANE_IPC_CHANNELS.projection, { ...trimmed, workspaceId })
+            }
           }
           const destroyed = () => { void replace(async () => { if (active?.workspaceId === workspaceId) await close() }) }
           active = { workspace, workspaceId, target, unsubscribe: workspace.subscribe(push), destroyed }

@@ -120,6 +120,52 @@ describe('desktop lane lifecycle', () => {
     } finally { await registration.dispose() }
   })
 
+  it('trims large successful tool-result text before pushing projection over IPC, while keeping error text and envelopes intact', async () => {
+    const sender = { id: 1, send: vi.fn(), isDestroyed: () => false, once: vi.fn(), removeListener: vi.fn() }
+    const unknownMetric = { state: 'unknown', reason: 'no-settled-turn' } as const
+    const hugeJson = JSON.stringify({ nodes: Array.from({ length: 200 }, (_, i) => ({ id: `n-${i}`, payload: 'x'.repeat(40) })) })
+    const initial: LaneWorkspaceProjection = {
+      lanes: [{ laneName: 'main', sessionId: 's1', createdAt: 1700000000000, updatedAt: 1700000001000 }],
+      active: {
+        lane: 'main',
+        parts: [
+          { sequence: 0, entryId: 'e1', entrySeq: 1, contentIndex: 0, kind: 'tool-result', toolCallId: 'ok-call', toolName: 'look_at_canvas',
+            text: hugeJson, isError: false, nextAction: { kind: 'none', userSees: 'canvas read', operationId: 'op-42' } },
+          { sequence: 1, entryId: 'e2', entrySeq: 2, contentIndex: 0, kind: 'tool-result', toolCallId: 'err-call', toolName: 'draft_shots',
+            text: 'aspectRatio: expected 16:9', isError: true, failure: { code: 'generation_input_invalid', issues: [{ path: 'aspectRatio', kind: 'not_allowed', allowed: ['16:9'] }] } },
+        ],
+        running: false, queues: [],
+        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 0,
+          cost: unknownMetric, contextTokens: unknownMetric, reasoningTokens: unknownMetric },
+        thinking: { supportedLevels: ['off'], level: 'off', canTurnOff: true },
+      },
+    }
+    const workspace = {
+      captureInputSignal: () => new AbortController().signal,
+      projection: () => initial,
+      subscribe: () => () => {},
+      close: vi.fn(),
+      execute: vi.fn(),
+    } as unknown as LaneWorkspaceHandle
+    const registration = registerAgentLaneIpc({
+      openWorkspace: async () => workspace,
+      validate: vi.fn(), configure: vi.fn(), receipt: vi.fn(), singleShot: vi.fn(), updatePolicy: vi.fn(), restoreInput: vi.fn(),
+    })
+    const send = (wire: unknown) => ipc.handlers.get(LANE_IPC_CHANNELS.command)!({ sender }, wire)
+    try {
+      await send({ kind: 'workspace-open', binding: { projectId: 'one' } })
+      const pushed = sender.send.mock.calls.at(-1)?.[1] as LaneWorkspaceProjection
+      const okPart = pushed.active.parts[0]
+      const errPart = pushed.active.parts[1]
+      expect(okPart).toMatchObject({ kind: 'tool-result', toolCallId: 'ok-call', isError: false, text: '',
+        nextAction: { kind: 'none', userSees: 'canvas read', operationId: 'op-42' } })
+      expect(errPart).toMatchObject({ kind: 'tool-result', toolCallId: 'err-call', isError: true,
+        text: 'aspectRatio: expected 16:9', failure: { code: 'generation_input_invalid' } })
+      // 主进程原始投影未被就地篡改
+      expect(initial.active.parts[0]?.kind === 'tool-result' ? initial.active.parts[0].text : '').toBe(hugeJson)
+    } finally { await registration.dispose() }
+  })
+
   it('captures composer input atomically without holding approvals behind a running prompt', async () => {
     const sender = { id: 1, send: vi.fn(), isDestroyed: () => false, once: vi.fn(), removeListener: vi.fn() }
     let finishConfigure!: () => void

@@ -1,0 +1,26 @@
+{
+  "name": "Agent 输入框上下文与可用模型清单准入解析",
+  "subject": "agent-lane.composer-context-admission",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneDesktopInput.ts",
+    "symbol": "parseLaneComposerContext"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "parseLaneComposerContext"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/agentLane/laneDesktopInput.test.ts",
+  "allowed_consumers": [
+    "electron/agentLane/laneDesktopRuntime.ts"
+  ],
+  "since": "2026-11-22",
+  "notes": "合同 docs/fixes/2026-11-22-agent-send-trim-waste.root-cause.json：主进程接收渲染层发送上下文时的唯一 fail-closed 解析边界；在精确纯值结构相等时复用上一次已通过 Zod 校验并深度冻结的 availableModels 数组，任意字段变化或非法结构仍完整走 Zod 校验拒收。"
+}

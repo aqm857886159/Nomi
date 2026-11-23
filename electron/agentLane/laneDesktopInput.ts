@@ -50,9 +50,65 @@ const composerSchema = intentSchema.extend({
   restoredIntent: intentSchema.optional(),
 }).strict().refine(value => !value.restoredIntent || !(value.retryFromEntryId || value.continueFromEntryId))
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+function isPlainDeepEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false
+    for (let i = 0; i < left.length; i += 1) {
+      if (!isPlainDeepEqual(left[i], right[i])) return false
+    }
+    return true
+  }
+  if (isPlainObject(left) && isPlainObject(right)) {
+    const leftKeys = Object.keys(left)
+    const rightKeys = Object.keys(right)
+    if (leftKeys.length !== rightKeys.length) return false
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(right, key)) return false
+      if (!isPlainDeepEqual(left[key], right[key])) return false
+    }
+    return true
+  }
+  return false
+}
+
+function freezeDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    for (const item of value) freezeDeep(item)
+    return Object.freeze(value)
+  }
+  if (isPlainObject(value)) {
+    for (const key of Object.keys(value)) freezeDeep(value[key])
+    return Object.freeze(value)
+  }
+  return value
+}
+
+let cachedAvailableModels: LaneComposerContext['availableModels'] | undefined
+
 export function parseLaneComposerContext(value: unknown): LaneComposerContext {
   if (Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8') > 256 * 1024) throw new Error('agent_lane_invalid_command')
-  return composerSchema.parse(value) as unknown as LaneComposerContext
+  if (
+    cachedAvailableModels
+    && isPlainObject(value)
+    && Array.isArray(value.availableModels)
+    && isPlainDeepEqual(value.availableModels, cachedAvailableModels)
+  ) {
+    const { availableModels: _matched, ...rest } = value
+    const parsedRest = composerSchema.parse(rest) as unknown as LaneComposerContext
+    return { ...parsedRest, availableModels: cachedAvailableModels }
+  }
+  const parsed = composerSchema.parse(value) as unknown as LaneComposerContext
+  if (parsed.availableModels) {
+    cachedAvailableModels = freezeDeep(parsed.availableModels)
+  }
+  return parsed
 }
 
 /** Resolve bytes only for provider requests; persisted messages keep immutable asset claims. */
