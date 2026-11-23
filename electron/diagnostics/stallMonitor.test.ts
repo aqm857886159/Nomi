@@ -212,9 +212,18 @@ describe("渲染层报文", () => {
 });
 
 describe("状态：三态里「监视器没运行」的两个原因", () => {
-  it("没装：not-installed；MCP stdio 子进程不装", () => {
+  it("没装：not-installed；MCP stdio 子进程（含剥离 env 仅带 mcpNodeLauncher.js 参数）不装", () => {
     expect(getStallMonitorStatus()).toEqual({ running: false, reason: "not-installed", rowsThisSession: 0 });
     expect(installStallMonitor({ env: { NOMI_MCP_STDIO: "1" } })).toBeNull();
+    expect(
+      installStallMonitor({
+        env: {},
+        argv: [
+          "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+          "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpNodeLauncher.js",
+        ],
+      }),
+    ).toBeNull();
     expect(getStallMonitorStatus().reason).toBe("not-installed");
   });
 

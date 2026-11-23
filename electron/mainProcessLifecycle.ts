@@ -10,6 +10,7 @@ import { installParentProcessWatchdog } from "./parentProcessWatchdog";
 import { installProcessStdioErrorGuards } from "./processStdio";
 import { setProductionRunE2eFixturePackagedState } from "./shared/productionRunE2eFixtureGate";
 import { exitWithoutConfirmation, registerQuitDrain } from "./quitTeardown";
+import { isMcpStdioLaunch } from "./productionRun/desktopLaunchIntent";
 
 type ElectronAppLifecycle = {
   readonly isPackaged: boolean;
@@ -17,6 +18,7 @@ type ElectronAppLifecycle = {
 
 type MainProcessLifecycleDependencies = {
   env?: NodeJS.ProcessEnv;
+  argv?: readonly string[];
   installCrashHandlers?: typeof installCrashHandlers;
   installUncaughtExceptionNoiseFilter?: typeof installUncaughtExceptionNoiseFilter;
   installProcessGoneHandlers?: typeof installProcessGoneHandlers;
@@ -59,7 +61,8 @@ export function installMainProcessLifecycle(
   // 打包版尤其——那正是真实宿主拉起我们的形态。所以这个进程里日志必须无条件镜像过去。
   // 必须排在 mainLoggerInstaller 之前：会话表头是第一行日志，晚一步它就只落盘、进不了宿主视野，
   // 而「这次到底起没起来、是哪个构建」正是宿主排查时要看的第一行。
-  if ((dependencies.env ?? process.env).NOMI_MCP_STDIO === "1") hostSurfaceMarker();
+  const launchEnv = dependencies.env ?? process.env;
+  if (isMcpStdioLaunch({ env: launchEnv, argv: dependencies.argv })) hostSurfaceMarker();
   // 排在崩溃处理之前：日志的第一行就是会话表头（版本/平台/pid）。启动早期崩掉时，
   // 「这次会话到底起没起来、是哪个构建」全靠它——晚装一步就正好丢掉最该有的那一行。
   mainLoggerInstaller();
@@ -72,7 +75,7 @@ export function installMainProcessLifecycle(
   // 不传 target：进程死亡事件挂在 Electron 的 app 上（覆盖所有窗口，含辅助窗），由 crashLog 自己绑。
   processGoneInstaller();
   // 卡顿时间线的主进程监视器（诊断包用，只写本机）；MCP stdio 子进程里自己不装。回滚 = 删这一行。
-  stallMonitorInstaller({ env: dependencies.env ?? process.env });
+  stallMonitorInstaller(dependencies.argv ? { env: launchEnv, argv: dependencies.argv } : { env: launchEnv });
   const stopParentProcessWatchdog = watchdogInstaller({
     // 正装由操作系统管理；只有开发/测试实例应跟随临时启动器退出。
     enabled: !app.isPackaged,
