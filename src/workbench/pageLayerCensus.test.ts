@@ -37,10 +37,6 @@ const BODY_PORTALS: Readonly<Record<string, BodyPortalEntry>> = {
     owner: 'anchored', count: 2,
     lifecycle: '素材块 hover 小提示与放大预览（pointer-events-none，不接键盘）：跟 hover 状态出现和消失，鼠标一离开就没。',
   },
-  'src/workbench/creation/DocumentListSidebar.tsx': {
-    owner: 'anchored', count: 1,
-    lifecycle: '文稿 / 方案行右键菜单（fixed，popover 档）：菜单开关是组件本地 state，选一项 / 点外面 / 侧栏卸载就收。',
-  },
   'src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx': {
     owner: 'shell-modal', count: 1,
     lifecycle: '画布选中文字后的「存为提示词」小钮 + 居中保存对话框（居中遮罩，存量手写层级见 scripts/overlay-z-baseline.json）：控制器挂一次、状态是它自己的本地 state，点背景 / ✕ / 保存成功就收。',
@@ -56,10 +52,6 @@ const BODY_PORTALS: Readonly<Record<string, BodyPortalEntry>> = {
   'src/workbench/generationCanvas/nodes/director/panels/Popover.tsx': {
     owner: 'anchored', count: 1,
     lifecycle: '导演台浮层原语（BodyPortal + fixed，popover 档）：外点关闭、捕获期 Esc 关闭；用户要切页必须先点顶栏，那一下就是浮层的外点，浮层先收掉。',
-  },
-  'src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx': {
-    owner: 'anchored', count: 1,
-    lifecycle: '导演台时间轴右键菜单（BodyPortal + fixed，popover 档）：外点 / Esc 关闭，同上。',
   },
 }
 

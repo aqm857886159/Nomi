@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { WORKBENCH_MENU_TRIGGER_OPEN_CLASS } from '../../design'
 import { cn } from '../../utils/cn'
 import { categoryDisplayName, type ProjectCategory } from '../project/projectCategories'
 import { getCategoryIcon } from './categoryIcons'
@@ -17,7 +18,11 @@ type Props = {
   onCancelEdit?: () => void
   onActivate: () => void
   onDropNode?: (nodeId: string) => void
-  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void
+  /**
+   * 右键菜单：把这一行（真实 <button>）包成触发器（`WorkbenchContextMenu`）。由分类树给，行自己不认识菜单内容；
+   * 菜单开着时行带 `data-state="open"`，非激活态叠 `WORKBENCH_MENU_TRIGGER_OPEN_CLASS` 显出打开态。
+   */
+  contextMenu?: (trigger: React.ReactElement) => React.ReactElement
 }
 
 export default function CategoryItem({
@@ -31,7 +36,7 @@ export default function CategoryItem({
   onCancelEdit,
   onActivate,
   onDropNode,
-  onContextMenu,
+  contextMenu,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const displayName = categoryDisplayName(category)
@@ -104,11 +109,10 @@ export default function CategoryItem({
     )
   }
 
-  return (
+  const row = (
     <button
       type="button"
       onClick={onActivate}
-      onContextMenu={onContextMenu}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -118,7 +122,7 @@ export default function CategoryItem({
       className={cn(
         'w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-nomi-sm transition-colors',
         'text-caption leading-tight border border-transparent',
-        active ? 'bg-nomi-ink-10 text-nomi-ink' : 'text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+        active ? 'bg-nomi-ink-10 text-nomi-ink' : cn('text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink', WORKBENCH_MENU_TRIGGER_OPEN_CLASS),
         dragOver && 'border-nomi-ink-40',
         collapsed && 'justify-center px-0',
       )}
@@ -159,4 +163,5 @@ export default function CategoryItem({
       ) : null}
     </button>
   )
+  return contextMenu ? contextMenu(row) : row
 }

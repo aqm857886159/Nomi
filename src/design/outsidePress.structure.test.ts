@@ -17,10 +17,8 @@ import { describe, expect, it } from 'vitest'
 const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 const OWNER = 'src/design/outsidePress.ts'
 const BUBBLE_PRESS_BASELINE: Record<string, number> = {
-  'src/workbench/creation/DocumentListSidebar.tsx': 1,
   'src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts': 1,
   'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts': 1,
-  'src/workbench/sidebar/CategoryTree.tsx': 1,
 }
 
 function walk(dir: string, out: string[] = []): string[] {
