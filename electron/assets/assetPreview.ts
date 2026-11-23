@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { renameSyncOnce, renameSyncWithRetry } from "../jsonFile";
 import { resolveFfmpegPath } from "../export/ffmpegRunner";
 import { probeMediaMetadata, runBoundedProcess, type MediaProbeMetadata } from "../export/mediaProbe";
 import { logWarn } from "../logging/logger";
@@ -81,7 +82,7 @@ function pendingPreviewPathFor(previewPath: string): string {
 /** 把这次的临时输出发布成正式预览：别人已经先发布了就用别人的、丢掉自己的；发布失败也只删自己的。 */
 function publishPendingPreview(pendingPath: string, previewPath: string): boolean {
   try {
-    if (!fs.existsSync(previewPath)) fs.renameSync(pendingPath, previewPath);
+    if (!fs.existsSync(previewPath)) renameSyncOnce(pendingPath, previewPath);
   } catch (error) {
     logWarn("assets", "asset-preview-publish-failed", { previewPath }, error);
   }
@@ -276,7 +277,7 @@ function adoptPreparedPreview(absolutePath: string, prepared?: StoredAssetPrevie
   const extension = path.extname(scratchPath).slice(1).toLowerCase() === "png" ? "png" : "jpg";
   const previewPath = previewPathFor(absolutePath, extension);
   try {
-    fs.renameSync(scratchPath, previewPath);
+    renameSyncWithRetry(scratchPath, previewPath);
     return { ...prepared, previewPath };
   } catch (error) {
     logWarn("assets", "asset-preview-adopt-failed", { scratchPath, previewPath }, error);
