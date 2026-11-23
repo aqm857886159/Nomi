@@ -61,15 +61,18 @@ type Session = {
   jobId: string;
   projectId: string;
   nodeId: string;
-  plan: VideoDepthProcessingPlan;
-  workDir: string;
+  plan: VideoDepthProcessingPlan | null;
+  workDir: string | null;
   framesDir: string;
   outMp4: string;
   totalFrames: number;
+  prepareAbort: AbortController;
+  prepareChild: ChildProcessWithoutNullStreams | null;
   encoder: ChildProcessWithoutNullStreams | null;
   encoderExit: Promise<void> | null;
   cleanupSource: () => void;
   cancelled: boolean;
+  prepared: boolean;
 };
 
 const sessions = new Map<string, Session>();
@@ -99,10 +102,20 @@ export type VideoDepthPrepareResult = {
   ortWasmBaseUrl: string;
 };
 
-function runProcess(binary: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+function runProcess(binary: string, args: string[], session?: Session): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     ensureExecutable(binary);
-    const child = spawn(binary, args, { windowsHide: true });
+    const child = spawn(binary, args, { windowsHide: true }) as ChildProcessWithoutNullStreams;
+    if (session) {
+      session.prepareChild = child;
+      if (session.cancelled) {
+        try {
+          child.kill();
+        } catch {
+          /* 已退出 */
+        }
+      }
+    }
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (chunk) => {
@@ -111,21 +124,34 @@ function runProcess(binary: string, args: string[]): Promise<{ stdout: string; s
     child.stderr?.on("data", (chunk) => {
       stderr += String(chunk);
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (session?.prepareChild === child) session.prepareChild = null;
+      reject(error);
+    });
     child.on("close", (code) => {
+      if (session?.prepareChild === child) session.prepareChild = null;
       if (code === 0) resolve({ stdout, stderr });
       else reject(new Error(`exit ${code}: ${stderr.trim().slice(-300) || "(no stderr)"}`));
     });
   });
 }
 
-function requireSession(jobId: string): Session {
+function requirePreparedSession(jobId: string): Session & { plan: VideoDepthProcessingPlan; workDir: string } {
   const session = sessions.get(jobId);
-  if (!session) throw new VideoDepthJobError("media-failed", `unknown video depth job: ${jobId}`, false);
-  return session;
+  if (!session || !session.prepared || !session.plan || !session.workDir) {
+    throw new VideoDepthJobError("media-failed", `unknown video depth job: ${jobId}`, false);
+  }
+  return session as Session & { plan: VideoDepthProcessingPlan; workDir: string };
 }
 
 function disposeSession(session: Session): void {
+  session.prepareAbort.abort();
+  try {
+    session.prepareChild?.kill();
+  } catch {
+    /* 已经退出了 */
+  }
+  session.prepareChild = null;
   try {
     session.encoder?.kill();
   } catch {
@@ -136,10 +162,12 @@ function disposeSession(session: Session): void {
   } catch {
     /* 源是项目内文件时本来就没有临时副本 */
   }
-  try {
-    fs.rmSync(session.workDir, { recursive: true, force: true });
-  } catch {
-    /* 临时目录清不掉不该让整次运行失败 */
+  if (session.workDir) {
+    try {
+      fs.rmSync(session.workDir, { recursive: true, force: true });
+    } catch {
+      /* 临时目录清不掉不该让整次运行失败 */
+    }
   }
   sessions.delete(session.jobId);
 }
@@ -159,20 +187,47 @@ export async function prepareVideoDepthJob(
   const ffprobePath = resolveFfprobePath();
   if (!ffmpegPath || !ffprobePath) throw new VideoDepthJobError("media-failed", "ffmpeg/ffprobe not found", false);
 
-  let source: { filePath: string; cleanup: () => void };
-  try {
-    source = await resolveVideoLocalPath(payload.sourceUrl, payload.projectId);
-  } catch (error) {
-    throw new VideoDepthJobError("source-unavailable", error instanceof Error ? error.message : String(error), false);
-  }
-
+  // 单项目互斥锁必须在任何 await（找本地源、下载 50MB 权重、ffmpeg 抽帧）之前占住，
+  // 并在失败或取消时由 disposeSession 无条件释放——否则下载/抽帧窗口期内再点一次会并发起第二条下载流。
   const jobId = crypto.randomUUID();
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-depth-"));
-  const framesDir = path.join(workDir, "frames");
-  fs.mkdirSync(framesDir, { recursive: true });
+  const session: Session = {
+    jobId,
+    projectId: payload.projectId,
+    nodeId: payload.nodeId,
+    plan: null,
+    workDir: null,
+    framesDir: "",
+    outMp4: "",
+    totalFrames: 0,
+    prepareAbort: new AbortController(),
+    prepareChild: null,
+    encoder: null,
+    encoderExit: null,
+    cleanupSource: () => undefined,
+    cancelled: false,
+    prepared: false,
+  };
+  sessions.set(jobId, session);
 
   try {
-    const probe = parseProbeOutput((await runProcess(ffprobePath, buildProbeArgs(source.filePath))).stdout);
+    let source: { filePath: string; cleanup: () => void };
+    try {
+      source = await resolveVideoLocalPath(payload.sourceUrl, payload.projectId);
+      session.cleanupSource = source.cleanup;
+    } catch (error) {
+      throw new VideoDepthJobError("source-unavailable", error instanceof Error ? error.message : String(error), false);
+    }
+    if (session.cancelled) throw new VideoDepthJobError("media-failed", "job was cancelled", false);
+
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-depth-"));
+    const framesDir = path.join(workDir, "frames");
+    fs.mkdirSync(framesDir, { recursive: true });
+    session.workDir = workDir;
+    session.framesDir = framesDir;
+    session.outMp4 = path.join(workDir, "depth.mp4");
+
+    const probe = parseProbeOutput((await runProcess(ffprobePath, buildProbeArgs(source.filePath), session)).stdout);
+    if (session.cancelled) throw new VideoDepthJobError("media-failed", "job was cancelled", false);
     if (!probe) {
       throw new VideoDepthJobError("source-unmeasurable", "ffprobe could not measure the source video", false);
     }
@@ -193,6 +248,7 @@ export async function prepareVideoDepthJob(
       let alreadyDone = 0;
       try {
         await ensureVideoDepthModels(required, {
+          signal: session.prepareAbort.signal,
           onProgress: (progress) => {
             emit({
               jobId,
@@ -212,6 +268,7 @@ export async function prepareVideoDepthJob(
         );
       }
     }
+    if (session.cancelled) throw new VideoDepthJobError("media-failed", "job was cancelled", false);
 
     emit({ jobId, nodeId: payload.nodeId, phase: "extracting" });
     const durationSeconds = plan.durationSeconds ?? 0;
@@ -225,10 +282,12 @@ export async function prepareVideoDepthJob(
           outHeight: plan.outHeight,
           outDir: framesDir,
         }),
+        session,
       );
     } catch (error) {
       throw new VideoDepthJobError("media-failed", error instanceof Error ? error.message : String(error), true);
     }
+    if (session.cancelled) throw new VideoDepthJobError("media-failed", "job was cancelled", false);
 
     // 帧数以**磁盘上真有几张**为准，不用估算值——估算只用来显示预估，不能当循环上界。
     const totalFrames = fs.readdirSync(framesDir).filter((name) => name.endsWith(".jpg")).length;
@@ -236,21 +295,9 @@ export async function prepareVideoDepthJob(
       throw new VideoDepthJobError("media-failed", "ffmpeg produced no frames for the selected range", false);
     }
 
-    const session: Session = {
-      jobId,
-      projectId: payload.projectId,
-      nodeId: payload.nodeId,
-      plan,
-      workDir,
-      framesDir,
-      outMp4: path.join(workDir, "depth.mp4"),
-      totalFrames,
-      encoder: null,
-      encoderExit: null,
-      cleanupSource: source.cleanup,
-      cancelled: false,
-    };
-    sessions.set(jobId, session);
+    session.plan = plan;
+    session.totalFrames = totalFrames;
+    session.prepared = true;
     logInfo("video-depth", "prepared", { jobId, totalFrames, width: plan.outWidth, height: plan.outHeight });
 
     return {
@@ -262,23 +309,14 @@ export async function prepareVideoDepthJob(
       ortWasmBaseUrl: localRuntimeBundleUrl("ort"),
     };
   } catch (error) {
-    try {
-      source.cleanup();
-    } catch {
-      /* 清理失败不该盖住真正的错误 */
-    }
-    try {
-      fs.rmSync(workDir, { recursive: true, force: true });
-    } catch {
-      /* 同上 */
-    }
+    disposeSession(session);
     throw error;
   }
 }
 
 /** 取一批已抽好的 JPEG 帧（1-based 序号）。 */
 export function readVideoDepthFrames(payload: { jobId: string; firstIndex: number; count: number }): Buffer[] {
-  const session = requireSession(payload.jobId);
+  const session = requirePreparedSession(payload.jobId);
   const frames: Buffer[] = [];
   for (let i = 0; i < payload.count; i += 1) {
     const oneBased = payload.firstIndex + i + 1;
@@ -288,7 +326,7 @@ export function readVideoDepthFrames(payload: { jobId: string; firstIndex: numbe
   return frames;
 }
 
-function startEncoder(session: Session): ChildProcessWithoutNullStreams {
+function startEncoder(session: Session & { plan: VideoDepthProcessingPlan }): ChildProcessWithoutNullStreams {
   const ffmpegPath = resolveFfmpegPath();
   ensureExecutable(ffmpegPath);
   const child = spawn(
@@ -324,7 +362,7 @@ function startEncoder(session: Session): ChildProcessWithoutNullStreams {
 
 /** 把一批裸帧写进编码器 stdin。第一次调用时才真正拉起 ffmpeg（取消得早就一次也不拉）。 */
 export async function writeVideoDepthFrames(payload: { jobId: string; frames: Uint8Array[] }): Promise<void> {
-  const session = requireSession(payload.jobId);
+  const session = requirePreparedSession(payload.jobId);
   if (session.cancelled) throw new VideoDepthJobError("media-failed", "job was cancelled", false);
   const encoder = session.encoder ?? startEncoder(session);
   for (const frame of payload.frames) {
@@ -340,7 +378,7 @@ export type VideoDepthFinishResult = { url: string; assetId?: string; frames: nu
 
 /** 收尾：关 stdin、等编码完成、落成项目资产。 */
 export async function finishVideoDepthJob(payload: { jobId: string }): Promise<VideoDepthFinishResult> {
-  const session = requireSession(payload.jobId);
+  const session = requirePreparedSession(payload.jobId);
   try {
     if (!session.encoder || !session.encoderExit) {
       throw new VideoDepthJobError("media-failed", "no frames were written before finish", false);
@@ -362,11 +400,34 @@ export async function finishVideoDepthJob(payload: { jobId: string }): Promise<V
   }
 }
 
-/** 取消：杀编码器、清临时目录、忘掉会话。已落盘的历史产物不动（与画布删除语义一致）。 */
-export function cancelVideoDepthJob(payload: { jobId: string }): { ok: true } {
-  const session = sessions.get(payload.jobId);
+export type VideoDepthCancelPayload =
+  | { jobId: string; projectId?: string; nodeId?: string }
+  | { jobId?: string; projectId: string; nodeId?: string };
+
+/** 取消：中断下载/抽帧、杀编码器、清临时目录、忘掉会话。已落盘的历史产物不动（与画布删除语义一致）。 */
+export function cancelVideoDepthJob(payload: VideoDepthCancelPayload): { ok: true } {
+  let session: Session | undefined;
+  if (typeof payload.jobId === "string" && payload.jobId) {
+    session = sessions.get(payload.jobId);
+    if (!session) {
+      for (const candidate of sessions.values()) {
+        if (candidate.nodeId === payload.jobId) {
+          session = candidate;
+          break;
+        }
+      }
+    }
+  } else if (typeof payload.projectId === "string" && payload.projectId) {
+    for (const candidate of sessions.values()) {
+      if (candidate.projectId === payload.projectId && (!payload.nodeId || candidate.nodeId === payload.nodeId)) {
+        session = candidate;
+        break;
+      }
+    }
+  }
   if (!session) return { ok: true };
   session.cancelled = true;
+  session.prepareAbort.abort();
   logWarn("video-depth", "cancelled", { jobId: session.jobId });
   disposeSession(session);
   return { ok: true };

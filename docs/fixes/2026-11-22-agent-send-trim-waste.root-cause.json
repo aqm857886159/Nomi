@@ -1,0 +1,199 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-22-agent-send-trim-waste",
+  "problem_type": "uncached-hot-path-rescan-and-redundant-ipc-write",
+  "symptom": "Sending a message in the Agent panel stalls visibly before the user bubble appears because the main process rescans all skill directories twice (~1,800 FS calls), unconditionally fsyncs the approval policy file, deep-clones the model catalog and re-parses availableModels with Zod on every send, and ships full successful tool-result JSON over IPC.",
+  "direct_cause": "discoverSkillRecords always rescans every skill root from scratch; writeAgentApprovalPolicy writes and fsyncs even when policy mode is unchanged; selectModel invokes readCatalog() structuredClone and parseLaneComposerContext re-runs Zod on unchanged availableModels; laneIpc forwards full non-error tool-result text unused by the renderer.",
+  "class_root": "Missing source-truth invalidation and boundary payload shaping at the shared main-process boundaries (skill catalog discovery, approval policy writer, model/composer admission, and lane IPC projection push).",
+  "affected_population": [
+    "All desktop creators sending messages in the Agent panel, especially in multi-turn tool-heavy conversations or under disk/CPU contention"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneSkillCatalog.mts",
+    "electron/settings/agentApprovalPolicySettings.ts",
+    "electron/agentLane/laneDesktopRuntime.ts",
+    "electron/agentLane/laneDesktopInput.ts",
+    "electron/shared/agentLane/laneProjection.ts",
+    "electron/agentLane/laneIpc.ts"
+  ],
+  "entry_points": [
+    "Agent panel send -> nomi:agent-lane:command (prompt/steer/follow-up) -> dependencies.configure + skillIndex.refresh + laneIpc projection push",
+    "Direct callers of discoverSkillRecords, readSkillRecords, writeAgentApprovalPolicy, parseLaneComposerContext, and trimWorkspaceProjectionForIpc"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/fs.html#fspromiseslstatpath-options",
+      "checked_at": "2026-11-22",
+      "purpose": "Confirm Node.js fs/promises.lstat({ bigint: true }) nanosecond mtimeNs/ctimeNs/ino metadata semantics for single-mechanism skill directory fingerprinting"
+    }
+  ],
+  "invariants": [
+    "Unchanged skill roots reuse the cached SkillDiscoveryResult with zero SKILL.md reads; adding a skill, editing SKILL.md frontmatter, deleting a skill, or swapping a symlink invalidates on the very next refresh.",
+    "writeAgentApprovalPolicy performs zero disk writes and zero fsyncSync calls when the normalized policy mode equals the current effective policy, and writes atomically when the mode actually changes.",
+    "selectModel reuses cached model selection while catalogRevisionToken() and model preference are unchanged, and re-resolves immediately on catalog byte change or locked credentials.",
+    "parseLaneComposerContext reuses deep-frozen validated availableModels only on exact plain-value structural equality, preserving strict fail-closed Zod rejection on any mutation or invalid field.",
+    "trimWorkspaceProjectionForIpc strips text on successful (isError: false) tool-result parts at the IPC boundary while preserving error tool-result text, failure envelopes, nextAction, and in-process lane.projection() completeness."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane",
+    "tests": [
+      "electron/agentLane/laneSkillCatalogCache.test.ts",
+      "electron/agentLane/laneIpc.test.ts",
+      "electron/agentLane/laneDesktopInput.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneSkillCatalog.mts",
+      "symbol": "discoverSkillRecords"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/agentApprovalPolicySettings.ts",
+      "symbol": "writeAgentApprovalPolicy"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "writeAgentApprovalPolicy"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "parseLaneComposerContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "trimWorkspaceProjectionForIpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneIpc.ts",
+      "symbol": "trimWorkspaceProjectionForIpc"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "The six entries own distinct responsibilities along the send pipeline (skill directory discovery, approval policy persistence, desktop runtime configuration, composer context parsing, IPC projection shaping, and IPC channel push); each invariant is enforced at its single shared boundary rather than duplicated across callers."
+  },
+  "generality_proof": "Because every skill refresh in the desktop process flows through discoverSkillRecords, every policy write flows through writeAgentApprovalPolicy, every send model/context resolution flows through laneDesktopRuntime/laneDesktopInput, and every renderer projection push flows through laneIpc, enforcing invalidation and trimming at those four boundaries covers prompt, steer, follow-up, and all repeated refreshes within a turn without touching laneHost.mts.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneSkillCatalog.mts",
+      "symbol": "discoverSkillRecords",
+      "responsibility": "Own skill directory tree discovery with a single-slot last-result memo validated solely by recursive nanosecond lstat/readdir tree fingerprinting."
+    },
+    {
+      "path": "electron/settings/agentApprovalPolicySettings.ts",
+      "symbol": "writeAgentApprovalPolicy",
+      "responsibility": "Own approval policy persistence as the sole idempotency check, skipping atomic backup/fsync when normalized mode is unchanged."
+    },
+    {
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "createDesktopLaneDependencies",
+      "responsibility": "Cache text model resolution against catalogRevisionToken() and delegate policy persistence directly to writeAgentApprovalPolicy."
+    },
+    {
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "parseLaneComposerContext",
+      "responsibility": "Skip redundant Zod re-validation of unchanged availableModels while keeping strict validation fail-closed."
+    },
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "trimWorkspaceProjectionForIpc",
+      "responsibility": "Strip renderer-unused non-error tool-result text while preserving error text and structured envelopes."
+    },
+    {
+      "path": "electron/agentLane/laneIpc.ts",
+      "symbol": "registerAgentLaneIpc",
+      "responsibility": "Apply trimWorkspaceProjectionForIpc at the single IPC projection push boundary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "entry_point": "configure / setPolicy / openWorkspace",
+      "disposition": "enforced",
+      "evidence": "Both configure and setPolicy route policy persistence through writeAgentApprovalPolicy and model resolution through catalogRevisionToken()-keyed selectModel."
+    },
+    {
+      "path": "electron/agentLane/laneNativeDesktop.mts",
+      "entry_point": "openLaneNativeDesktop -> skillIndex.refresh",
+      "disposition": "enforced",
+      "evidence": "All skillIndex.refresh() calls (startup, laneHost:625 admission, laneHost:276 systemPromptForRun) converge on discoverSkillRecords."
+    },
+    {
+      "path": "electron/agentLane/laneIpc.ts",
+      "entry_point": "LANE_IPC_CHANNELS.projection push",
+      "disposition": "enforced",
+      "evidence": "Every workspace projection pushed to WebContents passes through trimWorkspaceProjectionForIpc."
+    },
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "entry_point": "lane.projection() in-process callers",
+      "disposition": "not-affected",
+      "evidence": "In-process lane.projection() retains full tool-result text for tests and host assertions; trimming is scoped strictly to the renderer IPC boundary."
+    }
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-22",
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any growth in bundled/user skills or multi-turn tool-result history amplifies send latency on every Agent message across all users and machines.",
+    "same_class_scan": [
+      "Audited all 11 readSkillRecords callers via scripts/door-map.mjs; all converge on discoverSkillRecords.",
+      "Audited all writeAgentApprovalPolicy callers via scripts/door-map.mjs (1 door, 2 sites in laneDesktopRuntime.ts).",
+      "Audited all tool-result part.text readers across src/, electron/, and tests/ via git grep; confirmed renderer laneViewModel.ts reads part.text only when part.isError is true."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneSkillCatalog.mts",
+    "invariant": "Hot-path send boundaries must reuse validated/discovered state when underlying source truth has not changed and must not transmit renderer-unused tool-result bodies over IPC.",
+    "failure_mode": "Any detected filesystem fingerprint change, catalog revision change, or schema mismatch immediately invalidates memoized state and falls back to full fresh evaluation.",
+    "exception_policy": "none",
+    "strategy": "Enforce source-truth caching and IPC projection trimming at the four shared boundaries, guarded by FS-count/invalidation unit tests and registered 50-turn tool-heavy + 100-item plain-text performance scenarios.",
+    "artifacts": [
+      "electron/agentLane/laneSkillCatalog.mts",
+      "electron/settings/agentApprovalPolicySettings.ts",
+      "electron/agentLane/laneDesktopRuntime.ts",
+      "electron/agentLane/laneDesktopInput.ts",
+      "electron/shared/agentLane/laneProjection.ts",
+      "electron/agentLane/laneIpc.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneSkillCatalogCache.test.ts",
+    "electron/settings/agentApprovalPolicySettings.test.ts",
+    "electron/agentLane/laneIpc.test.ts",
+    "electron/shared/agentLane/laneProjection.test.ts",
+    "electron/agentLane/laneDesktopInput.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneSkillCatalogCache.test.ts",
+    "electron/settings/agentApprovalPolicySettings.test.ts",
+    "electron/agentLane/laneIpc.test.ts",
+    "electron/shared/agentLane/laneProjection.test.ts",
+    "electron/agentLane/laneDesktopInput.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy parallel path was introduced; existing boundaries were upgraded in place without fallbacks."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Relies solely on Node.js built-in fs/promises.lstat / readdir and existing catalogRevisionToken(); no external cache or watcher dependency is added.",
+    "exit_criteria": []
+  },
+  "migration": "No on-disk schema or user data migration is required; existing skill directories, approval policy JSON files, and pi JSONL sessions continue to work identically.",
+  "residual_risks": [
+    "First message after project open still upgrades openLaneHistory to openLane (configureModel -> openLaneNativeDesktop) to avoid moving 450-1200ms cold native assembly onto project-open startup.",
+    "Renderer still waits for main-process JSONL persistence before mounting the user bubble (optimistic echo D3-11 is deferred to a separate coordinator decision)."
+  ]
+}
