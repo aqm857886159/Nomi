@@ -1,0 +1,79 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 16GB",
+  "commit": "a0cbd550d",
+  "head": "a0cbd550d0617821062128f0f34e9d6e6d97276a",
+  "dirty": true,
+  "sourceTree": "7b599655b2e8341415979719171b561f9de92028",
+  "date": "2026-11-23",
+  "runs": 5,
+  "results": [
+    {
+      "id": "canvas-undo-landed-200",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 17.7,
+          "p95": 18.2
+        },
+        "projectionMs": {
+          "runs": 5,
+          "median": 0.8,
+          "p95": 1
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "heapUsedMiB": {
+          "runs": 5,
+          "median": 38.6,
+          "p95": 39.2
+        }
+      },
+      "samples": {
+        "response": [
+          17.69999998807907,
+          17.30000001192093,
+          18.19999998807907,
+          16.80000001192093,
+          18.099999964237213
+        ],
+        "projectionMs": [
+          1.100000023841858,
+          0.800000011920929,
+          0.800000011920929,
+          0.800000011920929,
+          0.800000011920929
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "heapUsedMiB": [
+          35.80878829956055,
+          36.922325134277344,
+          38.628841400146484,
+          38.99454879760742,
+          39.23140335083008
+        ]
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 18,
+        "p95": 18.3,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 16GB",
+        "date": "2026-11-23",
+        "commit": "72276afc9"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
