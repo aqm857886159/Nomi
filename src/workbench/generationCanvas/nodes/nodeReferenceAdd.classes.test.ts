@@ -27,11 +27,6 @@ const CAP = 16 // 每类最多放到几件（档案上限都在这之下；到 C
 
 type Node = GenerationCanvasNode
 
-const KNOWN_DRIFT_CLASSES = [
-  'audio·用途缺·回写丢了这一件',
-  'image·用途缺·回写丢了这一件·只有首尾帧格的摆法',
-]
-
 function nodeFor(archetypeId: string, kind: 'video' | 'image', vendor: string | undefined): Node {
   return {
     id: 'n', kind, title: '', position: { x: 0, y: 0 },
@@ -149,15 +144,13 @@ describe('生成框「+」：给哪几类 ⇄ 真落得下（全部档案 × 渠
     })
   }
 
-  // 两份写入对照（协调 2026-11-12：合并留后续，本 PR 先钉住）。付费卡回写那条（planReferenceProjection）按「用途」找格，
-  // 生成框入口按「种类」找格：用途缺省 = 通用参考时，只有首帧 / 尾帧格的摆法、音频格都不认它，这一件就被回写丢掉。
-  // 这条断言把漂移钉成下面这几类（逐格原样列在报告「门」那节）：多出新的一类就红；合并修好之后也会红，提醒删掉这份清单。
-  it('两份写入的漂移只有已知的这几类', () => {
+  // 两份写入对照：付费卡回写（planReferenceProjection）与生成框入口（addAssetUrlToNode）在全部档案 × 渠道 × 已放数量上零漂移（原已知的音频/首尾帧缺用途丢件漂移已同刀修掉并删清单）。
+  it('两份写入零漂移（付费卡回写与生成框落格完全一致）', () => {
     const classes = [...new Set(results.flatMap((result) => result.drift.map((cell) => cell.driftClass)))].sort()
     // 逐格清单（写报告用）：NOMI_DRIFT_DUMP=<文件> 时把每一类的格数、档案和全部格写出去。
     if (process.env.NOMI_DRIFT_DUMP) writeFileSync(process.env.NOMI_DRIFT_DUMP, JSON.stringify(results.flatMap((r) => r.drift), null, 1))
     if (process.env.NOMI_DRIFT_DUMP) writeFileSync(`${process.env.NOMI_DRIFT_DUMP}.summary.json`, JSON.stringify(classes.map((c) => ({ c, cells: results.flatMap((r) => r.drift).filter((cell) => cell.driftClass === c).length, archetypes: [...new Set(results.flatMap((r) => r.drift).filter((cell) => cell.driftClass === c).map((cell) => cell.label.split('@')[0]))] })), null, 1))
-    expect(classes).toEqual(KNOWN_DRIFT_CLASSES)
+    expect(classes).toEqual([])
   })
 
   // 另三种起点（只默认渠道）：手选了方式（档案里每一种带格的方式各一遍）、连进来一条首帧边、首帧格特意空着。

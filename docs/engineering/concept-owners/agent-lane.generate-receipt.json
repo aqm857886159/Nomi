@@ -18,6 +18,10 @@
     {
       "path": "electron/shared/agentLane/draftCanvasLanding.ts",
       "symbol": "describeDraftCanvasLanding"
+    },
+    {
+      "path": "electron/shared/agentLane/draftCanvasLanding.ts",
+      "symbol": "summarizeDraftedShotsForModel"
     }
   ],
   "forbidden_derivations": [],

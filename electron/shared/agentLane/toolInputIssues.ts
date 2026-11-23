@@ -358,6 +358,8 @@ export function issuesFromParameterRejection(rejection: ParameterRejectionLike):
     case "unknown_variant":
       return [{ path, kind: "not_allowed", allowed: [...(rejection.allowedVariantIds ?? [])],
         ...(rejection.allowedVariantIds?.length === 0 ? { note: "this model has no variants; omit variantId" } : {}) }];
+    case "mode_input_missing":
+      return [{ path, kind: "missing", ...(rejection.min !== undefined ? { expected: `at least ${rejection.min} reference(s)` } : {}) }];
     default:
       return [{ path, kind: "invalid" }];
   }
