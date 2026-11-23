@@ -8,7 +8,6 @@ import type { Model, Vendor } from "../../../electron/catalog/types";
 import type { TaskRequest } from "../../../electron/runtime";
 import { startTextUpstream, type UpstreamProtocol, type UpstreamReply } from "./textUpstream";
 import { FIXTURE_PNG as PNG, harnessState, type Sender } from "./textTaskCallerState";
-import { isRetryableGenerationError } from "../../../src/workbench/generationCanvas/runner/generationRetryPolicy";
 import { classifyGenerationError } from "../../../src/workbench/observability/classifyError";
 import { registerTextStreamIpc } from "../../../electron/ai/textStreamIpc";
 import { executeTextTask } from "../../../electron/textTaskRunner";
@@ -171,8 +170,8 @@ function textOf(raw: unknown): string {
   return typeof choice?.message?.content === "string" ? choice.message.content : "";
 }
 
-/** 渲染层的两条判据：会不会自动重提（文本节点的运行控制器），错误卡归哪一类。 */
-export function rendererVerdict(message: string): { retried: boolean; kind: string } {
-  return { retried: isRetryableGenerationError(new Error(message)), kind: classifyGenerationError(message).kind };
+/** 错误卡展示的分类。 */
+export function rendererFailureKind(message: string): string {
+  return classifyGenerationError(message).kind;
 }
 

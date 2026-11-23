@@ -14,10 +14,14 @@
     {
       "path": "electron/catalog/assetLocalization.ts",
       "symbol": "localizeAssetsForVendor"
+    },
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "referenceNeedsUpload"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-11-01",
-  "notes": "合同 docs/fixes/2026-11-01-reference-link-delivery.root-cause.json：窗内（48 小时）的临时链接发之前并发试探一次，活着或判断不了就发原链接，明确失效或这条连接被模型拒绝过才走上传通道。三处读时间窗的决定（决定点、resolveLocalAsset 里的捷径、发送前通道检查）收成这一处；做片返工问同一条规则（reworkReferenceUrls）。"
+  "notes": "#1586 RW-2：当次探测和该媒体的可用通道决定是否交付原链。明确失效走上传；匿名探测被拒且有非匿名通道时走该通道。做片返工和首次发送使用同一判据。"
 }

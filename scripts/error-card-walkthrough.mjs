@@ -9,9 +9,10 @@
 //
 // 用法：pnpm build 后 node scripts/error-card-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { findSeededProjectFile } from './lib/walkthroughHost.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -70,12 +71,7 @@ let failed = false
 }
 
 // ── 改盘：把两个节点写成失败态 ──────────────────────────────────────────────
-const projectDirs = readdirSync(isolatedProjects, { withFileTypes: true })
-  .filter((e) => e.isDirectory())
-  .map((e) => path.join(isolatedProjects, e.name))
-const projectFile = projectDirs
-  .flatMap((dir) => [path.join(dir, '.nomi', 'project.json'), path.join(dir, 'project.json')])
-  .find((p) => existsSync(p))
+const { projectFile, projectDirs } = findSeededProjectFile(isolatedProjects)
 if (!projectFile) {
   console.log('✗ 没找到 project.json，seed 失败；候选目录：' + projectDirs.join(', '))
   process.exit(1)

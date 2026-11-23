@@ -35,9 +35,6 @@ import { ensureBinding, envelopeRefFor, sealedBindingFor } from "./productionGen
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
 import { tagNomiError } from "../shared/nomiErrorCodes";
 import { isReferenceFetchRefusal } from "../shared/assets/referenceFetchRefusal";
-import { upstreamFailureOf } from "../shared/vendorFailure";
-import { vendorKeyOfProviderId } from "../capabilityCore/canvasTransportProvider";
-import { noteConnectionRefused } from "../catalog/referenceLinkRefusals";
 import { taskFailureMessageFromResponse } from "../tasks/responseParsing";
 import { singleShotRunningCommand } from "./singleShotRunLifecycle";
 import { assertShotAdmission, type LandedShotAdmission } from "./shotLandingAdmission";
@@ -158,17 +155,6 @@ function requiredContract(run: ProductionRun, shotId?: string): ExecutionContrac
  */
 export function addressedGenerationAttempt(run: ProductionRun, shotId?: string): number {
   return Math.max(1, nextGenerationAttempt(run, shotId) - 1);
-}
-
-/**
- * 模型拉不到参考链接：判一次、记一次——**全仓只有这一处**（提交被拒、任务失败两个出口各调一次）。
- * 只记账，不重发：这一单已经发出去、钱可能已经扣了；这条连接之后的参考素材改走上传，由用户点「重试」时生效。
- * 返回判为拒绝时的上游原话：任务失败那条路用它替换固定的「供应商任务已返回失败状态」，错误卡才认得出是这一类。
- */
-function noteReferenceRefusal(providerId: string, failure: { code?: string; text: string }): string | undefined {
-  if (!isReferenceFetchRefusal({ upstreamCode: failure.code, text: failure.text })) return undefined;
-  noteConnectionRefused(vendorKeyOfProviderId(providerId));
-  return failure.text;
 }
 
 export function createProductionGenerationSubmission(deps: ProductionGenerationSubmissionDependencies) {
@@ -423,7 +409,6 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           if (observed.notDispatched) {
             throw new SubmissionNotDispatchedError(error instanceof Error ? error.message : String(error), observed.notDispatched);
           }
-          noteReferenceRefusal(lockedContract.providerId, upstreamFailureOf(error));
           // 只有「结果未知」才记进信封。确定的答复——供应商当场明确拒绝（收到了 4xx / 失败信封、没有任务号），或答了、结果在
           // 回答里但本机落地失败（落地门的正证据）——信封留在封好的状态（它没有「答了但没有任务号」这一态，耐久的结局记在
           // Run 的 job 上），由出口按同一个封闭结局落盘。
@@ -497,7 +482,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       const failure = statusClass === "failed" ? taskFailureMessageFromResponse(next.lastPoll!.raw, null) : "";
       const patch = { providerStatus, lastPollAt: observedAt,
         ...(statusChanged ? { lastVendorStateChangeAt: observedAt } : {}),
-        ...(statusClass === "failed" ? { errorCode: "provider_task_failed", errorMessage: noteReferenceRefusal(job.provider, { text: failure }) ?? polledFailureMessage(failure) }
+        ...(statusClass === "failed" ? { errorCode: "provider_task_failed", errorMessage: isReferenceFetchRefusal({ text: failure }) ? failure : polledFailureMessage(failure) }
           : statusClass === "unknown" ? { errorCode: "provider_status_unknown", errorMessage: "供应商返回了未识别的任务状态，需要人工核对" } : {}),
       };
       if (statusClass !== "pending" || statusChanged || nextStatus !== currentJob.status) command(current, nextStatus === currentJob.status ? "job.patch" : "job.status", {

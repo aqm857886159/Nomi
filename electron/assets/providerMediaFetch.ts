@@ -28,7 +28,7 @@ import {
   REFERENCE_LINK_PROBE_TIMEOUT_MS,
   providerMediaRetrievalTotalMs,
 } from "../shared/assets/providerMediaRetrievalBudget";
-import { mediaKindFromContentType } from "./mediaTypes";
+import { isMarkupMasquerade, mediaKindFromContentType } from "./mediaTypes";
 
 /**
  * 单个产物是否超过字节上限。取回与「已经在内存里的 data: 产物」都问这里，不各带一个数字。
@@ -75,14 +75,15 @@ export async function fetchProviderMedia(url: string, options: ProviderMediaFetc
 //
 // 为什么在这里：试探也是「从供应商那边取东西」，要走同一条线路（这家供应商单配的代理）、同一套取回加固
 // （hardenedFetch：时限 / 上限 / 跳转，不带 Key），所以住在取回线路策略的 owner 里，不另起一条出口。
-// 它只回答一个问题：这条临时链接现在还能不能取到**媒体**。三个答案，只有明确失效才改走上传：
+// 它只回答一个问题：这条临时链接现在还能不能取到**媒体**。探针报告这一次请求的结果：
 //   · alive    取到了媒体字节的头（或类型就是图片 / 视频 / 音频）→ 发原链接；
-//   · dead     服务商明确说不行（4xx），或 2xx 回来的是网页 / XML / JSON / 文字 → 改用本机文件上传；
+//   · dead     404/410 或明确的错误文档，或 2xx 回来的是网页 / XML / JSON / 文字 → 改用本机文件上传；
+//   · denied   源站拒绝匿名探测；交付层按可用上传通道决定是否复用原链。
 //   · unknown  超时、断网、5xx、跳转失败……→ 照发原链接，和没有这个功能时一模一样。
 // 判不了不能当失效：本机网络不通时，模型那边多半仍然拉得到。
 // 用 GET + Range，不用 HEAD：对象存储的预签名链接只对签名时的方法有效，HEAD 会得到 403（把活链接判死）。
 
-export type ProviderLinkVerdict = "alive" | "dead" | "unknown";
+export type ProviderLinkVerdict = "alive" | "dead" | "denied" | "unknown";
 
 export type ProviderLinkProbeOptions = {
   /** 产出这条链接的那家供应商自己的线路（同 fetchProviderMedia）。 */
@@ -103,11 +104,19 @@ function startsLikeMarkupOrJson(head: Uint8Array): boolean {
 }
 
 function judgeProbeResponse(status: number, contentType: string, head: Uint8Array | null): ProviderLinkVerdict {
-  if (status >= 400 && status < 500) return NOT_A_DEAD_LINK_STATUSES.has(status) ? "unknown" : "dead";
+  const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (status === 404 || status === 410) return "dead";
+  if (NOT_A_DEAD_LINK_STATUSES.has(status)) return "unknown";
+  if (status >= 400 && status < 500) {
+    // A Range rejection alone says nothing about a normal GET. An XML error document
+    // (e.g. an expired signed object) supplies additional evidence of a dead source.
+    if (TEXTUAL_APPLICATION_TYPE.test(type) || (head && startsLikeMarkupOrJson(head))) return "dead";
+    return "denied";
+  }
   if (status < 200 || status >= 300) return "unknown";
   // 2xx 却一个字节都没有：说不清是链接坏了还是服务器怪，当判断不了。
   if (head !== null && head.length === 0) return "unknown";
-  const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (head && type !== "image/svg+xml" && isMarkupMasquerade(head)) return "dead";
   const kind = mediaKindFromContentType(type);
   if (kind === "image" || kind === "video" || kind === "audio") return "alive";
   if (kind === "text" || TEXTUAL_APPLICATION_TYPE.test(type)) return "dead";

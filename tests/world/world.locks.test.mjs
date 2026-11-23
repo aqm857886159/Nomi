@@ -105,9 +105,9 @@ describe('名单一致性', () => {
       .filter((n) => /(Settings|Preference|InstallSeed)\.ts$/.test(n))
     for (const name of settingsWriters) expect(OWNER_MODULES).toContain(`electron/settings/${name}`)
   })
-  it('主人存盘文件名：取自产品里的两张表（27 个），不手抄', () => {
+  it('主人存盘文件名：取自产品里的两张表（26 个），不手抄', () => {
     expect(OWNER_FILE_NAMES.has('model-catalog.json')).toBe(true)
-    expect(OWNER_FILE_NAMES.size).toBe(27)
+    expect(OWNER_FILE_NAMES.size).toBe(26)
   })
   it('冻结名单：文件都真存在、没重复、已排序', () => {
     for (const lock of ['fsLock', 'exportLock']) {
