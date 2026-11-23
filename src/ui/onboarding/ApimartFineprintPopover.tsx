@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AnchoredPopover } from '../../design'
-import type { ApimartCatalogCounts } from './useOnboardingModelAvailability'
+import type { ApimartCatalogCounts } from './onboardingModelAvailability'
 
 export function ApimartFineprintPopover({
   counts,

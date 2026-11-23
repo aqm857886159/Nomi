@@ -229,9 +229,8 @@ async function forceChinese(win) {
   await win.waitForTimeout(1500)
 }
 
-async function skipFirstRunIntro(_win) {
+async function skipFirstRunIntro() {
   return null
-}
 }
 
 async function openModelsSettings(win) {

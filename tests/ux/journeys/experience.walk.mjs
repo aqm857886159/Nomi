@@ -63,7 +63,6 @@ export async function runJourney(journey, collector) {
     collector.run.startup.firstActionableFromLaunchMs = performance.now() - launchStarted
     collector.run.startup.firstActionableScope =
       'first-screen actionability proxy, includes test observer/window setup; not Lighthouse TTI'
-    if (await skip.isVisible()) await clickOrFail(skip, '跳过开场（准备，不计旅程）')
     const click = (id, target, options = {}) =>
       collector.step(id, () => clickOrFail(target, id), { target, ...options })
     const fill = (id, target, value) => collector.step(id, () => target.fill(value), { type: 'input', target })

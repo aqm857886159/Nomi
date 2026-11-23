@@ -1,9 +1,10 @@
+import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
 import { getLocalizedKnownVendors } from '../../config/knownVendors'
 
 export const NOMI_OPEN_APIMART_CONNECT_EVENT = 'nomi-open-apimart-connect'
 
 const APIMART_PROMO_URL =
-  getLocalizedKnownVendors().find((entry) => entry.vendorKey === 'apimart')?.promo?.url
+  getLocalizedKnownVendors().find((entry) => builtinVendorKeyOfKey(entry.vendorKey) === 'apimart')?.promo?.url
   ?? 'https://apimart.ai/register?aff=t55VtP'
 
 export const APIMART_REGISTER_URL = APIMART_PROMO_URL

@@ -1,6 +1,5 @@
 import React, { type JSX } from 'react'
 import {
-  IconChevronRight,
   IconChevronUp,
   IconClipboard,
   IconExternalLink,
@@ -33,7 +32,7 @@ import {
 import {
   refreshOnboardingModelAvailability,
   useOnboardingModelAvailability,
-} from './useOnboardingModelAvailability'
+} from './onboardingModelAvailability'
 
 function useIsNarrowConnectViewport(): boolean {
   const [narrow, setNarrow] = React.useState<boolean>(() => {

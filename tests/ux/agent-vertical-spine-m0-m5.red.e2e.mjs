@@ -110,7 +110,7 @@ async function failureContext(win, step, error) {
   }
 }
 
-async function dismissSplash(_win) {
+async function dismissSplash() {
   // SplashIntro 已按 Q18 删除，首启直接进入项目库。
 }
 

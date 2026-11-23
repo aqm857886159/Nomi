@@ -8,7 +8,7 @@ import { APIMART_VIDEO_MODELS } from '../../../electron/catalog/apimartVideos'
 import {
   countApimartCatalogModels,
   deriveOnboardingConnectionAvailability,
-} from './useOnboardingModelAvailability'
+} from './onboardingModelAvailability'
 
 const REAL_APIMART_SEED_ROWS: Array<Record<string, unknown>> = [
   ...APIMART_IMAGE_MODELS.map((m) => ({ ...m, vendorKey: 'apimart', kind: 'image' })),
@@ -168,13 +168,29 @@ describe('T-5 E0+S7b 连接可用性与实时模型数投影', () => {
       }),
     ).toMatchObject({ hasUsableModelConnection: true, apimartConnected: false })
 
-    // 6) APIMart 已接入
+    // 6) APIMart 已接入（含主连接 apimart 与兄弟连接 apimart--mini）
     expect(
       deriveOnboardingConnectionAvailability({
         storedVendors: [{ key: 'apimart', name: 'APIMart', enabled: true, hasApiKey: true, authType: 'bearer' }],
         storedModels: [
           {
             vendorKey: 'apimart',
+            modelKey: 'gpt-image-2',
+            labelZh: 'GPT Image 2',
+            kind: 'image',
+            enabled: true,
+            availability: { usable: true, status: 'ready' },
+          },
+        ],
+      }),
+    ).toMatchObject({ hasUsableModelConnection: true, apimartConnected: true })
+
+    expect(
+      deriveOnboardingConnectionAvailability({
+        storedVendors: [{ key: 'apimart--mini', name: 'APIMart 特价组', enabled: true, hasApiKey: true, authType: 'bearer' }],
+        storedModels: [
+          {
+            vendorKey: 'apimart--mini',
             modelKey: 'gpt-image-2',
             labelZh: 'GPT Image 2',
             kind: 'image',

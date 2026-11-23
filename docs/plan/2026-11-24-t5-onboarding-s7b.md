@@ -49,7 +49,7 @@
 |---|---|---|---|
 | 主：首启直达项目库可交互耗时 | 删掉 13s 开屏后，冷启动到首启区判定完成并画出主卡无需等待开屏遮罩；打开「连接 APIMart」整窗大页 `response` 中位数 ≤150ms（p95 ≤225ms），`longTasks` = 0 | perf 场景 `onboarding-connect-open`（`tests/perf/canvas-scale-bench.mjs`）+ 真 Electron 首启计时（`tests/ux/t5-onboarding-s7b.walk.mjs`） | 旧版首启被 `SplashIntro` 遮挡 13.0s；本切片实测首启直达主卡 4,363ms，`onboarding-connect-open` `response` 中位数 **46.3ms** / p95 **47.2ms**（预热首开 48.5ms，`longTasks` = 0） |
 | 质量：拍板清单与双轨视觉一致性 | 本切片认领的 `E0 + S7b` 全部元素通过 `check:board-parity`；中/英/暗色/`1024×700` 窄窗并排对照无溢出、无多余字重（仅 `400/600`）、句中引号跨行拆裂 = `0` 处 | `pnpm run check:board-parity` + `tests/ux/t5-onboarding-s7b.walk.mjs` + `docs/evidence/2026-11-24-t5-onboarding-s7b/board-vs-impl-*.png` | `Onboarding.board.json` 全部 `missing` |
-| 护栏：老用户误出主卡率 | 已有项目或已有任一可用模型连接（含非 APIMart / 本机）时首屏主卡出现比例 = `0%`；未配置凭据的全新装机首屏主卡出现比例 = `100%` | `src/ui/onboarding/useOnboardingModelAvailability.test.ts` + `tests/ux/t5-onboarding-s7b.walk.mjs` | 新功能基线 |
+| 护栏：老用户误出主卡率 | 已有项目或已有任一可用模型连接（含非 APIMart / 本机）时首屏主卡出现比例 = `0%`；未配置凭据的全新装机首屏主卡出现比例 = `100%` | `src/ui/onboarding/onboardingModelAvailability.test.ts` + `tests/ux/t5-onboarding-s7b.walk.mjs` | 新功能基线 |
 | 护栏：前台切回静默读剪贴板次数 | 窗口 `focus` / `visibilitychange` 触发剪贴板读取次数 = `0`；仅点击粘贴图标钮触发 `1` 次 | `src/ui/onboarding/ApimartConnectPage.test.tsx` | 0 次 |
 
 新手 / 老手人设与记录方式：
@@ -69,13 +69,13 @@
 - 已有项目的老用户（无论是否连过模型）：`ProjectLibraryPage` `firstRun === false`，首屏主卡出现 `0` 次；未连文本模型时继续显示原有的单行顶部提示条，已连模型时什么都不多出。
 - 0 项目但已连好任一可用模型的老用户（含 APIMart、火山/OpenRouter 等已知供应商、自定义中转站、本地模型、ComfyUI、Codex 本地、已登录即梦）：`hasUsableModelConnection === true`，首屏主卡出现 `0` 次，看到原有的三张起始卡且「新建空白项目」保持深色主卡（`O0-old-user-empty`）。
 - 已有的项目文件、系统钥匙串里的 API Key、`model-catalog.json` 连接与启用状态：**零迁移、零改写、零重新探测**；老用户 `localStorage` 里遗留的 `nomi:splash:v1` 不再读取、留在原地无害，退回上一版仍正常识别为已看过开屏。
-- 证据：`src/ui/onboarding/useOnboardingModelAvailability.test.ts`、`src/workbench/onboarding/onboardingState.test.ts` 与 `tests/ux/t5-onboarding-s7b.walk.mjs` 老用户双态实测截图，PR 交 `upgrade-path` 证据。
+- 证据：`src/ui/onboarding/onboardingModelAvailability.test.ts`、`src/workbench/onboarding/onboardingState.test.ts` 与 `tests/ux/t5-onboarding-s7b.walk.mjs` 老用户双态实测截图，PR 交 `upgrade-path` 证据。
 
 ## ★2 谁说了算
 
 | 概念 / 事实 | 唯一 owner | 允许消费者 | 这个「1」靠什么保持 |
 |---|---|---|---|
-| 是否存在任一可用模型连接 + APIMart 实时可目录模型数 | `src/ui/onboarding/useOnboardingModelAvailability.ts`（复用 `projectOnboardingConnections` 与 `listWorkbenchModelCatalogModels`） | `ProjectLibraryPage`、`JourneyTourController`、`ApimartConnectPage`、`NomiStudioApp` | 使用结果处只读该 hook 返回的 `{ loading, hasUsableModelConnection, apimartConnected, apimartCounts }`；模型数按 `vendorKey === 'apimart' && catalogLifecycle !== 'legacy' && !promptRefineOnly` 单处统计，组件内零硬编码数字 |
+| 是否存在任一可用模型连接 + APIMart 实时可目录模型数 | `src/ui/onboarding/onboardingModelAvailability.ts`（复用 `projectOnboardingConnections` 与 `listWorkbenchModelCatalogModels`） | `ProjectLibraryPage`、`JourneyTourController`、`ApimartConnectPage`、`NomiStudioApp` | 使用结果处只读该 hook 返回的 `{ loading, hasUsableModelConnection, apimartConnected, apimartCounts }`；模型数按 `vendorKey === 'apimart' && catalogLifecycle !== 'legacy' && !promptRefineOnly` 单处统计，组件内零硬编码数字 |
 | 整窗「连接 APIMart」大页开关与返回来处 | `src/ui/onboarding/apimartConnectRoute.ts` + `src/workbench/NomiStudioApp.tsx` | 全仓连接入口、`SettingsDialog` / `OnboardingDrawer`、`ApimartConnectPage` | 显式事件 `nomi-open-apimart-connect`（及未连模型且无 `pendingCustomCallIntent` 时的 `nomi-open-model-catalog`）统一收口到 `NomiStudioApp` 单一状态；已打开时重复触发只聚焦大页、不叠第二个，关闭回原视图（项目库或当前项目工作区） |
 | APIMart Key 保存与预置模型发布 | 主进程 `electron/catalog/rendererCatalogMutation.ts:141` `upsertRendererCatalogVendorApiKey` | `ApimartConnectPage`（经 `getDesktopBridge().modelCatalog.upsertVendorApiKey('apimart', { apiKey, enabled: false })`） | 渲染层遵守 `manualCertificationBoundary` 永不传 `enabled: true`，只由主进程校验后写钥匙串并发布 |
 | 随包引导示例媒体读取 | `electron/protocol/localRuntimeAssets.ts`（`RUNTIME_BUNDLES['onboarding-demo']` → `resources/onboarding-demo/`） | 项目库首屏主卡、`ApimartConnectPage` | 统一走 `nomi-local://runtime/onboarding-demo/<file>`，不触碰 `new URL(..., import.meta.url)` 边界 |
@@ -149,7 +149,7 @@
 ## ★9 验收与回滚
 
 - **独立验收方式**：由非 `t5-onboarding-s7b-impl` 的独立验收线在干净工作树运行：
-  1. `pnpm exec vitest run --maxWorkers=2 src/ui/onboarding/useOnboardingModelAvailability.test.ts src/ui/onboarding/ApimartConnectPage.test.tsx src/workbench/onboarding/onboardingState.test.ts electron/protocol/localProtocol.test.ts`
+  1. `pnpm exec vitest run --maxWorkers=2 src/ui/onboarding/onboardingModelAvailability.test.ts src/ui/onboarding/ApimartConnectPage.test.tsx src/workbench/onboarding/onboardingState.test.ts electron/protocol/localProtocol.test.ts`
   2. `pnpm run check:board-parity && pnpm run check:tokens && pnpm run check:controls && pnpm run check:icon-semantics && pnpm run check:i18n && pnpm run check:walkthroughs && pnpm run check:perf-scenarios`
   3. 真 Electron 走查 `node tests/ux/t5-onboarding-s7b.walk.mjs` 复核双轨截图与并排对照图 `docs/evidence/2026-11-24-t5-onboarding-s7b/board-vs-impl-{zh,en,dark,narrow}.png`。
 - **动手前写全的验收清单与反例**：

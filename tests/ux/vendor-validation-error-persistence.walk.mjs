@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expect, expectHidden, expectVisible, screenshotSettled } from './_assert.mjs'
+import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
 import { encryptFixtureKey } from './_mcpL2Fixture.mjs'
 

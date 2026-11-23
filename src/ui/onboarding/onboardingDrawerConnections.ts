@@ -1,4 +1,5 @@
 import { ANTIGRAVITY_IMAGE_MODEL_KEY, ANTIGRAVITY_VENDOR_KEY } from '../../../electron/shared/antigravity'
+import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
 import { groupAntigravityCatalogModels } from './antigravityCardModel'
 import { getLocalizedKnownVendors, isKnownVendor } from '../../config/knownVendors'
 import { VENDOR_LOGOS } from '../../assets/vendor-logos'
@@ -175,7 +176,7 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
       glyph: card.directory.glyph,
     // APIMart 未接入时按 E0（big.entry-routing）统一先关设置再打开整窗「连接 APIMart」大页；
     // 其余 usesPlatformConnect 供应商仍走设置内 platformConnect 页。
-    }, card.directory.vendorKey === 'apimart'
+    }, builtinVendorKeyOfKey(card.directory.vendorKey) === 'apimart'
       ? () => openApimartConnect()
       : card.directory.usesPlatformConnect !== false
         ? () => openPage({ type: 'platformConnect', vendorKey: card.directory.vendorKey })

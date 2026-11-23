@@ -127,7 +127,7 @@ function sampleDurationSeconds(samplePath) {
   return duration
 }
 
-async function dismissChrome(_win) {
+async function dismissChrome() {
   // SplashIntro 已按 Q18 删除。
 }
 
