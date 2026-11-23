@@ -32,4 +32,17 @@ describe('C20 library category projection', () => {
     expect(libraryGroup(item, 'zh-CN')).toEqual({ id: 'category:Expressions', label: '表情预设' })
     expect(libraryGroup(item, 'en')).toEqual({ id: 'category:Expressions', label: 'Expressions' })
   })
+  it('localizes built-in and Chinese-labeled public source group names for zh-CN and en without changing stable ids', () => {
+    const expr = { origin: 'public', sourceId: 'builtin-expressions', source: '表情预设' }
+    expect(libraryGroup(expr, 'zh-CN')).toEqual({ id: 'source:builtin-expressions', label: '表情预设' })
+    expect(libraryGroup(expr, 'en')).toEqual({ id: 'source:builtin-expressions', label: 'Expressions' })
+
+    const gpt4o = { origin: 'public', sourceId: 'imgedify-gpt4o', source: 'GPT-4o 图像' }
+    expect(libraryGroup(gpt4o, 'zh-CN')).toEqual({ id: 'source:imgedify-gpt4o', label: 'GPT-4o 图像' })
+    expect(libraryGroup(gpt4o, 'en')).toEqual({ id: 'source:imgedify-gpt4o', label: 'GPT-4o Image' })
+
+    const sora = { origin: 'public', sourceId: 'sora-official', source: 'Sora 官方' }
+    expect(libraryGroup(sora, 'zh-CN')).toEqual({ id: 'source:sora-official', label: 'Sora 官方' })
+    expect(libraryGroup(sora, 'en')).toEqual({ id: 'source:sora-official', label: 'Sora Official' })
+  })
 })

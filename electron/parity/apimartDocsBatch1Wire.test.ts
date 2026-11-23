@@ -185,6 +185,12 @@ describe("可灵 4.0 Flash：五种方式", () => {
     expect(leftover).not.toHaveProperty("duration");
     const runLeftover = await run({ modelId: K.modelKey, modeId: "edit", mode: "image_to_video", params: { duration: 8 }, refs: [video(VID_A)] });
     expect(runLeftover).not.toHaveProperty("duration");
+    // 未选比例（节点上无 aspect_ratio）默认走 auto → 经 omitAuto 不发 aspect_ratio（跟随原视频）；显式选 16:9 照发。
+    const defaultEdit = await canvas({ ...K, modeId: "edit", params: {}, videos: [VID_A] });
+    expect(defaultEdit).toMatchObject({ omni_reference_task_type: "edit", video_urls: [VID_A] });
+    expect(defaultEdit).not.toHaveProperty("aspect_ratio");
+    const explicitEdit = await canvas({ ...K, modeId: "edit", params: { aspect_ratio: "16:9" }, videos: [VID_A] });
+    expect(explicitEdit).toMatchObject({ omni_reference_task_type: "edit", aspect_ratio: "16:9", video_urls: [VID_A] });
   });
 
   it("视频续写：omni_reference_task_type=extend + 时长；残留的比例 / 声音 / 图都不发（官方：续写不收）", async () => {
