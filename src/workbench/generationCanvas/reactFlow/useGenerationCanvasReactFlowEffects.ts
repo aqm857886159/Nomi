@@ -139,7 +139,9 @@ export function useGenerationCanvasReactFlowHostEffects({
       const rect = host.getBoundingClientRect()
       setStageSize({ width: rect.width, height: rect.height })
       // 新东西落在可见区要知道「可见区多大」：store 层的 addNode 够不到这个组件，读的是这份发布值（canvasVisibleArea）。
-      publishCanvasStageSize({ width: rect.width, height: rect.height })
+      // 同时发布「空地」（扣掉底部停靠条和浮层后最大的一块，对焦用的同一个算法），新节点连底栏要落在这块里。
+      const free = resolveFreeViewRect(rect, collectCanvasOverlayRects(host, rect))
+      publishCanvasStageSize({ width: rect.width, height: rect.height }, free)
     }
     updateSize()
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateSize)

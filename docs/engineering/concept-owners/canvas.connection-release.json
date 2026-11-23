@@ -1,0 +1,25 @@
+{
+  "name": "画布手动拖线松手的正文落点归属（卡体优先、露白编组批连、空白出派生菜单）",
+  "subject": "canvas.connection-release",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+    "symbol": "handleConnectEnd"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "handleConnectEnd"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+  ],
+  "since": "2026-11-23",
+  "notes": "合同 docs/fixes/2026-11-23-canvas-connection-release.root-cause.json：握把直连仍由 React Flow onConnect 完成；未落在握把上的手动拖线松手（鼠标与触控 changedTouches）只经 handleConnectEnd 唯一入口依次解析前景卡体、露白编组框与画布空白，舞台捕获与窗口原生松手监听不得另行提交边。"
+}
