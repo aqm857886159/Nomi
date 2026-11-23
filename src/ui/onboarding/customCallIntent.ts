@@ -12,6 +12,10 @@ export function setPendingCustomCallIntent(intent: CustomCallIntent): void {
   pending = intent
 }
 
+export function hasPendingCustomCallIntent(): boolean {
+  return pending !== null
+}
+
 export function consumePendingCustomCallIntent(): CustomCallIntent | null {
   const value = pending
   pending = null

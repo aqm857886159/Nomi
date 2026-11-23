@@ -23,7 +23,7 @@ describe('readScaleFloor：地板只读刻度源文件，数字只有一份', ()
 
 describe('isOverlayZScanned：只管生产 src 的 ts / tsx / css', () => {
   it('归它管', () => {
-    for (const rel of ['src/workbench/onboarding/SplashIntro.tsx', 'src/ui/x.ts', 'src/styles/index.css']) expect(isOverlayZScanned(rel), rel).toBe(true)
+    for (const rel of ['src/workbench/onboarding/JourneyTourController.tsx', 'src/ui/x.ts', 'src/styles/index.css']) expect(isOverlayZScanned(rel), rel).toBe(true)
   })
 
   it('不归它管：测试、设计实验室、刻度本身、src 之外', () => {

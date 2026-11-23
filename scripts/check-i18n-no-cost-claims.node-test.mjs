@@ -146,3 +146,11 @@ test('发送键约价那一句：只认登记原文；改成免费、或挪到�
   assert.equal(scanDictionaries(dict({ generationCommon: { composer: { sendCost: { estimate: '本次免费' } } } })).hits.length, 1)
   assert.equal(scanDictionaries(dict({ arbitrary: known.composer.sendCost })).hits.length, 1)
 })
+
+test('T-5 Onboarding 拍板公开价与充值步骤：只认登记键的精确原句；改字或换键必红', () => {
+  const known = { apimartConnect: { steps: { topup: { label: '充值' } } } }
+  const knownEn = { apimartConnect: { steps: { topup: { label: 'Top up' } } } }
+  assert.equal(scanDictionaries(dict({ onboardingProviders: known }, { onboardingProviders: knownEn })).hits.length, 0)
+  assert.equal(scanDictionaries(dict({ onboardingProviders: { apimartConnect: { steps: { topup: { label: '免费充值' } } } } }, { onboardingProviders: knownEn })).hits.length, 1)
+  assert.equal(scanDictionaries(dict({ other: known.apimartConnect }, { other: knownEn.apimartConnect })).hits.length, 2)
+})

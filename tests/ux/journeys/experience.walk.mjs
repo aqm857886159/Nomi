@@ -53,13 +53,12 @@ export async function runJourney(journey, collector) {
     const { win } = launched
     win.setDefaultTimeout(20000)
     await applyColorSchemeForShot(win, 'light')
-    // Setup preferences only, then use the visible splash action; never reload an active app.
+    // Q18 删开屏后首启直达项目库，直接验新建项目入口可点。
     await win.evaluate(() => {
       localStorage.setItem('nomi:journey-tour:v1', 'seen')
       localStorage.setItem('nomi:canvas-gesture-hint:v1', 'seen')
     })
-    const skip = win.locator('[data-splash-skip="true"]')
-    const firstAction = (await skip.isVisible()) ? skip : newProjectEntry(win)
+    const firstAction = newProjectEntry(win)
     await firstAction.click({ trial: true })
     collector.run.startup.firstActionableFromLaunchMs = performance.now() - launchStarted
     collector.run.startup.firstActionableScope =

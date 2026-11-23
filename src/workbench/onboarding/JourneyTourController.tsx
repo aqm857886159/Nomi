@@ -6,8 +6,9 @@
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconPlayerPlay } from '@tabler/icons-react'
+import { IconCheck, IconPlayerPlay, IconPlug } from '@tabler/icons-react'
 import { useModalInputLayer } from '../../design/modalInputLayer'
+import { useOnboardingModelAvailability } from '../../ui/onboarding/useOnboardingModelAvailability'
 import { cn } from '../../utils/cn'
 import { OnboardingSpotlight } from './OnboardingSpotlight'
 import { useJourneyTourStore } from './journeyTourStore'
@@ -17,6 +18,7 @@ export function JourneyTourController({ onStartReal }: { onStartReal: () => void
   const { t } = useTranslation()
   const active = useJourneyTourStore((s) => s.active)
   const phase = useJourneyTourStore((s) => s.phase)
+  const { loading: availabilityLoading, hasUsableModelConnection } = useOnboardingModelAvailability()
   // 只有收尾卡盖住整窗；教学那几步要用户真的操作工作区，不是模态。
   useModalInputLayer(active && phase === 'finale')
   const beat = useJourneyTourStore((s) => s.beat)
@@ -44,6 +46,21 @@ export function JourneyTourController({ onStartReal }: { onStartReal: () => void
           <p className="m-0 text-body-sm text-nomi-ink-60 leading-snug">
             {t('onboardingProviders.journey.finaleBody')}
           </p>
+          {!availabilityLoading && !hasUsableModelConnection ? (
+            <div
+              className="flex w-full items-start gap-1.5 rounded-nomi-sm bg-nomi-ink-05 px-2.5 py-2 text-left text-caption leading-relaxed text-nomi-ink-80"
+              data-journey-finale-connect-notice
+            >
+              <IconPlug size={13} stroke={1.8} className="mt-0.5 shrink-0 text-nomi-ink-60" aria-hidden="true" />
+              <span>
+                {t('onboardingProviders.journey.finaleConnectBefore')}
+                <span className="whitespace-nowrap" data-quoted-ui-name>
+                  {t('onboardingProviders.journey.finaleConnectQuoted')}
+                </span>
+                {t('onboardingProviders.journey.finaleConnectAfter')}
+              </span>
+            </div>
+          ) : null}
           <div className="flex items-center gap-2.5 mt-2">
             <button
               type="button"

@@ -18,6 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { resolveOnboardingDemoAssetSourceDir } from "../onboarding/demoAssetSource";
 import { videoDepthModelByFileName } from "../shared/canvas/videoDepthModels";
 import { videoDepthModelPath } from "../video/depthVideoModelCache";
 
@@ -31,6 +32,11 @@ const RUNTIME_BUNDLES: Record<string, { resolveDir: () => string; allowedExtensi
     resolveDir: () => path.dirname(requireFromHere.resolve("onnxruntime-web")),
     allowedExtensions: [".wasm", ".mjs", ".js"],
   },
+  /** 首屏主卡与连接 APIMart 大页共用的随包真作品（不联网、不走 Vite 资源哈希）。 */
+  "onboarding-demo": {
+    resolveDir: resolveOnboardingDemoAssetSourceDir,
+    allowedExtensions: [".jpg", ".jpeg", ".mp4"],
+  },
 };
 
 export type LocalRuntimeTarget = { filePath: string; contentType: string };
@@ -38,6 +44,8 @@ export type LocalRuntimeTarget = { filePath: string; contentType: string };
 function contentTypeFor(fileName: string): string {
   if (fileName.endsWith(".wasm")) return "application/wasm";
   if (fileName.endsWith(".mjs") || fileName.endsWith(".js")) return "text/javascript";
+  if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) return "image/jpeg";
+  if (fileName.endsWith(".mp4")) return "video/mp4";
   return "application/octet-stream";
 }
 

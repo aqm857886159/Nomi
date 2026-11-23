@@ -58,29 +58,36 @@ try {
   const start = await win.evaluate(() => {
     const cards = Array.from(document.querySelectorAll(".tc-action-card"));
     const primary = cards.filter((el) => el.dataset.variant === "primary");
-    const rect = primary[0]?.getBoundingClientRect() || null;
+    const heroConnect = document.querySelector("[data-library-hero-connect]");
+    const sampleCard = primary[0] || cards[0] || null;
+    const rect = sampleCard?.getBoundingClientRect() || null;
     const banner = document.querySelector("[data-model-banner]");
     const weakEntry = Array.from(document.querySelectorAll("button"))
       .find((el) => (el.textContent || "").trim() === "模型接入");
     return {
       cardCount: cards.length,
       primaryCount: primary.length,
-      primaryW: rect ? Math.round(rect.width) : -1,
-      primaryH: rect ? Math.round(rect.height) : -1,
+      heroShown: Boolean(heroConnect),
+      cardW: rect ? Math.round(rect.width) : -1,
+      cardH: rect ? Math.round(rect.height) : -1,
       bannerShown: Boolean(banner),
       weakEntryShown: Boolean(weakEntry),
       weakEntryH: weakEntry ? Math.round(weakEntry.getBoundingClientRect().height) : -1,
     };
   });
   console.log("\n── 起始页 v3（动作卡片层级 / 单一模型入口） ──");
-  assert(start.primaryCount === 1, "主入口动作卡片恰好 1 张 primary（一页一主操作）", `primary=${start.primaryCount}/cards=${start.cardCount}`);
-  assert(start.primaryW === 280 && start.primaryH === 88, "primary 动作卡 280×88（尺寸区隔于普通按钮）", `${start.primaryW}×${start.primaryH}`);
+  assert(
+    start.heroShown ? start.primaryCount === 0 : start.primaryCount === 1,
+    "一屏一主操作：主卡在时动作卡全 default，已连接时恰好 1 张 primary",
+    `hero=${start.heroShown}/primary=${start.primaryCount}/cards=${start.cardCount}`,
+  );
+  assert(start.cardW === 280 && start.cardH === 88, "动作卡 280×88（尺寸区隔于普通按钮）", `${start.cardW}×${start.cardH}`);
   assert(!(start.bannerShown && start.weakEntryShown), "缺模型状态条与右上弱入口互斥（单一入口）", `banner=${start.bannerShown}/weak=${start.weakEntryShown}`);
   if (start.weakEntryShown) assert(start.weakEntryH === 28, "模型接入弱钮高 28（弱于动作卡两级）", String(start.weakEntryH));
   else console.log("  ⊘ 弱入口高度核对 — 跳过（当前为缺模型态，弱入口按规则隐藏）");
 
   // 进工作区：① 优先开示例项目；② 没示例但库里已有项目 → 开第一张项目卡（控制条等结构断言
-  // 不依赖示例内容，任意项目即可，覆盖「有项目但无该示例」的 profile）；③ 空库 → 点主动作卡
+  // 不依赖示例内容，任意项目即可，覆盖「有项目但无该示例」的 profile）；③ 空库 → 点首张动作卡
   // 「新建空白项目」现造一个（hero CTA 已删，空库经动作卡片进工作区）。
   const exampleCard = win.locator('[role="button"]', { hasText: "示例：30 秒产品介绍" }).first();
   const anyCard = win.locator('[data-project-card="true"]').first();
@@ -89,7 +96,7 @@ try {
   } else if (await anyCard.count().then((n) => n > 0).catch(() => false)) {
     await anyCard.click().catch(() => {});
   } else {
-    await win.locator('.tc-action-card[data-variant="primary"]').first().click().catch(() => {});
+    await win.locator('.tc-action-card').first().click().catch(() => {});
   }
   await win.waitForTimeout(2500);
   await win.getByRole("button", { name: "生成", exact: false }).first().click().catch(() => {});

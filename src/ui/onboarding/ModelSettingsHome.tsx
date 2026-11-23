@@ -17,6 +17,7 @@ import { DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLo
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { cn } from '../../utils/cn'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
+import { consumePendingModelNetworkScroll } from './apimartConnectRoute'
 import type { ChipModel } from './ModelChipGroups'
 import { ModelStatusMark } from './ModelStatusMark'
 import { presentStatusCount } from '../../../electron/shared/modelStatusPresentation'
@@ -298,6 +299,14 @@ export function ModelSettingsHome({
   const [morePlatformsOpen, setMorePlatformsOpen] = React.useState(false)
   const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const advancedSectionRef = React.useRef<HTMLElement>(null)
+  React.useEffect(() => {
+    if (!loaded || !consumePendingModelNetworkScroll()) return
+    const target = advancedSectionRef.current
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [loaded])
   const allModels = connections.flatMap((connection) => connection.models)
   const counts = countModelHomeStates(allModels)
   const needsSetupCount = counts.needsSetup
@@ -502,7 +511,7 @@ export function ModelSettingsHome({
               </section>
             ) : null}
 
-            <section className="mt-6 border-t border-nomi-line pt-4" data-model-home-advanced>
+            <section ref={advancedSectionRef} className="mt-6 border-t border-nomi-line pt-4" data-model-home-advanced>
               <SectionHeading title={t('onboardingProviders.drawer.home.advanced')} />
               <RowGroup>
                 <ActionRow

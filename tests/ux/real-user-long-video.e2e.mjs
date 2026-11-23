@@ -127,12 +127,8 @@ function sampleDurationSeconds(samplePath) {
   return duration
 }
 
-async function dismissChrome(win) {
-  const splashSkip = win.locator('[data-splash-skip="true"]').first()
-  if (await splashSkip.count()) {
-    await splashSkip.click()
-    await splashSkip.waitFor({ state: 'detached', timeout: 5_000 })
-  }
+async function dismissChrome(_win) {
+  // SplashIntro 已按 Q18 删除。
 }
 
 async function enterProject(win) {

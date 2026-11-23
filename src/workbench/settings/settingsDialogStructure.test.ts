@@ -92,7 +92,9 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   // 2026-10-09 协调会话批准：关于页更新入口收进共享弹窗，同一件事只留一个界面（关于页只报一句状态 + 「查看」，
   //             下载 / 重启 / 去官网 / 重试 / 发版说明都在 UpdateDialog 里，功能一个没少）。
   //             截图见 docs/evidence/2026-10-09-update-reminder/；正向断言见下方 hands every update action in the About section over to the shared update dialog。
-  'AboutSection.tsx': '6b1c647f0a9cef977541d4cf4f91eb961fa159f5241ae2f65a15b98f4af25523',
+  // 2026-11-24（T-5 Q18 onb.drop.splash-replay，用户 2026-11-07 拍板「开屏动画删了」）：移除关于页「重看开屏动画」按钮与 onReplaySplash，
+  //             其余布局与文案一个字没动；正向断言见下方 drops splash replay from About per Q18。
+  'AboutSection.tsx': 'c88a227a4623047c485c9b007854d7767fcbf3852cb12aac182284be6704bcae',
 } as const
 
 describe('settings dialog structure', () => {
@@ -347,6 +349,12 @@ describe('settings dialog structure', () => {
     for (const removed of ['updater.download', 'updater.install', 'updater.openDownload', 'updater.notes']) {
       expect(aboutSource, removed).not.toContain(removed)
     }
+  })
+
+  it('drops splash replay from About per Q18', () => {
+    expect(aboutSource).not.toContain('onReplaySplash')
+    expect(aboutSource).not.toContain('replaySplash')
+    expect(settingsSource).not.toContain('onReplaySplash')
   })
 
   it('keeps all five non-model sections at their explicitly approved content baseline', () => {

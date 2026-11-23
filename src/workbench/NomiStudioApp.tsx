@@ -60,8 +60,9 @@ import { logRendererError } from '../desktop/rendererLog'
 import { LaneCommandFailure, laneFailureText } from './ai/lane/laneCommandFailure'
 import { projectNotice, projectOperationFailureText, type UserText } from './project/projectOperationFailureText'
 import { useHasTextModel } from './library/useHasTextModel'
-import { SplashIntro } from './onboarding/SplashIntro'
-import { hasSeenSplash, markSplashSeen, hasSeenJourneyTour } from './onboarding/onboardingState'
+import { ApimartConnectPage } from '../ui/onboarding/ApimartConnectPage'
+import { NOMI_OPEN_APIMART_CONNECT_EVENT, openApimartConnect } from '../ui/onboarding/apimartConnectRoute'
+import { hasSeenJourneyTour } from './onboarding/onboardingState'
 import { buildStudioUrl } from '../utils/appRoutes'
 import { openWorkspaceFromLibrary } from './library/openWorkspaceFlow'
 import { lazyWithChunkBoundary } from '../ui/chunkBoundary'
@@ -149,10 +150,10 @@ export default function NomiStudioApp(): JSX.Element {
   const [activeProject, setActiveProject] = React.useState<LocalProjectSummary | null>(null)
   const settingsDialogController = useSettingsDialogController()
   const [handbookOpened, setHandbookOpened] = React.useState(false)
+  const [apimartConnectOpened, setApimartConnectOpened] = React.useState(false)
+  const [apimartConnectFocusNonce, setApimartConnectFocusNonce] = React.useState(0)
   const [browserOpened, setBrowserOpened] = React.useState(false)
   const [browserMounted, setBrowserMounted] = React.useState(false)
-  // 首启开屏：仅首次未看过时自动放；看过后可经设置「关于」→「重看开屏动画」重看。
-  const [splashDone, setSplashDone] = React.useState(() => hasSeenSplash())
   const [journeyTourControllerMounted, setJourneyTourControllerMounted] = React.useState(false)
   const { hasTextModel, refresh: refreshModelStatus } = useHasTextModel()
   const hydratingProjectRef = React.useRef(false)
@@ -188,6 +189,16 @@ export default function NomiStudioApp(): JSX.Element {
     window.addEventListener('nomi-open-handbook', handleOpenHandbook)
     return () => window.removeEventListener('nomi-open-handbook', handleOpenHandbook)
   }, [])
+
+  React.useEffect(() => {
+    const handleOpenApimartConnect = () => {
+      settingsDialogController.closeSettings()
+      setApimartConnectOpened(true)
+      setApimartConnectFocusNonce((value) => value + 1)
+    }
+    window.addEventListener(NOMI_OPEN_APIMART_CONNECT_EVENT, handleOpenApimartConnect)
+    return () => window.removeEventListener(NOMI_OPEN_APIMART_CONNECT_EVENT, handleOpenApimartConnect)
+  }, [settingsDialogController])
 
   React.useEffect(() => {
     const handleOpenBrowser = () => {
@@ -668,30 +679,30 @@ export default function NomiStudioApp(): JSX.Element {
       initialSection={settingsDialogController.initialSection}
       initialModelPageRequest={settingsDialogController.modelPageRequest}
       onClose={settingsDialogController.closeSettings}
-      onReplaySplash={() => setSplashDone(false)}
     />
   ) : null
   const projectFeedback = feedback?.message ? <p role="alert" className="m-0 px-4 py-2 text-caption text-nomi-danger">{feedback.message}</p> : null
+  const connectOriginLabel =
+    view === 'studio'
+      ? activeProject?.name || t('appBar.untitledProject')
+      : t('appShell.topbar.library')
   const viewContent =
     view === 'library' ? (
-      <>
-        <ProjectLibraryPage
-          projectFeedback={feedback}
-          onOpenProject={openProject}
-          onDeleteProject={deleteProject}
-          onRenameProject={renameLibraryProject}
-          onNewProject={() => void newProject()}
-          onOpenFolder={() => void openWorkspaceFolder()}
-          onRevealProjectFolder={revealProjectFolder}
-          onOpenModelCatalog={settingsDialogController.openModelSettings}
-          onOpenSettings={settingsDialogController.openDefaultSettings}
-          onPlayJourneyTour={playJourneyTour}
-          journeyTourSeen={hasSeenJourneyTour()}
-          hasTextModel={hasTextModel}
-        />
-        {settingsDialog}
-        <ConfirmDialogHost />
-      </>
+      <ProjectLibraryPage
+        projectFeedback={feedback}
+        onOpenProject={openProject}
+        onDeleteProject={deleteProject}
+        onRenameProject={renameLibraryProject}
+        onNewProject={() => void newProject()}
+        onOpenFolder={() => void openWorkspaceFolder()}
+        onRevealProjectFolder={revealProjectFolder}
+        onOpenModelCatalog={openApimartConnect}
+        onOpenModelSettings={settingsDialogController.openModelSettings}
+        onOpenSettings={settingsDialogController.openDefaultSettings}
+        onPlayJourneyTour={playJourneyTour}
+        journeyTourSeen={hasSeenJourneyTour()}
+        hasTextModel={hasTextModel}
+      />
     ) : (
       <div className={cn('nomi-studio-app w-full h-screen min-h-0 bg-nomi-bg')} aria-label={t('studio.aria')}>
         <WorkbenchShell
@@ -716,8 +727,6 @@ export default function NomiStudioApp(): JSX.Element {
           onNewProject={() => void newProject()}
         />
 
-        {settingsDialog}
-
         {handbookOpened ? (
           <React.Suspense fallback={null}>
             <HandbookPanel opened={handbookOpened} onClose={() => setHandbookOpened(false)} />
@@ -729,32 +738,34 @@ export default function NomiStudioApp(): JSX.Element {
             <JourneyTourController onStartReal={newProject} />
           </React.Suspense>
         ) : null}
-
-        <ConfirmDialogHost />
       </div>
     )
 
   return (
     <>
       {globalBrowserDialog}
-      {viewContent}
-      <FeedbackShareHost />
-      <UpdateDialog />
-      {/* 付费确认卡挂在公共根：制作任务的家是任务中心（顶栏常驻、创作/生成/预览都能开），
-          门的兜底决策必须在任一视图都弹得出来。原先库页一处、生成区插槽内一处——创作/预览视图
-          下根本没挂载，在那儿点确认永远没反应（本轮走查实测抓出）。单一挂载，不留并行版（P1）。
-          卡的代码静态加载、点下去同一帧出卡，理由见 SpendConfirmHost。 */}
-      <SpendConfirmHost />
-      {/* 开屏动画提到视图之外（原先只挂在库页分支）：重放入口已归位到设置「关于」，
-          而设置在库页和 studio 都能开——不提上来的话从 studio 点「重看开屏动画」不会有任何反应。 */}
-      {!splashDone ? (
-        <SplashIntro
-          onDone={() => {
-            markSplashSeen()
-            setSplashDone(true)
+      {apimartConnectOpened ? (
+        <ApimartConnectPage
+          originLabel={connectOriginLabel}
+          focusNonce={apimartConnectFocusNonce}
+          onBack={() => setApimartConnectOpened(false)}
+          onSaved={() => {
+            refreshModelStatus()
+            setApimartConnectOpened(false)
           }}
+          onOpenSettings={settingsDialogController.openDefaultSettings}
         />
       ) : null}
+      {apimartConnectOpened && view === 'library' ? null : (
+        <div className={apimartConnectOpened ? 'hidden' : 'contents'} aria-hidden={apimartConnectOpened || undefined}>
+          {viewContent}
+        </div>
+      )}
+      {settingsDialog}
+      <ConfirmDialogHost />
+      <FeedbackShareHost />
+      <UpdateDialog />
+      <SpendConfirmHost />
     </>
   )
 }

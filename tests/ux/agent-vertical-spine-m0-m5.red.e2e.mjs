@@ -110,12 +110,8 @@ async function failureContext(win, step, error) {
   }
 }
 
-async function dismissSplash(win) {
-  const skip = win.locator('[data-splash-skip="true"]').first()
-  if (await skip.count()) {
-    await skip.click({ timeout: 5_000 })
-    await win.locator('.nomi-splash').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => undefined)
-  }
+async function dismissSplash(_win) {
+  // SplashIntro 已按 Q18 删除，首启直接进入项目库。
 }
 
 async function closeSettingsOverlayThroughVisibleUi(win) {

@@ -13,6 +13,7 @@ import { CODEX_LOCAL_VENDOR_KEY } from './codexLocalProvider'
 import { LOCAL_TEXT_VENDOR_KEY } from './LocalModelCard'
 import { DREAMINA_CONNECTION_KEY } from './onboardingDrawerConstants'
 import { groupOtherVendorModels } from './onboardingDrawerDerivations'
+import { openApimartConnect } from './apimartConnectRoute'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatus, localNames, openPage }: {
@@ -172,11 +173,13 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
       models: card.vendorModels,
       logo: card.directory.logo,
       glyph: card.directory.glyph,
-    // usesPlatformConnect 缺省 true（档案未声明 = 支持）→ 路由到 platformConnect（填 key 保存）。
-    // 硬编码 vendorKey 白名单已移除（P1 加新删旧）：由档案字段 derive，不写死。
-    }, card.directory.usesPlatformConnect !== false
-      ? () => openPage({ type: 'platformConnect', vendorKey: card.directory.vendorKey })
-      : undefined)),
+    // APIMart 未接入时按 E0（big.entry-routing）统一先关设置再打开整窗「连接 APIMart」大页；
+    // 其余 usesPlatformConnect 供应商仍走设置内 platformConnect 页。
+    }, card.directory.vendorKey === 'apimart'
+      ? () => openApimartConnect()
+      : card.directory.usesPlatformConnect !== false
+        ? () => openPage({ type: 'platformConnect', vendorKey: card.directory.vendorKey })
+        : undefined)),
     ...comfyuiAvailableList.map((instance) => homeConnection({
       vendorKey: instance.key,
       name: instance.meta.name,

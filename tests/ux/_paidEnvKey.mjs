@@ -143,14 +143,27 @@ export async function connectApimartThroughVisibleUi(win, { apiKey, textModelKey
     const available = home.locator(`[data-model-home-available="${ENV_KEY_VENDOR}"]`).first()
     await available.waitFor({ state: 'visible', timeout: STEP_MS })
     await available.click()
-    const keyPage = win.locator(`[data-key-only-vendor="${ENV_KEY_VENDOR}"]`).first()
-    await keyPage.waitFor({ state: 'visible', timeout: STEP_MS })
-    const keyInput = keyPage.locator(`#key-only-${ENV_KEY_VENDOR}`).first()
-    if (!(await keyInput.isDisabled().catch(() => true))) {
+    const connectPage = win.locator('[data-apimart-connect-page]').first()
+    const legacyKeyPage = win.locator(`[data-key-only-vendor="${ENV_KEY_VENDOR}"]`).first()
+    await Promise.race([
+      connectPage.waitFor({ state: 'visible', timeout: STEP_MS }),
+      legacyKeyPage.waitFor({ state: 'visible', timeout: STEP_MS }),
+    ])
+    let usedBigConnectPage = false
+    if (await connectPage.isVisible().catch(() => false)) {
+      usedBigConnectPage = true
+      const keyInput = connectPage.locator('#apimart-connect-key-input').first()
       await keyInput.fill(apiKey)
-      await keyPage.getByRole('button', { name: /保存|Save/i }).first().click()
+      await keyInput.press('Enter')
+      await connectPage.waitFor({ state: 'detached', timeout: STEP_MS })
+    } else {
+      const keyInput = legacyKeyPage.locator(`#key-only-${ENV_KEY_VENDOR}`).first()
+      if (!(await keyInput.isDisabled().catch(() => true))) {
+        await keyInput.fill(apiKey)
+        await legacyKeyPage.getByRole('button', { name: /保存|Save/i }).first().click()
+      }
+      await legacyKeyPage.locator('[data-key-only-success]').waitFor({ state: 'visible', timeout: STEP_MS })
     }
-    await keyPage.locator('[data-key-only-success]').waitFor({ state: 'visible', timeout: STEP_MS })
     // 只演练「填 key → 保存」：key 已存住就停。
     if (stopAfterSave) return { vendorKey: ENV_KEY_VENDOR, keySaved: true, viaVisibleOnboarding: true }
     // D-1117-delete-verification：保存只存 key，有请求格式的预置模型存下即可用，没有「继续验证 → 认证」那一半可补。
@@ -164,7 +177,9 @@ export async function connectApimartThroughVisibleUi(win, { apiKey, textModelKey
     }, want), { timeout: STEP_MS }).toBe(true).then(() => true, () => false)
     if (!usable) throw new Error(`保存 key 之后这些模型没有全部可用：${want.map((item) => `${item.vendorKey}/${item.modelKey}`).join('、')}（没有验证这一步可补；一分钱没花）`)
     await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed')))
-    await win.locator('[data-settings-close]').first().click()
+    if (!usedBigConnectPage && await win.locator('[data-settings-close]').first().isVisible().catch(() => false)) {
+      await win.locator('[data-settings-close]').first().click()
+    }
     return { vendorKey: ENV_KEY_VENDOR, keySaved: true, usableModels: want.map((item) => item.modelKey), viaVisibleOnboarding: true }
   } catch (error) {
     throw redactedError(error, secrets)
