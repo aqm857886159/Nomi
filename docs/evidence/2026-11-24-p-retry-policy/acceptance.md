@@ -2,7 +2,7 @@ t8-r2-verify：通过
 
 - 验收线：t8-r2-verify
 - 实现线：t8-r2-retry-impl
-- 验收 HEAD：02465c7f2885ff0e721db094a41afff6cc26c5ab
+- 验收 HEAD：ad7a3fca197150a1776d09d2b6bda3014fabbb3c
 - 关联任务：协作看板 #1586 · 7 大替换第 ② 刀（`p-retry` → `electron/shared/retryPolicy.ts`，`generic-retry-loop` `3 → 0`）
 
 ## 1. 范围与抑制表清零核查
@@ -45,6 +45,12 @@ t8-r2-verify：通过
 - `node scripts/check-file-sizes.mjs`：✅ 通过（0 超限）
 - `node scripts/lint-changed.mjs`：✅ 通过（11 文件 0 错）
 - `node scripts/fix-churn.mjs --range origin/main..HEAD`：✅ 通过（0 热点 fix）
+
+### 2.4 增量复验（`ad7a3fca197150a1776d09d2b6bda3014fabbb3c`，并入最新 `origin/main` + `dreaminaCli` i18n 路由修复）
+- 核对增量 diff：`electron/catalog/dreaminaCli.ts` 兜底文案已路由至 `desktopT("dreamina.invokeFailed")`，`electron/desktopStrings.ts` 中英双语同步补齐，零本机路径泄露；
+- `pnpm run check:i18n`：✅ 通过（22/22 单测 + `visible-text` + `key-parity` 6623 keys + `key-ref` 1815 文件 + `fragile-match` + `test-copy-literals` 全绿，0 错）；
+- `./node_modules/.bin/vitest run --maxWorkers=2 electron/shared/retryPolicy.test.ts electron/catalog/dreaminaCli.test.ts`：**2 passed (2) · 16 passed (16)**；
+- `./node_modules/.bin/tsc -p electron/tsconfig.json --noEmit`（0 错）、`NOMI_BASE_REF=origin/main node scripts/check-self-written.mjs`（0 未认领）、`NOMI_BASE_REF=origin/main node scripts/lint-changed.mjs`（12 文件 0 错）：✅ 全绿。
 
 ## 3. ★9 与未验证范围核对
 - `upgrade-path`：经 `electron/catalog/upgradeKeepsWorkingModels.test.ts`（10/10）实跑验证旧版真实目录夹具原地兼容；
