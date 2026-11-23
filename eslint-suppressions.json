@@ -209,7 +209,7 @@
   },
   "electron/export/ffmpegRunner.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 16
+      "count": 12
     }
   },
   "electron/export/mediaProbe.ts": {

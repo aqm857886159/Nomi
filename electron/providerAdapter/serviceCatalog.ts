@@ -133,6 +133,50 @@ function connectionIdentity(input: ProviderAdapterConnectionInput): Record<strin
   };
 }
 
+type CatalogMutationTx = Parameters<Parameters<typeof mutateCatalog>[0]>[0];
+type PlannedStagedVendor = ReturnType<typeof planStagedVendorIdentity>;
+
+function upsertStagedVendor(
+  tx: CatalogMutationTx,
+  params: {
+    before: ReturnType<typeof readCatalog>;
+    input: ProviderAdapterConnectionInput;
+    identity: PlannedStagedVendor;
+    sourceVendorKey: string;
+  },
+): Vendor {
+  const { before, input, identity, sourceVendorKey } = params;
+  const targetVendorKey = identity.vendorKey;
+  const existingVendor = before.vendors.find((vendor) => vendor.key === targetVendorKey);
+  const sourceVendor = before.vendors.find((vendor) => vendor.key === identity.sourceVendorKey)
+    || before.vendors.find((vendor) => vendor.key === sourceVendorKey);
+  const cleanHeaders = Object.fromEntries(
+    Object.entries(input.headers || {}).filter(([key, value]) => key.trim() && value.trim()),
+  );
+  const vendorEnabled = !identity.isolated
+    && (vendorHasPublishedExecution(before, sourceVendorKey) || input.models.some((model) => model.kind === "text"));
+
+  for (const superseded of identity.supersededVendorKeys) tx.deleteVendor(superseded);
+  return tx.upsertVendor({
+    key: targetVendorKey,
+    name: input.vendorName || existingVendor?.name || sourceVendor?.name || targetVendorKey,
+    enabled: vendorEnabled,
+    baseUrlHint: input.baseUrl,
+    authType: input.authType,
+    authHeader: input.authHeader || null,
+    authQueryParam: input.authQueryParam || null,
+    providerKind: normalizeProviderKind(input.providerKind),
+    ...(input.proxyUrl ? { network: { proxyUrl: input.proxyUrl } } : { network: undefined }),
+    meta: {
+      ...asRecord(existingVendor?.meta),
+      ...(Object.keys(cleanHeaders).length ? { extraHeaders: cleanHeaders } : {}),
+      // 兄弟连接（`apimart--mini`）登记 root，这样「这是不是 apimart」解析得回去（#831）。
+      ...siblingConnectionLineageMeta(targetVendorKey),
+      ...candidateLineageMeta(identity),
+    },
+  });
+}
+
 export const defaultCatalog: ProviderAdapterCatalogPort = {
   register(input) {
     const before = readCatalog();
@@ -156,12 +200,6 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
       reuseUnpublishedCandidate: false,
     });
     const targetVendorKey = identity.vendorKey;
-    const existingVendor = before.vendors.find((vendor) => vendor.key === targetVendorKey);
-    const sourceVendor = before.vendors.find((vendor) => vendor.key === identity.sourceVendorKey)
-      || before.vendors.find((vendor) => vendor.key === sourceVendorKey);
-    const cleanHeaders = Object.fromEntries(
-      Object.entries(input.headers || {}).filter(([key, value]) => key.trim() && value.trim()),
-    );
     const savedCredential = before.apiKeysByVendor[identity.sourceVendorKey] || before.apiKeysByVendor[sourceVendorKey];
     if (input.authType !== "none" && input.preserveExistingCredential) {
       if (!savedCredential?.apiKey || savedCredential.enabled === false) {
@@ -172,27 +210,8 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
       }
     }
     const isolatedCandidate = identity.isolated;
-    const vendorEnabled = !isolatedCandidate && (vendorHasPublishedExecution(before, sourceVendorKey) || input.models.some((model) => model.kind === "text"));
     return mutateCatalog((tx) => {
-      for (const superseded of identity.supersededVendorKeys) tx.deleteVendor(superseded);
-      const vendor = tx.upsertVendor({
-        key: targetVendorKey,
-        name: input.vendorName || existingVendor?.name || sourceVendor?.name || targetVendorKey,
-        enabled: vendorEnabled,
-        baseUrlHint: input.baseUrl,
-        authType: input.authType,
-        authHeader: input.authHeader || null,
-        authQueryParam: input.authQueryParam || null,
-        providerKind: normalizeProviderKind(input.providerKind),
-        ...(input.proxyUrl ? { network: { proxyUrl: input.proxyUrl } } : { network: undefined }),
-        meta: {
-          ...asRecord(existingVendor?.meta),
-          ...(Object.keys(cleanHeaders).length ? { extraHeaders: cleanHeaders } : {}),
-          // 兄弟连接（`apimart--mini`）登记 root，这样「这是不是 apimart」解析得回去（#831）。
-          ...siblingConnectionLineageMeta(targetVendorKey),
-          ...candidateLineageMeta(identity),
-        },
-      });
+      const vendor = upsertStagedVendor(tx, { before, input, identity, sourceVendorKey });
       if (input.authType === "none") tx.deleteApiKey(targetVendorKey);
       else if (!input.preserveExistingCredential) tx.upsertApiKey(targetVendorKey, { apiKey: input.apiKey, enabled: true });
       else if (isolatedCandidate) {
@@ -240,37 +259,12 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
       reuseUnpublishedCandidate: true,
     });
     const targetVendorKey = identity.vendorKey;
-    const existingVendor = before.vendors.find((vendor) => vendor.key === targetVendorKey);
-    const sourceVendor = before.vendors.find((vendor) => vendor.key === identity.sourceVendorKey)
-      || before.vendors.find((vendor) => vendor.key === sourceVendorKey);
-    const cleanHeaders = Object.fromEntries(
-      Object.entries(input.headers || {}).filter(([key, value]) => key.trim() && value.trim()),
-    );
     const savedCredential = before.apiKeysByVendor[sourceVendorKey];
     if (input.authType !== "none" && input.catalogVendorKey && savedCredential?.apiKey && savedCredential.enc !== "safeStorage") {
       throw new Error("The saved connection credential needs to be saved again before authentication can continue");
     }
-    const isolatedCandidate = identity.isolated;
-    const vendorEnabled = !isolatedCandidate && (vendorHasPublishedExecution(before, sourceVendorKey) || input.models.some((model) => model.kind === "text"));
     return mutateCatalog((tx) => {
-      for (const superseded of identity.supersededVendorKeys) tx.deleteVendor(superseded);
-      const vendor = tx.upsertVendor({
-        key: targetVendorKey,
-        name: input.vendorName || existingVendor?.name || sourceVendor?.name || targetVendorKey,
-        enabled: vendorEnabled,
-        baseUrlHint: input.baseUrl,
-        authType: input.authType,
-        authHeader: input.authHeader || null,
-        authQueryParam: input.authQueryParam || null,
-        providerKind: normalizeProviderKind(input.providerKind),
-        ...(input.proxyUrl ? { network: { proxyUrl: input.proxyUrl } } : { network: undefined }),
-        meta: {
-          ...asRecord(existingVendor?.meta),
-          ...(Object.keys(cleanHeaders).length ? { extraHeaders: cleanHeaders } : {}),
-          ...siblingConnectionLineageMeta(targetVendorKey),
-          ...candidateLineageMeta(identity),
-        },
-      });
+      const vendor = upsertStagedVendor(tx, { before, input, identity, sourceVendorKey });
       if (input.authType === "none") tx.deleteApiKey(targetVendorKey);
       else tx.upsertApiKey(targetVendorKey, { apiKey: input.apiKey, enabled: true });
       const models = input.models.map((selected) => {
