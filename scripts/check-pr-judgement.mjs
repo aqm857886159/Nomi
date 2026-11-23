@@ -15,6 +15,7 @@
 //
 // 环境变量（给测试用）：PR_JUDGEMENT_BASE_REF 可信 base；PR_JUDGEMENT_REPO_ROOT 覆盖仓库根；PR_JUDGEMENT_CREATED_AT 覆盖 PR 创建时间；NOMI_PR_BODY 指定正文（见 prBody.mjs）。
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -24,8 +25,10 @@ import { execGhReadSync } from './lib/transientRetry.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { evaluatePrBody, ledgerChanges, resolveJudgementStage, reviewedContracts, settledContracts } from './pr-body-criteria.mjs'
 import { knownScenarios, scenarioEntriesFromReader } from './perf-scenarios-lib.mjs'
+import { PRIOR_ART_THRESHOLD_DATE, evaluatePlans, evaluatePullRequest, scopePlansToChanged } from './prior-art-lib.mjs'
 import { ROUTING_FILE } from './pr-judgement-lib.mjs'
 import { loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
+import { SELF_WRITTEN_FILE, registryChanges } from './self-written-lib.mjs'
 import { prChanges } from './lib/prChanges.mjs'
 
 const repoRoot = process.env.PR_JUDGEMENT_REPO_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -45,6 +48,34 @@ function prCreatedAt() {
   try {
     return JSON.parse(execGhReadSync(['pr', 'view', ...(number ? [number] : []), '--json', 'createdAt'], { cwd: repoRoot })).createdAt || null
   } catch { return null }
+}
+
+function checkPriorArtAlongside({ base, files, body, show }) {
+  const planDir = path.join(repoRoot, 'docs', 'plan')
+  const plans = new Map()
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (entry.name.endsWith('.md')) plans.set(path.relative(repoRoot, full).split(path.sep).join('/'), fs.readFileSync(full, 'utf8'))
+    }
+  }
+  walk(planDir)
+  const changedPlans = new Set(files.filter((file) => file.status !== 'D' && file.path.startsWith('docs/plan/') && file.path.endsWith('.md')).map((file) => file.path))
+  const fileExists = (candidate) => fs.existsSync(path.join(repoRoot, candidate))
+  const errors = evaluatePlans({ plans: scopePlansToChanged(plans, changedPlans), threshold: PRIOR_ART_THRESHOLD_DATE, fileExists })
+  if (files.some((file) => file.path === SELF_WRITTEN_FILE)) {
+    let baseRegistry = {}
+    try { baseRegistry = JSON.parse(show(base, SELF_WRITTEN_FILE) ?? '{}') } catch { /* base 无登记表 */ }
+    let headRegistry = null
+    try { headRegistry = JSON.parse(fs.readFileSync(path.join(repoRoot, SELF_WRITTEN_FILE), 'utf8')) } catch { /* 读不到 */ }
+    if (headRegistry) {
+      const changes = registryChanges(baseRegistry, headRegistry)
+      if (changes.changed) errors.push(...evaluatePullRequest({ body, registryChanged: true, plans, fileExists }))
+    }
+  }
+  return errors
 }
 
 function main() {
@@ -110,10 +141,14 @@ function main() {
     return 1
   }
   const result = evaluatePrBody({ body: pr.body, files, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
+  const priorArtErrors = checkPriorArtAlongside({ base, files, body: pr.body, show })
   const categories = result.judgement.inferred.categories.map((category) => category.label)
   console.log(`PR 正文判据（${stage === 'merge' ? '合并档' : '推送档'}，正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)
   for (const line of result.lines) console.log(line)
-  if (result.blocked) {
+  if (priorArtErrors.length > 0) {
+    for (const error of priorArtErrors) console.log(`✖ 先查别人：${error}`)
+  }
+  if (result.blocked || priorArtErrors.length > 0) {
     // 合并档跑在「PR Body」检查里，正文一改（edited）它自动重判；推送档跑在 Contracts 里，Quality Gate 只在推送时触发。
     console.error(stage === 'merge'
       ? '✖ PR 正文判据（合并档）没过：在 GitHub 上把 PR 正文改好即可，「PR Body」检查会自动重判，不必重推、不必点重跑。'

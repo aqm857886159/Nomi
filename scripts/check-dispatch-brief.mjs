@@ -16,10 +16,15 @@
 // 另查范围内存在文件的热点（复用原计数器；文件热点缺方向文档拦，目录 / 概念只提示）。
 // 界面任务还须引用设计系统。声明用关键词判，热点只读 Git，不调模型；退出码 1 = 缺项（派工前补齐）。
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { directionMessage, findHotspots, loadHistory, seamFixCommits } from './fix-churn.mjs'
 import { loadSeams, SEAM_WINDOW_DAYS } from './fix-churn-units.mjs'
+
+const loadModule = createRequire(import.meta.url)
+let capabilityIndexCache
+const capabilityIndexMod = () => (capabilityIndexCache ??= loadModule('./build-capability-index.mjs'))
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -269,9 +274,9 @@ export function orchestrationProblems(text, { name = '', hotspot = false } = {})
   }
   // 8 登记自写 / 新增通用能力的任务书，必须要求把查证写成设计卡里的「## 先查别人」一节，并在交回前带正文跑那道门岗。
   if (isBuildLine && /登记[^\n]{0,12}自写|自写[^\n]{0,12}登记|self-written\.json|新增功能|新增通用/.test(text) && !/^声明：不登记自写/m.test(text)) {
-    for (const need of ['先查别人', 'check-prior-art']) {
+    for (const need of ['先查别人', 'check-pr-judgement']) {
       if (!text.includes(need)) {
-        problems.push(`这份任务书涉及自写 / 新增能力，却没提 ${need}：要求线在设计卡里写「## 先查别人」一节（≥3 条带 URL 或 file:line 的出处，只写真打开看过的），交回前跑 NOMI_PR_BODY="$(cat .tmp-pr-body.md)" node scripts/check-prior-art.mjs --pr；不登记自写就写一行「声明：不登记自写」`)
+        problems.push(`这份任务书涉及自写 / 新增能力，却没提 ${need}：要求线在设计卡里写「## 先查别人」一节（≥3 条带 URL 或 file:line 的出处，只写真打开看过的），交回前跑 NOMI_PR_BODY="$(cat .tmp-pr-body.md)" node scripts/check-pr-judgement.mjs --pr；不登记自写就写一行「声明：不登记自写」`)
       }
     }
   }
@@ -347,6 +352,24 @@ export function checkDispatchBrief(text, { name = '', implementation = false, de
   return problems
 }
 
+/**
+ * T-8 自动发现触点 2：派工书校验时，按任务书提到的 src/ / electron/ 路径自动输出「已有主人与现成库」速查
+ * （不依赖 Claude Code PreToolUse hook，覆盖蜂群 worker / Antigravity / Codex 等所有宿主，严格 ≤ 2500 字节）。
+ */
+export function briefCapabilityHints(text, { root = REPO_ROOT, registries = null } = {}) {
+  const paths = briefPaths(text).filter((p) => /^(?:src|electron)\//.test(p) && !/\.(?:test|spec|e2e)\.[^.]+$/.test(p))
+  if (paths.length === 0) return ''
+  const { buildCapabilityIndex, loadRegistries } = capabilityIndexMod()
+  let loaded = registries
+  if (!loaded) {
+    try { loaded = loadRegistries(root) } catch { return '' }
+  }
+  const primary = paths[0]
+  const index = buildCapabilityIndex({ ...loaded, targetRel: primary, maxBytes: 2200 })
+  if (!index.text) return ''
+  return `【动手前自动发现 · 已有主人与现成库（按任务范围 ${primary}${paths.length > 1 ? ` 等 ${paths.length} 处` : ''}）】\n${index.text}`
+}
+
 function main() {
   const file = process.argv[2]
   if (!file || !fs.existsSync(file)) { console.error('用法：node scripts/check-dispatch-brief.mjs <任务书.md>'); return 2 }
@@ -354,9 +377,14 @@ function main() {
   const warnings = []
   const problems = checkDispatchBrief(text, { name: path.basename(file), implementation: isImplementationBrief(text, file), design: isDesignBrief(text, file), acceptance: isAcceptanceBrief(text, file), warnings })
   for (const warning of warnings) console.warn(warning)
-  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、调用方、删除范围齐全，第 3 轮复盘、模型可见工具清单、目标合同、热点方向检查与设计系统引用检查通过。'); return 0 }
-  console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
-  return 1
+  if (problems.length) {
+    console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
+    return 1
+  }
+  const hints = briefCapabilityHints(text)
+  if (hints) console.log(hints)
+  console.log('派工书检查：范围、不碰清单、停点、删不删、调用方、删除范围齐全，第 3 轮复盘、模型可见工具清单、目标合同、热点方向检查与设计系统引用检查通过。')
+  return 0
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main())

@@ -17,7 +17,7 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { approvalCommand, localApprovals, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
+import { checkSuppressionContracts, pushApprovals, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const LINTABLE = /\.(?:tsx?|jsx?|[cm]js)$/
@@ -42,19 +42,21 @@ const count = (messages, severity) => messages.filter((message) => message.sever
 const describe = (message) => `${message.line ?? 0}:${message.column ?? 0} ${message.ruleId ?? '(parse)'} ${message.message}`
 
 /**
- * 纯函数：抑制只许减少——任一规则的冻结总数比 base 多，又没有协调确认记录（哈希绑上涨那部分 diff），就拦。
- * 新开规则 / 扩大覆盖面把存量冻进来是正当的，但由协调看过 diff 后确认（同 board / perf），不由 PR 自己决定。
- * approvals = scripts/lib/coordApprovals.mjs 的 localApprovals（推送前读本机 NOMI_COORD_APPROVALS）。
+ * 纯函数：抑制只许减少——直接委托 coordApprovals.mjs 的唯一主人 checkSuppressionContracts（与 check-pr-judgement 推送档同口径，不写第二份）。
+ * 返回需要阻断的错误行数组（空 = 放行；警告行由 evaluateSuppressionGrowth / checkSuppressionContracts 的 lines 给出）。
  */
+export function evaluateSuppressionGrowth(baseSuppressions, headSuppressions, approvals = null) {
+  return checkSuppressionContracts({
+    strict: true,
+    baseSuppressions,
+    suppressions: headSuppressions,
+    approvals: approvals ?? { mode: 'local', pr: null, lookup: () => false },
+  })
+}
+
 export function judgeSuppressionGrowth(baseSuppressions, headSuppressions, approvals = null) {
-  const subject = suppressionApprovalSubject(baseSuppressions, headSuppressions)
-  if (!subject.needsApproval) return []
-  if (approvals?.lookup?.('eslint-suppressions', SUPPRESSIONS_FILE, subject.fingerprint) === true) return []
-  const shown = subject.grownEntries.slice(0, 20).map(({ file, rule, base, head }) => `    ${file} ${rule}：${base} → ${head}`)
-  if (subject.grownEntries.length > 20) shown.push(`    …共 ${subject.grownEntries.length} 处`)
-  const rules = shown.join('\n')
-  const why = approvals?.unavailable ? `（${approvals.unavailable}）` : ''
-  return [`✖ ${SUPPRESSIONS_FILE}：冻结的存量只许减少（按文件 × 规则），这些涨了，没有协调确认记录${why}\n${rules}\n  → 只改代码时：新违规请修掉，不要用 --suppress-all / --suppress-rule 把它也冻进去\n  → 新开规则 / 扩大覆盖面、确需冻进存量：交协调看 diff，协调确认后跑 ${approvalCommand(null, 'eslint-suppressions')}`]
+  const verdict = evaluateSuppressionGrowth(baseSuppressions, headSuppressions, approvals)
+  return verdict.ok ? [] : verdict.lines
 }
 
 /** 纯函数：文件里实际被抑制的条数 < 冻结条数 = 存量变少了但没收紧（CLI 判 unused suppressions，退出码 2）。 */
@@ -106,13 +108,16 @@ export async function main() {
     console.error('✖ lint:changed：拿不到 merge-base(HEAD, origin/main)，算不出改动范围——不拿算不出来当通过')
     return 1
   }
-  // 冻结数和确认哈希都按提交里的版本算（推送的是提交，不是工作树）
+  // 冻结数和确认哈希都按提交里的版本算（推送的是提交，不是工作树）；与 check-pr-judgement 推送档共用 pushApprovals + checkSuppressionContracts
   const suppressionsAt = (rev) => { try { return JSON.parse(git(['show', `${rev}:${SUPPRESSIONS_FILE}`])) } catch { return {} } }
   const headSuppressions = suppressionsAt('HEAD')
-  const growth = judgeSuppressionGrowth(suppressionsAt(base), headSuppressions, localApprovals({ pr: null }))
+  const suppressionVerdict = evaluateSuppressionGrowth(suppressionsAt(base), headSuppressions, pushApprovals({ pr: null }))
+  const growth = suppressionVerdict.ok ? [] : suppressionVerdict.lines
+  const suppressionNotices = suppressionVerdict.ok ? suppressionVerdict.lines : []
   const files = changedLintableFiles(base)
   if (files.length === 0) {
     if (growth.length) { console.error(growth.join('\n')); return 1 }
+    if (suppressionNotices.length) console.warn(suppressionNotices.join('\n'))
     console.log('✅ lint:changed：没有可 lint 的改动文件')
     return 0
   }
@@ -122,6 +127,7 @@ export async function main() {
   for (const file of files) if (!(await eslint.isPathIgnored(path.join(repoRoot, file.path)))) lintable.push(file)
   if (lintable.length === 0) {
     if (growth.length) { console.error(growth.join('\n')); return 1 }
+    if (suppressionNotices.length) console.warn(suppressionNotices.join('\n'))
     console.log('✅ lint:changed：改动文件都在 eslint 的忽略范围里')
     return 0
   }
@@ -159,6 +165,7 @@ export async function main() {
     console.error(problems.join('\n'))
     return 1
   }
+  if (suppressionNotices.length) console.warn(suppressionNotices.join('\n'))
   console.log(`✅ lint:changed：${lintable.length} 个改动文件，错误 0，警告不比 origin/main 多`)
   return 0
 }

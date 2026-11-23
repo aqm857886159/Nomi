@@ -15,13 +15,13 @@
 //   · projectionRecomputeMs：面板投影对这 20 条拒收各重推一次信封（failureOf，宿主按 toolCallId 只算一次）的总耗时；
 //   · rejectedPerTurn：这一轮真被拒的次数（应为 20，量具本身的自检）。
 // 接口同 tests/perf/node-json-bench.mjs 的约定：--runs N --out 文件 → { runs, noisy, metrics: { 名字: number[] } }。
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { ensureFreshElectronDist } from './ensureFreshElectronDist.mjs'
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i < 0 ? fallback : process.argv[i + 1] }
 const runs = Number(arg('--runs', 5))
@@ -38,9 +38,15 @@ const REJECTED = SHAPE_REJECTIONS + PREPARE_REJECTIONS
 // 导致 instanceof LaneDomainFailure 失真；dist-electron 与真 App 同一套模块图。
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const distLane = path.join(repoRoot, 'dist-electron', 'agentLane')
-if (!fs.existsSync(path.join(distLane, 'laneToolInputBoundary.mjs'))) {
-  execFileSync(process.execPath, [path.join(repoRoot, 'scripts/build-electron.mjs')], { cwd: repoRoot, stdio: 'inherit' })
-}
+ensureFreshElectronDist({
+  repoRoot,
+  requiredArtifacts: [
+    path.join(distLane, 'laneToolInputBoundary.mjs'),
+    path.join(distLane, 'laneRepeatedFailure.mjs'),
+    path.join(distLane, 'laneExtendedTools.js'),
+    path.join(distLane, 'laneTools.mjs'),
+  ],
+})
 const require = createRequire(import.meta.url)
 const { createLaneToolInputBoundary } = await import(pathToFileURL(path.join(distLane, 'laneToolInputBoundary.mjs')).href)
 const { createLaneRepeatedFailureTracker } = await import(pathToFileURL(path.join(distLane, 'laneRepeatedFailure.mjs')).href)
