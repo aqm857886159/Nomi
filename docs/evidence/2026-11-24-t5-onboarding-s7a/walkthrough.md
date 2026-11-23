@@ -36,5 +36,6 @@
 - **场景配置**：`tests/perf/scenarios/onboarding-connect-open.json`（`E10` 10 节点项目画布，未接入状态触发「连接模型」打开整窗平级页，到主按钮与 Key 输入框可见再过两帧）
 - **机器与轮次**：`darwin arm64 Apple M5 x10 / 16GB`，1 轮预热 + 5 轮正式采样，原始结果落盘于 `docs/evidence/2026-11-24-t5-onboarding-s7a/perf-onboarding-connect-open.json`
 - **实测结果**：
-  - `response`：**中位数 `47.1ms` · p95 `47.6ms`**（预算：中位数 `≤ 150ms`、p95 `≤ 225ms`，结论 `ok`）
+  - `response`：**中位数 `48.2ms` · p95 `48.4ms`**（预算：中位数 `≤ 150ms`、p95 `≤ 225ms`，结论 `ok`）
   - `longTasks`：**`0` 次（`0ms`）**
+  - `mediaRequests`（公网/外发）：**`0` 次**
