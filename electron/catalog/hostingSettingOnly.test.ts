@@ -54,16 +54,11 @@ describe('hosting is controlled only by main-process settings', () => {
   it.each(['deny', 'unrecognized', null])('normalizes legacy or unknown %s to ask', policy => {
     expect(normalizeAutomationPolicySettings({ anonymousAssetHosting: policy }).anonymousAssetHosting).toBe('ask')
   })
-  it.each(['zh-CN', 'en'])('keeps unavailable and short-lease channel failures readable in %s', async locale => {
+  it.each(['zh-CN', 'en'])('keeps unavailable channel failures readable in %s', async locale => {
     setDesktopLocale(locale)
     try {
-      const short = { ...relay, ingestion: { ...relay.ingestion, ttlSeconds: 1 } } as IngestionCandidate
-      for (const candidates of [[], [short]]) {
-        const error = await localizeAssetsForVendor({ ref: url }, () => candidates, read, vi.fn(), vi.fn()).catch((error: Error) => error)
-        expect((error as Error).message.split('\n')[0]).toContain(candidates.length
-          ? desktopT('assetUpload.channelLeaseTooShort', { channel: '127.0.0.1:1' })
-          : desktopT('assetUpload.noChannel'))
-      }
+      const error = await localizeAssetsForVendor({ ref: url }, () => [], read, vi.fn(), vi.fn()).catch((error: Error) => error)
+      expect((error as Error).message.split('\n')[0]).toContain(desktopT('assetUpload.noChannel'))
     } finally { setDesktopLocale('zh-CN') }
   })
 })

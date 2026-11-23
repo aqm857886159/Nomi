@@ -46,7 +46,7 @@ afterEach(() => {
 
 const runWith = async (nodeId: string, executor: () => Promise<never | GenerationCanvasNode['result']>) => {
   const target = await session.open('project-a')
-  return runGenerationNode(nodeId, { target, retry: { maxAttempts: 1 }, executor: executor as never })
+  return runGenerationNode(nodeId, { target, executor: executor as never })
 }
 
 describe('the run record carries which (vendor, model) the run was dispatched to', () => {
@@ -76,7 +76,7 @@ describe('the run record carries which (vendor, model) the run was dispatched to
           })
           throw new Error('Expected the controlled submission to fail')
         }
-        await expect(runGenerationNode(node.id, { target, executor, retry: { baseDelayMs: 0 } })).rejects.toThrow(message)
+        await expect(runGenerationNode(node.id, { target, executor })).rejects.toThrow(message)
       }
       const failures = track.mock.calls.map(([event]) => [event.eventName, event.props.errorType])
       expect(failures).toEqual(Array.from({ length: 9 }, () => ['generation.completed', 'submission-not-sent']))
@@ -92,7 +92,7 @@ describe('the run record carries which (vendor, model) the run was dispatched to
       useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt }))
     const message = encodeStructuredErrorMessage({ category: 'auth', retryable: false }, 'upstream socket rejected')
     const executor = vi.fn(async () => { throw new Error(message) })
-    const result = await runGenerationNodesBatch(nodes.map(node => node.id), { target, executor, retry: { baseDelayMs: 0 } })
+    const result = await runGenerationNodesBatch(nodes.map(node => node.id), { target, executor })
     expect(result.failures).toHaveLength(2)
     expect(executor).toHaveBeenCalledTimes(2)
   })

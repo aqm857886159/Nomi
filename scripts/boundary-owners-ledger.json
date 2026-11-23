@@ -1302,6 +1302,12 @@
       "path": "electron/memory/projectMemory.ts",
       "symbol": "distillEvent",
       "reason": "D-1122-project-memory-delete（用户 2026-11-22「删干净就好」）整份删掉项目记忆模块：看不见、删不掉的状态不再影响 Agent 回答。这份合同里「绿色事实进现有记忆投影」这一条不再适用——经验候选照旧由 experienceRepository 写进事件日志，只是不再有投影把它们拼进系统提示；其余不变量（显式信封、证据完整才可复用、幂等重放）的主人都在 electron/experience/ 下，不受影响。"
+    },
+    {
+      "contract": "docs/fixes/2026-11-01-reference-link-delivery.root-cause.json",
+      "path": "electron/catalog/referenceLinkRefusals.ts",
+      "symbol": "noteConnectionRefused",
+      "reason": "#1586 RW-2 退役整条连接的拒收记忆。参考链逐条探测；旧设置文件不再参与派发。referenceLinkDelivery.matrix.test.ts 以旧文件与同连接活链核对。"
     }
   ],
   "unverified": [

@@ -190,7 +190,6 @@ export const t8StructuralGuardBlocks = [
       ...TEST_IGNORES,
       'electron/sharingRetry.ts',
       'electron/vendor/vendorHttp.ts',
-      'src/workbench/generationCanvas/runner/generationRetryPolicy.ts',
     ],
     plugins: { 'generic-retry-loop': syntaxPlugin() },
     rules: { 'generic-retry-loop/no-restricted-syntax': ['error', ...genericRetryLoopSelectors] },
