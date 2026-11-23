@@ -11,6 +11,7 @@ import { MCP_VERIFY_PROBE_NAME } from './mcpHttpEndpoint'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import { writeJsonFileAtomic } from '../jsonFile'
 import { capabilityCoreDir } from './security'
 import {
   isBuiltinMcpClient,
@@ -71,12 +72,7 @@ export function recordDetectedMcpClient(name: string): void {
   // sourceName 保留原始自报名字，用于检测去重展示。
   current.push({ key, label, format: 'json', configPath: '', isBuiltin: false, detected: true, sourceName: label })
   try {
-    const dir = path.dirname(filePath)
-    fs.mkdirSync(dir, { recursive: true })
-    // 原子写（tmp→rename）避免检测并发时写半截文件。
-    const tmp = `${filePath}.tmp.${process.pid}`
-    fs.writeFileSync(tmp, JSON.stringify(current, null, 2))
-    fs.renameSync(tmp, filePath)
+    writeJsonFileAtomic(filePath, current)
   } catch {
     /* 写失败不致命——检测是尽力而为 */
   }
