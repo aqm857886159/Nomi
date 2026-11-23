@@ -19,8 +19,7 @@ import i18n from '../../../i18n'
 const MINUTE_MS = 60_000
 
 /**
- * 只有本机簿记的一步：排队（写运行记录、读项目图）、两次尝试之间的重试间隔（退避上限 3s×2^n，最多 5 次，约 48s）。
- * 这两格由运行控制器报出，只等本机、自带上限，不经下面的等待原语；登记在表里，是让「每个阶段都有出口」没有例外。
+ * 排队只等本地簿记。旧运行记录中的 retrying 阶段仍可读取。
  */
 const LOCAL_STEP_MAX_MS = 2 * MINUTE_MS
 
@@ -75,7 +74,7 @@ export function describePhaseSilence(phase: GenerationProgressPhase, waitedMs: n
     : 'generationCommon.phaseDeadline.resultSilent', { minutes: minutesOf(waitedMs) })
 }
 
-/** 到点收场的两种「失败」：诚实失败，不进重试（见 generationRetryPolicy）。 */
+/** 到点收场的两种「失败」：诚实失败，不进重试。 */
 export class GenerationPhaseStalledError extends Error {
   readonly phase: GenerationProgressPhase
   readonly expiry: Exclude<DeadlineExpiry, 'recoverable'>

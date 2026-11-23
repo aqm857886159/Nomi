@@ -230,7 +230,7 @@ describe('the user confirmed "send again"; the earlier run arrives late', () => 
   it('batch path: a late old image does not rewrite the timeline when it is not the current image', async () => {
     const id = store().addNode({ kind: 'image', prompt: 'shot 1' }).id
     const target = testProjectBinding('project-a')
-    const batch = runGenerationNodesBatch([id], { target, retry: { maxAttempts: 1 }, canvasRunRecordIds: new Map([[id, 'batch-a']]) })
+    const batch = runGenerationNodesBatch([id], { target, canvasRunRecordIds: new Map([[id, 'batch-a']]) })
     const A = await nextAttempt(1)
     A.ctx.onProgress?.({ phase: 'generating', message: 'old', taskId: 'task-a' })
     calls.open.mockResolvedValue([{ nodeId: id, runId: 'canvas-batch-a', reason: 'in_flight', hasTaskId: true }])

@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { openLocalComfyuiSettings, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 // R13 真机走查：识别缺口三根因的**用户可见效果**（259 张真实语料逼出来的修复）。
 // 贴一张「云端 API 节点」形态的工作流（prompt 直接写在节点上，没有独立 CLIPTextEncode）——
 // 这类图占语料失败的 73%，修前面板会显示「未识别到提示词节点」，修后应自动绑上。
@@ -53,21 +54,8 @@ const { app, win } = await launchNomiApp({
 })
 const errors = []
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1440, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-
-  await win.getByRole('button', { name: '接入模型', exact: false }).first().click()
-  await win.waitForTimeout(1000)
-  await win.getByText('有本地 ComfyUI', { exact: false }).first().click()
-  await win.waitForTimeout(500)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
-  await win.waitForTimeout(400)
-  await win.getByRole('button', { name: '启用 ComfyUI', exact: false }).first().click()
-  await win.waitForTimeout(2200)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
-  await win.waitForTimeout(600)
+  await prepareWalkthroughWindow(app, win, { width: 1440, height: 1000 , errors })
+  await openLocalComfyuiSettings(win)
 
   await win.getByRole('button', { name: '导入自定义工作流', exact: false }).first().click()
   await win.waitForTimeout(400)

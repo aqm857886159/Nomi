@@ -56,6 +56,8 @@ function serve(req: http.IncomingMessage, res: http.ServerResponse): void {
       setTimeout(() => res.destroy(), 50);
       return;
     case "/octet-stream": return body("application/octet-stream", Buffer.concat([PNG, Buffer.alloc(64, 1)]));
+    case "/range-denied": return body("text/plain", Buffer.from("Range forbidden"), 403);
+    case "/xml-as-image": return body("image/png", Buffer.from("<Error>AccessDenied</Error>"));
     case "/octet-html": return body("application/octet-stream", HTML_PAGE);
     case "/no-type-json": return body("", JSON_ERROR);
     case "/html": return body("text/html; charset=utf-8", HTML_PAGE);
@@ -136,6 +138,8 @@ describe("probeProviderLink：链接状态 → alive / dead / unknown", () => {
     ["200 octet-stream，开头是图片字节", "/octet-stream", "alive"],
     ["200 image/svg+xml（媒体类型，开头是 <，仍是图）", "/svg", "alive"],
     ["跳转到 200 图", "/redirect-ok", "alive"],
+    ["拒绝 Range，普通 GET 的结果未知", "/range-denied", "denied"],
+    ["声明图片但返回 XML 错误体", "/xml-as-image", "dead"],
     ["跳转到 403", "/redirect-403", "dead"],
     ["200 HTML 页面", "/html", "dead"],
     ["200 JSON", "/json", "dead"],
@@ -160,6 +164,14 @@ describe("probeProviderLink：链接状态 → alive / dead / unknown", () => {
 
   it.each(rows)("%s → %s", async (_label, path, expected) => {
     expect(await probe(path)).toBe(expected);
+  });
+
+  it("匿名探测被拒时留下诊断，只记录主机和探测结果", async () => {
+    await probeProviderLink(link("/range-denied", "?signed=private-token"), {}, deps());
+    expect(logged).toContainEqual(expect.objectContaining({
+      event: "reference-link-probe", fields: expect.objectContaining({ host: HOST, verdict: "denied" }),
+    }));
+    expect(JSON.stringify(logged)).not.toContain("private-token");
   });
 
   it("请求带 Range、不带任何 Authorization / Cookie（不带 Key）", async () => {

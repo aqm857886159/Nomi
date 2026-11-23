@@ -8,7 +8,6 @@ import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/
 import type { GenerationProvider } from "../capabilityCore/generationRuntimeAdapter";
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import type { ProjectLeaseV2 } from "../capabilityCore/projectLease";
-import { isConnectionRefused } from "../catalog/referenceLinkRefusals";
 import { decideGenerationFailure } from "../shared/generationFailure";
 import { encodeStructuredErrorMessage, VendorRequestError } from "../vendor/vendorHttp";
 import { landedAdmission } from "./landFirstTestUtils";
@@ -16,9 +15,7 @@ import { prepareProductionGenerationAuthorization } from "./prepareProductionGen
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { createProductionRunRepository } from "./productionRunRepository";
 
-// 模型拉不到参考链接 → 记下这条连接（之后参考素材走上传）。记账只有 productionGenerationSubmission 的一个局部函数，
-// 提交被拒（start）和任务失败（poll）两个出口各调一次；两台发动机（画布 `canvas:<key>` / 做片目录引擎）都经它。
-// 铁律：只记账，不重发——这一单已经发出去、钱可能已经扣了，POST 仍然只有一次。
+// 两台生成引擎都保留本次供应商拒绝的原因，提交次数由账本决定。
 const NOW = "2026-11-01T00:00:00.000Z";
 const REPORTED = "An input media URL could not be fetched (403/404/410).";
 const roots: string[] = [];
@@ -105,29 +102,25 @@ function harness(engine: Engine) {
 }
 
 describe.each([canvasEngine, catalogEngine])("$name", (engine) => {
-  it("提交被拒（4xx）：记下这条连接；POST 仍只有 1 次，没有自动重发", async () => {
+  it("提交被拒（4xx）：POST 仍只有 1 次，没有自动重发", async () => {
     const h = harness(engine);
     h.submit.mockRejectedValue(engine.rejection(REPORTED));
-    await expect(h.start()).rejects.toThrow();
+    await expect(h.start()).rejects.toThrow(/could not be fetched/);
     expect(h.submit).toHaveBeenCalledTimes(1);
-    expect(isConnectionRefused(engine.connection)).toBe(true);
-    expect(isConnectionRefused("relay-other")).toBe(false);
   });
 
-  it("提交被拒但不是这一类（余额不足）：不记", async () => {
+  it("提交被拒但不是这一类（余额不足）：保留本次失败", async () => {
     const h = harness(engine);
     h.submit.mockRejectedValue(engine.rejection("The account has run out of credit for this request"));
     await expect(h.start()).rejects.toThrow();
-    expect(isConnectionRefused(engine.connection)).toBe(false);
   });
 
-  it("任务失败（轮询）：记下这条连接；errorMessage 换成上游原话，errorCode 不变", async () => {
+  it("任务失败（轮询）：errorMessage 换成上游原话，errorCode 不变", async () => {
     const h = harness(engine);
     await h.start();
     h.query.mockResolvedValue({ status: "failed", raw: engine.failedRaw(REPORTED) });
     const result = await h.submission.poll({ projectId: "project-1", operationId: "op-1" });
     expect(result.nextAction).toBe("attention");
-    expect(isConnectionRefused(engine.connection)).toBe(true);
     const job = h.repository.read("project-1", "op-1")!.jobs[0];
     expect(job.errorCode).toBe("provider_task_failed");
     expect(job.errorMessage).toBe(REPORTED);
@@ -142,21 +135,9 @@ describe.each([canvasEngine, catalogEngine])("$name", (engine) => {
     await h.start();
     h.query.mockResolvedValue({ status: "failed", raw: engine.failedRaw(encodeStructuredErrorMessage({ category, upstreamCode }, "opaque diagnostic")) });
     await h.submission.poll({ projectId: "project-1", operationId: "op-1" });
-    expect(isConnectionRefused(engine.connection)).toBe(false);
     const job = h.repository.read("project-1", "op-1")!.jobs[0];
     expect(job.errorCode).toBe("provider_task_failed");
     expect(job.errorMessage).not.toContain("opaque diagnostic");
     expect(decideGenerationFailure({ message: job.errorMessage ?? "", locale: "en" }).kind).toBe(kind);
-  });
-});
-
-describe("记账的边界", () => {
-  it("记账写不成（设置目录被占着）也不遮掉这次失败：start 仍抛原来的错", async () => {
-    const h = harness(catalogEngine);
-    const settings = process.env.NOMI_SETTINGS_DIR!;
-    fs.mkdirSync(path.join(settings, "reference-link-refusals.json"));
-    h.submit.mockRejectedValue(catalogEngine.rejection(REPORTED));
-    await expect(h.start()).rejects.toThrow(/could not be fetched/);
-    expect(h.submit).toHaveBeenCalledTimes(1);
   });
 });

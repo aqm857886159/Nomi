@@ -8,7 +8,7 @@ import {
   type DesktopBrowserTextPromptSaveEvent,
 } from '../../../desktop/bridge'
 import { notify } from '../../notificationPolicy'
-import { browserUrlDisplayTitle, normalizeBrowserInput } from './browserUrl'
+import { browserUrlDisplayTitle, normalizeBrowserInput } from '../browserUrl'
 import {
   type BrowserAssetPromptCaptureRequest,
   type BrowserAssetRemoteImportInput,

@@ -1,4 +1,11 @@
 import { makeTempDir } from './_test-temp.mjs'
+import {
+  createWalkthroughScreenshotter,
+  listenLocalHttpServer,
+  measureLocatorRect,
+  readSettingsModelDialogState,
+  streamDelayedOpenAiChatCompletion,
+} from './lib/walkthroughHost.mjs'
 // Save-first model access journey against a real Electron main process and a local HTTP mock.
 // Usage: pnpm build && node scripts/settings-model-access-save-first-walkthrough.mjs
 import { createServer } from 'node:http'
@@ -45,48 +52,7 @@ async function requestBody(request) {
 }
 
 function streamChatCompletion(response, model, delayMs) {
-  const send = () => {
-    if (response.destroyed) return
-    response.writeHead(200, {
-      'content-type': 'text/event-stream; charset=utf-8',
-      'cache-control': 'no-cache',
-      connection: 'keep-alive',
-    })
-    response.write(`data: ${JSON.stringify({
-      id: 'chatcmpl-save-first-walk',
-      object: 'chat.completion.chunk',
-      created: Math.floor(Date.now() / 1_000),
-      model,
-      choices: [{ index: 0, delta: { role: 'assistant', content: 'ready' }, finish_reason: null }],
-    })}\n\n`)
-    response.write(`data: ${JSON.stringify({
-      id: 'chatcmpl-save-first-walk',
-      object: 'chat.completion.chunk',
-      created: Math.floor(Date.now() / 1_000),
-      model,
-      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-    })}\n\n`)
-    response.end('data: [DONE]\n\n')
-  }
-  if (delayMs <= 0) {
-    send()
-    return
-  }
-  let timer
-  const clearDelay = () => {
-    if (!timer) return
-    clearTimeout(timer)
-    delayedResponses.delete(timer)
-    timer = undefined
-  }
-  timer = setTimeout(() => {
-    const completedTimer = timer
-    timer = undefined
-    if (completedTimer) delayedResponses.delete(completedTimer)
-    send()
-  }, delayMs)
-  delayedResponses.add(timer)
-  response.once('close', clearDelay)
+  streamDelayedOpenAiChatCompletion(response, { id: 'chatcmpl-save-first-walk', model, delayMs, delayedResponses })
 }
 
 const server = createServer((request, response) => {
@@ -135,13 +101,7 @@ const server = createServer((request, response) => {
   })
 })
 
-await new Promise((resolve, reject) => {
-  server.once('error', reject)
-  server.listen(0, '127.0.0.1', resolve)
-})
-const address = server.address()
-if (!address || typeof address === 'string') throw new Error('Local mock did not expose a TCP port')
-const baseUrl = `http://127.0.0.1:${address.port}/v1`
+const { baseUrl } = await listenLocalHttpServer(server, { label: 'Local mock' })
 
 async function pollUntil(read, accept, label, timeoutMs = 20_000) {
   const deadline = Date.now() + timeoutMs
@@ -154,18 +114,8 @@ async function pollUntil(read, accept, label, timeoutMs = 20_000) {
   throw new Error(`${label} timed out; latest=${JSON.stringify(latest)}`)
 }
 
-async function screenshot(win, name) {
-  const target = path.join(outDir, name)
-  await win.screenshot({ path: target })
-  console.log(`  screenshot: ${target}`)
-}
-
-async function rect(locator) {
-  return locator.evaluate((element) => {
-    const box = element.getBoundingClientRect()
-    return { x: box.x, y: box.y, width: box.width, height: box.height, right: box.right, bottom: box.bottom }
-  })
-}
+const screenshot = createWalkthroughScreenshotter(outDir, { prefix: '  screenshot: ', logFullPath: true })
+const rect = measureLocatorRect
 
 function readCatalogFromDisk() {
   return JSON.parse(readFileSync(path.join(settingsDir, 'model-catalog.json'), 'utf8'))
@@ -220,49 +170,7 @@ async function assertSettingsOwnedPage(win, pageSelector, label) {
 }
 
 async function assertModelDialogSurface(win, pageSelector, label, narrow = false) {
-  const state = await win.evaluate((selector) => {
-    const visible = (element) => element instanceof HTMLElement && element.getClientRects().length > 0 && getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden'
-    const highestLayer = (start) => {
-      let current = start
-      let highest = 0
-      while (current) {
-        const value = Number.parseInt(getComputedStyle(current).zIndex || '0', 10)
-        if (Number.isFinite(value)) highest = Math.max(highest, value)
-        current = current.parentElement
-      }
-      return highest
-    }
-    const toRect = (element) => {
-      if (!(element instanceof HTMLElement)) return null
-      const rect = element.getBoundingClientRect()
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, right: rect.right, bottom: rect.bottom }
-    }
-    const settings = document.querySelector('[data-settings-dialog]')
-    const modelRoot = document.querySelector('[data-model-settings-dialog]')
-    const modelPanel = modelRoot?.closest('[role="dialog"]')
-    const page = document.querySelector(selector)
-    return {
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      visibleDialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).length,
-      dialogLabels: [...document.querySelectorAll('[role="dialog"]')].filter(visible).map((dialog) => ({
-        ariaLabel: dialog.getAttribute('aria-label'),
-        labelledBy: dialog.getAttribute('aria-labelledby'),
-        text: (dialog.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80),
-        className: dialog.className,
-      })),
-      settingsVisible: visible(settings),
-      modelVisible: visible(modelRoot) && visible(modelPanel),
-      pageInsideModel: page instanceof HTMLElement && Boolean(modelRoot?.contains(page)),
-      pageInsideSettings: page instanceof HTMLElement && Boolean(settings?.contains(page)),
-      focusInsideModel: document.activeElement instanceof Element && Boolean(modelRoot?.contains(document.activeElement)),
-      settingsLayer: settings ? highestLayer(settings) : 0,
-      modelLayer: modelPanel ? highestLayer(modelPanel) : 0,
-      settingsRect: toRect(settings),
-      modelRect: toRect(modelPanel),
-      horizontalOverflow: [modelPanel, modelRoot, page].some((element) => element instanceof HTMLElement && element.scrollWidth > element.clientWidth + 2),
-      documentOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
-    }
-  }, pageSelector)
+  const state = await readSettingsModelDialogState(win, pageSelector, { includeDialogLabels: true })
 
   assert(state.visibleDialogs === 2, `${label}: expected Settings plus model dialog, got ${state.visibleDialogs} ${JSON.stringify(state.dialogLabels)}`)
   assert(state.settingsVisible && state.modelVisible, `${label}: Settings or model dialog is not visible`)

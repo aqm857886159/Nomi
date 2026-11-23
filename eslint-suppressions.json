@@ -61,7 +61,7 @@
   },
   "electron/assets/localAssetFile.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 9
+      "count": 8
     }
   },
   "electron/assets/localFileImport.ts": {
@@ -209,7 +209,7 @@
   },
   "electron/export/ffmpegRunner.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 16
+      "count": 12
     }
   },
   "electron/export/mediaProbe.ts": {

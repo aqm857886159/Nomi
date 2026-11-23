@@ -47,7 +47,7 @@ function answersWith(count: number, taskId: string) {
 
 /**
  * 主进程按运行记录号记账的样子（真的那一侧见 electron/capabilityCore/canvasShotMultiOutput.test.ts 的重放格）：
- * 第一次交 = 供应商收到一次、N 张落账，但回话在路上丢了（渲染层收到网络错，按可重试处理）；
+ * 第一次交 = 供应商收到一次、N 张落账，但回话在路上丢了（渲染层只收到网络错）；
  * 同一个运行记录号再交 = 照账本回这 N 张，供应商不再收到请求。
  */
 function ledgerWithLostAnswer(count: number, taskId: string) {
@@ -101,6 +101,22 @@ const nodeOf = (id: string): GenerationCanvasNode => useGenerationCanvasStore.ge
 const versions = (node: GenerationCanvasNode) => [...(node.history ?? [])].sort((left, right) => (left.versionNo ?? 0) - (right.versionNo ?? 0))
 
 describe('画布 ↑ 一次出 N 张', () => {
+  it.each([new TypeError('Failed to fetch'), new Error('socket timeout'), new Error('opaque failure')])(
+    'one paid click fails once and a second explicit click dispatches once (%s)', async failure => {
+      const id = addImageNode()
+      calls.submit.mockRejectedValue(failure)
+      const click = () => confirmAndRunNode(id, { initiator: 'user' })
+      await click()
+      const firstRuns = calls.submit.mock.calls.map(([input]) => (input as SubmitInput).runRecordId)
+      calls.submit.mockReset()
+      answersWith(1, 'second-intent')
+      await click()
+      expect([firstRuns.length, calls.submit.mock.calls.length]).toEqual([1, 1])
+      expect((calls.submit.mock.calls[0][0] as SubmitInput).runRecordId).not.toBe(firstRuns[0])
+      expect(nodeOf(id).result?.taskId).toBe('second-intent')
+    },
+  )
+
   it.each([1, 2, 4])('N=%i：同一镜版本历史 N 条、都是这次运行的、当前是最后一张、只交一次', async (count) => {
     const id = addImageNode()
     answersWith(count, 'task-1')
@@ -146,7 +162,11 @@ describe('画布 ↑ 一次出 N 张', () => {
     const id = addImageNode()
     const provider = ledgerWithLostAnswer(count, 'task-replay')
 
-    await runGenerationNode(id, { target, ledger: 'run', retry: { maxAttempts: 2, baseDelayMs: 0 } })
+    const options = { target, ledger: 'run' as const, runRecordId: 'booked-run' }
+    await expect(runGenerationNode(id, options)).rejects.toThrow('failed to fetch')
+    expect(calls.submit).toHaveBeenCalledOnce()
+    // Replay the booked receipt explicitly using its original identity.
+    await runGenerationNode(id, options)
 
     const submissions = calls.submit.mock.calls.map(([input]) => (input as SubmitInput).runRecordId)
     expect(submissions).toHaveLength(2)
@@ -175,7 +195,7 @@ async function runThrough(entry: typeof ENTRIES[number], id: string): Promise<vo
     await confirmAndRunNode(id, { initiator: 'user' })
     return
   }
-  await runGenerationNodesBatch([id], { target, retry: { maxAttempts: 1 }, canvasRunRecordIds: new Map([[id, `batch-${id}`]]) })
+  await runGenerationNodesBatch([id], { target, canvasRunRecordIds: new Map([[id, `batch-${id}`]]) })
 }
 
 describe('画布 ↑ 张数 × 媒体种类 × 入口', () => {

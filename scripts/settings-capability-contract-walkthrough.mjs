@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { listenLocalHttpServer, readSettingsModelDialogState } from './lib/walkthroughHost.mjs'
 // Real Electron journey for an unknown video model capability contract.
 //
 // Proves the full user path:
@@ -61,13 +62,7 @@ const server = createServer((request, response) => {
   })
 })
 
-await new Promise((resolve, reject) => {
-  server.once('error', reject)
-  server.listen(0, '127.0.0.1', resolve)
-})
-const address = server.address()
-if (!address || typeof address === 'string') throw new Error('request recorder did not expose a TCP port')
-const baseUrl = `http://127.0.0.1:${address.port}/v1`
+const { baseUrl } = await listenLocalHttpServer(server, { label: 'request recorder' })
 
 async function setWindowSize(app, win, width, height) {
   const browserWindow = await app.browserWindow(win)
@@ -105,43 +100,7 @@ async function assertNoHorizontalOverflow(win, selector, label) {
 }
 
 async function assertModelDialogSurface(win, pageSelector, label, narrow = false, expectFocus = true) {
-  const state = await win.evaluate((selector) => {
-    const visible = (element) => element instanceof HTMLElement && element.getClientRects().length > 0 && getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden'
-    const highestLayer = (start) => {
-      let current = start
-      let highest = 0
-      while (current) {
-        const value = Number.parseInt(getComputedStyle(current).zIndex || '0', 10)
-        if (Number.isFinite(value)) highest = Math.max(highest, value)
-        current = current.parentElement
-      }
-      return highest
-    }
-    const toRect = (element) => {
-      if (!(element instanceof HTMLElement)) return null
-      const rect = element.getBoundingClientRect()
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, right: rect.right, bottom: rect.bottom }
-    }
-    const settings = document.querySelector('[data-settings-dialog]')
-    const modelRoot = document.querySelector('[data-model-settings-dialog]')
-    const modelPanel = modelRoot?.closest('[role="dialog"]')
-    const page = document.querySelector(selector)
-    return {
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      visibleDialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).length,
-      settingsVisible: visible(settings),
-      modelVisible: visible(modelRoot) && visible(modelPanel),
-      pageInsideModel: page instanceof HTMLElement && Boolean(modelRoot?.contains(page)),
-      pageInsideSettings: page instanceof HTMLElement && Boolean(settings?.contains(page)),
-      focusInsideModel: document.activeElement instanceof Element && Boolean(modelRoot?.contains(document.activeElement)),
-      settingsLayer: settings ? highestLayer(settings) : 0,
-      modelLayer: modelPanel ? highestLayer(modelPanel) : 0,
-      settingsRect: toRect(settings),
-      modelRect: toRect(modelPanel),
-      horizontalOverflow: [modelPanel, modelRoot, page].some((element) => element instanceof HTMLElement && element.scrollWidth > element.clientWidth + 2),
-      documentOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
-    }
-  }, pageSelector)
+  const state = await readSettingsModelDialogState(win, pageSelector)
 
   assert(state.visibleDialogs === 2, `${label} keeps Settings and one model dialog visible`, JSON.stringify(state))
   assert(state.settingsVisible && state.modelVisible, `${label} keeps both dialog surfaces mounted`, JSON.stringify(state))
