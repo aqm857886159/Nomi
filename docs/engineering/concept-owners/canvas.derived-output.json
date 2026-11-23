@@ -1,0 +1,31 @@
+{
+  "name": "画布原子派生输出（种类规则、出处连边与后台派生不抢选中）",
+  "subject": "canvas.derived-output",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/model/derivedOutput.ts",
+    "symbol": "DERIVED_OUTPUT_RULES"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/model/derivedOutput.ts",
+      "symbol": "DERIVED_OUTPUT_RULES"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+      "symbol": "createCanvasGraphActions"
+    },
+    {
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "startVideoDepthDerivation"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-22",
+  "notes": "所有由现有画布节点派生产生的新节点统一经 DERIVED_OUTPUT_RULES 校验并由 addDerivedOutput 原子落点连边（derivedOutput.test.ts 结构守卫）；后台长耗时本机派生（如剪辑导出、白板快照、提取深度）显式传 select: false 保持原节点选中态（合同 docs/fixes/2026-11-22-video-depth-no-steal-selection.root-cause.json）。"
+}

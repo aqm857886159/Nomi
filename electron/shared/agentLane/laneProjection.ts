@@ -28,6 +28,7 @@ import { LANE_LEGACY_NOTE, LANE_LEGACY_COMPLETE_NOTE, LANE_LEGACY_TOOLS_NOTE, la
 import {
   LANE_TASK_NOTE_TYPE, isLaneTaskNote,
   type LaneAttachmentResolver, type LaneMetric, type LanePart, type LanePendingApproval, type LaneProjection,
+  type LaneWorkspaceProjection,
   type LaneQueueKind, type LaneQueuedMessage, type LaneTaskFacts, type LaneThinking, type LaneThinkingLevel,
 } from './laneContracts.js';
 import { laneToolNextActionOf } from './laneToolNextAction.js';
@@ -402,4 +403,24 @@ export function projectSingleShotResponse(message: AssistantMessage, facts: Lane
     configuration: { model: { provider: message.provider, modelId: message.model }, thinkingLevel: 'off', activeToolNames: [] },
     stats: { messageCount: 1, usage: message.usage },
   }, facts);
+}
+
+/**
+ * 推往渲染层 IPC 的投影裁剪（唯一边界）：非报错 `tool-result` 的正文 `text` 是给模型读的大段 JSON / 原文，
+ * 渲染层（`laneViewModel.ts`）对成功工具完全不读 `part.text`（只用 `toolCallId` / `toolName` / `isError` / `nextAction`）；
+ * 报错工具结果（`isError: true`）照留原文与 `failure` 信封供本地化错误文案和排障使用。
+ */
+export function trimLaneProjectionForIpc(projection: LaneProjection): LaneProjection {
+  let changed = false;
+  const parts = projection.parts.map((part) => {
+    if (part.kind !== 'tool-result' || part.isError || part.text === '') return part;
+    changed = true;
+    return { ...part, text: '' };
+  });
+  return changed ? { ...projection, parts } : projection;
+}
+
+export function trimWorkspaceProjectionForIpc(projection: LaneWorkspaceProjection): LaneWorkspaceProjection {
+  const active = trimLaneProjectionForIpc(projection.active);
+  return active === projection.active ? projection : { ...projection, active };
 }
