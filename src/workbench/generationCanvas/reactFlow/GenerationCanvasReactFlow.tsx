@@ -376,7 +376,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     handleStagePointerDown,
     handleStagePointerMove,
     handleStagePointerEnd,
-    handlePendingGroupPointerUp,
     handleConnectStart,
     handleConnectEnd,
     handleConnectToGroupFromFlow,
@@ -674,8 +673,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       onPointerDownCapture={handleStagePointerDownCapture}
       onPointerMoveCapture={handleCanvasPointerMoveCapture}
       onWheelCapture={handleCanvasWheelCapture}
-      onPointerUpCapture={handlePendingGroupPointerUp}
-      onMouseUpCapture={handlePendingGroupPointerUp}
       onPointerDown={handleStagePointerDown}
       onPointerMove={handleStagePointerMove}
       onPointerUp={handleStagePointerEnd}
