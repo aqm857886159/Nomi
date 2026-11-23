@@ -2,7 +2,7 @@ fa-step2-verify：通过
 
 - 验收线：fa-step2-verify
 - 实现线：fa-step2-impl
-- 验收 HEAD：5289daa0879640b91ce423a77aac5fc9e6d5268e
+- 验收 HEAD：7aeaffcb300a8529a3d459e86ea93925518d1e23
 - 关联任务：协作看板 #1586 · F-A 第二刀（`RW-1` + `RW-2` + `RW-3`）+ `U-2 ①`
 
 ## 1. 拍板要求逐项核对（`#1586`）
@@ -52,6 +52,10 @@ fa-step2-verify：通过
 - `pnpm run check:self-written`：✅ 通过（20/20 单测 · 0 未认领）
 - `pnpm run check:filesize`：✅ 通过（`generationRunController.ts` 降至 716 行，0 超限）
 - `node scripts/fix-churn.mjs --range origin/main..HEAD`：✅ 通过（3 个热点 fix 全部带有效 `Direction-Check`）
+
+### 2.4 增量复验（`7aeaffcb300a8529a3d459e86ea93925518d1e23`）
+- 核对增量提交仅含 1 处测试计数同步（`tests/world/world.locks.test.mjs:110` 随删除 `referenceLinkRefusals.ts` 将主人存盘文件名数从 `27` 同步为 `26`），零本机路径泄露；
+- 独立复跑 `./node_modules/.bin/vitest run tests/world/world.locks.test.mjs --maxWorkers=2`：**1 passed (1) · 21 passed (21)**（`EXIT=0`）。
 
 ## 3. 未验证范围说明
 - Windows 真机、真实付费线上大盘指标回落（2026-11-30 按补丁版本复查雷达）与真实第三方付费供应商扣费对账按 `unverified` 记账（本次桌面回放为本机 HTTP 夹具 `free-walk`，真实供应商消费为 0）。
