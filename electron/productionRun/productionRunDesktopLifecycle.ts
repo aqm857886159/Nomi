@@ -3,9 +3,10 @@ import path from "node:path";
 
 import { revealMainWindow, sendToMainWindow } from "../mainWindowPresence";
 import { loadOrCreateArtifactPreviewSecret } from "./artifactProjection";
+import { classifySecondInstance } from "./desktopLaunchIntent";
 import { resolveProductionDeepLink, type ProductionDeepLinkTarget } from "./productionDeepLink";
 import { createProductionRunRepository } from "./productionRunRepository";
-import { logError, logWarn } from "../logging/logger";
+import { logError, logInfo, logWarn } from "../logging/logger";
 
 type InstallArgs = {
   isMcpStdio: boolean;
@@ -82,11 +83,16 @@ export function installProductionRunDesktopLifecycle(args: InstallArgs): {
       );
       app.quit();
     } else {
-      // 用户再次启动 app（双击图标 / 点任务栏），我们是唯一实例 → 必须让他看见主窗（不是第一扇辅助窗）。
+      // 用户再次启动 app（双击图标 / 点任务栏）或打开 nomi:// 深链时，叫回主窗；
+      // 后台 MCP / Helper / 后台冷启锁竞争的 second-instance 绝不打断已收起的窗口（#1629）。
       // 零窗口、藏着、最小化、正在建、正在退都由主窗主人处理（issue #62；正在退时退完自动重开一次）。
-      app.on("second-instance", (_event, commandLine) => {
-        const deepLink = commandLine.find((value) => value.startsWith("nomi://"));
-        if (deepLink) handleProductionDeepLink(deepLink);
+      app.on("second-instance", (_event, commandLine, _workingDirectory, additionalData) => {
+        const decision = classifySecondInstance(commandLine, additionalData);
+        if (decision.deepLink) handleProductionDeepLink(decision.deepLink);
+        if (!decision.shouldRevealWindow) {
+          logInfo("main", "second-instance-background-ignored", { reason: decision.reason });
+          return;
+        }
         revealMainWindow("second-instance");
       });
     }

@@ -12,6 +12,7 @@ import { monitorEventLoopDelay } from "node:perf_hooks";
 import { app, powerMonitor } from "electron";
 import { z } from "zod";
 import { assertTrustedFireAndForget } from "../ipcSenderGuard";
+import { isMcpStdioLaunch } from "../productionRun/desktopLaunchIntent";
 import { PERF_FIELD_VALUES } from "../shared/contracts/perfTelemetry";
 import {
   STALL_MAX_MS,
@@ -209,9 +210,9 @@ let installed: StallMonitor | null = null;
  * 装监视器。MCP stdio 子进程（`NOMI_MCP_STDIO=1`）不装：它没有窗口、不是用户在「用」的那个实例，
  * 装了只会往同一份时间线里掺别的进程的行。回滚 = 删 lifecycle 里调用它的那一行。
  */
-export function installStallMonitor(options: { env?: NodeJS.ProcessEnv; monitor?: StallMonitor } = {}): StallMonitor | null {
+export function installStallMonitor(options: { env?: NodeJS.ProcessEnv; argv?: readonly string[]; monitor?: StallMonitor } = {}): StallMonitor | null {
   if (installed) return installed;
-  if ((options.env ?? process.env).NOMI_MCP_STDIO === "1") return null;
+  if (isMcpStdioLaunch({ env: options.env ?? process.env, argv: options.argv })) return null;
   const monitor =
     options.monitor ?? createStallMonitor({ timeline: createStallTimeline({ append: createStallTimelineAppend(), now: Date.now }) });
   monitor.start();
