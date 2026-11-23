@@ -50,6 +50,10 @@
     {
       "path": "src/workbench/observability/generationFailureActions.ts",
       "symbol": "generationFailureActions"
+    },
+    {
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "generationFailureFacts"
     }
   ],
   "forbidden_derivations": [],

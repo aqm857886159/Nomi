@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { openBlankProjectCanvas, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 // R13 真机闭环（**真实调用、真花额度**）：改完轮询节奏（慢道 3s + ±30% 抖动 + 429 指数退避）后，
 // 跑一次真实的视频生成，证明「提交 → 轮询 → 拿到片子」整条链没被改坏。
 //
@@ -67,12 +68,8 @@ const { app, win } = await launchNomiApp({
 })
 let failed = false
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1680, height: 1020 })).catch(() => {})
-  await win.getByText('新建空白项目', { exact: false }).first().click()
-  await win.waitForTimeout(2500)
-  await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
-  await win.waitForTimeout(1500)
+  await prepareWalkthroughWindow(app, win, { width: 1680, height: 1020, collectErrors: false })
+  await openBlankProjectCanvas(win, { projectSettleMs: 2500, workspaceScoped: true, canvasSettleMs: 1500 })
   await win.locator('[aria-label="添加视频节点"]').first().click()
   await win.waitForTimeout(1500)
 

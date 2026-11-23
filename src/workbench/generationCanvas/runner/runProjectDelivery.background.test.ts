@@ -91,7 +91,6 @@ describe('background generation keeps the project identity fixed at submission',
     const submitted = deferred<void>()
     const run = runGenerationNodesBatch([node.id], {
       target: projectA,
-      retry: { maxAttempts: 1 },
       executor: async (_node, context) => {
         expect(context.projectTarget).toEqual(projectA)
         context.onProgress?.({ phase: 'generating', message: 'polling', taskId: 'task-a-1' })
@@ -172,7 +171,7 @@ it.each([false, true])('does not submit a node deleted during author validation 
   expect(useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === node.id)).toBeUndefined()
 })
 
-it('does not resurrect the initial node on a retry after deletion', async () => {
+it('does not resurrect the initial node when execution fails after deletion', async () => {
   const target = await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'delete during failed attempt' })
   const executor = vi.fn(async (): Promise<GenerationNodeResults> => {
@@ -180,8 +179,9 @@ it('does not resurrect the initial node on a retry after deletion', async () => 
     throw new TypeError('failed to fetch')
   })
   await expect(runGenerationNode(node.id, {
-    target, executor, retry: { maxAttempts: 2, baseDelayMs: 0 },
-  })).rejects.toThrow('node not found')
+    target, executor,
+  })).rejects.toThrow('failed to fetch')
+  expect(useGenerationCanvasStore.getState().nodes.some(item => item.id === node.id)).toBe(false)
   expect(executor).toHaveBeenCalledOnce()
 })
 

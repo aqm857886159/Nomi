@@ -76,7 +76,7 @@ it.each(['quota', 'local-refusal', 'server'])('A1/A2/A3: %s uses the correct bra
     if (paused) { observedPause = true; state.cancelBatchRemaining(paused.id) }
   })
   try {
-    await runGenerationNodesByPlan(planOfWaves([nodes.map(n => n.id)]), { target, concurrency: kind === 'server' ? 1 : 6, retry: { maxAttempts: 1 } })
+    await runGenerationNodesByPlan(planOfWaves([nodes.map(n => n.id)]), { target, concurrency: kind === 'server' ? 1 : 6 })
     expect(observedPause).toBe(kind === 'server')
     if (kind !== 'server') expect(calls.execute).toHaveBeenCalledTimes(8)
     if (kind === 'local-refusal') expect(recordNodeModelFailure).not.toHaveBeenCalled()
@@ -90,7 +90,7 @@ it.each([false, true])('B3: a single generation takes the node out of another qu
   queue.attachCanvasConsent(batch, new Map([[node.id, 'original-offer']]))
   if (paused) useGenerationQueueStore.setState(state => ({ batches: { ...state.batches, [batch]: { ...state.batches[batch], paused: true } } }))
   calls.execute.mockImplementation(async node => imageRun(node.id))
-  await runGenerationNode(node.id, { target, retry: { maxAttempts: 1 } })
+  await runGenerationNode(node.id, { target })
   expect(useGenerationQueueStore.getState().entries.find(e => e.batchId === batch)?.state).toBe('cancelled')
   expect(withdrawCanvasShots).toHaveBeenCalledWith({ projectId: target.projectId, runRecordIds: ['original-offer'], by: 'removed' })
   expect(calls.execute).toHaveBeenCalledOnce()
@@ -144,7 +144,7 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
     if (batch) paused(batch.id)
   })
   const running = runGenerationNodesByPlan(planOfWaves([nodes.map(node => node.id)]),
-    { target, concurrency: 1, retry: { maxAttempts: 1 } })
+    { target, concurrency: 1 })
   const batchId = await pause
   try {
     calls.execute.mockImplementation(async node => imageRun(node.id))

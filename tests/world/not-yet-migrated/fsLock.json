@@ -53,7 +53,6 @@
     "electron/catalog/oldUserDubbingLandsAfterUpgrade.test.ts",
     "electron/catalog/oldUserMultiImageAfterUpgrade.test.ts",
     "electron/catalog/referenceLinkDelivery.matrix.test.ts",
-    "electron/catalog/referenceLinkRefusals.test.ts",
     "electron/catalog/retiredRowParity.test.ts",
     "electron/catalog/settingsAddressSave.test.ts",
     "electron/catalog/taskParams.modeInputRoutes.test.ts",

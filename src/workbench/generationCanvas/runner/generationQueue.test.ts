@@ -118,7 +118,6 @@ describe('生成队列外化', () => {
     const plan = planOf([ids])
     const runPromise = runGenerationNodesByPlan(plan, { target: projectTarget,
       concurrency: 1,
-      retry: { maxAttempts: 1 },
       executor: async () => {
         attempts += 1
         // 模拟上游整体挂掉（apimart Imagen 404 那种必死场景）。

@@ -29,7 +29,7 @@ function lastErrorMessage(error: unknown): string | null {
  * 异步任务轮询超时但**上游可能仍在跑/已出片**的可找回错误。
  * 刻意独立于普通错误：runGenerationNode 据此把节点落 `recoverable` 而非 `error`（不进红色错误桶），
  * 用户可「重新拉取结果」找回。携带 detail 供续查（虽然 recover 动作目前从节点重建，这里也带上备用）。
- * 它**永远不进自动重试**（generationRetryPolicy）：重试 = 重新提交 = 再扣一次钱，而这次的钱没丢。
+ * 它**永远不进自动重试**：重试 = 重新提交 = 再扣一次钱，而这次的钱没丢。
  */
 export class RecoverableTimeoutError extends Error {
   readonly recoverable = true as const
