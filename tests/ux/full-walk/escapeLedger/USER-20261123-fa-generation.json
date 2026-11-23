@@ -3,12 +3,13 @@
   "since": "2026-11-23",
   "source": "November 23 release radar and coordinator report on issue 1586",
   "category": "claims-and-outcomes",
-  "problem": "Local generation blocks, repeated failures on one installation and missing failure classification.",
+  "problem": "F-A Step 1 covers known generation failure categories lost at task IPC or Run reload and threefold renderer auto-retry amplification on classified terminal errors.",
   "existingInvariants": [],
   "ironLaws": [],
   "useCases": [
-    "A current readable reference reaches generation with public hosting off.",
-    "One deterministic pre-send rejection settles once with its classified cause."
+    "A classified provider failure survives task IPC wrappers and reaches Workbench and Canvas telemetry.",
+    "A failed poll retains its category when either generation engine reads the Run from disk.",
+    "A deterministic classified rejection settles once per intent for image, video and batch runs."
   ],
   "fullWalkJourneys": [],
   "status": "fixed",
@@ -22,8 +23,9 @@
   "rootCauseContract": "docs/fixes/2026-11-23-fa-local-blocks-and-unknown-telemetry.root-cause.json",
   "classCheck": {
     "kind": "matrix",
-    "file": "electron/catalog/referenceLinkDelivery.matrix.test.ts"
+    "file": "src/workbench/api/generationTelemetry.test.ts"
   },
   "manualReview": "reviewed",
-  "fixedInPr": 1635
+  "fixedInPr": 1635,
+  "deferred": "F-A Step 2 (RW-2, electron/catalog/assetLocalization.ts) awaits user hotspot signoff on #1586. electron/productionRun/referenceLinkDispatchLedger.test.ts reproduced an expired S3 presigned URL returning 403 AccessDenied (application/xml). Mapping 403 to unknown bypassed private uploadsTo and sent the expired URL to /v1/generate. Step 1 restores the baseline probe behavior. RW-2 must handle Range-only 403 when anonymousAssetHosting is deny and preserve expired-link private re-upload."
 }

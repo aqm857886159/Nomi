@@ -16,7 +16,7 @@ import { modeDisplayKind } from '../generationCanvas/nodes/controls/modeMenuMode
 import { generationFailureFacts, generationModeOf, generationTrackPayload } from './generationTelemetry'
 import { fetchWorkbenchTaskResultByVendor, pollCanvasShotRun, runWorkbenchTaskByVendor, submitCanvasShotRun } from './taskApi'
 
-const vendorError = (structured: Record<string, unknown>) => encodeStructuredErrorMessage(structured, 'upstream said something with /Users/me/a.png and sk-secret')
+const vendorError = (structured: Record<string, unknown>) => encodeStructuredErrorMessage(structured, 'upstream said something with /home/fixture/a.png and sk-secret')
 
 describe('失败三格：上游怎么答的 / 卡在哪一段 / 本机哪条规则', () => {
   it.each([
@@ -160,7 +160,7 @@ function expectDetailed(event: ReturnType<typeof sent>[number]): void {
   expect(event.props.mode).not.toBe('none')
   expect(typeof event.props.submitDuration).toBe('string')
   expect(typeof event.props.waitDuration).toBe('string')
-  expect(JSON.stringify(event.props)).not.toMatch(/private prompt|Users|sk-secret/)
+  expect(JSON.stringify(event.props)).not.toMatch(/private prompt|fixture\/a\.png|sk-secret/)
   expect(isTelemetryProps({ ...event.props, modelClass: 'custom' }, 'generation.completed'), JSON.stringify(event.props)).toBe(true)
 }
 

@@ -98,7 +98,6 @@ const generated: Array<{ path: string; body: Record<string, unknown> }> = [];
 const uploads: string[] = [];
 let probeDelayMs = 0;
 let inFlight = 0;
-const readablePng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNYuOkwAAQOAhfr5VroAAAAAElFTkSuQmCC", "base64");
 let maxInFlight = 0;
 let hangingSockets: Array<() => void> = [];
 
@@ -113,9 +112,6 @@ function route(req: http.IncomingMessage, res: http.ServerResponse): void {
   }
   const respond = (): void => {
     switch (pathname) {
-      case "/gen/range-denied": return req.headers.range
-        ? send("text/plain", Buffer.from("range request forbidden"), 403)
-        : send("image/png", readablePng);
       case "/gen/ok": return void res.writeHead(206, { "Content-Type": "image/png", "Content-Range": "bytes 0-15/9000", "Content-Length": PNG.length }).end(PNG);
       case "/gen/ignores-range": {
         const big = Buffer.alloc(2 * 1024 * 1024, 0x41);
@@ -252,10 +248,6 @@ describe("链接状态 → 发原链接 / 转上传（真试探 × 真决定点�
     ["200 图，忽略 Range 并返回大文件", "/gen/ignores-range"],
     ["200 octet-stream（开头是图片字节）", "/gen/octet"],
     ["跳转到 200", "/gen/redirect-ok"],
-    ["跳转到 403", "/gen/redirect-403"],
-    ["400", "/gen/status-400"],
-    ["401", "/gen/status-401"],
-    ["403", "/gen/status-403"],
     ["429 限流", "/gen/status-429"],
     ["408 请求超时", "/gen/status-408"],
     ["416 Range 不可满足", "/gen/status-416"],
@@ -263,6 +255,10 @@ describe("链接状态 → 发原链接 / 转上传（真试探 × 真决定点�
     ["503", "/gen/status-503"],
   ];
   const uploads_: Array<[string, string]> = [
+    ["跳转到 403", "/gen/redirect-403"],
+    ["400", "/gen/status-400"],
+    ["401", "/gen/status-401"],
+    ["403", "/gen/status-403"],
     ["404", "/gen/status-404"],
     ["410", "/gen/status-410"],
     ["200 HTML 页面", "/gen/html"],
@@ -556,77 +552,51 @@ describe("入口：三个发送入口，窗内链接失效 → 发出去的是�
     expect(outbound).toEqual([]);
   });
 
-  describe.each(['unavailable', 'range-denied'])('hosting off with %s reference', scenario => {
-    const source = () => scenario === 'unavailable' ? deadLink() : `${origin}/gen/range-denied`;
-    it.each(['runtime', 'custom-script', 'semantic', 'rework'])('%s uses a readable original without third-party upload', async entry => {
-      hostingSetting.value = 'ask';
-      if (scenario === 'range-denied') {
-        const response = await fetch(source());
-        expect(Buffer.from(await response.arrayBuffer())).toEqual(readablePng);
-      }
-      const { vendor, model } = prepare(source());
-      vendor.assetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
-      customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [], apiKeysByVendor: {} };
-      const reference_ = { assetId: 'asset-1', contentHash: 'hash', version: 1, kind: 'image' as const, role: 'reference' as const };
-      const input = { projectId: 'p', providerId: vendor.key, references: [reference_ as never], assertCurrent() {} };
-      customCall.runScript.mockResolvedValue({ assets: [`${origin}/gen/ok`], transcript: [] });
-      const run = entry === 'runtime' ? runtimeSend(vendor, model)
-        : entry === 'custom-script' ? runCustomCallTask({
-          vendor, model, apiKey: 'sk-test', customConfig: {}, script: 'return {}', taskKind: 'image_edit',
-          request: { kind: 'image_edit', prompt: 'keep the boat', extras: { modelKey: model.modelKey, referenceImages: [reference()], anonymousAssetHostingConsent: 'allow' } },
-          kind: 'image_edit', wantedKind: 'image', projectId: 'p', nodeId: 'n', grantId: 'g', taskId: 't',
-          spendGate: vi.fn(async () => undefined) as never, localizeTaskAsset: vi.fn(),
-        } as unknown as Parameters<typeof runCustomCallTask>[0])
-        : entry === 'semantic' ? resolveProductionReferenceUrls(input)
-        : reworkReferenceUrls({ ...input, frozen: { ref: source() } });
-      if (scenario === 'range-denied') {
-        const value = await run;
-        if (entry === 'runtime') expect(generated[0]?.body.image).toBe(source());
-        if (entry === 'custom-script') expect(JSON.stringify(customCall.runScript.mock.calls[0]?.[0].params)).toContain(source());
-        if (entry === 'semantic') expect(Object.values(value ?? {})).toContain(source());
-        if (entry === 'rework') expect(value).toBeUndefined();
-        expect(uploads).toHaveLength(0);
-        return;
-      }
-      const failure = await run.catch((error: Error) => error);
+  it.each(['runtime', 'custom-script', 'semantic', 'rework'])('hosting off: %s entry sends zero anonymous bytes', async entry => {
+    hostingSetting.value = 'ask';
+    const { vendor, model } = prepare(deadLink());
+    vendor.assetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
+    customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [], apiKeysByVendor: {} };
+    const reference_ = { assetId: 'asset-1', contentHash: 'hash', version: 1, kind: 'image' as const, role: 'reference' as const };
+    const input = { projectId: 'p', providerId: vendor.key, references: [reference_ as never], assertCurrent() {} };
+    const run = entry === 'runtime' ? runtimeSend(vendor, model)
+      : entry === 'custom-script' ? runCustomCallTask({
+        vendor, model, apiKey: 'sk-test', customConfig: {}, script: 'return {}', taskKind: 'image_edit',
+        request: { kind: 'image_edit', prompt: 'keep the boat', extras: { modelKey: model.modelKey, referenceImages: [reference()], anonymousAssetHostingConsent: 'allow' } },
+        kind: 'image_edit', wantedKind: 'image', projectId: 'p', nodeId: 'n', grantId: 'g', taskId: 't',
+        spendGate: vi.fn(async () => undefined) as never, localizeTaskAsset: vi.fn(),
+      } as unknown as Parameters<typeof runCustomCallTask>[0])
+      : entry === 'semantic' ? resolveProductionReferenceUrls(input)
+      : reworkReferenceUrls({ ...input, frozen: { ref: deadLink() } });
+    const failure = await run.catch((error: Error) => error);
+    expect(failure).toBeInstanceOf(Error);
+    expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
+    expect(uploads).toHaveLength(0);
+    expect(generated).toHaveLength(0);
+    expect(customCall.runScript).not.toHaveBeenCalled();
+  });
+
+  it.each(['mapping-trial', 'assistant-try-model'])('hosting off: %s executes the real entry and sends zero anonymous bytes', async entry => {
+    hostingSetting.value = 'ask';
+    const { vendor, model } = prepare(deadLink());
+    vendor.authType = 'none';
+    const ingestion: AssetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
+    const mapping = { id: 'hosting-trial', vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', enabled: true, create: { ...generateOperation, assetIngestion: ingestion } };
+    customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [mapping], apiKeysByVendor: { [vendor.key]: { vendorKey: vendor.key, apiKey: Buffer.from("fixture-only-key").toString("base64"), enc: "safeStorage", enabled: true } } };
+    if (entry === 'mapping-trial') {
+      const failure = await testModelCatalogMapping(mapping.id, { execute: true, modelKey: model.modelKey, extras: { referenceImages: [reference()] } }).catch((error: Error) => error);
       expect(failure).toBeInstanceOf(Error);
       expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
-      expect(uploads).toHaveLength(0);
-      expect(generated).toHaveLength(0);
-      expect(customCall.runScript).not.toHaveBeenCalled();
-    });
-
-    it.each(['mapping-trial', 'assistant-try-model'])('hosting off: %s executes the real entry and sends zero anonymous bytes', async entry => {
-      hostingSetting.value = 'ask';
-      const { vendor, model } = prepare(source());
-      vendor.authType = 'none';
-      const ingestion: AssetIngestion = { strategy: 'upload-multipart', endpoint: `${origin}/v1/uploads/images`, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous' };
-      const mapping = { id: 'hosting-trial', vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', enabled: true, create: { ...generateOperation, assetIngestion: ingestion } };
-      customCall.catalog.current = { version: 13, vendors: [vendor], models: [model], mappings: [mapping], apiKeysByVendor: { [vendor.key]: { vendorKey: vendor.key, apiKey: Buffer.from("fixture-only-key").toString("base64"), enc: "safeStorage", enabled: true } } };
-      if (scenario === 'range-denied') {
-        if (entry === 'mapping-trial') await testModelCatalogMapping(mapping.id, { execute: true, modelKey: model.modelKey, extras: { referenceImages: [reference()] } });
-        else await tryModel({ runTask, approvalPolicy: () => ({ mode: 'direct' }) }, {
-          vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', prompt: 'keep the boat', params: { referenceImages: [reference()] },
-        });
-        expect(generated.map(request => request.body.image)).toEqual([source()]);
-        expect(uploads).toHaveLength(0);
-        return;
-      }
-      if (entry === 'mapping-trial') {
-        const failure = await testModelCatalogMapping(mapping.id, { execute: true, modelKey: model.modelKey, extras: { referenceImages: [reference()] } }).catch((error: Error) => error);
-        expect(failure).toBeInstanceOf(Error);
-        expect(matchNomiErrorCode(String(failure))).toBe('asset-upload-failed');
-      } else {
-        const result = await tryModel({ runTask, approvalPolicy: () => ({ mode: 'direct' }) }, {
-          vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', prompt: 'keep the boat', params: { referenceImages: [reference()] },
-        });
-        expect(result, JSON.stringify(result)).toMatchObject({ ok: false, code: 'provider_failed' });
-        if (result.ok) throw new Error('trial unexpectedly succeeded');
-        expect(result.message).toMatch(/设置|Settings/);
-      }
-      expect(uploads).toHaveLength(0);
-      expect(generated).toHaveLength(0);
-    });
+    } else {
+      const result = await tryModel({ runTask, approvalPolicy: () => ({ mode: 'direct' }) }, {
+        vendorKey: vendor.key, modelKey: model.modelKey, taskKind: 'image_edit', prompt: 'keep the boat', params: { referenceImages: [reference()] },
+      });
+      expect(result, JSON.stringify(result)).toMatchObject({ ok: false, code: 'provider_failed' });
+      if (result.ok) throw new Error('trial unexpectedly succeeded');
+      expect(result.message).toMatch(/设置|Settings/);
+    }
+    expect(uploads).toHaveLength(0);
+    expect(generated).toHaveLength(0);
   });
 
   it("productionReferenceUrls.ts 做片流程：失效 → 封存的是上传后的新链接", async () => {

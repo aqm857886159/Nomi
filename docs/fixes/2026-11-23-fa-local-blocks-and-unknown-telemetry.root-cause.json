@@ -1,83 +1,50 @@
 {
   "schema_version": 3,
   "id": "2026-11-23-fa-local-blocks-and-unknown-telemetry",
-  "problem_type": "Reference delivery and failure evidence across generation boundaries",
-  "symptom": "The release radar reports 17 locally blocked video failures and 18 locally blocked image failures on 0.24, 27 image failures on one installation and 557 unknown reasons across versions.",
-  "direct_cause": "The reference probe treats request-specific HTTP failures as a dead source. The Run substitutes a generic sentence for most terminal reasons. Task IPC drops the vendor category carried by an adapter cause. Renderer retry policy read timeout-like prose even when dispatch evidence already closed the attempt.",
-  "class_root": "The source, adapter and Run each have evidence about one operation. Their consumers turn an incomplete observation into a new decision and discard the evidence needed by later consumers.",
+  "problem_type": "Loss of classified generation failures and renderer retry amplification",
+  "symptom": "The release radar reports 557 unknown reasons across versions and 27 image failures on one installation. Controlled repros show classified failures becoming unknown and deterministic terminal failures executing three times.",
+  "direct_cause": "Task IPC drops the vendor category carried by an adapter cause. The Run substitutes a generic sentence for most terminal reasons. The renderer retry policy reads timeout-like prose even when structured evidence already closed the attempt.",
+  "class_root": "Generation consumers discard or override the machine-readable failure facts owned by the adapter or Run, so later consumers infer a result or retry from diagnostic prose.",
   "affected_population": [
-    "Creators sending image and video references, inspecting a restored Run or receiving an adapter failure."
+    "Creators submitting image or video jobs from Workbench or Canvas, or reading a restored Run after an upstream terminal failure."
   ],
   "scope_paths": [
-    "electron/assets/providerMediaFetch.ts",
     "electron/productionRun/productionGenerationSubmission.ts",
     "electron/productionRun/productionGenerationMaterialization.ts",
     "electron/tasks/taskIpcGuard.ts",
     "src/workbench/generationCanvas/runner/generationRetryPolicy.ts"
   ],
   "entry_points": [
-    "Mapped generation, custom call, reference seal, rework, mapping trial and assistant model trial use the reference transport.",
     "Workbench and canvas use task IPC and the same generation outcome reporter. Canvas and catalog jobs share the Run journal.",
     "Single image and video intents, batch and wave runners share the renderer retry predicate."
   ],
   "external_sources": [],
-  "internal_only_reason": "The decision concerns internal generation evidence, the released versions and the creator ruling of 2026-11-13. Loopback HTTP and production serializers reproduce the behaviors without an external service.",
+  "internal_only_reason": "The Step 1 invariant concerns internal IPC serialization, Run persistence and renderer retry decisions. The tests exercise application error types, persisted Run reads and telemetry with controlled provider inputs.",
   "invariants": [
-    "A range probe may select replacement upload only on evidence the reference is unavailable. Request-specific rejection can still accompany a readable original.",
     "On a failed poll, persist the already-classified vendor category, status and safe code for the next Run reader.",
     "Carry the classified provider facts across task IPC, including a transparent catalog adapter wrapper. Outer dispatch evidence retains priority.",
-    "One machine-classified local refusal yields one renderer executor invocation per intent."
+    "A machine-classified terminal outcome yields one renderer executor invocation per intent."
   ],
   "doors": [
     {
       "kind": "read",
-      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
-      "symbol": "resolveProductionReferenceUrls"
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "createProductionGenerationSubmission"
     },
     {
       "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationProductionActions.ts",
-      "symbol": "reworkReferenceUrls"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/productionReferenceUrls.ts",
-      "symbol": "resolveProductionReferenceUrls"
-    },
-    {
-      "kind": "read",
-      "path": "electron/catalog/assetLocalization.ts",
-      "symbol": "AnonymousAssetConsentRequiredError"
-    },
-    {
-      "kind": "read",
-      "path": "electron/productionRun/prepareProductionGenerationAuthorization.ts",
-      "symbol": "resolveProductionReferenceUrls"
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createProductionGenerationSubmission"
     },
     {
       "kind": "read",
       "path": "electron/productionRun/productionGenerationSubmission.ts",
-      "symbol": "SubmissionNotDispatchedError"
-    },
-    {
-      "kind": "read",
-      "path": "electron/productionRun/submissionIntent.ts",
-      "symbol": "SubmissionNotDispatchedError"
-    },
-    {
-      "kind": "read",
-      "path": "electron/productionRun/submissionOutbox.ts",
-      "symbol": "SubmissionNotDispatchedError"
+      "symbol": "createProductionGenerationSubmission"
     },
     {
       "kind": "write",
       "path": "electron/ai/agentError.ts",
       "symbol": "encodeVendorErrorMessage"
-    },
-    {
-      "kind": "write",
-      "path": "electron/assets/providerMediaFetch.ts",
-      "symbol": "judgeProbeResponse"
     },
     {
       "kind": "write",
@@ -91,8 +58,13 @@
     },
     {
       "kind": "write",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "failedResult"
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createProductionGenerationSubmission"
     },
     {
       "kind": "write",
@@ -102,57 +74,12 @@
     {
       "kind": "write",
       "path": "electron/capabilityCore/productionReferenceUrls.ts",
-      "symbol": "localizeForSend"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/productionReferenceUrls.ts",
-      "symbol": "assetLocalizationOptions"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/productionReferenceUrls.ts",
       "symbol": "matchNomiErrorCode"
-    },
-    {
-      "kind": "write",
-      "path": "electron/catalog/assetLocalization.ts",
-      "symbol": "ingestionHasSufficientLease"
-    },
-    {
-      "kind": "write",
-      "path": "electron/catalog/assetLocalization.ts",
-      "symbol": "allChannelsFailedError"
-    },
-    {
-      "kind": "write",
-      "path": "electron/catalog/assetTransportRuntime.ts",
-      "symbol": "probeProviderLink"
-    },
-    {
-      "kind": "write",
-      "path": "electron/catalog/customCallDispatch.ts",
-      "symbol": "assetLocalizationOptions"
-    },
-    {
-      "kind": "write",
-      "path": "electron/catalog/customCallDispatch.ts",
-      "symbol": "localizeForSend"
     },
     {
       "kind": "write",
       "path": "electron/productionRun/productionGenerationMaterialization.ts",
       "symbol": "parseVendorErrorFromMessage"
-    },
-    {
-      "kind": "write",
-      "path": "electron/productionRun/productionGenerationSubmission.ts",
-      "symbol": "observeSubmissionHandoffs"
-    },
-    {
-      "kind": "write",
-      "path": "electron/productionRun/productionGenerationSubmission.ts",
-      "symbol": "noteReferenceRefusal"
     },
     {
       "kind": "write",
@@ -171,23 +98,8 @@
     },
     {
       "kind": "write",
-      "path": "electron/productionRun/submissionIntent.ts",
-      "symbol": "observeSubmissionHandoffs"
-    },
-    {
-      "kind": "write",
       "path": "electron/productionRun/submissionOutbox.ts",
       "symbol": "matchNomiErrorCode"
-    },
-    {
-      "kind": "write",
-      "path": "electron/runtime.ts",
-      "symbol": "localizeForSend"
-    },
-    {
-      "kind": "write",
-      "path": "electron/runtime.ts",
-      "symbol": "assetLocalizationOptions"
     },
     {
       "kind": "write",
@@ -203,11 +115,6 @@
       "kind": "write",
       "path": "electron/shared/generationFailure.ts",
       "symbol": "parseVendorErrorFromMessage"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/generationFailure.ts",
-      "symbol": "detectAssetUploadFailed"
     },
     {
       "kind": "write",
@@ -236,11 +143,6 @@
     },
     {
       "kind": "write",
-      "path": "src/ui/onboarding/useCustomCallTestRun.ts",
-      "symbol": "failedResult"
-    },
-    {
-      "kind": "write",
       "path": "src/workbench/api/generationTelemetry.ts",
       "symbol": "matchNomiErrorCode"
     },
@@ -257,42 +159,12 @@
     {
       "kind": "write",
       "path": "src/workbench/api/taskApi.ts",
-      "symbol": "generationTrackPayload"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "failureTypeOf"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/api/taskApi.ts",
       "symbol": "trackGenerationOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/productionHandOverShotsOp.ts",
-      "symbol": "runGenerationNodesByPlan"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "recoverNodeResult"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "runGenerationNodesByPlan"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/model/recoverableCopy.ts",
       "symbol": "matchNomiErrorCode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "recoverNodeResult"
     },
     {
       "kind": "write",
@@ -316,16 +188,6 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "runGenerationNode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
-      "symbol": "runGenerationNodesBatch"
-    },
-    {
-      "kind": "write",
       "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
       "symbol": "matchNomiErrorCode"
     },
@@ -343,25 +205,15 @@
       "kind": "write",
       "path": "src/workbench/observability/generationFailureActions.ts",
       "symbol": "decideGenerationFailure"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "recoverNodeResult"
     }
   ],
   "door_reduction": {
-    "before": 60,
-    "after": 64,
-    "why_not": "Four additional calls reuse the existing wire parser, Nomi tag matcher and durable projection. The caller count includes readers of classification, explicit recovery and separate task observations."
+    "before": 32,
+    "after": 36,
+    "why_not": "IPC handlers and the browser prompt wrapper share one guard. Agent encoding, runtime, adapter and task polling keep distinct entry points that reuse wire helpers. The Run domain and observation code share the Run submission service, which adds one call to the disk-safe projection. Workbench and Canvas share one telemetry reporter. Canvas execution and failure display retain separate consumers of machine facts. Shared wire and Nomi tag readers retain their independent projection and recovery responsibilities."
   },
-  "generality_proof": "All six reference paths consume the same probe verdict. Both generation engines journal terminal observations in the same poll method. The task IPC guard carries vendor facts into the shared failure classifier.",
+  "generality_proof": "Workbench and Canvas share task IPC and telemetry classification. Both production generation engines use the same Run poll and disk projection. Single and batch Canvas execution share the same renderer retry predicate.",
   "shared_boundaries": [
-    {
-      "path": "electron/assets/providerMediaFetch.ts",
-      "symbol": "judgeProbeResponse",
-      "responsibility": "A range probe may select replacement upload only on evidence the reference is unavailable. Request-specific rejection can still accompany a readable original."
-    },
     {
       "path": "electron/productionRun/productionGenerationSubmission.ts",
       "symbol": "createProductionGenerationSubmission",
@@ -385,44 +237,47 @@
   ],
   "same_class_entry_points": [
     {
-      "path": "electron/runtime.ts",
-      "entry_point": "executeProfileOperation",
-      "disposition": "enforced",
-      "evidence": "Localizes a reference for the create request."
-    },
-    {
-      "path": "electron/capabilityCore/productionReferenceUrls.ts",
-      "entry_point": "reworkReferenceUrls",
-      "disposition": "enforced",
-      "evidence": "Reuses a frozen reference unless the connection policy requests a refresh."
-    },
-    {
       "path": "electron/tasks/taskIpcHandlers.ts",
       "entry_point": "registerTaskIpcHandlers",
       "disposition": "enforced",
       "evidence": "Attaches the task failure guard to submission IPC."
+    },
+    {
+      "path": "src/workbench/api/taskApi.ts",
+      "entry_point": "submitCanvasShotRun",
+      "disposition": "enforced",
+      "evidence": "Canvas and Workbench classify submit throws, immediate failures and failed polls through the same telemetry reporter."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "createProductionGenerationSubmission",
+      "disposition": "enforced",
+      "evidence": "Canvas and catalog engine terminal poll failures reach polledFailureMessage and are read from disk with their category."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "runGenerationNode",
+      "disposition": "enforced",
+      "evidence": "Single image, single video and batch paths use the same retry predicate and stop on classified outcomes."
     }
   ],
-  "recurrence_of": [
-    "2026-11-01-reference-link-delivery"
-  ],
+  "recurrence_of": null,
   "recurrence": {
     "classification": "recurring",
-    "reason": "Reproducible for any provider returning the same probe or classified failure.",
+    "reason": "Independent providers, IPC entry points, Run engines and renderer inputs can reach the same machine-classified failure boundaries.",
     "same_class_scan": [
-      "Compared v0.23.2, v0.24.0, v0.24.1 and main; mapped submit, poll, restore, upload, IPC and radar readers.",
-      "Searched both spellings of not-sent and upload-failed and traced the shared generation.completed envelope."
+      "The door-map covers the IPC guard and wire helpers, Run poll and disk projection, renderer retry and telemetry classification.",
+      "Checked direct and wrapped IPC errors, both Workbench and Canvas submit and poll outcomes, both Run engines, and single and batch Canvas execution."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "electron/assets/providerMediaFetch.ts",
-    "invariant": "A range probe may select replacement upload only on evidence the reference is unavailable. Request-specific rejection can still accompany a readable original.",
-    "failure_mode": "Continue with the existing source on an inconclusive probe. Enforce public hosting consent when an upload is necessary. Preserve genuine unknowns.",
+    "enforcement_path": "electron/tasks/taskIpcGuard.ts",
+    "invariant": "Known failure facts survive IPC and Run persistence, and a classified terminal outcome ends the renderer retry loop.",
+    "failure_mode": "Use the shared classifier for evidence provided by IPC or a persisted Run. Preserve genuine unknowns when facts are absent, and end automatic renderer retries when terminal classification is present.",
     "exception_policy": "none",
-    "strategy": "Replace inference from broad HTTP ranges with evidence at the single link probe; preserve source facts when projecting an actual failure.",
+    "strategy": "Reuse the wire encoding in the task IPC guard, project poll facts through the disk-safe Run boundary, and make the shared renderer retry predicate consume classification before diagnostic text.",
     "artifacts": [
-      "electron/assets/providerMediaFetch.ts",
       "electron/productionRun/productionGenerationSubmission.ts",
       "electron/productionRun/productionGenerationMaterialization.ts",
       "electron/tasks/taskIpcGuard.ts",
@@ -430,46 +285,43 @@
     ]
   },
   "regression_tests": [
-    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
     "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts",
     "electron/tasks/taskIpcGuard.test.ts",
-    "electron/assets/providerMediaFetch.probe.test.ts",
     "src/workbench/generationCanvas/runner/failedAttemptIdentity.test.ts",
     "src/workbench/api/generationTelemetry.test.ts"
   ],
   "class_regression_tests": [
-    "electron/catalog/referenceLinkDelivery.matrix.test.ts",
     "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts",
     "electron/tasks/taskIpcGuard.test.ts",
-    "electron/assets/providerMediaFetch.probe.test.ts",
     "src/workbench/generationCanvas/runner/failedAttemptIdentity.test.ts",
     "src/workbench/api/generationTelemetry.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
     "removed_paths": [
-      "electron/assets/providerMediaFetch.ts",
       "electron/productionRun/productionGenerationSubmission.ts",
-      "electron/tasks/taskIpcGuard.ts"
+      "electron/tasks/taskIpcGuard.ts",
+      "src/workbench/generationCanvas/runner/generationRetryPolicy.ts"
     ],
-    "rationale": "Removed the catch-all client-error verdict and lossy handling in the Run and task failure boundaries."
+    "rationale": "Replaced top-level-only IPC classification, the lossy default Run failure projection and text-first retry for structured terminal errors."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
-    "rationale": "The HTTP client, IPC serialization and Run persistence APIs already expose the required evidence.",
+    "rationale": "The existing IPC serialization and Run persistence APIs already carry the required facts.",
     "exit_criteria": []
   },
-  "migration": "Existing events and old job rows with erased categories cannot recover them. Existing links and approvals are read through the same transport.",
+  "migration": "Existing events and old Run rows with erased categories cannot recover them. New failures use the existing wire and Run formats.",
   "residual_risks": [
     "Aggregate counts have no run identity or click provenance. Historical event-cause attribution and paid provider results are unverified.",
-    "Unclassified renderer transport failures can still repeat. Connection history, estimated upload lifetime and the upstream-status projection of dispatch-only markers remain under file-level direction review."
+    "Unclassified renderer transport failures can still repeat.",
+    "F-A Step 2 (RW-2, electron/catalog/assetLocalization.ts) awaits user hotspot signoff on #1586. electron/productionRun/referenceLinkDispatchLedger.test.ts reproduced an expired S3 presigned URL returning 403 AccessDenied (application/xml). Mapping 403 to unknown bypassed private uploadsTo and sent the expired URL to /v1/generate. Step 1 restores the baseline probe behavior. RW-2 must handle Range-only 403 when anonymousAssetHosting is deny and preserve expired-link private re-upload."
   ],
   "detected_by": "post-release",
   "recurrence_check_on": "2026-11-30",
   "invariant_owner_layer": {
-    "layer": "electron/assets",
+    "layer": "electron/tasks",
     "tests": [
-      "electron/assets/providerMediaFetch.probe.test.ts"
+      "electron/tasks/taskIpcGuard.test.ts"
     ]
   }
 }

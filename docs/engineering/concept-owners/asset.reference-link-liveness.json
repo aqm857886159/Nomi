@@ -14,10 +14,6 @@
     {
       "path": "electron/assets/providerMediaFetch.ts",
       "symbol": "probeProviderLink"
-    },
-    {
-      "path": "electron/assets/providerMediaFetch.ts",
-      "symbol": "judgeProbeResponse"
     }
   ],
   "forbidden_derivations": [],
