@@ -210,11 +210,11 @@ describe("#2 文本节点改写选区：真 IPC + 真准入", () => {
 
 
 // 独立验收 V-textmigrate F1（10-21）：重试之前那次的 HTTP 事实不许串到这一次的失败上。
-// 走真实运行控制器（runGenerationNode：渲染层自动重提就在这里），断言的是**上游被请求了几次**——多一次就是多生成一次、多花一次钱。
+// 走真实运行控制器（runGenerationNode），断言的是**上游被请求了几次**——多一次就是多生成一次、多花一次钱。
 describe("重试事实不串台：真运行控制器 + 真 HTTP 次数", () => {
-  // 原话带「rate limit」：渲染层的重提判据认关键词，串台时它会被当成可重试的限流再生成一次（独立验收复现的就是这条）。
+  // 原话带「rate limit」：旧版曾因关键词串台再次生成（独立验收复现的就是这条）。
   const RATE_LIMIT = (status: number) => reply.http(status, { error: { message: `initial rate limit (${status})` } }, { "retry-after-ms": "1" });
-  const run = (nodeId: string) => runGenerationNode(nodeId, { target: projectTarget, executor: generateText, retry: { baseDelayMs: 0 } })
+  const run = (nodeId: string) => runGenerationNode(nodeId, { target: projectTarget, executor: generateText })
     .then((result) => ({ ok: true as const, text: result.text }), (error: unknown) => ({ ok: false as const, error: String(error) }));
 
   it.each([429, 503])("%i → 重试成功出字后断流：与只有断流时同一个结局（失败、不自动重提），上游一共 2 次", async (status) => {

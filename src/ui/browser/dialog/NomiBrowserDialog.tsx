@@ -9,7 +9,7 @@ import {
   type DesktopBrowserResourceCaptureEvent,
   type DesktopBrowserViewState,
 } from '../../../desktop/bridge'
-import { browserUrlDisplayTitle } from './browserUrl'
+import { browserUrlDisplayTitle } from '../browserUrl'
 import { type BrowserAssetCaptureRequest } from '../popover/NomiBrowserAssetPopover'
 import { NomiBrowserDialogView } from './NomiBrowserDialogView'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'

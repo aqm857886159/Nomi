@@ -6,6 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { tagNomiError, NOMI_ERROR_ONLY_BEFORE_SUBMIT, type NomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
 import { ApimartGenerationProviderError } from '../../../electron/capabilityCore/apimartGenerationErrors'
+import { SubmissionNotDispatchedError } from '../../../electron/productionRun/submissionOutbox'
 import { runTaskIpcGuard } from '../../../electron/tasks/taskIpcGuard'
 import { VendorRequestError, encodeStructuredErrorMessage } from '../../../electron/shared/vendorFailure'
 import { GENERATION_LOCAL_REFUSALS } from '../../../electron/shared/contracts/telemetry'
@@ -29,6 +30,14 @@ describe('失败三格：上游怎么答的 / 卡在哪一段 / 本机哪条规�
     ['auth', 'auth'], ['quota', 'rate-limit'], ['balance', 'client-4xx'], ['input', 'client-4xx'], ['server', 'server-5xx'], ['timeout', 'timeout'], ['network', 'network'], ['something-new', 'unknown'],
   ])('只有业务码（没有状态码）按查表类别：%s → %s', (category, expected) => {
     expect(generationFailureFacts(vendorError({ logicalCode: 1001, category }), 'poll-terminal').upstreamStatus).toBe(expected)
+  })
+
+  it.each([
+    ['never_reached_network', 'not-sent'], ['connect_failed', 'network'], ['unrecognized', 'unknown'],
+  ])('projects the dispatch reason %s through the task IPC marker', async (reason, expected) => {
+    const error = Object.assign(new Error('opaque diagnostic'), { code: 'submission_not_sent', reason })
+    const message = await runTaskIpcGuard({}, async () => { throw error }).catch((failure: Error) => failure.message)
+    expect(generationFailureFacts(message, 'submit-threw').upstreamStatus).toBe(expected)
   })
 
   it('只在提交前成立的码 → 没发出去；在闭合表里的报码本身，其余 uncoded', () => {
@@ -165,6 +174,22 @@ function expectDetailed(event: ReturnType<typeof sent>[number]): void {
 }
 
 describe('6 处发送口都带新格', () => {
+  it.each(['workbench', 'canvas'] as const)('%s reports the dispatch facts on the emitted event', async surface => {
+    installDesktop()
+    const submit = surface === 'canvas' ? canvasSubmit : run
+    const send = () => surface === 'canvas' ? submitCanvasShotRun(shot('unsent')) : runWorkbenchTaskByVendor('v', request, null)
+    for (const reason of ['never_reached_network', 'connect_failed'] as const) {
+      const message = await runTaskIpcGuard({}, async () => { throw new SubmissionNotDispatchedError('private diagnostic', reason) })
+        .catch((error: Error) => error.message)
+      submit.mockRejectedValueOnce(new Error(message))
+      await expect(send()).rejects.toThrow()
+    }
+    expect(sent().map(event => event.props.upstreamStatus)).toEqual(['not-sent', 'network'])
+    expect(sent()[0].props).toMatchObject({ localRefusal: 'uncoded', failureStage: 'submit' })
+    expect(sent()[1].props).not.toHaveProperty('localRefusal')
+    expect(JSON.stringify(sent())).not.toContain('private diagnostic')
+  })
+
   it.each(['workbench', 'canvas'] as const)('%s records the classified IPC failure through all three outcomes', async surface => {
     installDesktop()
     const cause = new VendorRequestError('opaque diagnostic', {

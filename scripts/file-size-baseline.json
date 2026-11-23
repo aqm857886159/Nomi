@@ -352,8 +352,8 @@
     },
     "src/workbench/assets/AssetLibraryPanel.tsx": {
       "kind": "frozen",
-      "max": 862,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 838,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-11-24 Q-smell 味道②：compact 与网格渲染两份 AssetGridCell 克隆收成 renderAssetCell，行为不变）",
       "topDeclarations": [
         {
           "name": "AssetLibraryContent",

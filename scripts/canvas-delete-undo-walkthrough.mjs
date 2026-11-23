@@ -4,6 +4,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // 验证链：加 2 节点 → 全选 → Delete → ① 撤销 toast 出现 + 节点删空 → 点撤销 → ② 节点恢复。
 // 用法：node scripts/canvas-delete-undo-walkthrough.mjs（需先 pnpm build）
 import { launchNomiApp, repoRoot } from '../tests/ux/_launchApp.mjs'
+import { openBlankProjectCanvas, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -35,16 +36,8 @@ async function addImageNode(win) {
 }
 
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1600, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-
-  await win.getByText('新建空白项目', { exact: false }).first().click()
-  await win.waitForTimeout(2200)
-  await win.keyboard.press('Escape').catch(() => {})
-  await win.getByText('生成', { exact: true }).first().click()
-  await win.waitForTimeout(1000)
+  await prepareWalkthroughWindow(app, win, { width: 1600, height: 1000, errors })
+  await openBlankProjectCanvas(win, { projectSettleMs: 2200, pressEscape: true, canvasSettleMs: 1000 })
 
   // 加 2 个图片节点
   await addImageNode(win)
