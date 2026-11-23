@@ -13,7 +13,7 @@ import type { ModuleRegistry } from "./moduleRegistry";
 import { admitShotIdentity, semanticCandidateFromParams, type AssetReferenceIdentity } from "./semanticGenerationCandidate";
 import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
-import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import type { GenerationDefaultTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 import { referenceDemandForRole, type ReferenceDemand } from "../shared/canvas/edgeAdmission";
 
 /** 同计划里 `storyboard.anchorIds` 引用的非文本锚点折算成参考输入需求（供显式 `modeId` 准入与改稿共用）。 */

@@ -34,11 +34,11 @@ import { skillProviderKindSchema, type SkillProviderKind } from "../shared/skill
 import type { SkillFrontmatter } from "./skillFrontmatter";
 export { skillProviderKindSchema, type SkillProviderKind } from "../shared/skillProvider";
 
-export const skillAudienceSchema = z.enum(["internal", "mcp"]);
+const skillAudienceSchema = z.enum(["internal", "mcp"]);
 export type SkillAudience = z.infer<typeof skillAudienceSchema>;
 
 const canonicalCapabilityIds = new Set<string>(CAPABILITY_CONTRACTS.map((contract) => contract.id));
-export const skillRequestedCapabilitySchema = z.string().refine(
+const skillRequestedCapabilitySchema = z.string().refine(
   (capabilityId) => canonicalCapabilityIds.has(capabilityId),
   "must be a canonical Capability Registry id",
 );
@@ -49,7 +49,7 @@ export const skillRequestedCapabilitySchema = z.string().refine(
  * 用 `.strict()` 从结构上拒绝 `archetypeId` / `params` 等键，违规直接校验失败。
  * 详见 docs/plan/2026-06-19-skill-playbook-system.md §0.5.b。
  */
-export const skillStageModelPrefSchema = z
+const skillStageModelPrefSchema = z
   .object({
     /** 能力类别：text / image / video，驱动供应商模态 chip。 */
     kind: skillProviderKindSchema,
@@ -57,7 +57,7 @@ export const skillStageModelPrefSchema = z
     family: z.string().min(1).optional(),
   })
   .strict();
-export type SkillStageModelPref = z.infer<typeof skillStageModelPrefSchema>;
+type SkillStageModelPref = z.infer<typeof skillStageModelPrefSchema>;
 
 /**
  * Playbook 阶段 —— 把「单段 skill」扩成「多段 playbook」的骨架（无 stages = 现有单段包）。
@@ -77,7 +77,7 @@ export type SkillStage = {
   modelPrefs?: SkillStageModelPref[];
 };
 
-export const skillStageSchema = z
+const skillStageSchema = z
   .object({
     /** 阶段稳定 id，如 'storyboard' | 'media' | 'assemble'。 */
     id: z.string().min(1),

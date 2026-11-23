@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { FencedCanvas } from '../fencedCanvas'
 import { Bounds, Center, OrbitControls, useGLTF } from '@react-three/drei'
 import { cn } from '../../../../utils/cn'
-import { validateGlbStructure } from '../../../../../electron/assets/model3dValidation'
+import { validateGlbStructure } from '../../../../../electron/shared/contracts/model3dValidation'
 import { logRendererError } from '../../../../desktop/rendererLog'
 
 /**
