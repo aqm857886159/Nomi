@@ -20,6 +20,14 @@
       "symbol": "settleWithArtifacts"
     },
     {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "polledFailureMessage"
+    },
+    {
       "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
       "symbol": "withLifecycle"
     }
