@@ -1,7 +1,8 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconEye, IconEyeOff, IconTrash } from '@tabler/icons-react'
-import { useWhiteboardDocumentHistory } from './useWhiteboardDocumentHistory'
+import { useStateHistory } from '@mantine/hooks'
+import { BoundedCache } from '../../../../../electron/shared/boundedCache'
 import { cn } from '../../../../utils/cn'
 import { notify } from '../../../../ui/notificationPolicy'
 import { persistNodeImageFile } from '../../adapters/persistNodeImage'
@@ -123,8 +124,22 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const [activeTool, setActiveTool] = React.useState<ToolKey>('brush')
     const [selectedColor, setSelectedColor] = React.useState('#2563eb')
     const [brushSize, setBrushSize] = React.useState(10)
-    const { document, documentRef, history, historyState, revision, snapshots, storeDocument } =
-      useWhiteboardDocumentHistory(() => ({ state: getInitialState(initialState, initialImage) }))
+    const [initialDocument] = React.useState(() => ({ state: getInitialState(initialState, initialImage) }))
+    const [snapshots] = React.useState(() =>
+      new BoundedCache<number, { state: WhiteboardState }>({ maxEntries: 50, order: 'fifo' }).set(0, initialDocument),
+    )
+    const revisionRef = React.useRef(0)
+    const [revision, history, historyState] = useStateHistory(0)
+    const historySet = history.set
+    const document = snapshots.get(revision) ?? initialDocument
+    const documentRef = React.useRef(document)
+    documentRef.current = document
+    const storeDocument = React.useCallback((value: { state: WhiteboardState }) => {
+      const id = ++revisionRef.current
+      snapshots.set(id, value)
+      documentRef.current = value
+      historySet(id)
+    }, [historySet, snapshots])
     const [activeLayerId, setActiveLayerId] = React.useState(document.state.activeLayerId)
     const state = React.useMemo(() => ({ ...document.state, activeLayerId }), [document.state, activeLayerId])
     const setState = React.useCallback((updater: React.SetStateAction<WhiteboardState>) => {
