@@ -60,6 +60,10 @@ import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { upsertModelCatalogMapping, upsertModelCatalogModel, upsertModelCatalogVendor, upsertModelCatalogVendorApiKey } from "./catalogStore";
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "../shared/modelArchetypes/types";
 import { setDesktopLocale } from "../desktopLocale";
+import { desktopT } from "../desktopStrings";
+import { createCatalogGenerationProvider } from "../capabilityCore/apimartGenerationProvider";
+import { readCatalog } from "./catalogStore";
+import { referenceKeyCapacityDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
 
 const capture = installFetchCapture();
@@ -122,10 +126,9 @@ describe("性质：每个模型 × 每个方式，给足下限的素材，判定
     const routeMissing = cells.filter((cell) => cell.outcome === "mode_route_missing").map((cell) => cell.where).sort();
     expect(missing).toEqual([]);
     expect(routeMissing).toEqual(ROUTE_MISSING);
-    // 不是这处判定拒的：参考件数上限（assertReferenceCapacity）。Higgsfield DoP 首尾帧从标准键给首帧 + 尾帧，
-    // 被说成「最多收 1 张」——旧有问题，已另报，不在这一刀；名单钉住，变了要看。
+    // 参考件数上限（assertReferenceCapacity）与任何发送前异常：全目录 0 格（含 Higgsfield DoP / RunningHub 首尾帧双图）。
     const others = cells.filter((cell) => cell.outcome.startsWith("other:")).map((cell) => cell.where).sort();
-    expect(others).toEqual(["higgsfield/higgsfield-ai/dop/standard/firstlast", "higgsfield/higgsfield-ai/dop/turbo/firstlast"]);
+    expect(others).toEqual([]);
     // 全目录：格子数随目录长，不抽样（下限防「扫了个空」）。
     expect(cells.length).toBeGreaterThan(300);
   });
@@ -433,4 +436,80 @@ describe("性质：点名即可用——拒收原话点了名的方式，同一�
     expect(all.length).toBeGreaterThan(300);
     expect(named.length).toBeGreaterThan(0);
   }, 240_000);
+});
+
+describe("外部 / 无界面首尾帧双图（未显式传 modeId）：Seedance 2.5 / Wan 3.0 / Wan 3.0 Prime 容量按匹配方式聚合", () => {
+  const FIRST = "https://assets.example.com/routes/first-frame.png";
+  const LAST = "https://assets.example.com/routes/last-frame.png";
+  const EXTRA = "https://assets.example.com/routes/extra-frame.png";
+  const FIRST_LAST_ROLES = [
+    { url: FIRST, role: "first_frame" },
+    { url: LAST, role: "last_frame" },
+  ];
+
+  it.each([
+    ["doubao-seedance-2.5", 2],
+    ["wan3.0-video", 2],
+    ["wan3.0-video-prime", 2],
+  ] as const)("%s：无 modeId 发送首尾两帧在引擎 A 与引擎 B 均放行且落 image_with_roles，超该键最大方式上限仍拒", async (modelKey, maxRoles) => {
+    const viaEngineA = await driveEngineA(capture, {
+      vendorKey: "apimart",
+      kind: "image_to_video",
+      prompt: "镜头缓缓推进",
+      extras: { modelKey, nodeId: "parity-node", projectId: "parity-project", image_with_roles: FIRST_LAST_ROLES },
+    });
+    expect(viaEngineA.failure, JSON.stringify(viaEngineA.failure)).toBeUndefined();
+    expect((viaEngineA.request?.body as Record<string, unknown>)?.image_with_roles).toEqual(FIRST_LAST_ROLES);
+
+    const provider = createCatalogGenerationProvider({
+      vendorKey: "apimart",
+      resolveConnection: () => ({ apiKey: "test-key" }),
+      catalogReader: readCatalog,
+    });
+    const built = provider.buildRequest({
+      moduleId: `video.apimart.${modelKey}`,
+      providerId: "apimart",
+      modelId: modelKey,
+      mode: "image_to_video",
+      prompt: "镜头缓缓推进",
+      parameters: { image_with_roles: FIRST_LAST_ROLES },
+      references: [],
+      contractHash: "hash-firstlast",
+      idempotencyKey: "idem-firstlast",
+    });
+    expect((built as Record<string, unknown>).image_with_roles).toEqual(FIRST_LAST_ROLES);
+
+    const overCapacity = Array.from({ length: maxRoles + 1 }, (_, i) => ({
+      url: i === 0 ? FIRST : i === 1 ? LAST : `${EXTRA}?i=${i}`,
+      role: i === 0 ? "first_frame" : "reference_image",
+    }));
+    expect(() => provider.buildRequest({
+      moduleId: `video.apimart.${modelKey}`,
+      providerId: "apimart",
+      modelId: modelKey,
+      mode: "image_to_video",
+      prompt: "镜头缓缓推进",
+      parameters: { image_with_roles: overCapacity },
+      references: [],
+      contractHash: "hash-over-cap",
+      idempotencyKey: "idem-over-cap",
+    })).toThrow(desktopT("modelConstraints.imageReferenceCapacity", { max: maxRoles }));
+  });
+
+  it("方式继承档案级 transportTaskKind 时（Seedance 2.5），容量查询仍命中模型声明而非退回键名猜测", () => {
+    const row = seeded.models.find((candidate) => candidate.vendorKey === "kie" && candidate.modelKey === "bytedance/seedance-2-5")!;
+    const context = { vendorKey: "kie", modelKey: row.modelKey, modelMeta: row.meta, taskKind: "image_to_video" };
+    expect(referenceKeyCapacityDeclarationFor("first_frame_url", context)).toMatchObject({
+      source: "model-declaration",
+      family: "image",
+      max: 1,
+      multiImage: false,
+    });
+    expect(referenceKeyCapacityDeclarationFor("last_frame_url", context)).toMatchObject({
+      source: "model-declaration",
+      family: "image",
+      max: 1,
+      multiImage: false,
+    });
+  });
 });
