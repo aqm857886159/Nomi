@@ -13,7 +13,7 @@ import test from 'node:test'
 
 import { buildApproval } from './coord-approve.mjs'
 import { checkIndependentAcceptance, evaluatePrBody } from './pr-body-criteria.mjs'
-import { boardApprovalSubject, ciApprovals, localApprovals } from './lib/coordApprovals.mjs'
+import { boardApprovalSubject, checkSuppressionContracts, ciApprovals, localApprovals, pushApprovals, suppressionApprovalSubject } from './lib/coordApprovals.mjs'
 import { boardsAtHead, checkHeadAncestry, isRepoRelativeRef } from './lib/prEvidenceInputs.mjs'
 import { knownScenarios, scenarioPolicyHash } from './perf-scenarios-lib.mjs'
 import { evidenceJudgementEnforced } from './pr-judgement-lib.mjs'
@@ -405,4 +405,29 @@ test('A·板 stage：只放行「已拍板 → built」（approved→built；仓
   assert.equal(run('built', 'approved').blocked, true, 'built 退回 approved 要确认')
   assert.equal(run('built', 'explored').blocked, true, 'built 退回 explored 要确认')
   assert.equal(run('built', 'built').blocked, false)
+})
+
+test('推送档（mode=push）eslint-suppressions 三态：取不到记录警告放行、取得到未签判红、签了对上过；合并前（mode=local）取不到照旧判红', () => {
+  const base = { 'scripts/a.mjs': { 'no-unused-vars': { count: 1 } } }
+  const head = { ...base, 'scripts/b.mjs': { 'no-unused-vars': { count: 1 } } }
+  const fp = suppressionApprovalSubject(base, head).fingerprint
+  const rec = JSON.stringify({ pr: null, kind: 'eslint-suppressions', name: 'eslint-suppressions.json', sha256: fp, at: 'T', note: '' })
+
+  const missing = checkSuppressionContracts({ strict: true, baseSuppressions: base, suppressions: head, approvals: pushApprovals({ env: {} }) })
+  assert.equal(missing.ok, true)
+  assert.match(missing.lines.join('\n'), /⚠.*待协调确认（合并前扫描会核/)
+
+  const unreadable = checkSuppressionContracts({ strict: true, baseSuppressions: base, suppressions: head, approvals: pushApprovals({ env: { NOMI_COORD_APPROVALS: 'x' }, readFile: () => { throw new Error('ENOENT') } }) })
+  assert.equal(unreadable.ok, true)
+  assert.match(unreadable.lines.join('\n'), /⚠.*待协调确认（合并前扫描会核/)
+
+  const unsigned = checkSuppressionContracts({ strict: true, baseSuppressions: base, suppressions: head, approvals: pushApprovals({ env: { NOMI_COORD_APPROVALS: 'x' }, readFile: () => '' }) })
+  assert.equal(unsigned.ok, false)
+
+  const signed = checkSuppressionContracts({ strict: true, baseSuppressions: base, suppressions: head, approvals: pushApprovals({ env: { NOMI_COORD_APPROVALS: 'x' }, readFile: () => rec }) })
+  assert.equal(signed.ok, true)
+  assert.match(signed.lines.join('\n'), /协调已确认/)
+
+  const localMissing = checkSuppressionContracts({ strict: true, baseSuppressions: base, suppressions: head, approvals: localApprovals({ pr: 7, env: {} }) })
+  assert.equal(localMissing.ok, false)
 })

@@ -43,6 +43,7 @@ import {
   RESIDENT_SELECTION_SELECTORS,
   RESIDENT_SELECTION_TEST_FILES,
 } from './scripts/resident-selection-owner.mjs'
+import { t8StructuralGuardBlocks } from './scripts/t8-structural-guards.mjs'
 
 // 用例 / 钩子不许单独设比 vitest 全局更短的超时（全局值见 vitest.config.ts 的 testTimeout / hookTimeout，都是 30_000；
 // 两处同值由 scripts/vitest-timeout-floor.test.mjs 核对）。超时被放弃的用例仍在后台跑完，把任务或半初始化模块留给下一个用例
@@ -1123,5 +1124,7 @@ export default tseslint.config(
       'asset-source-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('assetSourceEvidence', ['finalizeAssetMeta', 'reconcileReuse'], '素材来源只由主进程素材库定：入口只交来源事实（AssetSourceFact），不自己定稿 meta。')],
     },
   },
+  // T-8 结构防错规则 + 原独立推送前语法门岗收口（存量入 eslint-suppressions.json 只减不增）
+  ...t8StructuralGuardBlocks,
   prettier,
 )

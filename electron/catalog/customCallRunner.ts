@@ -8,7 +8,7 @@
 // transcript：http/request 每次调用记一条（Authorization/apiKey 脱敏），试跑面板摊开
 // 「实际发了什么」——参考图第三闸对脚本失明的补偿（plan §10）。
 import { isJsonRecord, type JsonRecord } from "../jsonUtils";
-import { requestJson, requestMultipart, vendorResponseLimitForKind, VendorRequestError } from "../vendor/vendorHttp";
+import { requestBinary, vendorResponseLimitForKind, VendorRequestError, type BinaryVendorResponse } from "../vendor/vendorHttp";
 import { CustomCallSandboxError, runCustomCallSandbox } from "./customCallSandbox";
 import type { Model, ProfileKind, Vendor } from "./types";
 import { desktopT } from "../i18n";
@@ -50,6 +50,8 @@ function preview(value: unknown, redact: (s: string) => string): string | undefi
   if (typeof value === "string") text = value;
   else if (typeof FormData !== "undefined" && value instanceof FormData) {
     text = `FormData(${[...value.keys()].join(", ")})`;
+  } else if (value instanceof Uint8Array) {
+    text = `Uint8Array(${value.byteLength} bytes)`;
   } else {
     try {
       text = JSON.stringify(value);
@@ -58,6 +60,88 @@ function preview(value: unknown, redact: (s: string) => string): string | undefi
     }
   }
   return redact(text).slice(0, PREVIEW_LIMIT);
+}
+
+const TEXTUAL_APPLICATION_TYPES: ReadonlySet<string> = new Set([
+  "application/xml",
+  "application/javascript",
+  "application/x-javascript",
+  "application/x-ndjson",
+  "application/jsonl",
+  "application/x-www-form-urlencoded",
+]);
+
+function isJsonMediaType(contentType: string): boolean {
+  return contentType === "application/json" || contentType.endsWith("+json");
+}
+
+function isTextualMediaType(contentType: string): boolean {
+  return contentType.startsWith("text/") || contentType.endsWith("+xml") || TEXTUAL_APPLICATION_TYPES.has(contentType);
+}
+
+function startsWithBinaryContainerMagic(bytes: Buffer): boolean {
+  if (bytes.byteLength >= 4) {
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return true; // PNG
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return true; // JPEG
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return true; // GIF
+    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return true; // RIFF (WAV/WebP/AVI)
+    if (bytes[0] === 0x4f && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53) return true; // Ogg
+    if (bytes[0] === 0x66 && bytes[1] === 0x4c && bytes[2] === 0x61 && bytes[3] === 0x43) return true; // FLAC
+    if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) return true; // PDF
+    if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return true; // WebM/MKV
+    if (bytes[0] === 0x67 && bytes[1] === 0x6c && bytes[2] === 0x54 && bytes[3] === 0x46) return true; // glTF/GLB
+  }
+  if (bytes.byteLength >= 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true; // ID3 (MP3)
+  return false;
+}
+
+/**
+ * 自定义调用 HTTP 响应的唯一解码主人：按标准 Content-Type 决定交付给脚本的值形状——
+ * JSON 媒体类型解析成对象，文本媒体类型解 UTF-8（兼容标成 text/plain 的 JSON 中转），
+ * 二进制媒体类型（video/*、audio/*、image/*、application/octet-stream 等）原样保留字节并经 QuickJS ArrayBuffer
+ * 在沙盒里还原为 Uint8Array，绝不经 UTF-8 破坏非文本字节。
+ */
+export function decodeCustomCallHttpResponse(response: BinaryVendorResponse): unknown {
+  const { bytes, contentType } = response;
+  if (isJsonMediaType(contentType)) {
+    if (bytes.byteLength === 0) return null;
+    const text = bytes.toString("utf8");
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+  if (isTextualMediaType(contentType)) {
+    const text = bytes.toString("utf8");
+    if (/^[\s]*(?:\[|\{)/.test(text.slice(0, 64))) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text;
+      }
+    }
+    return text;
+  }
+  if (!contentType) {
+    if (bytes.byteLength === 0) return null;
+    if (!bytes.includes(0) && !startsWithBinaryContainerMagic(bytes)) {
+      try {
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        if (/^[\s]*(?:\[|\{)/.test(text.slice(0, 64))) {
+          try {
+            return JSON.parse(text);
+          } catch {
+            return text;
+          }
+        }
+        return text;
+      } catch {
+        // Non-UTF-8 unlabeled payload is binary; fall through to return raw bytes.
+      }
+    }
+  }
+  return bytes;
 }
 
 /**
@@ -237,14 +321,13 @@ export async function runCustomCallScript(input: {
     const headers = init.headers || {};
     const restoredForm = restoreSandboxFormData(init.body);
     const body = restoredForm ?? init.body;
-    return record(init.method, url, body, () =>
-      restoredForm
-        ? requestMultipart(vendor, apiKey, url, headers, init.query || {}, restoredForm, controller.signal, {
-            maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
-          })
-        : requestJson(vendor, apiKey, String(init.method || "POST"), url, headers, init.query || {}, body, controller.signal, {
-            maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
-          }),
+    const method = restoredForm ? "POST" : String(init.method || "POST");
+    return record(method, url, body, async () =>
+      decodeCustomCallHttpResponse(
+        await requestBinary(vendor, apiKey, method, url, headers, init.query || {}, body, controller.signal, {
+          maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
+        }),
+      ),
     );
   };
 
