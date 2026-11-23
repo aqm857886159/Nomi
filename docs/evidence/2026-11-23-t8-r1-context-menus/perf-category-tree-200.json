@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-23",
+  "machine": "darwin arm64 Apple M5 x10 / 16GB (multi-session load)",
+  "categoryTree200Rows": {
+    "description": "Real Chromium (Playwright headless shell) + production CategoryTree with 200 loose nodes in 'shots' + compiled public/tailwind.generated.css; 1 warmup + 15 measured runs.",
+    "beforeRouteA": {
+      "rows": 200,
+      "mountMs": { "runs": 15, "median": 7.7, "p95": 11.3, "min": 6.5, "max": 12.2 },
+      "reselectRerenderMs": { "runs": 15, "median": 2.5, "p95": 3.3, "min": 2.0, "max": 4.3 },
+      "rightClickToMenuMs": { "runs": 15, "median": 11.5, "p95": 15.2, "min": 8.7, "max": 17.4 }
+    },
+    "afterRouteA": {
+      "rows": 200,
+      "lazyItemsVerified": true,
+      "mountMs": { "runs": 15, "median": 13.0, "p95": 15.3, "min": 11.9, "max": 18.0 },
+      "reselectRerenderMs": { "runs": 15, "median": 7.5, "p95": 8.9, "min": 7.0, "max": 9.3 },
+      "rightClickToMenuMs": { "runs": 15, "median": 26.8, "p95": 28.8, "min": 10.0, "max": 39.2 }
+    }
+  },
+  "canvasSelectComposerEmpty200": {
+    "id": "canvas-select-composer-empty-200",
+    "runs": 5,
+    "budgetMs": 100,
+    "responseMs": { "median": 53.5, "p95": 64.0, "samples": [64.0, 53.4, 50.2, 65.6, 53.5] },
+    "frameGapP95Ms": 16.7,
+    "longTasks": 0
+  }
+}

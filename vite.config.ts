@@ -257,6 +257,7 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         'react-dom/client',
         'react-router-dom',
         'diff',
+        '@radix-ui/react-context-menu',
         '@radix-ui/react-hover-card',
         '@radix-ui/react-switch',
         '@floating-ui/dom',
