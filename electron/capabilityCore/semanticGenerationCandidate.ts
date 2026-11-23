@@ -3,7 +3,7 @@ import { modelKindForTaskKind } from "../shared/capabilityModeManifest";
 import { refuseArgument, refuseGeneration } from "./transportFailure";
 import { modelHandleOf, resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 import { catalogRowFor } from "./modelAdmissionSchema";
-import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import type { GenerationDefaultTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 import type { PlanCandidate } from "./executionContract";
 import { ModuleRegistryError, type ModuleResolveInput } from "./moduleRegistry";
 import { builtinVendorDeletedUntilKeySaved } from "../catalog/catalogStore";

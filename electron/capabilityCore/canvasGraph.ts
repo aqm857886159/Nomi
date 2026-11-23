@@ -14,8 +14,8 @@ import { randomUUID } from 'node:crypto'
 import { backfillShotIndexes } from '../shared/canvas/shotNumbering'
 import { validateReferenceEdge, type EdgeAdmissionMode, type EdgeEndpoint } from '../shared/canvas/edgeAdmission'
 import { ANCHOR_META_KEYS, isVisualAnchorKind } from './anchorBible'
-import { buildCanvasNodes, type CanvasNodeFactorySpec, type NodeFactoryDeps } from './canvasNodeFactory'
-import { layoutBatchWith, type NodeBox } from './canvasNodeLayout'
+import { buildCanvasNodes, type CanvasNodeFactorySpec, type NodeFactoryDeps } from '../shared/canvas/canvasNodeFactory'
+import { layoutBatchWith, type NodeBox } from '../shared/canvas/canvasNodeLayout'
 import {
   nodeKindDefaultCategory,
   nodeKindDefaultSize,

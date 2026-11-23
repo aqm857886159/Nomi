@@ -23,7 +23,7 @@ import { createProductionRunRepository } from "../productionRun/productionRunRep
 import { createProductionRunService } from "../productionRun/productionRunService";
 import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchScheduler";
 import { currentAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
-import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import type { GenerationDefaultTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
 import { landingThatBinds } from "../productionRun/landFirstTestUtils";
 import { withFixedCatalog } from "./generationFixedCatalog.testkit";
