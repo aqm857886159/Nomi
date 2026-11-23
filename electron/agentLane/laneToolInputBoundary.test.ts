@@ -1,3 +1,5 @@
+import { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs'
+import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs'
 // 特征测试：`draft_shots` 的 25 种错写，逐条过**真 lane**——
 // 入参边界（包在 pi 的 `prepareArguments` 上）→ pi 的 `validateToolArguments`（TypeBox）→ `execute` 里的契约 parse（Zod）
 // → 传输适配器 → 起草准入（模型档案）。模型是本机 HTTP 假端点（逐字回放写好的工具调用），零额度。
@@ -195,6 +197,21 @@ const SAMPLES: ReadonlyArray<readonly [string, unknown, Expect]> = [
   ['image-model-video-task', { shots: [shot({ taskKind: 'text_to_image' })] },
     { problem: 'mode_not_in_model', field: 'taskKind', says: /cannot do text_to_image\. It does: /, code: 'generation_input_invalid' }],
 ]
+
+it('keeps a settled absence for 512 call identities without refreshing reads', () => {
+  const boundary = createLaneToolInputBoundary({
+    failures: createLaneRepeatedFailureTracker(), turn: { isOver: () => false, end: () => {} }, specs: [],
+  })
+  const failureOf = (index: number, text = 'ordinary tool output') => boundary.failureOf({
+    toolCallId: String(index), toolName: 'test-tool', args: undefined, text,
+  })
+  const stopped = 'test-tool was not run (tool_retry_stopped). Stop.'
+  for (let index = 0; index < 512; index += 1) expect(failureOf(index)).toBeUndefined()
+  expect(failureOf(0, stopped)).toBeUndefined()
+  failureOf(512)
+  expect(failureOf(1, stopped)).toBeUndefined()
+  expect(failureOf(0, stopped)).toEqual({ code: 'tool_retry_stopped' })
+})
 
 describe('25 种 draft_shots 错写过真 lane：被拒的都点名字段、说该填什么', () => {
   for (const [name, args, expected] of SAMPLES) {

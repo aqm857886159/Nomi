@@ -63,6 +63,9 @@ importers:
       js-yaml:
         specifier: 4.1.1
         version: 4.1.1
+      lru-cache:
+        specifier: 10.4.3
+        version: 10.4.3
       mammoth:
         specifier: ^1.12.0
         version: 1.12.0

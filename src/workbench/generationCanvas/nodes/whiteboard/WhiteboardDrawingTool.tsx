@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconEye, IconEyeOff, IconTrash } from '@tabler/icons-react'
-import { useStateHistory } from '@mantine/hooks'
+import { useWhiteboardDocumentHistory } from './useWhiteboardDocumentHistory'
 import { cn } from '../../../../utils/cn'
 import { notify } from '../../../../ui/notificationPolicy'
 import { persistNodeImageFile } from '../../adapters/persistNodeImage'
@@ -123,22 +123,8 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const [activeTool, setActiveTool] = React.useState<ToolKey>('brush')
     const [selectedColor, setSelectedColor] = React.useState('#2563eb')
     const [brushSize, setBrushSize] = React.useState(10)
-    const [initialDocument] = React.useState(() => ({ state: getInitialState(initialState, initialImage) }))
-    const initialDocumentRef = React.useRef(initialDocument)
-    const snapshotsRef = React.useRef(new Map([[0, initialDocumentRef.current]]))
-    const revisionRef = React.useRef(0)
-    const [revision, history, historyState] = useStateHistory(0)
-    const historySet = history.set
-    const document = snapshotsRef.current.get(revision) ?? initialDocumentRef.current
-    const documentRef = React.useRef(document)
-    documentRef.current = document
-    const storeDocument = React.useCallback((value: typeof document) => {
-      const id = ++revisionRef.current
-      snapshotsRef.current.set(id, value)
-      while (snapshotsRef.current.size > 50) snapshotsRef.current.delete(snapshotsRef.current.keys().next().value!)
-      documentRef.current = value
-      historySet(id)
-    }, [historySet])
+    const { document, documentRef, history, historyState, revision, snapshots, storeDocument } =
+      useWhiteboardDocumentHistory(() => ({ state: getInitialState(initialState, initialImage) }))
     const [activeLayerId, setActiveLayerId] = React.useState(document.state.activeLayerId)
     const state = React.useMemo(() => ({ ...document.state, activeLayerId }), [document.state, activeLayerId])
     const setState = React.useCallback((updater: React.SetStateAction<WhiteboardState>) => {
@@ -550,11 +536,11 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     }
 
     React.useEffect(() => { if (initialImageStatus === 'ready') onDraftChange?.() }, [revision, initialImageStatus, onDraftChange])
-    const canUndo = historyState.current > 0 && snapshotsRef.current.has(historyState.history[historyState.current - 1])
-    const canRedo = historyState.current < historyState.history.length - 1 && snapshotsRef.current.has(historyState.history[historyState.current + 1])
+    const canUndo = historyState.current > 0 && snapshots.has(historyState.history[historyState.current - 1])
+    const canRedo = historyState.current < historyState.history.length - 1 && snapshots.has(historyState.history[historyState.current + 1])
     const moveHistory = (direction: 'back' | 'forward') => {
       if (direction === 'back' ? !canUndo : !canRedo) return
-      const target = snapshotsRef.current.get(historyState.history[historyState.current + (direction === 'back' ? -1 : 1)])!
+      const target = snapshots.get(historyState.history[historyState.current + (direction === 'back' ? -1 : 1)])!
       setActiveLayerId(target.state.activeLayerId)
       settleFrame(whiteboardCanvasDimensions(target.state))
       history[direction]()

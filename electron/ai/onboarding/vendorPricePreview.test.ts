@@ -65,6 +65,24 @@ describe("read-only public media price", () => {
     expect(await readVendorPricePreview(q)).toBeNull(); expect(appFetch).toHaveBeenCalledTimes(1);
   });
 
+  it("retries a shared failed price read and retains the successful reply", async () => {
+    const query = { ...q, modelId: "price-cache-retry" };
+    vi.mocked(readCatalog).mockReturnValue({
+      vendors: [{ key: "apimart", baseUrlHint: "https://api.apimart.ai/v1" }],
+    } as ReturnType<typeof readCatalog>);
+    const fetch = vi.mocked(appFetch).mockReset()
+      .mockResolvedValueOnce(Response.json(null))
+      .mockResolvedValueOnce(Response.json({ success: true, data: { ...data, model_name: query.modelId } }));
+    const pair = () => Promise.all([readVendorPricePreview(query), readVendorPricePreview(query)]);
+    expect(await pair()).toEqual([null, null]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [first, second] = await pair();
+    expect(first?.usd).toBeCloseTo(0.195172, 9);
+    expect(second).toEqual(first);
+    expect(await readVendorPricePreview(query)).toEqual(first);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["image", "video"] as const)("projects a real %s create mapping without dispatching it or forwarding credentials", async (kind) => {
     const catalog = applyBuiltinSeeds({ version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, "2026-11-09T00:00:00Z").state;
     const secret = "synthetic-price-test-key";

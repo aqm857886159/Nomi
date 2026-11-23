@@ -1,3 +1,4 @@
+import { BoundedCache } from '../shared/boundedCache'
 import crypto from 'node:crypto'
 
 import type { McpConnectionContext } from './mcpConnectionContext'
@@ -228,19 +229,16 @@ export function createProjectLeaseAuthority(deps: ProjectLeaseAuthorityDeps) {
    *
    * 不落盘是刻意的：句柄绑死 principal + sessionId + connectionNonce，进程重启后本来就验不过。
    */
-  const liveSelectionHandles = new Map<string, { token: string; expiresAt: string }>()
+  const liveSelectionHandles = new BoundedCache<string, { token: string; expiresAt: string }>({
+    maxEntries: MAX_LIVE_SELECTION_HANDLES, order: 'fifo',
+  })
 
   function pruneSelectionHandles(): void {
     const current = Date.parse(now())
-    for (const [handleId, record] of liveSelectionHandles) {
+    for (const [handleId, record] of liveSelectionHandles.entries()) {
       if (!Number.isFinite(Date.parse(record.expiresAt)) || current >= Date.parse(record.expiresAt)) {
         liveSelectionHandles.delete(handleId)
       }
-    }
-    while (liveSelectionHandles.size > MAX_LIVE_SELECTION_HANDLES) {
-      const oldest = liveSelectionHandles.keys().next()
-      if (oldest.done) break
-      liveSelectionHandles.delete(oldest.value)
     }
   }
 

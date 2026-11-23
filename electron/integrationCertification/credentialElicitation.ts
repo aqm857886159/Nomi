@@ -1,3 +1,4 @@
+import { BoundedCache } from "../shared/boundedCache";
 import crypto from "node:crypto";
 
 // MCP URL-mode elicitation, credential half (spec 2025-11-25 · client/elicitation §URL Mode).
@@ -61,20 +62,14 @@ export function createCredentialElicitationStore(deps: {
   now?: () => number;
   ttlMs?: number;
 }): CredentialElicitationStore {
-  const tickets = new Map<string, StoredTicket>();
+  const tickets = new BoundedCache<string, StoredTicket>({ maxEntries: MAX_TICKETS, order: "fifo" });
   const now = deps.now || (() => Date.now());
   const ttlMs = deps.ttlMs && deps.ttlMs > 0 ? deps.ttlMs : DEFAULT_TTL_MS;
 
   const sweep = (): void => {
     const current = now();
-    for (const [token, ticket] of tickets) {
+    for (const [token, ticket] of tickets.entries()) {
       if (ticket.redeemed || ticket.expiresAtMs <= current) tickets.delete(token);
-    }
-    // Bounded even if nothing ever expires: drop the oldest insertions first.
-    while (tickets.size > MAX_TICKETS) {
-      const oldest = tickets.keys().next();
-      if (oldest.done) break;
-      tickets.delete(oldest.value);
     }
   };
 
@@ -99,7 +94,7 @@ export function createCredentialElicitationStore(deps: {
       if (!origin || !/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) return null;
       sweep();
       // Drop any earlier ticket for the same session: re-asking must invalidate the previous page.
-      for (const [token, ticket] of tickets) {
+      for (const [token, ticket] of tickets.entries()) {
         if (ticket.sessionId === input.sessionId) tickets.delete(token);
       }
       const token = crypto.randomBytes(32).toString("hex");

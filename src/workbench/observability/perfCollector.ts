@@ -8,6 +8,7 @@
 // 写进只留本机的卡顿时间线，用户自己「导出诊断包」才会给到我们（electron/diagnostics/stallTimeline.ts）。
 // 它复用上面这个现成的 LoAF 观察者，不加观察者、不加 rAF；与汇总的告知范围、`generating` 口径互不相干。
 // 观察者全进程只注册一次（`started` 守卫），页面 / 路由切换不会重复注册。
+import { BoundedCache } from '../../../electron/shared/boundedCache'
 import { getDesktopBridge } from '../../desktop/bridge'
 import {
   countBucket, cpuCoresBucket, interactionBucket, longFramesPerMinBucket, longestFrameBucket, memoryBucket, observedMinutesBucket, percentile,
@@ -49,7 +50,7 @@ const PERIODIC_FLUSH_MS = 30 * 60_000
 export function createPerfCollector(env: PerfCollectorEnv) {
   let started = false
   let windowStart = env.now()
-  const interactions = new Map<number, number>()
+  const interactions = new BoundedCache<number, number>({ maxEntries: MAX_INTERACTIONS, order: 'fifo' })
   let longFrameCount = 0
   let longestFrameMs: number | null = null
   let scene: (() => PerfScene) | null = null
@@ -66,10 +67,7 @@ export function createPerfCollector(env: PerfCollectorEnv) {
       const id = (entry as PerformanceEntry & { interactionId?: number }).interactionId
       if (!id || id <= 0) continue
       const previous = interactions.get(id)
-      if (previous === undefined) {
-        if (interactions.size >= MAX_INTERACTIONS) interactions.delete(interactions.keys().next().value as number)
-        interactions.set(id, entry.duration)
-      } else if (entry.duration > previous) interactions.set(id, entry.duration)
+      if (previous === undefined || entry.duration > previous) interactions.set(id, entry.duration)
     }
   }
   const stallScene = (): StallScene => {

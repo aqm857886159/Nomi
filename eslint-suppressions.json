@@ -1,26 +1,11 @@
 {
-  "electron/agentLane/laneApprovalGate.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/agentLane/laneProviderGuard.mts": {
     "vendor-failure-one-home/no-restricted-syntax": {
       "count": 2
     }
   },
-  "electron/agentLane/laneToolInputBoundary.mts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/agentLane/laneTrace.mts": {
     "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/ai/onboarding/vendorPricePreview.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -130,11 +115,6 @@
       "count": 2
     }
   },
-  "electron/capabilityCore/generationDocumentPlan.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/capabilityCore/hostConfigWrite.ts": {
     "generic-raw-rename/no-restricted-syntax": {
       "count": 1
@@ -155,11 +135,6 @@
   },
   "electron/capabilityCore/projectAgentProposalReceiptStore.ts": {
     "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/capabilityCore/projectLease.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -249,11 +224,6 @@
   "electron/export/mediaProbe.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 6
-    }
-  },
-  "electron/integrationCertification/credentialElicitation.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/integrationCertification/operationLedger.ts": {
@@ -413,11 +383,6 @@
   "electron/skills/skillManifestMigration.ts": {
     "generic-raw-rename/no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "electron/tasks/taskCache.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/workspace/legacyProjectMigration.ts": {
@@ -1367,33 +1332,8 @@
       "count": 1
     }
   },
-  "src/ui/toast.tsx": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/adoption/adoptionProposalRegistry.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "src/workbench/ai/resident/residentToolText.ts": {
     "vendor-failure-one-home/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/api/taskApi.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/observability/perfCollector.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
       "count": 1
     }
   },
