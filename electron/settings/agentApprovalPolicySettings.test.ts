@@ -55,4 +55,38 @@ describe('主进程持有的权限档', () => {
       expect(readAgentApprovalPolicy()).toEqual({ mode: 'request' })
     }
   })
+
+  it('权限档位没变时不触发 fsyncSync / 落盘；真改档位必写一次盘', async () => {
+    freshRoot()
+    const { writeAgentApprovalPolicy, readAgentApprovalPolicy, agentApprovalPolicySettingsPath } = await import('./agentApprovalPolicySettings')
+    const filePath = agentApprovalPolicySettingsPath()
+    const bakPath = filePath.replace(/\.json$/, '.bak.json')
+
+    // 默认态（无文件 = request）下重复写入 request：0 次写盘（不创建文件、不留 .bak.json）
+    expect(writeAgentApprovalPolicy({ mode: 'request' })).toEqual({ mode: 'request' })
+    expect(fs.existsSync(filePath)).toBe(false)
+    expect(fs.existsSync(bakPath)).toBe(false)
+
+    // 反例：真改档位（request -> direct），必须写一次盘
+    expect(writeAgentApprovalPolicy({ mode: 'direct' })).toEqual({ mode: 'direct' })
+    expect(fs.existsSync(filePath)).toBe(true)
+    expect(readAgentApprovalPolicy()).toEqual({ mode: 'direct' })
+    const afterFirstWrite = fs.statSync(filePath, { bigint: true })
+    expect(fs.existsSync(bakPath)).toBe(false)
+
+    // 连续发送消息重复传同一档位（direct -> direct）：0 次新增写盘（inode、mtimeNs 不变，且未轮转 .bak.json）
+    expect(writeAgentApprovalPolicy({ mode: 'direct' })).toEqual({ mode: 'direct' })
+    expect(writeAgentApprovalPolicy({ mode: 'direct' })).toEqual({ mode: 'direct' })
+    const afterNoopWrites = fs.statSync(filePath, { bigint: true })
+    expect(afterNoopWrites.ino).toBe(afterFirstWrite.ino)
+    expect(afterNoopWrites.mtimeNs).toBe(afterFirstWrite.mtimeNs)
+    expect(fs.existsSync(bakPath)).toBe(false)
+
+    // 反例：再改回 request（direct -> request），必须再写一次盘（原子写换新 inode 并轮转 .bak.json）
+    expect(writeAgentApprovalPolicy({ mode: 'request' })).toEqual({ mode: 'request' })
+    const afterSecondWrite = fs.statSync(filePath, { bigint: true })
+    expect(afterSecondWrite.ino).not.toBe(afterFirstWrite.ino)
+    expect(fs.existsSync(bakPath)).toBe(true)
+    expect(readAgentApprovalPolicy()).toEqual({ mode: 'request' })
+  })
 })

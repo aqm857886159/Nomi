@@ -1,0 +1,26 @@
+{
+  "name": "桌面 Agent 通道发送依赖装配（目录版本号选型与策略写口委托）",
+  "subject": "agent-lane.desktop-runtime-deps",
+  "lifecycle": "host",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneDesktopRuntime.ts",
+    "symbol": "createDesktopLaneDependencies"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "createDesktopLaneDependencies"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/agentLane/laneDesktopInput.test.ts",
+  "allowed_consumers": [
+    "electron/main.ts"
+  ],
+  "since": "2026-11-22",
+  "notes": "合同 docs/fixes/2026-11-22-agent-send-trim-waste.root-cause.json：桌面主进程唯一的 Agent 发送依赖工厂；按 catalogStore.catalogRevisionToken() 单槽复用文本模型选型（零每轮 structuredClone），并将审批策略写盘直接委托唯一写口 writeAgentApprovalPolicy，不做二层内存短路。"
+}

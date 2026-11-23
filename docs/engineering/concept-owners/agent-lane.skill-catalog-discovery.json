@@ -1,0 +1,29 @@
+{
+  "name": "Agent 技能目录树发现与单槽指纹记忆",
+  "subject": "agent-lane.skill-catalog-discovery",
+  "lifecycle": "catalog",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneSkillCatalog.mts",
+    "symbol": "discoverSkillRecords"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneSkillCatalog.mts",
+      "symbol": "discoverSkillRecords"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/agentLane/laneSkillCatalogCache.test.ts",
+  "allowed_consumers": [
+    "electron/agentLane/laneDesktopRuntime.ts",
+    "electron/agentLane/laneNativeLoader.cts",
+    "electron/skills/skillStore.ts",
+    "electron/skills/skillIpc.ts"
+  ],
+  "since": "2026-11-22",
+  "notes": "合同 docs/fixes/2026-11-22-agent-send-trim-waste.root-cause.json：主进程所有技能目录扫描统一经 discoverSkillRecords 入口，单槽记忆 lastSkillDiscovery 由递归 lstat({ bigint: true }) + readdir 纳秒目录树指纹守卫（零 fs.watch 句柄、零多槽 LRU），目录树未变时跳过重复读盘与 YAML 解析，新增/修改/删除/子文件变更/软链替换时立即重扫。"
+}
