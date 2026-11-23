@@ -9,7 +9,7 @@ import type { CatalogState } from "../catalog/types";
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from "../productionRun/catalogPricingResolver";
 import type { ModelPricing, ShotPrice } from "../productionRun/shotPricing";
 import { readGenerationModelDefaults } from "../settings/generationModelDefaultsSettings";
-import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import type { GenerationDefaultTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 
 export type LiveGenerationRegistry = Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
 

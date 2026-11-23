@@ -8,11 +8,11 @@
  */
 import type { DirectorCamera } from './directorTypes'
 
-export const SENSOR_HEIGHT_MM = 24
+const SENSOR_HEIGHT_MM = 24
 export const FOCAL_MM_MIN = 12
 export const FOCAL_MM_MAX = 300
-export const DEFAULT_FOCAL_MM = 50
-export const DEFAULT_FOV_DEG = 50
+const DEFAULT_FOCAL_MM = 50
+const DEFAULT_FOV_DEG = 50
 
 const DEG = 180 / Math.PI
 
@@ -42,7 +42,7 @@ export function exportAspectRatio(ratio: string): number | null {
 }
 
 /** 取景框内边距（px），主视口与 FOV 补偿共用 */
-export const FRAME_GUIDE_PADDING = 80
+const FRAME_GUIDE_PADDING = 80
 
 /**
  * 视口里减去四周 pad 后，按导出画幅装进去的取景框尺寸（free 画幅 = 无框）。
@@ -87,4 +87,3 @@ export const LENS_PRESETS = [
   { id: 'closeup', mm: 135 },
   { id: 'tele', mm: 200 },
 ] as const
-export type LensPresetId = (typeof LENS_PRESETS)[number]['id']

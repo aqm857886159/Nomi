@@ -88,7 +88,7 @@ export function setCanvasNodeInteractionState(target: unknown, state: CanvasNode
   }
 }
 
-export function getCanvasNodeProperty(target: unknown, key: string): unknown {
+function getCanvasNodeProperty(target: unknown, key: string): unknown {
   if (!target || typeof target !== 'object') {
     return undefined
   }
@@ -102,7 +102,7 @@ export function getCanvasNodeProperty(target: unknown, key: string): unknown {
   return targetRecord[key] ?? propsRecord?.[key]
 }
 
-export function getCanvasNodeNumber(target: unknown, key: keyof CanvasObjectBounds): number | undefined {
+function getCanvasNodeNumber(target: unknown, key: keyof CanvasObjectBounds): number | undefined {
   if (!target || typeof target !== 'object') {
     return undefined
   }
@@ -273,7 +273,7 @@ export function getCanvasObjectTarget(target: unknown): CanvasObjectTarget | nul
   return null
 }
 
-export function isPointInsideEraserStroke(
+function isPointInsideEraserStroke(
   point: CanvasPoint,
   stroke: CanvasStroke,
   offsets: Map<string, CanvasObjectOffset>,
@@ -293,7 +293,7 @@ export function isPointInsideEraserStroke(
   return pathBounds ? isPointInsideBounds(localPoint, pathBounds) : false
 }
 
-export function isPointNearPointerTrack(point: CanvasPoint, points: PointerPoint[], size: number): boolean {
+function isPointNearPointerTrack(point: CanvasPoint, points: PointerPoint[], size: number): boolean {
   const hitRadius = Math.max(2, size / 2)
 
   if (points.length === 1) {
@@ -309,14 +309,14 @@ export function isPointNearPointerTrack(point: CanvasPoint, points: PointerPoint
   return false
 }
 
-export function getDistanceSquared(point: CanvasPoint, target: PointerPoint): number {
+function getDistanceSquared(point: CanvasPoint, target: PointerPoint): number {
   const deltaX = point.x - target[0]
   const deltaY = point.y - target[1]
 
   return deltaX * deltaX + deltaY * deltaY
 }
 
-export function getDistanceToSegmentSquared(point: CanvasPoint, start: PointerPoint, end: PointerPoint): number {
+function getDistanceToSegmentSquared(point: CanvasPoint, start: PointerPoint, end: PointerPoint): number {
   const segmentX = end[0] - start[0]
   const segmentY = end[1] - start[1]
   const lengthSquared = segmentX * segmentX + segmentY * segmentY
@@ -380,7 +380,7 @@ export function translatePathToLocal(
   return data
 }
 
-export function translatePathCommandData(data: LeaferPathCommandData, deltaX: number, deltaY: number, tools: LeaferPathTools) {
+function translatePathCommandData(data: LeaferPathCommandData, deltaX: number, deltaY: number, tools: LeaferPathTools) {
   const { PathCommandMap, PathNumberCommandLengthMap } = tools
   const translatePair = (index: number) => {
     data[index] += deltaX

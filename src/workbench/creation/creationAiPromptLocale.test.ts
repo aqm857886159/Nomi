@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import i18n, { DEFAULT_LOCALE } from '../../i18n'
 import { CREATION_AI_MODES, defaultCreationAiPrompt, getCreationAiMode, listCreationAiModes } from './creationAiModes'
 import { resetSystemPromptOverridesForTest } from './systemPromptOverrides'
-import { SYSTEM_PROMPT_MAX_LENGTH } from '../../../electron/settings/systemPromptsContract'
+import { SYSTEM_PROMPT_MAX_LENGTH } from '../../../electron/shared/contracts/systemPromptsContract'
 
 // 英文版系统提示词的语言解析（2026-09-02，见 docs/plan/2026-09-02-english-system-prompts.md）。
 //
