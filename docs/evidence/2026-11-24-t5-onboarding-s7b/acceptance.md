@@ -2,7 +2,7 @@ t5-s7b-verify：通过
 
 - 验收线：t5-s7b-verify
 - 实现线：t5-onboarding-s7b-impl
-- 验收 HEAD：b2ff287f9f5d6aad0383cd698c224987e0d6b041
+- 验收 HEAD：4578862401113b171ae47708bf6eb0dbf37d1abe
 - 关联任务：协作看板 #1586 · T-5 接入引导第一批切片（`E0` 收成一扇门 + `S7b` 删开屏、首屏主卡与整窗出发大页）
 - 设计卡：`docs/plan/2026-11-24-t5-onboarding-s7b.md`
 
@@ -27,6 +27,7 @@ t5-s7b-verify：通过
    - 首轮（`a545b9506a3cf225707b89bbdf27946826630750`）独立验收拦截 5 组真 CI 阻断（`scripts/comfyui-real-user-journey.mjs:235` 多余 `}` 语法错、`tests/ux/journeys/experience.walk.mjs:66` 未定义 `skip`、`apimartConnectRoute.ts` / `onboardingDrawerConnections.ts` / `useOnboardingModelAvailability.ts` 3 处 `builtin-vendor-literals` 违规、`useOnboardingModelAvailability.ts` 命中 `check-self-written` 未认领、4 文件 unused vars/imports）。
    - 次轮（`e56e7cd4dba66a217b0cf6fa98a6577fea3828de`）复验确认上述 5 组全部清零，`check-self-written.mjs` 与 `lint-changed.mjs` 均 `EXIT=0`，全量 diff 含 **0 处**本机绝对路径或工作树路径泄露。
    - 推送前守卫收口复验（`b2ff287f9f5d6aad0383cd698c224987e0d6b041`，增量仅 3 文件）：① `ApimartConnectPage.tsx` 改用 `ResizeObserver` 量 `<main>` 容器宽度 `< 1180px` 并将 `min-[1400px]:gap-12` 改为 `xl:gap-12`，`narrowOneThreshold.structure.test.ts` + `ApimartConnectPage.test.tsx` + `onboardingModelAvailability.test.ts` **3 套件 12/12 通过**；② 删除 `tests/ux/design-lab/__baselines__/primitives-surfaces/ps-45-splash-dialog.png`，`node scripts/check-design-lab.mjs --mirrors-only` 通过；③ `scripts/station-waits-baseline.json` 收紧 3 条陈旧等待 hash（`587 → 584`），`pnpm run check:test-waits`（14/14 + `new/stale: 0`）通过。
+   - CI Design Lab 基线同步复验（`4578862401113b171ae47708bf6eb0dbf37d1abe`，干净并入 `origin/main` `1f4d15189` 并仅更新 `tests/ux/design-lab/__baselines__/primitives-surfaces/ps-46-journey-dialog.png`）：已亲眼 `read_file` 核验新基线图，收尾弹窗展示 `entry.finale-line` 温和提示且「连接模型」单行不断裂、居中留白与按钮层次正常。
 
 ## 3. 独立实跑测试、变异反例与全套门岗
 
