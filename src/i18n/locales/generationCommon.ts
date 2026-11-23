@@ -1381,7 +1381,7 @@ export const zhGenerationCommon = {
     approvedActual: '批准「{{expected}}」· 实际「{{actual}}」',
     contentCaption: '这条分镜的画面校验完了——下面这几镜跟设定/描述对不上，其它镜都正常。',
     contentPartialCaption: '画面审片部分完成——下面标红的镜头跟设定/描述对不上，另有镜头未校验（不代表已通过）。',
-    unverifiedOnlyCaption: '这次没完成画面审片——下面这几镜未校验，不代表已通过。',
+    unverifiedOnlyCaption: '画面未校验 · 不代表已通过',
     unverifiedLabel: '未校验',
     unverifiedReasons: {
       vision_unavailable: '当前模型不支持看图',
@@ -1525,6 +1525,7 @@ export const zhGenerationCommon = {
       stageStatus: { pending: '待开始', running: '进行中', awaiting_gate: '等待确认', completed: '已完成', needs_attention: '需要处理', cancelled: '已取消' },
     },
     qa: {
+      partialStatus: '部分校验',
       allPassed_one: '审片完成：{{count}} 镜全部过检',
       allPassed_other: '审片完成：{{count}} 镜全部过检',
       allUnverified_one: '审片未完成：{{count}} 镜未校验（{{reasons}}）',
@@ -3137,8 +3138,7 @@ export const enGenerationCommon = {
       'Visual verification is complete. The shots below do not match their established details or descriptions; the others look normal.',
     contentPartialCaption:
       'Visual verification finished partially. The flagged shots below do not match the brief, and the remaining listed shots were not verified.',
-    unverifiedOnlyCaption:
-      'Visual verification did not finish. The shots below were not checked and are not confirmed as passing.',
+    unverifiedOnlyCaption: 'Visual check not run · not confirmed as passing',
     unverifiedLabel: 'Not verified',
     unverifiedReasons: {
       vision_unavailable: 'Current model does not support image input',
@@ -3280,6 +3280,7 @@ export const enGenerationCommon = {
       stageStatus: { pending: 'Pending', running: 'Running', awaiting_gate: 'Approval needed', completed: 'Complete', needs_attention: 'Needs attention', cancelled: 'Cancelled' },
     },
     qa: {
+      partialStatus: 'Partial',
       allPassed_one: 'QA complete: 1 shot passed',
       allPassed_other: 'QA complete: all {{count}} shots passed',
       allUnverified_one: 'QA incomplete: 1 shot not verified ({{reasons}})',

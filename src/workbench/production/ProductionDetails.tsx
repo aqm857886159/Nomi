@@ -66,6 +66,25 @@ function formatQaReportSummary(report: QaStageReport, t: TFunction): string {
   })
 }
 
+function formatStageStatusLabel(
+  stage: ProductionRunView['details']['stages'][number],
+  t: TFunction,
+): string {
+  if (stage.stageId === 'qa' && stage.qaReport) {
+    if (
+      stage.qaReport.skipped
+      || stage.qaReport.total === 0
+      || stage.qaReport.unverifiedCount === stage.qaReport.total
+    ) {
+      return t('generationCommon.reconcile.unverifiedLabel')
+    }
+    if (stage.qaReport.unverifiedCount > 0) {
+      return t('generationCommon.production.qa.partialStatus')
+    }
+  }
+  return t(`generationCommon.production.runDetails.stageStatus.${stage.status}`)
+}
+
 // 界面不谈钱：这里原有四个金额格（已授权 / 已预留 / 已结算 / 待结算），值是把账本合计现算成货币。
 // 账本合计只加已知价，算不出价的镜头不在里面，实付也从不回写——四格印出来的零金额没有依据（2026-10-27 删，
 // 方向检查 docs/engineering/direction-checks/2026-10-27-ui-money-amounts.md）。视图里也不再带预算，
@@ -98,7 +117,7 @@ export function ProductionDetails({ details }: Props): JSX.Element {
               <div className={cn('flex items-center justify-between gap-3 text-caption')}>
                 <span className={cn('truncate text-nomi-ink-80')}>{t(productionStageLabelKey(stage.stageId))}</span>
                 <span className={cn('shrink-0 text-micro text-nomi-ink-60')}>
-                  {t(`generationCommon.production.runDetails.stageStatus.${stage.status}`)}
+                  {formatStageStatusLabel(stage, t)}
                 </span>
               </div>
               {qaLine ? (

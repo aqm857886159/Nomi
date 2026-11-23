@@ -180,11 +180,53 @@ export default function ReconcileDeviationCard({
   const showAiFix = Boolean(onAiFix) && (hasEdgeMiss || hasContentMiss) && !exhausted
   // 撤销只对结构偏差有意义(verify 没改东西);内容偏差卡无可撤销。
   const showUndo = Boolean(onUndoAll) && hasStructural
+  // 纯未校验态：只剩「确认」一个动作，头部同行右侧直接摆确认按钮、列表收为无嵌套底色的紧凑单行，省掉整行空底栏。
+  const isPureUnverified = deviations.length === 0 && hasUnverified && !showAiFix && !showUndo && !exhausted
   const captionText = hasContentMiss
     ? (hasUnverified ? t('generationCommon.reconcile.contentPartialCaption') : t('generationCommon.reconcile.contentCaption'))
     : hasUnverified
       ? t('generationCommon.reconcile.unverifiedOnlyCaption')
       : t('generationCommon.reconcile.structuralCaption')
+
+  if (isPureUnverified) {
+    return (
+      <div
+        className={cn(
+          'flex flex-col gap-1.5',
+          flat ? '' : 'px-3 py-2 rounded-nomi border border-nomi-line bg-nomi-paper',
+        )}
+        data-reconcile-deviation-card="true"
+        aria-label={t('generationCommon.reconcile.aria')}
+      >
+        <div
+          data-reconcile-unverified-header="true"
+          className={cn('flex min-w-0 items-center gap-2')}
+        >
+          <span className={cn('min-w-0 flex-1 text-caption text-nomi-ink-60')}>{captionText}</span>
+          <WorkbenchButton className={cn('shrink-0')} variant="default" size="sm" onClick={onDismiss}>
+            {t('generationCommon.reconcile.acknowledge')}
+          </WorkbenchButton>
+        </div>
+        <ul className={cn('flex flex-col gap-1 list-none p-0 m-0 border-t border-nomi-line-soft pt-1.5')}>
+          {unverified.map((entry, index) => (
+            <li
+              key={`unv-${entry.shotNodeId}-${index}`}
+              data-reconcile-unverified-item={entry.shotNodeId}
+              className={cn('flex min-w-0 items-baseline gap-2 text-caption')}
+            >
+              <span className={cn('shrink-0 font-medium text-nomi-ink')}>
+                {entry.shotTitle || entry.shotNodeId}
+              </span>
+              <span className={cn('min-w-0 text-nomi-ink-60')}>
+                {formatQaUnverifiedReason(entry.reason, t)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
   return (
     <div
       className={cn('flex flex-col gap-2', flat ? '' : 'p-3 rounded-nomi border border-nomi-line bg-nomi-paper')}
@@ -221,7 +263,7 @@ export default function ReconcileDeviationCard({
         <div className={cn('text-caption text-nomi-ink-40')}>{t('generationCommon.reconcile.exhausted')}</div>
       ) : null}
       {/* flex-wrap + shrink-0:按钮在窄面板放不下时整组换行,不挤压不竖排。 */}
-      <div className={cn('flex flex-wrap items-center gap-2')}>
+      <div data-reconcile-footer-actions="true" className={cn('flex flex-wrap items-center gap-2')}>
         {showAiFix ? (
           <WorkbenchButton
             className={cn('shrink-0')}

@@ -395,4 +395,58 @@ describe('production run view', () => {
       },
     })
   })
+
+  it('does not inflate completedStages when the QA stage was skipped or all shots were unverified', () => {
+    const baseStages: ProductionRun['stages'] = [
+      { stageId: 'brief', title: 'Brief', status: 'completed', order: 1 },
+      { stageId: 'direction', title: 'Direction', status: 'completed', order: 2 },
+      { stageId: 'script', title: 'Script', status: 'completed', order: 3 },
+      { stageId: 'storyboard', title: 'Storyboard', status: 'completed', order: 4 },
+      { stageId: 'build', title: 'Canvas', status: 'awaiting_gate', order: 5 },
+      { stageId: 'generate', title: 'Generate', status: 'completed', order: 6 },
+      {
+        stageId: 'qa',
+        title: 'Review',
+        status: 'completed',
+        order: 7,
+        qaReport: {
+          total: 1,
+          passedCount: 0,
+          flaggedCount: 0,
+          unverifiedCount: 1,
+          unverifiedReasons: ['invalid_verdict_json'],
+        },
+      },
+      { stageId: 'assemble', title: 'Rough cut', status: 'completed', order: 8 },
+      { stageId: 'export', title: 'Export', status: 'awaiting_gate', order: 9 },
+    ]
+
+    const allUnverifiedView = buildProductionRunView(
+      run({ status: 'awaiting_rough_cut_review', jobs: [], stages: baseStages }),
+      now,
+    )
+    expect(allUnverifiedView.details).toMatchObject({ completedStages: 6, totalStages: 9 })
+
+    const skippedStages = baseStages.map((s) =>
+      s.stageId === 'qa'
+        ? { ...s, qaReport: { total: 0, passedCount: 0, flaggedCount: 0, unverifiedCount: 0, skipped: true } }
+        : s,
+    )
+    const skippedView = buildProductionRunView(
+      run({ status: 'awaiting_rough_cut_review', jobs: [], stages: skippedStages }),
+      now,
+    )
+    expect(skippedView.details).toMatchObject({ completedStages: 6, totalStages: 9 })
+
+    const allPassedStages = baseStages.map((s) =>
+      s.stageId === 'qa'
+        ? { ...s, qaReport: { total: 1, passedCount: 1, flaggedCount: 0, unverifiedCount: 0 } }
+        : s,
+    )
+    const allPassedView = buildProductionRunView(
+      run({ status: 'awaiting_rough_cut_review', jobs: [], stages: allPassedStages }),
+      now,
+    )
+    expect(allPassedView.details).toMatchObject({ completedStages: 7, totalStages: 9 })
+  })
 })

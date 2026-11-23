@@ -59,7 +59,8 @@
       "src/workbench/capability/capabilityApplyHandler.qaVerdict.test.ts",
       "electron/productionRun/productionQaVerify.test.ts",
       "src/workbench/ai/resident/useShotVerifyFeedback.test.ts",
-      "src/workbench/production/ProductionRunTaskCard.test.ts"
+      "src/workbench/production/ProductionRunTaskCard.test.ts",
+      "src/workbench/production/productionRunView.test.ts"
     ]
   },
   "doors": [
@@ -256,7 +257,8 @@
     "src/workbench/capability/capabilityApplyHandler.qaVerdict.test.ts",
     "electron/productionRun/productionQaVerify.test.ts",
     "src/workbench/ai/resident/useShotVerifyFeedback.test.ts",
-    "src/workbench/production/ProductionRunTaskCard.test.ts"
+    "src/workbench/production/ProductionRunTaskCard.test.ts",
+    "src/workbench/production/productionRunView.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",

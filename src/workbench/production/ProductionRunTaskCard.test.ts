@@ -79,6 +79,52 @@ describe('production details', () => {
     }))
     expect(htmlUnverified).toContain('data-production-qa-summary')
     expect(htmlUnverified).toContain('generationCommon.production.qa.allUnverified')
+    expect(htmlUnverified).toContain('generationCommon.reconcile.unverifiedLabel')
+    expect(htmlUnverified).not.toContain('generationCommon.production.runDetails.stageStatus.completed')
+
+    const skippedView: ProductionRunView = {
+      ...view,
+      details: {
+        ...view.details,
+        stages: [
+          {
+            stageId: 'qa',
+            title: 'QA',
+            status: 'completed',
+            qaReport: { total: 0, passedCount: 0, flaggedCount: 0, unverifiedCount: 0, skipped: true },
+          } as ProductionRunView['details']['stages'][number],
+        ],
+      },
+    }
+    const htmlSkipped = renderToStaticMarkup(React.createElement(MantineProvider, {
+      children: React.createElement(ProductionRunTaskCard, {
+        projectId: 'project-1', view: skippedView, actionError: null, onPrimaryAction: vi.fn(), onControl: vi.fn(),
+      }),
+    }))
+    expect(htmlSkipped).toContain('generationCommon.reconcile.unverifiedLabel')
+    expect(htmlSkipped).not.toContain('generationCommon.production.runDetails.stageStatus.completed')
+
+    const partialView: ProductionRunView = {
+      ...view,
+      details: {
+        ...view.details,
+        stages: [
+          {
+            stageId: 'qa',
+            title: 'QA',
+            status: 'completed',
+            qaReport: { total: 2, passedCount: 1, flaggedCount: 0, unverifiedCount: 1, unverifiedReasons: ['vision_unavailable'] },
+          } as ProductionRunView['details']['stages'][number],
+        ],
+      },
+    }
+    const htmlPartial = renderToStaticMarkup(React.createElement(MantineProvider, {
+      children: React.createElement(ProductionRunTaskCard, {
+        projectId: 'project-1', view: partialView, actionError: null, onPrimaryAction: vi.fn(), onControl: vi.fn(),
+      }),
+    }))
+    expect(htmlPartial).toContain('generationCommon.production.qa.partialStatus')
+    expect(htmlPartial).not.toContain('generationCommon.production.runDetails.stageStatus.completed')
 
     const passedView: ProductionRunView = {
       ...view,
@@ -101,6 +147,7 @@ describe('production details', () => {
     }))
     expect(htmlPassed).toContain('data-production-qa-summary')
     expect(htmlPassed).toContain('generationCommon.production.qa.allPassed#count=2')
+    expect(htmlPassed).toContain('generationCommon.production.runDetails.stageStatus.completed')
   })
 
   it('resolves singular and plural English QA summaries cleanly for count=1 vs count=3', async () => {

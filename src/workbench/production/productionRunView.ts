@@ -8,6 +8,7 @@ import type {
 } from '../../../electron/productionRun/productionRunTypes'
 import { jobAwaitsRetrieval } from '../../../electron/shared/productionShotPhase'
 import { isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
+import type { QaStageReport } from '../../../electron/shared/productionQaVerdict'
 import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
 import { unretrievedCopyKeys } from '../generationCanvas/model/recoverableCopy'
 import { productionPlaybookLabelKey } from './productionRunLabels'
@@ -144,6 +145,15 @@ function validPercent(value: number | undefined): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100 ? value : undefined
 }
 
+function isUnverifiedOrSkippedQaStage(stage: { stageId: string; qaReport?: QaStageReport }): boolean {
+  if (stage.stageId !== 'qa' || !stage.qaReport) return false
+  return Boolean(
+    stage.qaReport.skipped
+    || stage.qaReport.total === 0
+    || stage.qaReport.unverifiedCount === stage.qaReport.total,
+  )
+}
+
 export function buildProductionRunView(
   run: ProductionRun,
   now = Date.now(),
@@ -184,7 +194,9 @@ export function buildProductionRunView(
     originHost,
     preview: latestSafePreview(run.artifacts),
     details: {
-      completedStages: presentedStages.filter((stage) => stage.status === 'completed').length,
+      completedStages: presentedStages.filter(
+        (stage) => stage.status === 'completed' && !isUnverifiedOrSkippedQaStage(stage),
+      ).length,
       totalStages: run.stages.length,
       updatedAt: run.updatedAt,
       stages: presentedStages,
