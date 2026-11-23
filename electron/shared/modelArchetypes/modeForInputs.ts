@@ -160,6 +160,21 @@ export function modeTakenCount(mode: ArchetypeMode, inputs: readonly ModeInput[]
   return fitInputs(mode, inputs, options).taken
 }
 
+/** 这个方式里每个槽被这次输入填进了多少件（与 `modeForInputs` 共用同一次 `fitInputs`，不另算一份）。 */
+export function slotCountsForMode(
+  mode: ArchetypeMode,
+  inputs: readonly ModeInput[],
+  options: ModeForInputsOptions = {},
+): Partial<Record<ArchetypeReferenceSlotKind, number>> {
+  const fit = fitInputs(mode, inputs, options)
+  const counts: Partial<Record<ArchetypeReferenceSlotKind, number>> = {}
+  mode.slots.forEach((slot, index) => {
+    const filled = fit.filled[index] ?? 0
+    if (filled > 0) counts[slot.kind] = (counts[slot.kind] ?? 0) + filled
+  })
+  return counts
+}
+
 /**
  * 这一次按哪种方式发（设计卡「11-12 改向」九种状态）。inputs：这次实际放进来的东西（画布边带角色 + 节点上传列表），
  * 不看上游有没有出图——连着还没生成完的上游也算输入（先跑上游备齐参考，方式按边算）。

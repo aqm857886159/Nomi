@@ -1,5 +1,5 @@
 import { TEXT_ACTION_INTENT_PROPS } from '../../api/textActionIntent'
-import { LibraryPicker, type LibraryPickerRow } from '../../library/LibraryPicker'
+import { LibraryPicker, type LibraryPickerHandle, type LibraryPickerKeyEvent, type LibraryPickerRow } from '../../library/LibraryPicker'
 import { V4Row } from './AgentPanelV4Row'
 // Agent 面板 v4 · 积木 ⑧ composer（AI Elements PromptInput + MiniMax 底栏）
 //
@@ -33,6 +33,8 @@ import { cn } from '../../../utils/cn'
 import { HoverCard, HoverCardContent, HoverCardTrigger, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, NomiSelect, type NomiSelectOption } from '../../../design'
 import {
   IconArrowUp,
+  IconBooks,
+  IconBulb,
   IconChevronDown,
   IconChevronRight,
   IconPackage,
@@ -53,19 +55,22 @@ function compactModelLabel(label: string): string {
 }
 
 function ComposerChip({ chip, removeLabel }: { chip: V4ComposerReference; removeLabel: string }): JSX.Element {
+  const isLibraryChip = chip.kind === 'skill' || chip.kind === 'prompt'
   const content = (
     <span
       className={cn(
-        'inline-flex h-6 shrink-0 items-center gap-[5px] rounded-nomi-sm border pl-1 pr-2 text-micro',
-        chip.kind === 'skill'
-          ? 'border-transparent bg-nomi-accent-soft text-nomi-accent'
-          : 'border-nomi-line text-nomi-ink-80',
+        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-nomi-sm text-caption',
+        isLibraryChip
+          ? 'bg-nomi-ink-05 pl-2 pr-1.5 text-nomi-ink'
+          : 'border border-nomi-line pl-1 pr-2 text-micro text-nomi-ink-80',
       )}
       data-v4-chip={chip.kind}
       data-v4-chip-id={chip.id}
     >
       {chip.kind === 'skill' ? (
-        <SkillMedia cover={chip.cover} preview={chip.preview} iconSize={12} className="size-4 rounded-nomi-sm object-cover" />
+        <IconBooks size={14} stroke={1.6} className="shrink-0 text-nomi-ink-80" aria-hidden="true" data-v4-chip-icon="skill" />
+      ) : chip.kind === 'prompt' ? (
+        <IconBulb size={14} stroke={1.6} className="shrink-0 text-nomi-ink-80" aria-hidden="true" data-v4-chip-icon="prompt" />
       ) : (
         <span
           className={cn('h-3.5 w-[18px] shrink-0 rounded-sm', chip.kind === 'clip' ? 'bg-nomi-track-video' : 'bg-nomi-ink-20')}
@@ -73,15 +78,20 @@ function ComposerChip({ chip, removeLabel }: { chip: V4ComposerReference; remove
         />
       )}
       <span className="max-w-[150px] truncate">{chip.label}</span>
-      <button type="button" aria-label={`${removeLabel} ${chip.label}`} className="text-nomi-ink-40" onClick={chip.onRemove}>
-        <IconX size={11} />
+      <button
+        type="button"
+        aria-label={`${removeLabel} ${chip.label}`}
+        className="grid size-[18px] shrink-0 place-items-center rounded-sm text-nomi-ink-40 hover:text-nomi-ink"
+        onClick={chip.onRemove}
+      >
+        <IconX size={12} />
       </button>
     </span>
   )
-  if (chip.kind !== 'skill') return content
+  if (!isLibraryChip) return content
   return <HoverCard><HoverCardTrigger asChild>{content}</HoverCardTrigger>
     <HoverCardContent side="top">
-      <SkillMedia cover={chip.cover} preview={chip.preview} play className="mb-2 max-h-60 w-full object-contain" />
+      <SkillMedia cover={chip.cover} preview={chip.preview} illustration={chip.illustration} play className="mb-2 max-h-60 w-full object-contain" />
       <strong>{chip.label}</strong><p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-caption leading-relaxed">{chip.description}</p>
     </HoverCardContent>
   </HoverCard>
@@ -129,6 +139,8 @@ export type AgentPanelV4ComposerProps = {
   mentionReferences?: PromptEditorProps['mentionReferences']
   mentionSearch?: PromptEditorProps['mentionSearch']
   onMentionSelect?: PromptEditorProps['onMentionSelect']
+  /** 打开「/」技能弹层且 `@` 补全未激活时，将方向键 / Enter / Esc 转交给弹层导航。 */
+  onPopoverKeyDown?: (event: LibraryPickerKeyEvent) => boolean
 }
 
 /** 没交草稿 owner：空框、只读（只从类型上引用入口模块，几份测试只替换了入口那一个导出）。 */
@@ -155,7 +167,7 @@ export function AgentPanelV4Composer({
   skillSelected = false,
   focused = false,
   awaitingAnswer = false,
-  onEditorReady, mentionReferences, mentionSearch, onMentionSelect,
+  onEditorReady, mentionReferences, mentionSearch, onMentionSelect, onPopoverKeyDown,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
   const value = React.useSyncExternalStore(draft.subscribe, draft.getSnapshot, draft.getSnapshot)
@@ -242,6 +254,7 @@ export function AgentPanelV4Composer({
         mentionReferences={mentionReferences} mentionSearch={mentionSearch} onMentionSelect={onMentionSelect}
         onKeyDownCapture={event => {
           if (event.defaultPrevented || (editorRef.current && SuggestionPluginKey.getState(editorRef.current.state)?.active)) return
+          if (onPopoverKeyDown?.(event)) return
           if (shouldSubmitComposer({ key:event.key, shiftKey:event.shiftKey, isComposing:event.nativeEvent.isComposing })) {
             event.preventDefault()
             event.stopPropagation()
@@ -462,32 +475,61 @@ export function V4SkillPopover({
   categories,
   activeCategory,
   query,
+  loading = false,
+  autoFocus = false,
   onQueryChange,
   onSelectCategory,
   onSelect,
+  onClose,
   onManage,
+  pickerRef,
 }: {
   rows: readonly V4CommandRow[]
   categories: readonly string[]
   activeCategory?: string
   query?: string
+  loading?: boolean
+  autoFocus?: boolean
   onQueryChange?: (value: string) => void
   onSelectCategory?: (category: string) => void
   onSelect?: (row: V4CommandRow) => void
+  onClose?: () => void
   onManage?: () => void
+  pickerRef?: React.Ref<LibraryPickerHandle>
 }): JSX.Element {
   const { t } = useTranslation()
-  return <div data-v4-popover="skill">
-    <LibraryPicker rows={rows} categories={categories} activeCategory={activeCategory} query={query}
-      onQueryChange={onQueryChange} onSelectCategory={onSelectCategory} onSelect={onSelect}
-      searchLabel={t('agentPanelV4.skillSearch')}
-      rowAttributes={row => ({ 'data-v4-command': row.id })}
-      previewAttributes={row => ({ 'data-skill-hover': row.id })}
-      footer={<V4Row as="button" type="button" onClick={onManage}
-        className="w-full border-t border-nomi-line-soft px-2.5 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05">
-        <span>{t('agentPanelV4.skillExplore')}</span><IconPlus size={12} />{t('agentPanelV4.skillManage')}
-      </V4Row>} />
-  </div>
+  return (
+    <div data-v4-popover="skill">
+      <LibraryPicker
+        rows={rows}
+        categories={categories}
+        activeCategory={activeCategory}
+        query={query}
+        autoFocus={autoFocus}
+        onQueryChange={onQueryChange}
+        onSelectCategory={onSelectCategory}
+        onSelect={onSelect}
+        onClose={onClose}
+        pickerRef={pickerRef}
+        panelLabel={t('agentPanelV4.skillMenuAria')}
+        searchLabel={t('agentPanelV4.skillSearch')}
+        status={loading ? <p role="status" className="px-2.5 py-2 text-caption text-nomi-ink-60">{t('common.loading')}</p> : null}
+        empty={!loading ? <p role="status" data-v4-skill-empty="true" className="px-2.5 py-3 text-caption text-nomi-ink-60">{t('agentPanelV4.skillNoMatch')}</p> : null}
+        rowAttributes={(row) => ({ 'data-v4-command': row.id })}
+        previewAttributes={(row) => ({ 'data-skill-hover': row.id })}
+        footer={
+          <button
+            type="button"
+            onClick={onManage}
+            data-v4-skill-footer="true"
+            className="flex w-full items-center border-t border-nomi-line-soft px-2.5 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05"
+          >
+            {t('agentPanelV4.goToSkillLibrary')}
+          </button>
+        }
+      />
+    </div>
+  )
 }
 
 /**

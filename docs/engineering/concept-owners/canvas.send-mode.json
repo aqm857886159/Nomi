@@ -16,6 +16,10 @@
       "symbol": "modeForInputs"
     },
     {
+      "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+      "symbol": "slotCountsForMode"
+    },
+    {
       "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
       "symbol": "effectiveArchetypeMode"
     },
