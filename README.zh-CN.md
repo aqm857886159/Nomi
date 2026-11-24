@@ -158,12 +158,10 @@ Nomi 自带 MCP 服务（24 个 MCP 工具）：Claude Code、Codex、Cursor 都
 
 ## 社区
 
-扫左边的码加入用户群，反馈直接进迭代。群码过期了，或者要做 AGPL 合规的定制开发、部署和长期迭代，加右边的维护者微信 **TZ857886159**。
+加入用户群（反馈直接进迭代）：由于微信群二维码每 7 天自动失效，本页不再展示静态群码。请扫下方二维码或搜索微信号 **TZ857886159**（备注「Nomi」）添加维护者拉你进最新画布群；定制开发、AGPL 合规部署与长期迭代也可直接联系。
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-11-22.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-11-22.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
-  &nbsp;&nbsp;
-  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi 维护者微信二维码" width="180" /></a>
+  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi 维护者微信二维码" width="200" /></a>
 </p>
 
 - 提问、分享工作流、看接下来做什么：[GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions)

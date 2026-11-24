@@ -158,12 +158,10 @@ Nomi ships an MCP server with 24 MCP tools, so Claude Code, Codex, or Cursor can
 - Bugs and feature requests: [GitHub Issues](https://github.com/aqm857886159/Nomi/issues)
 - Release notes and short demos: [X / Twitter](https://x.com/sdf297417627618) · [Bilibili](https://www.bilibili.com/video/BV1Lf8b6nEjf/)
 
-WeChat users can scan to join the user group (left). If the group code has expired, add the maintainer (right) at **TZ857886159**.
+WeChat user group: WeChat group QR codes expire every 7 days, so we no longer publish a static group code. Scan the QR below or add the maintainer on WeChat at **TZ857886159** (note “Nomi”) for the latest group invite.
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-11-22.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-11-22.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
-  &nbsp;&nbsp;
-  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi maintainer WeChat QR" width="180" /></a>
+  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi maintainer WeChat QR" width="200" /></a>
 </p>
 
 Hit a bug? The code is open — send the error and the [issue-fix prompt](docs/guide/codex-issue-fix-prompt-en.md) to Claude Code or Codex, and it can often patch it for you. Anything everyone runs into, tell us and it goes into the mainline.
