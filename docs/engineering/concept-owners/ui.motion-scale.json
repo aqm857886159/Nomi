@@ -14,10 +14,14 @@
     {
       "path": "src/design/motion.ts",
       "symbol": "NOMI_DURATION_MS"
+    },
+    {
+      "path": "src/design/motion.ts",
+      "symbol": "readBrowserMotion"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-11-24",
-  "notes": "Tailwind、Mantine、Motion 与命令式视口消费同一刻度，退场由 exitDurationMs 推导。check:tokens 校验 CSS 镜像及逐条存量棘轮。"
+  "notes": "Tailwind、Mantine、Motion 与命令式视口消费同一刻度，退场由 exitDurationMs 推导。check:tokens 校验 CSS 镜像及逐条存量棘轮。 独立浏览器探针与偏好订阅均从 readBrowserMotion 读取目标窗口。"
 }
