@@ -6,7 +6,7 @@ import { buildCanvasWriteAdmissionForOperation } from '../../../../electron/shar
 import type { CanvasWriteInput } from '../../../../electron/shared/agentCapabilities/canvasWrite'
 import { textNodeBody, tiptapDocFromPlainText } from '../../../../electron/shared/canvas/textNodeBody'
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { TiptapDocJson } from '../model/generationCanvasTypes'
 import { projectConnectedTextInputs, withConnectedTextPrompts } from '../runner/connectedTextPrompt'
@@ -66,7 +66,7 @@ function addTextNode(text: string, title = '风格说明') {
 beforeEach(() => {
   abandonPendingCanvasWrite()
   store().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   resetClientIdRegistry()
   receiptHarness.metadata.length = 0
   receiptHarness.commits.length = 0

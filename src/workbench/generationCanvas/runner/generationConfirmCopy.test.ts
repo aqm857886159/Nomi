@@ -6,7 +6,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { describeGenerationCost, useSpendConfirmStore, spendCostKindForNodes } from '../spend/spendConfirm'
 import i18n from '../../../i18n'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { resetModelHealthMemory } from './modelHealthMemory'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
@@ -28,7 +28,7 @@ describe('generation confirmation copy', () => {
 
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     resetModelHealthMemory()
     confirmCalls = 0

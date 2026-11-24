@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { replayCanvasEvents, type CanvasProjection } from './canvasEventReducer'
-import { appendToUndoJournal, popRedo, popUndo, pushUndoSnapshot, seedUndoJournalBase } from './canvasUndoJournal'
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from './canvasEventEmitter'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -39,15 +38,15 @@ describe('shot numbering across persisted event boundaries', () => {
     expect(numbers(useGenerationCanvasStore.getState())).toEqual([2, 1])
   })
 
-  it('replays legacy journal prefixes at undo and redo barriers', () => {
-    seedUndoJournalBase(initial())
-    pushUndoSnapshot()
-    appendToUndoJournal(legacySwap)
-    expect(numbers(popUndo()!.projection)).toEqual([1, 2])
-    expect(numbers(popRedo()!.projection)).toEqual([2, 1])
-    pushUndoSnapshot()
-    appendToUndoJournal([{ type: 'canvas.node.prompt-changed', payload: { nodeId: 'a', prompt: 'later' } }])
-    expect(numbers(popUndo()!.projection)).toEqual([2, 1])
+  it('undoes and redoes edits against a legacy persisted tail', () => {
+    const store = useGenerationCanvasStore.getState()
+    store.restoreSnapshot(initial())
+    store.applyEventTail(legacySwap)
+    store.updateNodes([{ nodeId: 'a', patch: { shotIndex: 1 } }, { nodeId: 'b', patch: { shotIndex: 2 } }])
+    store.undo()
+    expect(numbers(useGenerationCanvasStore.getState())).toEqual([2, 1])
+    store.redo()
+    expect(numbers(useGenerationCanvasStore.getState())).toEqual([1, 2])
   })
 
   it('waits until an old batch finishes before assigning missing numbers', () => {
@@ -64,10 +63,10 @@ describe('shot numbering across persisted event boundaries', () => {
     const snapshot = { ...initial(), nodes: [shot('a', 1), shot('b', 1)] }
     const events = [snapshotEvent(snapshot)]
     expect(numbers(replayCanvasEvents(events))).toEqual([1, 2])
-    seedUndoJournalBase(initial())
-    pushUndoSnapshot()
-    appendToUndoJournal(events)
-    popUndo()
-    expect(numbers(popRedo()!.projection)).toEqual([1, 2])
+    const store = useGenerationCanvasStore.getState()
+    store.restoreSnapshot(snapshot)
+    store.updateNodes([{ nodeId: 'a', patch: { title: 'revised' } }])
+    store.undo()
+    expect(numbers(useGenerationCanvasStore.getState())).toEqual([1, 2])
   })
 })

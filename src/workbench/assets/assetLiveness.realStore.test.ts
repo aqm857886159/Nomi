@@ -36,7 +36,7 @@ import { readWorkspaceManifest, writeWorkspaceManifest } from '../../../electron
 import { registerWorkspaceFileDeleteIpc } from '../../../electron/workspace/workspaceFileDelete'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { __resetCanvasUndoJournalForTests } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory } from '../generationCanvas/events/canvasPatchHistory'
 import { readCurrentWorkbenchProjectContent } from '../project/workbenchProjectContent'
 import { deleteAssetResult } from './deleteAssetResult'
 import { __resetPendingAssetDeletionsForTests, listPersistedAssetDeletions, releaseLoadedProjectAssetDeletions, sweepPersistedAssetDeletions } from './pendingAssetDeletions'
@@ -68,7 +68,7 @@ function reopenProject() {
   const record = readWorkspaceManifest(io.root)
   if (!record) throw new Error('project file missing')
   const payload = record.payload as unknown as Record<string, unknown> & { generationCanvas: unknown }
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   useWorkbenchStore.setState({ storyboardDesignsByDocumentId: (payload.storyboardDesignsByDocumentId ?? {}) as never, projectAgentAttachments: [] })
   useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas, projectId)
   return payload
@@ -112,7 +112,7 @@ beforeEach(() => {
   io.root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-asset-liveness-'))
   originalRoot = io.root
   io.handlers.clear(); io.trash.length = 0
-  __resetPendingAssetDeletionsForTests(); __resetCanvasUndoJournalForTests()
+  __resetPendingAssetDeletionsForTests(); clearHistory()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] }, projectId)
   useWorkbenchStore.setState({ storyboardDesignsByDocumentId: {}, projectAgentAttachments: [] })
   useWorkbenchStore.getState().setTimeline(createDefaultTimeline())

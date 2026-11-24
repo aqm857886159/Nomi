@@ -1,0 +1,44 @@
+{
+  "implementation": "a0cbd550d",
+  "canvasNodes": 200,
+  "residentSteps": 80,
+  "storeMeasurements": {
+    "singleMoveBytes": 316,
+    "maxStepBytes": 3627,
+    "retainedBytes": 290162,
+    "releasedIndexes": 0
+  },
+  "unrelatedPrefixEntriesReadByUndo": [
+    {
+      "edits": 20,
+      "reads": 0
+    },
+    {
+      "edits": 200,
+      "reads": 0
+    },
+    {
+      "edits": 1600,
+      "reads": 0
+    }
+  ],
+  "desktopSetup": "Each interaction sample starts after the settled run has reached the project snapshot. Setup yields every ten group moves.",
+  "pilotBeforeWaitingForSavedLanding": {
+    "longTasks": [
+      1,
+      1,
+      0,
+      0,
+      0
+    ],
+    "primaryResponseP95Milliseconds": 18.1
+  },
+  "bulkDeleteWithMediaHandles": {
+    "nodes": 200,
+    "promptBytesPerNode": 5000,
+    "controlBytes": 11801,
+    "totalBytes": 1070922,
+    "recoveryReferences": 200,
+    "releaseIndexedNodes": 0
+  }
+}
