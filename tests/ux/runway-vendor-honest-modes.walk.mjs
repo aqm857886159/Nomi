@@ -139,7 +139,7 @@ async function readBoundIdentity() {
  * 从 NomiSelect 里挑模型。`:visible` 是硬要求——Mantine 把未展开弹层的选项也留在 DOM 里，
  * 裸选会选到画布上别的下拉（变体、每次生成几个…）的选项。
  */
-async function pickModel(match, humanLabel, channelLabel) {
+async function pickModel(match, humanLabel, badgeText) {
   await clickOrFail(composer.locator('[aria-label="模型"]'), '模型下拉')
   const options = win.locator('[role="option"]:visible')
   await expect(options, `模型下拉点开了却一个选项都没有（目录空了？供应商没启用？）`).not.toHaveCount(0)
@@ -153,8 +153,8 @@ async function pickModel(match, humanLabel, channelLabel) {
   const index = texts.findIndex(match)
   if (index < 0) throw new Error(`WALK FAIL: 模型下拉里没有「${humanLabel}」。实际选项：${JSON.stringify(texts)}`)
   const option = options.nth(index)
-  if (channelLabel) {
-    await clickOrFail(option.getByRole('button', { name: channelLabel, exact: true }), `选择 ${channelLabel} 渠道`)
+  if (badgeText) {
+    await clickOrFail(option.getByRole('button', { name: badgeText, exact: true }), `选择 ${badgeText} 渠道`)
     await composer.locator('[aria-label="模型"]').click()
   } else {
     await option.click()
@@ -175,8 +175,8 @@ async function readModes() {
  * 用 toHaveText(数组) 而不是逐条 toBeVisible：它同时钉死「该有的都在」和「不该有的一个都没多」，
  * 正负两面在同一条断言里成立——少写一半就是那种「看起来在验、其实恒真」的空洞检查。
  */
-async function assertModeBar({ pick, humanLabel, channelLabel, expectVendor, expectModelKey, expected, tag }) {
-  const picked = await pickModel(pick, humanLabel, channelLabel)
+async function assertModeBar({ pick, humanLabel, badgeText, expectVendor, expectModelKey, expected, tag }) {
+  const picked = await pickModel(pick, humanLabel, badgeText)
 
   // ① 身份闸：先证「点了哪家就绑哪家」。它必须排在模式栏之前——绑错家时模式栏显示的是**另一家**的
   //    能力，此时再去断言模式栏，读到的红/绿都指向错误的方向。
@@ -290,7 +290,7 @@ try {
   observations['runway/grok_imagine_1_5'] = await assertModeBar({
     pick: (label) => label === 'Grok Imagine 1.5',
     humanLabel: 'Grok Imagine 1.5 · Runway Dev',
-    channelLabel: 'Runway Dev',
+    badgeText: 'Runway Dev',
     expectVendor: 'runway',
     expectModelKey: 'grok_imagine_1_5',
     expected: [M('text'), M('reference')],
