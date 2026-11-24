@@ -1,4 +1,4 @@
-结论：通过 · 验收线：fc2-verify · 验收 HEAD：b6aa835b4fd07c8575ab81b977c8bdb55992d74c
+结论：通过 · 验收线：fc2-verify · 验收 HEAD：e0cf5409ace8be65b41125431558b8fdb07143d5
 
 - 验收线：`fc2-verify`
 - 实现线：`fc-media-and-lane-timeout-hierarchy`
@@ -48,6 +48,9 @@
 | M2 | `src/workbench/timeline/agent/phase4CapabilityTargets.ts:41`：向 `applyMediaToolCall` 丢弃 `request.signal`（传 `undefined`） | `EXIT=1`：`phase4CapabilityTargets.test.ts` **3/10 失败**（`fetch` / `body` / `decode` 阶段取消前均未传播到 `signal.aborted`） | `git checkout --` 后复跑 **10/10 PASS** |
 
 还原后双套件复跑 **14/14 PASS（`EXIT=0`）**，工作树干净。
+
+### 测试类型补齐增量复验（`e0cf5409a`，`EXIT=0`）
+- 审阅 `e0cf5409a` 仅在 `electron/agentLane/laneTools.test.ts:22` 补齐 `promptSnippet: 'Read the script.'`（1 行测试类型补齐，0 本机路径泄露）；独立复跑 `VITEST_MAX_WORKERS=2 ./node_modules/.bin/vitest run electron/agentLane/laneTools.test.ts`：**4/4 PASS（`EXIT=0`）**。
 
 ## 4. 诚实未验证边界
 
