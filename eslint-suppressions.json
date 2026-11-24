@@ -1471,11 +1471,6 @@
       "count": 1
     }
   },
-  "tests/ux/agent-timeline-ops.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/agent-timeline-receipt.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2497,11 +2492,6 @@
     }
   },
   "tests/ux/storyboard-strategy-no-model.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/storyboard-strategy-resolve.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
