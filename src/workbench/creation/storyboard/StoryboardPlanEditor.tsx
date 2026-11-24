@@ -171,6 +171,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const editorRef = React.useRef<HTMLElement>(null)
   // 分镜页的滚动区：镜头表按它的视口只挂看得见的行（StoryboardShotTable 窗口化）。
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const appendRevealRef = React.useRef<(shotId: string) => void>(null)
   const deletedFocusRef = React.useRef<Element | null>(null)
   const lastEditorFocusRef = React.useRef<Element | null>(null)
   React.useLayoutEffect(() => {
@@ -328,22 +329,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   if (!plan) return null
 
   const onAddShot = (): void => {
-    const saved = flushSync(() => {
-      const updated = setStoryboardPlan(addShot(plan))
-      if (updated) setFilterAnchorId(null)
-      return updated
-    })
-    const shot = saved?.plan.shots.at(-1)
+    const shot = setStoryboardPlan(addShot(plan))?.plan.shots.at(-1)
     if (!shot) return
-
-    const row = scrollRef.current?.querySelector(`[data-storyboard-row="${shot.index}"]`)
-    if (row) {
-      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      row.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' })
-    } else {
-      // The table already knows how to reveal rows outside its visible range or inside folded scenes.
-      useWorkbenchStore.getState().setStoryboardRowFocus({ designId, rowId: stableShotId(shot) })
-    }
+    setFilterAnchorId(null)
+    appendRevealRef.current?.(stableShotId(shot))
   }
 
   const issues = validatePlan(plan).filter(issue => issue.kind !== 'anchor-not-consumable')
@@ -569,7 +558,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           onToggleFrozenAnchor={onToggleFrozenAnchor}
           onOpenPreviewAnchor={onOpenPreviewAnchor}
           onFilterByAnchor={setFilterAnchorId}
-          onAddAnchor={() => setStoryboardPlan(addAnchor(plan))}
+          onAddAnchor={() => setStoryboardPlan(addAnchor(plan))?.plan.anchors.at(-1)?.id}
         />
 
         <section>
@@ -605,6 +594,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           <div className="flex flex-col gap-2">
             <StoryboardShotTable
               plan={plan}
+              appendRevealRef={appendRevealRef}
               planSource={ACTIVE_PLAN_SOURCE}
               projectId={projectId}
               rows={rows}

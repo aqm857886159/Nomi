@@ -36,7 +36,7 @@ The empty and expanded reference action uses the existing `storyboardEditor.addA
 
 The draft-save walkthrough at `tests/ux/project-save-draft-contract.walk.mjs` has a zero-card fixture and its setup requires the old disclosure hook to exist before it clicks Add Reference. That setup is incompatible with the approved empty state and is outside the file allowlist. The desktop runs above exercise reopen and readback through the new empty state.
 
-The implementation-line evidence is for local draft editing. Windows, paid generation, and a complete keyboard-only pass are unverified by this task. The recurring-fix contract is in this evidence directory because the file allowlist excludes the central contract directory. [Design card](../../plan/2026-11-24-ux-simple-storyboard-zero-card-and-add-shot.md)
+The implementation-line evidence is for local draft editing. Windows, paid generation, and a complete keyboard-only pass are unverified by this task. The initial recurring-fix contract is in this evidence directory because the initial file allowlist excluded the central contract directory. [Design card](../../plan/2026-11-24-ux-simple-storyboard-actions.md)
 
 ## Performance and gates
 

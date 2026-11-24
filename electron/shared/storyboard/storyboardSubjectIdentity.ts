@@ -57,7 +57,17 @@ export function stableShotId(shot: Pick<PlanShot, 'shotId' | 'index'>): string {
 type PlanSubjects = Pick<StoryboardPlan, 'anchors' | 'shots'>
 
 function takenIds(plan: PlanSubjects): Set<string> {
-  return new Set([...plan.anchors.map(anchor => anchor.id), ...plan.shots.map(stableShotId)])
+  const taken = new Set([...plan.anchors.map(anchor => anchor.id), ...plan.shots.map(stableShotId)])
+  // Older plans can keep provenance for a deleted card. That ID still names the old source.
+  for (const subject of [...plan.anchors, ...plan.shots]) {
+    for (const slot of Object.values(subject.referenceBindings ?? {})) {
+      for (const binding of slot) if (binding.anchorId) taken.add(binding.anchorId)
+    }
+  }
+  for (const shot of plan.shots) {
+    for (const id of shot.autoReferenced ?? []) taken.add(id)
+  }
+  return taken
 }
 
 function assertInRange(role: StoryboardSubjectRole, id: string): void {

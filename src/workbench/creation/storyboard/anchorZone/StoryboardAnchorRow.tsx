@@ -230,6 +230,7 @@ export default function StoryboardAnchorRow({
         <div className="flex min-w-0 flex-1 flex-col gap-1.5" data-storyboard-prompt-block="anchor">
           <div className="flex items-center gap-1.5">
             <input
+              data-storyboard-anchor-name="true"
               value={anchor.name}
               onChange={(event) => onUpdate({ name: event.target.value })}
               placeholder={t('storyboardEditor.anchor.namePlaceholder')}

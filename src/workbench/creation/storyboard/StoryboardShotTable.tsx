@@ -145,7 +145,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ pendingActions, plan, planSource, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleFrozenRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
+export default function StoryboardShotTable({ pendingActions, plan, planSource, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleFrozenRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, appendRevealRef, scrollRef }: Props): JSX.Element {
   const { t } = useTranslation()
   const shotModelOptions = React.useMemo(() => [...imageModelOptions, ...videoModelOptions], [imageModelOptions, videoModelOptions])
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
@@ -153,6 +153,8 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
   const [foldedScenes, setFoldedScenes] = React.useState<ReadonlySet<string>>(new Set())
   const [selectedShotIds, setSelectedShotIds] = React.useState<ReadonlySet<string>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = React.useState<number | null>(null)
+  const [appendedShotId, setAppendedShotId] = React.useState<string | null>(null)
+  React.useImperativeHandle(appendRevealRef, () => setAppendedShotId, [])
 
   const tableRef = React.useRef<HTMLDivElement>(null)
   // 行宽档位：行区量**一次**，经 context 递给每一行（行不再各量自己）。
@@ -170,14 +172,14 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
   const allGroups = sceneGroupsOf(plan)
   // 单一隐式组 = 无分场故事：不显组头（表退化成今天的平铺行为）。
   const showHeads = !(groups.length === 1 && groups[0].scene === null)
-  const foldKeyOf = (group: SceneGroup): string => group.scene?.id ?? '__implicit__'
+  const foldKeyOf = (sceneId: string | undefined): string => sceneId ?? '__implicit__'
   const shotKeyOf = (shot: PlanShot): string => `shot:${shot.shotId ?? `index:${shot.index}`}`
 
   // 组头 + 镜头行摊平成一条列表（窗口化按它的下标挂卸）。折叠的组只剩组头。
   const items: TableItem[] = []
   groups.forEach((group, groupIndex) => {
-    if (showHeads) items.push({ kind: 'head', key: `head:${groupIndex}:${foldKeyOf(group)}`, group, groupIndex })
-    if (foldedScenes.has(foldKeyOf(group))) return
+    if (showHeads) items.push({ kind: 'head', key: `head:${groupIndex}:${foldKeyOf(group.scene?.id)}`, group, groupIndex })
+    if (foldedScenes.has(foldKeyOf(group.scene?.id))) return
     group.shots.forEach((shot, indexInGroup) => {
       items.push({ kind: 'shot', key: shotKeyOf(shot), shot, pos: visiblePositions[group.startPos + indexInGroup] })
     })
@@ -236,17 +238,20 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
   // 「聚焦第 N 镜」：先让那一项进视口（它可能还没挂），挂上之后再给焦点。
   // `nativeScroll`：聚焦时让浏览器把它滚进视口（键盘上下移）；否则视口已经由虚拟列表摆好（定位到某一镜，居中）。
   // `prompt`：焦点进这一镜的提示词编辑器（光标放末尾），否则落在行上。
-  const [pendingFocus, setPendingFocus] = React.useState<{ shotIndex: number; nativeScroll: boolean; prompt?: boolean } | null>(null)
-  const rowElementOf = (shotIndex: number): HTMLElement | null =>
-    tableRef.current?.querySelector<HTMLElement>(`[data-storyboard-row="${CSS.escape(String(shotIndex))}"]`) ?? null
-  /** 定位到某一镜（居中）：交给虚拟列表按下标滚（动态行高由它边量边校准），挂上后聚焦。 */
-  const revealShot = (shot: PlanShot): boolean => {
-    const itemIndex = itemIndexOfKey(shotKeyOf(shot))
+  const [pendingFocus, setPendingFocus] = React.useState<{ itemKey: string; nativeScroll: boolean; prompt?: boolean; reveal?: boolean } | null>(null)
+  const itemElementOf = (itemKey: string): HTMLElement | null =>
+    tableRef.current?.querySelector<HTMLElement>(`[data-storyboard-item="${CSS.escape(itemKey)}"]`) ?? null
+  /** 交给虚拟列表按下标滚。续写时对齐行首，让短窗口也先露出提示词。 */
+  const revealShot = React.useEffectEvent((shot: PlanShot, target: 'row' | 'prompt'): boolean => {
+    const itemKey = shotKeyOf(shot)
+    const itemIndex = itemIndexOfKey(itemKey)
     if (itemIndex < 0) return false
-    virtualizer.scrollToIndex(itemIndex, { align: 'center' })
-    setPendingFocus({ shotIndex: shot.index, nativeScroll: false })
+    const prompt = target === 'prompt'
+    const smooth = prompt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    virtualizer.scrollToIndex(itemIndex, { align: prompt ? 'start' : 'center', behavior: smooth ? 'smooth' : 'auto' })
+    setPendingFocus({ itemKey, nativeScroll: false, prompt, reveal: prompt })
     return true
-  }
+  })
   /**
    * 键盘上下移：相邻那一行通常在缓冲里已经挂着——直接聚焦，浏览器自己把它滚进视口（与窗口化前同一个行为）。
    * 它不在 DOM 里（焦点所在行被钉住、视口早已滚远）时，先把滚动区直接摆到那一项的估算位置，挂上后再原生聚焦
@@ -254,19 +259,21 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
    * 虚拟列表的「滚到位校准」于是一直对不上，5 秒内只要有行高变化就把视口拽回目标（2026-10-16 走查实测）。
    */
   const focusAdjacentShot = (shot: PlanShot): void => {
-    const row = rowElementOf(shot.index)
+    const itemKey = shotKeyOf(shot)
+    const item = itemElementOf(itemKey)
+    const row = item?.querySelector<HTMLElement>('[data-storyboard-row]')
     if (row) { row.focus(); return }
     // 挂着的是轻量占位（刚滚进来）：不用滚，钉住它（下一帧就是完整行）再聚焦。
-    if (tableRef.current?.querySelector(`[data-storyboard-row-placeholder="${CSS.escape(String(shot.index))}"]`)) {
-      setPendingFocus({ shotIndex: shot.index, nativeScroll: true })
+    if (item?.querySelector('[data-storyboard-row-placeholder]')) {
+      setPendingFocus({ itemKey, nativeScroll: true })
       return
     }
-    const itemIndex = itemIndexOfKey(shotKeyOf(shot))
+    const itemIndex = itemIndexOfKey(itemKey)
     const offset = itemIndex >= 0 ? virtualizer.getOffsetForIndex(itemIndex, 'auto')?.[0] : undefined
     const scrollElement = scrollRef?.current
     if (offset === undefined || !scrollElement) return
     scrollElement.scrollTop = offset
-    setPendingFocus({ shotIndex: shot.index, nativeScroll: true })
+    setPendingFocus({ itemKey, nativeScroll: true })
   }
   const virtualItems = virtualizer.getVirtualItems()
   // 滚动中新进来的镜头行先挂轻量占位，停下后每帧升级一行（storyboardMountPlan）：滚动中不建编辑器。
@@ -286,7 +293,7 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
     // 钉住：焦点所在、正在拖、等着被聚焦的那一镜（它一挂上就得是完整行，焦点才有地方落）。
     pinned: new Set([
       ...pinnedIndexes.map((index) => items[index]?.key),
-      pendingFocus ? items.find((item) => item.kind === 'shot' && item.shot.index === pendingFocus.shotIndex)?.key : undefined,
+      pendingFocus?.itemKey,
     ].filter((key): key is string => Boolean(key))),
   })
   // 停下以后每帧升级一个占位：在每次提交后（布局 effect，每次提交必跑）排下一帧，直到没有占位。
@@ -309,8 +316,17 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
   const mountedSignature = virtualItems.map((virtualItem) => virtualItem.key).join('|')
   React.useLayoutEffect(() => {
     if (pendingFocus === null) return
-    const row = rowElementOf(pendingFocus.shotIndex)
+    const row = itemElementOf(pendingFocus.itemKey)?.querySelector<HTMLElement>('[data-storyboard-row]')
     if (!row) return
+    // Finish against the mounted geometry before focus can scroll the editor's selection into view.
+    const scroll = scrollRef?.current
+    if (pendingFocus.reveal && scroll) {
+      const viewport = scroll.getBoundingClientRect()
+      const bounds = row.getBoundingClientRect()
+      if (bounds.top < viewport.top || bounds.bottom > viewport.bottom) {
+        virtualizer.scrollToOffset(scroll.scrollTop + bounds.top - viewport.top, { behavior: 'instant' })
+      }
+    }
     const editable = pendingFocus.prompt ? row.querySelector<HTMLElement>('[data-prompt-box] [contenteditable="true"]') : null
     if (editable) {
       editable.focus({ preventScroll: true })
@@ -323,25 +339,37 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
       selection?.addRange(range)
     } else row.focus({ preventScroll: !pendingFocus.nativeScroll })
     setPendingFocus(null)
-  }, [pendingFocus, mountedSignature])
+  }, [pendingFocus, mountedSignature, scrollRef, virtualizer])
   /**
    * 点在还没换掉的占位行上（V-1210 复验 R2-1）：在按下的这一刻**同步**把它钉成完整行并交出焦点——
    * flushSync 让升级、挂编辑器、聚焦都在这次 pointerdown 里完成，紧跟着的按键直接进编辑器，一个字都不落空。
    */
   const activatePlaceholder = (shot: PlanShot, target: 'prompt' | 'row'): void => {
-    flushSync(() => setPendingFocus({ shotIndex: shot.index, nativeScroll: false, prompt: target === 'prompt' }))
+    flushSync(() => setPendingFocus({ itemKey: shotKeyOf(shot), nativeScroll: false, prompt: target === 'prompt' }))
   }
+
+  React.useLayoutEffect(() => {
+    if (appendedShotId === null || filterAnchorId) return
+    const shot = plan.shots.find((candidate) => stableShotId(candidate) === appendedShotId)
+    if (!shot) { setAppendedShotId(null); return }
+    const scene = foldKeyOf(shot.sceneId)
+    if (foldedScenes.has(scene)) {
+      const unfolded = new Set(foldedScenes)
+      unfolded.delete(scene)
+      setFoldedScenes(unfolded)
+      return
+    }
+    if (revealShot(shot, 'prompt')) setAppendedShotId(null)
+  }, [appendedShotId, filterAnchorId, plan.shots, foldedScenes])
 
   // 从画布 / 列表「定位到这一镜」：展开折叠的场 → 滚到那一项 → 聚焦并选中。
   React.useLayoutEffect(() => {
     if (workspaceMode !== 'storyboard' || !focusShot) return
     if (foldedScenes.size) { setFoldedScenes(new Set()); return }
     // 被参考卡筛选挡住时先不动：编辑器收到定位会清掉筛选，下一次渲染这一镜回到列表里再滚。
-    if (!revealShot(focusShot)) return
+    if (!revealShot(focusShot, 'row')) return
     setSelectedShotIds(new Set([focusShot.shotId ?? `index:${focusShot.index}`]))
     useWorkbenchStore.getState().setStoryboardRowFocus(null)
-    // revealShot 读的是当帧的 items / virtualizer；依赖与旧实现相同。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusShot, foldedScenes, filterAnchorId, workspaceMode])
   const selectedRows = rows.filter((runtime) => selectedShotIds.has(runtime.shot.shotId ?? `index:${runtime.shot.index}`))
   const selectKeyOf = (shot: StoryboardRowRuntime['shot']): string => shot.shotId ?? `index:${shot.index}`
@@ -382,7 +410,7 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
     setSelectedShotIds(new Set())
   }
   const toggleFold = (group: SceneGroup): void => {
-    const key = foldKeyOf(group)
+    const key = foldKeyOf(group.scene?.id)
     setFoldedScenes((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -403,7 +431,8 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
       .filter((row): row is StoryboardRowRuntime => Boolean(row))
 
   const renderHead = (group: SceneGroup, groupIndex: number): JSX.Element => {
-    const folded = foldedScenes.has(foldKeyOf(group))
+    const sceneKey = foldKeyOf(group.scene?.id)
+    const folded = foldedScenes.has(sceneKey)
     const groupRows = groupRowsOf(group)
     const missingCount = groupRows.filter((row) => row.exec.status === 'missing-required').length
     const doneCount = groupRows.filter((row) => row.exec.status === 'done' || row.exec.status === 'locked').length
@@ -424,7 +453,7 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
           <span className="min-w-0 truncate text-caption font-medium text-nomi-ink-80">{headTitleOf(group, groupIndex)}</span>
           <span className="ml-auto shrink-0 flex items-center gap-2.5 text-micro text-nomi-ink-40">
           <span>{(() => {
-            const allGroup = allGroups.find((candidate) => foldKeyOf(candidate) === foldKeyOf(group))
+            const allGroup = allGroups.find((candidate) => foldKeyOf(candidate.scene?.id) === sceneKey)
             return filterAnchorId && allGroup
               ? t('storyboardEditor.sceneGroup.filteredSummary', { visible: group.shots.length, total: allGroup.shots.length, seconds: totalDurationSec(group.shots) })
               : t('storyboardEditor.sceneGroup.summary', { count: group.shots.length, seconds: totalDurationSec(group.shots) })
@@ -445,7 +474,7 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
             type="button"
             onClick={() => onPlayGroup(groupRows)}
             disabled={groupRows.length === 0}
-            data-storyboard-play-scene={foldKeyOf(group)}
+            data-storyboard-play-scene={sceneKey}
             className="inline-flex shrink-0 items-center gap-1 rounded-full border border-nomi-line px-2 py-0.5 text-micro text-nomi-ink-60 hover:border-nomi-ink-30 hover:text-nomi-accent disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={t('storyboardEditor.playback.sceneAria', { name: headTitleOf(group, groupIndex) })}
           >

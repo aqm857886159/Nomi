@@ -6,8 +6,7 @@ import { nextStoryboardSubjectIds, renumberStoryboardShots } from '../../../../e
  * 分镜方案的**纯编辑 + 校验**层（S3 字段编辑器的领域逻辑，与渲染解耦、可单测）。
  *
  * 决策 B：字段控件直接绑 StoryboardPlan 对象，改字段就是改对象——这里是那些「改对象」的
- * 不可变操作的唯一真相源（组件只调它、不自己 spread）。删锚**不擦引用它的镜头**，失效引用
- * 由 validatePlan 暴露成红标（plan doc §1.4：标红提示，不去猜）。
+ * 不可变操作的唯一真相源（组件只调它、不自己 spread）。删锚会断开镜头参考素材的来源关联，保留素材本身。
  */
 
 /**
@@ -154,9 +153,21 @@ export function changeAnchorKind(plan: StoryboardPlan, id: string, kind: PlanAnc
   return updateAnchor(plan, id, { kind, carrier: defaultCarrierForKind(kind), scope: defaultScopeForKind(kind) })
 }
 
-/** 删锚：**不**擦引用它的镜头 anchorIds——失效引用交给 validatePlan 标红（不静默改用户的镜头）。 */
+/** 保留镜头里的参考素材，只断开已删除的来源。旧 anchorIds 是无效字段，继续原样保留。 */
 export function removeAnchor(plan: StoryboardPlan, id: string): StoryboardPlan {
-  return { ...plan, anchors: plan.anchors.filter((anchor) => anchor.id !== id) }
+  const anchors = plan.anchors.filter((anchor) => anchor.id !== id)
+  if (anchors.length === plan.anchors.length) return plan
+  const shots = plan.shots.map((shot) => {
+    const slots = Object.entries(shot.referenceBindings ?? {})
+    if (!slots.some(([, bindings]) => bindings.some((binding) => binding.anchorId === id))) return shot
+    const referenceBindings = Object.fromEntries(slots.map(([slot, bindings]) => [slot, bindings.map((binding) => {
+      if (binding.anchorId !== id) return binding
+      const { anchorId: _removed, ...asset } = binding
+      return asset
+    })]))
+    return { ...shot, referenceBindings }
+  })
+  return { ...plan, anchors, shots }
 }
 
 /** 镜号重排成连续 1..N（删除/拖动后调用，保证 shot.index 唯一且连续，转换器据此生成 clientId）。 */
@@ -168,7 +179,10 @@ export function addShot(plan: StoryboardPlan): StoryboardPlan {
   const lastKind = last?.shotKind
   const lastKeyframeEnabled = last?.keyframe?.enabled === true
   const lastAspect = last?.params?.aspect_ratio
+  // A position-derived ID can collide again after dragging legacy rows or undoing a deletion.
+  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot', shotId: `shot-${crypto.randomUUID()}` }])
   const shot: PlanShot = {
+    shotId,
     index: plan.shots.length + 1,
     ...(lastKind ? { shotKind: lastKind } : {}),
     ...(last?.sceneId ? { sceneId: last.sceneId } : {}),

@@ -41,7 +41,7 @@ type Props = {
   onToggleFrozenAnchor: (runtime: AnchorCardRuntime) => void
   onOpenPreviewAnchor?: ((runtime: AnchorCardRuntime) => void) | undefined
   onFilterByAnchor?: ((anchorId: string) => void) | undefined
-  onAddAnchor?: (() => void) | undefined
+  onAddAnchor?: (() => string | void) | undefined
 }
 
 export default function StoryboardAnchorZone(props: Props): JSX.Element {
@@ -54,11 +54,29 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
     else setSelfExpanded(next)
   }
   const hasCards = cards.length > 0
+  const zoneRef = React.useRef<HTMLElement>(null)
+  const addButtonRef = React.useRef<HTMLButtonElement>(null)
+  const [focusTarget, setFocusTarget] = React.useState<{ anchorId: string } | 'add' | null>(null)
+  React.useLayoutEffect(() => {
+    if (focusTarget === null) return
+    if (focusTarget === 'add') {
+      if (!hasCards) addButtonRef.current?.focus()
+    } else {
+      zoneRef.current?.querySelector<HTMLInputElement>(
+        `[data-storyboard-anchor-row="${CSS.escape(focusTarget.anchorId)}"] [data-storyboard-anchor-name]`,
+      )?.focus()
+    }
+    setFocusTarget(null)
+  }, [focusTarget, hasCards])
+
+  const onAddAnchor = props.onAddAnchor ? () => {
+    const anchorId = props.onAddAnchor?.()
+    if (!anchorId) return
+    setFocusTarget({ anchorId })
+    if (!expanded) setExpanded(true)
+  } : undefined
   const addButton = props.onAddAnchor ? (
-    <WorkbenchButton size="sm" data-storyboard-add-anchor="true" onClick={() => {
-      props.onAddAnchor?.()
-      if (!hasCards) setExpanded(true)
-    }}>
+    <WorkbenchButton ref={addButtonRef} size="sm" data-storyboard-add-anchor="true" onClick={onAddAnchor}>
       <IconPlus />
       {t('storyboardEditor.addAnchor')}
     </WorkbenchButton>
@@ -71,7 +89,7 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
   const pending = visual.length - ready - generating
 
   return (
-    <section data-storyboard-anchors="true" data-storyboard-anchors-expanded={expanded ? 'true' : 'false'}>
+    <section ref={zoneRef} data-storyboard-anchors="true" data-storyboard-anchors-expanded={String(hasCards && expanded)}>
       <div className="mb-2 flex items-baseline gap-2">
         <span className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.consistencyTitle')}</span>
         {visual.length > 0 ? (
@@ -112,7 +130,10 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
               nameInvalid={noNameAnchorIds?.has(runtime.anchor.id)}
               onUpdate={(patch) => props.onUpdateAnchor(runtime.anchor.id, patch)}
               onChangeKind={(kind) => props.onChangeKind(runtime.anchor.id, kind)}
-              onRemove={() => props.onRemoveAnchor(runtime.anchor.id)}
+              onRemove={() => {
+                props.onRemoveAnchor(runtime.anchor.id)
+                if (cards.length === 1) setFocusTarget('add')
+              }}
               onGenerate={() => props.onGenerateAnchor(runtime)}
               onRegenerate={() => props.onRegenerateAnchor(runtime)}
               onRecover={props.onRecoverAnchor ? () => props.onRecoverAnchor?.(runtime) : undefined}
@@ -127,7 +148,7 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
           cards={cards}
           filterAnchorId={filterAnchorId}
           onFilterByAnchor={props.onFilterByAnchor}
-          onAddAnchor={props.onAddAnchor}
+          onAddAnchor={onAddAnchor}
         />
       )}
 

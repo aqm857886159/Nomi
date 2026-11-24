@@ -59,6 +59,8 @@ export type StoryboardShotTableProps = {
   onAgentHandoff?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 播放本场；整片播放复用同一 playback queue owner。 */
   onPlayGroup?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
+  /** Reveal a committed footer append and focus its prompt when the table mounts the row. */
+  appendRevealRef?: React.Ref<(shotId: string) => void>
   /**
    * 表所在的滚动区（分镜页那条 `data-storyboard-scroll`）。窗口化按它的视口算挂哪几行；
    * 缺省（设计实验室取景、无滚动区）= 按 `FALLBACK_VIEWPORT` 那么高的视口挂。

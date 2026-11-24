@@ -6,7 +6,7 @@
 
 - [StoryboardOnlyWhatWorks 拍板图](../design/boards/2026-11-02/StoryboardOnlyWhatWorks.board.json) · 有卡才有可展开的内容，页脚已承载常驻动作 · 确认空态单独给动作，添加镜头进入页脚。
 - [WorkbenchButton](../../src/design/actions.tsx) · 次级动作使用默认变体，小尺寸自带图标档位 · 确认两处共用按钮，沿用已有词条。
-- [CSSOM View](https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview) · 元素入视口可使用平滑行为与最近边对齐 · 确认已挂载新镜交给浏览器滚动。窗口化列表继续负责未挂载或折叠的行。 [TanStack Virtualizer](https://tanstack.com/virtual/latest/docs/api/virtualizer)
+- TanStack Virtualizer 3.17.0 的已安装源码 · `scrollToIndex` 按项目下标滚动，动态行高变化后校准位置 · 统一由分镜表定位和交出焦点。 [TanStack Virtualizer](https://tanstack.com/virtual/latest/docs/api/virtualizer)
 - 出口：不涉及：两处为本地计划编辑，未加入拒绝、等待或锁。
 
 ## ★1 用户怎么用
@@ -34,7 +34,7 @@
 
 ## ★2 谁说了算
 
-`StoryboardAnchorZone` 管理空态和展开动作，生产版展开状态由编辑器持有。`StoryboardPlanEditor` 将点击转换成计划编辑，`setStoryboardPlan` 按文稿和方案写入原 store（概念 `storyboard.plan-per-request`）。镜头身份取 `stableShotId`（`storyboard.subject-identity`），已挂载行用其现有镜号挂点，虚拟行的定位走表格（`storyboard.table-windowing`）。保存由原项目持久化处理，重新打开可核对。两处无异步生成请求。
+`StoryboardAnchorZone` 管理空态、展开动作和增删后的焦点，生产版展开状态由编辑器持有。`StoryboardPlanEditor` 将点击转换成计划编辑，`setStoryboardPlan` 按文稿和方案写入原 store（概念 `storyboard.plan-per-request`）。新镜由主体身份分配器发号，保存成功后将身份交给虚拟表。表负责展开目标场、滚动及聚焦提示词（`storyboard.table-windowing`）。保存由原项目持久化处理，重新打开可核对。两处无异步生成请求。
 
 ### Door map
 
@@ -51,7 +51,7 @@
 
 ## ★3 一致与复用
 
-v6 §2.2 保留参考区全开/全收，已签板的参考区示例有两张卡。11-02 板的 footer.back / footer.progress / footer.generate-remaining 继续沿用。比较了沿现有 owner 调整、复制快捷入口和删除动作。选前者，两个动作在各自状态下各有一个可用入口。分镜尾部原有虚线按钮随迁移撤下。沿用 `addAnchor` / `addShot`、`WorkbenchButton`、`storyboardEditor.addAnchor` / `addShot` 和浏览器滚动。走查含对旧文案的精确点击。
+v6 §2.2 保留参考区全开/全收，已签板的参考区示例有两张卡。11-02 板的 footer.back / footer.progress / footer.generate-remaining 继续沿用。比较了沿现有 owner 调整、复制快捷入口和删除动作。选前者，两个动作在各自状态下各有一个可用入口。分镜尾部原有虚线按钮随迁移撤下。沿用 `addAnchor` / `addShot`、`WorkbenchButton`、`storyboardEditor.addAnchor` / `addShot` 和表格窗口化。走查含对旧文案的精确点击。
 
 **系统改进**。归为 recurring，同一用户可在每个零卡方案复现 #8，并可在每次滚动区高于视口时复现 #17①。最早可拦处是设计/验收时的状态覆盖。已签板参考区使用有卡样本，页脚断言聚焦生成，已有测试只看能否滚动或手动展开后再添加。结构上让空态自带添加、展开只服务有卡状态，并让唯一加镜入口脱离滚区。新增验收从可视点位直接点击并读回，零卡旧实现和拦掉写入应红，有卡展开与短表正常交互应绿。根因合同随本次允改的证据目录保存。下次同类分镜变更复查这三个样本及 5/5 轨通过率，复查日 2026-12-01。
 
@@ -79,11 +79,11 @@ v6 §2.2 保留参考区全开/全收，已签板的参考区示例有两张卡�
 
 ## 6 外部数据与失败
 
-唯一输入是已打开的用户计划，store 继续校验写入。滚动使用 CSSOM View，动态窗口化由现存表格处理。网络旁证通过隔离驱动的供应商请求记录。
+唯一输入是已打开的用户计划，store 继续校验写入。滚动与动态窗口化由现存表格处理。网络旁证通过隔离驱动的供应商请求记录。
 
 ## ★7 性能
 
-点击一次触发一次计划写入及一次请求定位。以 320 镜为现有大规模样本，`storyboard-plan-open` 量到能编辑，预算 1000 ms，登记基线中位数 18219.5 ms（历史欠账）。本地动作响应观察和滚动到位由桌面驱动读取。实测 5 次，中位 528.2 ms，p95 535.9 ms，合并档性能证据核对通过。登记场景量打开耗时。 [原始结果](../evidence/2026-11-24-ux-storyboard-actions/storyboard-plan-open.perf.json)
+点击一次触发一次计划写入及一次请求定位。以 320 镜为样本，`storyboard-plan-open` 量到首屏可编辑，预算 1000 ms，登记基线中位数 18219.5 ms（历史欠账）。交叉评审要求在已提交的干净源码上重建并测量 5 次，以 JSON 中的 `head`、`dirty` 及响应分位数为准。场景适配器通过已有的 `NOMI_PERF_OUTPUT_DIR` 将量具的中间样本写到仓库外。 [原始结果](../evidence/2026-11-24-ux-storyboard-actions/storyboard-plan-open.perf.json)
 
 ## 8 真实条件
 
@@ -114,3 +114,39 @@ Phase 1 复现场景是创作 → 两镜方案 → 首屏空卡和表尾藏扣�
 | 签板、token、i18n、静态检查 | 运行本次门岗，保留有卡样张及三个旧页脚元素 |
 
 独立验收由协调线对照此表，当前交付实现线证据。回滚使用本次提交的 `git revert`，原数据格式兼容。
+
+## GPT 交叉评审与独立验收补项
+
+2026-11-24 · `gpt-6.2-sol` / `@v-1612-accept` 复核 `80e6fc2f1`。以下现象均可由正常的本地编辑重复触发。最早拦截点是计划编辑边界和 UI 验收。之前只核对加完后的数量、行可见与字段可编辑，漏掉删后重加、跨窗跳转、场折叠、选择和键盘焦点。已有场外定位继续服务画布定位；页脚继续交给同一张虚拟表；移除两个按 DOM 挂载与否分叉的页脚路径。
+
+| 补项 | 共享边界与预期 | 验收与反例 |
+| --- | --- | --- |
+| 删除前排镜头后再添加 | 新镜的稳定 ID 使用 UUID，由 `nextStoryboardSubjectIds` 核对已占用 ID。保留镜号用于显示，避免拖动旧版无 ID 镜头或撤销删除时混淆不同镜头。 | 51 镜删第 2 镜，再加回 51 镜。按新镜身份查找须命中新增空镜。另验旧版镜头重排、新镜删后重加。跳过写入、复用现有 ID 均应红。 |
+| 页脚从顶部续写 | `StoryboardShotTable` 打开目标场，并通过同一虚拟列表定位和聚焦新镜的提示词。原多选与其他场折叠保留。 | `StoryboardPlanEditor.actions.test.ts` 核对短表和 320 镜。长表点按时第 1 镜可见且末镜未挂。点击后第 321 镜可见、提示词获焦，选中计数仍为 2，另一折叠场保持关闭。真实 Electron 走查同样从顶部点击。 |
+| 参考区展开与焦点 | 空态的有效展开值为 `false`。创建后聚焦新卡名称，删除最后一张后返回添加按钮。 | 浏览器以空态、有卡的展开及收起态进入添加，再独立覆盖删到空。卡数量与焦点均须改变。 |
+| 删除后参考卡身份 | 删除参考卡时移除镜头素材上指向它的 `anchorId`，保留槽内已选素材。分配器也为旧方案保留仍被素材或自动引用记录使用的 ID。旧 `anchorIds` 保留原合同。 | 领域测试覆盖删掉 `anchor-2` 后原素材仍在、旧来源消失、其他绑定保留、已存在的悬空 ID 不被手加或导入复用。 |
+
+复查日 2026-12-01。量具为上表目标测试、分镜窗口化走查和干净源码性能记录。预测四项回归全部通过，打开详情预算仍为 1000 ms。此轮测试沿用真实编辑器和方案 store，长表复现使用 320 镜的隔离测试夹具，参考素材使用本地测试数据，无生成请求。
+
+### 参考区方向检查
+
+参考区空态和增删的交接在 `seams.json` 表外。该目录的两次 fix 是 `86eed2e87` 的底栏控件归并和 `662b42e2d` 的空态动作可达。前者的交接图见 [底栏让位复盘](../engineering/direction-checks/2026-11-21-bar-yield-r3.md)。两处源码各命中一次，第三次只命中目录。未参与实现的复核线独立读了基线源码与红测记录，推荐收拢三处添加入口和增删后的焦点交接。按目录命中且替换旧路径的规则继续交付。
+
+| 案例 | 直接原因 | 类 |
+| --- | --- | --- |
+| 首张卡、收起后加卡、删到空 | 三个添加入口各管一段，菜单消失后没有后继焦点，空态仍报出内部展开偏好 | ⑫ 点了以后，用户到不了接着编辑的位置 |
+| 删掉旧卡后添加 | 删除只改卡数组，发号只看当前主体，旧绑定继续声明来源 | ⑩ 显示的引用来源与留下的素材不一致 |
+
+旧验收只看控件能点、行出现以及字段可编辑，未覆盖 `activeElement`、有效展开值和历史绑定。预测重放空→一张→空会让两个焦点交接都失败，重放旧 `anchor-2` 导入会误认这张卡。复核线以复现输入为判据，独立于实现。`StoryboardPlanEditor.actions.test.ts` 直接核对三处添加、删除后的可见状态与焦点。`storyboardPlanEdits.test.ts` 核对同槽无关素材、旧绑定与正常新卡；修前分别看到了未聚焦、空时为 `true`、旧 `anchorId` 留存和 ID 复用。
+
+这一整块：用于多镜共享的参考卡创建、删除、展开、引用来源及编辑焦点。
+归谁：`src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx:49` 负责呈现和焦点，`electron/shared/storyboard/storyboardSubjectIdentity.ts:78` 负责发号，沿用应用已有的 React DOM 焦点方式。
+我们哪里绕开了它：原 `StoryboardAnchorZone.tsx:130` 将收起态的添加直接转发给编辑器。`storyboardPlanEdits.ts:159` 删卡后仍保留素材里的活动来源。
+
+| 选项 | 结果与代价 |
+| --- | --- |
+| 分别补每个按钮 | 初次改动少。后续添加入口和卡卸载时仍会重复处理焦点。 |
+| 替换为参考区统一交接，推荐 | 三个入口共用创建完成处理。数据库存量保持可直接打开，分配器保护历史来源。 |
+| 删掉收起态添加或卡片折叠 | 能少一个状态，创作者却得多展开一次或失去总览。 |
+
+权衡是用一次共享交接承接编辑焦点与引用身份，让创作者在任何参考区状态都能接着写。
