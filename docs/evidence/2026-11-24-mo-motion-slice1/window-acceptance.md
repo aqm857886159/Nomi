@@ -1,13 +1,13 @@
 通过
 
-验收 HEAD：d4e5fa246af0f4b0476a12c805e1ef170f7a24fe
-原录像实现提交：72b04f98b8ddc0b7f5c985175c2b27677c8bdf63
+验收 HEAD：590d801bb7ae9a6d18a3fdd0d416a0e732dad7e7
+录像实现提交：1dcfe089b35daf7846fb3d92e134477c4b1f4d4a
 验收线：window_acceptance
 基线：1730b7ea3db4adb513e0166c0376cce113f3f018
 
 # 真实桌面窗口
 
-本报告覆盖窗口录像、按压与忙态。性能、源码门岗及单测由该目录的其他收据记录。录像来自 Playwright 驱动的 macOS Electron 桌面窗口，逐条读取系统的 ApplicationType 均为 UIElement。隔离项目使用仓库登记的 640×360 真实雨衣镜头抽帧及本机回环模型。生成键按住、移出后松开；12 条录像均读回媒体请求 0 次。每条录像从真实项目的创作面开始，经预览、生成，在画布选中镜头、读工具条和输入框，最后展开 Agent 面板。按下时检查 :active 并读取渲染宽度。短片以原速保留每次交互前后约两秒，片段间直接切换。连续未剪版位于 /tmp/mo1-window-evidence/final/videos/。
+六条修改前录像沿用基线 1730b7ea3 的原始记录。浏览器探针修复后，从 1dcfe089b 的新构建重录六条修改后录像，并重测按钮状态。验收 HEAD 590d801b 与实测实现 1dcfe089b 之间只更新了根因记录和概念登记；已用 package-build-stamp verify 核对 renderer 及 Electron 源码指纹。性能、源码门岗及单测由该目录的其他收据记录。录像来自 Playwright 驱动的 macOS Electron 桌面窗口，逐条读取系统的 ApplicationType 均为 UIElement。隔离项目使用仓库登记的 640×360 真实雨衣镜头抽帧及本机回环模型。生成键按住、移出后松开；12 条录像均读回媒体请求 0 次。每条录像从真实项目的创作面开始，经预览、生成，在画布选中镜头、读工具条和输入框，最后展开 Agent 面板。按下时检查 :active 并读取渲染宽度。短片以原速保留每次交互前后约两秒，片段间直接切换。连续未剪版位于 /tmp/mo1-window-evidence/final/videos/。
 
 ![真实桌面录像帧对照](window-frames.png)
 
@@ -25,12 +25,6 @@
 在同一选中节点上，减弱动态模式先缩小一步，再点击适应视图；监听 React Flow 实际视口的 transform 写入并去重，修改前观测到 11 个新姿态，修改后为 1 个新姿态，落点与起点不同。四种宽窗口实测 1280×800，窄窗口实测 1100×690。系统偏好由 Playwright 媒体仿真施加，窗口 DOM 对每种条件独立读回了语言、颜色模式、偏好和尺寸。坐标、按压比例、时长、视频帧索引和媒体请求计数见 [窗口原始读数](window-probes.json)。
 
 已逐行目验并排帧。创作、生成、预览段的选中态可辨；中英文亮暗两轨上工具条、发送箭头和 Agent 面板均可见，窄窗保留原来的浮窗形态。
-
-## 证据提交后的复核
-
-验收 HEAD 较原录像实现提交只增加 33 个证据文件。用 `node scripts/package-build-stamp.mjs verify` 核对 renderer 和 Electron 构建，两者源码指纹均为 `707fb9dfed808060f8220643f4dbddcea8cf9bb0`。对入库的 12 条 MP4 完整解码，逐条比对尺寸、帧数、时长及 HEAD 中的 Git 对象。两份窗口和按钮读数、合成帧也与 HEAD 对象一致。
-
-在该 HEAD 重新启动隔离的 1280×800 中文浅色 Electron UIElement，开启减弱动态，从创作切到预览并按住导出，再进入生成、选中真实镜头、按住工具图标和发送钮、适应视图、展开 Agent。三种按钮的按压宽度比例均为 1，过渡时长均为 0s；视口一次到达 `translate(-354px, -272px) scale(3)`，Agent 面板可见，媒体请求 0 次。本次复核读数位于 `/tmp/mo1-window-evidence/final/head-d4e5fa246-reduce/probes.json`。
 
 ## 按钮加载
 
