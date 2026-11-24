@@ -41,7 +41,7 @@ export function registerOnboardingIpc(): void {
 
   ipcMain.handle("nomi:onboarding:model-unit-prices", (event, vendorKey: string) => {
     assertTrustedSender(event);
-    return readModelUnitPrices(vendorKey);
+    return readModelUnitPrices(vendorKey, readVendorPricePreview);
   });
 
   ipcMain.handle("nomi:onboarding:model-usage", (event, vendorKey: string) => {

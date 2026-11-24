@@ -5,9 +5,9 @@ import { isJsonRecord } from '../../jsonUtils'
 import { getWorkspaceRepositoryDeps } from '../../runtimePaths'
 import { builtinVendorKeyOfKey } from '../../shared/builtinVendorIdentity'
 import type { ModelUnitPrice, ModelUsagePeriods, ModelUsageRow } from '../../shared/contracts/modelSettingsAccount'
+import type { VendorPricePreview, VendorPriceQuery } from '../../shared/contracts/vendorPricePreview'
 import { connectionWireModel } from '../../shared/modelArchetypes/wireModelIdentity'
 import { listRegisteredProjectIds } from '../../workspace/workspaceRegistry'
-import { readVendorPricePreview } from './vendorPricePreview'
 
 const CALL_TYPES = new Set(['vendor.call.requested', 'vendor.call.completed'])
 const DAY = 86_400_000
@@ -52,7 +52,10 @@ export function readModelSettingsUsage(vendor: string) {
 }
 
 /** Quote the board's reference specs only for models present in this connection's catalog. */
-export async function readModelUnitPrices(vendor: string): Promise<ModelUnitPrice[]> {
+export async function readModelUnitPrices(
+  vendor: string,
+  quotePrice: (query: VendorPriceQuery) => Promise<VendorPricePreview | null>,
+): Promise<ModelUnitPrice[]> {
   if (typeof vendor !== 'string' || builtinVendorKeyOfKey(vendor) !== 'apimart') return []
   const keys = ['gpt-image-2.6-flare', 'gpt-image-2', 'gemini-nano-banana-2.1', 'midjourney', 'doubao-seedance-2.5', 'doubao-seedance-2.0-fast']
   const models = readCatalog().models.filter(m => m.vendorKey === vendor)
@@ -61,7 +64,7 @@ export async function readModelUnitPrices(vendor: string): Promise<ModelUnitPric
     const model = models.find(m => m.modelKey === id || m.modelAlias === id)
     if (!model || (model.kind !== 'image' && model.kind !== 'video')) continue
     const kind = model.kind
-    const quote = await readVendorPricePreview({ vendorKey: vendor, modelId: connectionWireModel(model), kind,
+    const quote = await quotePrice({ vendorKey: vendor, modelId: connectionWireModel(model), kind,
       resolution: kind === 'video' ? '720p' : '1k', size: '1:1', quality: 'medium', count: 1,
       durationSec: 1, referenceCount: 0, hasAudio: false, hasVideoInput: false })
     rows.push({ modelKey: model.modelKey, label: model.labelZh || model.modelKey, kind, credits: quote?.credits ?? null })
