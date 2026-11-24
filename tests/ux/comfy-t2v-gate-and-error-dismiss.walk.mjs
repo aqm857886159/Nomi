@@ -13,7 +13,8 @@
 // i2v 节点，它必须是灰的；否则「ComfyUI 节点按钮是活的」可能只是因为我们压根没测到那个按钮。
 //
 // 用法：node tests/ux/comfy-t2v-gate-and-error-dismiss.walk.mjs
-import { launchNomiApp } from './_launchApp.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
 import { expect, clickOrFail, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -24,12 +25,10 @@ import { newProjectEntry } from './_shell.mjs'
 const repoRoot = process.cwd()
 const port = 5297
 const baseUrl = `http://127.0.0.1:${port}`
-const tempRoot = path.join(repoRoot, '.tmp', 'nomi-comfy-t2v-gate')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/comfy-t2v-gate-and-error-dismiss')
-for (const dir of [tempRoot, shotsDir]) {
-  fs.rmSync(dir, { recursive: true, force: true })
-  fs.mkdirSync(dir, { recursive: true })
-}
+const tempRoot = makeTempDir('nomi-comfy-t2v-gate-')
+const shotsDir = path.join(tempRoot, 'shots')
+fs.mkdirSync(shotsDir)
+process.env.EVIDENCE_DIR ??= path.join(tempRoot, 'feel')
 const settingsDir = path.join(tempRoot, 'settings')
 fs.mkdirSync(settingsDir, { recursive: true })
 
@@ -61,7 +60,7 @@ fs.writeFileSync(
       },
     }],
     mappings: [{
-      vendorKey: 'comfyui-local', taskKind: 'text_to_video', modelKey: COMFY_MODEL_KEY, name: 'H3文生视频',
+      vendorKey: 'comfyui-local', taskKind: 'text_to_video', modelKey: COMFY_MODEL_KEY, name: 'H3文生视频', enabled: true,
       create: {
         method: 'POST', path: '/prompt', headers: { 'Content-Type': 'application/json' },
         body: { prompt: {}, client_id: 'nomi' }, response_mapping: { task_id: 'prompt_id' },
@@ -93,13 +92,17 @@ const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.
 let app
 let failed = null
 const launchOpts = {
+  tempRoot,
   userDataDir: path.join(tempRoot, 'user-data'),
+  syntheticCredentialStorage: true,
   settingsDir,
   projectsDir: path.join(tempRoot, 'projects'),
   env: { NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: baseUrl },
 }
 try {
   await waitForUrl(baseUrl)
+  // 图生对照要有可用模型，避免空目录的「连接模型」替代真实发送按钮。
+  await seedSavedFixtureCredentials({ name: 'comfy-t2v-gate', ...launchOpts }, ['runway'])
   let win
   ;({ app, win } = await launchNomiApp({ name: 'comfy-t2v-gate', ...launchOpts, settleMs: 0 }))
   await win.evaluate(() => {
@@ -126,7 +129,8 @@ try {
     const gate = store.addNode({ kind: 'video', title: '探针·图生视频', position: { x: 160, y: 200 } })
     store.updateNode(gate.id, {
       prompt: '一只猫跳下沙发',
-      meta: { modelKey: 'bytedance/seedance-2', archetype: { id: 'seedance-2', modeId: 'first' } },
+      // Gen-4 Turbo 只有图生方式，没参考时不会自动回到文生。
+      meta: { modelKey: 'gen4_turbo', modelVendor: 'runway' },
     })
     // 用户现场：ComfyUI 纯文生视频工作流，写了提示词、没有也不可能有参考图。
     const comfy = store.addNode({ kind: 'video', title: '镜头 1', position: { x: 760, y: 200 } })
@@ -139,10 +143,12 @@ try {
   }, COMFY_MODEL_KEY)
   await win.waitForTimeout(1500)
 
-  const generateButton = () => win.getByRole('button', { name: /生成素材|重新生成/ }).first()
+  const generateButton = (nodeId) => win.locator(`[data-node-id="${nodeId}"] [data-node-composer-footer] button[data-bar-segment="generate"]:not([data-composer-connect])`)
 
   // ① 探针基线：i2v 零参考 → 灰。证明我们测到的就是那颗会随状态变化的按钮。
-  await expect(generateButton(), '探针失效：i2v 零参考时 ↑ 竟然是活的，后面「ComfyUI 可点」就证明不了什么')
+  await expect(win.locator(`[data-node-id="${ids.gate}"]`).getByRole('button', { name: '模型', exact: true })).toContainText('Runway Gen-4 Turbo')
+  await expect(generateButton(ids.gate), '图生对照没有渲染实际发送钮').toBeVisible()
+  await expect(generateButton(ids.gate), '探针失效：i2v 零参考时 ↑ 竟然是活的，后面「ComfyUI 可点」就证明不了什么')
     .toBeDisabled({ timeout: DEFAULT_TIMEOUT_MS })
   await snap('01-probe-i2v-no-reference-disabled')
 
@@ -164,8 +170,9 @@ try {
   expect(shownModel.archetype, 'ComfyUI 导入图不该有内置档案——有档案说明解析口径变了，这条走查的前提没了')
     .toBeNull()
 
+  await expect(win.locator(`[data-node-id="${ids.comfy}"]`).getByRole('button', { name: '模型', exact: true })).toContainText('H3文生视频')
   await expect(
-    generateButton(),
+    generateButton(ids.comfy),
     'ComfyUI 纯文生视频工作流没有参考图时 ↑ 仍被禁用 —— 就是用户报的「必须输入图片才能发出」。',
   ).toBeEnabled({ timeout: DEFAULT_TIMEOUT_MS })
   await snap('02-comfy-t2v-no-reference-enabled')
@@ -208,7 +215,7 @@ try {
   expect(after.resultId, '收起把产物也弄丢了——它只该撤遮罩，不该删数据').toBe('r-kept')
   await snap('04-dismissed-result-visible')
 
-  console.log('✅ ComfyUI 文生视频可提交 + 失败卡可收起；截图见 tests/ux/shots/comfy-t2v-gate-and-error-dismiss/')
+  console.log(`✅ ComfyUI 文生视频可提交 + 失败卡可收起；截图 ${shotsDir}`)
 } catch (error) {
   failed = error
 } finally {
