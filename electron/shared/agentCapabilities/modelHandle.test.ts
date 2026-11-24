@@ -146,7 +146,7 @@ describe("NF-1119-0001 · declared Wan model names", () => {
   it("keeps image tiers distinct and rejects disabled or invented identities", () => {
     expect(resolveModelHandle(apimart, "wan-2.7-image")).toMatchObject({ ok: true, handle: "wan2.7-image@apimart" });
     expect(resolveModelHandle(apimart, "wan-2.7-image-pro")).toMatchObject({ ok: true, handle: "wan2.7-image-pro@apimart" });
-    expect(resolveModelArchetype({ modelKey: "wan-2.7-image-pro" }, { variant: EVERY_VARIANT })?.id).toBe("wan2.7-image-pro");
+    expect(resolveModelArchetype({ modelKey: "wan-2.7-image-pro", vendorKey: null }, { variant: EVERY_VARIANT })?.id).toBe("wan2.7-image-pro");
     expect(resolveModelHandle(apimart, "wan-2.7-r2v@kie").ok).toBe(false);
     expect(resolveModelHandle(apimart.filter((row) => row.modelId !== "wan2.7"), "wan2.7-r2v").ok).toBe(false);
     expect(resolveModelHandle(apimart, "wan-99-ultra").ok).toBe(false);

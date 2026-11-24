@@ -5,7 +5,7 @@
 - `electron/catalog/catalogModelAvailability.ts:32` 免密目录项直接就绪，确认正式生成可复用该判据。
 - `electron/catalog/assetLocalization.ts:296` inline 通道生成媒体 data URI，确认封存和请求投影应接收同一交付值。
 - `electron/shared/modelArchetypes/variantResolution.ts:57` 仅专属线上 key 可推断变体，确认家族短名不能替创作者选付费档。
-- 出口：无效参考沿用封存错误，替换素材后重试。含糊型号返回目录中的可点名句柄。
+- 出口：electron/capabilityCore/productionReferenceUrls.ts:50 · 无效参考返回结构化封存错误让创作者替换素材后重试 · 确认继续沿用授权前封存报错并向含糊型号返回目录可点名句柄。
 
 ### ★1 用户任务
 
