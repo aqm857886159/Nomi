@@ -1,7 +1,7 @@
 // 预览舞台尺寸计算(纯函数,从 TimelinePreview 拆出——巨壳门岗:该组件已达 800 行硬上限)。
 // 按容器尺寸 + 画幅比例 contain 适配出舞台像素宽高,带最大宽度上限。
 
-export const PREVIEW_MAX_STAGE_WIDTH = 1040
+const PREVIEW_MAX_STAGE_WIDTH = 1040
 
 export function fitPreviewStageSize(params: {
   containerWidth: number

@@ -373,6 +373,16 @@
       "reason": "2026-10-05 主进程那份审片纯核只服务于没有生产调用方的 core.generateOnProject（MCP 单发生成已退役），随它整族删除（docs/plan/2026-10-05-engine-convergence-cut1.md 第 0 步）。「判分提示词带理由语言、评分口径不变」这条不变量现在只有渲染层这一份在承担，合同里它本来就是声明过的另一个主人。"
     },
     {
+      "contract": "docs/fixes/2026-09-24-manifest-lock-sharing-violation.root-cause.json",
+      "path": "electron/workspace/workspaceManifestLock.ts",
+      "symbol": "isOwnAbandonedRecord",
+      "anchor": {
+        "path": "electron/shared/fileLeaseLock.ts",
+        "symbol": "isOwnAbandonedRecord"
+      },
+      "reason": "2026-11-24 目录租约的存活记录与恢复判断迁入共享锁。工作区通过同一目录 owner.json 协议取锁，原有同主机同 PID 且 nonce 已注销才可回收的条件由共享层继续执行。workspaceManifestLock.transientRelease.test.ts 覆盖释放共享冲突与下一次取锁。"
+    },
+    {
       "contract": "docs/fixes/2026-09-24-canvas-connection-ring-dead-ends.root-cause.json",
       "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
       "symbol": "connectionCreateKindsForSource",

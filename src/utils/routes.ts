@@ -1,4 +1,4 @@
-export const APP_ROUTES = [
+const APP_ROUTES = [
   { path: '/studio/*', component: 'NomiStudioApp' },
   { path: '/share/*', component: 'ShareFullPage' },
   { path: '/', component: 'RedirectToStudio' },
@@ -7,8 +7,8 @@ export const APP_ROUTES = [
   { path: '*', component: 'RedirectToStudio' },
 ] as const
 
-export type AppRouteComponent = typeof APP_ROUTES[number]['component']
-export type AppRoutePath = typeof APP_ROUTES[number]['path']
+type AppRouteComponent = typeof APP_ROUTES[number]['component']
+type AppRoutePath = typeof APP_ROUTES[number]['path']
 
 export function getAppRoutePath(component: AppRouteComponent, path?: AppRoutePath): AppRoutePath {
   const route = APP_ROUTES.find((candidate) => {

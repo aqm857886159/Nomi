@@ -145,9 +145,6 @@
     }
   },
   "electron/catalog/dreaminaCli.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
-      "count": 1
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 1
     }
@@ -320,11 +317,6 @@
       "count": 1
     }
   },
-  "electron/productionRun/singleShotGenerationObserver.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/productionRun/submissionIntent.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 11
@@ -360,11 +352,6 @@
       "count": 1
     }
   },
-  "electron/telemetry/intakeQueue.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/workspace/legacyProjectMigration.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 9
@@ -397,7 +384,7 @@
   },
   "electron/workspace/workspaceManifestLock.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 18
+      "count": 3
     }
   },
   "electron/workspace/workspaceManifestTransaction.ts": {

@@ -19,9 +19,9 @@ import { captureAssetWriteContext } from "../assets/assetWriteContext";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { writeProjectCacheFile } from "../assets/projectCacheFile";
 
-export type VideoFrameWhich = "first" | "last" | number;
+type VideoFrameWhich = "first" | "last" | number;
 
-export type ExtractVideoFramePayload = {
+type ExtractVideoFramePayload = {
   videoUrl: string;
   which: VideoFrameWhich;
   projectId: string;
@@ -31,16 +31,16 @@ export type ExtractVideoFramePayload = {
   forceRerun?: boolean;
 };
 
-export type ExtractVideoFrameResult = { url: string };
+type ExtractVideoFrameResult = { url: string };
 
-export type ExtractVideoFrameOptions = {
+type ExtractVideoFrameOptions = {
   /** 可信主进程交互断言（IPC 按 sender 会话签发）；后台调用方（审片环/拆解）不传，只固定磁盘身份。 */
   assertCurrent?: () => void;
   /** 拆解的停止信号：abort 后下载 / 探测 / ffmpeg 子进程一起停，抽出来的帧也不发布。不传 = 跑完为止。 */
   signal?: AbortSignal;
 };
 
-export class VideoFrameError extends Error {
+class VideoFrameError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "VideoFrameError";
@@ -197,94 +197,15 @@ export async function extractVideoFrameToAsset(
   }
 }
 
-/** 测试用：清缓存。 */
-export function resetVideoFrameCacheForTests(): void {
-  frameCache.clear();
-}
-
-// ---------- 首尾双帧拼图（审片环判视频用） ----------
-
-export type ExtractEndpointsPayload = {
-  videoUrl: string;
-  projectId: string;
-  forceRerun?: boolean;
-};
-
-/**
- * 把一条视频的**首帧与尾帧横向拼成一张图**（左=首帧，右=尾帧）。
- *
- * 为什么要它（2026-08-20 L3-F1 实测抓出）：审片环判视频时只抽首帧，于是**任何随时间展开的镜头都被误判**。
- * 实例：某镜的设计是「远处路灯下逐渐显出一个背影」——判分器在 t=0 看，画面空无一人 → 构图 1 档 →
- * 重滚一次 → 仍 1 档 → 红标。而尾帧里人影明明出现了。红标是信任的基石，误报和漏报一样毁它，
- * 何况还白烧了一次重滚。而「逐渐显出 / 由暗转亮 / 缓缓推近」是短剧最常见的镜头语言，不是边缘情况。
- *
- * 顺带补上另一个盲区：只看一帧时，identity 轴对**中途变脸**（视频生成的头号失败模式）完全失明。
- * 首尾同图后，判分器能直接比较两端是不是同一个人。
- *
- * 为什么拼成一张而不是喂两张图：runtime 的多模态通道只取 `referenceImages` 的**第一张**，
- * 传两张会静默丢一张。拼图对任何单图判分模型都成立，
- * 不依赖某家的多图能力。
- *
- * 两端等高缩放后 hstack（hstack 要求输入等高）。失败时调用方按「取帧失败 → 跳过判分」处理，不阻断生成。
- */
-export async function extractVideoEndpointsToAsset(payload: ExtractEndpointsPayload): Promise<ExtractVideoFrameResult> {
-  const { videoUrl, projectId } = payload;
-  if (!videoUrl || typeof videoUrl !== "string") throw new VideoFrameError("缺少源视频地址");
-  if (!projectId || typeof projectId !== "string") throw new VideoFrameError("缺少 projectId");
-  const context = await captureAssetWriteContext(projectId);
-
-  const key = `${projectId}::${videoUrl}::endpoints`;
-  if (!payload.forceRerun) {
-    const cached = frameCache.get(key);
-    if (cached) return { url: cached };
-  }
-
-  const ffmpegPath = resolveFfmpegPath();
-  if (!ffmpegPath) throw new VideoFrameError("找不到 ffmpeg 可执行文件");
-
-  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId);
-  const outPath = path.join(os.tmpdir(), `nomi-endpoints-${crypto.randomUUID()}.png`);
-  try {
-    const lastSeek = await resolveSeekSeconds(filePath, "last");
-    const args = [
-      "-y",
-      "-ss", "0", "-i", filePath,
-      "-ss", String(lastSeek), "-i", filePath,
-      // 等高缩放（-2 = 保持比例并取偶数宽，libx264/png 都要求偶数），再横向拼。
-      "-filter_complex", "[0:v]scale=-2:720,setsar=1[a];[1:v]scale=-2:720,setsar=1[b];[a][b]hstack=inputs=2",
-      "-frames:v", "1",
-      "-q:v", "3",
-      "-update", "1",
-      outPath,
-    ];
-    await runFfmpeg(ffmpegPath, args);
-    if (!fs.existsSync(outPath) || fs.statSync(outPath).size === 0) {
-      throw new VideoFrameError("ffmpeg 未产出有效的首尾拼图");
-    }
-    const bytes = fs.readFileSync(outPath);
-    const record = await writeGeneratedAsset(projectId, bytes, `frame-endpoints-${crypto.randomUUID().slice(0, 8)}.png`, "image/png", {
-      kind: "generated",
-      source: "video-frame",
-    }, "image", context) as { data?: { url?: string } };
-    const url = record?.data?.url;
-    if (!url) throw new VideoFrameError("首尾拼图写盘失败");
-    frameCache.set(key, url);
-    return { url };
-  } finally {
-    cleanup();
-    try { if (fs.existsSync(outPath)) fs.unlinkSync(outPath); } catch { /* non-fatal */ }
-  }
-}
-
 // ---------- 胶片缩略图条（时间轴 clip 全员真帧的基建） ----------
 
-export type ExtractFilmstripPayload = {
+type ExtractFilmstripPayload = {
   videoUrl: string;
   projectId: string;
   forceRerun?: boolean;
 };
 
-export type ExtractFilmstripResult = {
+type ExtractFilmstripResult = {
   url: string;
   /** 横向平铺帧数（固定 16）。渲染层据此把条图映射回源时长。 */
   tiles: number;
@@ -368,10 +289,4 @@ export async function extractVideoFilmstripToAsset(payload: ExtractFilmstripPayl
   } finally {
     filmstripInflight.delete(key);
   }
-}
-
-/** 测试用：清胶片缓存。 */
-export function resetFilmstripCacheForTests(): void {
-  filmstripCache.clear();
-  filmstripInflight.clear();
 }

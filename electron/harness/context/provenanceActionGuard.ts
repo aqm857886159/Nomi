@@ -1,8 +1,8 @@
 import type { ProvenanceMark } from "./provenance";
 
-export type ProvenanceAction = "read" | "spend" | "write" | "egress";
+type ProvenanceAction = "read" | "spend" | "write" | "egress";
 
-export type ProvenanceActionDecision = Readonly<{
+type ProvenanceActionDecision = Readonly<{
   allowed: boolean;
   requiresConfirmation: boolean;
   action: ProvenanceAction;

@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import type { JsonRecord } from "../jsonUtils";
 import { contentTypeFromPath } from "../assets/assetPaths";
+import { contentTypeFromMagicBytes, extensionFromContentType } from "../assets/mediaTypes";
 import { mcpClientPlatform, resolveMcpClientHostRoot } from "../shared/mcpClientRegistry";
 import type { ProcessResponse, WriteAsset } from "./processOperation";
 import { materializeAssetToPath, toUrlList } from "./dreaminaInputFiles";
@@ -191,19 +192,180 @@ export function parseCodexThreadId(stdout: string): string {
   return "";
 }
 
+const IMAGE_FILE_RE = /\.(png|jpe?g|webp)$/i;
+const ANSI_ESCAPE_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+
+function collectRecentImagesInDir(
+  dir: string,
+  notBeforeMs: number,
+  excludeResolved: ReadonlySet<string>,
+  maxDepth = 2,
+): Array<{ fullPath: string; mtimeMs: number }> {
+  if (!dir || !existsSync(dir)) return [];
+  const results: Array<{ fullPath: string; mtimeMs: number }> = [];
+  const walk = (current: string, depth: number) => {
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (depth < maxDepth) walk(fullPath, depth + 1);
+        continue;
+      }
+      if (!entry.isFile() || !IMAGE_FILE_RE.test(entry.name)) continue;
+      if (excludeResolved.has(path.resolve(fullPath))) continue;
+      try {
+        const mtimeMs = statSync(fullPath).mtimeMs;
+        if (mtimeMs >= notBeforeMs) results.push({ fullPath, mtimeMs });
+      } catch {
+        /* file disappeared during scan */
+      }
+    }
+  };
+  walk(dir, 0);
+  return results.sort((a, b) => b.mtimeMs - a.mtimeMs);
+}
+
 export function latestGeneratedImageForThread(threadId: string, notBeforeMs = 0): string {
-  const dir = generatedImagesDir(threadId);
-  if (!existsSync(dir)) return "";
-  const files = readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && /\.(png|jpe?g|webp)$/i.test(entry.name))
-    .map((entry) => {
-      const fullPath = path.join(dir, entry.name);
-      const mtimeMs = existsSync(fullPath) ? statSync(fullPath).mtimeMs : 0;
-      return { fullPath, mtimeMs };
-    })
-    .filter((item) => item.mtimeMs >= notBeforeMs)
-    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const files = collectRecentImagesInDir(generatedImagesDir(threadId), notBeforeMs, new Set());
   return files[0]?.fullPath || "";
+}
+
+function parseJsonlRecords(stdout: string): JsonRecord[] {
+  const out: JsonRecord[] = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) out.push(parsed as JsonRecord);
+    } catch {
+      /* ignore non-event lines */
+    }
+  }
+  return out;
+}
+
+function decodeValidBase64Image(raw: unknown): { bytes: Buffer; ext: string } | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim().replace(/^data:image\/[a-z0-9.+-]+;base64,/i, "");
+  if (trimmed.length < 32) return null;
+  const bytes = Buffer.from(trimmed, "base64");
+  if (bytes.length < 12) return null;
+  const detected = contentTypeFromMagicBytes(bytes);
+  if (!detected || !detected.startsWith("image/")) return null;
+  const ext = extensionFromContentType(detected) || "png";
+  return { bytes, ext };
+}
+
+/** 从 codex exec --json 的 JSONL 事件流中提取 ImageGenerationItem 产出的 saved_path 与合规内联 base64 图。 */
+export function extractCodexImageArtifacts(stdout: string): {
+  savedPaths: string[];
+  inlineImages: Array<{ bytes: Buffer; ext: string }>;
+} {
+  const savedPaths: string[] = [];
+  const inlineImages: Array<{ bytes: Buffer; ext: string }> = [];
+  const inspectPayload = (payload: JsonRecord) => {
+    if (String(payload.status ?? "").toLowerCase() === "failed") return;
+    const candidatePath = payload.saved_path ?? payload.savedPath;
+    if (typeof candidatePath === "string" && candidatePath.trim()) savedPaths.push(candidatePath.trim());
+    const inline = decodeValidBase64Image(payload.result);
+    if (inline) inlineImages.push(inline);
+  };
+  for (const event of parseJsonlRecords(stdout)) {
+    const eventType = String(event.type ?? "");
+    if (eventType === "image_generation_end" || eventType === "image_generation" || eventType === "image_generation_call") {
+      inspectPayload(event);
+      continue;
+    }
+    if (eventType === "item.completed" && event.item && typeof event.item === "object") {
+      const item = event.item as JsonRecord;
+      const itemType = String(item.type ?? "");
+      if (itemType === "image_generation" || itemType === "image_generation_call") inspectPayload(item);
+    }
+  }
+  return { savedPaths, inlineImages };
+}
+
+function isPathInsideDir(candidate: string, dir: string | undefined): boolean {
+  if (!dir) return false;
+  const rel = path.relative(path.resolve(dir), path.resolve(candidate));
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+function isReadableImageFile(filePath: string): boolean {
+  try {
+    if (!existsSync(filePath)) return false;
+    const stat = statSync(filePath);
+    if (!stat.isFile() || stat.size < 12) return false;
+    if (IMAGE_FILE_RE.test(filePath)) return true;
+    const head = readFileSync(filePath).subarray(0, 64);
+    const detected = contentTypeFromMagicBytes(head);
+    return Boolean(detected && detected.startsWith("image/"));
+  } catch {
+    return false;
+  }
+}
+
+function stagePersistentCodexOutput(jobId: string, source: { copyFrom: string } | { bytes: Buffer; ext: string }): string {
+  mkdirSync(codexJobsDir(), { recursive: true });
+  if ("copyFrom" in source) {
+    const ext = path.extname(source.copyFrom) || ".png";
+    const dest = path.join(codexJobsDir(), `${jobId}-output${ext}`);
+    writeFileSync(dest, readFileSync(source.copyFrom));
+    return dest;
+  }
+  const dest = path.join(codexJobsDir(), `${jobId}-output.${source.ext}`);
+  writeFileSync(dest, source.bytes);
+  return dest;
+}
+
+/**
+ * 统一发现 Codex 本次生图产物（NF-1025-0001）：
+ *   1) JSONL ImageGenerationItem.saved_path；
+ *   2) $CODEX_HOME/generated_images/<threadId>/（含嵌套子目录）；
+ *   3) workDir 中新生成的图片（排除参考图输入）；
+ *   4) JSONL ImageGenerationItem.result 合法内联 base64 图片。
+ * 位于易失 workDir 或仅内联的产物，在 workDir 清理前复制到 nomi_image_jobs 持久化路径，防止 query 时丢失。
+ */
+export function resolveCodexGeneratedImage(input: {
+  jobId: string;
+  threadId: string;
+  stdout: string;
+  workDir?: string;
+  inputImagePaths?: readonly string[];
+  startedAt: number;
+}): string {
+  const excluded = new Set((input.inputImagePaths ?? []).map((p) => path.resolve(p)));
+  const artifacts = extractCodexImageArtifacts(input.stdout);
+
+  for (let i = artifacts.savedPaths.length - 1; i >= 0; i -= 1) {
+    const raw = artifacts.savedPaths[i]!;
+    const resolved = path.isAbsolute(raw) ? raw : input.workDir ? path.resolve(input.workDir, raw) : path.resolve(raw);
+    if (excluded.has(path.resolve(resolved)) || !isReadableImageFile(resolved)) continue;
+    return isPathInsideDir(resolved, input.workDir)
+      ? stagePersistentCodexOutput(input.jobId, { copyFrom: resolved })
+      : resolved;
+  }
+
+  if (input.threadId) {
+    const inThreadDir = latestGeneratedImageForThread(input.threadId, input.startedAt);
+    if (inThreadDir) return inThreadDir;
+  }
+
+  if (input.workDir) {
+    const inWorkDir = collectRecentImagesInDir(input.workDir, input.startedAt, excluded)[0]?.fullPath || "";
+    if (inWorkDir) return stagePersistentCodexOutput(input.jobId, { copyFrom: inWorkDir });
+  }
+
+  const inline = artifacts.inlineImages[artifacts.inlineImages.length - 1];
+  if (inline) return stagePersistentCodexOutput(input.jobId, inline);
+  return "";
 }
 
 // 两个哨兵必须分开（2026-07-31 群反馈根因）：codex 的 imagegen 工具**调用失败**时是把
@@ -250,7 +412,51 @@ export function extractImagegenUpstreamError(text: string): string {
 
 /** 上游原话是否指向限流/额度（ChatGPT 登录额度耗尽是 codex 生图最常见的确定性失败）。 */
 function isQuotaLikeError(text: string): boolean {
-  return /429|rate.?limit|too many request|quota|insufficient|limit (?:reached|exceeded)|usage cap|请求过于频繁|限流|额度/i.test(text);
+  return /429|rate.?limit|too many request|quota|insufficient|usage[_ ]?limit|limit[_ ]?(?:reached|exceeded)|usage[_ ]?cap|请求过于频繁|限流|额度/i.test(text);
+}
+
+/** 从 JSONL 顶层错误事件（turn.failed / error）或失败的 image_generation item 中提取真实报错，不误伤良性 item warning。 */
+function extractCodexStructuredTurnError(stdout: string): string {
+  for (const event of parseJsonlRecords(stdout)) {
+    const type = String(event.type ?? "");
+    if (type === "turn.failed") {
+      const errObj = event.error && typeof event.error === "object" ? event.error as JsonRecord : null;
+      const msg = String(errObj?.message ?? event.message ?? "").trim();
+      if (msg) return msg.slice(0, 300);
+    }
+    if (type === "error") {
+      const errObj = event.error && typeof event.error === "object" ? event.error as JsonRecord : null;
+      const msg = String(event.message ?? errObj?.message ?? "").trim();
+      if (msg) return msg.slice(0, 300);
+    }
+    if (type === "item.completed" && event.item && typeof event.item === "object") {
+      const item = event.item as JsonRecord;
+      const itemType = String(item.type ?? "");
+      if ((itemType === "image_generation" || itemType === "image_generation_call") && String(item.status ?? "").toLowerCase() === "failed") {
+        const errObj = item.error && typeof item.error === "object" ? item.error as JsonRecord : null;
+        const msg = String(item.failure ?? errObj?.message ?? item.error ?? "").trim();
+        if (msg) return msg.slice(0, 300);
+      }
+    }
+  }
+  return "";
+}
+
+function extractCodexAgentReply(stdout: string): string {
+  let latest = "";
+  for (const event of parseJsonlRecords(stdout)) {
+    if (event.type !== "item.completed" || !event.item || typeof event.item !== "object") continue;
+    const item = event.item as JsonRecord;
+    if (item.type !== "agent_message") continue;
+    const text = String(item.text ?? "").replace(/\s+/g, " ").trim();
+    if (text) latest = text;
+  }
+  return latest.slice(0, 240);
+}
+
+function summarizeCodexStderr(stderr: string): string {
+  const cleaned = String(stderr || "").replace(ANSI_ESCAPE_RE, "").replace(/\s+/g, " ").trim();
+  return cleaned.slice(0, 280);
 }
 
 export function describeCodexFailure(ran: CodexFinishedOutput, threadId: string): string {
@@ -276,7 +482,26 @@ export function describeCodexFailure(ran: CodexFinishedOutput, threadId: string)
   if (/not logged in|login required|codex login|unauthorized|401/i.test(text)) {
     return "Codex CLI 未登录或登录态失效，请先在终端运行 codex login。";
   }
-  if (!threadId) return "Codex CLI 没有返回 thread.started 事件，无法定位 generated_images 输出目录。";
+  // ③ JSONL 顶层 turn.failed / error / image_generation failed（不吞真实上游失败原因，NF-1025-0001）。
+  const turnError = extractCodexStructuredTurnError(ran.stdout);
+  if (turnError) {
+    return isQuotaLikeError(turnError)
+      ? `Codex 生图被上游限流或登录额度暂时用尽：${turnError}。稍等几分钟重试，或换其他生图模型。`
+      : `Codex 生图调用失败：${turnError}`;
+  }
+  const stderrSummary = summarizeCodexStderr(ran.stderr);
+  if (!threadId) {
+    return stderrSummary
+      ? `Codex CLI 没有返回 thread.started 事件，无法定位 generated_images 输出目录（${stderrSummary}）。`
+      : "Codex CLI 没有返回 thread.started 事件，无法定位 generated_images 输出目录。";
+  }
+  if (ran.code !== 0 && stderrSummary) {
+    return `Codex CLI 执行失败（退出码 ${ran.code}）：${stderrSummary}`;
+  }
+  const agentReply = extractCodexAgentReply(ran.stdout);
+  if (agentReply) {
+    return `Codex CLI 未产生可导入的生图文件（模型回复：${agentReply}）。`;
+  }
   return "Codex CLI 未产生可导入的生图文件。";
 }
 
@@ -309,7 +534,12 @@ async function importCodexImageOnce(record: CodexImageJobRecord, input: CodexIma
   ) as { data?: { url?: string } };
   const url = String(written.data?.url || "");
   if (url) localUrls.push(url);
-  if (localUrls.length) patchJob(record.jobId, { localUrls });
+  if (localUrls.length) {
+    patchJob(record.jobId, { localUrls });
+    if (isPathInsideDir(record.imagePath, codexJobsDir())) {
+      try { rmSync(record.imagePath, { force: true }); } catch { /* best-effort staged output cleanup */ }
+    }
+  }
   return localUrls;
 }
 
@@ -418,7 +648,16 @@ export async function startCodexImageOperation(input: CodexImageInput): Promise<
   child.on("close", (code) => {
     const current = liveJobs.get(jobId)?.record || readPersistedJob(jobId) || record;
     const threadId = current.threadId || parseCodexThreadId(current.stdout);
-    const imagePath = threadId ? latestGeneratedImageForThread(threadId, startedAt) : "";
+    const imagePath = (current.imagePath && existsSync(current.imagePath))
+      ? current.imagePath
+      : resolveCodexGeneratedImage({
+          jobId,
+          threadId,
+          stdout: current.stdout,
+          workDir,
+          inputImagePaths: imagePaths,
+          startedAt,
+        });
     const ran = { code: code ?? -1, stdout: current.stdout, stderr: current.stderr };
     patchJob(jobId, {
       status: imagePath ? "succeeded" : "failed",

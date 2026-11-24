@@ -9,7 +9,7 @@ import {
 } from '../project/workbenchProjectSession'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 
-export type CanonicalCanvasPlanPatchRequest = Readonly<{
+type CanonicalCanvasPlanPatchRequest = Readonly<{
   projectId: string
   input: unknown
   receiptProposalId: string

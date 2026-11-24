@@ -1,15 +1,20 @@
 import { declareStoreLifetime } from '../../project/storeLifetime'
 // 镜级 verify 的状态层 + 编排入口(渲染层单一真相源)。
-// 方案:docs/plan/2026-06-28-storyboard-closed-loop-verify.md（Stage 1 实时编排 + Stage 2 半自动封顶）。
+// 方案:docs/plan/2026-06-28-storyboard-closed-loop-verify.md（Stage 1 实时编排 + Stage 2 半自动封顶）+ 三态诚实审片。
 //
-// 数据流:生成完成 → verifyShotsAndReport(读画布快照→gather→调模型)→ 写本 store →
-//   resident Agent 订阅 → 内容偏差卡 → 「让 AI 修」发 agent 消息（走现成付费确认闸，不另建付费 loop）。
+// 数据流:生成完成 → verifyShotsAndReport(读画布快照→gather→调模型)→ 写本 store（deviations + unverified）→
+//   resident Agent 订阅 → 对账卡（有偏差给「让 AI 修」，未校验照实告知，绝不冒充过检）。
 // 半自动封顶(Stage 2 §6 用户拍板「半自动·每轮确认」):每点一次「让 AI 修」消耗一轮(consumeRound),
 //   预算耗尽(decideNext→exhausted)→ 卡片不再给「让 AI 修」、落「已尽力」态,绝不无限回灌。
 
 import { create } from 'zustand'
-import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
+import {
+  isProjectExecutionContextCurrent,
+  withProjectAction,
+  type ProjectExecutionContext,
+} from '../../project/projectCanvasReadSurface'
 import type { ReconcileDeviation } from './reconcile'
+import type { ShotVerifyReport, ShotVerifyShotOutcome, ShotVerifyUnverifiedEntry } from './shotVerifyRunner'
 import { createLoopBudget, startRound, canStartRound, type LoopBudgetState } from './storyboardLoopBudget'
 // 重依赖(画布 store / judge 接线)在 verifyShotsAndReport 内动态 import:
 // 让本 store 模块(状态机 + buildContentFixMessage)保持轻、可裸测,不拖进桌面桥/对话客户端。
@@ -45,16 +50,27 @@ function normalizeProjectId(projectId: string | null | undefined): string | null
   return normalized || null
 }
 
-function resultState(deviations: ReconcileDeviation[], budget: LoopBudgetState) {
+function resultState(
+  deviations: ReconcileDeviation[],
+  unverified: ShotVerifyUnverifiedEntry[],
+  budget: LoopBudgetState,
+) {
   if (deviations.length === 0) {
-    return { status: 'ready' as const, deviations: [], budget: createLoopBudget(), exhausted: false }
+    return {
+      status: 'ready' as const,
+      deviations: [],
+      unverified,
+      budget: unverified.length === 0 ? createLoopBudget() : budget,
+      exhausted: false,
+    }
   }
-  return { status: 'ready' as const, deviations, exhausted: !canStartRound(budget) }
+  return { status: 'ready' as const, deviations, unverified, exhausted: !canStartRound(budget) }
 }
 
 type ShotVerifyState = {
   status: ShotVerifyStatus
   deviations: ReconcileDeviation[]
+  unverified: ShotVerifyUnverifiedEntry[]
   budget: LoopBudgetState
   /** 当前结果归属的项目；null 只用于尚未进入项目的启动/测试环境。 */
   projectId: string | null
@@ -65,30 +81,36 @@ type ShotVerifyState = {
   /** 项目生命周期接缝：项目变化即清场并作废所有在途校验；同项目重复绑定不扰动预算。 */
   activateProject: (projectId: string | null | undefined) => void
   beginVerify: (projectId: string | null | undefined) => ShotVerifyRequest
+  /** 重审部分或全部未校验镜头：置 status=verifying 并递增 requestId，但保留卡片现有列表使界面稳定显示 loading。 */
+  beginRetryVerify: (projectId: string | null | undefined) => ShotVerifyRequest
   isVerifyCurrent: (request: ShotVerifyRequest, activeProjectId: string | null | undefined) => boolean
   completeVerify: (
     request: ShotVerifyRequest,
     activeProjectId: string | null | undefined,
     deviations: ReconcileDeviation[],
+    unverified?: ShotVerifyUnverifiedEntry[],
   ) => boolean
   /**
    * 写校验结果。预算生命周期铁律:
-   * - 偏差清零(收敛/无问题)→ **重置预算**(本闭环结束,下一闭环满额起步);
+   * - 偏差清零且无未校验(真收敛)→ **重置预算**(本闭环结束,下一闭环满额起步);
    * - 仍有偏差 → **不动预算**(同一闭环延续),按剩余预算算 exhausted。
    * 故「点修→重生→再校验」链路预算只减不回弹,半自动封顶真实生效。
    */
-  setDeviations: (deviations: ReconcileDeviation[]) => void
+  setDeviations: (deviations: ReconcileDeviation[], unverified?: ShotVerifyUnverifiedEntry[]) => void
+  /** 创作者显式选择「照用」指定（或缺省全部）未校验镜头，保留其余未校验镜头与既有偏差。 */
+  acceptUnverifiedShots: (shotNodeIds?: readonly string[]) => void
   /** 点一次「让 AI 修」:消耗一轮;返回是否还允许(false=已到顶,调用方不应再发修复消息)。 */
   consumeRound: () => boolean
   /** 点修后暂藏卡(AI 干活中):清偏差但**不动预算**(区别于收敛重置)。 */
   markFixing: () => void
-  /** 全清(换项目/会话清场):状态/偏差/预算全重置。 */
+  /** 全清(换项目/会话清场):状态/偏差/未校验/预算全重置。 */
   clear: () => void
 }
 
 export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
   status: 'idle',
   deviations: [],
+  unverified: [],
   budget: createLoopBudget(),
   projectId: null,
   requestId: 0,
@@ -99,6 +121,7 @@ export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
     set((state) => ({
       status: 'idle',
       deviations: [],
+      unverified: [],
       budget: createLoopBudget(),
       projectId: nextProjectId,
       requestId: state.requestId + 1,
@@ -112,6 +135,7 @@ export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
     set({
       status: 'verifying',
       deviations: [],
+      unverified: [],
       projectId: nextProjectId,
       requestId: request.requestId,
       exhausted: false,
@@ -121,20 +145,40 @@ export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
     })
     return request
   },
+  beginRetryVerify: (projectId) => {
+    const nextProjectId = normalizeProjectId(projectId)
+    const current = get()
+    const request = { projectId: nextProjectId, requestId: current.requestId + 1 }
+    set({
+      status: 'verifying',
+      projectId: nextProjectId,
+      requestId: request.requestId,
+    })
+    return request
+  },
   isVerifyCurrent: (request, activeProjectId) => {
     const state = get()
     return state.requestId === request.requestId
       && state.projectId === request.projectId
       && normalizeProjectId(activeProjectId) === request.projectId
   },
-  completeVerify: (request, activeProjectId, deviations) => {
+  completeVerify: (request, activeProjectId, deviations, unverified = []) => {
     if (!get().isVerifyCurrent(request, activeProjectId)) return false
-    set(resultState(deviations, get().budget))
+    set(resultState(deviations, unverified, get().budget))
     return true
   },
-  setDeviations: (deviations) => {
+  setDeviations: (deviations, unverified = []) => {
     // 收敛:本闭环结束,预算回满供下一条分镜；仍有偏差则预算不动。
-    set(resultState(deviations, get().budget))
+    set(resultState(deviations, unverified, get().budget))
+  },
+  acceptUnverifiedShots: (shotNodeIds) => {
+    const current = get()
+    if (!current.unverified.length) return
+    const targetSet = shotNodeIds ? new Set(shotNodeIds) : null
+    const nextUnverified = targetSet
+      ? current.unverified.filter((entry) => !targetSet.has(entry.shotNodeId))
+      : []
+    set(resultState(current.deviations, nextUnverified, current.budget))
   },
   consumeRound: () => {
     const { budget } = get()
@@ -145,10 +189,11 @@ export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
     set({ budget: startRound(budget) })
     return true
   },
-  markFixing: () => set({ status: 'verifying', deviations: [] }),
+  markFixing: () => set({ status: 'verifying', deviations: [], unverified: [] }),
   clear: () => set((state) => ({
     status: 'idle',
     deviations: [],
+    unverified: [],
     budget: createLoopBudget(),
     projectId: null,
     requestId: state.requestId + 1,
@@ -156,27 +201,36 @@ export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
   })),
 }))
 
-/**
- * 生成完成后跑校验并写 store(fire-and-forget,不阻塞「生成完成」toast)。
- * verify 是增益:任何失败都静默吞(setDeviations([])),绝不把生成完成拖红。
- */
-export async function verifyShotsAndReport(
+function emptyReport(): ShotVerifyReport {
+  return { deviations: [], shotOutcomes: [], unverified: [] }
+}
+
+function unverifiedReportFor(
   shotNodeIds: readonly string[],
-  /** 被审镜头所在的项目（调用方在动作起点签发）：审片只读它的画布、结果只写回它。 */
-  project: ProjectExecutionContext,
-): Promise<ReconcileDeviation[]> {
-  if (!isShotVerifyEnabled()) return []
-  // 项目归属来自签发的上下文；后续切项目（含 A→B→A）时上下文失效，request 也被 lifecycle 作废，
-  // judge 继续使用旧项目的 ephemeral key，而不会在新项目会话里留下旧镜头的上下文。
-  const projectId = project.binding.projectId
-  const owns = (request: ShotVerifyRequest): boolean =>
-    isProjectExecutionContextCurrent(project) && useShotVerifyStore.getState().isVerifyCurrent(request, projectId)
-  const complete = (request: ShotVerifyRequest, deviations: ReconcileDeviation[]): void => {
-    if (isProjectExecutionContextCurrent(project)) useShotVerifyStore.getState().completeVerify(request, projectId, deviations)
-  }
-  const request = useShotVerifyStore.getState().beginVerify(projectId)
-  // 不在此重置预算:预算只在「收敛(偏差清零)」时回满(见 setDeviations),
-  // 这样「点修→重生→再校验」链路里预算只减不回弹,半自动封顶真实生效。
+  titlesById: ReadonlyMap<string, string>,
+  reason: ShotVerifyUnverifiedEntry['reason'],
+): ShotVerifyReport {
+  const unverified: ShotVerifyUnverifiedEntry[] = shotNodeIds.map((shotNodeId) => ({
+    shotNodeId,
+    shotTitle: titlesById.get(shotNodeId) || shotNodeId,
+    reason,
+  }))
+  const shotOutcomes: ShotVerifyShotOutcome[] = unverified.map((entry) => ({
+    shotNodeId: entry.shotNodeId,
+    shotTitle: entry.shotTitle,
+    status: 'unverified',
+    reason: entry.reason,
+  }))
+  return { deviations: [], shotOutcomes, unverified }
+}
+
+async function executeShotVerify(
+  shotNodeIds: readonly string[],
+  projectId: string,
+  isOwned: () => boolean,
+  initialTitles?: ReadonlyMap<string, string>,
+): Promise<ShotVerifyReport | null> {
+  const titlesById = new Map<string, string>(initialTitles)
   try {
     const [{ gatherShotVerifyInputs }, { verifyGeneratedShots }, { makeShotVerifyDeps }, { useGenerationCanvasStore }] =
       await Promise.all([
@@ -187,20 +241,108 @@ export async function verifyShotsAndReport(
       ])
     // dynamic import 期间可能已经切项目/清场。先验所有权再读全局画布快照，避免把新项目
     // 的节点拿去给旧项目请求审片。
-    if (!owns(request)) return []
+    if (!isOwned()) return null
     const { nodes, edges } = useGenerationCanvasStore.getState()
+    for (const node of nodes) {
+      const title = typeof node.title === 'string' ? node.title.trim() : ''
+      if (title) titlesById.set(node.id, title)
+    }
     const inputs = gatherShotVerifyInputs(shotNodeIds, nodes, edges)
     if (inputs.length === 0) {
-      complete(request, [])
-      return []
+      return unverifiedReportFor(shotNodeIds, titlesById, 'missing_frame_source')
     }
-    const deviations = await verifyGeneratedShots(inputs, makeShotVerifyDeps(projectId))
-    complete(request, deviations)
-    return deviations
+    return await verifyGeneratedShots(inputs, makeShotVerifyDeps(projectId))
   } catch {
-    // 只有当前项目的最新请求能清空；旧请求晚失败不得抹掉更新请求已经写入的结果。
-    complete(request, [])
-    return []
+    return unverifiedReportFor(shotNodeIds, titlesById, 'judge_failed')
+  }
+}
+
+/**
+ * 生成完成后跑校验并写 store(不阻塞「生成完成」toast)。
+ * 诚实三态：任何失败（无视觉能力 / 缺画面 / 抽帧或请求异常）一律记 unverified 写入 store 并回传，绝不伪装成通过。
+ */
+export async function verifyShotsAndReport(
+  shotNodeIds: readonly string[],
+  /** 被审镜头所在的项目（调用方在动作起点签发）：审片只读它的画布、结果只写回它。 */
+  project: ProjectExecutionContext,
+): Promise<ShotVerifyReport> {
+  if (!isShotVerifyEnabled()) return emptyReport()
+  // 项目归属来自签发的上下文；后续切项目（含 A→B→A）时上下文失效，request 也被 lifecycle 作废，
+  // judge 继续使用旧项目的 ephemeral key，而不会在新项目会话里留下旧镜头的上下文。
+  const projectId = project.binding.projectId
+  const request = useShotVerifyStore.getState().beginVerify(projectId)
+  const owns = (): boolean =>
+    isProjectExecutionContextCurrent(project) && useShotVerifyStore.getState().isVerifyCurrent(request, projectId)
+  // 不在此重置预算:预算只在「收敛(偏差清零且无未校验)」时回满(见 setDeviations),
+  // 这样「点修→重生→再校验」链路里预算只减不回弹,半自动封顶真实生效。
+  const report = await executeShotVerify(shotNodeIds, projectId, owns)
+  if (!report) return emptyReport()
+  if (isProjectExecutionContextCurrent(project)) {
+    useShotVerifyStore.getState().completeVerify(request, projectId, report.deviations, report.unverified)
+  }
+  return report
+}
+
+/**
+ * 创作者点击「重新审片 / 全部重审」：仅重审选定的未校验镜头，在途保持原列表可见（status=verifying），
+ * 完成后保留未参与重审镜头的偏差与未校验记录，将本次重审结果合并回 store。
+ */
+export async function retryShotVerify(
+  projectId: string,
+  shotNodeIds?: readonly string[],
+): Promise<boolean> {
+  try {
+    const before = useShotVerifyStore.getState()
+    const project = withProjectAction((issued) => issued)
+    if (
+      !projectId
+      || !project
+      || project.binding.projectId !== projectId
+      || before.projectId !== projectId
+      || before.status === 'verifying'
+      || !before.unverified.length
+    ) {
+      return false
+    }
+    const targetSet = shotNodeIds?.length
+      ? new Set(shotNodeIds)
+      : new Set(before.unverified.map((entry) => entry.shotNodeId))
+    const targetEntries = before.unverified.filter((entry) => targetSet.has(entry.shotNodeId))
+    if (!targetEntries.length) return false
+    const targetIds = targetEntries.map((entry) => entry.shotNodeId)
+    const initialTitles = new Map(targetEntries.map((entry) => [entry.shotNodeId, entry.shotTitle]))
+    const request = useShotVerifyStore.getState().beginRetryVerify(projectId)
+    const owns = (): boolean =>
+      isProjectExecutionContextCurrent(project) && useShotVerifyStore.getState().isVerifyCurrent(request, projectId)
+    const report = await executeShotVerify(targetIds, projectId, owns, initialTitles)
+    if (!report || !owns()) return false
+    const current = useShotVerifyStore.getState()
+    const keptDeviations = current.deviations.filter(
+      (deviation) => !deviation.shotNodeId || !targetSet.has(deviation.shotNodeId),
+    )
+    const mergedDeviations = [...keptDeviations, ...report.deviations]
+    const retryUnverifiedById = new Map(report.unverified.map((entry) => [entry.shotNodeId, entry]))
+    const mergedUnverified: ShotVerifyUnverifiedEntry[] = []
+    const placedIds = new Set<string>()
+    for (const entry of current.unverified) {
+      if (!targetSet.has(entry.shotNodeId)) {
+        mergedUnverified.push(entry)
+        continue
+      }
+      const nextEntry = retryUnverifiedById.get(entry.shotNodeId)
+      if (nextEntry) {
+        mergedUnverified.push(nextEntry)
+        placedIds.add(entry.shotNodeId)
+      }
+    }
+    for (const entry of report.unverified) {
+      if (!placedIds.has(entry.shotNodeId) && targetSet.has(entry.shotNodeId)) {
+        mergedUnverified.push(entry)
+      }
+    }
+    return useShotVerifyStore.getState().completeVerify(request, projectId, mergedDeviations, mergedUnverified)
+  } catch {
+    return false
   }
 }
 
@@ -227,7 +369,7 @@ export function buildContentFixMessage(deviations: readonly ReconcileDeviation[]
 export const shotVerifyStoreLifetime = declareStoreLifetime({
   store: 'useShotVerifyStore',
   fields: {
-    status: 'project', deviations: 'project', budget: 'project',
+    status: 'project', deviations: 'project', unverified: 'project', budget: 'project',
     projectId: 'project', requestId: 'project', exhausted: 'project',
   },
   releaseProject: () => useShotVerifyStore.getState().clear(),

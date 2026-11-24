@@ -1,6 +1,7 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import i18n from '../../../i18n/index'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { useShotVerifyStore } from '../../generationCanvas/agent/shotVerifyStore'
 import { AgentPanelV4Panel } from '../v4/AgentPanelV4Panel'
@@ -94,5 +95,70 @@ describe('verified shots use the existing domain card and admission budget', () 
     expect(await pending).toBe(false)
     expect(useShotVerifyStore.getState()).toBe(next)
     expect(next.budget.roundsUsed).toBe(0)
+  })
+
+  it('renders single-shot unverified card with concise count header, collapsed Why toggle, and unified short row actions in zh-CN and en', async () => {
+    expect(i18n.exists('generationCommon.reconcile.recheckOne')).toBe(false)
+    expect(i18n.exists('generationCommon.reconcile.acceptOne')).toBe(false)
+    ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
+      [],
+      [{ shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'invalid_verdict_json' }],
+    )
+    const previousLang = i18n.language
+    try {
+      for (const lang of ['zh-CN', 'en'] as const) {
+        await i18n.changeLanguage(lang)
+        const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
+        expect(markup).toContain('data-reconcile-deviation-card="true"')
+        expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
+        expect(markup).toContain('镜头 2')
+        expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedOnlyCaption', { count: 1 }))
+        expect(markup).toContain('data-reconcile-why-toggle="true"')
+        expect(markup).toContain('aria-expanded="false"')
+        expect(markup).toContain(i18n.t('generationCommon.reconcile.showReasons'))
+        // 默认收起：不直接铺开模型报错原因
+        expect(markup).not.toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.invalid_verdict_json'))
+        // 单镜与多镜行内统一共用短词条（重审 / 照用，Re-check / Use），单镜不出底栏批量按钮
+        expect(markup).toContain(`>${i18n.t('generationCommon.reconcile.recheckShort')}<`)
+        expect(markup).toContain(`>${i18n.t('generationCommon.reconcile.acceptShort')}<`)
+        expect(markup).not.toContain('data-reconcile-unverified-batch="true"')
+        expect(markup).not.toContain(`>${i18n.t('generationCommon.reconcile.acknowledge')}<`)
+        expect(markup).not.toContain('data-reconcile-ai-fix')
+      }
+    } finally {
+      await i18n.changeLanguage(previousLang)
+    }
+  })
+
+  it('renders multi-shot unverified card (e.g. 5 shots) with compact per-row actions and batch footer', () => {
+    ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
+      [],
+      Array.from({ length: 5 }, (_, idx) => ({
+        shotNodeId: `shot-${idx + 1}`,
+        shotTitle: `镜 ${idx + 1} · 超长雨夜霓虹天桥特写镜头标题样本`,
+        reason: 'invalid_verdict_json',
+      })),
+    )
+    const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedOnlyCaption', { count: 5 }))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.recheckShort'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.acceptShort'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.recheckAll'))
+    expect(markup).toContain(i18n.t('generationCommon.reconcile.acceptAll', { count: 5 }))
+  })
+
+  it('does not claim other shots look normal when flagged and unverified shots coexist', () => {
+    ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
+      [deviation],
+      [{ shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'judge_failed' }],
+    )
+    const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
+    expect(markup).toContain('F_VERIFY_LOW')
+    expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
+    expect(markup).toContain(`镜头 2 · ${i18n.t('generationCommon.reconcile.unverifiedShotStatus')}`)
+    expect(markup).toContain('data-reconcile-why-toggle="true"')
+    expect(markup).not.toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.judge_failed'))
+    expect(markup).toContain('data-reconcile-footer-actions="true"')
+    expect(markup).not.toContain(i18n.t('generationCommon.reconcile.contentCaption'))
   })
 })

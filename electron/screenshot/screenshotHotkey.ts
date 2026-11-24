@@ -25,18 +25,18 @@ import { registerQuitDrain } from "../quitTeardown";
 
 const PREFS_FILE = "screenshot-hotkey-prefs.json";
 
-export type ScreenshotHotkeyPrefs = {
+type ScreenshotHotkeyPrefs = {
   enabled: boolean;
   accelerator: string;
 };
 
 /** 默认键 ⌥⇧Q：避开 ⌘⇧Q（macOS 注销）、⌘⇧3/4/5（系统截图）这些已被占死的组合。 */
-export const DEFAULT_SCREENSHOT_HOTKEY: ScreenshotHotkeyPrefs = {
+const DEFAULT_SCREENSHOT_HOTKEY: ScreenshotHotkeyPrefs = {
   enabled: false,
   accelerator: "Alt+Shift+Q",
 };
 
-export function normalizeScreenshotHotkeyPrefs(value: unknown): ScreenshotHotkeyPrefs {
+function normalizeScreenshotHotkeyPrefs(value: unknown): ScreenshotHotkeyPrefs {
   const raw = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
   const accelerator = typeof raw.accelerator === "string" ? raw.accelerator.trim() : "";
   return {
@@ -130,7 +130,7 @@ export function isScreenshotHotkeyRegistered(accelerator: string): boolean {
   }
 }
 
-export function disposeScreenshotHotkey(): void {
+function disposeScreenshotHotkey(): void {
   unregisterCurrent();
   try {
     globalShortcut.unregisterAll();

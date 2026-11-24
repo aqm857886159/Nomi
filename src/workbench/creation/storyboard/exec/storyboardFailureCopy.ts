@@ -2,7 +2,7 @@ import i18n from '../../../../i18n'
 import { withoutIpcInvokeWrapper } from '../../../../../electron/shared/contracts/ipcInvokeFailure'
 import { generationFailureActions, type FailureRun } from '../../../observability/generationFailureActions'
 
-export type StoryboardFailureCopy = {
+type StoryboardFailureCopy = {
   /** 画面格里那一行：失败的原因（与画布节点错误卡同一个分类器、同一份词表）。 */
   reason: string
   /**

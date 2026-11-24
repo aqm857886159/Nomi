@@ -3,7 +3,7 @@
 
 export const WORKSPACE_FILE_DRAG_MIME = 'application/x-nomi-workspace-file'
 
-export type WorkspaceFileDragPayload = {
+type WorkspaceFileDragPayload = {
   projectId: string
   relativePath: string
   name: string

@@ -200,16 +200,16 @@ type MenuVariant = Readonly<{
 }>
 
 /** 菜单里的一行 = 一个模型，或一个模型的一个变体。`key` 是行的寻址（= NomiSelect 的 option.value）。 */
-export type ModelMenuRow = Readonly<{ key: string; model: DedupedModel; variant?: MenuVariant }>
+type ModelMenuRow = Readonly<{ key: string; model: DedupedModel; variant?: MenuVariant }>
 
-export type ModelMenu = Readonly<{
+type ModelMenu = Readonly<{
   options: NomiSelectOption[]
   rows: ReadonlyMap<string, ModelMenuRow>
   /** 创作者自己藏起来的行数（底部「隐藏模型 N」的 N）。 */
   hiddenCount: number
 }>
 
-export function menuRowKey(canonicalId: string, variantId?: string): string {
+function menuRowKey(canonicalId: string, variantId?: string): string {
   return variantId ? `${canonicalId}#${variantId}` : canonicalId
 }
 
@@ -370,7 +370,7 @@ export function pickHealthiestProvider(
 // 裸值会让两项撞值——选哪家都分不清、当前锁定哪家也显示不出。用 vendor+value 复合串寻址。
 const PROVIDER_ADDRESS_SEP = '\u0000'
 
-export function providerAddress(p: ModelProviderRef): string {
+function providerAddress(p: ModelProviderRef): string {
   return `${p.vendor || ''}${PROVIDER_ADDRESS_SEP}${p.option.value}`
 }
 

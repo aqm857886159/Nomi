@@ -6,9 +6,9 @@ import { getDesktopBridge, type DesktopAssetFoldersState } from '../../desktop/b
 import { confirmDialog } from '../../design'
 import { ASSET_LIBRARY_DRAG_MIME, parseAssetLibraryDragItems } from './assetLibraryDrag'
 
-export const EMPTY_FOLDERS_STATE: DesktopAssetFoldersState = { version: 1, folders: [], assignments: {} }
+const EMPTY_FOLDERS_STATE: DesktopAssetFoldersState = { version: 1, folders: [], assignments: {} }
 
-export type UseAssetFoldersResult = {
+type UseAssetFoldersResult = {
   state: DesktopAssetFoldersState
   available: boolean
   createFolder: (label: string) => void

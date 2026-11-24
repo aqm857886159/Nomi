@@ -1,0 +1,36 @@
+{
+  "name": "Quality Gate 检出范围获取与瞬断重试边界",
+  "subject": "ci.scope-checkout",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": ".github/workflows/quality-gate.yml",
+    "symbol": "scope"
+  },
+  "write_api": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "symbol": "scope"
+    },
+    {
+      "path": "scripts/select-quality-gate-profile.mjs",
+      "symbol": "resolveProfileFromEnvironment"
+    },
+    {
+      "path": "scripts/lib/transientRetry.mjs",
+      "symbol": "isTransientGitFetchError"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/check-quality-gate-workflow.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/ci-annotation-hygiene.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/git-delivery.mjs"
+  ],
+  "since": "2026-11-24",
+  "notes": "Validation Scope 在空工作区按事件精确 SHA 浅抓并捕获中间瞬断重试输出，不触发 problem matcher 误报注解；检出完成后由 resolveProfileFromEnvironment 分类，终态失败严格非零退出。同 docs/fixes/2026-11-24-validation-scope-fetch-retry.root-cause.json。"
+}

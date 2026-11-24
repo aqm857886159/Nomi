@@ -29,7 +29,7 @@ export const DIAGNOSTICS_BUNDLE_MAX_BYTES = 25 * 1024 * 1024;
 /** 制作收据只取最近这么多个 run：再往前的对「刚刚出的问题」没有价值。 */
 const MAX_RUN_RECEIPTS = 20;
 
-export type DiagnosticsBundleInput = {
+type DiagnosticsBundleInput = {
   logsDir: string;
   /** 设置根目录（`model-catalog.json` 的家）。 */
   settingsRoot: string;
@@ -54,7 +54,7 @@ export type DiagnosticsBundleInput = {
   system: { platform: string; arch: string; osRelease: string; locale: string; timeZone: string };
 };
 
-export type DiagnosticsBundle = {
+type DiagnosticsBundle = {
   zip: Uint8Array;
   manifest: DiagnosticsExportManifest;
 };
@@ -90,7 +90,7 @@ function collectRunReceipts(projectDir: string): { runId: string; file: string }
 }
 
 /** 时间线三态的判定 + 给收包的人读的一句话。监视器没运行时，盘上的旧行（上次启动记下的）照常带上。 */
-export function describeStallTimeline(input: DiagnosticsBundleInput["stallTimeline"]): DiagnosticsStallTimeline {
+function describeStallTimeline(input: DiagnosticsBundleInput["stallTimeline"]): DiagnosticsStallTimeline {
   const { monitor, read } = input;
   const base = { file: read.file, rows: read.rows.length, rowsThisSession: monitor.rowsThisSession, droppedLines: read.droppedLines };
   const scope = "只含时间、类型、时长、所在页、是否在生成、节点数档位；不含内容与路径";

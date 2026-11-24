@@ -31,7 +31,7 @@ import { lowerGenerationIntent, type IntentReference, type LoweredGeneration, ty
 type FamilyUrls = Readonly<Record<ReferenceFamily, readonly string[]>>;
 
 /** 调用方读好的参考来源。 */
-export type HeadlessReferenceSources = Readonly<{
+type HeadlessReferenceSources = Readonly<{
   /** 每族携带的全部参考（标准输入键 + 画布已放好的 + 声明的 Comfy 参考）。 */
   carried: FamilyUrls;
   /** 同上，但不含画布已放好的那一份。 */
@@ -46,7 +46,7 @@ export type HeadlessReferenceSources = Readonly<{
   standardAggregateCarried: boolean;
 }>;
 
-export type HeadlessCapacityProblem = Readonly<{ family: ReferenceFamily; max: number; count: number }>;
+type HeadlessCapacityProblem = Readonly<{ family: ReferenceFamily; max: number; count: number }>;
 
 const ARRAY_KIND_FOR_FAMILY: Readonly<Record<ReferenceFamily, ArchetypeReferenceSlotKind>> = {
   image: "image_ref",

@@ -8,9 +8,11 @@ import {
   parseShotVerifyVerdict,
   deviationsFromVerdict,
   contentDeviationsToReconcile,
+  formatQaUnverifiedReason,
   normalizeShotScore,
   type ShotVerifyContext,
 } from './shotVerify'
+import i18n from '../../../i18n/index'
 
 const baseCtx = (over: Partial<ShotVerifyContext> = {}): ShotVerifyContext => ({
   shotNodeId: 'shot-5',
@@ -181,6 +183,23 @@ describe('buildShotVerifyPrompt — reason 语言', () => {
     for (const anchor of ['<Rubric 逐维度 1-5 档>', '打分铁律', '身份', '构图']) {
       expect(zh).toContain(anchor)
       expect(en).toContain(anchor)
+    }
+  })
+})
+
+describe('formatQaUnverifiedReason — 创作者人话原因映射', () => {
+  it('全部 5 类未校验原因码都映射到对应人话词条且不含 JSON/内部术语', () => {
+    const reasons = [
+      'vision_unavailable',
+      'missing_frame_source',
+      'frame_extract_failed',
+      'judge_failed',
+      'invalid_verdict_json',
+    ] as const
+    for (const code of reasons) {
+      const text = formatQaUnverifiedReason(code, (key) => String(i18n.t(key as never)))
+      expect(text).toBe(i18n.t(`generationCommon.reconcile.unverifiedReasons.${code}`))
+      expect(text).not.toMatch(/JSON|json|解析|parse/i)
     }
   })
 })

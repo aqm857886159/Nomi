@@ -50,6 +50,9 @@ jobs:
     name: Validation Scope
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      NOMI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || '' }}
+      NOMI_HEAD_SHA: ${{ github.sha }}
     outputs:
       core_smoke: ${{ steps.profile.outputs.core_smoke }}
       unit: ${{ steps.profile.outputs.unit }}
@@ -65,16 +68,70 @@ jobs:
       reason: ${{ steps.profile.outputs.reason }}
       changed_count: ${{ steps.profile.outputs.changed_count }}
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
+      # An empty runner cannot import repository code yet. The workflow test
+      # executes this bootstrap and checks its Git classifier against transientRetry.mjs.
+      - name: Fetch validation commits with bounded retries
+        id: checkout
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process'
+          import { setTimeout as sleep } from 'node:timers/promises'
+
+          const DEFAULT_ATTEMPTS = 3
+          const DEFAULT_BASE_DELAY_MS = 1000
+          function isTransientGitFetchError(error) {
+            if (error.code === 'ETIMEDOUT') return true
+            if (error.signal) return false
+            const stderr = String(error.stderr ?? '')
+            if (/(?:HTTP(?:\/\d(?:\.\d)?)? |returned error: )4\d\d\b|authentication failed|permission denied|repository not found|couldn.t find remote ref|not our ref|bad object|certificate problem/iu.test(stderr)) return false
+            return /failed to connect|couldn.t connect to server|timed out|connection reset|connection refused|network is unreachable|recv failure|TLS handshake timeout|TLS connection was non-properly terminated|could not resolve host|temporary failure in name resolution|(?:HTTP(?:\/\d(?:\.\d)?)? |returned error: )5\d\d\b|RPC failed|remote end hung up unexpectedly|early EOF/iu.test(stderr)
+          }
+
+          const { GITHUB_TOKEN: token, GITHUB_SERVER_URL: server, GITHUB_REPOSITORY: repository,
+            NOMI_HEAD_SHA: head, NOMI_BASE_SHA: base, ...env } = process.env
+          const sha = /^[0-9a-f]{40}$/u
+          const commits = [...new Set([head, base].filter((value) => value && value !== '0'.repeat(40)))]
+          if (!commits.includes(head) || !commits.every((value) => sha.test(value))) {
+            throw new Error('Validation Scope received an invalid commit SHA')
+          }
+
+          const options = { stdio: ['ignore', 'pipe', 'pipe'], env: { ...env, GIT_LFS_SKIP_SMUDGE: '1' } }
+          const fetchEnv = {
+            ...options.env,
+            GIT_TERMINAL_PROMPT: '0',
+            GIT_CONFIG_COUNT: '1',
+            GIT_CONFIG_KEY_0: `http.${server}/.extraheader`,
+            GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`,
+          }
+
+          execFileSync('git', ['init', '--quiet'], options)
+          for (let attempt = 1; ; attempt += 1) {
+            try {
+              execFileSync('git', ['fetch', '--depth=1', '--no-tags', '--no-recurse-submodules',
+                `${server}/${repository}.git`, ...commits], { ...options, env: fetchEnv, timeout: 150_000, killSignal: 'SIGKILL' })
+              break
+            } catch (error) {
+              // Never print raw Git output or the child-process error. Either can contain credentials or annotations.
+              if (!isTransientGitFetchError(error)) {
+                throw new Error('Validation Scope git fetch failed permanently (check access and the requested SHAs)')
+              }
+              if (attempt === DEFAULT_ATTEMPTS) {
+                throw new Error(`Validation Scope git fetch 尝试 ${attempt} 次后仍失败（网络瞬断）`)
+              }
+              console.log(`[transient-retry] git fetch attempt ${attempt}/${DEFAULT_ATTEMPTS} failed (transient network error)`)
+              await sleep(DEFAULT_BASE_DELAY_MS * 2 ** (attempt - 1))
+            }
+          }
+          execFileSync('git', ['checkout', '--quiet', '--detach', head], options)
+          NODE
       - name: Select fail-closed validation profile
         id: profile
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           NOMI_VALIDATION_MODE: ${{ inputs.validation_mode || '' }}
-          NOMI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || '' }}
-          NOMI_HEAD_SHA: ${{ github.sha }}
         run: node scripts/select-quality-gate-profile.mjs
 
   contracts:

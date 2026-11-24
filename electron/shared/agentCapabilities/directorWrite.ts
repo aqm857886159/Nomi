@@ -26,7 +26,7 @@ export function isDirectorWriteOperation(value: unknown): value is DirectorWrite
   return typeof value === "string" && (DIRECTOR_WRITE_OPERATIONS as readonly string[]).includes(value);
 }
 
-export const directorPlanEditSchema = z.object({
+const directorPlanEditSchema = z.object({
   op: z.enum(DIRECTOR_PLAN_EDIT_OPS),
   path: z.string().trim().min(2).max(240),
   // 值的形状由补丁应用后的整份计划校验来判（`planPatch.ts`），这里不复制计划 schema 的第二份。
@@ -86,7 +86,7 @@ const previewSchema = z.object({
   reason: z.string().max(200).optional(),
 }).strict();
 
-export const directorWriteAppliedSchema = z.object({
+const directorWriteAppliedSchema = z.object({
   applied: z.literal(true),
   proposalId: canonicalIdSchema,
   changeId: changeIdSchema,
@@ -113,7 +113,7 @@ export const directorWriteAppliedSchema = z.object({
  * 再把原因交回来；lane 把它翻成模型读得懂的失败（`LaneDomainFailure`）。
  * 不走传输错误码：那是闭合词表，装不下「当前修订号是什么」「哪条路径为什么不对」。
  */
-export const directorWriteRejectedSchema = z.object({
+const directorWriteRejectedSchema = z.object({
   applied: z.literal(false),
   proposalId: canonicalIdSchema,
   operation: z.enum(DIRECTOR_WRITE_OPERATIONS),
@@ -124,7 +124,6 @@ export const directorWriteRejectedSchema = z.object({
 
 export const directorWriteResultSchema = z.union([directorWriteAppliedSchema, directorWriteRejectedSchema]);
 export type DirectorWriteResult = z.infer<typeof directorWriteResultSchema>;
-export type DirectorWriteApplied = z.infer<typeof directorWriteAppliedSchema>;
 
 export const DIRECTOR_WRITE_CAPABILITY = {
   id: "director.write",

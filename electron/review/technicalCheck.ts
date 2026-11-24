@@ -8,13 +8,13 @@ import { resolveFfmpegPath } from "../export/ffmpegRunner";
 import { probeMediaMetadata } from "../export/mediaProbe";
 import { desktopT } from "../i18n";
 
-export type TechnicalCheckItem = {
+type TechnicalCheckItem = {
   id: "black-frames" | "silent-audio" | "zero-duration" | "undecodable";
   suspect: boolean;
   detail: string;
 };
 
-export type TechnicalCheckVerdict = {
+type TechnicalCheckVerdict = {
   suspect: boolean;
   checks: TechnicalCheckItem[];
 };

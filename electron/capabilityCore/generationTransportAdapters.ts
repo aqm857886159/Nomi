@@ -113,7 +113,7 @@ export function isPiGenerationToolName(toolName: string): toolName is Generation
 /**
  * 我们自己 schema 产生的逐字段拒收理由。**不是**供应商文本：`issue.path` 是我们契约里的字段名。
  */
-export type GenerationSchemaIssue = Readonly<{ path: string; message: string }>;
+type GenerationSchemaIssue = Readonly<{ path: string; message: string }>;
 
 function schemaIssuesOf(error: unknown): readonly GenerationSchemaIssue[] {
   const raw = error && typeof error === "object" ? (error as { issues?: unknown }).issues : undefined;
@@ -124,7 +124,7 @@ function schemaIssuesOf(error: unknown): readonly GenerationSchemaIssue[] {
     : []));
 }
 
-export function describeSchemaIssues(issues: readonly GenerationSchemaIssue[]): string {
+function describeSchemaIssues(issues: readonly GenerationSchemaIssue[]): string {
   return issues.map((issue) => `${issue.path || "(root)"}: ${issue.message}`).join("; ");
 }
 

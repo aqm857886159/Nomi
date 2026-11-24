@@ -17,7 +17,7 @@ import { captureAssetWriteContext } from "../assets/assetWriteContext";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { buildFramesToVideoArgs } from "./framesToVideoArgs";
 
-export type FramesToVideoPayload = {
+type FramesToVideoPayload = {
   projectId: string;
   /** 发起出片那一刻签发的原项目完整绑定；ffmpeg 之后只发布进这一份身份。 */
   projectBinding?: ProjectBinding;
@@ -29,9 +29,9 @@ export type FramesToVideoPayload = {
   frames: string[];
 };
 
-export type FramesToVideoResult = { url: string; assetId?: string };
+type FramesToVideoResult = { url: string; assetId?: string };
 
-export class FramesToVideoError extends Error {
+class FramesToVideoError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "FramesToVideoError";
