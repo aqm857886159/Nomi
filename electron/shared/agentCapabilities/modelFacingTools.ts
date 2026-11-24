@@ -124,7 +124,7 @@ export function toSemanticInput(
 }
 
 /** 这份说明书声明的「外部才有」传输字段。 */
-export function mcpTransportFieldsOf(spec: ModelFacingToolSpec): Readonly<Record<string, JsonSchemaObject>> {
+function mcpTransportFieldsOf(spec: ModelFacingToolSpec): Readonly<Record<string, JsonSchemaObject>> {
   return spec.mcpTransportFields ?? {};
 }
 
@@ -149,7 +149,7 @@ export const MCP_LEASE_PROPERTIES: Readonly<Record<string, JsonSchemaObject>> = 
 export const MCP_LEASE_FIELD_NAMES: readonly string[] = Object.freeze(Object.keys(MCP_LEASE_PROPERTIES));
 
 /** 一次装配期冲突。带上「哪两个别名在同一个字段上说了不同的话」，因为「schema 冲突」救不了任何人。 */
-export class ConflictingProfileField extends Error {
+class ConflictingProfileField extends Error {
   constructor(readonly contractId: string, readonly field: string, readonly aliases: readonly string[]) {
     super(
       `MCP profile for "${contractId}" cannot publish field "${field}": ${aliases.join(", ")} declare `
@@ -427,23 +427,6 @@ function rootEnumSelectors(spec: ModelFacingToolSpec): Record<string, readonly s
   );
 }
 
-/** 判别字段的合法值清单，进拒收回执。模型自纠时最有用的一样东西。 */
-export function mcpAllowedValues(tool: McpProfileTool): readonly string[] {
-  return Object.values(tool.discriminators).flatMap((values) => [...values]);
-}
-
-// ── 指纹：两个 profile 是不是还在说同一句话 ────────────────────────────────
-
-/**
- * 一个能力在一个 profile 上的**身份**：`别名 → 模型可见 JSON Schema` 的稳定串。
- *
- * 租约字段被摘掉——它是 profile 声明的差异，不是漂移。除此之外任何不同都是漂移：
- * 少一个字段、松一条约束、改一个描述，两边的串就不相等。
- */
-export function profileFingerprint(entries: Readonly<Record<string, JsonSchemaObject>>): string {
-  return stableStringify(entries);
-}
-
 /**
  * 指纹用的**规范形**。两个 profile 都过这一道，否则比到的是构造路径的差别，不是漂移：
  *   · `$schema` 摘掉——它是 zod→JSON Schema 转换器加的方言标记，与模型看到什么无关；
@@ -463,7 +446,7 @@ function canonicalFingerprintEntry(
 }
 
 /** internal profile 的 `别名 → schema` 表。 */
-export function internalFingerprintEntries(
+function internalFingerprintEntries(
   specs: readonly ModelFacingToolSpec[],
 ): Record<string, JsonSchemaObject> {
   return Object.fromEntries(specs.map((spec) => {
@@ -484,7 +467,7 @@ export function internalFingerprintEntries(
  *     `operation` 字段，各带一半合法值）。收窄用交集：广播里少了一个值，这里就少一个，
  *     两边当场对不上。
  */
-export function mcpFingerprintEntries(tool: McpProfileTool): Record<string, JsonSchemaObject> {
+function mcpFingerprintEntries(tool: McpProfileTool): Record<string, JsonSchemaObject> {
   const published = propertiesOf(tool.inputSchema);
   const declaredDifference = new Set([...MCP_LEASE_FIELD_NAMES, ...Object.keys(tool.discriminators), ...tool.transportOnlyFields]);
   return Object.fromEntries(tool.specs.map((spec) => {

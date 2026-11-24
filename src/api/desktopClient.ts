@@ -2,13 +2,11 @@ import type { ProviderKind } from '../desktop/providerKind'
 import { getDesktopBridge } from '../desktop/bridge'
 import type {
   AgentChatAttachment,
-  AgentChatRequest,
   AgentChatResponse,
   AgentChatUsage,
 } from '../../electron/harness/agentChatContracts'
 
 export type AgentAttachmentPayload = AgentChatAttachment
-export type AgentsChatRequestDto = AgentChatRequest
 export type AgentsChatResponseDto = AgentChatResponse
 export type AgentUsage = AgentChatUsage
 
@@ -37,14 +35,7 @@ export type ProfileKind =
 export type ModelCatalogVendorAuthType = 'none' | 'bearer' | 'x-api-key' | 'query'
 /** Renderer projection of the code-owned credential flow. Custom vendors omit it. */
 export type ModelCatalogVendorCredentialMode = 'direct-key' | 'certification'
-export type ModelCatalogVendorProviderKind = ProviderKind
-
-export type ModelCatalogIntegrationChannelKind =
-  | 'official_provider'
-  | 'aggregator_gateway'
-  | 'private_proxy'
-  | 'local_runtime'
-  | 'custom_endpoint'
+type ModelCatalogVendorProviderKind = ProviderKind
 
 export type ModelCatalogVendorDto = {
   key: string
@@ -90,7 +81,7 @@ export type ModelCatalogModelDto = {
   updatedAt: string
 }
 
-export type HttpOperationDto = {
+type HttpOperationDto = {
   method: string
   path: string
   headers?: Record<string, string>
@@ -100,7 +91,7 @@ export type HttpOperationDto = {
   provider_meta_mapping?: Record<string, unknown>
 }
 
-export type ModelCatalogMappingDto = {
+type ModelCatalogMappingDto = {
   id: string
   vendorKey: string
   taskKind: ProfileKind
@@ -113,7 +104,7 @@ export type ModelCatalogMappingDto = {
   updatedAt: string
 }
 
-export type ModelCatalogVendorApiKeyStatusDto = {
+type ModelCatalogVendorApiKeyStatusDto = {
   vendorKey: string
   hasApiKey: boolean
   enabled: boolean
@@ -186,7 +177,7 @@ export type ModelCatalogImportResultDto = {
   errors: string[]
 }
 
-export type ModelCatalogDocsFetchResultDto = {
+type ModelCatalogDocsFetchResultDto = {
   url: string
   finalUrl: string
   status: number
@@ -197,14 +188,14 @@ export type ModelCatalogDocsFetchResultDto = {
   diagnostics: string[]
 }
 
-export type ModelCatalogMappingTestRequestDto = {
+type ModelCatalogMappingTestRequestDto = {
   modelKey?: string
   prompt?: string
   stage?: 'create' | 'query' | 'result' | string
   execute?: boolean
 }
 
-export type ModelCatalogMappingTestResultDto = {
+type ModelCatalogMappingTestResultDto = {
   mappingId: string
   vendorKey: string
   taskKind: ProfileKind

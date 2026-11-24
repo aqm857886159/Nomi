@@ -20,9 +20,9 @@ export type ThumbnailImageToolkit = {
   createFromBuffer(buffer: Buffer): ThumbnailImage
 }
 
-export type ThumbnailBlock = { data: string; mimeType: 'image/jpeg' }
+type ThumbnailBlock = { data: string; mimeType: 'image/jpeg' }
 
-export type BuildThumbnailDeps = {
+type BuildThumbnailDeps = {
   toolkit: ThumbnailImageToolkit
   /** URL（nomi-local://…）→ 磁盘绝对路径；解析失败/非本地 → null。真实注入 localProtocol.parseLocalAssetUrl。 */
   readLocalFile: (url: string) => string | null
@@ -53,7 +53,7 @@ function str(value: unknown): string {
  * - artifact 投影：preview.url（图片本地链）。
  * 只认单张主资产（brief：一个结果一张缩略图）。
  */
-export function pickThumbnailSourceUrl(result: unknown): string | null {
+function pickThumbnailSourceUrl(result: unknown): string | null {
   const value = rec(result)
   const assets = Array.isArray(value.assets) ? (value.assets as Array<Record<string, unknown>>) : []
   const primary = assets[0]

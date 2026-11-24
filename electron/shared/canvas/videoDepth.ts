@@ -62,7 +62,7 @@ export type VideoDepthSourceReference = {
 };
 
 /** 规划时已知的源事实（来自 ffprobe）。 */
-export type VideoDepthSourceFacts = {
+type VideoDepthSourceFacts = {
   width?: number;
   height?: number;
   durationSeconds?: number;
@@ -85,7 +85,7 @@ export type VideoDepthProcessingPlan = {
  * 骨架模式随这一版一起删了，所以联合的另一半没有任何取值路径能到达——留着就是让下一个人
  * 以为「换个模式就能出彩色」（P1）。
  */
-export const VIDEO_DEPTH_RAW_BYTES_PER_PIXEL = 1;
+const VIDEO_DEPTH_RAW_BYTES_PER_PIXEL = 1;
 
 export function computeExpectedRawBytes(frameCount: number, outWidth: number, outHeight: number): number {
   return frameCount * outWidth * outHeight * VIDEO_DEPTH_RAW_BYTES_PER_PIXEL;
@@ -139,7 +139,7 @@ export function deriveProcessingPlan(source: VideoDepthSourceFacts): VideoDepthP
  */
 export const VIDEO_DEPTH_MAX_RAW_BYTES = 4 * 1024 * 1024 * 1024;
 
-export type VideoDepthBudgetVerdict =
+type VideoDepthBudgetVerdict =
   | { ok: true }
   | { ok: false; reason: "unknown-source" }
   | { ok: false; reason: "over-budget"; expectedRawBytes: number; limitBytes: number };

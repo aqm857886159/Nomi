@@ -90,7 +90,7 @@ function jsonTextBranch<T extends ZodTypeAny>(inner: T) {
 const STRUCTURED_BRANCH = new WeakMap<object, ZodTypeAny>();
 
 /** 拿到某个容错入参的结构化那一支；不是容错入参就返回 `undefined`。 */
-export function structuredBranchOf(schema: ZodTypeAny): ZodTypeAny | undefined {
+function structuredBranchOf(schema: ZodTypeAny): ZodTypeAny | undefined {
   return STRUCTURED_BRANCH.get(schema as unknown as object);
 }
 
@@ -122,16 +122,3 @@ export function jsonTolerantArray<T extends ZodTypeAny>(
   STRUCTURED_BRANCH.set(union, structured);
   return union as unknown as z.ZodType<z.output<T>, z.ZodTypeDef, z.input<T>>;
 }
-
-/** 同上，用于对象参数（`camera` / `crowd` 这类嵌套记录）。 */
-export function jsonTolerantObject<T extends ZodTypeAny>(
-  object: T,
-  description?: string,
-): z.ZodType<z.output<T>, z.ZodTypeDef, z.input<T>> {
-  const structured = description ? object.describe(description) : object;
-  const union = z.union([structured, jsonTextBranch(object)]);
-  STRUCTURED_BRANCH.set(union, structured);
-  return union as unknown as z.ZodType<z.output<T>, z.ZodTypeDef, z.input<T>>;
-}
-
-export { parseJsonText as parseJsonArgumentText };

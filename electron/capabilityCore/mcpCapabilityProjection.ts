@@ -75,7 +75,7 @@ export type McpCapabilityAdapter = {
   readonly mcpName?: string;
 };
 
-export type McpCapabilityTool = {
+type McpCapabilityTool = {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: SchemaLike;
@@ -88,7 +88,7 @@ export type McpCapabilityTool = {
   readonly annotations?: { readonly readOnlyHint?: true; readonly destructiveHint?: true };
 };
 
-export type McpCapabilityResolver = {
+type McpCapabilityResolver = {
   readonly list: () => readonly McpCapabilityTool[];
   readonly resolve: (alias: string) => McpCapabilityTool | undefined;
 };
@@ -241,13 +241,13 @@ const timelineEditTransportSchema = transportSchemaFromZod(timelineEditMcpInput,
 });
 const exportJobTransportSchema = transportSchemaFromZod(exportJobMcpInput, { label: "exportJob", modelVisible: false });
 
-export const TIMELINE_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(TIMELINE_READ_CAPABILITY, {
+const TIMELINE_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(TIMELINE_READ_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: "timeline:read" },
   port: { kind: "timeline", access: "read" },
   outputSchema: z.unknown(),
 });
 
-export const TIMELINE_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+const TIMELINE_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   contract: TIMELINE_WRITE_CAPABILITY,
   authority: Object.freeze({ kind: "project_session", requiredScope: "timeline:write" }),
   port: Object.freeze({ kind: "timeline", access: "write" }),
@@ -271,7 +271,7 @@ export const TIMELINE_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   },
 });
 
-export const EXPORT_JOB_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+const EXPORT_JOB_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   contract: EXPORT_READ_CAPABILITY,
   authority: Object.freeze({ kind: "project_session", requiredScope: "export:read" }),
   port: Object.freeze({ kind: "export", access: "read" }),
@@ -283,7 +283,7 @@ export const EXPORT_JOB_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   },
 });
 
-export const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(ASSET_READ_CAPABILITY, {
+const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(ASSET_READ_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: "asset:read" },
   port: { kind: "asset", access: "read" },
   outputSchema: z.unknown(),
@@ -291,7 +291,7 @@ export const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(ASSE
 
 // 布局读写不再对外发布（设计正本 §7：`layout_*` 删——42 句话术里没有一句要它）；契约留给渲染层 RPC。
 
-export const MCP_EDITING_METHODS = Object.freeze(new Set([
+const MCP_EDITING_METHODS = Object.freeze(new Set([
   TIMELINE_READ_CAPABILITY.id,
   TIMELINE_WRITE_CAPABILITY.id,
   DOCUMENT_WRITE_CAPABILITY.id,
@@ -394,7 +394,7 @@ const canvasMaintenanceMcpInput = contractModelSchema("delete_canvas_nodes", can
   confirmation: z.boolean().optional(), undoToken: z.string().trim().min(1).optional(),
 }).strict();
 const canvasMaintenanceTransportSchema = transportSchemaFromZod(canvasMaintenanceMcpInput, { label: "canvasMaintenance", modelVisible: false });
-export const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   contract: CANVAS_DELETE_CAPABILITY,
   authority: Object.freeze({ kind: "project_session", requiredScope: CANVAS_DELETE_CAPABILITY.requiredScope }),
   port: Object.freeze({ kind: "canvas", access: "write" }),
@@ -409,12 +409,12 @@ export const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freez
     return { semanticInput: semantic, transport: { leaseHandle, ...(projectId ? { projectId } : {}), ...transport } };
   },
 });
-export const DOCUMENT_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(DOCUMENT_READ_CAPABILITY, {
+const DOCUMENT_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(DOCUMENT_READ_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: DOCUMENT_READ_CAPABILITY.requiredScope },
   port: { kind: "document", access: "read" },
   outputSchema: documentReadResultSchema,
 });
-export const DOCUMENT_EDIT_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(DOCUMENT_WRITE_CAPABILITY, {
+const DOCUMENT_EDIT_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(DOCUMENT_WRITE_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: DOCUMENT_WRITE_CAPABILITY.requiredScope },
   port: { kind: "document", access: "write" },
   outputSchema: documentWriteResultSchema,
@@ -424,7 +424,7 @@ export const DOCUMENT_EDIT_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(DO
 // 两个适配器都走 `derivedAdapter`：schema 与描述从同一批动词声明机械派生，`check:tool-face` 的
 // `mcp-transport-catalog` 与 `check:model-schema` 的 `profile-schema-drift` 因此都无话可说——
 // 这正是它们取代手写的 `nomi_integration` / `nomi_integration_manage` 的方式。
-export const MODEL_SETUP_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(MODEL_ONBOARDING_SETUP_CAPABILITY, {
+const MODEL_SETUP_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(MODEL_ONBOARDING_SETUP_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: MODEL_ONBOARDING_SETUP_CAPABILITY.requiredScope },
   port: { kind: "model-catalog", access: "write" },
   outputSchema: z.unknown(),
@@ -434,13 +434,13 @@ export const MODEL_SETUP_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(MODE
  * 试跑是**付费**能力，所以它是自己一个适配器：`destructiveHint` 由 `effectClass:"spend"` 派生
  * （`mcpAnnotationsFor`），宿主因此会停下来问用户，而不是把它当成又一次接模型的本地写。
  */
-export const MODEL_TRY_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(MODEL_ONBOARDING_TRY_CAPABILITY, {
+const MODEL_TRY_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(MODEL_ONBOARDING_TRY_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: MODEL_ONBOARDING_TRY_CAPABILITY.requiredScope },
   port: { kind: "model-catalog", access: "write" },
   outputSchema: z.unknown(),
 });
 
-export const MODEL_REMOVE_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(MODEL_ONBOARDING_REMOVE_CAPABILITY, {
+const MODEL_REMOVE_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(MODEL_ONBOARDING_REMOVE_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: MODEL_ONBOARDING_REMOVE_CAPABILITY.requiredScope },
   port: { kind: "model-catalog", access: "write" },
   outputSchema: z.unknown(),
