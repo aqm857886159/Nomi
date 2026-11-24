@@ -1,14 +1,14 @@
 {
-  "head": "72b04f98b8ddc0b7f5c985175c2b27677c8bdf63",
-  "sourceTree": "707fb9dfed808060f8220643f4dbddcea8cf9bb0",
+  "head": "d402865e79a9cb58a22c2dcb91147d9995cf346c",
+  "sourceTree": "161d017154df16a917e8f52b1041abb1b2c8f496",
   "results": [
     {
       "id": "canvas-drag-20-nodes",
       "metrics": {
         "frameGapP95": {
           "runs": 5,
-          "median": 21.2,
-          "p95": 21.6
+          "median": 20.1,
+          "p95": 20.5
         },
         "longTasks": {
           "runs": 5,
@@ -18,11 +18,11 @@
       },
       "samples": {
         "frameGapP95": [
-          21.6,
-          21.1,
-          21.2,
-          21.2,
-          21.5
+          20.3,
+          20.1,
+          20.5,
+          20.1,
+          19.8
         ],
         "longTasks": [
           0,
@@ -39,16 +39,16 @@
       "budget": 33,
       "verdict": {
         "status": "regression",
-        "note": "中位数 21.2 比基线 9.3 差 128%"
+        "note": "中位数 20.1 比基线 9.3 差 116%"
       },
-      "raw": "raw-after-canvas-drag-20-nodes.json"
+      "raw": "raw-final-canvas-drag-20-nodes.json"
     },
     {
       "id": "chat-scroll-500",
       "metrics": {
         "frameGapP95": {
           "runs": 5,
-          "median": 17.4,
+          "median": 17.3,
           "p95": 17.5
         },
         "longTasks": {
@@ -59,11 +59,11 @@
       },
       "samples": {
         "frameGapP95": [
+          17,
+          17.3,
           17.5,
-          17.4,
-          17.4,
-          17.4,
-          17.4
+          17.5,
+          17.3
         ],
         "longTasks": [
           0,
@@ -80,17 +80,17 @@
       "budget": 16.7,
       "verdict": {
         "status": "over-budget",
-        "note": "中位数 17.4 > 预算 16.7"
+        "note": "中位数 17.3 > 预算 16.7"
       },
-      "raw": "raw-after-chat-scroll-500.json"
+      "raw": "raw-final-chat-scroll-500.json"
     },
     {
       "id": "timeline-scrub",
       "metrics": {
         "frameGapP95": {
           "runs": 5,
-          "median": 28.1,
-          "p95": 28.5
+          "median": 24.5,
+          "p95": 25.2
         },
         "longTasks": {
           "runs": 5,
@@ -100,11 +100,11 @@
       },
       "samples": {
         "frameGapP95": [
-          27.8,
-          28.2,
-          28.1,
-          28.1,
-          28.6
+          25,
+          24.5,
+          25.3,
+          24.4,
+          24.4
         ],
         "longTasks": [
           0,
@@ -121,17 +121,17 @@
       "budget": 33,
       "verdict": {
         "status": "regression",
-        "note": "中位数 28.1 比基线 18.3 差 54%"
+        "note": "中位数 24.5 比基线 18.3 差 34%"
       },
-      "raw": "raw-after-timeline-scrub.json"
+      "raw": "raw-final-timeline-scrub.json"
     },
     {
       "id": "window-narrow-drag",
       "metrics": {
         "frameGapP95": {
           "runs": 5,
-          "median": 18.8,
-          "p95": 19.3
+          "median": 18.9,
+          "p95": 19.2
         },
         "longTasks": {
           "runs": 5,
@@ -141,11 +141,11 @@
       },
       "samples": {
         "frameGapP95": [
-          19.1,
           18.8,
+          18.9,
+          19,
           18.4,
-          18.8,
-          19.3
+          19.2
         ],
         "longTasks": [
           0,
@@ -162,9 +162,9 @@
       "budget": 33,
       "verdict": {
         "status": "regression",
-        "note": "中位数 18.8 比基线 10.4 差 81%"
+        "note": "中位数 18.9 比基线 10.4 差 82%"
       },
-      "raw": "raw-after-window-narrow-drag.json"
+      "raw": "raw-final-window-narrow-drag.json"
     }
   ],
   "machine": {
