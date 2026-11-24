@@ -22,7 +22,7 @@ export type MountPlanInput = {
   budget?: number
 }
 
-export type MountPlan = { full: Set<string>; light: Set<string> }
+type MountPlan = { full: Set<string>; light: Set<string> }
 
 export function planItemMounts({ items, isScrolling, previousFull, previousLight, pinned, budget = 1 }: MountPlanInput): MountPlan {
   const full = new Set<string>()

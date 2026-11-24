@@ -41,7 +41,7 @@ export type LocalSpeechProgress =
   | { phase: "downloading"; doneBytes: number; totalBytes: number }
   | { phase: "transcribing"; chunkIndex: number; chunkCount: number; doneSeconds: number; totalSeconds: number };
 
-export type LocalSpeechTranscribeInput = {
+type LocalSpeechTranscribeInput = {
   /** 音轨的本地绝对路径（`extractAudioTrack` 产出的那份单声道 16k mp3）。 */
   audioFilePath: string;
   tier: LocalSpeechTier;
@@ -61,7 +61,7 @@ export type LocalSpeechTranscribeResult = {
 };
 
 /** 切一段出来喂引擎：16k 单声道 PCM wav —— whisper 内部就是这个采样率，给更高的只是更大。 */
-export function buildChunkArgs(inputPath: string, startSeconds: number, lengthSeconds: number, outPath: string): string[] {
+function buildChunkArgs(inputPath: string, startSeconds: number, lengthSeconds: number, outPath: string): string[] {
   return [
     "-y",
     "-ss", startSeconds.toFixed(3),
@@ -97,7 +97,7 @@ function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
  * 倍率按**这台机器上的引擎有没有 GPU 加速**选，不是拿 mac 的数字去糊 Windows——
  * 那样报出来的「1 分钟」在用户那里会变成 10 分钟的沉默。
  */
-export function estimateMinutes(durationSeconds: number, tier: LocalSpeechTier, gpuAccelerated: boolean): number {
+function estimateMinutes(durationSeconds: number, tier: LocalSpeechTier, gpuAccelerated: boolean): number {
   const factor = gpuAccelerated ? tier.measuredRealtimeFactor : tier.measuredCpuRealtimeFactor;
   return Math.max(1, Math.round(durationSeconds / (factor > 0 ? factor : 1) / 60));
 }

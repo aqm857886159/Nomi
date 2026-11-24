@@ -15,8 +15,8 @@ export type RequestTransformContext = {
   request?: unknown;
 };
 
-export type RequestTransformFn = (body: unknown, context: RequestTransformContext) => Promise<unknown> | unknown;
-export type RequestTransformValidator = (body: unknown, context: RequestTransformContext) => Promise<void> | void;
+type RequestTransformFn = (body: unknown, context: RequestTransformContext) => Promise<unknown> | unknown;
+type RequestTransformValidator = (body: unknown, context: RequestTransformContext) => Promise<void> | void;
 
 const registry = new Map<string, RequestTransformFn>();
 const validators = new Map<string, RequestTransformValidator>();

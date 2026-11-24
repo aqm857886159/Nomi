@@ -37,7 +37,7 @@ export type RpcProjectSessionErrorCode =
 
 export type RpcPublicErrorCode = RpcPolicyErrorCode | RpcProjectSessionErrorCode
 
-export type RpcPublicCapability = McpGenerationCapability | typeof CANVAS_READ_CAPABILITY.id | 'project.session'
+type RpcPublicCapability = McpGenerationCapability | typeof CANVAS_READ_CAPABILITY.id | 'project.session'
   | 'canvas.write' | 'canvas.delete' | 'document.read' | 'document.write'
 
 export type RpcPolicyErrorDetails = Readonly<{
@@ -46,7 +46,7 @@ export type RpcPolicyErrorDetails = Readonly<{
   capability: McpGenerationCapability
 }>
 
-export type RpcPublicErrorDetails = Readonly<{
+type RpcPublicErrorDetails = Readonly<{
   code: RpcPublicErrorCode
   nextAction?: string
   capability?: RpcPublicCapability

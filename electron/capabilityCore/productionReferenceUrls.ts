@@ -7,14 +7,37 @@ import { projectSpendReferenceAssets, type SpendReferenceAssets } from './pendin
 import { spendReferenceKey } from '../shared/contracts/pendingSpendConfirm';
 import type { GenerationReference } from '../shared/agentCapabilities/generationPlanSchemas';
 
-/** Existing asset transport performs uploads before the deterministic request seal. */
-async function localize(providerId: string, urls: readonly string[]): Promise<readonly string[]> {
-  const catalog = readCatalog();
+type LocalizeProductionReferenceUrlsDeps = Readonly<{
+  readCatalog: typeof readCatalog;
+  localizeForSend: typeof localizeForSend;
+  assetIngestionResolver: typeof assetIngestionResolver;
+  assetLocalizationOptions: typeof assetLocalizationOptions;
+}>;
+
+const DEFAULT_LOCALIZE_DEPS: LocalizeProductionReferenceUrlsDeps = {
+  readCatalog,
+  localizeForSend,
+  assetIngestionResolver,
+  assetLocalizationOptions,
+};
+
+/**
+ * Existing asset transport performs uploads before the deterministic request seal.
+ * 不改写 localizeForSend 抛出的 asset-too-large / asset-upload-failed 首行本地化通道摘要
+ * （也不覆盖 AnonymousAssetConsentRequiredError 自身的 hostingDisabled 文案，NF-1107-0002），
+ * 同时截断换行后的诊断明细，避免文件名或签名 URL 经由错误消息外泄（#1638）。
+ */
+export async function localizeProductionReferenceUrls(
+  providerId: string,
+  urls: readonly string[],
+  deps: LocalizeProductionReferenceUrlsDeps = DEFAULT_LOCALIZE_DEPS,
+): Promise<readonly string[]> {
+  const catalog = deps.readCatalog();
   const vendor = catalog.vendors.find(vendor => vendor.key === providerId);
   if (!vendor) throw new Error('generation_reference_provider_unavailable');
-  const result = await localizeForSend({ urls }, assetIngestionResolver(vendor, catalog),
+  const result = await deps.localizeForSend({ urls }, deps.assetIngestionResolver(vendor, catalog),
     readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload,
-    assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload).catch((error: unknown) => {
+    deps.assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload).catch((error: unknown) => {
       // Only the first line is the localized channel summary. The detail can contain file names or signed URLs.
       if (error instanceof Error && error.message.includes('\n')) {
         const code = matchNomiErrorCode(error.message);
@@ -36,8 +59,8 @@ export async function resolveProductionReferenceUrls(input: Readonly<{
   assertCurrent: () => void;
 }>, deps: Readonly<{
   assets: SpendReferenceAssets;
-  localize: typeof localize;
-}> = { assets: projectSpendReferenceAssets, localize }): Promise<Readonly<Record<string, string>>> {
+  localize: (providerId: string, urls: readonly string[]) => Promise<readonly string[]>;
+}> = { assets: projectSpendReferenceAssets, localize: localizeProductionReferenceUrls }): Promise<Readonly<Record<string, string>>> {
   input.assertCurrent();
   if (input.references.length === 0) return {};
   const indexed = deps.assets.list(input.projectId);

@@ -12,10 +12,8 @@
  */
 import {
   ensureVerifiedAssets,
-  isVerifiedAssetCached,
   pendingVerifiedAssetBytes,
   verifiedAssetPath,
-  verifiedAssetRoot,
   type VerifiedDownloadProgress,
 } from "../downloads/verifiedAssetCache";
 import type { VideoDepthModelAsset } from "../shared/canvas/videoDepthModels";
@@ -23,19 +21,11 @@ import type { VideoDepthModelAsset } from "../shared/canvas/videoDepthModels";
 /** 缓存家族名——深度权重与其它按需资产分目录，互不干扰。 */
 const FAMILY = "video-depth";
 
-export function getVideoDepthModelRoot(): string {
-  return verifiedAssetRoot(FAMILY);
-}
-
 export function videoDepthModelPath(asset: VideoDepthModelAsset): string {
   return verifiedAssetPath(FAMILY, asset);
 }
 
-export function isVideoDepthModelCached(asset: VideoDepthModelAsset): boolean {
-  return isVerifiedAssetCached(FAMILY, asset);
-}
-
-export type VideoDepthDownloadProgress = VerifiedDownloadProgress;
+type VideoDepthDownloadProgress = VerifiedDownloadProgress;
 
 export async function ensureVideoDepthModels(
   assets: readonly VideoDepthModelAsset[],

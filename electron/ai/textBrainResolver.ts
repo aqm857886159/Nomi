@@ -259,19 +259,33 @@ export function resolveTextBrainKeys(
   return resolveConfiguredTextBrain(readCatalog(), options.preferImageInput === true);
 }
 
+function resolveConfiguredTextBrainEntry(
+  state: CatalogState,
+  preferImageInput = false,
+): { vendor: string; modelKey: string; imageInput: ImageInputSupport } | null {
+  // 候选表已经是「可用」的全集（isExecutableTextModel → 可用性 owner），首屏就绪与 chooseTextModel
+  // 因此读的是**同一条**判据：横幅说「已连接」时助手下拉必定非空，反之亦然。
+  const configured = selectTextModelCandidates(state, undefined, preferImageInput)[0];
+  return configured
+    ? {
+        vendor: configured.vendor.key,
+        modelKey: configured.model.modelKey,
+        imageInput: modelImageInputSupport(configured.model),
+      }
+    : null;
+}
+
 function resolveConfiguredTextBrain(
   state: CatalogState,
   preferImageInput = false,
 ): { vendor: string; modelKey: string } | null {
-  // 候选表已经是「可用」的全集（isExecutableTextModel → 可用性 owner），首屏就绪与 chooseTextModel
-  // 因此读的是**同一条**判据：横幅说「已连接」时助手下拉必定非空，反之亦然。
-  const configured = selectTextModelCandidates(state, undefined, preferImageInput)[0];
-  return configured ? { vendor: configured.vendor.key, modelKey: configured.model.modelKey } : null;
+  const configured = resolveConfiguredTextBrainEntry(state, preferImageInput);
+  return configured ? { vendor: configured.vendor, modelKey: configured.modelKey } : null;
 }
 
 /** Read-only catalog readiness. Locked is learned only by the first real request, never by startup probing. */
 export function resolveTextBrainStatus(preference?: TextModelPreference, options: { strict?: boolean } = {}):
-  | { status: "ok"; brain: { vendor: string; modelKey: string } }
+  | { status: "ok"; brain: { vendor: string; modelKey: string }; imageInput: ImageInputSupport }
   | { status: "missing"; preferredUnavailable?: true } {
   const state = readCatalog();
   // 「跟随 Agent 的模型」= Agent 面板里选的那个：和 lane 的 chooseTextModel 同一个候选选择器（selectTextModelCandidates），
@@ -279,7 +293,13 @@ export function resolveTextBrainStatus(preference?: TextModelPreference, options
   if (preference?.modelKey?.trim() && preference.vendorKey?.trim()) {
     try {
       const chosen = selectTextModelCandidates(state, preference)[0];
-      if (chosen) return { status: "ok", brain: { vendor: chosen.vendor.key, modelKey: chosen.model.modelKey } };
+      if (chosen) {
+        return {
+          status: "ok",
+          brain: { vendor: chosen.vendor.key, modelKey: chosen.model.modelKey },
+          imageInput: modelImageInputSupport(chosen.model),
+        };
+      }
     } catch (error) {
       if (!(error instanceof TextModelUnavailableError)) throw error;
     }
@@ -287,7 +307,13 @@ export function resolveTextBrainStatus(preference?: TextModelPreference, options
     // 只读的状态检查（横幅 / useHasTextModel）不传 strict，照旧回落。
     if (options.strict) return { status: "missing", preferredUnavailable: true };
   }
-  const brain = resolveConfiguredTextBrain(state);
-  if (brain) return { status: "ok", brain };
+  const resolved = resolveConfiguredTextBrainEntry(state);
+  if (resolved) {
+    return {
+      status: "ok",
+      brain: { vendor: resolved.vendor, modelKey: resolved.modelKey },
+      imageInput: resolved.imageInput,
+    };
+  }
   return { status: "missing" };
 }

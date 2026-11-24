@@ -3,7 +3,7 @@
 import { buildResultThumbnail, type ThumbnailImageToolkit } from './mcpPreviewImage'
 
 /** App 侧富化夹带的内部字段名（协议/文本层剥离时的单一真相源，别再各处硬写字符串）。 */
-export const INTERNAL_ENRICH_FIELDS = ['_nomiThumbnail', '_nomiPreviewUrl'] as const
+const INTERNAL_ENRICH_FIELDS = ['_nomiThumbnail', '_nomiPreviewUrl'] as const
 
 /**
  * 剥掉 result 上 App 侧富化的内部字段（_nomiThumbnail=缩略图 base64、_nomiPreviewUrl=签名链）。
@@ -19,7 +19,7 @@ export function stripInternalEnrichFields(result: unknown): unknown {
   return clone
 }
 
-export type EnrichArtifactDeps = {
+type EnrichArtifactDeps = {
   toolkit: ThumbnailImageToolkit
   readFileBytes: (path: string) => Buffer
   /** nomi-local URL → 磁盘绝对路径（真实注入 localProtocol.parseLocalAssetUrl）。 */

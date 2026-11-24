@@ -180,8 +180,6 @@ export const timelineReadSemanticInputSchema = z.union([
   inspectTimelineRangeInputSchema,
   proposeEditPlanInputSchema,
 ]);
-
-export type TimelineOperationInput = z.infer<typeof timelineOperationSchema>;
 export type TimelineEditPlanInput = z.infer<typeof timelineEditPlanSchema>;
 export type TimelineReadInput = z.infer<typeof timelineReadSemanticInputSchema>;
 
@@ -278,7 +276,7 @@ const projectedTimelineFields = {
   transitions: z.array(projectedTransitionSchema),
 } as const;
 
-export const projectedTimelineSchema = z.object(projectedTimelineFields).strict();
+const projectedTimelineSchema = z.object(projectedTimelineFields).strict();
 
 export const timelineReadResultSchema = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("read_timeline"), ...projectedTimelineFields }).strict(),
@@ -346,7 +344,6 @@ export function timelineReadInputForAlias(alias: string, value: unknown): Timeli
   if (!schema) return undefined;
   return timelineReadSemanticInputSchema.parse({ operation: alias, ...schema.parse(value) });
 }
-
 
 export const TIMELINE_READ_CAPABILITY = {
   id: "timeline.read",

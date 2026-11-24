@@ -5,8 +5,8 @@ import { productionJobOpenAs } from "./productionJobOpenAs";
 import { spendAuthorizationGates } from "./productionSpendAuthority";
 import { currentPresentation, draftCardHidden, IN_APP_AGENT_ORIGIN_HOST, latestHandOver, offerShots } from "./productionGenerationPresentation";
 
-export type ShotClaimRequester = "canvas" | "production";
-export type ShotClaimHolder = "canvas" | "production" | "none";
+type ShotClaimRequester = "canvas" | "production";
+type ShotClaimHolder = "canvas" | "production" | "none";
 export type ShotClaimReason =
   | "missing_run"
   | "missing_shot"
@@ -26,12 +26,11 @@ export type ShotClaimReason =
   | "run_stopped"
   | "terminal";
 
-export type ShotClaimDecision = {
+type ShotClaimDecision = {
   granted: boolean;
   holder: ShotClaimHolder;
   reason: ShotClaimReason;
 };
-
 
 function terminalStatus(status: ProductionJobStatus): boolean {
   switch (status) {

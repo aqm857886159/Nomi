@@ -1,0 +1,287 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-22-qa-verdict-honesty",
+  "problem_type": "QA shot verification silently collapsed vision-unavailable, extraction failure, judge failure, and invalid JSON into an empty deviation list, causing downstream ProductionRun QA to falsely report all shots passed",
+  "symptom": "When the active text brain does not support image input, frame extraction fails, the judge call throws, or the model returns non-JSON, verifyGeneratedShots returned [], capabilityApplyHandler computed passed = flagged.length === 0 as true, and productionQaVerdict reported '审片完成：N 镜全部过检' while ReconcileDeviationCard stayed blank or implied all other shots were normal.",
+  "direct_cause": "shotVerifyJudge hardcoded visionAvailable: () => true, shotVerifyRunner returned only ReconcileDeviation[] and swallowed per-shot errors with continue/[], and capabilityApplyHandler derived a two-state boolean passed: flagged.length === 0 instead of preserving an explicit unverified state.",
+  "class_root": "Representing a three-state inspection outcome (passed / flagged / unverified) with a two-state presence-of-deviations list conflates 'verified with zero issues' and 'could not verify', allowing any upstream failure to look indistinguishable from a full pass.",
+  "affected_population": [
+    "All ProductionRun runs entering the QA stage (production.verify-shots)",
+    "All Generation Canvas shot verification feedback panels (ReconcileDeviationCard via useShotVerifyStore)",
+    "Users whose active text model does not support image input or encounters transient vision/frame errors during QA"
+  ],
+  "scope_paths": [
+    "electron/ai/textBrainResolver.ts",
+    "electron/promptLibrary/promptLibraryIpc.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/shared/productionQaVerdict.ts",
+    "electron/productionRun/productionQaVerdict.ts",
+    "electron/productionRun/productionRunDriverOps.ts",
+    "electron/productionRun/productionRunProjections.ts",
+    "src/desktop/bridge.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "src/workbench/generationCanvas/agent/shotVerify.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+    "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+    "src/workbench/ai/resident/useShotVerifyFeedback.tsx",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/production/productionRunView.ts",
+    "src/workbench/production/ProductionDetails.tsx",
+    "src/workbench/project/workbenchProjectContent.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.ts::verifyGeneratedShots",
+    "src/workbench/generationCanvas/agent/shotVerifyJudge.ts::makeShotVerifyDeps",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.ts::verifyShotsAndReport",
+    "src/workbench/capability/capabilityApplyHandler.ts::verifyShotsForProduction",
+    "electron/productionRun/productionQaVerdict.ts::buildQaStageOutcome",
+    "src/workbench/production/ProductionDetails.tsx::ProductionDetails",
+    "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx::ReconcileDeviationCard"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "QA verdict state modeling, vision capability gating via modelImageInputSupport, and ProductionRun/GenerationCanvas verdict presentation are internal Nomi domain contracts.",
+  "invariants": [
+    "Every shot submitted to verifyGeneratedShots produces an explicit ShotVerifyShotOutcome with status in {passed, flagged, unverified} (canonical owner QaShotVerdictStatus in electron/shared/productionQaVerdict.ts).",
+    "makeShotVerifyDeps().visionAvailable() queries the main-process text brain status (backed by modelImageInputSupport) and returns false whenever no usable brain exists or imageInput === 'unsupported'.",
+    "verifyShotsForProduction never infers passed: true from an empty deviation array; only status === 'passed' sets passed: true, while status === 'unverified' sets passed: false and carries unverifiedReason.",
+    "Renderer verdict and stage report consumers import the neutral shared module directly; check-boundaries rejects direct main-process imports.",
+    "buildQaRetryPlans retries strictly status === 'flagged' shots and never triggers paid retries for status === 'unverified' shots.",
+    "buildQaStageOutcome emits '审片完成：N 镜全部过检' (and localized allPassed copy) if and only if all shots are verified with status === 'passed' (flaggedCount === 0 && unverifiedCount === 0); any unverified shot is surfaced honestly in qaReport, ProductionDetails, and ReconcileDeviationCard without offering AI Fix for unverified-only runs."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/productionQaVerdict.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyJudge.test.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts",
+      "src/workbench/capability/capabilityApplyHandler.qaVerdict.test.ts",
+      "electron/productionRun/productionQaVerify.test.ts",
+      "src/workbench/ai/resident/useShotVerifyFeedback.test.ts",
+      "src/workbench/production/ProductionRunTaskCard.test.ts",
+      "src/workbench/production/productionRunView.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "resolveTextBrainStatus"
+    },
+    {
+      "kind": "read",
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "symbol": "resolveTextBrainStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/bridge.ts",
+      "symbol": "DesktopBridge"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/productionQaVerdict.ts",
+      "symbol": "QaShotVerdictStatus"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "symbol": "QaStageReport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "symbol": "makeShotVerifyDeps"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "symbol": "formatQaUnverifiedReason"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "verifyGeneratedShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "symbol": "verifyShotsAndReport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "verifyShotsForProduction"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "buildQaStageOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunDriverOps.ts",
+      "symbol": "buildQaStageOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunProjections.ts",
+      "symbol": "qaReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/useShotVerifyFeedback.tsx",
+      "symbol": "useShotVerifyStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+      "symbol": "formatQaUnverifiedReason"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "qaReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionDetails.tsx",
+      "symbol": "formatQaUnverifiedReason"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/generationCommon.ts",
+      "symbol": "unverifiedReasons"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectContent.ts",
+      "symbol": "useShotVerifyStore"
+    }
+  ],
+  "door_reduction": {
+    "before": 19,
+    "after": 19,
+    "why_not": "These doors trace the single end-to-end QA pipeline across Electron main (textBrainResolver -> IPC -> productionQaVerdict -> driverOps -> projections) and renderer (shotVerifyJudge -> shotVerifyRunner -> shotVerifyStore -> capabilityApplyHandler -> ReconcileDeviationCard / ProductionDetails); all share QaShotVerdictStatus and formatQaUnverifiedReason as single owners instead of recomputing pass/fail from empty deviation lists. ProductionStage reads QaStageReport to keep the report in persisted run snapshots, and the report types now come from the neutral shared module."
+  },
+  "generality_proof": "By replacing the two-state ReconcileDeviation[] return contract and boolean passed = flagged.length === 0 derivation with the single registered three-state QaShotVerdictStatus vocabulary (passed | flagged | unverified) from runner through IPC/capability bridge to ProductionRun ledger and both UI surfaces (ReconcileDeviationCard and ProductionDetails), any failure mode (vision unsupported, missing frame, extraction error, judge error, invalid JSON) is structurally unable to masquerade as passed or trigger paid retries.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/productionQaVerdict.ts",
+      "symbol": "QaShotVerdictStatus",
+      "responsibility": "Single canonical semantic vocabulary owner for 3-state QA shot verdicts (passed | flagged | unverified) and QaStageReport."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "verifyGeneratedShots",
+      "responsibility": "Produces exhaustive per-shot 3-state outcomes and structured unverified reasons without silent swallowing; also owns formatQaUnverifiedReason static i18n mapping."
+    },
+    {
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "buildQaStageOutcome",
+      "responsibility": "Single main-process aggregation boundary mapping 3-state per-shot verdicts to qa.verdict events, stageSummary, qaReport, and flagged-only retry plans."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "entry_point": "makeShotVerifyDeps().visionAvailable",
+      "disposition": "enforced",
+      "evidence": "Replaced hardcoded () => true with main-process promptLibrary.textBrain lookup reading modelImageInputSupport."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "entry_point": "verifyGeneratedShots",
+      "disposition": "enforced",
+      "evidence": "All 5 failure branches record explicit unverified entries and shotOutcomes instead of returning [] or silent continue."
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "verifyShotsForProduction",
+      "disposition": "enforced",
+      "evidence": "Deleted passed: flagged.length === 0; maps report.shotOutcomes directly to 3-state verdicts."
+    },
+    {
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "entry_point": "buildQaStageOutcome / buildQaRetryPlans",
+      "disposition": "enforced",
+      "evidence": "Only flagged shots are retried; all-passed wording requires flagged === 0 && unverified === 0; unverified shots produce honest summaries and qaReport."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+      "entry_point": "ReconcileDeviationCard",
+      "disposition": "enforced",
+      "evidence": "Displays unverified items with localized reasons, suppresses AI Fix when only unverified, and never claims remaining shots are normal when unverified shots exist."
+    },
+    {
+      "path": "src/workbench/production/ProductionDetails.tsx",
+      "entry_point": "ProductionDetails",
+      "disposition": "enforced",
+      "evidence": "Renders localized 3-state qaReport summary directly inside the QA stage details in Task Center."
+    }
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-22",
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Silent-catch-to-empty-list fake-pass patterns recur wherever a multi-state check (passed / flagged / unverified) is collapsed into a boolean or list length.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs verifyGeneratedShots",
+      "node scripts/door-map.mjs verifyShotsAndReport",
+      "node scripts/door-map.mjs useShotVerifyStore",
+      "node scripts/door-map.mjs buildQaStageOutcome"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/productionQaVerdict.ts",
+    "invariant": "QaShotVerdictStatus (passed | flagged | unverified) is registered in scripts/vocabularies-baseline.json and enforced across ShotVerifyReport, QaShotVerdict, QaStageReport, and exhaustive formatQaUnverifiedReason switch.",
+    "failure_mode": "TypeScript compilation fails on unhandled status/reason cases, check:vocabularies rejects duplicate/unregistered status unions, and unit tests fail on any do-nothing or fake-pass regression.",
+    "exception_policy": "none",
+    "strategy": "Replace the 2-state deviation-list contract with an explicit 3-state discriminated report end-to-end and lock both positive (all-passed) and negative (unverified/mixed) invariants in unit tests.",
+    "artifacts": [
+      "electron/shared/productionQaVerdict.ts",
+      "scripts/vocabularies-baseline.json",
+      "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "electron/productionRun/productionQaVerdict.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyJudge.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts",
+    "src/workbench/capability/capabilityApplyHandler.qaVerdict.test.ts",
+    "electron/productionRun/productionQaVerify.test.ts",
+    "src/workbench/ai/resident/useShotVerifyFeedback.test.ts",
+    "src/workbench/production/ProductionRunTaskCard.test.ts",
+    "src/workbench/production/productionRunView.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
+    "src/workbench/capability/capabilityApplyHandler.qaVerdict.test.ts",
+    "electron/productionRun/productionQaVerify.test.ts",
+    "src/workbench/ai/resident/useShotVerifyFeedback.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.ts"
+    ],
+    "rationale": "Deleted hardcoded visionAvailable: () => true in shotVerifyJudge.ts, deleted silent-empty-array return contract in shotVerifyRunner.ts, and deleted passed: flagged.length === 0 derivation in capabilityApplyHandler.ts in the same commit."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Uses only existing repository modules (modelImageInputSupport, i18next, Zustand store).",
+    "exit_criteria": []
+  },
+  "migration": "Legacy persisted ProductionRun snapshots without qaReport or per-verdict status remain readable via qaSummary fallback and resolveQaVerdictStatus (passed ? 'passed' : 'flagged') without any destructive migration.",
+  "residual_risks": [
+    "Custom/relay text models that do not declare supportsImageInput (imageInput: 'unknown') are still attempted at runtime and fall back cleanly to unverified(judge_failed | invalid_verdict_json) if the upstream rejects image attachments."
+  ]
+}

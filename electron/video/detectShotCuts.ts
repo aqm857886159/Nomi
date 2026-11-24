@@ -53,7 +53,7 @@ export const MAX_CUTS = 120;
  * （实测 2026-09-22：F2 精确率 0.882→0.978 而召回恒为 1.0；放到 3 帧起就开始吃掉真快剪，
  * 5 帧/0.2s 虽然 F1 更好看，但那是拿召回换的——那是产品取舍，不是去重）。
  */
-export const SHOT_CUT_DEDUPE_FRAMES = 2;
+const SHOT_CUT_DEDUPE_FRAMES = 2;
 
 /** 一个切点。第 i 刀恒是联系表第 i 格——见文件头与 `buildSheetFilter`（按 pts 点名，由构造保证）。 */
 export type ShotCut = {
@@ -63,9 +63,9 @@ export type ShotCut = {
   score: number;
 };
 
-export type DetectShotCutsPayload = { videoUrl: string; projectId: string };
+type DetectShotCutsPayload = { videoUrl: string; projectId: string };
 
-export type DetectShotCutsResult = {
+type DetectShotCutsResult = {
   cuts: ShotCut[];
   durationSeconds: number;
   /** 联系表图（nomi-local URL）；切点为 0 时为 null。落项目缓存区，**不进素材库**。 */
@@ -83,7 +83,7 @@ export type DetectShotCutsResult = {
   coverage: ShotCutCoverage;
 };
 
-export class ShotCutError extends Error {
+class ShotCutError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ShotCutError";

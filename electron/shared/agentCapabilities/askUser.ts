@@ -96,7 +96,7 @@ export const askUserInputSchema = z.object({
     .describe("One to three questions on one card, one at a time. Put related questions in a single call, not ask-wait-ask."),
 }).strict();
 
-export type AskUserInput = z.infer<typeof askUserInputSchema>;
+type AskUserInput = z.infer<typeof askUserInputSchema>;
 
 /** 一题的答复。`optionIds` 只在多选时有多个；`text` **永远有**——模型只认字。 */
 export const askUserAnswerSchema = z.object({
@@ -172,8 +172,6 @@ export const askUserPendingArgsSchema = z.object({
   (value) => Boolean(value.questions?.length || value.missingParam),
   { message: "A question card needs at least one question, or the name of the missing parameter" },
 );
-
-export type AskUserPendingArgs = z.infer<typeof askUserPendingArgsSchema>;
 
 /**
  * 提问能力的契约。

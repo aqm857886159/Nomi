@@ -19,7 +19,7 @@ import type {
  * 用户在 Nomi 里已经建好的项目一个也接不上（24 个工具里 14 个是租约门控的）。
  * 项目 id 本来就由服务端自己的 project.list 列出（不是客户端猜的），签发路径与 created_project 逐字节相同。
  */
-export type ProjectSelectionSource = 'current_project' | 'created_project' | 'listed_project' | 'server_allowlist'
+type ProjectSelectionSource = 'current_project' | 'created_project' | 'listed_project' | 'server_allowlist'
 
 export type ProjectSelectionResolution = Readonly<Omit<ProjectSelectionInput, 'scopeSet' | 'ttlMs'>>
 
@@ -33,7 +33,7 @@ export type ProjectSelectionResolver = (
   request: ProjectSelectionRequest,
 ) => Promise<ProjectSelectionResolution>
 
-export type ProjectSessionOpenResult = Readonly<{
+type ProjectSessionOpenResult = Readonly<{
   protocolVersion: 2
   sessionId: string
   leaseHandle: string
@@ -45,7 +45,7 @@ export type ProjectSessionOpenResult = Readonly<{
   effectiveScope: readonly string[]
 }>
 
-export type ProjectSessionAuthorityDeps = Readonly<{
+type ProjectSessionAuthorityDeps = Readonly<{
   leaseAuthority: ProjectLeaseAuthority
   resolveProjectSelection: ProjectSelectionResolver
 }>
@@ -60,7 +60,7 @@ export class ProjectSessionRequestError extends Error {
   }
 }
 
-export function scopeForGenerationCapability(capability: McpGenerationCapability): string {
+function scopeForGenerationCapability(capability: McpGenerationCapability): string {
   switch (capability) {
     case 'context': return 'context:read'
     case 'read': return 'generation:read'

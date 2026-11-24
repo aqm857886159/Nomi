@@ -26,7 +26,7 @@ export type ReferenceInfo = {
 /** url → 小块上显示的名字。没有登记的 url（别的宿主、旧引用）回落到「参考图 N」。 */
 export const ReferenceNamesContext = React.createContext<Readonly<Record<string, string>> | null>(null)
 
-export const REFERENCE_CHIP_NAME_MAX = 8
+const REFERENCE_CHIP_NAME_MAX = 8
 
 export function clipReferenceName(name: string, max = REFERENCE_CHIP_NAME_MAX): string {
   const chars = [...name.trim()]

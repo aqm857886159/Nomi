@@ -70,7 +70,7 @@ export function videoRecommendationInput(candidate: PlanCandidate): VideoGenerat
   };
 }
 
-export const normalizedModelIdentity = (value: string): string => value.trim().toLowerCase();
+const normalizedModelIdentity = (value: string): string => value.trim().toLowerCase();
 
 /**
  * P4 S2: a shot's duration estimate in seconds from its selected parameters, or undefined when it
@@ -271,7 +271,7 @@ export function acceptedParameterSchema(
   }
 }
 
-export type AuthoredCandidateAdmissionOptions = {
+type AuthoredCandidateAdmissionOptions = {
   /** 同批次分镜通过 `storyboard.anchorIds` 传入的锚点产出需求（非 text 锚点才计入参考输入）。 */
   extraReferenceDemands?: readonly ReferenceDemand[];
   /** 是否在本次归一中校验显式 `modeId` 的必填参考槽；默认按入参候选是否显式写了 `modeId` 判定。 */

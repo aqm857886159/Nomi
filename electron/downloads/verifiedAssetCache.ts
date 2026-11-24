@@ -58,7 +58,7 @@ export type VerifiedDownloadProgress = {
   totalBytes: number;
 };
 
-export type VerifiedDownloadErrorCode =
+type VerifiedDownloadErrorCode =
   | "download-failed"
   | "checksum-mismatch"
   | "size-mismatch"
@@ -105,11 +105,6 @@ export function isVerifiedAssetCached(family: string, asset: VerifiedAsset): boo
 /** 还需要下载多少字节（用于开跑前告诉用户「这次要先下 N MB」）。 */
 export function pendingVerifiedAssetBytes(family: string, assets: readonly VerifiedAsset[]): number {
   return assets.reduce((sum, asset) => (isVerifiedAssetCached(family, asset) ? sum : sum + asset.sizeBytes), 0);
-}
-
-/** 清单里所有下载源的 origin——出站白名单与 `check:outbound-policy` 共用。 */
-export function verifiedAssetOrigins(assets: readonly VerifiedAsset[]): readonly string[] {
-  return [...new Set(assets.map((asset) => new URL(asset.downloadUrl).origin))];
 }
 
 /** 磁盘满是它自己一档：文案要指向「腾空间」，不能混进「网络不好，重试」。 */

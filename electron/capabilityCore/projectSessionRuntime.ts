@@ -23,7 +23,7 @@ export type VerifiedProjectSessionBinding = Readonly<{
   readonly [verifiedProjectSessionBindingBrand]: never;
 }>;
 
-export type ProjectSessionLeaseVerification = Readonly<{
+type ProjectSessionLeaseVerification = Readonly<{
   connection: McpConnectionContext;
   verifyLease: ProjectSessionAuthority["verifyLease"];
 }>;
@@ -46,7 +46,7 @@ const projectSessionRuntimeStates = new WeakMap<object, ProjectSessionRuntimeSta
 const projectSessionAuthorityStates = new WeakMap<object, ProjectSessionRuntimeState>();
 const verifiedProjectSessionBindingStates = new WeakMap<object, ProjectSessionLeaseVerification>();
 
-export type ProjectSessionRuntimeDeps = Readonly<{
+type ProjectSessionRuntimeDeps = Readonly<{
   leaseFilePath: string;
   leaseMacKey: string | NodeJS.TypedArray;
   leaseStoreMacKey: string | NodeJS.TypedArray;
@@ -61,7 +61,7 @@ export type ProjectSessionRuntimeDeps = Readonly<{
   isServerAllowlisted: (projectId: string, connection: McpConnectionContext) => boolean;
 }>;
 
-export type ProductionProjectSessionRuntimeOptions = Readonly<{
+type ProductionProjectSessionRuntimeOptions = Readonly<{
   getOpenProjectSelection: () => CurrentProjectSelection | null;
   isServerAllowlisted: (projectId: string, connection: McpConnectionContext) => boolean;
 }>;
@@ -142,7 +142,7 @@ export function createProductionProjectSessionRuntime(options: ProductionProject
   });
 }
 
-export type ProjectSessionRuntime = ReturnType<typeof createProjectSessionRuntime>;
+type ProjectSessionRuntime = ReturnType<typeof createProjectSessionRuntime>;
 
 /**
  * Join one exact B1 runtime with one exact transport-minted connection. Neither

@@ -15,9 +15,9 @@ import type {
 } from '../../../../electron/shared/videoCapabilities/planResolver'
 import type { ResolveBlocker } from '../../generationCanvas/agent/storyboardStrategy'
 
-export type StrategyTranslate = (key: string, options?: Record<string, unknown>) => string
+type StrategyTranslate = (key: string, options?: Record<string, unknown>) => string
 
-export type AggregatedIssue = {
+type AggregatedIssue = {
   issue: PlanIssue
   shotIds: string[]
 }

@@ -24,9 +24,9 @@ import { verifyMcpClient } from './security'
 import type { ResultLocale } from './mcpToolResults'
 
 /** 一条 HTTP 会话认出来的人：连接身份（租约绑它）+ 这次用的 proof（会话内每个请求都得一样）。 */
-export type McpHttpIdentity = Readonly<{ connection: McpConnectionContext; proof: string }>
+type McpHttpIdentity = Readonly<{ connection: McpConnectionContext; proof: string }>
 
-export type McpHttpServerOptions = Readonly<{
+type McpHttpServerOptions = Readonly<{
   /** 0 = 随机（走查 / 单测）。 */
   port: number
   /** 每条会话一个协议实例（createNomiMcpServer）。生产用 createLoopbackMcpHttpSession。 */

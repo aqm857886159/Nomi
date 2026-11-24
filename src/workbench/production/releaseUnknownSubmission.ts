@@ -7,7 +7,7 @@ import { executeProductionRunCommand } from './productionRunCommands'
 import { useProductionCanvasLandingStore } from './productionCanvasLandingStore'
 import { useProductionRunStore } from './productionRunStore'
 
-export type ReleaseUnknownApi = Pick<DesktopProductionRunBridge, 'read' | 'command'>
+type ReleaseUnknownApi = Pick<DesktopProductionRunBridge, 'read' | 'command'>
 
 /**
  * 人确认可能再扣费后——把那次结果未知的尝试记成「用户核对后放弃」，释放这一镜的占用。

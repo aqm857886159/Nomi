@@ -19,7 +19,7 @@ import { assertIssuedGenerationPlanning } from "./generationPlanningIssue";
 
 type RunOwner = Pick<ProductionRunService, "readFull" | "command">;
 
-export type ResidentGenerationAdapterFactoryInput = Readonly<{
+type ResidentGenerationAdapterFactoryInput = Readonly<{
   planning: NonNullable<DispatchContext["generationPlanning"]>;
   requestGenerationGate?: DispatchContext["requestGenerationGate"];
   authorizeGeneration?: DispatchContext["authorizeGeneration"];
@@ -97,7 +97,7 @@ export function installResidentGenerationAdapter(input: ResidentGenerationAdapte
  * planner as MCP; no renderer project scalar or second operation store is
  * introduced here.
  */
-export function createResidentGenerationAdapterFactory(
+function createResidentGenerationAdapterFactory(
   input: ResidentGenerationAdapterFactoryInput,
 ): ResidentGenerationAdapterFactory {
   // 常驻生成面只认生成装配工厂发的规划。

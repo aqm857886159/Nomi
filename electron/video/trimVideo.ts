@@ -19,7 +19,7 @@ import type { ProjectBinding } from "../shared/projectBinding";
 import { resolveVideoLocalPath } from "./extractVideoFrame";
 import { buildTrimVideoArgs, clampTrimRange } from "./trimVideoArgs";
 
-export type TrimVideoPayload = {
+type TrimVideoPayload = {
   videoUrl: string;
   startSeconds: number;
   endSeconds: number;
@@ -30,9 +30,9 @@ export type TrimVideoPayload = {
   jobId: string;
 };
 
-export type TrimVideoResult = { url: string; assetId?: string; durationSeconds: number };
+type TrimVideoResult = { url: string; assetId?: string; durationSeconds: number };
 
-export class TrimVideoError extends Error {
+class TrimVideoError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "TrimVideoError";
@@ -41,7 +41,7 @@ export class TrimVideoError extends Error {
 
 /** 正在跑的剪辑任务（jobId → 取消开关）。同一时刻最多 2 个（与胶片条并发闸同口径）。 */
 const running = new Map<string, AbortController>();
-export const MAX_CONCURRENT_TRIMS = 2;
+const MAX_CONCURRENT_TRIMS = 2;
 
 export function cancelTrimJob(jobId: string): boolean {
   const controller = running.get(jobId);

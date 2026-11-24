@@ -25,7 +25,7 @@ type ReceiptOperation = Readonly<{
   appliedRevision: number;
 }>;
 
-export type ProjectAgentProposalReceipt = Readonly<{
+type ProjectAgentProposalReceipt = Readonly<{
   schemaVersion: 2;
   binding: ProjectBinding;
   revision: number;
@@ -50,7 +50,7 @@ export type ProjectAgentProposalReceiptService = Readonly<{
   }>;
 }>;
 
-export class ProjectAgentProposalReceiptError extends Error {
+class ProjectAgentProposalReceiptError extends Error {
   constructor(
     message: string,
     readonly code: "project_agent_receipt_invalid" | "revision_conflict" = "project_agent_receipt_invalid",
@@ -306,7 +306,7 @@ export function migrateProjectAgentProposalReceipt(value: unknown): ProjectAgent
 }
 
 /** Main-owned durable journal. All semantic mutation goes through the bound service below. */
-export function createProjectAgentProposalReceiptStore(projectRoot: string, expectedBinding?: ProjectBinding) {
+function createProjectAgentProposalReceiptStore(projectRoot: string, expectedBinding?: ProjectBinding) {
   const target = receiptPath(projectRoot);
   const quarantine = (reason: ReceiptQuarantineReason): void => {
     if (!fs.existsSync(target)) return;

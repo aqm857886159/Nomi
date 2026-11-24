@@ -9,13 +9,13 @@ export type McpConnectionContext = Readonly<{
   connectionNonce: string
 }>
 
-export type McpConnectionContextInput = Readonly<{
+type McpConnectionContextInput = Readonly<{
   client: unknown
   proof: unknown
   randomSecret?: () => string
 }>
 
-export type TransportedMcpConnectionContextInput = Readonly<{
+type TransportedMcpConnectionContextInput = Readonly<{
   client: unknown
   proof: unknown
   connectionAttestation: unknown

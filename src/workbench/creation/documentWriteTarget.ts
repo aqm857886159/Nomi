@@ -7,19 +7,19 @@ export type DocumentTextReader = Readonly<{
   textBetween: (from: number, to: number, blockSeparator: string) => string
 }>
 
-export type DocumentSelectionSnapshot = Readonly<{
+type DocumentSelectionSnapshot = Readonly<{
   from: number
   to: number
   empty: boolean
 }>
 
-export type DocumentWriteRange = Readonly<{ from: number; to: number }>
+type DocumentWriteRange = Readonly<{ from: number; to: number }>
 
-export type DocumentStateSnapshot = Readonly<{ revision: number; contentHash: string }>
+type DocumentStateSnapshot = Readonly<{ revision: number; contentHash: string }>
 
-export type DocumentTurnStateSnapshot = DocumentStateSnapshot & Readonly<{ anchor: DocumentAnchorRef }>
+type DocumentTurnStateSnapshot = DocumentStateSnapshot & Readonly<{ anchor: DocumentAnchorRef }>
 
-export type DocumentTurnAdmission = Readonly<{
+type DocumentTurnAdmission = Readonly<{
   target: Extract<TargetRef, { kind: 'document' }>
   preconditions?: Readonly<{ document: NonNullable<PreconditionSet['document']> }>
 }>

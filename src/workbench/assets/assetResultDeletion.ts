@@ -17,14 +17,14 @@ export type ProjectFileTarget = { projectId: string; relativePath: string }
  * 一切（写盘那份内容 + 还没发出去的输入 + 会话撤销材料，见 `projectLivenessContent.ts`），任意形状、整份扫描。
  * `rest === null` = 这一刻拿不到完整内容 → 一律当「有人用」。落盘文件只认本项目自己的（别的项目的文件这里绝不动）。
  */
-export type AssetDeletionScope = {
+type AssetDeletionScope = {
   projectId: string
   nodes: readonly GenerationCanvasNode[]
   rest: unknown
   undo?: Iterable<{ position: number; nodes: readonly GenerationCanvasNode[] }>
 }
 
-export type AssetResultDeletionMatch = {
+type AssetResultDeletionMatch = {
   nodeId: string
   /** 这张卡上要摘掉的结果（一张卡上可能有几版就是同一份文件）。 */
   resultIds: string[]
@@ -44,7 +44,7 @@ export type AssetResultDeletionMatch = {
  * 2026-10-24 之前判定是隐式的 `{ matches, fileTarget }`，已加载 / 关闭两条执行路径各自解读：
  * 已加载项目里「画布上没有结果、只有文件」的素材被直接放过（夜跑 asset-library-interactions ⑤，一张都删不掉）。
  */
-export type AssetDeletionPlan = {
+type AssetDeletionPlan = {
   matches: AssetResultDeletionMatch[]
   file: ({ target: ProjectFileTarget } & ({ fate: 'trash' | 'keep' } | { fate: 'defer'; journalPosition: number })) | null
 }

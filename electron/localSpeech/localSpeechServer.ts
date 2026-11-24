@@ -31,8 +31,8 @@ const START_TIMEOUT_MS = 120_000;
 const INFERENCE_TIMEOUT_MS = 30 * 60_000;
 const HEALTH_POLL_MS = 250;
 
-export type LocalSpeechRawSegment = { start: number; end: number; text: string };
-export type LocalSpeechInferenceResult = {
+type LocalSpeechRawSegment = { start: number; end: number; text: string };
+type LocalSpeechInferenceResult = {
   segments: LocalSpeechRawSegment[];
   /** 引擎自己检测到的语言（硬约束②：以音频检测为准，不是 UI 语言）。 */
   detectedLanguage: string;
@@ -189,7 +189,7 @@ export class LocalSpeechServer {
  * 为什么不用 web `FormData` —— 那要经 `appFetch` 那条不过目的地策略的裸出口才发得出去
  * （`check:outbound-policy` 规则 2 盯着谁能 import 它），为了三个字段去多开一个出站口不划算。
  */
-export function buildMultipartBody(boundary: string, wavBytes: Uint8Array): Buffer {
+function buildMultipartBody(boundary: string, wavBytes: Uint8Array): Buffer {
   const field = (name: string, value: string) =>
     Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`, "utf8");
   return Buffer.concat([
@@ -214,7 +214,7 @@ export function buildMultipartBody(boundary: string, wavBytes: Uint8Array): Buff
  * **空结果不当成功**：没有 `segments` 字段（而不是「有但为空」）说明形状不对，直接抛——
  * 静默返回空数组会让用户对着一列空白的对白猜（硬约束：不许静默空结果）。
  */
-export function parseInferenceResponse(text: string): LocalSpeechInferenceResult {
+function parseInferenceResponse(text: string): LocalSpeechInferenceResult {
   let json: unknown;
   try {
     json = JSON.parse(text);
