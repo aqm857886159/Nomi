@@ -2,7 +2,7 @@ t5-s7a-verify：通过
 
 - 验收线：t5-s7a-verify
 - 实现线：t5-onboarding-s7a-impl
-- 验收 HEAD：8659f84f344de05085a8dadc79803874516052cb
+- 验收 HEAD：ec7d1df89aa24cc53a179984fa83ced2912d1a81
 - 关联任务：协作看板 #1586 · T-5 接入引导第二批切片（`S7a` 全部 7 个剩余入口指路收口 + `F-D` 4 条 `noGenericContract` 契约核对，叠在 PR `#1650` Slice 1 `55eee245e` 之上）
 - 设计卡：`docs/plan/2026-11-24-t5-onboarding-s7a.md`
 
@@ -53,6 +53,7 @@ t5-s7a-verify：通过
 - **生产种子与隐私核查**：确认 `electron/catalog/dreaminaVendor.ts:15`（`DREAMINA_VENDOR_SEED`）与 `electron/catalog/volcengineVendor.ts:41`（`VOLCENGINE_SPEECH_VENDOR_SEED`）生产新装默认仍严格保持 `enabled: false`（仅在测试对等辅助中启用）；新提交 diff 0 本机路径泄露。
 - **4 套核心 Vitest 独立实跑（`--maxWorkers=2`，4/4 文件，174/174 通过）**：`electron/parity/landingProjectionParity.test.ts`、`electron/parity/paramsKeysByMode.matrix.test.ts`（2/2，快照全一致）、`src/ui/onboarding/onboardingS7aEntries.test.tsx`（6/6）、`src/workbench/ai/v4/agentPanelV4Blocks.test.ts`（74/74）。
 - **9 项串行门岗全绿（`EXIT=0`）**：`tsc`（app + electron）、`check-test-types.mjs`（`src/ 0 错`）、`check:filesize`（`ResidentThreadMenu.tsx` 拆出后 0 红牌）、`lint-changed.mjs`（0 错）、`check-design-lab.mjs --mirrors-only`、`check-boundaries.mjs`（53/53 基线 0 新增）、`check-boundary-owners.mjs`（2137 条）、`check:board-parity`。
+- **会话菜单锚点断言修复复验（HEAD `ec7d1df89aa24cc53a179984fa83ced2912d1a81`，生产代码 0 改动）**：核实增量 diff 仅更新 `tests/ux/agent-runtime-walk-support.test.mjs`（同时断言父组件 `<ResidentThreadMenu` 与子组件 `ResidentThreadMenu.tsx` 的 `data-agent-thread-menu="true"` 锚点），独立实跑 `tests/ux/agent-runtime-walk-support.test.mjs` **25/25 passed**、`lint-changed.mjs`（87 文件 0 错）与 `check-concept-owners.mjs`（401 概念 0 新增第二写口）全绿。
 - **3 张更新 Design Lab 基线图逐张 `read_file` 目视通过**：`ps-20-settings-dialog.png`（设置通用清单第 1 步「连接模型」清晰对齐）、`ps-23-handbook-dialog.png`（新手手册第 2 步与「第一次用」已统一为 `APIMart` 三步，无旧 `Agnes` 残留）、`vo-04-picker-empty-no-vendor.png`（空模型下拉「还没连模型 · 连接模型」排版紧凑无截断）。
 
 ## 3. 未验证范围与协调待确认项说明
