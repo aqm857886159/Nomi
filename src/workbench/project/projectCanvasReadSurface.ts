@@ -88,7 +88,7 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
     } & ProjectSurfaceExecutionGuard) => unknown,
   ): () => void
   registerAssetReadSource(
-    read: (input: { input: AssetReadInput; target: unknown; preconditions: unknown; projectId: string }) => unknown,
+    read: (input: { input: AssetReadInput; target: unknown; preconditions: unknown; projectId: string; signal: AbortSignal }) => unknown,
   ): () => void
   registerExportReadSource(
     read: (input: { input: ExportReadInput; target: unknown; preconditions: unknown; projectId: string }) => unknown,
@@ -170,7 +170,7 @@ export function registerProjectCanvasReadSurface(
     projectId: string
   } & ProjectSurfaceExecutionGuard) => unknown,
   additionalSources?: Readonly<{
-    readAsset?: (input: { input: AssetReadInput; target: unknown; preconditions: unknown; projectId: string }) => unknown
+    readAsset?: Parameters<ProjectCanvasReadSurfaceCoordinator['registerAssetReadSource']>[0]
     readExport?: (input: { input: ExportReadInput; target: unknown; preconditions: unknown; projectId: string }) => unknown
     writeExport?: (input: {
       input: ExportWriteInput
@@ -611,12 +611,15 @@ export function createProjectCanvasReadSurfaceCoordinator(
     registerAssetReadSource(read) {
       const bridge = input.getSurfaceBridge()
       if (!bridge || !read) return () => undefined
-      return bridge.onAssetRead(({ binding, ...request }) => settleSurfacePortHandler(() => {
-        const state = current
-        if (!state || !state.binding)
-          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
-        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
-        return read({ ...request, projectId: binding.binding.projectId })
+      return bridge.onAssetRead(({ binding, onCancel, ...request }) => settleSurfacePortHandler(async () => {
+        const controller = new AbortController()
+        const guard = requestGuard(binding, controller.signal)
+        const unsubscribe = onCancel(() => controller.abort())
+        try {
+          return await read({ ...request, signal: guard.signal, projectId: binding.binding.projectId })
+        } finally {
+          unsubscribe()
+        }
       }))
     },
     registerExportReadSource(read) {

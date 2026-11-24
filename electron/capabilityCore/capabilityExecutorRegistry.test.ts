@@ -5,6 +5,8 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { logWarn } from "../logging/logger";
+import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE } from "../shared/agentCapabilities/verbDeclaration";
 import { projectCanvasRead } from "../shared/agentCapabilities/canvasRead";
 import { createInternalDocumentReadVerifiedInvocationFactory } from "./verifiedCapabilityInvocation";
 import type { WorkspaceProjectIdentity } from "../workspace/workspaceProjectIdentity";
@@ -17,6 +19,8 @@ import {
   type CanvasReadPort,
 } from "./capabilityExecutorRegistry";
 import { createMcpCanvasReadVerifiedInvocationFactory } from "./verifiedCapabilityInvocation";
+
+vi.mock("../logging/logger", () => ({ logWarn: vi.fn() }));
 
 const tempDirs: string[] = [];
 const previousCapabilityDir = process.env[CAPABILITY_DIR_ENV];
@@ -259,4 +263,35 @@ it('retains the sanitized failure reason from the verified renderer reply', asyn
   await expect(registry.execute(invocation)).rejects.toMatchObject({
     code: 'capability_execution_failed', reason: 'no-disk-space',
   });
+});
+
+it("logs a timed-out operation with the declared budget and elapsed time", async () => {
+  const invocation = await createInternalDocumentReadVerifiedInvocationFactory({
+    verifyBearer: async () => true,
+    resolveProjectIdentity: async () => BASE_IDENTITY,
+    randomId: () => "document-timeout",
+  }).mint({
+    bearer: "fixture",
+    requestBody: { projectId: BASE_IDENTITY.projectId, documentId: "doc", scope: "selection" },
+  });
+  const read = vi.fn(({ signal }: { signal: AbortSignal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener("abort", () => reject(new Error("private renderer failure")), { once: true });
+  }));
+  const registry = createMainCapabilityExecutorRegistry({
+    resolveCanvasReadPort: () => ({ read: async () => RAW_CANVAS }),
+    resolveDocumentReadPort: () => ({ read }),
+  });
+  vi.useFakeTimers();
+  try {
+    const result = registry.execute(invocation).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(MODEL_TOOL_READ_TIMEOUT_MS_VALUE);
+    await expect(result).resolves.toEqual(expectExecutionError("capability_timeout"));
+    expect(read).toHaveBeenCalledOnce();
+    expect(logWarn).toHaveBeenCalledWith("capability", "capability_timeout", {
+      toolName: "document.read", subOperation: "selection",
+      elapsedMs: MODEL_TOOL_READ_TIMEOUT_MS_VALUE, timeoutMs: MODEL_TOOL_READ_TIMEOUT_MS_VALUE,
+    });
+  } finally {
+    vi.useRealTimers();
+  }
 });

@@ -1,0 +1,14 @@
+{
+  "id": "FB-NF-1113-0001-media-timeout",
+  "since": "2026-11-24",
+  "source": "用户报告 NF-1113-0001",
+  "category": "claims-and-outcomes",
+  "problem": "这一步等太久被停掉了",
+  "existingInvariants": [],
+  "ironLaws": ["⑫"],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "evidence": ["docs/plan/2026-11-24-fc-media-and-lane-timeout-hierarchy.md"],
+  "completionCommits": []
+}
