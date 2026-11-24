@@ -4,11 +4,11 @@
 
 ## ★0 先查别人
 
-- Onboarding 拍板图 O3 · 浏览器和应用分别保留注册进度与草稿 · 只持久化打开时间。
-- O4a、O4b · 左侧标记、原位四行，回草稿后短暂提示 · 复用原 Composer 的参数栏上方空间。
-- electron/catalog/secrets.ts · 操作系统加密失败即拒绝写入 · 保留重试入口，使用界面语言提示。
+- docs/design/boards/2026-11-07-onboarding/Onboarding.board.json:1 · 浏览器和应用分别保留注册进度与草稿 · 只持久化打开时间。
+- docs/design/proposals/2026-11-03-apimart-experience/contracts.md:24 · 左侧标记、原位四行，回草稿后短暂提示 · 复用原 Composer 的参数栏上方空间。
+- electron/catalog/secrets.ts:1 · 操作系统加密失败即拒绝写入 · 保留重试入口，使用界面语言提示。
 - 出口：src/ui/onboarding/ApimartConnectPage.tsx:1 · Esc 和顶栏后退回原处 · 检查、断网和充值中沿用。
-- D-1124 与 F02 已确认：账户取 /v1/user/balance，Key 额度取 /v1/balance。
+- https://docs.apimart.ai/en/api-reference/account/user-balance · 账户取 /v1/user/balance，Key 额度取 /v1/balance · 在 vendorAccountBalance 并行只读两路并严守未知不等于零。
 
 ## ★1 创作者任务
 
