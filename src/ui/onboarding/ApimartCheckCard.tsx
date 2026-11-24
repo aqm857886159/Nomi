@@ -32,7 +32,7 @@ export function ApimartCheckCard({ complete, token, account, counts }: {
         return <li key={key} className="flex items-center gap-2 text-body-sm">
           <Mark size={14} aria-hidden className={empty ? 'text-nomi-warning' : known ? 'text-workbench-success' : 'text-nomi-ink-40'} />
           <span>{t(`modelSetup.apimartVerification.${key}`)}</span>
-          {complete && <span className="text-nomi-ink-60">{detail}</span>}
+          {complete && <span className={empty ? 'text-nomi-warning-ink' : 'text-nomi-ink-60'}>{detail}</span>}
         </li>
       })}
     </ul>

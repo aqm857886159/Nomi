@@ -11,8 +11,8 @@ export function ApimartTopUpNotice({ recheck }: { recheck: () => void }) {
     url.pathname = '/billing'
     window.open(url.href, '_blank', 'noopener')
   }
-  return <div role="status" data-apimart-topup className="space-y-2 rounded-field bg-nomi-warning/10 p-3 text-body-sm text-nomi-ink">
-    <p>{t('modelSetup.apimartVerification.topupBody')}</p>
+  return <div role="status" data-apimart-topup className="space-y-2 rounded-field border border-nomi-warning-edge bg-nomi-warning-soft p-3 text-body-sm text-nomi-ink">
+    <p className="m-0 text-nomi-warning-ink">{t('modelSetup.apimartVerification.topupBody')}</p>
     <div className="flex flex-wrap items-center gap-2">
       <WorkbenchButton size="sm" variant="primary" iconTier="corner" onClick={openBilling}>
         {t('modelSetup.apimartVerification.topup')}<IconExternalLink aria-hidden />

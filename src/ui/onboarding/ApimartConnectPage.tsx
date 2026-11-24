@@ -105,7 +105,8 @@ export function ApimartConnectPage({
   const [openedAt, setOpenedAt] = React.useState(readApimartOpenedAt)
   const verification = useApimartVerification(onSaved)
   const { stage, check: saveKey } = verification
-  const busy = stage === 'checking' || stage === 'passed'
+  const lockingInput = stage === 'checking'
+  const showChecks = stage === 'checking' || stage === 'passed' || stage === 'topup'
   const notice = stage === 'format' || stage === 'invalid' || stage === 'keychain' || stage === 'offline' ? stage : null
   const checking = verification.suffix !== '' && stage !== 'idle'
   const [showSteps, setShowSteps] = React.useState(false)
@@ -154,7 +155,7 @@ export function ApimartConnectPage({
   })
 
   const handlePasteButtonClick = React.useCallback(async (): Promise<void> => {
-    if (busy) return
+    if (lockingInput) return
     try {
       const clipboardText =
         typeof navigator !== 'undefined' && navigator.clipboard?.readText
@@ -173,7 +174,7 @@ export function ApimartConnectPage({
       setError(t('onboardingProviders.apimartConnect.keyInput.pasteEmpty', { shortcut: pasteShortcut }))
       inputRef.current?.focus()
     }
-  }, [busy, pasteShortcut, saveKey, t])
+  }, [lockingInput, pasteShortcut, saveKey, t])
 
   const steps = [
     {
@@ -404,7 +405,7 @@ export function ApimartConnectPage({
             type="password"
             defaultValue=""
             autoComplete="off"
-            disabled={busy}
+            disabled={lockingInput}
             aria-invalid={error || (notice && notice !== 'offline') ? true : undefined}
             aria-describedby={error || (notice && notice !== 'offline') ? errorId : undefined}
             placeholder={checking ? t('modelSetup.apimartVerification.maskedKey', { suffix: verification.suffix }) : t('onboardingProviders.apimartConnect.keyInput.placeholder')}
@@ -435,7 +436,8 @@ export function ApimartConnectPage({
               }
             }}
             className={cn(
-              'h-9 min-w-0 flex-1 rounded-field border bg-nomi-paper px-3 font-nomi-sans text-body-sm font-normal text-nomi-ink outline-none placeholder:text-nomi-ink-40 focus:border-nomi-ink-40 disabled:cursor-not-allowed disabled:opacity-60',
+              'h-9 min-w-0 flex-1 rounded-field border bg-nomi-paper px-3 font-nomi-sans text-body-sm font-normal text-nomi-ink outline-none focus:border-nomi-ink-40 disabled:cursor-wait',
+              checking ? 'placeholder:text-nomi-ink' : 'placeholder:text-nomi-ink-40',
               error || (notice && notice !== 'offline') ? 'border-workbench-danger' : 'border-nomi-line',
             )}
           />
@@ -445,7 +447,7 @@ export function ApimartConnectPage({
                 <WorkbenchIconButton
                   icon={<IconClipboard aria-hidden="true" />}
                   label={pasteTooltip}
-                  disabled={busy}
+                  disabled={lockingInput}
                   onClick={() => {
                     void handlePasteButtonClick()
                   }}
@@ -457,7 +459,7 @@ export function ApimartConnectPage({
             </Tooltip>
           </TooltipProvider>
         </div>
-        {(busy || stage === 'topup') && <ApimartCheckCard complete={stage !== 'checking'} account={verification.received?.accountBalance} token={verification.received?.keyQuota ?? null} counts={apimartCounts} />}
+        {showChecks && <ApimartCheckCard complete={stage !== 'checking'} account={verification.received?.accountBalance} token={verification.received?.keyQuota ?? null} counts={apimartCounts} />}
         {stage === 'unavailable' && <p role="alert" className="text-caption text-workbench-danger">{t('onboardingProviders.apimartConnect.keyInput.unavailable')}</p>}
         {stage === 'topup' && <ApimartTopUpNotice recheck={() => void verification.retry()} />}
         {notice && <ApimartStatusNotice id={errorId} kind={notice} onAction={() => {
