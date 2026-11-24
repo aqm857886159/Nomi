@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { detectShotCuts } from "./detectShotCuts";
 
 // 2026-10-11 走查 §1：拆解表拆不出画面 / 景别。读图腿由代码自动挑模型（免费限流的那家排第一），
 // 用户既选不了也看不到失败原话。这份测试走**编排本体**（deconstructVideo），把读图腿的三件事钉住：
@@ -205,4 +206,37 @@ describe("读图腿身份的唯一出口", () => {
     expect(source).not.toMatch(/import\s*\{[^}]*resolveTextBrainKeys[^}]*\}/);
     expect(source).toContain("resolveVisionLeg(");
   });
+});
+
+it("caps concurrent shot analysis and retains input order after an out-of-order failure", async () => {
+  vi.mocked(detectShotCuts).mockResolvedValueOnce({
+    cuts: [{ seconds: 2, score: 0.9 }, { seconds: 4, score: 0.9 }],
+    durationSeconds: 6,
+    sheetUrl: null,
+    sheetColumns: 0,
+    sheetRows: 0,
+    sheetTileHeight: 0,
+    coverage: { capped: false, detectedCuts: 2, keptCuts: 2, coveredSeconds: 6, durationSeconds: 6, appliedThreshold: 0.5 },
+  });
+  runTask.mockReset();
+  let finishFirst!: () => void;
+  let failSecond!: (error: Error) => void;
+  runTask
+    .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = () => resolve(okReply); }))
+    .mockImplementationOnce(() => new Promise((_resolve, reject) => { failSecond = reject; }))
+    .mockResolvedValueOnce(okReply);
+
+  const running = run({ concurrency: 2 });
+  try {
+    await vi.waitFor(() => expect(runTask).toHaveBeenCalledTimes(2));
+    failSecond(new Error("second shot failed"));
+    await vi.waitFor(() => expect(runTask).toHaveBeenCalledTimes(3));
+  } finally {
+    finishFirst?.();
+    failSecond?.(new Error("second shot failed"));
+  }
+  const { result } = await running;
+  if (result instanceof Error) throw result;
+  expect(result.shots.map((shot) => shot.index)).toEqual([1, 2, 3]);
+  expect(result.shots.map((shot) => shot.failureReason)).toEqual([undefined, "second shot failed", undefined]);
 });

@@ -1,3 +1,4 @@
+import pLimit from "p-limit";
 // 视频拆解编排：一条本地视频 → 一张结构化分镜表。
 //
 // 三条上游合流（其中两条是**现成的**，只有取音轨是本次新增）：
@@ -229,22 +230,6 @@ export function buildShotAnalysisPrompt(shot: ShotBoundary, frameCount: number, 
     ...(extraKeys.length ? [",", extraKeys.join(",\n")] : []),
     "}",
   ].join("\n");
-}
-
-/** 简易并发闸：不引依赖，够用就好。 */
-async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
-    for (;;) {
-      const i = cursor;
-      cursor += 1;
-      if (i >= items.length) return;
-      out[i] = await fn(items[i], i);
-    }
-  });
-  await Promise.all(workers);
-  return out;
 }
 
 /** 从任务结果里取文本（文本任务的 raw 被合成成 OpenAI choices 形状）。 */
@@ -559,7 +544,9 @@ async function runDeconstruction(payload: DeconstructVideoPayload, options: Deco
   // 闸在半路拒了（令牌过期 / 预算被别处吃光）= 整件事没被授权，不是某一格空白。
   // 记下来、停掉后续镜头，收尾时整体抛出——绝不摊进每一格变成满屏「没读出」。
   let gateFailure: string | null = null;
-  const analyzed = await mapWithConcurrency(targets, payload.concurrency ?? DECONSTRUCT_CONCURRENCY, async (shot): Promise<AnalyzedShot> => {
+  const concurrency = Math.floor(Math.max(1, Math.min(payload.concurrency ?? DECONSTRUCT_CONCURRENCY, targets.length)));
+  const limit = pLimit(concurrency);
+  const analyzed = await Promise.all(targets.map((shot) => limit(async (): Promise<AnalyzedShot> => {
     const empty: AnalyzedShot = { shot, frameUrls: [], parsed: null };
     // 闸拒了，或已取消：后面的镜不再起跑。取消不留原因——它不是这一镜读图失败（结果整份作废）。
     if (gateFailure || signal.aborted) return empty;
@@ -606,7 +593,7 @@ async function runDeconstruction(payload: DeconstructVideoPayload, options: Deco
       logError("tasks", "deconstruct.model-failed", error, { projectId, shot: String(shot.index) });
       return { shot, frameUrls, parsed: null, failureReason: messageOf(error) };
     }
-  });
+  })));
   if (gateFailure) throw new DeconstructError(gateFailure);
 
   onPhase(2);
