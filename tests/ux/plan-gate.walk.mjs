@@ -22,6 +22,8 @@ function check(condition, label) {
 
 const run = await launchNomiApp({
   ...dirs,
+  settingsDir: dirs.settingsDir,
+  projectsDir: dirs.projectsDir,
   name: 'plan-gate',
   initialLocalStorage: { 'nomi:locale:v1': 'zh-CN', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen' },
   syntheticCredentialStorage: true,
