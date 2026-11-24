@@ -120,20 +120,26 @@ export function ModelBoxSettingsStage({
   models: readonly ModelOption[]
 }): JSX.Element {
   const [ready, setReady] = React.useState(false)
+  const stageRef = React.useRef<HTMLDivElement>(null)
   React.useLayoutEffect(() => {
     seedModelCatalogForTests(LAB_CATALOG_HEALTH, [{ kind: 'image', requiredMode: 'any-published', options: models }])
     seedModelBoxPreferenceForLab(preference)
     setReady(true)
   }, [models, preference])
+  // 展开「整理」，让取景继续覆盖两条已隐藏的模型。
+  React.useLayoutEffect(() => {
+    if (ready) stageRef.current?.querySelector<HTMLElement>('details:not([open]) > summary')?.click()
+  }, [ready])
   return (
-    <SettingsStage>{ready ? <ModelBoxOrderSection /> : null}</SettingsStage>
+    <SettingsStage ref={stageRef}>{ready ? <ModelBoxOrderSection /> : null}</SettingsStage>
   )
 }
 
 /** 设置区的取景框：与设置弹窗内容区同宽，高度随内容——排序控件不该被拉到满屏高。 */
-export function SettingsStage({ children }: { children: React.ReactNode }): JSX.Element {
+export function SettingsStage({ children, ref }: { children: React.ReactNode; ref?: React.Ref<HTMLDivElement> }): JSX.Element {
   return (
     <div
+      ref={ref}
       data-design-lab-stage="settings"
       className="rounded-nomi border border-nomi-line bg-nomi-paper p-4 text-nomi-ink"
       style={{ width: STAGE_WIDTH }}

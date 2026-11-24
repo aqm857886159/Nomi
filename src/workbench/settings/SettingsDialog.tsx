@@ -243,7 +243,7 @@ export function SettingsDialog({
       onClose={() => { void requestClose() }}
       title={t('settings.title')}
       size={760}
-      yOffset="max(12px, calc((100dvh - 560px) / 2))"
+      centered
       padding={0}
       innerScroll
       closeOnEscape={false}
@@ -258,7 +258,7 @@ export function SettingsDialog({
         <div
           ref={(node) => { dialogRef.current = node?.closest<HTMLDivElement>('[role="dialog"]') ?? null }}
           data-settings-frame
-          className="relative flex max-h-[min(560px,calc(100dvh-32px))] min-h-[min(360px,calc(100dvh-32px))] flex-col overflow-hidden sm:flex-row"
+          className="relative flex h-[560px] max-h-full min-h-0 flex-col overflow-hidden sm:flex-row"
         >
           <aside
             ref={navRef}
