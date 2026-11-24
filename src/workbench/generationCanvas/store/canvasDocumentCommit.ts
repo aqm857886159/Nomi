@@ -18,7 +18,7 @@
 import { backfillShotIndexes } from '../model/shotNumbering'
 import { replayCanvasEvents } from '../events/canvasEventReducer'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { getHistoryFlags, popRedo, popUndo, pushUndoSnapshot, seedUndoJournalBase, type ProductionCanvasHistoryIntent, type UndoRestore } from '../events/canvasUndoJournal'
+import { getHistoryFlags, popRedo, popUndo, pushUndoSnapshot, clearHistory, type ProductionCanvasHistoryIntent, type UndoRestore } from '../events/canvasPatchHistory'
 import { mergeExternalCanvasWrite, type CanvasDocLike } from '../../../../electron/shared/canvas/externalCanvasWrite'
 import { withLiveNodeFacts, withLiveRunState } from '../../../../electron/shared/canvas/landedNodeFields'
 import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLifecycle'
@@ -86,8 +86,8 @@ export function settleNodeFacts(
 }
 
 /** 撤销 / 重做的后态：目标投影 + 之后的落地按顺序叠回 + 运行态取活的 + 规则 B。 */
-function settleRewind(restore: UndoRestore, live: readonly GenerationCanvasNode[], held: HeldNodeOutcomes) {
-  const { projection, landingsAfter, nodeIdsSeenBefore } = restore
+export function settleRewind(restore: UndoRestore, live: readonly GenerationCanvasNode[], held: HeldNodeOutcomes) {
+  const { projection, landingsAfter, createdNodeIds } = restore
   const byId = new Map(projection.nodes.map((node) => [node.id, node]))
   for (const { nodeId, landed } of landingsAfter) {
     const node = byId.get(nodeId)
@@ -98,10 +98,11 @@ function settleRewind(restore: UndoRestore, live: readonly GenerationCanvasNode[
   // 规则 B：撤销的正是「建这个节点」（目标位置及之前它从没出现过），而它在那之后落过付费结果 → 节点原样留下；
   // 它挂的分组若被这一步撤掉了，摘掉分组标记。重做「删节点」不在此列：那个节点在目标位置之前出现过。
   const paid = new Set(landingsAfter.filter(({ landed }) => isPaidLanding(readOutcome(landed))).map(({ nodeId }) => nodeId))
+  const members = new Map(projection.groups.map(group => [group.id, new Set(group.nodeIds)]))
   const kept = live
-    .filter((node) => !byId.has(node.id) && paid.has(node.id) && !nodeIdsSeenBefore.has(node.id))
+    .filter((node) => !byId.has(node.id) && paid.has(node.id) && createdNodeIds.has(node.id))
     .map((node) => {
-      if (!node.groupId || projection.groups.some((group) => group.id === node.groupId && group.nodeIds.includes(node.id))) return node
+      if (!node.groupId || members.get(node.groupId)?.has(node.id)) return node
       const next = { ...node }
       delete next.groupId
       return next
@@ -188,8 +189,8 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         const normalized = normalizeStoreSnapshot(write.snapshot)
         const projectId = write.projectId ?? get().projectId
         assertProductionCanvasProjectIdentity(projectId, normalized.nodes, 'load')
-        // S5-b-2:journal 起点 = 恢复出的画布(undo 最远只回放到这帧,不会塌到空白)
-        seedUndoJournalBase({ nodes: normalized.nodes, edges: normalized.edges, groups: normalized.groups })
+        // Replace the session before exposing the opened document as the next edit baseline.
+        clearHistory()
         clearClipboard()
         restoring(() => set({
           isReady: true,

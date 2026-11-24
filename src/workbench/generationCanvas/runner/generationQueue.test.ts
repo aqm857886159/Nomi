@@ -14,7 +14,7 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { createDefaultTimeline } from '../../timeline/timelineMath'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { resetModelHealthMemory } from './modelHealthMemory'
 import { planCanvasGenerationScope } from './generationScopeFacts'
 import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
@@ -64,7 +64,7 @@ describe('生成队列外化', () => {
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
     useGenerationQueueStore.setState({ entries: [], batches: {} })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     resetModelHealthMemory()
   })

@@ -22,7 +22,7 @@ import {
 } from './pendingAssetDeletions'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { __resetCanvasUndoJournalForTests } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory } from '../generationCanvas/events/canvasPatchHistory'
 import { restoreWorkbenchProjectPayload } from '../project/workbenchProjectSession'
 import * as projectContent from '../project/workbenchProjectContent'
 import { createDefaultTimeline } from '../timeline/timelineMath'
@@ -76,7 +76,7 @@ function spellings(projectId: string, relativePath: string, root: string): Array
 beforeEach(() => {
   mocks.deleteFiles.mockReset()
   mocks.deleteFiles.mockImplementation(async ({ relativePaths }: { relativePaths: string[] }) => ({ deletedPaths: relativePaths, failed: [] }))
-  __resetPendingAssetDeletionsForTests(); __resetCanvasUndoJournalForTests()
+  __resetPendingAssetDeletionsForTests(); clearHistory()
   useWorkbenchStore.setState({ storyboardDesignsByDocumentId: {}, workbenchDocuments: [], projectAgentAttachments: [], projectAgentReferences: [], projectAgentRecoveredDrafts: [], timelineHistory: createTimelineHistory(), detachedTimelineClips: {} } as never)
   useGenerationCanvasStore.setState({ generationAiDraft: '' } as never)
   useWorkbenchStore.getState().setTimeline(createDefaultTimeline())

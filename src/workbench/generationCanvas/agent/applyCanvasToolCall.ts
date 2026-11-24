@@ -1,5 +1,5 @@
 import { hasRealCharacterReferences, normalizeStoryboardAnchorDefaults, validateAnchorModelFit } from './storyboardAnchorPolicy'
-import { getUndoJournalGeneration } from '../events/canvasUndoJournal'
+import { getUndoJournalGeneration } from '../events/canvasPatchHistory'
 import { captureCurrentProjectCanvasReadSurfaceBinding } from '../../project/projectCanvasReadSurface'
 import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import type {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { textNodeBody, tiptapDocFromPlainText } from '../../../../electron/shared/canvas/textNodeBody'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import type { TiptapDocJson } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from './generationCanvasStore'
 
@@ -10,7 +10,7 @@ const bodyOf = (id: string) => textNodeBody(store().nodes.find((node) => node.id
 
 beforeEach(() => {
   store().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
 })
 
 describe('文本节点正文唯一写口 writeNodeBody / setNodeText', () => {

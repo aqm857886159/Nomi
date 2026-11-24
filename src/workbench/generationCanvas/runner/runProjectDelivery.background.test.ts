@@ -11,7 +11,7 @@ import { runGenerationNode, runGenerationNodesBatch } from './generationRunContr
 import { runGenerationNodesByPlan } from './generationRunWaves'
 import { runCatalogGenerationTask } from './catalogTaskActions'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { resetModelHealthMemory } from './modelHealthMemory'
 import { readRunGraph, deliverRunOutcome } from './runProjectDelivery'
 import { buildTaskCenterView } from '../../taskCenter/taskCenterEntries'
@@ -74,7 +74,7 @@ beforeEach(() => {
   session = createProjectSessionTestHarness()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   setCanvasEventSinkForTests(() => {})
   resetModelHealthMemory()
 })

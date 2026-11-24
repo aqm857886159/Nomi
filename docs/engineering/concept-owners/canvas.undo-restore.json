@@ -28,12 +28,20 @@
       "symbol": "CANVAS_ACTION_LAYERS"
     },
     {
-      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
       "symbol": "popUndo"
     },
     {
-      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
       "symbol": "popRedo"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+      "symbol": "pushUndoSnapshot"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+      "symbol": "findCanvasChange"
     }
   ],
   "forbidden_derivations": [],

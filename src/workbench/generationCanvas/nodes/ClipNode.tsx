@@ -96,7 +96,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
   const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null)
   const visualSize = resolveNodeVisualSize(node)
   const sizeBounds = getNodeSizeBounds(node.kind)
-  const { handlePointerDown, handlePointerMove, handlePointerUp } = useNodeDragResize({ reportFeedback,
+  const { preview, handlePointerDown, handlePointerMove, handlePointerUp } = useNodeDragResize({ reportFeedback,
     node,
     selected,
     readOnly,
@@ -545,7 +545,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
     <article
       ref={articleRef}
       className={cn('generation-canvas-v2-node absolute block cursor-grab select-none touch-none overflow-visible', selected ? 'z-50' : '')}
-      style={{ transform: `translate(${node.position.x}px, ${node.position.y}px)`, width: visualSize.width, height: visualSize.height }}
+      style={{ transform: `translate(${preview?.position.x ?? node.position.x}px, ${preview?.position.y ?? node.position.y}px)`, width: visualSize.width, height: visualSize.height }}
       data-node-id={node.id}
       data-kind={node.kind}
       data-selected={selected ? 'true' : 'false'}

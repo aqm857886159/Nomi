@@ -3,6 +3,46 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-10-04-unified-undo.root-cause.json",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "findCanvasChange",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+        "symbol": "findCanvasChange"
+      },
+      "reason": "Proposal compensation still obtains subsequent same-object conflicts from the Canvas history owner."
+    },
+    {
+      "contract": "docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "popUndo",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+        "symbol": "popUndo"
+      },
+      "reason": "Undo restores the node container before the document owner claims its held outcome."
+    },
+    {
+      "contract": "docs/fixes/2026-10-07-undo-keeps-landed-results.root-cause.json",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "popUndo",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+        "symbol": "popUndo"
+      },
+      "reason": "The step supplies the affected node IDs and landed facts to the same document restore path."
+    },
+    {
+      "contract": "docs/fixes/2026-10-08-canvas-explicit-delete-write-port.root-cause.json",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "recordProductionCanvasSignal",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+        "symbol": "recordProductionCanvasSignal"
+      },
+      "reason": "Explicit deletion signals follow the patch step through Undo and Redo."
+    },
+    {
       "contract": "docs/fixes/2026-10-23-outside-press-capture.root-cause.json",
       "path": "src/design/outsidePress.ts",
       "symbol": "listenOutsidePress",
