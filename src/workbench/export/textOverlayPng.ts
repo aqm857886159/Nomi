@@ -1,7 +1,7 @@
 import type { TimelineState } from '../timeline/timelineTypes'
 import { drawTextBox } from '../timeline/textOverlayCanvas'
 
-export type RenderedTextOverlay = {
+type RenderedTextOverlay = {
   id: string
   startFrame: number
   endFrame: number

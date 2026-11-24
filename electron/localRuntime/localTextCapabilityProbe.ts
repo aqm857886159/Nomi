@@ -12,22 +12,22 @@ import { appFetch } from "../appFetch";
 import { isJsonRecord } from "../jsonUtils";
 
 /** 能力预检结论。不是生命周期状态词表，是一次探测的判定结果（三态离散）。 */
-export type LocalTextCapabilityVerdict = "agent" | "chat-only" | "unknown";
+type LocalTextCapabilityVerdict = "agent" | "chat-only" | "unknown";
 
-export type LocalTextCapabilityResult = {
+type LocalTextCapabilityResult = {
   verdict: LocalTextCapabilityVerdict;
   /** unknown 时给一句可诊断的原因（HTTP 码/网络错），供 UI 如实展示。 */
   detail?: string;
 };
 
-export type LocalTextCapabilityProbeInput = {
+type LocalTextCapabilityProbeInput = {
   /** OpenAI-兼容 baseURL（含 /v1）。 */
   baseUrl: string;
   /** 要探的模型 id。 */
   modelId: string;
 };
 
-export type LocalTextCapabilityProbeDeps = {
+type LocalTextCapabilityProbeDeps = {
   fetchImpl?: typeof globalThis.fetch;
   /** 探针超时。默认 15s：本地模型首 token 可能慢（冷加载权重）。 */
   timeoutMs?: number;

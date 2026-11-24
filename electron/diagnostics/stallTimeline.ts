@@ -18,11 +18,11 @@ export const STALL_TIMELINE_MAX_BYTES = 192 * 1024;
 export const STALL_KIND_MIN_GAP_MS = 10_000;
 /** 监视器正好每 10 秒读一次：相邻两次读数的间隔可能是 9 999ms（定时器与 Date.now 各自取整），不能被当成「不到 10 秒」而吞掉连续两个窗口的停顿。 */
 const GAP_TOLERANCE_MS = 500;
-export const STALL_SUMMARY_WINDOW_MS = 60_000;
+const STALL_SUMMARY_WINDOW_MS = 60_000;
 /** 一分钟里看到至少这么多行才算「风暴」，才写汇总；零星的停顿只写自己那一行。 */
-export const STALL_STORM_MIN_ROWS = 4;
+const STALL_STORM_MIN_ROWS = 4;
 /** 诊断包最多带这么多行（最新的）。 */
-export const STALL_READ_MAX_ROWS = 2000;
+const STALL_READ_MAX_ROWS = 2000;
 /** 单个文件最多读尾部这么多字节：正常文件不会超过 192KiB，超了说明被动过，只取尾部。 */
 const READ_TAIL_MAX_BYTES = 512 * 1024;
 

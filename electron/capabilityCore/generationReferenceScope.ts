@@ -15,9 +15,9 @@ type GenerationOperationScope = Readonly<{
 
 type ScopeUnit = Readonly<{ shotId: string; candidate: PlanCandidate; contract: ExecutionContractV1 }>
 
-export type GenerationReferenceScopeFieldOwner = 'user-approved' | 'nomi-owned'
+type GenerationReferenceScopeFieldOwner = 'user-approved' | 'nomi-owned'
 
-export type GenerationReferenceScopeField = Readonly<{
+type GenerationReferenceScopeField = Readonly<{
   key: string
   owner: GenerationReferenceScopeFieldOwner
   path: readonly string[]
@@ -53,7 +53,7 @@ export const GENERATION_REFERENCE_SCOPE_DECLARATION = [
   { key: 'run.canvasBindings', owner: 'nomi-owned', path: ['run', 'canvasBindings'] },
 ] as const satisfies readonly GenerationReferenceScopeField[]
 
-export type GenerationReferenceScopeContext = Readonly<{
+type GenerationReferenceScopeContext = Readonly<{
   project: Readonly<Record<string, unknown>>
   operation: Readonly<Record<string, unknown>>
   run: Readonly<Record<string, unknown>> | null

@@ -78,7 +78,7 @@ type Session = {
 const sessions = new Map<string, Session>();
 
 /** 渲染层调 prepare 时用来推「下载中」进度的回调（由 IPC 层注入，主进程不认识窗口）。 */
-export type VideoDepthPrepareEmitter = (event: {
+type VideoDepthPrepareEmitter = (event: {
   jobId: string;
   nodeId: string;
   phase: VideoDepthMainOwnedPhase;
@@ -86,13 +86,13 @@ export type VideoDepthPrepareEmitter = (event: {
   totalBytes?: number;
 }) => void;
 
-export type VideoDepthPreparePayload = {
+type VideoDepthPreparePayload = {
   projectId: string;
   nodeId: string;
   sourceUrl: string;
 };
 
-export type VideoDepthPrepareResult = {
+type VideoDepthPrepareResult = {
   jobId: string;
   totalFrames: number;
   outWidth: number;
@@ -374,7 +374,7 @@ export async function writeVideoDepthFrames(payload: { jobId: string; frames: Ui
   }
 }
 
-export type VideoDepthFinishResult = { url: string; assetId?: string; frames: number };
+type VideoDepthFinishResult = { url: string; assetId?: string; frames: number };
 
 /** 收尾：关 stdin、等编码完成、落成项目资产。 */
 export async function finishVideoDepthJob(payload: { jobId: string }): Promise<VideoDepthFinishResult> {
@@ -400,7 +400,7 @@ export async function finishVideoDepthJob(payload: { jobId: string }): Promise<V
   }
 }
 
-export type VideoDepthCancelPayload =
+type VideoDepthCancelPayload =
   | { jobId: string; projectId?: string; nodeId?: string }
   | { jobId?: string; projectId: string; nodeId?: string };
 

@@ -3,7 +3,7 @@
 import { BrowserWindow } from "electron";
 import { reduceUpdaterState, UPDATER_INITIAL_STATE, type UpdateEvent, type UpdaterState } from "../shared/updateReminder";
 
-export const UPDATE_EVENT_CHANNEL = "nomi:update:event";
+const UPDATE_EVENT_CHANNEL = "nomi:update:event";
 
 let state: UpdaterState = UPDATER_INITIAL_STATE;
 
@@ -16,9 +16,4 @@ export function publishUpdateEvent(event: UpdateEvent): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.webContents.send(UPDATE_EVENT_CHANNEL, event);
   }
-}
-
-/** 测试隔离用。 */
-export function resetUpdateHubForTests(): void {
-  state = UPDATER_INITIAL_STATE;
 }

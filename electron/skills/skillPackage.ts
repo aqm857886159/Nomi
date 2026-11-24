@@ -108,7 +108,7 @@ export function computeSkillContentHash(files: Record<string, string>): string {
   return hash.digest("hex");
 }
 
-export type ValidatedSkillPackage =
+type ValidatedSkillPackage =
   | { ok: true; pkg: SkillPackage; skillName: string }
   | { ok: false; error: string };
 
@@ -279,7 +279,7 @@ export function exportSkillPackageByName(
   return validateSkillPackage(pkg).ok ? pkg : null;
 }
 
-export type DeleteSkillResult = { ok: true; dirName: string } | { ok: false; error: string };
+type DeleteSkillResult = { ok: true; dirName: string } | { ok: false; error: string };
 
 /**
  * 删除一个**用户目录下**的 skill（不可逆）。安全：解析后必须严格落在 userRoot 内（防 `..` 穿越），

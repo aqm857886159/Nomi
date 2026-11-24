@@ -6,7 +6,7 @@ import { shotBindsAnchor } from './shotRow/shotRowModel'
 
 /** D 段周边交互的纯函数 owner：视图只投影这些结果，不另存一份状态快照。 */
 
-export type StoryboardPlaybackItem = {
+type StoryboardPlaybackItem = {
   shot: PlanShot
   runtime: StoryboardRowRuntime
   mediaUrl: string | null
@@ -18,7 +18,7 @@ export type StoryboardPlaybackItem = {
   durationSec: number
 }
 
-export function shotsReferencingAnchor(plan: StoryboardPlan, anchorId: string): PlanShot[] {
+function shotsReferencingAnchor(plan: StoryboardPlan, anchorId: string): PlanShot[] {
   return plan.shots.filter((shot) => shotBindsAnchor(shot, anchorId))
 }
 

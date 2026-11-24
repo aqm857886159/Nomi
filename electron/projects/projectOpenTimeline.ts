@@ -5,9 +5,9 @@ import { performance } from "node:perf_hooks";
 
 const enabled = process.env.NOMI_PERF_MARKS === "1";
 
-export const PROJECT_OPEN_MAIN_PREFIX = "nomi:open:main:";
+const PROJECT_OPEN_MAIN_PREFIX = "nomi:open:main:";
 
-export type ProjectOpenMainStage = "read-project" | "lane-identity" | "lane-legacy-migration" | "lane-workspace-open";
+type ProjectOpenMainStage = "read-project" | "lane-identity" | "lane-legacy-migration" | "lane-workspace-open";
 
 export async function measureProjectOpenMainStage<T>(stage: ProjectOpenMainStage, run: () => Promise<T> | T): Promise<T> {
   if (!enabled) return run();

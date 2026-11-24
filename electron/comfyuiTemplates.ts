@@ -18,7 +18,7 @@ import { convertUiWorkflowToApi } from "./comfyuiGraphConvert";
 import { normalizeComfyuiBaseUrl } from "./comfyui/endpointResolver";
 import { appFetch } from "./appFetch";
 
-export type ComfyTemplateEntry = {
+type ComfyTemplateEntry = {
   name: string;
   title: string;
   description: string;
@@ -91,7 +91,7 @@ export async function fetchComfyuiTemplates(baseUrl: string): Promise<ComfyTempl
   }
 }
 
-export type TemplateDetail = {
+type TemplateDetail = {
   /** 转好的 API 格式文本（可直接喂既有导入链）。 */
   apiText: string;
   /** 官方模板的 UI workflow，随提交写进 extra_pnginfo 以便在 ComfyUI 继续编辑。 */

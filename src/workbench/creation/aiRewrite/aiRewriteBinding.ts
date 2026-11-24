@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { createRewriteController, type RewriteController, type RewriteControllerOptions, type RewriteHost } from './rewriteController'
 import type { RewriteSession } from './rewriteSession'
 
-export function editorRewriteHost(editor: Editor): RewriteHost {
+function editorRewriteHost(editor: Editor): RewriteHost {
   return {
     get state() {
       return editor.state

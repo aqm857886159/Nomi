@@ -35,7 +35,7 @@ import {
  * 同模块的 handoffQueue 早就是写时挤掉最旧的（见其 MAX_ENTRIES），这份漏了。
  * 完整经过与取证：docs/fixes/2026-09-21-integration-session-cap.root-cause.json。
  */
-export const MAX_INTEGRATION_SESSIONS = 100;
+const MAX_INTEGRATION_SESSIONS = 100;
 
 /** Convert connector/runtime failures into the closed, localizable reason-code
  * set exposed by the session projection. Never persist upstream error strings. */
@@ -115,7 +115,7 @@ function backfillCertifyingDeadline(item: Record<string, unknown>): void {
 const INTEGRATION_SESSION_BYTE_BUDGET = Math.floor(CERTIFICATION_MAX_FILE_BYTES * 0.8);
 
 /** 裁剪结果的可诊断摘要。**只放聚合量与时间**：id / URL / 供应商字段一概不进日志。 */
-export type IntegrationSessionCapReport = {
+type IntegrationSessionCapReport = {
   from: number;
   to: number;
   dropped: number;

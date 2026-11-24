@@ -30,14 +30,14 @@ export type ModelHandleRow = Readonly<{
 
 const SEPARATOR = "@";
 /** 拒收时「最像的几个」最多列几个。 */
-export const NEAREST_MODEL_HANDLE_LIMIT = 3;
+const NEAREST_MODEL_HANDLE_LIMIT = 3;
 
 /** 这一行的完整名字。没有供应商的行（目录里 0 行，防御）就是模型 id 本身。 */
 export function modelHandleOf(row: Pick<ModelHandleRow, "vendor" | "modelId">): string {
   return row.vendor ? `${row.modelId}${SEPARATOR}${row.vendor}` : row.modelId;
 }
 
-export type ModelHandleLookup<T extends ModelHandleRow> =
+type ModelHandleLookup<T extends ModelHandleRow> =
   /**
    * `via`：`handle` = 写的就是完整名字；`model_id` = 只写了模型 id（或别名、近似写法），目录里只有一家——回执要告诉 Agent 落成了谁；
    * `user_default` = 写的对得上好几家，其中恰好一家是用户给「这一种任务」设的默认，落到了它（`among` 是同名的全部几家）——
@@ -52,7 +52,7 @@ export type ModelHandleLookup<T extends ModelHandleRow> =
 /** 目录里一个模型的两段身份（落盘候选的 `{providerId, modelId}`、设置里默认的 `(vendorKey, modelKey)` 都是它）。 */
 export type ModelIdentity = Readonly<{ vendor: string; modelId: string }>;
 
-export type ModelHandleOptions = Readonly<{
+type ModelHandleOptions = Readonly<{
   /**
    * U1（2026-11-17 协调拍 A）：写的名字对得上好几家时，**只多看这一个事实**——用户给「这一种任务」设的默认
    * （只能来自 `createGenerationDefaultModelResolver` 的答案，调用方不许自己编）。它只在已匹配的那几行里挑：
@@ -75,7 +75,7 @@ function onlyMatchOf<T extends ModelHandleRow>(rows: readonly T[], via: "handle"
 }
 
 /** 落到默认那家时回执里的那句话（lane 回执与宿主回执同一句，不各写一份）。 */
-export function userDefaultNote(lookup: Readonly<{ handle: string; among?: readonly string[] }>): string {
+function userDefaultNote(lookup: Readonly<{ handle: string; among?: readonly string[] }>): string {
   return `${lookup.among?.length ?? 0} providers carry this model (${(lookup.among ?? []).join(", ")}); used ${lookup.handle} because it is the user's default for this kind of task.`;
 }
 

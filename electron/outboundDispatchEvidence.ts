@@ -154,7 +154,7 @@ function readProviderAnswer(value: unknown): ProviderAnswer | null {
  * **刻意不在名单里**：408（上游可能收下之后才超时）、409（常见于「同一幂等键已受理」，即已经有一笔）、
  * 425（Too Early，重放语义不明）以及其他 4xx——判错的代价是重复扣钱，一律按「结果未知」锁住。
  */
-export const REJECTION_STATUS_CODES: ReadonlySet<number> = new Set([400, 401, 402, 403, 404, 422, 429]);
+const REJECTION_STATUS_CODES: ReadonlySet<number> = new Set([400, 401, 402, 403, 404, 422, 429]);
 
 /**
  * 第三档：「供应商当场明确拒绝了这次提交」——**确定没受理、没扣钱**（2026-10-05 用户拍板，发动机收敛第一刀 F3）。
@@ -257,7 +257,6 @@ diagnosticsChannel.subscribe("child_process", (message) => {
   for (let ledger = ledgerStorage.getStore(); ledger; ledger = ledger.parent) ledger.processes.add(child);
 });
 
-
 function ledgerChain(): HandoffLedger[] {
   const chain: HandoffLedger[] = [];
   for (let ledger = ledgerStorage.getStore(); ledger; ledger = ledger.parent) chain.push(ledger);
@@ -309,7 +308,7 @@ export function outsidePaidDispatch<T>(work: () => Promise<T>): Promise<T> {
   return ledgerStorage.run(undefined, work);
 }
 
-export type ObservedSubmission<T> =
+type ObservedSubmission<T> =
   | { ok: true; value: T }
   | { ok: false; error: unknown; notDispatched: NotDispatchedReason | null };
 

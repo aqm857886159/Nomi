@@ -5,13 +5,23 @@ import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import { SHOT_VERIFY_DIMENSIONS, type ShotVerifyDimensionKey } from '../agent/shotVerify'
+import { formatQaUnverifiedReason } from '../agent/shotVerify'
+import type { ShotVerifyUnverifiedEntry } from '../agent/shotVerifyRunner'
 
 type ReconcileDeviationCardProps = {
   deviations: ReconcileDeviation[]
+  /** 审片未能完成校验的镜头列表（三态诚实展示，绝不冒充正常）。 */
+  unverified?: ShotVerifyUnverifiedEntry[]
   /** 一键整笔撤销(S6-2 后整笔提议=一个 undo barrier,一次 undo 即全退)。
    *  内容偏差卡(画面校验)不传:verify 没改任何东西,无可撤销。 */
   onUndoAll?: () => void
   onDismiss: () => void
+  /** 创作者显式「照用」未校验镜头（传 id 数组照用单镜，不传则照用全部未校验镜头）。 */
+  onAcceptUnverified?: (shotNodeIds?: readonly string[]) => void
+  /** 创作者显式「重新审片」（传 id 数组重审单镜，不传则重审全部未校验镜头）。 */
+  onRetryUnverified?: (shotNodeIds?: readonly string[]) => void
+  /** 重新审片请求进行中（驱动按钮品牌转圈与禁用防重）。 */
+  retryingVerify?: boolean
   /** 让 AI 用模型支持的方式把没接上的连接重连;内容偏差=发修复消息让 AI 改 prompt/重生(走确认闸)。 */
   onAiFix?: () => void
   /** 半自动闭环预算耗尽(Stage 2):隐藏「让 AI 修」、改显「已尽力」提示,绝不无限回灌。 */
@@ -160,33 +170,187 @@ function localizedReason(reason: unknown, t: TFunction): string {
  */
 export default function ReconcileDeviationCard({
   deviations,
+  unverified = [],
   onUndoAll,
   onDismiss,
+  onAcceptUnverified,
+  onRetryUnverified,
+  retryingVerify = false,
   onAiFix,
   exhausted = false,
   flat = false,
 }: ReconcileDeviationCardProps): JSX.Element {
   const { t } = useTranslation()
+  const [reasonsOpen, setReasonsOpen] = React.useState(false)
+  const [retryingTarget, setRetryingTarget] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!retryingVerify) setRetryingTarget(null)
+  }, [retryingVerify])
+
   const hasEdgeMiss = deviations.some((d) => d.field === '引用边')
   const hasContentMiss = deviations.some((d) => d.kind === 'content')
+  const hasUnverified = unverified.length > 0
   const hasStructural = deviations.some((d) => d.kind !== 'content')
-  // 「让 AI 修」对结构边丢失=重连边;对画面偏差=改 prompt/重生(走确认闸)。预算耗尽则不再给。
+  // 「让 AI 修」对结构边丢失=重连边;对画面偏差=改 prompt/重生(走确认闸)。仅未校验时不给 AI 修复。预算耗尽则不再给。
   const showAiFix = Boolean(onAiFix) && (hasEdgeMiss || hasContentMiss) && !exhausted
   // 撤销只对结构偏差有意义(verify 没改东西);内容偏差卡无可撤销。
   const showUndo = Boolean(onUndoAll) && hasStructural
+  // 纯未校验态：标题一句说清几镜没审成，原因按需展开，行内直接给「重新审片 / 照用」真实创作者动作。
+  const isPureUnverified = deviations.length === 0 && hasUnverified && !showAiFix && !showUndo && !exhausted
+  const isMultiUnverified = unverified.length > 1
+  const acceptShots = onAcceptUnverified ?? (() => onDismiss())
+  const triggerRetry = (shotNodeIds?: readonly string[]): void => {
+    setRetryingTarget(shotNodeIds && shotNodeIds.length === 1 ? shotNodeIds[0] : '__all__')
+    onRetryUnverified?.(shotNodeIds)
+  }
+
   const captionText = hasContentMiss
-    ? t('generationCommon.reconcile.contentCaption')
-    : t('generationCommon.reconcile.structuralCaption')
+    ? (hasUnverified ? t('generationCommon.reconcile.contentPartialCaption') : t('generationCommon.reconcile.contentCaption'))
+    : hasUnverified
+      ? t('generationCommon.reconcile.unverifiedOnlyCaption', { count: unverified.length })
+      : t('generationCommon.reconcile.structuralCaption')
+
+  const whyToggle = hasUnverified ? (
+    <button
+      type="button"
+      data-reconcile-why-toggle="true"
+      aria-expanded={reasonsOpen}
+      onClick={() => setReasonsOpen((open) => !open)}
+      className={cn(
+        'shrink-0 cursor-pointer border-0 bg-transparent p-0 text-caption text-nomi-ink-60 underline decoration-nomi-ink-30 underline-offset-2 hover:text-nomi-ink',
+      )}
+    >
+      {reasonsOpen
+        ? t('generationCommon.reconcile.hideReasons')
+        : t('generationCommon.reconcile.showReasons')}
+    </button>
+  ) : null
+
+  if (isPureUnverified) {
+    return (
+      <div
+        className={cn(
+          'flex flex-col gap-2',
+          flat ? '' : 'px-3 py-2.5 rounded-nomi border border-nomi-line bg-nomi-paper',
+        )}
+        data-reconcile-deviation-card="true"
+        aria-label={t('generationCommon.reconcile.aria')}
+      >
+        <div
+          data-reconcile-unverified-header="true"
+          className={cn('flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-caption text-nomi-ink-60')}
+        >
+          <span>{captionText}</span>
+          {whyToggle}
+        </div>
+        <ul className={cn('flex flex-col gap-1.5 list-none p-0 m-0 border-t border-nomi-line-soft pt-2')}>
+          {unverified.map((entry, index) => {
+            const shotLabel = entry.shotTitle || entry.shotNodeId
+            const rowLoading = retryingVerify && (retryingTarget === entry.shotNodeId || retryingTarget === null)
+            return (
+              <li
+                key={`unv-${entry.shotNodeId}-${index}`}
+                data-reconcile-unverified-item={entry.shotNodeId}
+                className={cn('flex flex-col gap-0.5 text-caption')}
+              >
+                <div className={cn('flex min-w-0 items-center gap-2')}>
+                  <span
+                    className={cn('min-w-0 flex-1 truncate font-medium text-nomi-ink')}
+                    title={shotLabel}
+                  >
+                    {shotLabel}
+                  </span>
+                  <span className={cn('flex shrink-0 items-center gap-1.5')}>
+                    {onRetryUnverified ? (
+                      <WorkbenchButton
+                        className={cn('shrink-0', isMultiUnverified && 'px-2.5')}
+                        variant="default"
+                        size="sm"
+                        loading={rowLoading}
+                        disabled={retryingVerify}
+                        data-reconcile-recheck={entry.shotNodeId}
+                        onClick={() => triggerRetry([entry.shotNodeId])}
+                      >
+                        {isMultiUnverified
+                          ? t('generationCommon.reconcile.recheckShort')
+                          : t('generationCommon.reconcile.recheckOne')}
+                      </WorkbenchButton>
+                    ) : null}
+                    <WorkbenchButton
+                      className={cn('shrink-0', isMultiUnverified && 'px-2.5')}
+                      variant="default"
+                      size="sm"
+                      disabled={retryingVerify}
+                      data-reconcile-accept={entry.shotNodeId}
+                      onClick={() => acceptShots([entry.shotNodeId])}
+                    >
+                      {isMultiUnverified
+                        ? t('generationCommon.reconcile.acceptShort')
+                        : t('generationCommon.reconcile.acceptOne')}
+                    </WorkbenchButton>
+                  </span>
+                </div>
+                {reasonsOpen ? (
+                  <span
+                    data-reconcile-unverified-reason={entry.shotNodeId}
+                    className={cn('text-micro leading-snug text-nomi-ink-60')}
+                  >
+                    {formatQaUnverifiedReason(entry.reason, t)}
+                  </span>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+        {isMultiUnverified ? (
+          <div
+            data-reconcile-unverified-batch="true"
+            className={cn('flex flex-wrap items-center gap-1.5 border-t border-nomi-line-soft pt-2')}
+          >
+            <span className={cn('flex-1')} aria-hidden="true" />
+            {onRetryUnverified ? (
+              <WorkbenchButton
+                className={cn('shrink-0')}
+                variant="default"
+                size="sm"
+                loading={retryingVerify && (retryingTarget === '__all__' || retryingTarget === null)}
+                disabled={retryingVerify}
+                data-reconcile-recheck-all="true"
+                onClick={() => triggerRetry()}
+              >
+                {t('generationCommon.reconcile.recheckAll')}
+              </WorkbenchButton>
+            ) : null}
+            <WorkbenchButton
+              className={cn('shrink-0')}
+              variant="default"
+              size="sm"
+              disabled={retryingVerify}
+              data-reconcile-accept-all="true"
+              onClick={() => acceptShots()}
+            >
+              {t('generationCommon.reconcile.acceptAll', { count: unverified.length })}
+            </WorkbenchButton>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div
       className={cn('flex flex-col gap-2', flat ? '' : 'p-3 rounded-nomi border border-nomi-line bg-nomi-paper')}
       data-reconcile-deviation-card="true"
       aria-label={t('generationCommon.reconcile.aria')}
     >
-      <div className={cn('text-caption text-nomi-ink-60')}>{captionText}</div>
+      <div className={cn('flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-caption text-nomi-ink-60')}>
+        <span>{captionText}</span>
+        {whyToggle}
+      </div>
       <ul className={cn('flex flex-col gap-1 list-none p-0 m-0')}>
         {deviations.map((deviation, index) => (
-          <li key={index} className={cn('flex flex-col gap-[2px] p-2 rounded-nomi-sm bg-nomi-ink-05 text-caption')}>
+          <li key={`dev-${index}`} className={cn('flex flex-col gap-[2px] p-2 rounded-nomi-sm bg-nomi-ink-05 text-caption')}>
             <span className={cn('text-nomi-ink font-medium')}>
               {deviation.where}
               {isEdgeField(deviation.field) ? '' : ` · ${fieldLabel(deviation.field, t)}`}
@@ -194,12 +358,67 @@ export default function ReconcileDeviationCard({
             <span className={cn('text-nomi-ink-60')}>{detailLine(deviation, t)}</span>
           </li>
         ))}
+        {unverified.map((entry, index) => {
+          const shotLabel = entry.shotTitle || entry.shotNodeId
+          const rowLoading = retryingVerify && (retryingTarget === entry.shotNodeId || retryingTarget === null)
+          return (
+            <li
+              key={`unv-${entry.shotNodeId}-${index}`}
+              data-reconcile-unverified-item={entry.shotNodeId}
+              className={cn('flex flex-col gap-1 p-2 rounded-nomi-sm bg-nomi-ink-05 text-caption')}
+            >
+              <div className={cn('flex min-w-0 items-center gap-2')}>
+                <span
+                  className={cn('min-w-0 flex-1 truncate text-nomi-ink font-medium')}
+                  title={shotLabel}
+                >
+                  {shotLabel} · {t('generationCommon.reconcile.unverifiedShotStatus')}
+                </span>
+                <span className={cn('flex shrink-0 items-center gap-1.5')}>
+                  {onRetryUnverified ? (
+                    <WorkbenchButton
+                      className={cn('shrink-0 px-2.5')}
+                      variant="default"
+                      size="sm"
+                      loading={rowLoading}
+                      disabled={retryingVerify}
+                      data-reconcile-recheck={entry.shotNodeId}
+                      onClick={() => triggerRetry([entry.shotNodeId])}
+                    >
+                      {t('generationCommon.reconcile.recheckShort')}
+                    </WorkbenchButton>
+                  ) : null}
+                  {onAcceptUnverified ? (
+                    <WorkbenchButton
+                      className={cn('shrink-0 px-2.5')}
+                      variant="default"
+                      size="sm"
+                      disabled={retryingVerify}
+                      data-reconcile-accept={entry.shotNodeId}
+                      onClick={() => onAcceptUnverified([entry.shotNodeId])}
+                    >
+                      {t('generationCommon.reconcile.acceptShort')}
+                    </WorkbenchButton>
+                  ) : null}
+                </span>
+              </div>
+              {reasonsOpen ? (
+                <span
+                  data-reconcile-unverified-reason={entry.shotNodeId}
+                  className={cn('text-micro leading-snug text-nomi-ink-60')}
+                >
+                  {formatQaUnverifiedReason(entry.reason, t)}
+                </span>
+              ) : null}
+            </li>
+          )
+        })}
       </ul>
       {exhausted ? (
         <div className={cn('text-caption text-nomi-ink-40')}>{t('generationCommon.reconcile.exhausted')}</div>
       ) : null}
       {/* flex-wrap + shrink-0:按钮在窄面板放不下时整组换行,不挤压不竖排。 */}
-      <div className={cn('flex flex-wrap items-center gap-2')}>
+      <div data-reconcile-footer-actions="true" className={cn('flex flex-wrap items-center gap-2')}>
         {showAiFix ? (
           <WorkbenchButton
             className={cn('shrink-0')}

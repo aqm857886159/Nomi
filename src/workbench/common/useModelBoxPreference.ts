@@ -16,7 +16,7 @@ let promise: Promise<void> | null = null
 const listeners = new Set<() => void>()
 function notify(): void { for (const listener of listeners) listener() }
 
-export function loadModelBoxPreference(): Promise<void> {
+function loadModelBoxPreference(): Promise<void> {
   // 已经有值了就不再回盘取：偏好只会被本进程自己改（写完就 notify），
   // 而重复取数会把设计实验室种进来的那份冲掉（见 seedModelBoxPreferenceForLab）。
   if (loaded) return Promise.resolve()
@@ -37,8 +37,6 @@ export function useModelBoxPreference(): ModelBoxPreferenceSettings {
   )
 }
 
-export function modelBoxPreferenceLoaded(): boolean { return loaded }
-
 /**
  * 设计实验室/测试专用种子：与 `seedModelCatalogForTests` 同一手法——只替掉**最外面那一次取数**，
  * 从这里往下（排序、隐藏、chip 高亮、自动选家）全部仍是现役代码。
@@ -51,9 +49,6 @@ export function seedModelBoxPreferenceForLab(value: ModelBoxPreferenceSettings):
   loaded = true
   notify()
 }
-
-/** 读当前值（非 React 路径用，如 chip 点击回调里要基于最新值做增量写）。 */
-export function getModelBoxPreferenceSnapshot(): ModelBoxPreferenceSettings { return preference }
 
 async function commit(next: ModelBoxPreferenceSettings): Promise<void> {
   const value = await setModelBoxPreference(next)

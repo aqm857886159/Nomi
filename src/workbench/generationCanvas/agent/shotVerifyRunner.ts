@@ -1,11 +1,12 @@
 // 镜级 verify 实时编排(impure,但靠 DI 可裸测)—— 把纯原语 shotVerify 接到真实生成产物。
-// 方案:docs/plan/2026-06-28-storyboard-closed-loop-verify.md（Stage 1 实时编排）。
+// 方案:docs/plan/2026-06-28-storyboard-closed-loop-verify.md（Stage 1 实时编排）+ 三态诚实审片升级。
 //
 // 副作用全收在注入的 deps 里(取帧 IPC + 调多模态模型 + 视觉可用性),本函数只编排:
-//   逐镜 → 取首帧图(图片镜=result.url;视频镜=extractFrame 抽首帧)→ 喂模型判 → 映射偏差。
-// 容错铁律:verify 是**增益**,不该阻断「生成已完成」——任一镜取帧/判决失败 → 跳过该镜(不误报、不抛)。
-// 视觉模型不可用 → 整体跳过(降级仅结构对账,plan §4 Stage 1「没连视觉→仅结构校验」)。
+//   逐镜 → 取首帧图(图片镜=result.url;视频镜=extractFrame 抽首帧)→ 喂模型判 → 输出三态结果。
+// 诚实铁律:verify 不阻断「生成已完成」,但绝不把失败/跳过伪装成「通过」——
+// 视觉不可用 / 缺帧 / 抽帧失败 / 判决抛错 / 非 JSON 一律记为 unverified 并带结构化原因。
 
+import type { QaShotUnverifiedReason } from '../../../../electron/shared/productionQaVerdict'
 import { getAppLocale } from '../../../i18n'
 import type { ReconcileDeviation } from './reconcile'
 import {
@@ -36,8 +37,25 @@ export type ShotVerifyDeps = {
   extractFrame: (videoUrl: string) => Promise<string>
   /** 把首帧图 + 校验 prompt 喂多模态模型,返回原始判决文本(JSON 或带围栏)。 */
   judge: (prompt: string, frameImageUrl: string) => Promise<string>
-  /** 多模态/视觉模型是否可用;false → 整体跳过(降级仅结构校验)。 */
-  visionAvailable: () => boolean
+  /** 多模态/视觉模型是否可用;false → 所有镜头记 unverified(vision_unavailable)。 */
+  visionAvailable: () => boolean | Promise<boolean>
+}
+
+export type ShotVerifyUnverifiedEntry = {
+  shotNodeId: string
+  shotTitle: string
+  reason: QaShotUnverifiedReason
+}
+
+export type ShotVerifyShotOutcome =
+  | { shotNodeId: string; shotTitle: string; status: 'passed' }
+  | { shotNodeId: string; shotTitle: string; status: 'flagged'; deviations: ReconcileDeviation[] }
+  | { shotNodeId: string; shotTitle: string; status: 'unverified'; reason: QaShotUnverifiedReason }
+
+export type ShotVerifyReport = {
+  deviations: ReconcileDeviation[]
+  shotOutcomes: ShotVerifyShotOutcome[]
+  unverified: ShotVerifyUnverifiedEntry[]
 }
 
 function toContext(shot: ShotVerifyInput): ShotVerifyContext {
@@ -53,32 +71,92 @@ function toContext(shot: ShotVerifyInput): ShotVerifyContext {
 }
 
 /**
- * 逐镜校验已生成产物 → 内容偏差(ReconcileDeviation[],kind:'content',喂对账卡)。
+ * 逐镜校验已生成产物 → 三态报告（deviations + shotOutcomes + unverified）。
  * 顺序串行(逐镜调模型;镜数通常 ≤ 十几,且后镜的连贯轴依赖前镜上下文——并行无收益且更费)。
  */
 export async function verifyGeneratedShots(
   shots: readonly ShotVerifyInput[],
   deps: ShotVerifyDeps,
-): Promise<ReconcileDeviation[]> {
-  if (!deps.visionAvailable()) return []
-  const out: ReconcileDeviation[] = []
+): Promise<ShotVerifyReport> {
+  let visionReady: boolean
+  try {
+    visionReady = Boolean(await deps.visionAvailable())
+  } catch {
+    visionReady = false
+  }
+  if (!visionReady) {
+    const unverified: ShotVerifyUnverifiedEntry[] = shots.map((shot) => ({
+      shotNodeId: shot.shotNodeId,
+      shotTitle: shot.shotTitle,
+      reason: 'vision_unavailable',
+    }))
+    return {
+      deviations: [],
+      unverified,
+      shotOutcomes: unverified.map((entry) => ({
+        shotNodeId: entry.shotNodeId,
+        shotTitle: entry.shotTitle,
+        status: 'unverified',
+        reason: entry.reason,
+      })),
+    }
+  }
+
+  const deviations: ReconcileDeviation[] = []
+  const shotOutcomes: ShotVerifyShotOutcome[] = []
+  const unverified: ShotVerifyUnverifiedEntry[] = []
+  const recordUnverified = (shot: ShotVerifyInput, reason: QaShotUnverifiedReason): void => {
+    unverified.push({ shotNodeId: shot.shotNodeId, shotTitle: shot.shotTitle, reason })
+    shotOutcomes.push({ shotNodeId: shot.shotNodeId, shotTitle: shot.shotTitle, status: 'unverified', reason })
+  }
+
   for (const shot of shots) {
+    if (!shot.frameSourceUrl) {
+      recordUnverified(shot, 'missing_frame_source')
+      continue
+    }
     let frameUrl: string
     try {
       frameUrl = shot.isVideo ? await deps.extractFrame(shot.frameSourceUrl) : shot.frameSourceUrl
     } catch {
-      continue // 取帧失败 → 跳过该镜(不阻断生成完成、不误报)
+      recordUnverified(shot, 'frame_extract_failed')
+      continue
     }
-    if (!frameUrl) continue
+    if (!frameUrl) {
+      recordUnverified(shot, 'missing_frame_source')
+      continue
+    }
     const ctx = toContext(shot)
+    let raw: string
+    try {
+      raw = await deps.judge(buildShotVerifyPrompt(ctx), frameUrl)
+    } catch {
+      recordUnverified(shot, 'judge_failed')
+      continue
+    }
     let verdict: ReturnType<typeof parseShotVerifyVerdict>
     try {
-      const raw = await deps.judge(buildShotVerifyPrompt(ctx), frameUrl)
       verdict = parseShotVerifyVerdict(raw)
     } catch {
-      continue // 判决/解析失败 → 跳过该镜(校验是增益,不该把生成完成拖红)
+      recordUnverified(shot, 'invalid_verdict_json')
+      continue
     }
-    out.push(...contentDeviationsToReconcile(deviationsFromVerdict(ctx, verdict)))
+    const shotDeviations = contentDeviationsToReconcile(deviationsFromVerdict(ctx, verdict))
+    if (shotDeviations.length > 0) {
+      deviations.push(...shotDeviations)
+      shotOutcomes.push({
+        shotNodeId: shot.shotNodeId,
+        shotTitle: shot.shotTitle,
+        status: 'flagged',
+        deviations: shotDeviations,
+      })
+    } else {
+      shotOutcomes.push({
+        shotNodeId: shot.shotNodeId,
+        shotTitle: shot.shotTitle,
+        status: 'passed',
+      })
+    }
   }
-  return out
+  return { deviations, shotOutcomes, unverified }
 }

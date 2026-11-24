@@ -7,9 +7,9 @@ import type { CapabilityContract } from "./capabilityContract";
  * 它碰不到密钥：输入只有一个供应商提示，输出只有「面板开了没有」。密钥永远由用户在面板里输入。
  */
 export const modelSetupOpenInputSchema = z.object({ provider: z.string().trim().min(1).max(80).optional() }).strict();
-export const modelSetupOpenResultSchema = z.object({ opened: z.literal(true), provider: z.string().optional() }).strict();
-export type ModelSetupOpenInput = z.infer<typeof modelSetupOpenInputSchema>;
-export type ModelSetupOpenResult = z.infer<typeof modelSetupOpenResultSchema>;
+const modelSetupOpenResultSchema = z.object({ opened: z.literal(true), provider: z.string().optional() }).strict();
+type ModelSetupOpenInput = z.infer<typeof modelSetupOpenInputSchema>;
+type ModelSetupOpenResult = z.infer<typeof modelSetupOpenResultSchema>;
 
 export const MODEL_SETUP_OPEN_CAPABILITY = {
   id: "model.setup.open",

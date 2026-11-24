@@ -22,7 +22,7 @@ export type OfferOutcomeFacts = Readonly<{
 }>;
 
 /** 有一次出价（最近那张卡），或者从没出过价。调用方必须明说，`undefined` 混不过去。 */
-export type CurrentOfferFacts =
+type CurrentOfferFacts =
   | Readonly<{ kind: "offer"; outcome: OfferOutcomeFacts }>
   | Readonly<{ kind: "no-current-offer" }>;
 
@@ -34,7 +34,7 @@ export function currentOfferFrom(outcome: OfferOutcomeFacts | undefined): Curren
 }
 
 /** present = Agent 的 `generate`（点名可以是计划里任何一镜）；gate = 付费门（只能封此刻还能封的镜，外部宿主点不了名）。 */
-export type GenerationScopeDoor = "present" | "gate";
+type GenerationScopeDoor = "present" | "gate";
 
 /** 范围不成立：码是 `generation_input_invalid`，正文是我们自己写给模型的一句可行动的话（适配器原样放行）。 */
 export class GenerationScopeRefusal extends Error {

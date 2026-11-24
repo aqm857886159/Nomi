@@ -26,7 +26,7 @@ const FOLLOW_SYSTEM: ProxyPrefs = { mode: "system", customUrl: "" };
 
 export type ProxySource = "env" | "system" | "custom";
 
-export type ProxyResolution =
+type ProxyResolution =
   | { kind: "none" }
   | { kind: "http"; url: string; source: ProxySource }
   | { kind: "socks"; url: string; source: ProxySource }
@@ -43,7 +43,7 @@ export function isApplicationProxyActive(): boolean {
 }
 
 /** 面板要显示的「当前网络状态」（用户选了什么 × 实际生效什么，两者可能不同）。 */
-export type ProxyStatus = {
+type ProxyStatus = {
   mode: ProxyMode;
   customUrl: string;
   /** 实际生效的代理地址；直连时为空串。 */
@@ -63,7 +63,6 @@ export type ProxyStatus = {
   /** 检测到的合成地址样本（如 `198.18.x.x`），空串 = 未检测到。 */
   localProxySample: string;
 };
-
 
 type CommittedRoute = {
   dispatcher: Dispatcher;

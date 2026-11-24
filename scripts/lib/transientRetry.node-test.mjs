@@ -14,6 +14,7 @@ import {
   execGhReadSync,
   fetchWithRetry,
   isTransientError,
+  isTransientGitFetchError,
   retryTransient,
   retryTransientSync,
 } from './transientRetry.mjs'
@@ -68,6 +69,24 @@ test('isTransientError 认得 fetch / 子进程 / gh / git 的网络错误，不
   assert.equal(isTransientError(Object.assign(new Error('x'), { code: 'ETIMEDOUT', signal: 'SIGKILL' })), false)
   assert.equal(isTransientError(Object.assign(new Error('gh: Not Found (HTTP 404)'), { stderr: 'HTTP 404' })), false)
   assert.equal(isTransientError('fetch failed'), false)
+})
+
+test('Git fetch retries connectivity and 5xx, while permanent errors take precedence over RPC text', () => {
+  for (const [stderr, expected] of [
+    ["fatal: unable to access 'https://github.com/owner/repo/': Failed to connect to github.com port 443", true],
+    ['fatal: unable to access remote: Could not resolve host: github.com', true],
+    ['error: RPC failed; curl 22 The requested URL returned error: 503', true],
+    ['fatal: early EOF', true],
+    ['error: RPC failed; HTTP 401 curl 22 The requested URL returned error: 401', false],
+    ['fatal: unable to access remote: The requested URL returned error: 403', false],
+    ['fatal: bad object deadbeef', false],
+    ['fatal: remote error: upload-pack: not our ref deadbeef', false],
+  ]) {
+    assert.equal(isTransientGitFetchError({ stderr: Buffer.from(stderr) }), expected, stderr)
+    assert.equal(isTransientError({ details: { command: 'git', args: ['fetch'], stderr } }), expected, stderr)
+  }
+  assert.equal(isTransientGitFetchError({ code: 'ETIMEDOUT', signal: 'SIGKILL' }), true)
+  assert.equal(isTransientGitFetchError({ signal: 'SIGTERM', stderr: 'early EOF' }), false)
 })
 
 test('同步版：瞬断后成功 / 非瞬断不重试', () => {
