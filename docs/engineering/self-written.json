@@ -874,6 +874,27 @@
       "revisitWhen": "项目会话、采纳补偿或 Agent 回执协议改变时，与 zundo 的新版本对照。"
     },
     {
+      "id": "file-lease-lock",
+      "capability": "工作区清单事务与生产运行栅栏需要的可核验文件所有权：原盘上协议、同步检查、同步盘恢复与持有者交接",
+      "status": "justified",
+      "paths": [
+        "electron/shared/fileLeaseLock.ts",
+        "electron/workspace/workspaceManifestLock.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "proper-lockfile 4.1.2",
+          "source": "https://github.com/moxystudio/node-proper-lockfile/blob/v4.1.2/README.md#compromised"
+        },
+        {
+          "name": "Node exclusive open and rename primitives",
+          "source": "https://nodejs.org/api/fs.html#file-system-flags"
+        }
+      ],
+      "whyNotIntegrated": "工作区需要与已发布桌面版本用同一份目录 owner.json 协调写入，以已验证的死 PID 及恢复隔离防止双写。生产运行需要原盘上 JSON 字段、显式 owner token 及发布时写栅栏。单用 mtime 的锁库无法执行这两个盘上协议。",
+      "revisitWhen": "支持现有记录、同步盘隔离和 fencing token 的库可通过工作区锁、租约与生产运行故障矩阵，或旧版本互操作需求结束。"
+    },
+    {
       "id": "lane-approval-gate",
       "capability": "工具调用审批闸：执行当轮生成暂停，在 before_tool 里停下等用户，四个动作、七种结局，关窗 / 切项目 / 按停止统一收尾",
       "status": "justified",

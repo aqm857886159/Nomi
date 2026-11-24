@@ -397,7 +397,7 @@
   },
   "electron/workspace/workspaceManifestLock.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 18
+      "count": 3
     }
   },
   "electron/workspace/workspaceManifestTransaction.ts": {
