@@ -1,6 +1,5 @@
 import React from 'react'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
-import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import type { GenerationCanvasState } from '../../generationCanvas/store/canvasStoreTypes'
 import { getUndoJournalGeneration } from '../../generationCanvas/events/canvasPatchHistory'
 import { withCanvasGestureContext } from '../../generationCanvas/events/canvasGestureContext'
