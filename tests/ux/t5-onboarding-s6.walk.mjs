@@ -118,7 +118,7 @@ async function run(locale, theme, width) {
     await composer.locator('[data-composer-connect=true]').click()
     await app.evaluate(({ safeStorage }) => {
       const encrypt = safeStorage.encryptString.bind(safeStorage)
-      safeStorage.encryptString = (value) => { safeStorage.encryptString = encrypt; throw new Error('locked fixture') }
+      safeStorage.encryptString = () => { safeStorage.encryptString = encrypt; throw new Error('locked fixture') }
     })
     response = 'positive'
     await submit('sk-loopback-locked')
