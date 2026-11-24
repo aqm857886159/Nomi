@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countShotUsage, listMountedCards } from './useNodeRelationships'
+import { countShotUsage, listMountedCards, waitingForFrameSource } from './useNodeRelationships'
 import type { GenerationCanvasNode, GenerationCanvasEdge } from '../model/generationCanvasTypes'
 
 function node(id: string, categoryId: string, title = ''): GenerationCanvasNode {
@@ -96,4 +96,13 @@ describe('listMountedCards — 镜头挂了哪些设定卡（切片2）', () => 
     const nodes = [kindNode('c1', 'character', ''), kindNode('s1', 'video')]
     expect(listMountedCards('s1', nodes, [edge('c1', 's1')])[0].title).toBe('角色')
   })
+})
+
+it('waits only for an existing frame source without usable media', () => {
+  const source = node('source', 'shots')
+  const edges = [{ ...edge(source.id, 'video'), mode: 'first_frame' as const }]
+  expect(waitingForFrameSource('video', [], edges)).toBe(false)
+  expect(waitingForFrameSource('video', [source], edges)).toBe(true)
+  const ready = { ...source, result: { id: 'r', type: 'image' as const, url: 'nomi-local://still.png', createdAt: 1 } }
+  expect(waitingForFrameSource('video', [ready], edges)).toBe(false)
 })

@@ -13,10 +13,11 @@
 // 「明确选过」只有一个标记 `aspect_ratio_user_set`：用户在比例控件上选、或落地时 Agent / 分镜写了合法比例。
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ModelOption } from '../../../config/models'
-import { collectInputAspectRatios, preferredVideoAspect } from './aspectRatio'
+import { collectInputAspectRatios, nodeAspectRatioValue, preferredVideoAspect } from './aspectRatio'
 import { isAspectRatioControl, videoAspectDefaultPatch, type DynamicModelControl } from './controls/parameterControlModel'
 import { resolveRenderedControls, resolveRenderedMode } from './nodeModelArchetype'
 import { ASPECT_RATIO_META_KEYS, isAutoOptionValue, normalizeAspectRatioToWH, sameAspectRatio } from '../../../../electron/shared/aspectRatioValue'
+import { readMediaDimensions } from './nodeSizing'
 import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 
 export type VideoAspectSeedInput = {
@@ -40,7 +41,7 @@ export type VideoAspectSeedInput = {
  * 节点此刻的比例是不是已经是首选：按 ASPECT_RATIO_META_KEYS 的优先级取第一个读得出比例的键（aspect_ratio 最先），
  * 再约分比较（`720:1280` 就是 9:16）。只看这一个键——旧模式残留在别的键上的比例不算数，不能挡住该铺的默认值。
  */
-function hasCurrentAspect(meta: Record<string, unknown>, preferred: '16:9' | '9:16'): boolean {
+function hasCurrentAspect(meta: Record<string, unknown>, preferred: string): boolean {
   for (const key of ASPECT_RATIO_META_KEYS) {
     const value = String(meta[key] ?? '')
     if (normalizeAspectRatioToWH(value)) return sameAspectRatio(value, preferred)
@@ -87,6 +88,20 @@ export function videoAspectSeedPatch(input: VideoAspectSeedInput): Record<string
   if (input.respectExplicit && input.meta[ASPECT_EXPLICIT_META_KEY] === true) return {}
   const editClear = editModeAutoAspectClearPatch(input)
   if (editClear !== null) return editClear
+  const firstFrame = input.edges.find(edge => edge.target === input.nodeId && edge.mode === 'first_frame')
+  const source = firstFrame && input.nodes.find(node => node.id === firstFrame.source)
+  if (source && (source.kind === 'image' || source.result?.type === 'image')) {
+    const pixels = source.result?.type === 'image' && readMediaDimensions(source.meta?.imageWidth, source.meta?.imageHeight)
+    const frameRatio = pixels ? `${pixels.width}:${pixels.height}` : nodeAspectRatioValue(source)
+    for (const preferred of ['auto', frameRatio]) {
+      if (!preferred) continue
+      const patch = videoAspectDefaultPatch(input.controls, preferred)
+      if (!Object.keys(patch).length) continue
+      if (input.respectExplicit && (hasCurrentAspect(input.meta, preferred) ||
+        Object.entries(patch).every(([key, value]) => input.meta[key] === value))) return {}
+      return patch
+    }
+  }
   const preferred = preferredVideoAspect(collectInputAspectRatios(input.nodeId, input.edges, input.nodes))
   if (input.respectExplicit && hasCurrentAspect(input.meta, preferred)) return {}
   return videoAspectDefaultPatch(input.controls, preferred)

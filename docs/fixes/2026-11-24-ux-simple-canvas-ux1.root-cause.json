@@ -1,0 +1,267 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-ux-simple-canvas-ux1",
+  "problem_type": "Canvas handoff loses the selected editing context",
+  "symptom": "After creation or image derivation the submit control can be clipped and the prepared card can claim to be waiting.",
+  "direct_cause": "Fit sees only card bounds; waiting reads only edges; first-frame aspect and title roles are discarded at presentation.",
+  "class_root": "The handoff describes an isolated card instead of the selected card with its editor and connected source.",
+  "affected_population": [
+    "Canvas users entering from Creation, deriving from a frame or selecting a card near an edge"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+    "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/videoAspectSeed.ts",
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+    "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+    "src/workbench/generation/list/CanvasListLinks.tsx",
+    "src/workbench/generationCanvas/reactFlow/useSelectionComposerPan.ts"
+  ],
+  "entry_points": [
+    "Creation selection, manual selection and right ring",
+    "Generated image toolbar and model auto-selection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi owns the pinned composer, free graph writer and first-frame defaults.",
+  "invariants": [
+    "Selecting one card exposes its fixed-width composer once when space permits.",
+    "A usable first frame is ready and seeds a supported aspect unless explicitly overridden."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx",
+      "symbol": "ImageQuickActionsToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/nodeTimelineInteraction.tsx",
+      "symbol": "ImageQuickActionsToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/list/CanvasListLinks.tsx",
+      "symbol": "ShotPreviewOverlays"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
+      "symbol": "isAspectRatioControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "isAspectRatioControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbarHost.tsx",
+      "symbol": "ImageQuickActionsToolbar"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useAutoFitOnLoad.ts",
+      "symbol": "shouldFitOnOpen"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts",
+      "symbol": "createConnectedNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
+      "symbol": "waitingForFrameSource"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "useWaitingForFrameSource"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
+      "symbol": "videoAspectSeedPatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "isAspectRatioControl"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "isAspectRatioControl"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "videoAspectSeedPatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/videoAspectSeed.ts",
+      "symbol": "isAspectRatioControl"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/videoAspectSeed.ts",
+      "symbol": "videoAspectDefaultPatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/videoAspectSeed.ts",
+      "symbol": "videoAspectSeedPatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+      "symbol": "createConnectedNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "selectedEditor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "fitEditingBounds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "useAutoFitOnLoad"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "revealEditor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+      "symbol": "composerInitialFootprint"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+      "symbol": "composerSelectionPan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+      "symbol": "fitEditingBounds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useSelectionComposerPan.ts",
+      "symbol": "selectedEditor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useSelectionComposerPan.ts",
+      "symbol": "revealEditor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasConnectDerivations.ts",
+      "symbol": "videoAspectSeedPatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasVisibleArea.ts",
+      "symbol": "composerInitialFootprint"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 29,
+    "why_not": "Open and selection have different triggers. Model choice, connection and mode switches must each seed defaults. Production and design views render the same controls."
+  },
+  "generality_proof": "Visibility is evaluated from stage and selection, independent of which control created the card. Every aspect-seeding gesture consumes the same graph.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+      "symbol": "revealEditor",
+      "responsibility": "Reveal one editing surface; preserve the zoom on ordinary single selection and fit taller new downstream cards."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/videoAspectSeed.ts",
+      "symbol": "videoAspectSeedPatch",
+      "responsibility": "Seed only supported first-frame defaults"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts",
+      "entry_point": "handleAddConnectedNode",
+      "disposition": "enforced",
+      "evidence": "Right-ring writer auto-selects the new downstream node."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "entry_point": "useNodeModelAutoSelect",
+      "disposition": "enforced",
+      "evidence": "Initial model selection calls videoAspectSeedPatch after connection."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every fresh project and edge selection can reproduce this with other viewport sizes and models.",
+    "same_class_scan": [
+      "door-map found both connect-time and model selection callers",
+      "Both lightweight and full cards render NodeShotLabel"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+    "invariant": "One selected editing surface fits inside the usable stage whenever physically possible.",
+    "failure_mode": "Skip unavailable geometry and drag or multi-select gestures.",
+    "exception_policy": "none",
+    "strategy": "Use selection identity, visible stage and editor footprint at the viewport boundary.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+      "src/workbench/generationCanvas/nodes/videoAspectSeed.ts",
+      "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
+      "src/workbench/generationCanvas/reactFlow/useSelectionComposerPan.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.test.ts",
+    "src/workbench/generationCanvas/hooks/useNodeRelationships.test.ts",
+    "src/workbench/generationCanvas/nodes/videoAspectSeed.test.ts",
+    "src/workbench/generationCanvas/quickActions/imageVideoShortcut.test.tsx",
+    "src/workbench/generation/list/storyboardShotLabel.surfaces.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.test.ts",
+    "src/workbench/generationCanvas/hooks/useNodeRelationships.test.ts",
+    "src/workbench/generationCanvas/nodes/videoAspectSeed.test.ts",
+    "src/workbench/generationCanvas/quickActions/imageVideoShortcut.test.tsx",
+    "src/workbench/generation/list/storyboardShotLabel.surfaces.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/hooks/useNodeRelationships.ts"
+    ],
+    "rationale": "Edge presence alone no longer determines the waiting message."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The graph and fixed-screen editing footprint are application-owned.",
+    "exit_criteria": []
+  },
+  "migration": "No schema change. Existing nodes and manually chosen ratios remain readable.",
+  "residual_risks": [
+    "A fixed 600 px composer cannot fit a stage narrower than its physical width by translation alone."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-08"
+}

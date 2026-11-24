@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
   IconAdjustmentsHorizontal,
+  IconVideo,
   IconBrush,
   IconCheck,
   IconCrop,
@@ -34,6 +35,7 @@ import type { ImageTransformOp } from '../nodes/useNodeImageEditing'
 import type { CropGridSize } from '../nodes/render/ImageCropGridOverlay'
 import { useResultDownload } from '../nodes/useResultDownload'
 import { openWhiteboard } from '../nodes/whiteboard/whiteboardSession'
+import { createConnectedNode } from './nodeInputActions'
 import { readQuickActionMeta } from './deriveFromNode'
 import { quickActionsInGroup, type QuickActionDefinition, type QuickActionId } from './quickActionCatalog'
 import type { QuickActionGuide } from './capabilityGuide'
@@ -164,6 +166,14 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   return (
     <>
       <FloatingToolbarShell ariaLabel={t('generationCommon.imageToolbar.aria')} nodeId={node.id}>
+        {imageUrl && node.kind === 'image' && <ToolbarButton
+          icon={<IconVideo size={I.size} stroke={I.stroke} />}
+          label={t('creationAi.selection.video')}
+          onClick={() => createConnectedNode({
+            anchorNodeId: node.id, side: 'right', sourceKind: 'node', kind: 'video',
+            position: node.position, exactPosition: false,
+          })}
+        />}
         {isAnchor && onToggleFreeze ? (
           <>
             <ToolbarButton

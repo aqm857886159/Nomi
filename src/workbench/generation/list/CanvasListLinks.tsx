@@ -21,7 +21,10 @@ export function NodeShotLabel({ node, shotRole, children }: {
 }): JSX.Element {
   const { t } = useTranslation()
   const label = useStoryboardShotLabel(node)
-  if (!label) return <><ShotPreviewOverlays shotRole={shotRole} />{children}</>
+  if (!label) {
+    const titleShowsRole = children && shotRole === 'video' && node.title?.trim() === t('generationCommon.shotConversion.video')
+    return <>{!titleShowsRole && <ShotPreviewOverlays shotRole={shotRole} />}{children}</>
+  }
   return (
     <>
       <ShotNumberPill attributes={{ 'data-shot-number': 'true', 'data-storyboard-shot-label': String(label.number) }}>{formatStoryboardShotLabel(t, label)}</ShotNumberPill>

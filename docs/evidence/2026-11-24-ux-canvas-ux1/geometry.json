@@ -1,0 +1,432 @@
+{
+  "en-dark-1280x800": {
+    "before": {
+      "zoom": 1.88235,
+      "composer": {
+        "x": 366,
+        "y": 743.3529663085938,
+        "width": 600,
+        "height": 184,
+        "top": 743.3529663085938,
+        "right": 966,
+        "bottom": 927.3529663085938,
+        "left": 366
+      }
+    },
+    "after": {
+      "zoom": 1.0,
+      "composer": {
+        "x": 366,
+        "y": 437,
+        "width": 600,
+        "height": 184,
+        "top": 437,
+        "right": 966,
+        "bottom": 621,
+        "left": 366
+      }
+    },
+    "stage": {
+      "x": 60,
+      "y": 40,
+      "width": 1212,
+      "height": 716,
+      "top": 40,
+      "right": 1272,
+      "bottom": 756,
+      "left": 60
+    },
+    "derived": {
+      "card": {
+        "x": 456,
+        "y": 43,
+        "width": 420,
+        "height": 420,
+        "top": 43,
+        "right": 876,
+        "bottom": 463,
+        "left": 456
+      },
+      "rect": {
+        "x": 366,
+        "y": 477,
+        "width": 600,
+        "height": 214,
+        "top": 477,
+        "right": 966,
+        "bottom": 691,
+        "left": 366
+      },
+      "button": {
+        "x": 923,
+        "y": 648,
+        "width": 30,
+        "height": 30,
+        "top": 648,
+        "right": 953,
+        "bottom": 678,
+        "left": 923
+      },
+      "dock": {
+        "x": 537.5,
+        "y": 700,
+        "width": 257,
+        "height": 40,
+        "top": 700,
+        "right": 794.5,
+        "bottom": 740,
+        "left": 537.5
+      },
+      "footer": "Vidu Q3\n1:1 · 720p · 5s",
+      "title": [
+        "Image",
+        "Video"
+      ],
+      "wait": false
+    }
+  },
+  "en-light-1280x800": {
+    "before": {
+      "zoom": 1.88235,
+      "composer": {
+        "x": 366,
+        "y": 743.3529663085938,
+        "width": 600,
+        "height": 184,
+        "top": 743.3529663085938,
+        "right": 966,
+        "bottom": 927.3529663085938,
+        "left": 366
+      }
+    },
+    "after": {
+      "zoom": 1.0,
+      "composer": {
+        "x": 366,
+        "y": 437,
+        "width": 600,
+        "height": 184,
+        "top": 437,
+        "right": 966,
+        "bottom": 621,
+        "left": 366
+      }
+    },
+    "stage": {
+      "x": 60,
+      "y": 40,
+      "width": 1212,
+      "height": 716,
+      "top": 40,
+      "right": 1272,
+      "bottom": 756,
+      "left": 60
+    },
+    "derived": {
+      "card": {
+        "x": 456,
+        "y": 43,
+        "width": 420,
+        "height": 420,
+        "top": 43,
+        "right": 876,
+        "bottom": 463,
+        "left": 456
+      },
+      "rect": {
+        "x": 366,
+        "y": 477,
+        "width": 600,
+        "height": 214,
+        "top": 477,
+        "right": 966,
+        "bottom": 691,
+        "left": 366
+      },
+      "button": {
+        "x": 923,
+        "y": 648,
+        "width": 30,
+        "height": 30,
+        "top": 648,
+        "right": 953,
+        "bottom": 678,
+        "left": 923
+      },
+      "dock": {
+        "x": 537.5,
+        "y": 700,
+        "width": 257,
+        "height": 40,
+        "top": 700,
+        "right": 794.5,
+        "bottom": 740,
+        "left": 537.5
+      },
+      "footer": "Vidu Q3\n1:1 · 720p · 5s",
+      "title": [
+        "Image",
+        "Video"
+      ],
+      "wait": false
+    }
+  },
+  "zh-dark-1280x800": {
+    "before": {
+      "zoom": 1.88235,
+      "composer": {
+        "x": 366,
+        "y": 743.3529663085938,
+        "width": 600,
+        "height": 184,
+        "top": 743.3529663085938,
+        "right": 966,
+        "bottom": 927.3529663085938,
+        "left": 366
+      }
+    },
+    "after": {
+      "zoom": 1.0,
+      "composer": {
+        "x": 366,
+        "y": 437,
+        "width": 600,
+        "height": 184,
+        "top": 437,
+        "right": 966,
+        "bottom": 621,
+        "left": 366
+      }
+    },
+    "stage": {
+      "x": 60,
+      "y": 40,
+      "width": 1212,
+      "height": 716,
+      "top": 40,
+      "right": 1272,
+      "bottom": 756,
+      "left": 60
+    },
+    "derived": {
+      "card": {
+        "x": 456,
+        "y": 43,
+        "width": 420,
+        "height": 420,
+        "top": 43,
+        "right": 876,
+        "bottom": 463,
+        "left": 456
+      },
+      "rect": {
+        "x": 366,
+        "y": 477,
+        "width": 600,
+        "height": 214,
+        "top": 477,
+        "right": 966,
+        "bottom": 691,
+        "left": 366
+      },
+      "button": {
+        "x": 923,
+        "y": 648,
+        "width": 30,
+        "height": 30,
+        "top": 648,
+        "right": 953,
+        "bottom": 678,
+        "left": 923
+      },
+      "dock": {
+        "x": 537.5,
+        "y": 700,
+        "width": 257,
+        "height": 40,
+        "top": 700,
+        "right": 794.5,
+        "bottom": 740,
+        "left": 537.5
+      },
+      "footer": "Vidu Q3\n1:1 · 720p · 5s",
+      "title": [
+        "图片",
+        "视频"
+      ],
+      "wait": false
+    }
+  },
+  "zh-light-1100x690": {
+    "before": {
+      "zoom": 1.59412,
+      "composer": {
+        "x": 276,
+        "y": 637.317626953125,
+        "width": 600,
+        "height": 184,
+        "top": 637.317626953125,
+        "right": 876,
+        "bottom": 821.317626953125,
+        "left": 276
+      }
+    },
+    "after": {
+      "zoom": 0.841808,
+      "composer": {
+        "x": 276,
+        "y": 354,
+        "width": 600,
+        "height": 184,
+        "top": 354,
+        "right": 876,
+        "bottom": 538,
+        "left": 276
+      }
+    },
+    "stage": {
+      "x": 60,
+      "y": 40,
+      "width": 1032,
+      "height": 606,
+      "top": 40,
+      "right": 1092,
+      "bottom": 646,
+      "left": 60
+    },
+    "derived": {
+      "card": {
+        "x": 431.80645751953125,
+        "y": 56.00001525878906,
+        "width": 288.38714599609375,
+        "height": 288.3870849609375,
+        "top": 56.00001525878906,
+        "right": 720.193603515625,
+        "bottom": 344.38710021972656,
+        "left": 431.80645751953125
+      },
+      "rect": {
+        "x": 276,
+        "y": 354.0000305175781,
+        "width": 600.0000610351562,
+        "height": 213.99996948242188,
+        "top": 354.0000305175781,
+        "right": 876.0000610351562,
+        "bottom": 568,
+        "left": 276
+      },
+      "button": {
+        "x": 833.0000610351562,
+        "y": 525,
+        "width": 30,
+        "height": 30,
+        "top": 525,
+        "right": 863.0000610351562,
+        "bottom": 555,
+        "left": 833.0000610351562
+      },
+      "dock": {
+        "x": 447.5,
+        "y": 590,
+        "width": 257,
+        "height": 40,
+        "top": 590,
+        "right": 704.5,
+        "bottom": 630,
+        "left": 447.5
+      },
+      "footer": "Vidu Q3\n1:1 · 720p · 5s",
+      "title": [
+        "图片",
+        "视频"
+      ],
+      "wait": false
+    }
+  },
+  "zh-light-1280x800": {
+    "before": {
+      "zoom": 1.88235,
+      "composer": {
+        "x": 366,
+        "y": 743.3529663085938,
+        "width": 600,
+        "height": 184,
+        "top": 743.3529663085938,
+        "right": 966,
+        "bottom": 927.3529663085938,
+        "left": 366
+      }
+    },
+    "after": {
+      "zoom": 1.0,
+      "composer": {
+        "x": 366,
+        "y": 437,
+        "width": 600,
+        "height": 184,
+        "top": 437,
+        "right": 966,
+        "bottom": 621,
+        "left": 366
+      }
+    },
+    "stage": {
+      "x": 60,
+      "y": 40,
+      "width": 1212,
+      "height": 716,
+      "top": 40,
+      "right": 1272,
+      "bottom": 756,
+      "left": 60
+    },
+    "derived": {
+      "card": {
+        "x": 456,
+        "y": 43,
+        "width": 420,
+        "height": 420,
+        "top": 43,
+        "right": 876,
+        "bottom": 463,
+        "left": 456
+      },
+      "rect": {
+        "x": 366,
+        "y": 477,
+        "width": 600,
+        "height": 214,
+        "top": 477,
+        "right": 966,
+        "bottom": 691,
+        "left": 366
+      },
+      "button": {
+        "x": 923,
+        "y": 648,
+        "width": 30,
+        "height": 30,
+        "top": 648,
+        "right": 953,
+        "bottom": 678,
+        "left": 923
+      },
+      "dock": {
+        "x": 537.5,
+        "y": 700,
+        "width": 257,
+        "height": 40,
+        "top": 700,
+        "right": 794.5,
+        "bottom": 740,
+        "left": 537.5
+      },
+      "footer": "Vidu Q3\n1:1 · 720p · 5s",
+      "title": [
+        "图片",
+        "视频"
+      ],
+      "wait": false
+    }
+  }
+}

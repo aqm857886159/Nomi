@@ -1,0 +1,111 @@
+{
+  "actions": [
+    {
+      "t": "2026-11-24T10:11:40.925Z",
+      "ms": 877,
+      "action": "click",
+      "target": "role:button=新建空白项目",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:42.105Z",
+      "ms": 806,
+      "action": "click",
+      "target": "css:[data-creation-surface=\"source\"] .ProseMirror",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:43.063Z",
+      "ms": 391,
+      "action": "fill",
+      "sel": "css:[data-creation-surface=\"source\"] .ProseMirror",
+      "val": "A gull circles the lighthouse at dawn.",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:43.605Z",
+      "ms": 513,
+      "action": "press",
+      "key": "Meta+a",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:44.420Z",
+      "ms": 863,
+      "action": "click",
+      "target": "aria:生成图片",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:47.241Z",
+      "ms": 889,
+      "action": "click",
+      "target": "aria:生成素材",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:50.212Z",
+      "ms": 852,
+      "action": "click",
+      "target": "aria:生成视频",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:52.915Z",
+      "ms": 821,
+      "action": "click",
+      "target": "css:[data-prompt-box] .ProseMirror",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:53.887Z",
+      "ms": 436,
+      "action": "fill",
+      "sel": "css:[data-prompt-box] .ProseMirror",
+      "val": "Track forward as the gull passes the lighthouse.",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:54.475Z",
+      "ms": 918,
+      "action": "click",
+      "target": "aria:生成素材",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:57.893Z",
+      "ms": 884,
+      "action": "click",
+      "target": "aria:预览",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:11:59.078Z",
+      "ms": 904,
+      "action": "click",
+      "target": "aria:视频 · 拖到轨道放这里，点击加到片尾",
+      "ok": true
+    },
+    {
+      "t": "2026-11-24T10:12:00.594Z",
+      "ms": 876,
+      "action": "click",
+      "target": "aria:导出 MP4",
+      "ok": true
+    }
+  ],
+  "fixtureGenerationRequests": [
+    {
+      "t": "2026-11-24T10:11:47.584Z",
+      "method": "POST",
+      "route": "/v1/images/generations",
+      "model": "seedream-5-0-pro"
+    },
+    {
+      "t": "2026-11-24T10:11:54.712Z",
+      "method": "POST",
+      "route": "/v1/videos/generations",
+      "model": "viduq3"
+    }
+  ]
+}

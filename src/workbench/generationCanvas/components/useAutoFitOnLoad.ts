@@ -56,15 +56,16 @@ export function useAutoFitOnLoad(params: {
   nodes: GenerationCanvasNode[]
   activeCategoryId: string
   categoryViewports: Record<string, Viewport | undefined>
-  fitView: () => void
+  fitView: (animate: boolean, opening: boolean) => void
+  revealRememberedSelection: () => void
   stageRef: React.RefObject<HTMLDivElement | null>
   zoomRef: React.MutableRefObject<number>
   offsetRef: React.MutableRefObject<{ x: number; y: number }>
   hasFlowNode: (id: string) => boolean
 }): void {
-  const { ready, nodes, activeCategoryId, categoryViewports, fitView, stageRef, zoomRef, offsetRef, hasFlowNode } = params
-  const latest = React.useRef({ nodes, categoryViewports, fitView, hasFlowNode })
-  latest.current = { nodes, categoryViewports, fitView, hasFlowNode }
+  const { ready, nodes, activeCategoryId, categoryViewports, fitView, revealRememberedSelection, stageRef, zoomRef, offsetRef, hasFlowNode } = params
+  const latest = React.useRef({ nodes, categoryViewports, fitView, hasFlowNode, revealRememberedSelection })
+  latest.current = { nodes, categoryViewports, fitView, hasFlowNode, revealRememberedSelection }
   React.useEffect(() => {
     if (!ready) return undefined
     const openNodes = latest.current.nodes
@@ -84,7 +85,8 @@ export function useAutoFitOnLoad(params: {
         nodeCountAtOpen: openNodes.length,
         hasRememberedViewport: Boolean(viewports[activeCategoryId]),
         anyNodeVisible: anyNodeVisibleInViewport(openNodes, zoomRef.current, offsetRef.current, rect.width, rect.height),
-      })) fit()
+      })) fit(false, true)
+      else latest.current.revealRememberedSelection()
     }
     frame = requestAnimationFrame(fitWhenMeasured)
     return () => cancelAnimationFrame(frame)

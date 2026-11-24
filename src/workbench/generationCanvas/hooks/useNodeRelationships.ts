@@ -9,6 +9,8 @@
  * 现在用 WeakMap 缓存 keyed on (nodes, edges) 引用：相同输入只 build 一次，
  * 每张卡 O(1) Map.get 查询。zustand immer 保证未改的数组引用稳定 → 缓存命中率高。
  */
+import { resultUrl } from '../runner/referenceUrl'
+import { isAspectInputEdgeMode } from '../nodes/aspectRatio'
 import { resolveShotIdentities, type ShotIdentity } from '../../../../electron/shared/canvas/shotNumbering'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode, GenerationCanvasEdge } from '../model/generationCanvasTypes'
@@ -107,18 +109,26 @@ function buildMountedCardsMap(
 
 const EMPTY_MOUNTED: MountedCard[] = []
 
-const frameSourceCache = new WeakMap<readonly GenerationCanvasEdge[], Map<string, boolean>>()
+const waitingCache = new WeakMap<readonly GenerationCanvasNode[], WeakMap<readonly GenerationCanvasEdge[], Set<string>>>()
 
-function buildFrameSourceMap(edges: readonly GenerationCanvasEdge[]): Map<string, boolean> {
-  const cached = frameSourceCache.get(edges)
-  if (cached) return cached
-  const map = new Map<string, boolean>()
-  for (const edge of edges) {
-    if (edge.mode && edge.mode !== 'first_frame' && edge.mode !== 'last_frame' && edge.mode !== 'reference') continue
-    map.set(edge.target, true)
+export function waitingForFrameSource(nodeId: string, nodes: readonly GenerationCanvasNode[], edges: readonly GenerationCanvasEdge[]): boolean {
+  let byEdges = waitingCache.get(nodes)
+  if (!byEdges) {
+    byEdges = new WeakMap()
+    waitingCache.set(nodes, byEdges)
   }
-  frameSourceCache.set(edges, map)
-  return map
+  let waiting = byEdges.get(edges)
+  if (!waiting) {
+    waiting = new Set()
+    const sources = new Map(nodes.map(node => [node.id, node]))
+    for (const edge of edges) {
+      if (edge.mode && !isAspectInputEdgeMode(edge.mode)) continue
+      const source = sources.get(edge.source)
+      if (source && source.kind !== 'text' && !resultUrl(source.result)) waiting.add(edge.target)
+    }
+    byEdges.set(edges, waiting)
+  }
+  return waiting.has(nodeId)
 }
 
 /** 纯查询（可单测）：节点 nodeId 挂了哪些角色/场景设定卡（按连边顺序、去重）。 */
@@ -165,8 +175,8 @@ export function useNodeVariantCount(nodeId: string): number {
  * 审计 A15：video 节点是否已连上「能供画面」的入边（首帧/尾帧/素材参考）。
  * 占位文案据此区分「没连边 → 提示拖图」vs「已连、上游未生成 → 提示等待」。
  */
-export function useHasFrameSourceEdge(nodeId: string, enabled: boolean): boolean {
-  return useGenerationCanvasStore((state) => enabled && Boolean(buildFrameSourceMap(state.edges).get(nodeId)))
+export function useWaitingForFrameSource(nodeId: string, enabled: boolean): boolean {
+  return useGenerationCanvasStore((state) => enabled && waitingForFrameSource(nodeId, state.nodes, state.edges))
 }
 
 const shotIdentityCache = new WeakMap<readonly GenerationCanvasNode[], WeakMap<readonly GenerationCanvasEdge[], Map<string, ShotIdentity>>>()

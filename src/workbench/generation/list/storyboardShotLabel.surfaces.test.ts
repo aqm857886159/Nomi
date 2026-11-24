@@ -124,3 +124,12 @@ describe('no global shot number on any surface when the node is not on a storybo
     expect(timelineClipDisplayName({ label: '导入的配乐' }, undefined, source, t)).toBe('导入的配乐')
   })
 })
+
+it('keeps the editable title and prints a default video role only once', () => {
+  const render = (title: string) => renderToStaticMarkup(React.createElement(NodeShotLabel, {
+    node: { ...shot, kind: 'video', title, meta: {} }, shotRole: 'video',
+    children: React.createElement('span', { 'data-edit-title': true }, title),
+  })).replace(/<[^>]+>/g, '')
+  expect(render('视频')).toBe('视频')
+  expect(render('海边')).toBe('视频海边')
+})
