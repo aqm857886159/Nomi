@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="zh-CN" data-mark="exploration">
+<head>
+<meta charset="utf-8">
+<title>S-E 图层分解 · 方案 A vs B 与四问全景（exploration）</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+:root, .L {
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-chrome: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-info-ink: oklch(0.45 0.13 250);
+  --nomi-info-soft: oklch(0.957 0.021 250);
+  --nomi-logo-ground: oklch(0.22 0.01 80);
+  --nomi-overlay-chip: oklch(0.18 0.01 80 / 0.68);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+  --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / 0.05), 0 20px 50px oklch(0 0 0 / 0.08);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.88 0.005 80);
+}
+.D {
+  color-scheme: dark;
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-chrome: oklch(0.155 0.006 80);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-info-ink: oklch(0.82 0.13 250);
+  --nomi-info-soft: oklch(0.295 0.045 250);
+  --nomi-logo-ground: oklch(0.30 0.01 80);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.78);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.30), 0 24px 64px oklch(0 0 0 / 0.40);
+  --nomi-dot: oklch(0.30 0.006 85);
+}
+.board {
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.t11 { font-size: 11px; line-height: 16px; }
+.t12 { font-size: 12px; line-height: 18px; }
+.t13 { font-size: 13px; line-height: 20px; }
+.t14 { font-size: 14px; line-height: 20px; }
+.w5 { font-weight: 500; }
+.w6 { font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.c80 { color: var(--nomi-ink-80); }
+.c60 { color: var(--nomi-ink-60); }
+.c40 { color: var(--nomi-ink-40); }
+.c30 { color: var(--nomi-ink-30); }
+.cacc { color: var(--nomi-accent); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.g4 { gap: 4px; } .g6 { gap: 6px; } .g8 { gap: 8px; } .g10 { gap: 10px; } .g12 { gap: 12px; } .g16 { gap: 16px; }
+.f1 { flex: 1; min-width: 0; }
+.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nowrap { white-space: nowrap; }
+.ico { flex: none; display: block; }
+
+.topbar { height: 40px; flex: none; padding: 0 16px; background: var(--nomi-chrome); box-shadow: inset 0 -1px 0 var(--nomi-line); }
+.canvas-dots { background-color: var(--nomi-bg); background-image: radial-gradient(var(--nomi-dot) 1px, transparent 1.2px); background-size: 18px 18px; }
+.card { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-md); }
+.panel-flat { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); }
+.checker {
+  background-color: var(--nomi-ink-05);
+  background-image:
+    linear-gradient(45deg, var(--nomi-ink-10) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--nomi-ink-10) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--nomi-ink-10) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--nomi-ink-10) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+
+.badge-info { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-info-soft); color: var(--nomi-info-ink); font-size: 11px; line-height: 16px; font-weight: 600; white-space: nowrap; }
+.badge-ok { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-success-soft); color: var(--nomi-success-ink); box-shadow: inset 0 0 0 1px var(--nomi-success-edge); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.badge-warn { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-warning-soft); color: var(--nomi-warning-ink); box-shadow: inset 0 0 0 1px var(--nomi-warning-edge); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.badge-danger { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-danger-soft); color: var(--nomi-danger-ink); box-shadow: inset 0 0 0 1px var(--nomi-danger-edge); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.badge-neutral { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-ink-10); color: var(--nomi-ink-60); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.bar-warn { background: var(--nomi-warning-soft); color: var(--nomi-warning-ink); box-shadow: inset 0 0 0 1px var(--nomi-warning-edge); border-radius: var(--nomi-radius-sm); padding: 6px 10px; }
+.bar-danger { background: var(--nomi-danger-soft); color: var(--nomi-danger-ink); box-shadow: inset 0 0 0 1px var(--nomi-danger-edge); border-radius: var(--nomi-radius-sm); padding: 6px 10px; }
+.overlay-pill { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-overlay-chip); color: var(--nomi-media-ink); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+
+.btn-pri { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--nomi-ink); color: var(--nomi-paper); font-size: 12px; line-height: 18px; font-weight: 600; white-space: nowrap; }
+.btn-out { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--nomi-paper); color: var(--nomi-ink); border: 1px solid var(--nomi-line); font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
+.btn-dis { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--nomi-ink-10); color: var(--nomi-ink-30); font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
+.btn-ghost { display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 10px; border-radius: 999px; border: 0; background: transparent; color: var(--nomi-ink-80); font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink); font-size: 12px; line-height: 18px; white-space: nowrap; min-width: 0; }
+.chip.fill { background: var(--nomi-ink-05); }
+.ib { width: 28px; height: 28px; border-radius: var(--nomi-radius-sm); display: inline-flex; align-items: center; justify-content: center; color: var(--nomi-ink-60); background: transparent; border: 0; flex: none; }
+.send-pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 2px 0 10px; border-radius: 999px; background: var(--nomi-ink-10); flex: none; }
+.send-circle { width: 28px; height: 28px; border-radius: 999px; background: var(--nomi-ink); color: var(--nomi-paper); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.send-circle.dis { background: var(--nomi-ink-20); color: var(--nomi-ink-40); }
+
+.seg { display: flex; padding: 2px; background: var(--nomi-ink-05); border-radius: var(--nomi-radius-sm); gap: 2px; }
+.seg span { flex: 1; height: 24px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 18px; color: var(--nomi-ink-60); padding: 0 6px; white-space: nowrap; }
+.seg span.on { background: var(--nomi-paper); color: var(--nomi-ink); font-weight: 600; box-shadow: var(--nomi-shadow-sm); }
+
+/* Layer Row (30px compact virtualized row, neutral selection per §8) */
+.lrow {
+  display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px;
+  border-radius: var(--nomi-radius-sm);
+}
+.lrow.sel { background: var(--nomi-ink-05); }
+.lrow.hov { background: var(--nomi-ink-10); }
+.lthumb {
+  width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--nomi-line);
+  flex: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.ck-right { margin-left: auto; color: var(--nomi-accent); flex: none; }
+.stripes { background: repeating-linear-gradient(45deg, var(--nomi-ink-05) 0 10px, var(--nomi-ink-10) 10px 20px); }
+</style>
+</head>
+<body>
+<div class="board L" style="width:1440px;height:900px">
+  <div class="topbar row g10">
+    <svg class="ico" width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+    <span class="t13 w6">S-E 图层分解（Seedream 5.5 / 5.0 Pro）· 架构取舍与核心交互全景</span>
+    <span class="badge-info">exploration · 探索样稿</span>
+    <div class="f1"></div>
+    <span class="t11 c60">单张输入 · 底图+透明层逐张计费 · 保留 zIndex 与 {x,y,w,h} 坐标框</span>
+  </div>
+
+  <!-- Top Row: Q1 Option A (Recommended) vs Option B (Rejected 100-node explosion) -->
+  <div class="row g12" style="padding:12px 16px 0;height:446px;flex:none;align-items:stretch">
+    <!-- Option A (Wide 940px): Single Layer-Stack Node + Attached Right Inspector + Split Selected -->
+    <div class="panel-flat col" style="width:948px;flex:none;overflow:hidden">
+      <div class="row g8" style="padding:8px 14px;box-shadow:inset 0 -1px 0 var(--nomi-line)">
+        <span class="t14 w6">方案 A（推荐）· 留在单节点「图层栈 + 右侧附着面板」，只把要改的 1–3 层拆成独立节点</span>
+        <span class="badge-ok">推荐 · 零画布爆炸</span>
+      </div>
+      <div class="canvas-dots row g12 f1" style="padding:14px 16px;align-items:center">
+        <!-- Main Decomposed Node (264px) -->
+        <div class="col g4" style="width:256px;flex:none">
+          <div class="row g6 t12 c60"><span>海报主视觉 · 已分解</span></div>
+          <div class="card col" style="overflow:hidden">
+            <div style="position:relative">
+              <svg width="256" height="186" viewBox="0 0 248 186" fill="none" style="display:block;width:100%;height:186px" aria-hidden="true">
+    <defs>
+      <linearGradient id="pbg256" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2b3548"/>
+        <stop offset="100%" stop-color="#4e3d53"/>
+      </linearGradient>
+    </defs>
+    <rect width="248" height="186" fill="url(#pbg256)"/>
+    <!-- Midground neon sign -->
+    <rect x="150" y="54" width="76" height="44" rx="6" fill="#d97757" fill-opacity="0.82"/>
+    <!-- Character silhouette -->
+    <circle cx="92" cy="104" r="18" fill="#e8dccb"/>
+    <path d="M64 186 C66 134 118 134 120 186 Z" fill="#1e222b"/>
+    <!-- Foreground Headline Layer with neutral dark/light crisp bounding box -->
+    <rect x="20" y="16" width="152" height="34" rx="3" fill="rgba(255,255,255,0.14)" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <rect x="18" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="18" y="47" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="47" width="5" height="5" fill="#ffffff"/>
+    <text x="30" y="38" fill="#ffffff" font-size="14" font-weight="700" font-family="Inter, sans-serif">NIGHT MARKET</text>
+    <!-- Coordinate tag -->
+    <rect x="20" y="54" width="176" height="18" rx="4" fill="rgba(20,20,22,0.82)"/>
+    <text x="26" y="67" fill="#ffffff" font-size="11" font-family="ui-monospace, monospace">X:120 Y:48 · 620×180</text>
+  </svg>
+              <span class="overlay-pill" style="position:absolute;right:8px;top:8px"><svg class="ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span>19 层</span></span>
+            </div>
+            <!-- Bottom mini RGBA strip -->
+            <div class="row g4" style="padding:6px 8px;border-top:1px solid var(--nomi-line-soft)">
+              <span class="lthumb checker"><span class="t11 w6">T</span></span>
+              <span class="lthumb checker"><span style="width:10px;height:10px;border-radius:99px;background:#d97757"></span></span>
+              <span class="lthumb checker"><span style="width:10px;height:12px;border-radius:2px;background:#2b3548"></span></span>
+              <span class="t11 c60 num">+16</span>
+              <div class="f1"></div>
+              <span class="t11 cacc w6">图层栈已展开 ▸</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Attached Layer Stack Inspector (328px, useNodeAttachedPanel) -->
+        <div class="card col" style="width:336px;height:368px;flex:none;overflow:hidden">
+          <div class="row g6" style="padding:8px 10px;box-shadow:inset 0 -1px 0 var(--nomi-line-soft)">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="t13 w6">图层栈（18 层 + 底图）</span>
+            <div class="f1"></div>
+            <span class="t11 c60">拖 ⠿ 改叠放顺序</span>
+          </div>
+          <div class="row g6" style="padding:6px 8px;box-shadow:inset 0 -1px 0 var(--nomi-line-soft)">
+            <div class="row g6 f1" style="height:26px;padding:0 8px;border-radius:999px;background:var(--nomi-ink-05)">
+              <svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/></svg><span class="t11 c60">搜图层名 / OCR 文字</span>
+            </div>
+            <button class="btn-pri" style="height:26px;padding:0 10px"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M10 14l11 -11"/><path d="M21 14v5a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h5"/></svg><span>拆出选中 2 层</span></button>
+          </div>
+          <!-- Ordered top-to-bottom z-order (#18 -> #1 -> Base) -->
+          <div class="col g4 f1" style="padding:6px;overflow:hidden">
+            <div class="lrow hov">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span class="t11 w6">T</span></span>
+              <span class="t12 w6 f1 trunc">主标题文字 "NIGHT"</span>
+              <span class="badge-neutral" style="height:18px;padding:0 5px">OCR</span>
+              <span class="t11 c60 mono num">#18</span>
+            </div>
+            <div class="lrow sel">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span style="width:12px;height:8px;background:#d97757;border-radius:2px"></span></span>
+              <span class="t12 w5 f1 trunc">右侧霓虹灯牌</span>
+              <span class="t11 c60 mono num">#17 · 380×220</span>
+            </div>
+            <div class="lrow">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span style="width:10px;height:14px;background:#1e222b;border-radius:2px"></span></span>
+              <span class="t12 f1 trunc">主角林夏（前景人物）</span>
+              <span class="t11 c60 mono num">#16 · 510×920</span>
+            </div>
+            <div class="lrow">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c40" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.4 5.4a9.6 9.6 0 0 1 2.6 -.4c3.6 0 6.6 2 9 6c-.8 1.3 -1.7 2.5 -2.7 3.4"/><path d="M6.3 6.3c-1.5 1.2 -2.9 2.9 -4.3 5.7c2.4 4 5.4 6 9 6c1.5 0 2.9 -.4 4.2 -1.1"/></svg><span class="lthumb checker"><span style="width:14px;height:6px;background:#6e7f99;border-radius:2px"></span></span>
+              <span class="t12 c60 f1 trunc">街角蒸汽薄雾</span>
+              <span class="t11 c60 mono num">#15 · 880×340</span>
+            </div>
+            <div class="lrow">
+              <span class="t11 c40" style="padding-left:20px">… 中间 #14 – #1 共 14 层（虚拟滚动）…</span>
+            </div>
+            <div class="lrow" style="border-top:1px solid var(--nomi-line-soft);margin-top:auto">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb" style="background:#38384c"></span>
+              <span class="t12 w5 f1 trunc">底图（已自动补全背景）</span>
+              <span class="t11 c60 mono">z=0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2 Derived Child Nodes on Canvas (Only what creator asked to split!) -->
+        <div class="col g10 f1" style="min-width:0">
+          <div class="t11 c60">按需拆出的 2 个独立透明 PNG 节点（保留原图相对坐标）：</div>
+          <div class="card row g8" style="padding:8px">
+            <span class="lthumb checker" style="width:36px;height:36px"><span class="t12 w6">T</span></span>
+            <div class="col f1">
+              <span class="t12 w6 trunc">主标题文字 · #18</span>
+              <span class="t11 c60 mono">X:120 Y:48 · 620×180</span>
+            </div>
+          </div>
+          <div class="card row g8" style="padding:8px">
+            <span class="lthumb checker" style="width:36px;height:36px"><span style="width:16px;height:12px;background:#d97757;border-radius:2px"></span></span>
+            <div class="col f1">
+              <span class="t12 w6 trunc">右侧霓虹灯牌 · #17</span>
+              <span class="t11 c60 mono">X:740 Y:260 · 380×220</span>
+            </div>
+          </div>
+          <span class="t11 c60">可直接连给 Seedance 2.5 做分层运镜或单层重绘</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B (448px): Spawning 100 nodes anti-pattern -->
+    <div class="panel-flat col f1" style="overflow:hidden">
+      <div class="row g8" style="padding:8px 14px;box-shadow:inset 0 -1px 0 var(--nomi-line)">
+        <span class="t14 w6">方案 B · 直接在画布铺出 30–100 个节点</span>
+        <span class="badge-warn">不推荐</span>
+      </div>
+      <div class="canvas-dots col g10 f1" style="padding:14px">
+        <!-- Mini grid illustrating 30-100 node explosion -->
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:10px;border-radius:8px;border:1px dashed var(--nomi-line);background:var(--nomi-paper)">
+          <div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#100</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#99</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#98</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#97</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#96</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#95</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#94</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#93</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#92</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#91</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#90</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#89</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#88</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#87</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#86</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#85</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#84</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#83</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#82</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#81</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#80</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#79</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#78</span></div><div class="checker" style="height:28px;border-radius:4px;border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center"><span class="t11 c60 num">#77</span></div>
+        </div>
+        <div class="bar-warn t11">一次拆 100 层 = 画布瞬间长出 100 张 360px 节点卡 + 100 条连线（占地约 4200×3000px）</div>
+        <div class="col g4 t12 c80">
+          <div>× 瞬间淹没相邻分镜组框，缩略地图与连线变成一团麻</div>
+          <div>× 创作者通常只动其中 1–3 个前景层，却要手删其余 97 个节点</div>
+          <div>× 打散成独立节点后，天然丢失整体上下叠放预览（z-order）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Row: Q4 Composer Layer Count & Live Cost + Model Cap (5.5 vs 5.0 Pro) + §1.0 Agent Chat -->
+  <div class="row g12" style="padding:12px 16px 14px;flex:1;min-height:0;align-items:stretch">
+    <!-- Left (860px): Composer Home + Layer Count Popover + Live Cost Update -->
+    <div class="panel-flat col g8" style="width:868px;flex:none;padding:10px 14px">
+      <div class="row g8">
+        <span class="t13 w6">Q2 & Q4 · 层数由谁定、100 层怎么算钱：家在节点生成框「图层分解 · 层数 ▾」，改层数实时联动发送键上限价</span>
+      </div>
+      <div class="row g12 f1" style="align-items:center">
+        <!-- Open Layer Decomposition Parameter Popover -->
+        <div class="card col g8" style="width:316px;padding:10px 12px;flex:none">
+          <div class="row" style="justify-content:space-between">
+            <span class="t12 w6">最多分解层数（含底图）</span>
+            <span class="t11 c60">Seedream 5.5 · 2–100</span>
+          </div>
+          <div class="seg">
+            <span>自动(30)</span><span>8</span><span>16</span><span class="on">30</span><span>100</span>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            <span class="t12 c80">自定义上限（5.0 Pro 封顶 16）</span>
+            <span class="panel-flat t12 mono num" style="padding:2px 10px;border-radius:6px">30 层</span>
+          </div>
+          <div class="row" style="justify-content:space-between;padding-top:4px;border-top:1px solid var(--nomi-line-soft)">
+            <span class="t12 c80">识别文字层（OCR 富文本）</span>
+            <span style="width:32px;height:18px;border-radius:999px;background:var(--nomi-accent);position:relative;display:inline-block"><span style="position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:999px;background:var(--nomi-paper)"></span></span>
+          </div>
+        </div>
+
+        <!-- Composer Card (512px compact representation) + Toolbar quick action entry -->
+        <div class="col g8 f1" style="min-width:0">
+          <!-- Existing Image Toolbar entry path -->
+          <div class="row g8">
+            <span class="t11 c60 nowrap">已有图片一键入口：</span>
+            <div class="panel-flat row g6" style="padding:4px 8px">
+              <span class="t12 c80">改图 ▾</span>
+              <span class="t11 c40">→</span>
+              <span class="t12 w6"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg></span><span class="t12 w6">图层分解</span>
+              <svg class="ico ck-right" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg>
+            </div>
+            <span class="t11 c60 trunc">（只切入分解框，不直接扣钱）</span>
+          </div>
+
+          <!-- Composer -->
+          <div class="card col g8" style="padding:10px 12px">
+            <div class="row g8">
+              <div style="width:38px;height:38px;border-radius:6px;overflow:hidden;border:1px solid var(--nomi-line);flex:none"><svg width="38" height="38" viewBox="0 0 248 186" fill="none" style="display:block;width:100%;height:38px" aria-hidden="true">
+    <defs>
+      <linearGradient id="pbg38" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2b3548"/>
+        <stop offset="100%" stop-color="#4e3d53"/>
+      </linearGradient>
+    </defs>
+    <rect width="248" height="186" fill="url(#pbg38)"/>
+    <!-- Midground neon sign -->
+    <rect x="150" y="54" width="76" height="44" rx="6" fill="#d97757" fill-opacity="0.82"/>
+    <!-- Character silhouette -->
+    <circle cx="92" cy="104" r="18" fill="#e8dccb"/>
+    <path d="M64 186 C66 134 118 134 120 186 Z" fill="#1e222b"/>
+    <!-- Foreground Headline Layer with neutral dark/light crisp bounding box -->
+    <rect x="20" y="16" width="152" height="34" rx="3" fill="rgba(255,255,255,0.14)" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <rect x="18" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="18" y="47" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="47" width="5" height="5" fill="#ffffff"/>
+    <text x="30" y="38" fill="#ffffff" font-size="14" font-weight="700" font-family="Inter, sans-serif">NIGHT MARKET</text>
+    <!-- Coordinate tag -->
+    <rect x="20" y="54" width="176" height="18" rx="4" fill="rgba(20,20,22,0.82)"/>
+    <text x="26" y="67" fill="#ffffff" font-size="11" font-family="ui-monospace, monospace"></text>
+  </svg></div>
+              <div class="col g4 f1">
+                <span class="t13 trunc">留空自动拆分画面全部主体，或指定“提取标题字、霓虹灯牌和人物”</span>
+                <span class="t11 c60">仅收 1 张输入图 · 底图 + 每张透明层按张分别计费（上限 30 张 ≈ 10.5 积分）</span>
+              </div>
+            </div>
+            <div class="row g6">
+              <span class="chip"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="15" cy="9" r="2" fill="currentColor" stroke="none"/></svg><span class="w5">Seedream 5.5</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></span>
+              <span class="chip fill"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="w6">图层分解 · 30 层</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+              <span class="chip"><span>PNG · OCR 开</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></span>
+              <div class="f1"></div>
+              <span class="send-pill" title="底图 + 最多 29 层分别计费，上限约 10.5 积分；按实际返回张数结算"><span class="row g4 t13 w6 num c80"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/></svg>≤10.5</span><span class="send-circle"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></span></span>
+            </div>
+          </div>
+
+          <!-- Live price tier comparison strip -->
+          <div class="row g6 t11 c60" style="flex-wrap:wrap">
+            <span class="badge-neutral num">8 层 → ≤2.8</span>
+            <span class="badge-neutral num">16 层 (5.0 封顶) → ≤5.6</span>
+            <span class="badge-info num">30 层 (默认) → ≤10.5</span>
+            <span class="badge-warn num">100 层上限 → ≤35 积分</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right (528px): §1.0 Agent Chat Boundary & Trade-off Summary -->
+    <div class="panel-flat col g8 f1" style="padding:10px 14px">
+      <span class="t13 w6">Agent 发起时（§1.0 只发指向元素 + 单问确认，改层数回节点改）</span>
+      <div class="col g8 f1" style="background:var(--nomi-bg);border:1px solid var(--nomi-line-soft);border-radius:8px;padding:10px;justify-content:center">
+        <div class="row g6">
+          <svg class="ico" width="18" height="18" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><circle cx="10.2" cy="14" r="2" fill="white"/><circle cx="17.8" cy="14" r="2" fill="white"/></svg>
+          <span class="t12 c80 f1">已在海报节点备好 Seedream 5.5 图层分解（默认上限 30 层）：</span>
+        </div>
+        <div class="card col g8" style="padding:10px">
+          <div class="row g8" style="padding:6px;border-radius:6px;background:var(--nomi-ink-05)">
+            <div style="width:44px;height:34px;border-radius:4px;overflow:hidden;flex:none"><svg width="44" height="34" viewBox="0 0 248 186" fill="none" style="display:block;width:100%;height:34px" aria-hidden="true">
+    <defs>
+      <linearGradient id="pbg44" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2b3548"/>
+        <stop offset="100%" stop-color="#4e3d53"/>
+      </linearGradient>
+    </defs>
+    <rect width="248" height="186" fill="url(#pbg44)"/>
+    <!-- Midground neon sign -->
+    <rect x="150" y="54" width="76" height="44" rx="6" fill="#d97757" fill-opacity="0.82"/>
+    <!-- Character silhouette -->
+    <circle cx="92" cy="104" r="18" fill="#e8dccb"/>
+    <path d="M64 186 C66 134 118 134 120 186 Z" fill="#1e222b"/>
+    <!-- Foreground Headline Layer with neutral dark/light crisp bounding box -->
+    <rect x="20" y="16" width="152" height="34" rx="3" fill="rgba(255,255,255,0.14)" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <rect x="18" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="18" y="47" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="47" width="5" height="5" fill="#ffffff"/>
+    <text x="30" y="38" fill="#ffffff" font-size="14" font-weight="700" font-family="Inter, sans-serif">NIGHT MARKET</text>
+    <!-- Coordinate tag -->
+    <rect x="20" y="54" width="176" height="18" rx="4" fill="rgba(20,20,22,0.82)"/>
+    <text x="26" y="67" fill="#ffffff" font-size="11" font-family="ui-monospace, monospace"></text>
+  </svg></div>
+            <div class="col f1">
+              <span class="t12 w6">海报主视觉</span>
+              <span class="t11 c60">Seedream 5.5 · 图层分解 · 最多 30 层（点卡去节点改层数）</span>
+            </div>
+          </div>
+          <span class="t11 c60">底图与拆出的每层分别计费，最多 30 张（上限约 10.5 积分，按实际返回张数扣）。</span>
+          <div class="row g8" style="justify-content:flex-end">
+            <button class="btn-ghost">取消</button>
+            <button class="btn-pri"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/></svg><span>分解图层 · ≤10.5</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

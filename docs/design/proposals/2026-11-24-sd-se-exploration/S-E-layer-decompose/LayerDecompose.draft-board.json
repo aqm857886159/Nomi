@@ -1,0 +1,191 @@
+{
+  "$comment": "exploration 阶段草案清单（非已拍板合同；待协调在 Claude Design 画布出高保真稿并由用户拍板后落入 docs/design/boards/<日期>/LayerDecompose.board.json）",
+  "board": "LayerDecompose",
+  "stage": "explored",
+  "marked": "exploration",
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "product": "LibTV",
+      "screenshotSha256": "9755b18ffb9be3c5a703a32071951a8bd3e2117ef380e52a66859a027c1d4e4e",
+      "seenOn": "2026-11-24",
+      "differences": [
+        {
+          "what": "LibTV 在原图框内提供图层分离选框把手，我们采用「单节点合成预览 + 右侧附着图层栈面板（useNodeAttachedPanel）+ 按需勾选拆出独立节点」",
+          "why": "Seedream 5.5 一次最多返回 100 层（底图 + 99 层透明图），留在单节点图层栈可看清 z-order 全貌、搜 OCR 文字，且不会在画布上炸出 100 个节点淹没分镜"
+        },
+        {
+          "what": "我们的坐标选框改用设计系统 §8 中性深/白虚线框（不用蓝色选框），并在生成框实时联动显示按层计费上限（🪙 ≤10.5 / ≤35）",
+          "why": "遵守 2026-10-10 用户拍板「去蓝色描边」纪律，且底图与每层分别计费必须让创作者改层数时当场看到积分上限变化"
+        }
+      ]
+    },
+    {
+      "url": "https://docs.tapnow.ai/en/docs/canvas/generate-and-edit-images",
+      "product": "TapNow",
+      "takeaway": "TapNow 图像节点在选中浮条提供 Cut out / Quick Split 等二次拆解动作，只有创作者显式点拆分时才把需要的子图变成画布下游连接节点（2026-11-24 截图 sha256: 110aeb938e51e8a39d5a0de44a484ada999b3ae575ce85f901a8f5571e04d464）",
+      "decisionImpact": "确认了「已有图片浮条『改图 ▾ → 图层分解』一键就位 + 拆完后只把勾选要改的 1–3 层拆成下游独立节点」的两段式工作流"
+    },
+    {
+      "url": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation.md",
+      "takeaway": "Seedream 5.5 / 5.0 Pro 官方规范：layer_decomposition:true 仅接受 1 张输入图、不发 background；5.5 支持 max_images 2–100（默认 30，含底图）与 text_recognition OCR，5.0 Pro 封顶 16 层；返回不透明修补底图 + RGBA PNG 图层（含 z_index 与 bounding_box），按实际返回张数逐张计费",
+      "decisionImpact": "确认了单图输入守卫、5.5(2–100) 与 5.0 Pro(≤16) 动态上限钳制、发送键「≤上限积分」公式、以及持久化 zIndex + {x,y,w,h}"
+    }
+  ],
+  "boundarySheet": [
+    {
+      "where": "右侧附着「图层栈」列表（Seedream 5.5 极限分解）",
+      "max": "max-count: 100（第 100 层透明前景 … 第 2 层 + 底部锁定第 1 层底图）",
+      "source": "docs/models/capabilities/seedream-5-5.md：layer_decomposition_options.max_images 上限 100",
+      "layout": "面板定高 380px，顶部固定搜索框与『拆出选中 N 层』，底部固定 z=0 底图行，中间区复用现成 @tanstack/react-virtual（30px 行高）虚拟滚动",
+      "board": "se-max-100-layers-zh-light",
+      "element": "layers.stack-list"
+    },
+    {
+      "where": "生成框底栏模型芯片 + 图层分解层数芯片 + 上限约价胶囊",
+      "max": "28 字模型名（Doubao Seedream 5.5 图层测试版）+ 100 层两位数上限价（🪙 ≤35）",
+      "source": "目录模型名上限（28 字）与 100 张计费上限",
+      "layout": "层数芯片与右侧上限价胶囊 flex:none 完整保留，模型名芯片 flex:1 min-width:0 殿后省略截断",
+      "board": "se-max-100-layers-zh-light",
+      "element": "layers.composer-chip"
+    },
+    {
+      "where": "图层行名称与 OCR 识别文字预览",
+      "max": "模型生成的长语义层名或长句 OCR 文本（≥40 字）",
+      "source": "Seedream 5.5 text_recognition 返回文本与机器层名",
+      "layout": "单行 30px 内层名 flex:1 省略号截断（悬停 title 看全名），右侧 #序号 与 W×H 等宽对齐不挤出框",
+      "board": "se-max-100-layers-zh-light",
+      "element": "layers.stack-row"
+    }
+  ],
+  "elements": [
+    {
+      "id": "layers.quick-action-entry",
+      "label": "图片节点浮条「改图 ▾ → 图层分解」入口（切入分解模式填好当前单图，不直接扣钱）与已分解节点「图层栈 N」开关",
+      "status": "missing",
+      "owner": "S-E 图层分解",
+      "states": ["hover", "selected", "disabled", "dark", "zh-en"]
+    },
+    {
+      "id": "layers.composer-chip",
+      "label": "生成框「图层分解 · N 层 ▾」参数芯片与弹层（自动/8/16/30/自定义 2–100，5.0 Pro 自动钳到 ≤16，OCR 开关，联动发送键上限价）",
+      "status": "missing",
+      "owner": "S-E 图层分解",
+      "states": ["empty", "warning", "disabled", "dark", "zh-en", "narrow", "long-text"]
+    },
+    {
+      "id": "layers.node-bbox-preview",
+      "label": "节点合成预览与悬停图层时的中性虚线 {x, y, w, h} 位置框高亮",
+      "status": "missing",
+      "owner": "S-E 图层分解",
+      "states": ["hover", "loading", "error", "dark", "zh-en"]
+    },
+    {
+      "id": "layers.stack-list",
+      "label": "节点右侧附着图层栈面板（useNodeAttachedPanel 互斥收起生成框，@tanstack/react-virtual 虚拟列表，搜索过滤 + 底部锁定底图）",
+      "status": "missing",
+      "owner": "S-E 图层分解",
+      "states": ["empty", "selected", "max-count", "dark", "zh-en", "narrow"]
+    },
+    {
+      "id": "layers.stack-row",
+      "label": "单行图层（⠿ 拖拽/上下键改 z-order、👁 显隐、棋盘格透明缩略图、层名/OCR 标、#序号·宽高）与「拆出选中 N 层」建下游节点",
+      "status": "missing",
+      "owner": "S-E 图层分解",
+      "states": ["hover", "selected", "long-text", "dark", "zh-en"]
+    },
+    {
+      "id": "layers.provenance-cost",
+      "label": "生成记录费用回执（预计上限 N 张 vs 实际返回底图+M 层实扣积分）与 Agent 对话单问付费确认（§1.0）",
+      "status": "missing",
+      "owner": "S-E 图层分解",
+      "states": ["empty", "dark", "zh-en"]
+    }
+  ],
+  "functionCensus": [
+    {
+      "function": "Seedream 5.5 / 5.0 Pro 文生图与多参考改图（最多 10 张参考图）",
+      "before": "NodeGenerationComposer 默认文生图 / 改图模式（无图层分解时自动按参考图数推断）",
+      "after": "layers.composer-chip",
+      "placement": "direct",
+      "ifRemoved": "创作者无法用 Seedream 正常文生图或多图融合改图；图层分解作为显式可选任务，不改变默认文生图/改图路径"
+    },
+    {
+      "function": "图片浮条「改图 ▾」（生成新图：高清/扩图；本机处理：裁剪/旋转翻转）",
+      "before": "ImageQuickActionsToolbar.tsx 的 refineItems 二级菜单",
+      "after": "layers.quick-action-entry",
+      "placement": "menu",
+      "frequency": "不知道（新能力，按同类二次拆解频次属 1–3/10 的 L3 收纳层；分解完成后该节点浮条直出『图层栈 N』L2 按钮）",
+      "peerPlacement": "TapNow 放在选中图片节点的 Toolbar 二级拆分动作；LibTV 放在选中图片后的编辑动作区",
+      "ifRemoved": "创作者面对画布上已生成好的海报/场景图时，无法一键把它送入图层分解，只能手动下载再重新上传建新卡"
+    },
+    {
+      "function": "画板（NodeInlineWhiteboardHost）里的手绘涂鸦「图层」小弹层",
+      "before": "画板工具条『图层』按钮（原图 + 手绘涂鸦层 + 背景）",
+      "after": "layers.stack-list",
+      "placement": "direct",
+      "ifRemoved": "创作者在普通单图上手绘圈选批注时失去涂鸦层显隐与删除；AI 图层分解产物存于节点 result.layers[]，拆出单层后仍可进画板批注，两套职责正交不打架"
+    }
+  ],
+  "components": [
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/ProvenancePanel.tsx",
+    "src/workbench/generationCanvas/nodes/nodeAttachedPanel.ts"
+  ],
+  "appearsIn": [
+    {
+      "place": "生成画布图片节点、浮条与右侧附着图层栈",
+      "files": [
+        "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+        "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbarHost.tsx"
+      ],
+      "board": "se-narrow-1100x690",
+      "element": "layers.stack-list"
+    },
+    {
+      "place": "生成页「列表」视图展开图片节点详情",
+      "files": ["src/workbench/generation/list/GenerationListDetail.tsx"],
+      "board": "se-overview-zh-light",
+      "element": "layers.composer-chip"
+    },
+    {
+      "place": "设计实验室「图片快捷动作」与「生成底栏让位」屏",
+      "files": [
+        "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx",
+        "src/devlab/designLab/nodeComposerBar/yieldHistoryLab.tsx"
+      ],
+      "board": "se-overview-zh-light",
+      "element": "layers.quick-action-entry"
+    }
+  ],
+  "appearsInExcluded": [
+    {
+      "file": "src/devlab/nodeTimelineInteraction.tsx",
+      "reason": "时间轴连线交互独立调试沙盒，不验证图片模型特定分解能力"
+    }
+  ],
+  "priorDecisions": [
+    {
+      "what": "快捷动作（如多机位九宫格、高清、扩图）点击只建/切配置，不直接发付费请求，花钱留给创作者点 ↑",
+      "source": "ImageQuickActionsToolbar.tsx 注释（2026-10-05 用户拍板 deriveFromNode）",
+      "stillValid": "算数，点『改图 ▾ → 图层分解』只切到分解参数态并展示上限约价，不静默扣费"
+    },
+    {
+      "what": "贴着节点弹出的附着面板打开时，该节点下方的浮动生成框自动收起（不挂），关闭附着面板即恢复",
+      "source": "src/workbench/generationCanvas/nodes/nodeAttachedPanel.ts（useNodeAttachedPanel 唯一出处）",
+      "stillValid": "完全算数，图层栈面板直接调用 useNodeAttachedPanel(nodeId)，在 1100×690 窄窗下天然避免与 600px 生成框上下叠压"
+    },
+    {
+      "what": "蓝色描边全部删掉，选框与多选统一用中性深色/亮色细线；图层/全能参考共用已登记的 IconStack2",
+      "source": "docs/design/nomi-design-system.md §8（2026-10-10 拍板）与 §6（line 1263 IconStack2）",
+      "stillValid": "算数，画布 {x,y,w,h} 位置框高亮用中性对比虚线，图标复用 IconStack2 不增新图标"
+    },
+    {
+      "what": "参数面板全摊开（ComposerParams D1/D2），影响价钱的参数永远放在主参数面板，不藏进高级设置",
+      "source": "docs/design/boards/2026-11-14-composer-params/ComposerParams.board.json（2026-11-14 用户拍板）",
+      "stillValid": "算数，『最多分解层数（2–100 / ≤16）』直接决定计费上限，放在底栏一级参数芯片与主弹层"
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "$comment": "exploration 阶段草案清单（非已拍板合同；待协调在 Claude Design 画布出高保真稿并由用户拍板后落入 docs/design/boards/<日期>/SampleMode.board.json）",
+  "board": "SampleMode",
+  "stage": "explored",
+  "marked": "exploration",
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "product": "LibTV",
+      "screenshotSha256": "ebb12f829cab0134cc12c4cc98b3ecae4d4a5ae5d96965eda8109c334545acea",
+      "seenOn": "2026-11-24",
+      "alsoSeen": [
+        {
+          "what": "画布视频节点底栏模型与参数胶囊（SD 2.5 · 16:9 · 1080P · 15s）",
+          "screenshotSha256": "3277cb75d501b64abace1464bb30cd4f6a0ffad828d9071ac6e00c0104dc57b6"
+        }
+      ],
+      "differences": [
+        {
+          "what": "LibTV 将样片/低价快档做成模型选择器里的独立项（不把普通 480p 分辨率偷偷绑成过期草稿），我们沿用这一做法（对齐已拍板 ModelSurfaces Q9 picker.draft-row）",
+          "why": "保留普通 Seedance 2.5 直出长期有效 480p 成片的能力，避免选 480p 被迫 3 天失效"
+        },
+        {
+          "what": "我们在样片结果卡底栏动态显示剩余有效期（读模型档案 draftValidityHours，不写死 3 天）与二次升正片重复扣费拦截",
+          "why": "Nomi 支持 APIMart（72h）与老用户存量连接（如 24h），且上游对同一 draft_task_id 再次提交会重收一次 1080p 全价"
+        },
+        {
+          "what": "升 1080p 正片追加进同一节点的版本栈（右上角数字角标 2），不新建第二个节点也不覆盖 480p 样片",
+          "why": "同一镜的试拍与成片属于同一个镜头的历史演进，复用现有 NodeVersionCards 即可原地对比且不污染画布连线"
+        }
+      ]
+    },
+    {
+      "url": "https://docs.tapnow.ai/en/docs/canvas/generate-and-edit-video",
+      "product": "TapNow",
+      "takeaway": "TapNow Draft mode：生成设置显式选 Draft Mode 出 480p 草稿，结果带 Draft 标并提供 Revise draft 480P 与 Generate Final Video（1080p），提交前显示正片预估积分且保留草稿（2026-11-24 截图 sha256: 407663b900c5fde7cc49fe7b085115f29b24434b7fb117ada2541144bee42146）",
+      "decisionImpact": "确认了显式入口（方案 B）+ 480p 画质预期说明（仅查动作与构图）+ 升正片前明示 1080p 全价积分且不覆盖原 480p 草稿；改了：TapNow 另起新节点连线，我们收进本节点版本栈避免多镜分镜组框膨胀"
+    },
+    {
+      "url": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+      "takeaway": "APIMart Seedance 2.5 官方规范：draft:true 产 480p 样片并回传 task_id（有效期 3 天）；draft_task_id 单独发起第二次请求产 1080p 正片，两字段互斥；每次请求独立计费",
+      "decisionImpact": "确认了两步任务模型、draftValidityHours 按供应商档案声明读取（APIMart=72，无默认值硬编码）、以及同一 draft_task_id 二次点击必须弹窗提示重新扣全价"
+    }
+  ],
+  "boundarySheet": [
+    {
+      "where": "生成框左下模型芯片（含样片后缀）",
+      "max": "28 个字符（如 Doubao Seedance 2.5 样片测试版 / Doubao Seedance 2.5 Draft Ex）",
+      "source": "目录模型显示名上限（Issue #1586 C.1/C.4 统一 28 字边界）",
+      "layout": "底栏挤时参数摘要芯片先收短，模型名芯片殿后省略号截断（title 显示全名），左侧品牌图标与右侧发送键永不让",
+      "board": "sd-states-zh-light",
+      "element": "sample.picker-chip"
+    },
+    {
+      "where": "样片结果卡左上有效期角标",
+      "max": "动态时长文案（最长：Sample · 48m left / 样片 · 剩 48 分钟 / 样片 · 已过期）",
+      "source": "模型档案声明 draftValidityHours（24h–168h）与实时剩余毫秒换算",
+      "layout": "单行胶囊固定在视频画面左上内侧 8px，与右上版本数字角标至少留 80px 间距，不折行",
+      "board": "sd-states-zh-light",
+      "element": "sample.expiry-badge"
+    },
+    {
+      "where": "样片结果卡底部升正片操作条与失败/临期横条",
+      "max": "窄卡 310–348px 宽下的中英文完整原因与价格胶囊（Upgrade 1080p · 21.6）",
+      "source": "画布视频节点最小可视宽（nodeSizing.ts）与 APIMart 30 秒正片最高积分位数",
+      "layout": "预警/失败原因独占一行完整显示（绝不省略号截断原因与后果），操作行左放 480p 标识、右放主动作胶囊",
+      "board": "sd-states-en-dark",
+      "element": "sample.upgrade-bar"
+    }
+  ],
+  "elements": [
+    {
+      "id": "sample.picker-row",
+      "label": "模型菜单独立「Seedance 2.5 样片」行（对齐 ModelSurfaces picker.draft-row，勾选 ✓ 恒在右侧）",
+      "status": "missing",
+      "owner": "S-D 样片模式",
+      "states": ["hover", "selected", "dark", "zh-en", "long-text"]
+    },
+    {
+      "id": "sample.picker-chip",
+      "label": "生成框底栏「Seedance 2.5 样片」模型芯片与 1 行画质预期提示",
+      "status": "missing",
+      "owner": "S-D 样片模式",
+      "states": ["empty", "dark", "zh-en", "narrow", "long-text"]
+    },
+    {
+      "id": "sample.expiry-badge",
+      "label": "结果卡动态剩余有效期角标（读模型声明：就绪 / <2h 警告色 / 已过期中性灰）",
+      "status": "missing",
+      "owner": "S-D 样片模式",
+      "states": ["loading", "warning", "disabled", "dark", "zh-en"]
+    },
+    {
+      "id": "sample.upgrade-bar",
+      "label": "结果卡底部非遮挡「升 1080p 正片 · 积分」动作条（写入本节点版本栈，过期禁用并给重拍出口）",
+      "status": "missing",
+      "owner": "S-D 样片模式",
+      "states": ["hover", "loading", "disabled", "error", "dark", "zh-en", "narrow"]
+    },
+    {
+      "id": "sample.duplicate-confirm",
+      "label": "同一 draft_task_id 第 2 次点「升 1080p 正片」时的重复扣费确认弹窗（DecisionBar 取消在左、主动作在右）",
+      "status": "missing",
+      "owner": "S-D 样片模式",
+      "states": ["dark", "zh-en"]
+    },
+    {
+      "id": "sample.agent-pointer",
+      "label": "Agent 对话流样片指向卡与单问花钱确认（§1.0 聊天不放分辨率/样片开关）",
+      "status": "missing",
+      "owner": "S-D 样片模式",
+      "states": ["dark", "zh-en", "narrow"]
+    }
+  ],
+  "functionCensus": [
+    {
+      "function": "普通 Seedance 2.5 选 480p / 720p / 1080p 直出永久视频成片",
+      "before": "NodeGenerationComposer 参数面板清晰度三档（480p / 720p / 1080p）",
+      "after": "sample.picker-row",
+      "placement": "direct",
+      "ifRemoved": "创作者无法直出不过期的低成本 480p 正式视频，所有 480p 产物都会在数天后失效无法溯源复现"
+    },
+    {
+      "function": "视频节点顶部选中浮条（截帧▾ / 剪辑 / 拆解▾ / 提取深度 / 复制 / 全屏 / 下载 / 生成记录）",
+      "before": "NodeVideoFrameToolbar.tsx 全部现役按钮",
+      "after": "sample.upgrade-bar",
+      "placement": "direct",
+      "ifRemoved": "创作者在样片或正片上无法抽首尾帧接力下一镜、剪辑入出点或查费用溯源；保留原位且不在浮条重复放第 2 颗升正片主按钮"
+    },
+    {
+      "function": "节点右上角版本数量角标与宫格铺开对比（1/2 样片 vs 正片）",
+      "before": "NodeVersionCards.tsx 的 NodeVersionCountBadge",
+      "after": "sample.upgrade-bar",
+      "placement": "direct",
+      "ifRemoved": "升 1080p 正片会覆盖掉 480p 样片，或者在二次点升正片时找不到已生成的免费正片版本"
+    }
+  ],
+  "components": [
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCards.tsx"
+  ],
+  "appearsIn": [
+    {
+      "place": "生成画布视频节点与底部生成框",
+      "files": ["src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx"],
+      "board": "sd-narrow-1100x690",
+      "element": "sample.upgrade-bar"
+    },
+    {
+      "place": "生成页「列表」视图展开单镜详情",
+      "files": ["src/workbench/generation/list/GenerationListDetail.tsx"],
+      "board": "sd-states-zh-light",
+      "element": "sample.picker-chip"
+    },
+    {
+      "place": "分镜表行内模型与发送键（复用模型下拉行 picker.draft-row）",
+      "files": ["src/workbench/generationCanvas/nodes/InlineParameterBar.tsx"],
+      "board": "sd-options-compare-zh-light",
+      "element": "sample.picker-row"
+    },
+    {
+      "place": "设计实验室「生成底栏让位」屏",
+      "files": ["src/devlab/designLab/nodeComposerBar/yieldHistoryLab.tsx"],
+      "board": "sd-states-zh-light",
+      "element": "sample.picker-chip"
+    }
+  ],
+  "appearsInExcluded": [],
+  "priorDecisions": [
+    {
+      "what": "ModelSurfaces Q9：草稿档在模型选择器里单独占一行（picker.draft-row：Seedance 2.5 草稿 · 480p · 满意再出 1080p）",
+      "source": "docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json (Q9, lines 112-115 & 1213-1248)",
+      "stillValid": "完全算数，本探索方案 B 直接继承并细化其生成后卡片、动态过期与升正片闭环"
+    },
+    {
+      "what": "动作不许半透明常驻压在视频画面上；版本入口在媒体右上角内侧数字角标",
+      "source": "docs/design/nomi-design-system.md §1.5.3 (line 231) & NodeVersionCards.tsx (2026-10-07 拍板)",
+      "stillValid": "算数，「升 1080p 正片」放在视频画面下方的卡片动作条，零像素遮挡视频，正片落入同一套版本栈"
+    },
+    {
+      "what": "发送键与预估积分合并为一颗胶囊（IconCoin + 积分数），算不出不印 0",
+      "source": "ModelSurfaces 板 cost.send-pill（2026-11-22 用户拍板）",
+      "stillValid": "算数，样片发送键与升正片主按钮统一使用登记的 IconCoin 图标显示积分"
+    },
+    {
+      "what": "一个东西一个家、Agent 只指路（聊天不放参数编辑器，花钱确认每次只问一件事）",
+      "source": "docs/design/nomi-design-system.md §1.0（2026-10-22 用户拍板）",
+      "stillValid": "算数，Agent 发起样片或升正片时在聊天只渲染 NodePointer 与单问确认卡"
+    }
+  ]
+}

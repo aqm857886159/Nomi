@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="zh-CN" data-mark="exploration">
+<head>
+<meta charset="utf-8">
+<title>S-D 样片模式 · 方案 A vs 方案 B 取舍探索（exploration）</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+:root, .L {
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-chrome: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-info-ink: oklch(0.45 0.13 250);
+  --nomi-info-soft: oklch(0.957 0.021 250);
+  --nomi-logo-ground: oklch(0.22 0.01 80);
+  --nomi-scrim: oklch(0.2 0.01 80 / 0.42);
+  --nomi-overlay-chip: oklch(0.18 0.01 80 / 0.68);
+  --nomi-overlay-chip-strong: oklch(0.16 0.01 80 / 0.84);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+  --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / 0.05), 0 20px 50px oklch(0 0 0 / 0.08);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.88 0.005 80);
+}
+.D {
+  color-scheme: dark;
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-chrome: oklch(0.155 0.006 80);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-info-ink: oklch(0.82 0.13 250);
+  --nomi-info-soft: oklch(0.295 0.045 250);
+  --nomi-logo-ground: oklch(0.30 0.01 80);
+  --nomi-scrim: oklch(0.08 0.004 80 / 0.58);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.78);
+  --nomi-overlay-chip-strong: oklch(0.05 0.004 80 / 0.88);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.30), 0 24px 64px oklch(0 0 0 / 0.40);
+  --nomi-dot: oklch(0.30 0.006 85);
+}
+.board {
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+}
+/* Strict 4-tier font scale */
+.t11 { font-size: 11px; line-height: 16px; }
+.t12 { font-size: 12px; line-height: 18px; }
+.t13 { font-size: 13px; line-height: 20px; }
+.t14 { font-size: 14px; line-height: 20px; }
+.w5 { font-weight: 500; }
+.w6 { font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.c80 { color: var(--nomi-ink-80); }
+.c60 { color: var(--nomi-ink-60); }
+.c40 { color: var(--nomi-ink-40); }
+.c30 { color: var(--nomi-ink-30); }
+.cacc { color: var(--nomi-accent); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.g4 { gap: 4px; } .g6 { gap: 6px; } .g8 { gap: 8px; } .g10 { gap: 10px; } .g12 { gap: 12px; } .g16 { gap: 16px; }
+.f1 { flex: 1; min-width: 0; }
+.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nowrap { white-space: nowrap; }
+.ico { flex: none; display: block; }
+
+/* Surfaces & Dots */
+.topbar {
+  height: 40px; flex: none; padding: 0 16px;
+  background: var(--nomi-chrome);
+  box-shadow: inset 0 -1px 0 var(--nomi-line);
+}
+.canvas-dots {
+  background-color: var(--nomi-bg);
+  background-image: radial-gradient(var(--nomi-dot) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+.card {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+  box-shadow: var(--nomi-shadow-md);
+}
+.panel-flat {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+}
+
+/* 4-tier Semantic Badges & Callouts (ZERO base/alpha mixing!) */
+.badge-info {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+  border-radius: 999px; background: var(--nomi-info-soft); color: var(--nomi-info-ink);
+  font-size: 11px; line-height: 16px; font-weight: 600; white-space: nowrap;
+}
+.badge-ok {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+  border-radius: 999px; background: var(--nomi-success-soft); color: var(--nomi-success-ink);
+  box-shadow: inset 0 0 0 1px var(--nomi-success-edge);
+  font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap;
+}
+.badge-warn {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+  border-radius: 999px; background: var(--nomi-warning-soft); color: var(--nomi-warning-ink);
+  box-shadow: inset 0 0 0 1px var(--nomi-warning-edge);
+  font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap;
+}
+.badge-danger {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+  border-radius: 999px; background: var(--nomi-danger-soft); color: var(--nomi-danger-ink);
+  box-shadow: inset 0 0 0 1px var(--nomi-danger-edge);
+  font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap;
+}
+.badge-neutral {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+  border-radius: 999px; background: var(--nomi-ink-10); color: var(--nomi-ink-60);
+  font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap;
+}
+.bar-warn {
+  background: var(--nomi-warning-soft); color: var(--nomi-warning-ink);
+  box-shadow: inset 0 0 0 1px var(--nomi-warning-edge);
+  border-radius: var(--nomi-radius-sm); padding: 6px 10px;
+}
+.bar-danger {
+  background: var(--nomi-danger-soft); color: var(--nomi-danger-ink);
+  box-shadow: inset 0 0 0 1px var(--nomi-danger-edge);
+  border-radius: var(--nomi-radius-sm); padding: 6px 10px;
+}
+.overlay-pill {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+  border-radius: 999px; background: var(--nomi-overlay-chip); color: var(--nomi-media-ink);
+  font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap;
+}
+.ver-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 20px; min-width: 20px; padding: 0 6px; border-radius: 999px;
+  background: color-mix(in srgb, var(--nomi-media-ink) 90%, transparent);
+  color: oklch(0.20 0.01 80);
+  font-size: 11px; line-height: 16px; font-weight: 600;
+  box-shadow: var(--nomi-shadow-sm);
+}
+
+/* Buttons & Composer Controls */
+.btn-pri {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 28px; padding: 0 12px; border-radius: 999px; border: 0;
+  background: var(--nomi-ink); color: var(--nomi-paper);
+  font-size: 12px; line-height: 18px; font-weight: 600; white-space: nowrap;
+}
+.btn-out {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 28px; padding: 0 12px; border-radius: 999px;
+  background: var(--nomi-paper); color: var(--nomi-ink);
+  border: 1px solid var(--nomi-line);
+  font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap;
+}
+.btn-dis {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 28px; padding: 0 12px; border-radius: 999px; border: 0;
+  background: var(--nomi-ink-10); color: var(--nomi-ink-30);
+  font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap;
+}
+.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0 10px; border-radius: 999px; border: 0;
+  background: transparent; color: var(--nomi-ink-80);
+  font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px;
+  border-radius: 999px; border: 1px solid var(--nomi-line);
+  background: var(--nomi-paper); color: var(--nomi-ink);
+  font-size: 12px; line-height: 18px; white-space: nowrap; min-width: 0;
+}
+.chip.fill { background: var(--nomi-ink-05); }
+.ib {
+  width: 28px; height: 28px; border-radius: var(--nomi-radius-sm);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--nomi-ink-60); background: transparent; border: 0; flex: none;
+}
+.ref-btn {
+  width: 36px; height: 36px; border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink-05); color: var(--nomi-ink-80);
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+}
+.send-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px;
+  padding: 0 2px 0 10px; border-radius: 999px; background: var(--nomi-ink-10); flex: none;
+}
+.send-circle {
+  width: 28px; height: 28px; border-radius: 999px;
+  background: var(--nomi-ink); color: var(--nomi-paper);
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+}
+/* Model Menu & Right-aligned Checkmark */
+.menu {
+  background: var(--nomi-paper); border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-lg); padding: 6px;
+}
+.mi {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: var(--nomi-radius-sm);
+}
+.mi.on { background: var(--nomi-ink-05); }
+.mi-tile {
+  width: 26px; height: 26px; border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink-05); border: 1px solid var(--nomi-line-soft);
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  color: var(--nomi-ink);
+}
+.mi.on .mi-tile { background: var(--nomi-paper); }
+.cap-chip {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 5px;
+  border-radius: 4px; background: var(--nomi-ink-05); color: var(--nomi-ink-60);
+  font-size: 11px; line-height: 16px; white-space: nowrap;
+}
+.D .cap-chip { background: var(--nomi-ink-10); }
+.ck-right { margin-left: auto; color: var(--nomi-accent); flex: none; }
+.seg {
+  display: flex; padding: 2px; background: var(--nomi-ink-05); border-radius: var(--nomi-radius-sm); gap: 2px;
+}
+.seg span {
+  flex: 1; height: 24px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; line-height: 18px; color: var(--nomi-ink-60);
+}
+.seg span.on {
+  background: var(--nomi-paper); color: var(--nomi-ink); font-weight: 600; box-shadow: var(--nomi-shadow-sm);
+}
+.stripes {
+  background: repeating-linear-gradient(45deg, var(--nomi-ink-05) 0 10px, var(--nomi-ink-10) 10px 20px);
+}
+</style>
+</head>
+<body>
+<div class="board L" style="width:1440px;height:900px">
+  <!-- Header -->
+  <div class="topbar row g10">
+    <svg class="ico" width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+    <span class="t13 w6">S-D 样片模式（Seedance 2.5）· 核心交互取舍对比</span>
+    <span class="badge-info">exploration · 探索样稿</span>
+    <div class="f1"></div>
+    <span class="t11 c60">先例对标：LibTV（独立样片档）· TapNow（Draft 480p → 新版正片）· ModelSurfaces Q9</span>
+  </div>
+
+  <!-- Main Two-Column Compare -->
+  <div class="row g16" style="padding:14px 16px 12px;flex:1;min-height:0;align-items:stretch">
+    <!-- OPTION A -->
+    <div class="panel-flat col" style="flex:1;min-width:0;overflow:hidden">
+      <div class="row g8" style="padding:10px 14px;box-shadow:inset 0 -1px 0 var(--nomi-line)">
+        <span class="t14 w6">方案 A · 选 480p 自动走样片</span>
+        <span class="badge-warn">不推荐 · 吞掉独立 480p 成片语义</span>
+      </div>
+      <div class="canvas-dots col g12" style="padding:14px 16px;flex:1;min-height:0">
+        <!-- Result Card A -->
+        <div class="col g4" style="width:340px">
+          <div class="row g6 t12 c60"><span>镜 01 · 海边清晨</span></div>
+          <div class="card col" style="overflow:hidden">
+            <div style="position:relative">
+              <svg width="340" height="146" viewBox="0 0 340 160" fill="none" style="display:block;width:100%;height:146px" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky3401" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#324766"/>
+        <stop offset="58%" stop-color="#6e7f99"/>
+        <stop offset="100%" stop-color="#c9a589"/>
+      </linearGradient>
+      <linearGradient id="sea3401" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2c3e55"/>
+        <stop offset="100%" stop-color="#1a2433"/>
+      </linearGradient>
+    </defs>
+    <rect width="340" height="102" fill="url(#sky3401)"/>
+    <circle cx="242" cy="76" r="18" fill="#f3d2a2" fill-opacity="0.72"/>
+    <rect y="100" width="340" height="60" fill="url(#sea3401)"/>
+    <path d="M0 124 L148 104 L168 108 L42 160 L0 160 Z" fill="#232931"/>
+    <circle cx="118" cy="86" r="6" fill="#181c22"/>
+    <path d="M111 94 C111 94 125 94 126 118 L110 118 Z" fill="#181c22"/>
+    <rect x="284" y="134" width="44" height="18" rx="9" fill="rgba(18,18,20,0.68)"/>
+    <text x="306" y="146" text-anchor="middle" fill="#ffffff" font-size="11" font-family="Inter, sans-serif">00:05</text>
+  </svg>
+              <span class="overlay-pill" style="position:absolute;left:8px;top:8px">480p 样片 · 剩 2 天</span>
+            </div>
+            <div class="row g8" style="padding:8px 10px;border-top:1px solid var(--nomi-line-soft)">
+              <span class="t11 c60 f1">480p 确认动作，正片全价</span>
+              <button class="btn-out"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/></svg><span>转 1080p 正片 · 21.6</span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Composer A (600px) with open resolution popover -->
+        <div class="card col g8" style="width:600px;padding:10px 12px;position:relative">
+          <div class="row g8">
+            <div class="panel-flat col g6" style="padding:8px 10px;width:300px;box-shadow:var(--nomi-shadow-md)">
+              <div class="row" style="justify-content:space-between">
+                <span class="t11 w6 c60">清晰度（选 480p 即强制变成样片）</span>
+                <span class="t11 c60">APIMart · 3 天有效</span>
+              </div>
+              <div class="seg">
+                <span class="on">480p（样片）</span><span>720p</span><span>1080p</span>
+              </div>
+            </div>
+            <div class="col g4 f1" style="padding-left:4px">
+              <span class="t13">她从清晨的码头走到傍晚的海堤，镜头缓慢推近。</span>
+              <span class="t11 c60">选 480p 自动发 draft:true，无法直出长期保留的 480p 成片</span>
+            </div>
+          </div>
+          <div class="row g6">
+            <span class="chip"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="15" cy="9" r="2" fill="currentColor" stroke="none"/></svg><span>Seedance 2.5</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></span>
+            <span class="chip"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h3"/><path d="M14 20h7"/><path d="M6.9 15h6.9"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16h2l7 16"/></svg><span>文生视频</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></span>
+            <span class="chip fill"><span>16:9 · 480p · 5s</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+            <div class="f1"></div>
+            <span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h7"/><path d="M9 6c0 4.4 -2.2 6.6 -5 6.6"/><path d="M5 9c0 2.1 2.3 3.9 6 4"/><path d="M12 20l4 -9l4 9"/><path d="M19.1 18h-6.2"/></svg></span>
+            <span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg></span>
+            <span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="6" r="2"/><path d="M4 6h8"/><path d="M16 6h4"/><circle cx="8" cy="12" r="2"/><path d="M4 12h2"/><path d="M10 12h10"/><circle cx="17" cy="18" r="2"/><path d="M4 18h11"/><path d="M19 18h1"/></svg></span>
+            <span class="send-pill"><span class="row g4 t13 w6 num c80"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/></svg>5.4</span><span class="send-circle"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></span></span>
+          </div>
+        </div>
+
+        <!-- 3 concise bullets -->
+        <div class="col g4" style="margin-top:auto;padding-top:4px">
+          <div class="t12 c80">× 创作者只想发一条低价 480p 成片长期存档时，被迫变成 3 天失效的样片</div>
+          <div class="t12 c80">× 与已拍板 ModelSurfaces Q9（picker.draft-row 草稿档单独一行）直接冲突</div>
+          <div class="t12 c80">× 其它视频模型选 480p 是永久成片，唯独 Seedance 2.5 选 480p 会过期，心智不一致</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPTION B (RECOMMENDED) -->
+    <div class="panel-flat col" style="flex:1;min-width:0;overflow:hidden">
+      <div class="row g8" style="padding:10px 14px;box-shadow:inset 0 -1px 0 var(--nomi-line)">
+        <span class="t14 w6">方案 B（推荐）· 模型菜单显式「样片模式 (480p)」行 + 版本栈升正片</span>
+        <span class="badge-ok">推荐 · 对齐 Q9 / LibTV / TapNow</span>
+      </div>
+      <div class="canvas-dots col g10" style="padding:14px 16px;flex:1;min-height:0">
+        <!-- Top row: Result Card B + Version Stack note -->
+        <div class="row g12" style="align-items:flex-start">
+          <div class="col g4" style="width:348px;flex:none">
+            <div class="row g6 t12 c60"><span>镜 01 · 海边清晨</span></div>
+            <div class="card col" style="overflow:hidden">
+              <div style="position:relative">
+                <svg width="348" height="138" viewBox="0 0 340 160" fill="none" style="display:block;width:100%;height:138px" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky3481" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#324766"/>
+        <stop offset="58%" stop-color="#6e7f99"/>
+        <stop offset="100%" stop-color="#c9a589"/>
+      </linearGradient>
+      <linearGradient id="sea3481" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2c3e55"/>
+        <stop offset="100%" stop-color="#1a2433"/>
+      </linearGradient>
+    </defs>
+    <rect width="340" height="102" fill="url(#sky3481)"/>
+    <circle cx="242" cy="76" r="18" fill="#f3d2a2" fill-opacity="0.72"/>
+    <rect y="100" width="340" height="60" fill="url(#sea3481)"/>
+    <path d="M0 124 L148 104 L168 108 L42 160 L0 160 Z" fill="#232931"/>
+    <circle cx="118" cy="86" r="6" fill="#181c22"/>
+    <path d="M111 94 C111 94 125 94 126 118 L110 118 Z" fill="#181c22"/>
+    <rect x="284" y="134" width="44" height="18" rx="9" fill="rgba(18,18,20,0.68)"/>
+    <text x="306" y="146" text-anchor="middle" fill="#ffffff" font-size="11" font-family="Inter, sans-serif">00:05</text>
+  </svg>
+                <span class="overlay-pill" style="position:absolute;left:8px;top:8px"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span>样片 · 剩 2 天</span></span>
+                <span class="ver-badge num" style="position:absolute;right:8px;top:8px" title="共 2 版：第 1 版 480p 样片，第 2 版 1080p 正片">2</span>
+              </div>
+              <div class="col g4" style="padding:8px 10px;border-top:1px solid var(--nomi-line-soft)">
+                <div class="row g8">
+                  <span class="badge-neutral num">480p · APIMart 3 天</span>
+                  <div class="f1"></div>
+                  <button class="btn-pri"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/></svg><span>升 1080p 正片 · 21.6</span></button>
+                </div>
+                <div class="t11 c60 trunc">480p 仅供确认动作与构图，人脸与小字以正片为准</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compact Model Picker showing Q9 picker.draft-row with RIGHT checkmark -->
+          <div class="menu col g4" style="width:304px;flex:none">
+            <div class="row g6" style="height:28px;padding:0 8px;border-radius:6px;background:var(--nomi-ink-05);color:var(--nomi-ink-60)">
+              <svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/></svg><span class="t12">搜模型</span>
+            </div>
+            <div class="mi">
+              <span class="mi-tile"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="15" cy="9" r="2" fill="currentColor" stroke="none"/></svg></span>
+              <div class="col f1">
+                <span class="t13 w5 trunc">Seedance 2.5</span>
+                <div class="row g4"><span class="cap-chip">1080p</span><span class="cap-chip">4–30秒</span><span class="cap-chip">有声</span></div>
+              </div>
+            </div>
+            <div class="mi on">
+              <span class="mi-tile"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="15" cy="9" r="2" fill="currentColor" stroke="none"/></svg></span>
+              <div class="col f1">
+                <div class="row g6"><span class="t13 w6 trunc">Seedance 2.5 样片</span><span class="badge-info" style="height:16px;padding:0 5px">新</span></div>
+                <div class="row g4"><span class="cap-chip">480p</span><span class="cap-chip">满意再升 1080p</span></div>
+              </div>
+              <svg class="ico ck-right" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg>
+            </div>
+            <div class="mi">
+              <span class="mi-tile"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="15" cy="9" r="2" fill="currentColor" stroke="none"/></svg></span>
+              <div class="col f1">
+                <span class="t13 w5 trunc">Seedance 2.0 Fast</span>
+                <div class="row g4"><span class="cap-chip">720p</span><span class="cap-chip">4–15秒</span><span class="cap-chip">有声</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Composer B (600px) -->
+        <div class="card col g6" style="width:600px;padding:10px 12px">
+          <div class="row g8">
+            <span class="ref-btn"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 17.5a1.2 1.2 0 0 0 2.2 .3l2.1 -3.1l4.9 4.9a1 1 0 0 0 1.5 0l1 -1a1 1 0 0 0 0 -1.5l-4.9 -4.9l3.1 -2.1a1.2 1.2 0 0 0 -.3 -2.2l-13.6 -3.9l3.9 13.6"/></svg></span>
+            <span class="ref-btn"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
+            <div class="col g4 f1">
+              <span class="t13 trunc">她从清晨的码头走到傍晚的海堤，镜头缓慢推近。</span>
+              <span class="t11 c60">480p 仅供确认动作与构图，人脸与小字以正片为准 · 样片独立计费（保留 3 天）</span>
+            </div>
+          </div>
+          <div class="row g6">
+            <span class="chip fill"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="15" cy="9" r="2" fill="currentColor" stroke="none"/></svg><span class="w6">Seedance 2.5 样片</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+            <span class="chip"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h3"/><path d="M14 20h7"/><path d="M6.9 15h6.9"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16h2l7 16"/></svg><span>文生视频</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></span>
+            <span class="chip fill"><span>16:9 · 480p · 5s</span><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></span>
+            <div class="f1"></div>
+            <span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h7"/><path d="M9 6c0 4.4 -2.2 6.6 -5 6.6"/><path d="M5 9c0 2.1 2.3 3.9 6 4"/><path d="M12 20l4 -9l4 9"/><path d="M19.1 18h-6.2"/></svg></span>
+            <span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg></span>
+            <span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="6" r="2"/><path d="M4 6h8"/><path d="M16 6h4"/><circle cx="8" cy="12" r="2"/><path d="M4 12h2"/><path d="M10 12h10"/><circle cx="17" cy="18" r="2"/><path d="M4 18h11"/><path d="M19 18h1"/></svg></span>
+            <span class="send-pill"><span class="row g4 t13 w6 num c80"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/></svg>5.4</span><span class="send-circle"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></span></span>
+          </div>
+        </div>
+
+        <!-- 3 concise advantages -->
+        <div class="col g4" style="margin-top:auto">
+          <div class="t12 c80">· 显式预期：选「Seedance 2.5 样片」即知是 480p 试拍，普通 Seedance 2.5 仍可直出永久 480p/720p/1080p</div>
+          <div class="t12 c80">· 不覆盖原样片：点「升 1080p 正片」写入同节点版本栈（右上角 2），样片与正片随时切回对比</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom 4-cell Domain Contract Summary -->
+  <div class="row g12" style="padding:0 16px 14px;flex:none">
+    <div class="panel-flat col g4 f1" style="padding:8px 12px">
+      <span class="t12 w6">1. 入口契约（对齐 Q9）</span>
+      <span class="t11 c60 trunc">复用 picker.draft-row 独立一行，勾选 ✓ 恒在右侧</span>
+    </div>
+    <div class="panel-flat col g4 f1" style="padding:8px 12px">
+      <span class="t12 w6">2. 动态有效期（禁硬编码）</span>
+      <span class="t11 c60 trunc">读档案 draftValidityHours：APIMart 3 天 / 别家 24 小时</span>
+    </div>
+    <div class="panel-flat col g4 f1" style="padding:8px 12px">
+      <span class="t12 w6">3. 诚实计费与二次升正片拦截</span>
+      <span class="t11 c60 trunc">样片单算钱；升正片收全价；同样片再点弹重复扣费确认</span>
+    </div>
+    <div class="panel-flat col g4 f1" style="padding:8px 12px">
+      <span class="t12 w6">4. 一个东西一个家（§1.0）</span>
+      <span class="t11 c60">家在节点与生成框；聊天只放指向卡与单问确认</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

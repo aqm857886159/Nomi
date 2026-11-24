@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="zh-CN" data-mark="exploration">
+<head>
+<meta charset="utf-8">
+<title>S-E 图层分解 · 1100×690 最窄桌面窗口（exploration）</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+:root, .L {
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-chrome: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-info-ink: oklch(0.45 0.13 250);
+  --nomi-info-soft: oklch(0.957 0.021 250);
+  --nomi-logo-ground: oklch(0.22 0.01 80);
+  --nomi-overlay-chip: oklch(0.18 0.01 80 / 0.68);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+  --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / 0.05), 0 20px 50px oklch(0 0 0 / 0.08);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.88 0.005 80);
+}
+.D {
+  color-scheme: dark;
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-chrome: oklch(0.155 0.006 80);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-info-ink: oklch(0.82 0.13 250);
+  --nomi-info-soft: oklch(0.295 0.045 250);
+  --nomi-logo-ground: oklch(0.30 0.01 80);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.78);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.30), 0 24px 64px oklch(0 0 0 / 0.40);
+  --nomi-dot: oklch(0.30 0.006 85);
+}
+.board {
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.t11 { font-size: 11px; line-height: 16px; }
+.t12 { font-size: 12px; line-height: 18px; }
+.t13 { font-size: 13px; line-height: 20px; }
+.t14 { font-size: 14px; line-height: 20px; }
+.w5 { font-weight: 500; }
+.w6 { font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.c80 { color: var(--nomi-ink-80); }
+.c60 { color: var(--nomi-ink-60); }
+.c40 { color: var(--nomi-ink-40); }
+.c30 { color: var(--nomi-ink-30); }
+.cacc { color: var(--nomi-accent); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.g4 { gap: 4px; } .g6 { gap: 6px; } .g8 { gap: 8px; } .g10 { gap: 10px; } .g12 { gap: 12px; } .g16 { gap: 16px; }
+.f1 { flex: 1; min-width: 0; }
+.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nowrap { white-space: nowrap; }
+.ico { flex: none; display: block; }
+
+.topbar { height: 40px; flex: none; padding: 0 16px; background: var(--nomi-chrome); box-shadow: inset 0 -1px 0 var(--nomi-line); }
+.canvas-dots { background-color: var(--nomi-bg); background-image: radial-gradient(var(--nomi-dot) 1px, transparent 1.2px); background-size: 18px 18px; }
+.card { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow-md); }
+.panel-flat { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); }
+.checker {
+  background-color: var(--nomi-ink-05);
+  background-image:
+    linear-gradient(45deg, var(--nomi-ink-10) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--nomi-ink-10) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--nomi-ink-10) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--nomi-ink-10) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+
+.badge-info { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-info-soft); color: var(--nomi-info-ink); font-size: 11px; line-height: 16px; font-weight: 600; white-space: nowrap; }
+.badge-ok { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-success-soft); color: var(--nomi-success-ink); box-shadow: inset 0 0 0 1px var(--nomi-success-edge); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.badge-warn { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-warning-soft); color: var(--nomi-warning-ink); box-shadow: inset 0 0 0 1px var(--nomi-warning-edge); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.badge-danger { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-danger-soft); color: var(--nomi-danger-ink); box-shadow: inset 0 0 0 1px var(--nomi-danger-edge); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.badge-neutral { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-ink-10); color: var(--nomi-ink-60); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.bar-warn { background: var(--nomi-warning-soft); color: var(--nomi-warning-ink); box-shadow: inset 0 0 0 1px var(--nomi-warning-edge); border-radius: var(--nomi-radius-sm); padding: 6px 10px; }
+.bar-danger { background: var(--nomi-danger-soft); color: var(--nomi-danger-ink); box-shadow: inset 0 0 0 1px var(--nomi-danger-edge); border-radius: var(--nomi-radius-sm); padding: 6px 10px; }
+.overlay-pill { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--nomi-overlay-chip); color: var(--nomi-media-ink); font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+
+.btn-pri { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--nomi-ink); color: var(--nomi-paper); font-size: 12px; line-height: 18px; font-weight: 600; white-space: nowrap; }
+.btn-out { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--nomi-paper); color: var(--nomi-ink); border: 1px solid var(--nomi-line); font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
+.btn-dis { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--nomi-ink-10); color: var(--nomi-ink-30); font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
+.btn-ghost { display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 10px; border-radius: 999px; border: 0; background: transparent; color: var(--nomi-ink-80); font-size: 12px; line-height: 18px; font-weight: 500; white-space: nowrap; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink); font-size: 12px; line-height: 18px; white-space: nowrap; min-width: 0; }
+.chip.fill { background: var(--nomi-ink-05); }
+.ib { width: 28px; height: 28px; border-radius: var(--nomi-radius-sm); display: inline-flex; align-items: center; justify-content: center; color: var(--nomi-ink-60); background: transparent; border: 0; flex: none; }
+.send-pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 2px 0 10px; border-radius: 999px; background: var(--nomi-ink-10); flex: none; }
+.send-circle { width: 28px; height: 28px; border-radius: 999px; background: var(--nomi-ink); color: var(--nomi-paper); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.send-circle.dis { background: var(--nomi-ink-20); color: var(--nomi-ink-40); }
+
+.seg { display: flex; padding: 2px; background: var(--nomi-ink-05); border-radius: var(--nomi-radius-sm); gap: 2px; }
+.seg span { flex: 1; height: 24px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 18px; color: var(--nomi-ink-60); padding: 0 6px; white-space: nowrap; }
+.seg span.on { background: var(--nomi-paper); color: var(--nomi-ink); font-weight: 600; box-shadow: var(--nomi-shadow-sm); }
+
+/* Layer Row (30px compact virtualized row, neutral selection per §8) */
+.lrow {
+  display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px;
+  border-radius: var(--nomi-radius-sm);
+}
+.lrow.sel { background: var(--nomi-ink-05); }
+.lrow.hov { background: var(--nomi-ink-10); }
+.lthumb {
+  width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--nomi-line);
+  flex: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.ck-right { margin-left: auto; color: var(--nomi-accent); flex: none; }
+.stripes { background: repeating-linear-gradient(45deg, var(--nomi-ink-05) 0 10px, var(--nomi-ink-10) 10px 20px); }
+</style>
+</head>
+<body>
+<div class="board L" style="width:1100px;height:690px">
+  <!-- Topbar -->
+  <div class="topbar row g12" style="padding:0 12px 0 72px">
+    <div class="row g6"><svg class="ico" width="18" height="18" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg><span class="t13 w6 trunc">夜市海报重构</span></div>
+    <div class="f1"></div>
+    <div class="seg" style="width:196px;background:var(--nomi-ink-10)">
+      <span>创作</span><span class="on">生成</span><span>预览</span>
+    </div>
+    <div class="f1"></div>
+    <span class="badge-info">exploration · 1100×690</span>
+    <button class="btn-out" style="height:28px;padding:0 10px">导出</button>
+    <span style="width:28px;height:28px;border-radius:6px;background:var(--nomi-ink-10);display:inline-flex;align-items:center;justify-content:center"><svg class="ico" width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><circle cx="10.2" cy="14" r="2" fill="white"/><circle cx="17.8" cy="14" r="2" fill="white"/></svg></span>
+  </div>
+
+  <!-- Body: Left Rail (48px) + Canvas (732px: Node 280px + Attached Layer Stack 320px = 612px!) + Docked Agent (320px) -->
+  <div class="row f1" style="min-height:0;align-items:stretch">
+    <div class="col g8" style="width:48px;flex:none;background:var(--nomi-chrome);box-shadow:inset -1px 0 0 var(--nomi-line);padding:12px 0;align-items:center">
+      <span class="ib" style="background:var(--nomi-accent-soft);color:var(--nomi-accent)"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg></span>
+      <span class="ib"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5 -5l-11 11"/></svg></span>
+    </div>
+
+    <!-- Center Canvas (732px wide) -->
+    <div class="canvas-dots col" style="flex:1;min-width:0;padding:16px 20px;align-items:center;justify-content:center;gap:10px">
+      <!-- Image Quick Actions Toolbar above node -->
+      <div class="card row g4" style="padding:4px 8px;height:34px">
+        <button class="btn-ghost" style="height:26px;padding:0 8px">多机位九宫格 ▾</button>
+        <button class="btn-ghost" style="height:26px;padding:0 8px">抠图</button>
+        <button class="btn-ghost" style="height:26px;padding:0 8px">改图 ▾</button>
+        <span style="width:1px;height:16px;background:var(--nomi-line)"></span>
+        <button class="btn-pri" style="height:26px;padding:0 10px"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span>图层栈 19</span></button>
+      </div>
+
+      <!-- Node (280px) + Attached Layer Stack (336px) = 628px <= 692px available! -->
+      <!-- Per nodeAttachedPanel.ts: while Layer Stack attached panel is open, floating 600px composer unmounts cleanly so zero vertical clipping in 690px height! -->
+      <div class="row g12" style="align-items:flex-start">
+        <div class="col g4" style="width:280px;flex:none">
+          <div class="row g6 t12 c60"><span>海报主视觉 · 19 层</span></div>
+          <div class="card col" style="overflow:hidden">
+            <div style="position:relative">
+              <svg width="280" height="224" viewBox="0 0 248 186" fill="none" style="display:block;width:100%;height:224px" aria-hidden="true">
+    <defs>
+      <linearGradient id="pbg280" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2b3548"/>
+        <stop offset="100%" stop-color="#4e3d53"/>
+      </linearGradient>
+    </defs>
+    <rect width="248" height="186" fill="url(#pbg280)"/>
+    <!-- Midground neon sign -->
+    <rect x="150" y="54" width="76" height="44" rx="6" fill="#d97757" fill-opacity="0.82"/>
+    <!-- Character silhouette -->
+    <circle cx="92" cy="104" r="18" fill="#e8dccb"/>
+    <path d="M64 186 C66 134 118 134 120 186 Z" fill="#1e222b"/>
+    <!-- Foreground Headline Layer with neutral dark/light crisp bounding box -->
+    <rect x="20" y="16" width="152" height="34" rx="3" fill="rgba(255,255,255,0.14)" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <rect x="18" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="18" y="47" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="47" width="5" height="5" fill="#ffffff"/>
+    <text x="30" y="38" fill="#ffffff" font-size="14" font-weight="700" font-family="Inter, sans-serif">NIGHT MARKET</text>
+    <!-- Coordinate tag -->
+    <rect x="20" y="54" width="176" height="18" rx="4" fill="rgba(20,20,22,0.82)"/>
+    <text x="26" y="67" fill="#ffffff" font-size="11" font-family="ui-monospace, monospace">X:120 Y:48 · 620×180</text>
+  </svg>
+              <span class="overlay-pill num" style="position:absolute;right:8px;top:8px"><svg class="ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span>19 层</span></span>
+            </div>
+            <div class="row g6" style="padding:8px 10px;border-top:1px solid var(--nomi-line-soft)">
+              <span class="t11 c60">附着面板打开时自动收起生成框（useNodeAttachedPanel）</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card col" style="width:336px;height:380px;flex:none;overflow:hidden">
+          <div class="row g6" style="padding:8px 10px;box-shadow:inset 0 -1px 0 var(--nomi-line-soft)">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="t13 w6">图层栈（18 + 底图）</span>
+            <div class="f1"></div>
+            <span class="ib" style="width:24px;height:24px" title="关闭图层栈并恢复生成框"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></span>
+          </div>
+          <div class="row g6" style="padding:6px 8px;box-shadow:inset 0 -1px 0 var(--nomi-line-soft)">
+            <div class="row g6 f1" style="height:26px;padding:0 8px;border-radius:999px;background:var(--nomi-ink-05)">
+              <svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/></svg><span class="t11 c60">搜图层</span>
+            </div>
+            <button class="btn-pri" style="height:26px;padding:0 10px"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M10 14l11 -11"/><path d="M21 14v5a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h5"/></svg><span>拆出 2 层</span></button>
+          </div>
+          <div class="col g4 f1" style="padding:6px;overflow:hidden">
+            <div class="lrow hov">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span class="t11 w6">T</span></span>
+              <span class="t12 w6 f1 trunc">主标题文字 "NIGHT"</span>
+              <span class="t11 c60 mono num">#18</span>
+            </div>
+            <div class="lrow sel">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span style="width:12px;height:8px;background:#d97757;border-radius:2px"></span></span>
+              <span class="t12 w5 f1 trunc">右侧霓虹灯牌</span>
+              <span class="t11 c60 mono num">#17</span>
+            </div>
+            <div class="lrow">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span style="width:10px;height:14px;background:#1e222b;border-radius:2px"></span></span>
+              <span class="t12 f1 trunc">主角林夏（人物）</span>
+              <span class="t11 c60 mono num">#16</span>
+            </div>
+            <div class="lrow">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span style="width:12px;height:6px;background:#6e7f99;border-radius:2px"></span></span>
+              <span class="t12 f1 trunc">街角蒸汽薄雾</span>
+              <span class="t11 c60 mono num">#15</span>
+            </div>
+            <div class="lrow">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb checker"><span class="t11">·</span></span>
+              <span class="t12 f1 trunc">灯笼串光晕</span>
+              <span class="t11 c60 mono num">#14</span>
+            </div>
+            <div class="lrow"><span class="t11 c40" style="padding-left:20px">… #13 – #1 虚拟滚动 …</span></div>
+            <div class="lrow" style="border-top:1px solid var(--nomi-line-soft);margin-top:auto">
+              <svg class="ico c40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/></svg><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="lthumb" style="background:#38384c"></span>
+              <span class="t12 w5 f1 trunc">底图（已补全背景）</span>
+              <span class="t11 c60 mono">z=0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Docked Right Agent Panel (320px) -->
+    <div class="col" style="width:320px;flex:none;background:var(--nomi-paper);box-shadow:inset 1px 0 0 var(--nomi-line)">
+      <div class="row g8" style="height:40px;padding:0 12px;box-shadow:inset 0 -1px 0 var(--nomi-line-soft)">
+        <svg class="ico" width="18" height="18" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)"/><circle cx="10.2" cy="14" r="2" fill="white"/><circle cx="17.8" cy="14" r="2" fill="white"/></svg><span class="t13 w6">Nomi</span>
+        <div class="f1"></div>
+        <span class="t11 c60">停靠右侧</span>
+      </div>
+      <div class="col g10 f1" style="padding:12px">
+        <div class="t12 c80">已完成海报分解，共返回底图 + 18 张透明图层（实扣 6.65 积分）：</div>
+        <div class="panel-flat row g8" style="padding:8px">
+          <div style="width:44px;height:32px;border-radius:4px;overflow:hidden;flex:none"><svg width="44" height="32" viewBox="0 0 248 186" fill="none" style="display:block;width:100%;height:32px" aria-hidden="true">
+    <defs>
+      <linearGradient id="pbg44" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2b3548"/>
+        <stop offset="100%" stop-color="#4e3d53"/>
+      </linearGradient>
+    </defs>
+    <rect width="248" height="186" fill="url(#pbg44)"/>
+    <!-- Midground neon sign -->
+    <rect x="150" y="54" width="76" height="44" rx="6" fill="#d97757" fill-opacity="0.82"/>
+    <!-- Character silhouette -->
+    <circle cx="92" cy="104" r="18" fill="#e8dccb"/>
+    <path d="M64 186 C66 134 118 134 120 186 Z" fill="#1e222b"/>
+    <!-- Foreground Headline Layer with neutral dark/light crisp bounding box -->
+    <rect x="20" y="16" width="152" height="34" rx="3" fill="rgba(255,255,255,0.14)" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <rect x="18" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="14" width="5" height="5" fill="#ffffff"/>
+    <rect x="18" y="47" width="5" height="5" fill="#ffffff"/>
+    <rect x="169" y="47" width="5" height="5" fill="#ffffff"/>
+    <text x="30" y="38" fill="#ffffff" font-size="14" font-weight="700" font-family="Inter, sans-serif">NIGHT MARKET</text>
+    <!-- Coordinate tag -->
+    <rect x="20" y="54" width="176" height="18" rx="4" fill="rgba(20,20,22,0.82)"/>
+    <text x="26" y="67" fill="#ffffff" font-size="11" font-family="ui-monospace, monospace"></text>
+  </svg></div>
+          <div class="col f1">
+            <span class="t12 w6 trunc">海报主视觉</span>
+            <span class="t11 c60 trunc">18 层 + 底图 · 已定位</span>
+          </div>
+        </div>
+        <div class="t11 c60">在画布右侧图层栈勾选需要的层点「拆出」，即可单独做运镜或改字。</div>
+        <div class="f1"></div>
+        <div class="panel-flat col g6" style="padding:8px 10px;background:var(--nomi-ink-05)">
+          <span class="t12 c60">跟 Nomi 说下一步…</span>
+          <div class="row"><span class="t11 c60">DeepSeek V4 Flash</span><div class="f1"></div><span class="send-circle" style="width:24px;height:24px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
