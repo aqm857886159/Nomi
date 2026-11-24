@@ -1,4 +1,4 @@
-结论：通过 · 验收线：fc2-verify · 验收 HEAD：e0cf5409ace8be65b41125431558b8fdb07143d5
+结论：通过 · 验收线：fc2-verify · 验收 HEAD：65e789763a7fc0363d2915378c6a2f5d4a9daaa7
 
 - 验收线：`fc2-verify`
 - 实现线：`fc-media-and-lane-timeout-hierarchy`
@@ -51,6 +51,10 @@
 
 ### 测试类型补齐增量复验（`e0cf5409a`，`EXIT=0`）
 - 审阅 `e0cf5409a` 仅在 `electron/agentLane/laneTools.test.ts:22` 补齐 `promptSnippet: 'Read the script.'`（1 行测试类型补齐，0 本机路径泄露）；独立复跑 `VITEST_MAX_WORKERS=2 ./node_modules/.bin/vitest run electron/agentLane/laneTools.test.ts`：**4/4 PASS（`EXIT=0`）**。
+
+### 目录级类检查与逃逸账本结账增量复验（`65e789763`，全部 `EXIT=0`）
+- 审阅 `e0cf5409a..65e789763`：`laneTools.test.ts` 与 `phase4CapabilityTargets.test.ts` 补齐遍历 `modelFacingToolSpecs("internal")` 的目录级类检查断言，并将 `tests/ux/full-walk/escapeLedger/FB-NF-1113-0001-media-timeout.json` 结账为 `status: "fixed"`；0 本机路径泄露。
+- 独立实跑全绿（`EXIT=0`）：`laneTools.test.ts`（5/5）+ `phase4CapabilityTargets.test.ts`（11/11）共 **16/16 PASS**，`pnpm run check:escape-ledger` PASS（174 条，fixed 123）。
 
 ## 4. 诚实未验证边界
 
