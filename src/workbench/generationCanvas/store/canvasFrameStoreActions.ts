@@ -7,7 +7,7 @@
  * 免得同一件事被劈成两半、以后各长各的。
  */
 import { bumpPersistRevision } from './canvasGuards'
-import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasPatchHistory'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
 

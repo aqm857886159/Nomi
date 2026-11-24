@@ -185,8 +185,8 @@
     },
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx": {
       "kind": "frozen",
-      "max": 1013,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 1013（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
+      "max": 1003,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {
           "name": "GenerationCanvasReactFlowInner",
@@ -409,7 +409,7 @@
     },
     "src/workbench/generationCanvas/nodes/ClipNode.tsx": {
       "kind": "frozen",
-      "max": 853,
+      "max": 847,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {

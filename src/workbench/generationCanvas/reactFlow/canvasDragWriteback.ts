@@ -7,11 +7,11 @@ import { clientXToFrame } from '../../timeline/timelineEdit'
 import { adoptGenerationNode } from '../../adoption/adoptGenerationNode'
 import { reportAdoptionOutcome } from '../../adoption/adoptionReceipt'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { findTimelineDropTarget } from '../nodes/nodeSizing'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 import { restoreCanvasDragKernelOwnership } from './canvasDragDraft'
+import type { CanvasFrameMembershipDrag } from '../components/useCanvasFrameMembership'
 import type { GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 
 type DragPosition = { x: number; y: number }
@@ -89,6 +89,7 @@ type CanvasDragWritebackContext = {
   event: Parameters<OnNodeDrag<GenerationFlowNode>>[0]
   draggedNode: Parameters<OnNodeDrag<GenerationFlowNode>>[1]
   draggedNodes: Parameters<OnNodeDrag<GenerationFlowNode>>[2]
+  duplicate?: boolean
   readOnly: boolean
   t: TFunction
   draggingRef: MutableRefObject<boolean>
@@ -102,6 +103,7 @@ export function commitCanvasNodeDragStop({
   event,
   draggedNode,
   draggedNodes,
+  duplicate,
   readOnly,
   t,
   draggingRef,
@@ -135,19 +137,16 @@ export function commitCanvasNodeDragStop({
     }
     toast(t('generationCommon.node.generateBeforeTimeline'), 'info')
   }
-  for (const flowNode of draggedNodes) {
-    const originalPosition = dragStartPositionsRef.current.get(flowNode.id)
-    if (!originalPosition) continue
-    if (originalPosition.x === flowNode.position.x && originalPosition.y === flowNode.position.y) continue
-    moveNode(flowNode.id, flowNode.position, { persist: false, emit: false })
+  const moved = draggedNodes.filter(node => {
+    const start = dragStartPositionsRef.current.get(node.id)
+    return start && (start.x !== node.position.x || start.y !== node.position.y)
+  })
+  if (moved.length) {
+    if (!duplicate) useGenerationCanvasStore.getState().captureHistory()
+    for (const node of moved) moveNode(node.id, node.position, { persist: false, emit: false })
+    emitCanvasGesture(moved.map(node => ({ type: 'canvas.node.moved', payload: { nodeId: node.id, position: node.position } })))
+    commitPersistedChange()
   }
-  const state = useGenerationCanvasStore.getState()
-  const movedEvents = draggedNodes
-    .map((flowNode) => state.nodes.find((node) => node.id === flowNode.id))
-    .filter((node): node is GenerationCanvasNode => Boolean(node))
-    .map((node) => ({ type: 'canvas.node.moved' as const, payload: { nodeId: node.id, position: node.position } }))
-  if (movedEvents.length) emitCanvasGesture(movedEvents)
-  commitPersistedChange()
   dragStartPositionsRef.current.clear()
   dragDraftNodesRef.current = []
 }
@@ -204,15 +203,35 @@ export function finishCanvasNodeDrag(input: Parameters<typeof commitCanvasNodeDr
   dragLeaseRef: { current: { release: () => void } | null }
   duplicateDragIdsRef: { current: Map<string, string> }
   setNodeDragActive: (active: boolean) => void
-  commitFrameMembership: () => void
+  frameMembership: CanvasFrameMembershipDrag
+  restoreFlowNodes: () => void
   flowStore: Parameters<typeof restoreCanvasDragKernelOwnership>[0]
 }): void {
   input.dragLeaseRef.current?.release()
   input.dragLeaseRef.current = null
   // #5：解冻 minimap（在所有退出路径之前，含时间轴投放早退；draggingRef 由 writeback 清）。
   input.setNodeDragActive(false)
-  commitCanvasNodeDragStop(input)
-  withCanvasGestureContext({ source: 'user', txnId: crypto.randomUUID(), suppressUndoBarriers: true }, () => input.commitFrameMembership())
-  input.duplicateDragIdsRef.current.clear()
+  const displaced = input.draggedNodes.some(node => {
+    const origin = input.dragStartPositionsRef.current.get(node.id)
+    return origin && (origin.x !== node.position.x || origin.y !== node.position.y)
+  })
+  const previews = input.duplicateDragIdsRef.current
+  const copies = displaced && previews.size
+    ? useGenerationCanvasStore.getState().duplicateNodesForDrag([...previews.keys()]) : undefined
+  const resolved = new Map<string, string>()
+  if (copies) for (const [original, id] of copies) {
+    const origin = input.dragStartPositionsRef.current.get(original)
+    if (origin) input.dragStartPositionsRef.current.set(id, origin)
+    resolved.set(previews.get(original)!, id)
+  }
+  const withCopyId = (node: GenerationFlowNode) => copies?.has(node.id) ? { ...node, id: copies.get(node.id)! } : node
+  commitCanvasNodeDragStop({
+    ...input, duplicate: Boolean(copies), draggedNode: withCopyId(input.draggedNode), draggedNodes: input.draggedNodes.map(withCopyId),
+  })
+  if (displaced) withCanvasGestureContext({ source: 'user', txnId: crypto.randomUUID(), suppressUndoBarriers: true },
+    () => input.frameMembership.commitMembership(copies ? resolved : undefined))
+  else input.frameMembership.cancelPreview()
+  if (previews.size) input.restoreFlowNodes()
+  previews.clear()
   restoreCanvasDragKernelOwnership(input.flowStore)
 }

@@ -1,5 +1,5 @@
 import { runWhenCanvasWriteBoundarySettled } from '../../../generationCanvas/events/canvasWriteBoundary'
-import { getUndoJournalGeneration } from '../../../generationCanvas/events/canvasUndoJournal'
+import { getUndoJournalGeneration } from '../../../generationCanvas/events/canvasPatchHistory'
 import { projectStoryboardDesign } from './storyboardProjection'
 import type { StoryboardDesign } from '../../../workbenchTypes'
 import type { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'

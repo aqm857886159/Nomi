@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { generationCanvasTools } from '../../../agent/generationCanvasTools'
-import { findCanvasChange } from '../../../events/canvasUndoJournal'
+import { findCanvasChange } from '../../../events/canvasPatchHistory'
 import { makeChangeId } from '../../../../../../electron/shared/agentCapabilities/changeId'
 import { encodeMention } from '../../../../../../electron/shared/storyboard/promptMentions'
 import { useGenerationCanvasStore } from '../../../store/generationCanvasStore'
