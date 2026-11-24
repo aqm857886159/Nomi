@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import http from 'node:http';
-import { resolveProductionReferenceUrls, reworkReferenceUrls } from './productionReferenceUrls';
-import { localizeAssetsForVendor, type LocalAsset } from '../catalog/assetLocalization';
+import { localizeProductionReferenceUrls, resolveProductionReferenceUrls, reworkReferenceUrls } from './productionReferenceUrls';
+import { AnonymousAssetConsentRequiredError, localizeAssetsForVendor, type LocalAsset } from '../catalog/assetLocalization';
 import { spendReferenceKey } from '../shared/contracts/pendingSpendConfirm';
+import { matchNomiErrorCode, tagNomiError } from '../shared/nomiErrorCodes';
+import { desktopT } from '../desktopStrings';
 const reference = { assetId: 'asset', contentHash: 'hash', version: 1, kind: 'image' as const, role: 'first_frame' as const };
 function fixture() {
   const assets = { list: () => [{ id: 'asset', data: {url:'nomi-local://asset/p/ref.png',contentType:'image/png'} }], identity: () => ({contentHash:'hash',version:1}), import: vi.fn() };
@@ -148,5 +150,63 @@ describe('reworkReferenceUrls', () => {
     );
     expect(out).toEqual(resolved);
     expect(probe).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ── NF-1107-0002 + #1638 回归矩阵：不以 hostingDisabled 覆写 413 / 通道故障首行摘要，同时剥离换行后的文件名/签名明细 ──
+describe('localizeProductionReferenceUrls · 上传失败摘要保真与脱敏矩阵（NF-1107-0002）', () => {
+  const UPLOAD_FAILURE_PRESERVATION_MATRIX = [
+    {
+      label: 'HTTP 413 素材超限（asset-too-large）：保留首行本地化通道摘要、不误报未开启托管，并截断换行后的文件名与明细',
+      thrown: new Error(tagNomiError(
+        'asset-too-large',
+        '文件太大，apimart的上传通道收不下。请重试、换小一点的文件，或去设置里允许第三方公共临时托管。\n还没请求这次选的服务商。 视频 clip.mp4（180.0MB）: apimart: HTTP 413 Payload Too Large',
+      )),
+      expectedCode: 'asset-too-large',
+      mustContain: ['文件太大，apimart的上传通道收不下'],
+      mustNotContain: ['clip.mp4', 'HTTP 413', '\n'],
+      mustNotBeBareHostingDisabled: true,
+    },
+    {
+      label: '通道 503 不可用（asset-upload-failed）：保留首行真实通道故障摘要、不误报未开启托管，并截断换行后的文件名与明细',
+      thrown: new Error(tagNomiError(
+        'asset-upload-failed',
+        'Nomi 中转暂时不可用。请重试、换小一点的文件，或去设置里允许第三方公共临时托管。\n还没请求这次选的服务商。 图片 ref.png（4.0MB）: nomi-relay: HTTP 503',
+      )),
+      expectedCode: 'asset-upload-failed',
+      mustContain: ['Nomi 中转暂时不可用'],
+      mustNotContain: ['ref.png', 'HTTP 503', '\n'],
+      mustNotBeBareHostingDisabled: true,
+    },
+    {
+      label: '正对照 · 确实未开启第三方托管（AnonymousAssetConsentRequiredError）：原样透传 hostingDisabled',
+      thrown: new AnonymousAssetConsentRequiredError(),
+      expectedCode: 'asset-upload-failed',
+      mustContain: [desktopT('assetUpload.hostingDisabled')],
+      mustNotContain: [],
+      mustNotBeBareHostingDisabled: false,
+    },
+  ] as const;
+
+  it.each(UPLOAD_FAILURE_PRESERVATION_MATRIX)('$label', async ({ thrown, expectedCode, mustContain, mustNotContain, mustNotBeBareHostingDisabled }) => {
+    const vendor = { key: 'apimart' };
+    let caught: Error | null = null;
+    try {
+      await localizeProductionReferenceUrls('apimart', ['nomi-local://asset/p/clip.mp4'], {
+        readCatalog: () => ({ vendors: [vendor] }) as never,
+        localizeForSend: vi.fn(async () => { throw thrown; }) as never,
+        assetIngestionResolver: (() => () => []) as never,
+        assetLocalizationOptions: (() => ({})) as never,
+      });
+    } catch (error) {
+      caught = error as Error;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(matchNomiErrorCode(caught!.message)).toBe(expectedCode);
+    for (const piece of mustContain) expect(caught!.message).toContain(piece);
+    for (const leaked of mustNotContain) expect(caught!.message).not.toContain(leaked);
+    if (mustNotBeBareHostingDisabled) {
+      expect(caught!.message).not.toBe(tagNomiError(expectedCode, desktopT('assetUpload.hostingDisabled')));
+    }
   });
 });

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync 
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildCodexImagePrompt, buildCodexSpawnEnv, buildCodexSpawnInvocation, candidateCodexBins, describeCodexFailure, extractImagegenUpstreamError, latestGeneratedImageForThread, parseCodexThreadId, queryCodexImageOperation } from "./codexCli";
+import { buildCodexImagePrompt, buildCodexSpawnEnv, buildCodexSpawnInvocation, candidateCodexBins, describeCodexFailure, extractCodexImageArtifacts, extractImagegenUpstreamError, latestGeneratedImageForThread, parseCodexThreadId, queryCodexImageOperation, resolveCodexGeneratedImage } from "./codexCli";
 
 const envSnapshot = { ...process.env };
 const tempRoots: string[] = [];
@@ -234,5 +234,140 @@ describe("Codex CLI image bridge", () => {
     expect(persisted.stdout).toBe("");
     expect(persisted.stderr).toBe("");
     expect(persisted.request?.prompt).toBe("");
+  });
+
+  // ── NF-1025-0001 回归矩阵：Codex 产图发现（JSONL saved_path / 嵌套目录 / workDir / 内联 base64）与真实失败透传 ──
+  describe("NF-1025-0001 · Codex 产图发现与失败原因透传矩阵", () => {
+    const TINY_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+
+    const CODEX_ARTIFACT_DISCOVERY_MATRIX = [
+      {
+        label: "JSONL ImageGenerationItem.saved_path 指向自定义位置 → 找回并暂存，不报未产出",
+        setup: (root: string, workDir: string) => {
+          const out = path.join(workDir, "rendered-output.png");
+          writeFileSync(out, TINY_PNG);
+          const stdout = JSON.stringify({
+            type: "item.completed",
+            item: { type: "image_generation", status: "completed", saved_path: out },
+          });
+          return { stdout, inputImagePaths: [] as string[], expectedCopyOutsideWorkDir: true };
+        },
+      },
+      {
+        label: "generated_images/<threadId> 嵌套子目录中的生成图 → 递归发现",
+        setup: (root: string) => {
+          const nestedDir = path.join(root, "generated_images", "thread-matrix", "batch-1");
+          mkdirSync(nestedDir, { recursive: true });
+          writeFileSync(path.join(nestedDir, "nested.png"), TINY_PNG);
+          return { stdout: "", inputImagePaths: [] as string[], expectedCopyOutsideWorkDir: false };
+        },
+      },
+      {
+        label: "Codex 把生成图移动/保存到 workDir（排除参考输入图）→ 清理 workDir 前收进持久化目录",
+        setup: (_root: string, workDir: string) => {
+          const refIn = path.join(workDir, "ref-input.png");
+          const generatedOut = path.join(workDir, "final-art.png");
+          writeFileSync(refIn, TINY_PNG);
+          writeFileSync(generatedOut, TINY_PNG);
+          return { stdout: "", inputImagePaths: [refIn], expectedCopyOutsideWorkDir: true };
+        },
+      },
+      {
+        label: "JSONL ImageGenerationItem 仅带内联 base64 result（无磁盘文件）→ 核验 PNG 魔数后落盘找回",
+        setup: () => {
+          const stdout = JSON.stringify({
+            type: "item.completed",
+            item: { type: "image_generation", status: "completed", result: TINY_PNG.toString("base64") },
+          });
+          return { stdout, inputImagePaths: [] as string[], expectedCopyOutsideWorkDir: true };
+        },
+      },
+    ] as const;
+
+    it.each(CODEX_ARTIFACT_DISCOVERY_MATRIX)("$label", ({ setup }) => {
+      const root = path.join(os.tmpdir(), `nomi-codex-artifact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+      const workDir = path.join(os.tmpdir(), `nomi-codex-work-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+      tempRoots.push(root, workDir);
+      mkdirSync(root, { recursive: true });
+      mkdirSync(workDir, { recursive: true });
+      vi.stubEnv("CODEX_HOME", root);
+
+      const startedAt = Date.now() - 1000;
+      const { stdout, inputImagePaths, expectedCopyOutsideWorkDir } = setup(root, workDir);
+      const resolved = resolveCodexGeneratedImage({
+        jobId: "codex-matrix-job",
+        threadId: "thread-matrix",
+        stdout,
+        workDir,
+        inputImagePaths,
+        startedAt,
+      });
+      expect(resolved).not.toBe("");
+      expect(existsSync(resolved)).toBe(true);
+      expect(readFileSync(resolved).subarray(0, 4)).toEqual(TINY_PNG.subarray(0, 4));
+      if (expectedCopyOutsideWorkDir) {
+        // 即使随即清理 workDir，持久化后的图片仍可读
+        rmSync(workDir, { recursive: true, force: true });
+        expect(existsSync(resolved)).toBe(true);
+      }
+    });
+
+    it("extractCodexImageArtifacts 忽略非图片的伪 result 文本，不把报错文本误落成图", () => {
+      const stdout = JSON.stringify({
+        type: "item.completed",
+        item: { type: "image_generation", status: "failed", result: Buffer.from("not an image").toString("base64") },
+      });
+      const artifacts = extractCodexImageArtifacts(stdout);
+      expect(artifacts.savedPaths).toEqual([]);
+      expect(artifacts.inlineImages).toEqual([]);
+    });
+
+    const CODEX_FAILURE_DISCOVERY_MATRIX = [
+      {
+        label: "顶层 turn.failed 额度用尽 → 透传真实原因并归限流/额度提示，不吞成黑盒未产出",
+        ran: {
+          code: 1,
+          stdout: JSON.stringify({ type: "turn.failed", error: { message: "usage_limit_reached: You have reached your Plus usage limit" } }),
+          stderr: "",
+        },
+        threadId: "thread-f1",
+        mustContain: ["限流", "usage_limit_reached"],
+      },
+      {
+        label: "顶层 type=error 服务端报错 → 透传上游错误原文",
+        ran: {
+          code: 1,
+          stdout: JSON.stringify({ type: "error", message: "model_not_found: image generation model unavailable" }),
+          stderr: "",
+        },
+        threadId: "thread-f2",
+        mustContain: ["Codex 生图调用失败", "model_not_found"],
+      },
+      {
+        label: "模型在 agent_message 拒答但没带哨兵前缀 → 附带模型回复内容供排查",
+        ran: {
+          code: 0,
+          stdout: JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "I cannot generate images depicting real public figures." } }),
+          stderr: "",
+        },
+        threadId: "thread-f3",
+        mustContain: ["Codex CLI 未产生可导入的生图文件", "real public figures"],
+      },
+      {
+        label: "非零退出且 stderr 有错误输出 → 透传退出码与 stderr 摘要",
+        ran: {
+          code: 2,
+          stdout: "",
+          stderr: "error: unexpected argument '--bad-flag' found",
+        },
+        threadId: "thread-f4",
+        mustContain: ["退出码 2", "unexpected argument '--bad-flag'"],
+      },
+    ] as const;
+
+    it.each(CODEX_FAILURE_DISCOVERY_MATRIX)("$label", ({ ran, threadId, mustContain }) => {
+      const msg = describeCodexFailure(ran, threadId);
+      for (const piece of mustContain) expect(msg).toContain(piece);
+    });
   });
 });
