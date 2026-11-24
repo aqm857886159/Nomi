@@ -1,8 +1,8 @@
-结论：通过 · 验收线：n1n2-verify · 验收 HEAD：00cbd46edcdd8f530520425d2e0298b07ee67cec
+结论：通过 · 验收线：n1n2-verify · 验收 HEAD：b8dacee18210303ffb10621721a5ac4f1caae4c0
 
 - 验收线：n1n2-verify
 - 实现线：fix/nightly-walkthroughs-n1-n2-and-paid-rehearsal
-- 验收 HEAD：00cbd46edcdd8f530520425d2e0298b07ee67cec
+- 验收 HEAD：b8dacee18210303ffb10621721a5ac4f1caae4c0
 - 对应设计卡：`docs/plan/2026-11-24-nightly-walkthroughs-n1-n2-and-paid-rehearsal.md`
 - 方向复盘：`docs/plan/2026-11-24-nightly-walkthroughs-n1-n2-and-paid-rehearsal.direction-check.md`
 - 根因合同：`docs/fixes/2026-11-24-nightly-walk-prerequisites.root-cause.json`
@@ -41,3 +41,8 @@
 ## 4. 诚实未验证边界
 
 - 完整 Ubuntu GitHub Runner 实机环境下的 Electron 夜跑批次回放与首次合入后的夜跑汇总（`unverified`，按设计卡与根因合同在合入后的首个夜跑复查）。
+
+## 5. `eslint-suppressions` 基线收紧增量复验（`b8dacee18210303ffb10621721a5ac4f1caae4c0`）
+
+- **增量审阅**：`b8dacee18` 仅从 `eslint-suppressions.json` 删除 `tests/ux/control-hierarchy-u2.walk.mjs` 与 `tests/ux/preview-control-scope.walk.mjs` 两条已清零的 `@typescript-eslint/no-unused-vars` 抑制记录（`-10` 行，生产代码 `0` 改动，`0` 本机路径泄露）。
+- **独立复跑**：`NOMI_BASE_REF=origin/main node ./scripts/lint-changed.mjs` 通过（`EXIT=0`，22 个改动文件，错误 0，警告不比 `origin/main` 多）。
