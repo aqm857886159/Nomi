@@ -2,7 +2,7 @@ t5-s6-verify：通过
 
 - 验收线：t5-s6-verify
 - 实现线：t5-onboarding-s6-impl
-- 验收 HEAD：3db9c8c8866ca6c1a0fc4fedcabcb8b907eb1afd
+- 验收 HEAD：98b395c18e128de080428adcb6445ed79c69f69e（首轮全量验收基线 `3db9c8c8866ca6c1a0fc4fedcabcb8b907eb1afd` + 本轮视觉语义 token 精修与干净工作树性能增量复验）
 - 设计卡与方向复盘：`docs/plan/2026-11-24-t5-onboarding-s6.md`、`docs/engineering/direction-checks/2026-11-24-apimart-balance-sources.md`
 
 ## 1. 跨板合同与 S6 13 项清单核对
@@ -57,6 +57,23 @@ t5-s6-verify：通过
 
 还原后工作树完全干净，复跑 `vendorAccountBalance.test.ts`（26/26）+ `ApimartConnectPage.test.tsx`（13/13）合计 **39/39 通过（`EXIT=0`）**。
 
-## 5. 诚实未验证边界
+## 5. 视觉语义 token 精修与干净工作树性能增量复验（`98b395c18`）
+
+- **增量改动与零泄露核查（`3db9c8c8866c..98b395c18e12`）**：
+  - `ApimartTopUpNotice.tsx` 与 `ApimartStatusNotice.tsx`（`offline` 断网卡）将 `bg-nomi-warning/10` 替换为 4 阶暖警告语义 token（`border border-nomi-warning-edge bg-nomi-warning-soft text-nomi-warning-ink`），`ApimartCheckCard.tsx` 的 `0 积分` 状态文案使用 `text-nomi-warning-ink`。
+  - `ApimartConnectPage.tsx` 仅在 `stage === 'checking'` 时锁定输入框，检查结束后立即可编辑，且已提交掩码 Key 的 `placeholder` 使用 `placeholder:text-nomi-ink`（移除 `disabled:opacity-60`）。
+  - `git diff 3db9c8c8866c..HEAD -- ':!*.png'` 零本机绝对路径与工作树路径泄露。
+- **4 张刷新拼图重新逐张 `read_file` 目视对账**：
+  - `board-vs-impl-o5-light.png` & `board-vs-impl-o5-dark.png`：亮/暗双模式下 O5 充值卡均呈现暖琥珀底与描边（`bg-nomi-warning-soft` + `border-nomi-warning-edge`），`0 积分` / `0 credits` 为清晰暖警告色（`text-nomi-warning-ink`），输入框掩码 Key 为正常正文色（`text-nomi-ink`），与拍板样张一致、无对比度衰减。
+  - `board-vs-impl-o3-o4.png` & `board-vs-impl-o6.png`：O4 检查完成态及 O6 各类出错态（含 `offline` 断网暖黄提示卡、Key 无效、钥匙串不可用、没余额）下，掩码 Key 保持清晰正常正文色，断网卡暖警告色与拍板样张一致。
+- **干净工作树性能实测（`docs/evidence/2026-11-24-t5-onboarding-s6/perf-onboarding-connect-open.json`）**：
+  - `dirty: false`（`commit: 2748a67e5`，`runs: 5`），`onboarding-connect-open` response **median `47.7ms` / p95 `48.2ms`**（预算 `150ms`），`longTasks: 0 / 0`，`verdict: ok`。
+- **增量串行实跑全绿（全部 `EXIT=0`）**：
+  - `./node_modules/.bin/vitest run --maxWorkers=1 src/ui/onboarding/ApimartConnectPage.test.tsx`：PASS（13/13）
+  - `pnpm run check:tokens`：PASS（4 类棘轮 `0/0/0/0`，`color-mix` 零色相漂移，`:root` 语义 token 零违规）
+  - `pnpm run check:controls`：PASS（控件交互与文案契约 `0` 违规）
+  - `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit`：PASS（`0` 错误）
+
+## 6. 诚实未验证边界
 
 - 本次实测均在 macOS 隔离 Electron + loopback 夹具 + 模拟安全存储环境下完成，真实 APIMart 线上账户扣费/充值流程与原生 Windows 钥匙串记为 `unverified`。
