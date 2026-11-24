@@ -10,7 +10,7 @@ import { useOpenProjectId } from '../project/useOpenProjectId'
 import { toast } from '../../ui/toast'
 import { useAiRewrite } from './aiRewrite/aiRewriteBinding'
 import { WorkbenchButton } from '../../design/actions'
-import { NomiOverflowRow, TooltipProvider, type NomiOverflowRowGroup, type NomiOverflowRowItem, type WorkbenchMenuIcon } from '../../design'
+import { NomiOverflowRow, TooltipProvider, type NomiOverflowRowGroup, type NomiOverflowRowItem, type WorkbenchMenuAction, type WorkbenchMenuCheckbox, type WorkbenchMenuIcon } from '../../design'
 import { TIPTAP_PLACEHOLDER_CLASSES } from '../assets/tiptapPlaceholderClasses'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -61,8 +61,11 @@ function menuIconFor(element: JSX.Element): WorkbenchMenuIcon {
   return Icon
 }
 
-function toMenuItem(action: RichTextAction) {
-  return { id: action.id, label: action.label, icon: menuIconFor(action.icon), disabled: action.disabled, onSelect: action.onClick }
+export function toMenuItem(action: RichTextAction): WorkbenchMenuAction | WorkbenchMenuCheckbox {
+  const item = { id: action.id, label: action.label, icon: menuIconFor(action.icon), disabled: action.disabled }
+  return typeof action.active === 'boolean'
+    ? { ...item, kind: 'checkbox', checked: action.active, onCheckedChange: action.onClick }
+    : { ...item, onSelect: action.onClick }
 }
 
 function toOverflowItem(action: RichTextAction): NomiOverflowRowItem {

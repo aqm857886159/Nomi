@@ -28,9 +28,11 @@
   "internal_only_reason": "The approved Nomi interaction and the actual lane projection determine the presentation.",
   "invariants": [
     "Expose document-wide actions and group formatting by frequency.",
+    "Preserve a formatting toggle's checked state in the overflow menu.",
     "Expose named actions over the selected passage.",
     "Render usage feedback only when informative or explicitly expanded.",
-    "Keep card opening and inline rename on distinct activation targets."
+    "Keep card opening and inline rename on distinct activation targets.",
+    "Return keyboard focus to the project's rename button after Enter or Escape. Let blur follow its destination."
   ],
   "doors": [
     {
@@ -91,6 +93,11 @@
     {
       "kind": "read",
       "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "symbol": "toMenuItem"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
       "symbol": "SelectionGeneratePopover"
     },
     {
@@ -105,9 +112,9 @@
     }
   ],
   "door_reduction": {
-    "before": 14,
-    "after": 14,
-    "why_not": "The live surfaces and design previews each need their own mount. Both language dictionaries are used, and the shared components measure overflow, place the popover, read availability and display usage for those mounts. No component caller was removed."
+    "before": 15,
+    "after": 15,
+    "why_not": "The live surfaces and design previews each need their own mount. Both language dictionaries are used, and the shared components measure overflow, place the popover, read availability and display usage for those mounts. Both permanently and conditionally hidden formats share toMenuItem."
   },
   "generality_proof": "The editor, project cards and context header each render through the same component for both locales, window sizes and existing projects.",
   "shared_boundaries": [

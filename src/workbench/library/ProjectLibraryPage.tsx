@@ -631,6 +631,11 @@ export default function ProjectLibraryPage({
                             e.stopPropagation()
                             if (e.key === 'Enter') commitRename(project.id, project.name)
                             else if (e.key === 'Escape') setEditingId('')
+                            else return
+                            e.preventDefault()
+                            requestAnimationFrame(() => {
+                              document.querySelector<HTMLButtonElement>(`[data-project-rename="${CSS.escape(project.id)}"]`)?.focus()
+                            })
                           }}
                           onBlur={() => commitRename(project.id, project.name)}
                         />

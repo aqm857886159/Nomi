@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import { createOverflowManager, type OverflowManager } from '@fluentui/priority-overflow'
 import { IconDots } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
-import { WorkbenchMenu, type WorkbenchMenuAction, type WorkbenchMenuAnchorRect, type WorkbenchMenuNode } from './menu'
+import { WorkbenchMenu, type WorkbenchMenuAction, type WorkbenchMenuAnchorRect, type WorkbenchMenuCheckbox, type WorkbenchMenuNode } from './menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip'
 
 /**
@@ -27,13 +27,13 @@ export type NomiOverflowRowItem = Readonly<{
   /** 平时画在这一排上的那颗按钮。 */
   node: React.ReactNode
   /** 收进「⋯」后在菜单里的那一项（图标 + 名字）。 */
-  menuItem: Omit<WorkbenchMenuAction, 'id' | 'kind'>
+  menuItem: Omit<WorkbenchMenuAction, 'id'> | Omit<WorkbenchMenuCheckbox, 'id'>
 }>
 
 export type NomiOverflowRowGroup = Readonly<{ id: string; items: readonly NomiOverflowRowItem[] }>
 
 export type NomiOverflowRowProps = {
-  overflowItems?: readonly WorkbenchMenuAction[]
+  overflowItems?: readonly (WorkbenchMenuAction | WorkbenchMenuCheckbox)[]
   groups: readonly NomiOverflowRowGroup[]
   /** 「⋯」的无障碍名与悬停提示。 */
   overflowLabel: string

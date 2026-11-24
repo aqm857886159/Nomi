@@ -42,7 +42,8 @@
         "popover.video",
         "popover.storyboard"
       ],
-      "source": "用户 10-18 在画布评论里确认（任务书 I-rewrite 交互 1：「图标用 Nomi 标记，NomiLogoMark 带底，不要闪光图标」）"
+      "source": "用户 10-18 在画布评论里确认（任务书 I-rewrite 交互 1：「图标用 Nomi 标记，NomiLogoMark 带底，不要闪光图标」）",
+      "note": "2026-11-24 的 UX6 拍板将四个格式入口收回文稿工具栏，见 docs/plan/2026-11-24-ux-simple-ux6-direction-check.md。"
     },
     {
       "id": "D2",
@@ -66,7 +67,7 @@
         "004-div"
       ],
       "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "assertion": "popover.locator('[data-selection-action]')",
       "states": [
         "selected",
         "zh-en",
@@ -75,67 +76,79 @@
     },
     {
       "id": "popover.bold",
-      "label": "浮条 · 加粗（原有，不动）",
-      "change": "keep",
+      "label": "浮条 · 加粗",
+      "change": "remove",
       "candidates": [
         "005-button-Bold",
         "006-svg"
       ],
-      "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "status": "dropped",
       "states": [
         "selected",
         "zh-en",
         "dark"
-      ]
+      ],
+      "userDecision": {
+        "quote": "都按推荐",
+        "date": "2026-11-24"
+      }
     },
     {
       "id": "popover.italic",
-      "label": "浮条 · 斜体（原有，不动）",
-      "change": "keep",
+      "label": "浮条 · 斜体",
+      "change": "remove",
       "candidates": [
         "007-button-Italic",
         "008-svg"
       ],
-      "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "status": "dropped",
       "states": [
         "selected",
         "zh-en",
         "dark"
-      ]
+      ],
+      "userDecision": {
+        "quote": "都按推荐",
+        "date": "2026-11-24"
+      }
     },
     {
       "id": "popover.h1",
-      "label": "浮条 · 一级标题（原有，不动）",
-      "change": "keep",
+      "label": "浮条 · 一级标题",
+      "change": "remove",
       "candidates": [
         "009-button-H1",
         "010-svg"
       ],
-      "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "status": "dropped",
       "states": [
         "selected",
         "zh-en",
         "dark"
-      ]
+      ],
+      "userDecision": {
+        "quote": "都按推荐",
+        "date": "2026-11-24"
+      }
     },
     {
       "id": "popover.h2",
-      "label": "浮条 · 二级标题（原有，不动）",
-      "change": "keep",
+      "label": "浮条 · 二级标题",
+      "change": "remove",
       "candidates": [
         "011-button-H2",
         "012-svg"
       ],
-      "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "status": "dropped",
       "states": [
         "selected",
         "zh-en",
         "dark"
-      ]
+      ],
+      "userDecision": {
+        "quote": "都按推荐",
+        "date": "2026-11-24"
+      }
     },
     {
       "id": "popover.ai",
@@ -162,7 +175,7 @@
         "016-svg"
       ],
       "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "assertion": "button[data-selection-action=\"image\"]",
       "states": [
         "selected",
         "zh-en",
@@ -178,7 +191,7 @@
         "018-svg"
       ],
       "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "assertion": "button[data-selection-action=\"video\"]",
       "states": [
         "selected",
         "zh-en",
@@ -195,7 +208,7 @@
         "020-svg"
       ],
       "status": "implemented",
-      "assertion": "浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了",
+      "assertion": "button[data-selection-action=\"storyboard\"]",
       "states": [
         "selected",
         "disabled",
@@ -492,32 +505,32 @@
       "function": "选区浮条 · 加粗",
       "before": "选中文字后点 B 加粗 / 取消",
       "after": "popover.bold",
-      "landing": "drawn",
-      "afterNote": "样张 WD1 ① 原样保留。"
+      "landing": "dropped",
+      "afterNote": "格式操作保留在文稿工具栏。"
     },
     {
       "censusId": "FUN-02",
       "function": "选区浮条 · 斜体",
       "before": "选中文字后点 I",
       "after": "popover.italic",
-      "landing": "drawn",
-      "afterNote": "样张 WD1 ① 原样保留。"
+      "landing": "dropped",
+      "afterNote": "格式操作保留在文稿工具栏。"
     },
     {
       "censusId": "FUN-03",
       "function": "选区浮条 · 一级标题",
       "before": "选中文字后点 H1",
       "after": "popover.h1",
-      "landing": "drawn",
-      "afterNote": "样张 WD1 ① 原样保留。"
+      "landing": "dropped",
+      "afterNote": "格式操作保留在文稿工具栏。"
     },
     {
       "censusId": "FUN-04",
       "function": "选区浮条 · 二级标题",
       "before": "选中文字后点 H2",
       "after": "popover.h2",
-      "landing": "drawn",
-      "afterNote": "样张 WD1 ① 原样保留。"
+      "landing": "dropped",
+      "afterNote": "格式操作保留在文稿工具栏。"
     },
     {
       "censusId": "FUN-05",

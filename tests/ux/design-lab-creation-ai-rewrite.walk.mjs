@@ -43,10 +43,15 @@ async function liveJourney(page, record) {
     await page.evaluate(() => { window.__popoverSettle = undefined })
   }
 
-  // ① 选中：浮条上出现「AI 编辑」。
+  // ① 选中后，浮条提供 AI 编辑、拆成镜头、生成图、生成视频。格式按钮留在文稿工具栏。
   await selectParagraph()
-  await page.locator('.workbench-selection-popover__tool--ai').waitFor({ state: 'visible' })
-  expect(record, await page.locator('.workbench-selection-popover [aria-label]').count() >= 4, '浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了')
+  const popover = page.locator('.workbench-selection-popover')
+  await pwExpect(popover.locator('.workbench-selection-popover__tool--ai')).toBeVisible()
+  await pwExpect(popover.locator('[data-selection-action]')).toHaveCount(3)
+  await pwExpect(popover.locator('button[data-selection-action="storyboard"]')).toBeVisible()
+  await pwExpect(popover.locator('button[data-selection-action="image"]')).toBeVisible()
+  await pwExpect(popover.locator('button[data-selection-action="video"]')).toBeVisible()
+  await pwExpect(popover.locator('[data-rich-text-action]')).toHaveCount(0)
   await shot('live-01-selected')
 
   // ② 点 AI 编辑 → 输入框 + 常用改法 + 用户已有的写作 Skill。
