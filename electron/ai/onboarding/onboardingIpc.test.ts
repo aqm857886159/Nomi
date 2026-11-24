@@ -39,7 +39,12 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
   it("does not register the removed test-connection probe", () => {
     expect(handlers.has("nomi:onboarding:test-connection")).toBe(false);
     expect([...handlers.keys()].filter((channel) => channel.startsWith("nomi:onboarding:")).sort())
-      .toEqual(["nomi:onboarding:guess-kinds", "nomi:onboarding:list-models", "nomi:onboarding:vendor-price-preview"]);
+      .toEqual([
+        "nomi:onboarding:guess-kinds",
+        "nomi:onboarding:list-models",
+        "nomi:onboarding:vendor-account-balance",
+        "nomi:onboarding:vendor-price-preview",
+      ]);
   });
   it("forwards HTTP200 auth errors through list-models", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code: 401, data: [], message: "expired" }), { status: 200 })));

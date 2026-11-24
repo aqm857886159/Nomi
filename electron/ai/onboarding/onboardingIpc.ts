@@ -13,6 +13,7 @@ import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
 import { priceQueryFromRequest } from "./vendorPriceRequest";
 import { readVendorPricePreview } from "./vendorPricePreview";
+import { readVendorAccountBalance } from "./vendorAccountBalance";
 
 import { assertTrustedSender } from "../../ipcSenderGuard";
 import { registerAntigravityIpc } from "../antigravityIpc";
@@ -43,6 +44,12 @@ export function registerOnboardingIpc(): void {
     assertTrustedSender(event);
     const query = priceQueryFromRequest(payload, readCatalog());
     return query ? readVendorPricePreview(query) : null;
+  });
+
+  // 官方供应商账户余额只读查询（与公开约价解耦，仅在余额不足时提示「还差 N 积分 · 去充值」）。
+  ipcMain.handle("nomi:onboarding:vendor-account-balance", (event, payload) => {
+    assertTrustedSender(event);
+    return readVendorAccountBalance(payload);
   });
 
   // 类型启发式（Issue #8）：从 /v1/models 拉到/手填的模型 id 没带类型，主进程按关键词猜
