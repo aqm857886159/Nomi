@@ -1,8 +1,8 @@
-结论：通过 · 验收线：mo1-verify · 验收 HEAD：bddd789172c8bc71eebf70fd22b91d5f92204abe
+结论：通过 · 验收线：mo1-verify · 验收 HEAD：f75225661f1ffa7a5949cd6c9b7100fae8de7d09
 
 - 验收线：mo1-verify
 - 实现线：mo-motion-slice1
-- 验收 HEAD：bddd789172c8bc71eebf70fd22b91d5f92204abe
+- 验收 HEAD：f75225661f1ffa7a5949cd6c9b7100fae8de7d09
 - 对应设计卡：`docs/plan/2026-11-24-mo-motion-slice1-tokens-and-gate.md`
 - 方向复盘：`docs/engineering/direction-checks/2026-11-24-motion-token-reader.md`
 - 验收结论：通过（无阻塞缺陷）
@@ -45,3 +45,10 @@
 |---|---|---|---|
 | M1（业务组件硬编码动效） | 在 `src/ui/browser/BrowserCaptureFlyouts.tsx:24` 临时混入 `duration-300 active:scale-[0.97]` | `pnpm run check:tokens` 退出码 `1`，双命中报错 `duration-300 — use src/design/motion.ts` 与 `active:scale-[0.97] — use src/design/motion.ts` | `git checkout --` 还原后复绿 |
 | M2（CSS 退场镜像漂移） | 在 `src/theme/nomi-tokens.css:86` 临时将 `--nomi-duration-fast-exit` 从 `100ms` 改为 `120ms`（偏离 `exitDurationMs(150) = 100ms`） | `pnpm run check:tokens` 退出码 `1`，精确报错 `✗ motion mirror: --nomi-duration-fast-exit expected 100ms, got 120ms` | `git checkout --` 还原后 `check:tokens` 退出码 `0` |
+
+## 5. 概念 owner 补登与按钮忙态基线图刷新增量复核（`f75225661f1ffa7a5949cd6c9b7100fae8de7d09`）
+
+- **增量核查**：相对 `bddd78917` 仅新增 3 份概念登记（`docs/engineering/concept-owners/design.button-loading-status.json`、`motion.exit-duration.json`、`motion.token-scan.json`）与 2 张刷新后的设计实验室按钮忙态基线图（生产代码 0 改动，提交日志与增量 diff 0 本机路径泄露）。
+- **独立复跑与目视核验**：
+  - `CONCEPT_OWNERS_BASE_REF=origin/main node ./scripts/check-concept-owners.mjs` 通过（`EXIT=0`，**412 个概念：converged 408 / pending 4 · 写接口 1083 个 · 第二写口 0 新增**）；
+  - 亲眼 `read_file` 核验 `tests/ux/design-lab/__baselines__/primitives-actions/pa-02-workbench-button-busy.png` 与 `pa-06-design-button-busy.png`：`WorkbenchButton`（`SIZE=SM` 及 `PRIMARY + W-FULL`）与 `DesignButton`（`LOADING + DISABLED + TYPE=SUBMIT`）的居中品牌加载标占位清晰、按钮宽度稳定无跳动、明暗对比正常。
