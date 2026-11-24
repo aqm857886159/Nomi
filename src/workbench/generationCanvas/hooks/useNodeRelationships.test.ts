@@ -101,8 +101,18 @@ describe('listMountedCards — 镜头挂了哪些设定卡（切片2）', () => 
 it('waits only for an existing frame source without usable media', () => {
   const source = node('source', 'shots')
   const edges = [{ ...edge(source.id, 'video'), mode: 'first_frame' as const }]
-  expect(waitingForFrameSource('video', [], edges)).toBe(false)
-  expect(waitingForFrameSource('video', [source], edges)).toBe(true)
+  const target = { ...kindNode('video', 'video'), meta: { archetype: { id: 'runway-gen4.5', modeId: 'i2v' } } }
+  expect(waitingForFrameSource('video', [target], edges)).toBe(false)
+  expect(waitingForFrameSource('video', [target, source], edges)).toBe(true)
   const ready = { ...source, result: { id: 'r', type: 'image' as const, url: 'nomi-local://still.png', createdAt: 1 } }
-  expect(waitingForFrameSource('video', [ready], edges)).toBe(false)
+  expect(waitingForFrameSource('video', [target, ready], edges)).toBe(false)
+})
+
+it('uses history URLs and ignores the pending edge beyond the single active slot', () => {
+  const target = { ...kindNode('video', 'video'), meta: { archetype: { id: 'runway-gen4.5', modeId: 'i2v' } } }
+  const history = [{ id: 'old', type: 'image' as const, url: 'https://example.com/frame.png', createdAt: 1 }]
+  const nodes = [target, { ...node('first', 'shots'), history }, node('second', 'shots')]
+  const edges = ['first', 'second'].map((id, order) => ({ ...edge(id, 'video'), mode: 'first_frame' as const, order }))
+  expect(waitingForFrameSource('video', nodes, edges.slice(0, 1))).toBe(false)
+  expect(waitingForFrameSource('video', nodes, edges)).toBe(false)
 })

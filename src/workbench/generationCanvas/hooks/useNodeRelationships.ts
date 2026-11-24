@@ -9,8 +9,8 @@
  * 现在用 WeakMap 缓存 keyed on (nodes, edges) 引用：相同输入只 build 一次，
  * 每张卡 O(1) Map.get 查询。zustand immer 保证未改的数组引用稳定 → 缓存命中率高。
  */
-import { resultUrl } from '../runner/referenceUrl'
-import { isAspectInputEdgeMode } from '../nodes/aspectRatio'
+import { waitingForFrameSource } from '../runner/generationReferenceResolver'
+export { waitingForFrameSource } from '../runner/generationReferenceResolver'
 import { resolveShotIdentities, type ShotIdentity } from '../../../../electron/shared/canvas/shotNumbering'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode, GenerationCanvasEdge } from '../model/generationCanvasTypes'
@@ -108,28 +108,6 @@ function buildMountedCardsMap(
 }
 
 const EMPTY_MOUNTED: MountedCard[] = []
-
-const waitingCache = new WeakMap<readonly GenerationCanvasNode[], WeakMap<readonly GenerationCanvasEdge[], Set<string>>>()
-
-export function waitingForFrameSource(nodeId: string, nodes: readonly GenerationCanvasNode[], edges: readonly GenerationCanvasEdge[]): boolean {
-  let byEdges = waitingCache.get(nodes)
-  if (!byEdges) {
-    byEdges = new WeakMap()
-    waitingCache.set(nodes, byEdges)
-  }
-  let waiting = byEdges.get(edges)
-  if (!waiting) {
-    waiting = new Set()
-    const sources = new Map(nodes.map(node => [node.id, node]))
-    for (const edge of edges) {
-      if (edge.mode && !isAspectInputEdgeMode(edge.mode)) continue
-      const source = sources.get(edge.source)
-      if (source && source.kind !== 'text' && !resultUrl(source.result)) waiting.add(edge.target)
-    }
-    byEdges.set(edges, waiting)
-  }
-  return waiting.has(nodeId)
-}
 
 /** 纯查询（可单测）：节点 nodeId 挂了哪些角色/场景设定卡（按连边顺序、去重）。 */
 export function listMountedCards(

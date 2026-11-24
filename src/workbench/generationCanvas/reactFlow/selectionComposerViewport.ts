@@ -1,12 +1,18 @@
 import { collectCanvasOverlayRects } from '../../generation/workspaceBottomDocks'
-import { CANVAS_MIN_ZOOM, type CanvasFitRect, unionCanvasFitBounds } from '../model/canvasFitBounds'
+import { CANVAS_MIN_ZOOM, type CanvasFitRect } from '../model/canvasFitBounds'
 import { composerCanvasPlacement, composerInitialFootprint } from '../nodes/composerCanvasPlacement'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { CANVAS_FOCUS_MAX_ZOOM, CANVAS_FOCUS_PADDING, resolveFreeViewRect, type FocusViewRect } from './focusViewportRecovery'
 
 type Viewport = { x: number; y: number; zoom: number }
-type Editor = { node: CanvasFitRect; composer: { width: number; height: number; initialHeight?: number; gap: number } }
+type Editor = {
+  node: CanvasFitRect
+  composer: { width: number; height: number; initialHeight?: number; gap: number }
+  above?: { label: number; toolbarGap: number; toolbarHeight: number }
+}
+// Initial layout of NodeLabelRow and FloatingToolbarShell, before the selected DOM mounts.
+const initialAbove = { label: 34, toolbarGap: 40, toolbarHeight: 38 }
 
 export function editingView(host: HTMLElement): FocusViewRect {
   const stage = host.getBoundingClientRect()
@@ -18,65 +24,89 @@ export function selectedEditor(host: HTMLElement, node: GenerationCanvasNode | u
   const footprint = composerInitialFootprint(node.kind)
   if (!footprint) return null
   const size = resolveNodeVisualSize(node)
-  const anchor = host.querySelector(`.react-flow__node[data-id="${CSS.escape(node.id)}"] [data-composer-host="canvas"]`)
-  const measured = anchor?.getBoundingClientRect()
+  const card = host.querySelector(`.react-flow__node[data-id="${CSS.escape(node.id)}"]`)
+  const measured = card?.querySelector('[data-composer-host="canvas"]')?.getBoundingClientRect()
+  const toolbar = card?.querySelector<HTMLElement>('[data-node-floating-toolbar]')
+  const label = card?.querySelector<HTMLElement>('[data-node-label-row]')
   const placement = composerCanvasPlacement(size, zoom, node.kind === 'text' ? 'match-node' : 'standard')
-  return { node: { ...node.position, ...size }, composer: {
+  // offsetTop ignores the toolbar's clamp translation and inverse scale. Its bottom gap scales
+  // with the card, whereas its visible height (including wrapping) stays in screen pixels.
+  const above = {
+    label: label ? -label.offsetTop : initialAbove.label,
+    toolbarGap: toolbar ? Math.max(0, -toolbar.offsetTop - toolbar.offsetHeight) : initialAbove.toolbarGap,
+    toolbarHeight: toolbar ? (toolbar.offsetTop < 0 ? toolbar.offsetHeight : 0) : initialAbove.toolbarHeight,
+  }
+  return { node: { ...node.position, ...size }, above, composer: {
     width: measured?.width || placement.width, height: measured?.height || footprint.height, initialHeight: footprint.height, gap: footprint.gap,
   } }
 }
 
-/** Fit the union at one scale. The editor contributes fixed screen pixels, even when the nodes shrink. */
-export function fitEditingBounds(bounds: CanvasFitRect, view: FocusViewRect, editor: Editor | null, maxZoom = CANVAS_FOCUS_MAX_ZOOM) {
-  const width = Math.max(1, view.width - 2 * CANVAS_FOCUS_PADDING)
-  const height = Math.max(1, view.height - 2 * CANVAS_FOCUS_PADDING)
-  let zoom = Math.min(maxZoom, width / bounds.width, height / bounds.height)
-  let content = bounds
+/** Screen-pixel union at the proposed zoom, before viewport translation. */
+function editingFootprint(bounds: CanvasFitRect, zoom: number, editor: Editor | null, mounting: boolean) {
+  let left = bounds.x * zoom
+  let right = (bounds.x + bounds.width) * zoom
+  let top = bounds.y * zoom
+  let bottom = (bounds.y + bounds.height) * zoom
   if (editor) {
-    const { node, composer } = editor
-    // Reference chips and model controls can still be mounting on the first measurement.
-    const editorHeight = Math.max(composer.initialHeight ?? 0, composer.height)
-    const center = node.x + node.width / 2
-    const top = node.y + node.height + composer.gap
-    const span = Math.max(center - bounds.x, bounds.x + bounds.width - center)
-    zoom = Math.min(zoom, (width - composer.width / 2) / span, (height - editorHeight) / (top - bounds.y))
-    zoom = Math.max(CANVAS_MIN_ZOOM, zoom)
-    content = unionCanvasFitBounds([bounds, {
-      x: center - composer.width / (2 * zoom), y: top, width: composer.width / zoom, height: editorHeight / zoom,
-    }])!
+    const { node, composer, above = initialAbove } = editor
+    const center = (node.x + node.width / 2) * zoom
+    left = Math.min(left, center - composer.width / 2)
+    right = Math.max(right, center + composer.width / 2)
+    top = Math.min((bounds.y - above.label) * zoom, (node.y - above.toolbarGap) * zoom - above.toolbarHeight)
+    bottom = Math.max(bottom, (node.y + node.height + composer.gap) * zoom +
+      Math.max(composer.height, mounting ? composer.initialHeight ?? 0 : 0))
   }
-  zoom = Math.max(CANVAS_MIN_ZOOM, zoom)
+  return { left, top, width: right - left, height: bottom - top }
+}
+
+export function fitEditingBounds(bounds: CanvasFitRect, view: FocusViewRect, editor: Editor | null, maxZoom = CANVAS_FOCUS_MAX_ZOOM) {
+  const width = Math.max(editor?.composer.width ?? 1, view.width - 2 * CANVAS_FOCUS_PADDING)
+  const height = Math.max(1, view.height - 2 * CANVAS_FOCUS_PADDING)
+  let zoom = maxZoom
+  let content = editingFootprint(bounds, zoom, editor, true)
+  if (content.width > width || content.height > height) {
+    // Each span is monotone in zoom. Fit the union, including fixed-pixel controls at both ends.
+    let low = CANVAS_MIN_ZOOM
+    let high = maxZoom
+    for (let step = 0; step < 24; step++) {
+      const mid = (low + high) / 2
+      const rect = editingFootprint(bounds, mid, editor, true)
+      if (rect.width <= width && rect.height <= height) low = mid
+      else high = mid
+    }
+    zoom = low
+    content = editingFootprint(bounds, zoom, editor, true)
+  }
+  const spareHeight = view.height - content.height
   return {
-    zoom, x: view.left + (view.width - content.width * zoom) / 2 - content.x * zoom,
-    y: view.top + (view.height - content.height * zoom) / 2 - content.y * zoom,
+    zoom, x: view.left + (view.width - content.width) / 2 - content.left,
+    y: view.top + Math.min(spareHeight, spareHeight / 2) - content.top,
   }
 }
 
 export function composerSelectionPan(rect: FocusViewRect, view: FocusViewRect) {
   const dx = rect.left < view.left ? view.left - rect.left : Math.min(0, view.left + view.width - rect.left - rect.width)
-  const dy = Math.min(0, view.top + view.height - rect.top - rect.height)
+  // Bottom first when the complete block is taller than the view.
+  const bottom = view.top + view.height - rect.top - rect.height
+  const dy = bottom < 0 ? bottom : Math.min(bottom, Math.max(0, view.top - rect.top))
   return dx || dy ? { x: dx, y: dy } : null
 }
 
-/** A derived card gets one reveal of the complete editing surface. Other selections only translate. */
-export function revealEditor(viewport: Viewport, view: FocusViewRect, editor: Editor, derived: boolean, count: number, dragging: boolean): Viewport | null {
+/** Opening and derivation may fit the complete editor. Ordinary selection preserves zoom. */
+export function revealEditor(viewport: Viewport, view: FocusViewRect, editor: Editor, fit: boolean, count: number, dragging: boolean): Viewport | null {
   if (count !== 1 || dragging || !view.width || !view.height) return null
-  const { node, composer } = editor
   const { zoom } = viewport
-  const cardTop = viewport.y + node.y * zoom
-  const rect = {
-    left: viewport.x + (node.x + node.width / 2) * zoom - composer.width / 2,
-    top: cardTop + (node.height + composer.gap) * zoom,
-    width: composer.width, height: composer.height,
+  const rect = editingFootprint(editor.node, zoom, editor, fit)
+  // Keep a small top margin even on an otherwise fully visible remembered view.
+  const visible = { ...view, top: view.top + 6, height: view.height - 6 }
+  const translated = { ...rect, left: rect.left + viewport.x, top: rect.top + viewport.y }
+  if (fit && (rect.height > visible.height || rect.width > visible.width)) return fitEditingBounds(editor.node, view, editor, zoom)
+  if (rect.width > view.width) {
+    translated.left = viewport.x + (editor.node.x + editor.node.width / 2) * zoom - editor.composer.width / 2
+    translated.width = editor.composer.width
   }
-  const delta = composerSelectionPan(rect, view)
-  if (derived && (delta || cardTop < view.top)) {
-    const blockHeight = (node.height + composer.gap) * zoom + Math.max(composer.height, composer.initialHeight ?? 0)
-    if (blockHeight > view.height || node.width * zoom > view.width) return fitEditingBounds(node, view, editor, zoom)
-    return {
-      zoom, x: view.left + view.width / 2 - (node.x + node.width / 2) * zoom,
-      y: view.top + (view.height - blockHeight) / 2 - node.y * zoom,
-    }
-  }
-  return delta && { zoom, x: viewport.x + delta.x, y: viewport.y + delta.y }
+  const delta = composerSelectionPan(translated, visible)
+  if (!delta) return null
+  if (fit) return fitEditingBounds(editor.node, view, editor, zoom)
+  return { zoom, x: viewport.x + delta.x, y: viewport.y + delta.y }
 }

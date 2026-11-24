@@ -125,11 +125,17 @@ describe('no global shot number on any surface when the node is not on a storybo
   })
 })
 
-it('keeps the editable title and prints a default video role only once', () => {
+it('keeps the editable title and prints a default video role only once', async () => {
   const render = (title: string) => renderToStaticMarkup(React.createElement(NodeShotLabel, {
     node: { ...shot, kind: 'video', title, meta: {} }, shotRole: 'video',
     children: React.createElement('span', { 'data-edit-title': true }, title),
   })).replace(/<[^>]+>/g, '')
   expect(render('视频')).toBe('视频')
+  expect(render('Video')).toBe('Video')
   expect(render('海边')).toBe('视频海边')
+  await i18n.changeLanguage('en')
+  try {
+    expect(render('视频')).toBe('视频')
+    expect(render('海边')).toBe('Video海边')
+  } finally { await i18n.changeLanguage('zh-CN') }
 })

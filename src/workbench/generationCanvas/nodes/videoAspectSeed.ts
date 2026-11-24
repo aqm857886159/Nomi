@@ -83,6 +83,12 @@ export function applyVideoAspectSeed(meta: Record<string, unknown>, patch: Recor
   return next
 }
 
+export function firstFrameResultAspect(source: GenerationCanvasNode | undefined): string | null {
+  if (source?.result?.type !== 'image') return null
+  const pixels = readMediaDimensions(source.meta?.imageWidth, source.meta?.imageHeight)
+  return pixels ? `${pixels.width}:${pixels.height}` : null
+}
+
 /** 铺视频比例默认值的那一笔 meta patch；不该改（明确选过 / 已经是首选 / 模型没有对应档）→ 空对象。 */
 export function videoAspectSeedPatch(input: VideoAspectSeedInput): Record<string, unknown> {
   if (input.respectExplicit && input.meta[ASPECT_EXPLICIT_META_KEY] === true) return {}
@@ -91,8 +97,7 @@ export function videoAspectSeedPatch(input: VideoAspectSeedInput): Record<string
   const firstFrame = input.edges.find(edge => edge.target === input.nodeId && edge.mode === 'first_frame')
   const source = firstFrame && input.nodes.find(node => node.id === firstFrame.source)
   if (source && (source.kind === 'image' || source.result?.type === 'image')) {
-    const pixels = source.result?.type === 'image' && readMediaDimensions(source.meta?.imageWidth, source.meta?.imageHeight)
-    const frameRatio = pixels ? `${pixels.width}:${pixels.height}` : nodeAspectRatioValue(source)
+    const frameRatio = firstFrameResultAspect(source) ?? nodeAspectRatioValue(source)
     for (const preferred of ['auto', frameRatio]) {
       if (!preferred) continue
       const patch = videoAspectDefaultPatch(input.controls, preferred)

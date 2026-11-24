@@ -10,7 +10,7 @@ describe('canvas editing footprint', () => {
     const { x, y, zoom } = fitEditingBounds(bounds, view, { node, composer })
     expect(zoom).toBeLessThanOrEqual(1)
     expect(x + bounds.x * zoom).toBeGreaterThanOrEqual(view.left - 0.01)
-    expect(y + node.y * zoom).toBeGreaterThanOrEqual(view.top)
+    expect(y + (node.y - 40) * zoom - 36).toBeGreaterThanOrEqual(view.top + 6)
     const center = x + (node.x + node.width / 2) * zoom
     expect(center - 300).toBeGreaterThanOrEqual(view.left)
     expect(center + 300).toBeLessThanOrEqual(view.left + view.width)
@@ -49,9 +49,31 @@ it('reserves mounting controls on a new card and preserves zoom when translation
   const editor = { node: { x: 850, y: 10, width: 420, height: 420 },
     composer: { ...composer, height: 150, initialHeight: 220 } }
   const viewport = { x: 0, y: 0, zoom: 1 }
-  for (const height of [580, 660]) {
+  for (const height of [580, 800]) {
     const target = revealEditor(viewport, { ...view, height }, editor, true, 1, false)!
     expect(target.y + (10 + 420 + composer.gap) * target.zoom + 220).toBeLessThanOrEqual(view.top + height)
-    if (height === 660) expect(target.zoom).toBe(1)
+    if (height === 800) expect(target.zoom).toBe(1)
   }
+})
+
+it('restores a remembered selection clipped only above the card and keeps a giant selection editable at its zoom', () => {
+  const current = { x: 0, y: 0, zoom: 1 }
+  const editor = { node: { x: 120, y: view.top + 10, width: 600, height: 200 }, composer }
+  const moved = revealEditor(current, view, editor, true, 1, false)!
+  expect(moved.y + editor.node.y - 40 - 38).toBeGreaterThanOrEqual(view.top + 6)
+  const giant = { ...editor, node: { ...editor.node, height: 1500 } }
+  const pan = revealEditor(current, view, giant, false, 1, false)!
+  const editorTop = pan.y + giant.node.y + giant.node.height + composer.gap
+  expect(pan.zoom).toBe(1)
+  expect(editorTop).toBeGreaterThanOrEqual(view.top)
+  expect(editorTop + composer.height).toBeLessThanOrEqual(view.top + view.height)
+})
+
+it('fits a remembered giant editor even when its submit button is already aligned with the bottom', () => {
+  const editor = { node: { ...node, x: 200, y: 0, height: 700 }, composer }
+  const viewport = { zoom: 1, x: 0, y: view.top + view.height - editor.node.height - composer.gap - composer.height }
+  const target = revealEditor(viewport, view, editor, true, 1, false)!
+  expect(target.zoom).toBeLessThan(1)
+  expect(target.y - 40 * target.zoom - 38).toBeGreaterThanOrEqual(view.top + 6)
+  expect(target.y + (700 + composer.gap) * target.zoom + composer.height).toBeLessThanOrEqual(view.top + view.height)
 })

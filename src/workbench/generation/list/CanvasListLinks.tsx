@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next'
 import type { ShotIdentity } from '../../../../electron/shared/canvas/shotNumbering'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { ShotPreviewOverlays } from '../../generationCanvas/nodes/ConvertShotToVideoButton'
+import { SUPPORTED_LOCALES } from '../../../i18n'
+import { getGenerationNodeDefaultTitle } from '../../generationCanvas/model/generationNodeKinds'
 import { cn } from '../../../utils/cn'
 import { formatStoryboardShotLabel, isAutoStoryboardShotTitle, useStoryboardShotLabel } from './storyboardLabels'
 
@@ -22,7 +24,7 @@ export function NodeShotLabel({ node, shotRole, children }: {
   const { t } = useTranslation()
   const label = useStoryboardShotLabel(node)
   if (!label) {
-    const titleShowsRole = children && shotRole === 'video' && node.title?.trim() === t('generationCommon.shotConversion.video')
+    const titleShowsRole = children && shotRole === 'video' && SUPPORTED_LOCALES.some(locale => node.title?.trim() === getGenerationNodeDefaultTitle('video', locale))
     return <>{!titleShowsRole && <ShotPreviewOverlays shotRole={shotRole} />}{children}</>
   }
   return (
