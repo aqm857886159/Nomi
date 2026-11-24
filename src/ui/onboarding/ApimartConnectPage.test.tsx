@@ -314,4 +314,13 @@ describe('S6 · APIMart verification', () => {
       expect(h.back).toHaveBeenCalledOnce()
     } finally { h.close() }
   })
+
+  it('无中间分段栏时顶栏左簇不预留 50%-136px 空白，且面包屑右箭头与页名绑定同收不留孤立箭头', () => {
+    const html = renderWithTheme(
+      <ApimartConnectPage originLabel="Projects" onBack={vi.fn()} onSaved={vi.fn()} />,
+    )
+    expect(html).not.toContain('max-w-[calc(50%-136px)]')
+    expect(html).toContain('[@container_(max-width:180px)]:hidden')
+    expect(html).toContain('data-shell-here')
+  })
 })

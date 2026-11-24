@@ -340,7 +340,7 @@ export function ShellTopBar({
       <TooltipProvider delayDuration={250} disableHoverableContent>
         <div
           ref={leftRef}
-          className={cn('flex h-full min-w-0 items-center gap-1.5 [container-type:inline-size]', leftMaxWidth === undefined && 'max-w-[calc(50%-136px)]')}
+          className={cn('flex h-full min-w-0 items-center gap-1.5 [container-type:inline-size]', hasSegment && leftMaxWidth === undefined && 'max-w-[calc(50%-136px)]')}
           style={{ paddingLeft: platform === 'mac' ? SHELL_MAC_TRAFFIC_WIDTH : 12, maxWidth: leftMaxWidth }}
           data-shell-left-cluster
         >
@@ -370,16 +370,18 @@ export function ShellTopBar({
                 onClick={peerBreadcrumb.onBack}
                 data-apimart-back
                 className={cn(
-                  'app-no-drag inline-flex h-[26px] max-w-[260px] cursor-pointer items-center gap-1 rounded-field border-0 bg-transparent pl-1.5 pr-2 font-inherit text-body-sm font-normal text-nomi-ink-60 transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-ink',
+                  'app-no-drag inline-flex h-[26px] min-w-0 max-w-[240px] cursor-pointer items-center gap-1 rounded-field border-0 bg-transparent pl-1.5 pr-2 font-inherit text-body-sm font-normal text-nomi-ink-60 transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-ink',
                   ICON_TIER_CLASSES.corner,
                 )}
               >
                 <IconArrowLeft className="shrink-0" aria-hidden="true" />
                 <span className="truncate">{peerBreadcrumb.originLabel}</span>
               </button>
-              <IconChevronRight {...ICON_TIERS.corner} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
-              <span className="truncate text-body-sm font-semibold text-nomi-ink" data-shell-here>
-                {peerBreadcrumb.currentLabel}
+              <span className="inline-flex min-w-0 items-center gap-1.5 [@container_(max-width:180px)]:hidden">
+                <IconChevronRight {...ICON_TIERS.corner} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
+                <span className="min-w-0 truncate text-body-sm font-semibold text-nomi-ink" data-shell-here>
+                  {peerBreadcrumb.currentLabel}
+                </span>
               </span>
             </>
           ) : (
