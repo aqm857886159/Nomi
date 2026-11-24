@@ -19,7 +19,7 @@ function callTool(
   effect: LaneToolDescriptor['effect'] = 'read',
 ) {
   const [tool] = createLaneTools([{
-    contractId: 'document.read', name: 'read_script', description: 'Read the script.',
+    contractId: 'document.read', name: 'read_script', description: 'Read the script.', promptSnippet: 'Read the script.',
     describe: { does: '', useWhen: '', notWhen: '', params: '' },
     examples: [], nextAction: 'none', effect, schema: z.object({}),
     execution: { timeoutMs }, execute,
