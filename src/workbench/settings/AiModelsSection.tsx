@@ -146,6 +146,15 @@ export function AiModelsSection({
     }
   }, [t])
 
+  // Only combine media whose destination, visibility and lease all agree.
+  const channelGroups = new Map<string, AssetTransportChannelView[]>()
+  for (const channel of channels) {
+    const key = JSON.stringify([channel.vendorKey, channel.host, channel.visibility, channel.ttlSeconds])
+    const group = channelGroups.get(key)
+    if (group) group.push(channel)
+    else channelGroups.set(key, [channel])
+  }
+
   const health = buildProviderHealthView(providers)
   const overlappingVendors = React.useMemo(() => {
     const groups = dedupeModelOptions(toCatalogModelOptions(models.filter(m => m.availability.usable)))
@@ -166,7 +175,7 @@ export function AiModelsSection({
   return (
     <div data-settings-section="ai-models">
       <h2 className="text-body font-semibold text-nomi-ink">{t('settings.ai.title')}</h2>
-      <p className="mb-4 text-micro text-nomi-ink-60">{t('settings.modelsHome.policyHint')}</p>
+      <p className="mb-3 text-micro text-nomi-ink-60">{t('settings.modelsHome.policyHint')}</p>
 
       <DefaultGenerationModelsSection
         models={models}
@@ -191,104 +200,85 @@ export function AiModelsSection({
         <h3 id="settings-upload-title" className="mb-1 text-caption font-medium text-nomi-ink-60">
           {t('settings.ai.upload.title')}
         </h3>
-        <div className="flex min-h-12 items-center justify-between gap-4 py-2">
-          <div className="min-w-0">
-            <div className="text-body-sm text-nomi-ink">{t('settings.ai.upload.minimize')}</div>
-            <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.upload.minimizeHint')}</div>
-          </div>
-          <DesignSwitch
-            checked={settings.minimizeUploads}
-            onChange={(event) => onChange({ minimizeUploads: event.currentTarget.checked })}
-            aria-label={t('settings.ai.upload.minimize')}
-          />
-        </div>
-        <div className="mt-2 grid gap-3 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 p-3" data-settings-upload-guidance>
-          <div>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-body-sm font-medium text-nomi-ink">{t('settings.ai.upload.channel.title')}</div>
+        <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line px-3" data-settings-upload-guidance>
+          <div className="py-2" data-settings-upload-channels>
+            <strong className="text-caption font-medium">{t('settings.ai.upload.channel.title')}</strong>
+            {Array.from(channelGroups, ([key, group]) => {
+              const [channel] = group
+              const isPublic = channel.visibility === 'public-anonymous' || channel.visibility === 'public-provider'
+              return <div key={key} className="mt-0.5 flex flex-wrap items-center gap-x-2 text-micro text-nomi-ink-60">
+                <span className={channelGroups.size === 1 ? 'sr-only' : undefined}>
+                  {group.map((item, index) => <span key={item.kind} data-upload-channel={item.kind}>
+                    {index > 0 && t('settings.ai.upload.channel.separator')}{t(`settings.ai.upload.channel.kind.${item.kind}`)}
+                  </span>)}
+                </span>
+                <span className="rounded-pill bg-nomi-ink-05 px-1.5 text-nomi-ink-80">{channelHostLabel(channel, vendorNameOf, t)}</span>
+                {(channel.host || channel.vendorKey) && <span className="inline-flex items-center gap-1">
+                  {isPublic && <IconAlertTriangle size={12} className="text-nomi-warning-ink" aria-hidden="true" />}
+                  {t(isPublic ? 'settings.ai.upload.channel.publicLease' : 'settings.ai.upload.channel.privateLease', {
+                    lease: leaseLabel(channel.ttlSeconds, t),
+                  })}
+                </span>}
               </div>
-
-            </div>
-            <div className="mt-2 grid gap-1.5" data-settings-upload-channels>
-              {channels.map((channel) => (
-                <div
-                  key={channel.kind}
-                  data-upload-channel={channel.kind}
-                  className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-caption"
-                >
-                  <span className="w-8 shrink-0 text-nomi-ink-60">{t(`settings.ai.upload.channel.kind.${channel.kind}`)}</span>
-                  <span className="min-w-28 text-nomi-ink">{channelHostLabel(channel, vendorNameOf, t)}</span>
-                  {channel.visibility === 'public-anonymous' || channel.visibility === 'public-provider' ? (
-                    <span className="inline-flex items-center gap-1 rounded-nomi-sm bg-nomi-warning-soft px-1.5 py-0.5 text-nomi-warning-ink">
-                      <IconAlertTriangle size={12} stroke={2} aria-hidden="true" />
-                      {t('settings.ai.upload.channel.publicLease', { lease: leaseLabel(channel.ttlSeconds, t) })}
-                    </span>
-                  ) : (
-                    <span className="text-nomi-ink-40">
-                      {t('settings.ai.upload.channel.privateLease', { lease: leaseLabel(channel.ttlSeconds, t) })}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+            })}
+            {!channels.length && <p className="text-caption text-nomi-ink-60">{t('settings.modelsHome.unavailable')}</p>}
           </div>
-
-          <div className="flex min-h-10 items-center justify-between gap-4 border-t border-nomi-line-soft pt-2">
-            <div className="min-w-0">
-              <div className="text-body-sm text-nomi-ink">{t('settings.ai.upload.anonymousPrompt')}</div>
-              <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.upload.anonymousPromptHint')}</div>
-            </div>
-            <DesignSwitch
-              checked={settings.anonymousAssetHosting === 'allow'}
-              onChange={(event) => onChange({ anonymousAssetHosting: event.currentTarget.checked ? 'allow' : 'ask' })}
-              aria-label={t('settings.ai.upload.anonymousPrompt')}
-            />
+          <div className="flex min-h-9 items-center justify-between gap-3">
+            <span className="text-caption">{t('settings.ai.upload.minimize')}</span>
+            <DesignSwitch checked={settings.minimizeUploads}
+              onChange={(event) => onChange({ minimizeUploads: event.currentTarget.checked })}
+              aria-label={t('settings.ai.upload.minimize')} />
+          </div>
+          <div className="flex min-h-9 items-center justify-between gap-3">
+            <span className="text-caption">{t('settings.ai.upload.anonymousPrompt')}</span>
+            <DesignSwitch checked={settings.anonymousAssetHosting !== 'allow'}
+              onChange={(event) => onChange({ anonymousAssetHosting: event.currentTarget.checked ? 'ask' : 'allow' })}
+              aria-label={t('settings.ai.upload.anonymousPrompt')} />
           </div>
         </div>
-          <details className="border-t border-nomi-line-soft pt-2" data-settings-custom-relay>
-            <summary className="cursor-pointer text-caption font-medium text-nomi-ink-80">
-              {t('settings.modelsHome.advanced')}
-            </summary>
-            <div className="mt-2 grid gap-2">
-              <div className="text-micro leading-relaxed text-nomi-ink-40">
-                {t('settings.ai.upload.customRelay.hint')}
-              </div>
-              <label className="grid gap-1">
-                <span className="text-micro text-nomi-ink-60">{t('settings.ai.upload.customRelay.endpoint')}</span>
-                <input
-                  data-settings-field="asset-relay-endpoint"
-                  type="url"
-                  value={relayEndpoint}
-                  onChange={(event) => setRelayEndpoint(event.currentTarget.value)}
-                  placeholder={t('settings.ai.upload.customRelay.endpointPlaceholder')}
-                  aria-label={t('settings.ai.upload.customRelay.endpoint')}
-                  className="h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink outline-none focus:border-nomi-ink-40"
-                />
-              </label>
-              <label className="grid gap-1">
-                <span className="text-micro text-nomi-ink-60">{t('settings.ai.upload.customRelay.token')}</span>
-                <input
-                  data-settings-field="asset-relay-token"
-                  type="password"
-                  value={relayToken}
-                  onChange={(event) => setRelayToken(event.currentTarget.value)}
-                  placeholder={relayHasToken ? t('settings.ai.upload.customRelay.tokenSaved') : t('settings.ai.upload.customRelay.tokenPlaceholder')}
-                  aria-label={t('settings.ai.upload.customRelay.token')}
-                  className="h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink outline-none focus:border-nomi-ink-40"
-                />
-              </label>
-              <div className="flex flex-wrap items-center gap-2">
-                <WorkbenchButton size="sm" disabled={relaySaving || !relayEndpoint.trim()} onClick={() => { void saveRelay() }}>
-                  {t('settings.ai.upload.customRelay.save')}
-                </WorkbenchButton>
-                <WorkbenchButton size="sm" disabled={relaySaving || (!relayEnabled && !relayHasToken)} onClick={() => { void clearRelay() }}>
-                  {t('settings.ai.upload.customRelay.clear')}
-                </WorkbenchButton>
-                {relayMessage ? <span className="text-micro text-nomi-ink-60" role="status">{relayMessage}</span> : null}
-              </div>
+        <details className="mt-2" data-settings-custom-relay>
+          <summary className="cursor-pointer text-caption font-medium text-nomi-ink-80">
+            {t('settings.modelsHome.advanced')}
+          </summary>
+          <div className="mt-2 grid gap-2">
+            <div className="text-micro leading-relaxed text-nomi-ink-40">
+              {t('settings.ai.upload.customRelay.hint')}
             </div>
-          </details>
+            <label className="grid gap-1">
+              <span className="text-micro text-nomi-ink-60">{t('settings.ai.upload.customRelay.endpoint')}</span>
+              <input
+                data-settings-field="asset-relay-endpoint"
+                type="url"
+                value={relayEndpoint}
+                onChange={(event) => setRelayEndpoint(event.currentTarget.value)}
+                placeholder={t('settings.ai.upload.customRelay.endpointPlaceholder')}
+                aria-label={t('settings.ai.upload.customRelay.endpoint')}
+                className="h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink outline-none focus:border-nomi-ink-40"
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="text-micro text-nomi-ink-60">{t('settings.ai.upload.customRelay.token')}</span>
+              <input
+                data-settings-field="asset-relay-token"
+                type="password"
+                value={relayToken}
+                onChange={(event) => setRelayToken(event.currentTarget.value)}
+                placeholder={relayHasToken ? t('settings.ai.upload.customRelay.tokenSaved') : t('settings.ai.upload.customRelay.tokenPlaceholder')}
+                aria-label={t('settings.ai.upload.customRelay.token')}
+                className="h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink outline-none focus:border-nomi-ink-40"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <WorkbenchButton size="sm" disabled={relaySaving || !relayEndpoint.trim()} onClick={() => { void saveRelay() }}>
+                {t('settings.ai.upload.customRelay.save')}
+              </WorkbenchButton>
+              <WorkbenchButton size="sm" disabled={relaySaving || (!relayEnabled && !relayHasToken)} onClick={() => { void clearRelay() }}>
+                {t('settings.ai.upload.customRelay.clear')}
+              </WorkbenchButton>
+              {relayMessage ? <span className="text-micro text-nomi-ink-60" role="status">{relayMessage}</span> : null}
+            </div>
+          </div>
+        </details>
       </section>
       {/* 2026-09-14 删掉了「默认模型策略」整栏（审计 §⑥ 4/7）：两段纯说明文字与 161 个「允许的供应商 /
           允许的模型」复选框。全局白名单不再存在——已接入的供应商/模型默认放行，每次提交在付费确认卡上

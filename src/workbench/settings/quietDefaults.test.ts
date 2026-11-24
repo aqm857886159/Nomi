@@ -51,7 +51,7 @@ describe('DC24 quiet defaults preserve actionable boundaries', () => {
     expect(uploads).not.toContain("t('settings.ai.upload.channel.hint')")
     expect(uploads).toContain('settings.ai.upload.channel.publicLease')
     expect(uploads).not.toContain('settings.ai.upload.channel.configure')
-    expect(uploads).toContain('settings.ai.upload.anonymousPromptHint')
+    expect(uploads).toContain('settings.ai.upload.anonymousPrompt')
     expect(uploads).toContain('data-settings-custom-relay')
   })
 })

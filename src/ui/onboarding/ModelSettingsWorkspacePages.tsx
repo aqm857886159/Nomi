@@ -395,7 +395,7 @@ export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name:
           <span>{amount(r.credits)}</span><span className="text-right">{t('settings.modelsHome.runs', { count: r.runs })}</span></div>)
           : <p className="p-2 text-caption">{periods === undefined ? t('onboardingProviders.drawer.loading') : <button onClick={refresh}>{t('settings.modelsHome.unavailable')} · {t('settings.modelsHome.retry')}</button>}</p>}
         {rows?.length === 0 && <p className="p-2 text-caption">{t('settings.modelsHome.empty')}</p>}
-        {total && <div className={row + ' font-semibold'}><span>{t('settings.modelsHome.total')}</span><span>{amount(total.credits)}</span><span className="text-right">{t('settings.modelsHome.runs', { count: total.runs })}</span></div>}
+        {total && <div className={row + ' bg-nomi-ink-05 font-semibold'}><span>{t('settings.modelsHome.total')}</span><span>{amount(total.credits)}</span><span className="text-right">{t('settings.modelsHome.runs', { count: total.runs })}</span></div>}
       </div>
       <p className="text-micro text-nomi-ink-60">{t('settings.modelsHome.receipt')}</p>
       <h3 className="text-caption font-semibold">{t('settings.modelsHome.rates')}</h3>

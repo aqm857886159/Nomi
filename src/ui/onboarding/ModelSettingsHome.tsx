@@ -1,10 +1,10 @@
 import React, { type JSX } from 'react'
-import { IconChevronRight, IconPlugConnected, IconServerBolt } from '@tabler/icons-react'
+import { IconChevronRight, IconServerBolt } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
-import { ActionCard, confirmDialog, DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage } from '../../design'
+import { confirmDialog, DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage, WORKBENCH_BUTTON_PRIMARY_CLASS } from '../../design'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import type { ModelCatalogReadOnlyDto } from '../../workbench/api/modelCatalogApi'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
@@ -92,7 +92,7 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
       onChanged()
     } catch (e) { setError(t('onboardingProviders.vendorCard.disconnectFailed', { message: String(e) })) }
   }
-  const showSearch = previous.length > 1
+  const showSearch = previous.length > 4
   const query = showSearch ? search.trim().toLocaleLowerCase() : ''
   const filtered = previous.filter(c => [c.name, translateModelDisplayText(c.name), ...c.models.flatMap(m => [m.modelKey, m.labelZh])]
     .some(value => value.toLocaleLowerCase().includes(query)))
@@ -113,15 +113,23 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
           {accounts.map(c => <ModelAccountCard key={c.vendorKey} vendor={c.vendorKey} name={c.name}
             onAddress={() => onAddress(c.vendorKey)} onManage={c.onOpen} onDisconnect={() => { void disconnect(c) }}
             readOnly={Boolean(readOnly)} onUsage={() => onUsage(c.vendorKey)} />)}
-          {!accounts.length && !loadError && !readOnly && <ActionCard data-model-home-available="apimart" className="!h-auto !w-full" icon={<IconPlugConnected />}
-            title={t('settings.modelsHome.connect')} description={t('settings.modelsHome.intro')} onClick={openApimartConnect} />}
+          {!accounts.length && !loadError && !readOnly && <button type="button" data-model-home-available="apimart"
+            onClick={openApimartConnect} className="flex w-full items-center gap-3 rounded-nomi-sm border border-nomi-line p-3 text-left hover:bg-nomi-ink-05">
+            <span className="min-w-0 flex-1">
+              <strong className="block text-body-sm">{t('settings.modelsHome.platform')}</strong>
+              <span className="text-caption text-nomi-ink-60">{t('settings.modelsHome.intro')}</span>
+            </span>
+            <span className={WORKBENCH_BUTTON_PRIMARY_CLASS + ' shrink-0 rounded-pill px-3 py-1 text-caption font-semibold'}>{t('settings.modelsHome.connect')}</span>
+          </button>}
           {error && <p role="alert" className="text-caption text-workbench-danger">{error}</p>}
           {previous.length > 0 && <>
             {!seen && <div data-legacy-notice className="rounded-nomi-sm bg-nomi-info-soft p-3 text-caption text-nomi-info-ink">
               <p>{t('settings.modelsHome.banner')}</p><button className="mt-1 font-semibold" onClick={dismiss}>{t('settings.modelsHome.dismiss')}</button>
             </div>}
             <section data-model-home-connected>
-              <h3 className="mb-2 text-caption font-semibold">{t('settings.modelsHome.legacy')}</h3>
+              <h3 className="mb-2 flex items-baseline gap-2 text-caption font-semibold">{t('settings.modelsHome.legacy')}
+                <span className="text-micro font-normal text-nomi-ink-60">{t('settings.modelsHome.connections', { count: previous.length })}</span>
+              </h3>
               {showSearch && <DesignSearchInput className="mb-2 w-full" value={search} onChange={setSearch}
                 placeholder={t('onboardingProviders.drawer.home.search')} ariaLabel={t('onboardingProviders.drawer.home.search')} />}
               <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line">

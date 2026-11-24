@@ -60,7 +60,7 @@ export function DefaultGenerationModelsSection({
   return (
     <section
       data-settings-section="default-generation-models"
-      className="mb-6"
+      className="mb-3"
       aria-labelledby="settings-default-models-title"
     >
       <h3 id="settings-default-models-title" className="mb-1 text-caption font-medium text-nomi-ink-60">
@@ -82,8 +82,9 @@ export function DefaultGenerationModelsSection({
             : autoModel ? t('settings.modelsHome.perKind', { model: autoModel.label }) : t('settings.ai.defaultModels.auto') }))
           return (
             <div key={taskKind} className="flex min-h-9 min-w-0 items-center gap-2">
-              <span className="min-w-0 flex-1 text-caption text-nomi-ink-80">
+              <span className="flex min-w-0 flex-1 items-center gap-2 text-caption text-nomi-ink-80">
                 {t(TASK_LABEL_KEY[taskKind])}
+                {current && !missing && <span className="whitespace-nowrap rounded-pill bg-nomi-ink-05 px-1.5 text-micro text-nomi-ink-60">{t('settings.ai.defaultModels.pinned')}</span>}
               </span>
               <NomiSelect
                 ariaLabel={t('settings.ai.defaultModels.pickerLabel', { task: t(TASK_LABEL_KEY[taskKind]) })}

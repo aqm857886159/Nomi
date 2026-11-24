@@ -11,7 +11,7 @@ import { builtinVendorKeyOfKey } from "../../shared/builtinVendorIdentity";
 import type { VendorAccountBalance, VendorAccountBalanceRequest, VendorBalanceCheck, VendorBalanceFailure, VendorReportedBalance } from "../../shared/contracts/vendorAccountBalance";
 import { codeDeclaredFallbackOrigins, fetchVendorWithBaseFallback } from "../../vendor/vendorBaseFallback";
 import { authorizeSubmitDestination } from "../../vendor/vendorOutboundGuard";
-import { authHeaders } from "../requestPipeline";
+import { authHeaders, looksLikeLogicalError } from "../requestPipeline";
 
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -25,7 +25,7 @@ function finiteNumber(value: unknown): number | null {
 type BalanceSubject = "account" | "key";
 
 function parseReportedBalance(body: unknown, subject: BalanceSubject): VendorReportedBalance | null {
-  if (!isJsonRecord(body) || body.success === false) return null;
+  if (!isJsonRecord(body) || body.success === false || looksLikeLogicalError(body) !== null) return null;
   const payload = isJsonRecord(body.data) ? body.data : body;
   if (payload.success === false) return null;
   const amount = finiteNumber(payload.remain_balance);

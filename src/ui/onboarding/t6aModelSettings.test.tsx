@@ -51,6 +51,8 @@ describe('ModelSurfaces connection ownership', () => {
     expect(usage).toContain('data-model-settings-page="usage"')
     expect(usage).toContain('APIMart')
     expect(home(p)).toContain('data-legacy-notice')
+    expect(home(p)).not.toContain('type="search"')
+    expect(home({ ...p, previous: [...p.previous, { ...p.previous[0], vendorKey: 'fifth' }] })).toContain('type="search"')
     expect(JSON.stringify(old.apiKeysByVendor)).toBe(before)
   })
   it.each(['zh-CN', 'en'])('keeps each quoted control name inside one inline nowrap span (%s)', async lang => {

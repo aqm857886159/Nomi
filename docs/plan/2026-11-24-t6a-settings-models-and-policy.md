@@ -1,6 +1,6 @@
 # T-6a · 模型设置与 AI 策略
 
-## ★0 先例与定稿
+## ★0 先查别人
 
 | 出处 | 已有行为 | 本次决定 |
 | --- | --- | --- |
@@ -10,6 +10,8 @@
 | electron/vendor/cost.ts:10 | 实付回执含单位 | 只汇总积分，缺失保留未知 |
 | src/ui/onboarding/adapterTaskVisibility.ts:82 | 只显示活动任务 | 保留同一筛选器 |
 | src/ui/onboarding/ModelSettingsWorkspacePages.tsx:29 | 子页共用返回按钮 | 其他方式、用量走工作区导航栈 |
+
+出口：src/ui/onboarding/ModelAccountCard.tsx:40 · 读数失败后保留重试入口 · 分开保留账户和 Key 的上次有效读数。
 
 查询使用只读 IPC。断开仍走现有确认。
 
@@ -54,7 +56,7 @@ door-map 扫 ModelSettingsHome、getGenerationModelDefaults、setModelHidden 共
 
 ## ★7 性能
 
-模型工作区保持懒加载。连接列表本地投影，按需聚合近 30 天，再由同一次读取计算两档。切换周期不重新访问供应商。走查计数读取请求，检查窄窗无横向滚动，页内纵向滚动可达末行。
+模型工作区保持懒加载。model-settings-usage-open 从点击用量入口量到本机回执与公开单价都可见，再过两帧；42 份回执、5 次采样，中位数 64.9ms，p95 65.1ms，预算分别为 100ms、150ms。连接列表本地投影，按需聚合近 30 天，再由同一次读取计算两档。切换周期不重新访问供应商。走查计数读取请求，检查窄窗无横向滚动，页内纵向滚动可达末行。
 
 ## 8 回退
 
@@ -67,6 +69,10 @@ door-map 扫 ModelSettingsHome、getGenerationModelDefaults、setModelHidden 共
 
 ## 升级与样张核对
 
-升级输入为 `tests/fixtures/old-user-data/catalogs/v0.24.1-wizard`。走查启动前读取全部凭据记录，启动后搜索 Relay One，关闭升级说明，关闭设置再重开，逐字段比对原凭据。额外的 KIE 凭据和同模型的 Relay Two 用来触发多连接搜索与供应商排序。实际步骤和截图见[实窗验收](../evidence/2026-11-24-t6a-model-settings/walkthrough.md)。
+升级输入为 `tests/fixtures/old-user-data/catalogs/v0.24.1-wizard`。走查启动前读取全部凭据记录，启动后搜索 Relay One，关闭升级说明，关闭设置再重开，逐字段比对原凭据。加入 KIE 与两家中转补足四个连接，截图时验证搜索框缺席。另一份隔离目录再加第五个连接，输入 Relay One 只得到一项，清空恢复五项。实际步骤和截图见[实窗验收](../evidence/2026-11-24-t6a-model-settings/walkthrough.md)。
 
 M1-old-user 的旧状态词由 11-17 的统一投影替代。已删除的 `settings.drop.test-connection` 没有 component，保持原判。M6 的公共临时托管以现行上传许可和实际通道为准。M2 的模型框脚注跳往这项设置属于另一个元素 `picker.hidden-footer`，由 T-6b 交付。
+
+## 11-24 样张复核
+
+以监督线在 97f03c5d7 留下的七张对照图为修前复现。连接状态、用量和上传设置继续由原组件投影。复制设置页会产生第二个读写入口，删除控件会中断原任务。验收检查四个旧连接无搜索、第五个可搜；单供应商不加后缀，同名多家可区别；显式选择才有「你定的」；公开单价带约号；两种存储值与开关方向逐一相符。实窗量英文及窄窗三栏的文字边界，同时检查菜单关掉后的静止态。12 月 8 日复核这些反例，任一复发重开。

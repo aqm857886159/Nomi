@@ -54,7 +54,7 @@ export function ModelAccountCard({ vendor, name, onAddress, onManage, onDisconne
           { id: 'disconnect', label: t('settings.modelsHome.disconnect'), onSelect: onDisconnect, danger: true, disabled: readOnly },
         ]} />
     </header>
-    <dl className="mt-2 grid grid-cols-[auto_auto_auto] gap-x-2 text-micro text-nomi-ink-60 [&_dd]:whitespace-nowrap [&_strong]:block [&_strong]:text-body-sm [&_strong]:text-nomi-ink">
+    <dl className="mt-2 grid grid-cols-[auto_auto_auto] divide-x divide-nomi-line-soft [&>div:not(:first-child)]:pl-3 [&>div:not(:last-child)]:pr-3 max-sm:[&>div:not(:first-child)]:pl-2 max-sm:[&>div:not(:last-child)]:pr-2 text-micro text-nomi-ink-60 [&_dd]:whitespace-nowrap [&_strong]:block [&_strong]:text-body-sm [&_strong]:text-nomi-ink">
       <div><dt>{t('settings.modelsHome.balance')}</dt><dd><strong>{balance?.accountCredits != null ? credits(balance.accountCredits) : unknown}</strong>
         {balance?.accountStaleSince && stale(balance.accountStaleSince)}
         {!loading && (balance?.accountCredits == null || balance.accountStaleSince) ? retry : <a className={link} href="https://apimart.ai/billing" target="_blank" rel="noopener noreferrer">{t('settings.modelsHome.topup')} <IconExternalLink size={11} /></a>}</dd></div>

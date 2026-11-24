@@ -66,6 +66,11 @@ describe("parseVendorAccountBalance", () => {
     });
   });
 
+  it("rejects a logical HTTP-200 failure even when its payload carries a balance", () => {
+    expect(parseVendorAccountBalance({ code: 401, data: { remain_credits: 12 } }, TOP_UP, NOW)).toBeNull();
+    expect(parseVendorAccountBalance({ code: 200, data: { remain_credits: 12 } }, TOP_UP, NOW)?.remainCredits).toBe(12);
+  });
+
   it("returns null on malformed or missing balance payloads", () => {
     expect(parseVendorAccountBalance(null, TOP_UP, NOW)).toBeNull();
     expect(parseVendorAccountBalance({}, TOP_UP, NOW)).toBeNull();

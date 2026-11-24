@@ -6,6 +6,8 @@
 //   ② 每次批量派生只为每家探一次钥匙，且**同一份 memo** 同时供「可用性」和「钥匙三态」两个问题用——
 //      两份 memo 就是两次往返、两行重复的解密失败日志（这正是 PR #— 之前修过的那个坑）。
 // 判据本身一个字都不在这儿——要改「什么叫可用」，改 shared/modelAvailability.ts。
+import { builtinVendorSeed } from "./builtinVendorSeeds";
+import { publicVendor } from "./customConfigStore";
 import { isJsonRecord } from "../jsonUtils";
 import { apiKeyDecryptStatus, credentialRecordCounts, type ApiKeyDecryptStatus, type KeyStatusProbe } from "./secrets";
 import type { CatalogState, Model, Vendor } from "./types";
@@ -68,4 +70,8 @@ export function projectRendererCatalogModel<T extends Model>(row: T): Omit<T, "m
   if (!meta || !adapter) return row;
   const { state: _state, evidence: _evidence, ...rest } = adapter;
   return { ...row, meta: { ...meta, adapter: rest } };
+}
+
+export function projectRendererCatalogVendor(vendor: Vendor) {
+  return { ...publicVendor(vendor), builtinPreset: Boolean(builtinVendorSeed(vendor.key)) };
 }

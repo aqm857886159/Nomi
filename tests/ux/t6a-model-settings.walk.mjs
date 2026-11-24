@@ -3,6 +3,10 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import os from 'node:os'
+import { execFileSync } from 'node:child_process'
+import { parseArgs } from 'node:util'
+import { armResponse, takeResponse } from '../perf/canvas-scale/responseTimer.mjs'
 import { fileURLToPath } from 'node:url'
 import { require as requireTs } from 'tsx/cjs/api'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
@@ -19,6 +23,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 const output = path.join(root, 'docs/evidence/2026-11-24-t6a-model-settings')
 const board = path.join(root, 'docs/design/boards/2026-11-07-model-surfaces/preview')
 const oldFixture = path.join(root, 'tests/fixtures/old-user-data/catalogs/v0.24.1-wizard')
+const { values: perf } = parseArgs({ options: { runs: { type: 'string' }, out: { type: 'string' } } })
 const requests = []
 let offline = false
 const comparisons = []
@@ -98,12 +103,14 @@ async function checkNames(win) {
 function seedUsage(settingsDir) {
   const [project] = JSON.parse(fs.readFileSync(path.join(settingsDir, 'recent-workspaces.json')))
   const events = []
-  for (const [day, amount] of [[1, 4.9], [15, 10.8]]) {
+  for (let i = 0; i < 42; i++) {
+    const day = i === 41 ? 15 : 1
+    const amount = day === 15 ? 10.8 : i === 0 ? 5.6 : 0.35
     const ts = new Date(Date.now() - day * 86400000).toISOString()
     for (const [type, facts] of [
       ['vendor.call.requested', { recipe: { vendorKey: 'apimart', modelKey: 'gpt-image-2' } }],
       ['vendor.call.completed', { status: 'succeeded', cost: { amount, unit: 'credits', provider: 'apimart' } }],
-    ]) events.push({ v: 1, seq: events.length + 1, id: 'receipt-' + events.length, ts, source: 'runtime', type, payload: { runId: 'run-' + day, ...facts } })
+    ]) events.push({ v: 1, seq: events.length + 1, id: 'receipt-' + events.length, ts, source: 'runtime', type, payload: { runId: 'run-' + i, ...facts } })
   }
   const dir = path.join(project.rootPath, '.nomi/events')
   fs.mkdirSync(dir, { recursive: true })
@@ -119,7 +126,7 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
   if (kind === 'connected') {
     writeFakeApimartCatalog(settingsDir, userDataDir)
     seedUsage(settingsDir)
-  } else if (kind === 'old') {
+  } else if (kind === 'old' || kind === 'old-search') {
     const { apiKeysByVendor } = writeFakeApimartCatalog(settingsDir, userDataDir)
     copyOldUserData(oldFixture, settingsDir)
     const c = JSON.parse(fs.readFileSync(catalog))
@@ -127,9 +134,11 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
     fs.writeFileSync(catalog, JSON.stringify(c))
     legacyKeys = c.apiKeysByVendor
     const original = c.models.find(m => m.modelKey === 'gpt-image-2')
+    const relays = kind === 'old' ? ['Two', 'Three'] : ['Two', 'Three', 'Four']
+    const vendors = relays.map(name => ({ key: 'relay-' + name.toLowerCase(), name: 'Relay ' + name, enabled: true, authType: 'none', baseUrlHint: origin }))
     buildWorld({ rootDir: tempRoot, projects: [], catalog: {
-      vendors: [{ key: 'relay-two', name: 'Relay Two', enabled: true, authType: 'none', baseUrlHint: origin }],
-      models: [{ ...original, vendorKey: 'relay-two', selectable: true }],
+      vendors,
+      models: vendors.map(v => ({ ...original, vendorKey: v.key, selectable: true })),
     } })
   } else if (kind === 'notice') {
     fs.writeFileSync(catalog, JSON.stringify({ version: 9999, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }))
@@ -155,6 +164,21 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
     const account = loc('[data-model-account]')
     const labelFor = (key, values) => uiTextWith(locale, 'settings.modelsHome.' + key, values)
     const zh = locale === 'zh-CN'
+    if (perf.out) {
+      const noisy = os.loadavg()[1] >= os.availableParallelism()
+      const samples = []
+      const runs = Number(perf.runs)
+      assert(Number.isInteger(runs) && runs > 0)
+      for (let i = 0; i < runs; i++) {
+        await expect(account).toContainText(labelFor('runs', { count: 41 }))
+        await armResponse(win, { predicate: 'modelUsageReady' })
+        await account.getByRole('button', { name: labelFor('usage') }).click()
+        samples.push((await takeResponse(win)).ms)
+        await back()
+      }
+      fs.writeFileSync(perf.out, JSON.stringify({ runs, noisy: noisy || os.loadavg()[1] >= os.availableParallelism(), metrics: { response: samples } }) + '\n')
+      return
+    }
     if (kind === 'fresh') {
       const entry = loc('[data-model-home-available="apimart"]')
       await expect(entry, 'board:ModelSurfaces/settings.connect-entry').toBeVisible()
@@ -180,23 +204,32 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       await expect(loc('[data-model-settings-page="add"]'), 'board:ModelSurfaces/settings.other-ways.relay').toBeVisible()
       await closeSettings(win)
       await openModelSettings(win)
+      await expect(entry.getByText(labelFor('connect'), { exact: true })).toBeVisible()
       await entry.click()
       await expect(win.locator('[data-apimart-right]')).toBeVisible()
     } else if (kind === 'notice') {
       await expect(loc('[data-catalog-notice="read-only-newer"]'), 'board:ModelSurfaces/settings.notices').toBeVisible()
-    } else if (kind === 'old') {
+    } else if (kind === 'old' || kind === 'old-search') {
       const row = loc('[data-model-home-connection="local-39017"]')
       await expect(row, 'board:ModelSurfaces/settings.legacy-group').toContainText('Relay One')
       await expect(row.locator('[data-model-status]')).toBeVisible()
       await expect(row).toContainText(labelFor('maintenance'))
       await expect(loc('[data-model-home-connection="kie"]')).toContainText(labelFor('kie'))
       await expect(loc('[data-model-home-task-strip]'), 'board:ModelSurfaces/settings.adapter-tasks').toHaveCount(0)
-      const search = loc('input').first()
-      await expect(search, 'board:ModelSurfaces/settings.search').toBeVisible()
-      await search.fill('Relay One')
-      await expect(loc('[data-model-home-connection]')).toHaveCount(1)
-      await search.fill('')
-      await shot(win, 'M1-old-user')
+      const count = kind === 'old' ? 4 : 5
+      await expect(loc('[data-model-home-connected] h3')).toContainText(labelFor('connections', { count }))
+      await expect(loc('[data-model-home-connection]')).toHaveCount(count)
+      const search = dialog.getByRole('searchbox')
+      if (kind === 'old') {
+        await expect(search).toHaveCount(0)
+        await shot(win, 'M1-old-user')
+      } else {
+        await expect(search, 'board:ModelSurfaces/settings.search').toBeVisible()
+        await search.fill('Relay One')
+        await expect(loc('[data-model-home-connection]')).toHaveCount(1)
+        await search.fill('')
+        await expect(loc('[data-model-home-connection]')).toHaveCount(5)
+      }
       await checkNames(win)
       await loc('[data-legacy-notice]').getByRole('button').click()
       await closeSettings(win)
@@ -206,10 +239,13 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       assert.deepEqual(JSON.parse(fs.readFileSync(catalog)).apiKeysByVendor, legacyKeys)
       await openSettings(win, { tab: 'ai' })
       await expect(loc('[data-vendor-preference-order]'), 'board:ModelSurfaces/policy.vendor-order').toBeVisible()
+      await openModelSettings(win)
+      await loc('[data-model-home-available="apimart"]').getByText(labelFor('connect'), { exact: true }).click()
+      await expect(win.locator('[data-apimart-right]')).toBeVisible()
     } else {
       await expect(account, 'board:ModelSurfaces/settings.account-card').toContainText(labelFor('credits', { amount: 52.3 }))
       await expect(account).toContainText(labelFor('unlimited'))
-      await expect(account).toContainText(labelFor('credits', { amount: 4.9 }))
+      await expect(account).toContainText(labelFor('credits', { amount: 19.6 }))
       await expect(account.getByRole('link')).toHaveAttribute('href', 'https://apimart.ai/billing')
       await expect(loc('[data-model-settings-page="home"] header').first(), 'board:ModelSurfaces/settings.header').toContainText(zh ? /图片 \d+/ : /Image \d+/)
       await expect(loc('input[type="search"]')).toHaveCount(0)
@@ -222,16 +258,32 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       await expect(win.getByRole('menuitem'), 'board:ModelSurfaces/settings.account-menu').toHaveCount(3)
       if (theme === 'dark') await shot(win, 'M1-dark')
       await win.keyboard.press('Escape')
+      await expect(win.getByRole('menuitem')).toHaveCount(0)
+      await expect(menu).toBeFocused()
+      await win.evaluate(() => document.activeElement?.blur())
+      await expect(menu).not.toBeFocused()
+      await win.mouse.move(0, 0)
+      await expect(account).toContainText(labelFor('runs', { count: 41 }))
+      assert.equal(await account.locator('dl').evaluate(dl => {
+        const columns = [...dl.children]
+        return columns.every((column, i) => {
+          const dd = column.querySelector('dd')
+          const button = dd.querySelector('button')
+          return dd.scrollWidth <= dd.clientWidth && getComputedStyle(dd).whiteSpace === 'nowrap'
+            && (i === 0 || parseFloat(getComputedStyle(column).borderLeftWidth) > 0)
+            && (!button || button.getBoundingClientRect().right <= column.getBoundingClientRect().right + 1)
+        }) && dl.scrollWidth <= dl.clientWidth
+      }), true, 'divided balance columns fit the secondary row in full')
       if (theme !== 'dark') await shot(win, !zh ? 'M1-en' : width === 700 ? 'M1-narrow' : 'Main')
       await checkNames(win)
       await account.getByRole('button', { name: labelFor('usage') }).click()
-      await expect(loc('[data-usage-model="gpt-image-2"]'), 'board:ModelSurfaces/settings.usage-page').toContainText('4.9')
-      await expect(loc('[data-unit-price="gpt-image-2"]')).toContainText('0.35')
+      await expect(loc('[data-usage-model="gpt-image-2"]'), 'board:ModelSurfaces/settings.usage-page').toContainText('19.6')
+      await expect(loc('[data-unit-price="gpt-image-2"]')).toContainText('≈0.35')
       if (zh && theme === 'light' && width !== 700) await shot(win, 'M1-usage')
       await checkNames(win)
       await dialog.getByRole('radio', { name: /30/ }).click()
-      await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText('15.7')
-      await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText(labelFor('runs', { count: 2 }))
+      await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText('30.4')
+      await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText(labelFor('runs', { count: 42 }))
       await back()
       await openSettings(win, { tab: 'ai' })
       const b = await frame.boundingBox()
@@ -247,6 +299,11 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       await expect(relay, 'board:ModelSurfaces/policy.relay-advanced').not.toHaveAttribute('open', '')
       await checkNames(win)
       if (zh && theme === 'light' && width !== 700) {
+        const video = loc('[data-settings-section="default-generation-models"] button').nth(2)
+        await video.click()
+        await win.getByRole('option').filter({ hasText: /Seedance 2\.5/ }).last().click()
+        await expect(loc('[data-settings-section="default-generation-models"]').getByText(uiText(locale, 'settings.ai.defaultModels.pinned'), { exact: true })).toHaveCount(1)
+        await win.evaluate(() => document.activeElement?.blur())
         await shot(win, 'M6-ai-policy')
         const defaults = loc('[data-settings-section="default-generation-models"] button').first()
         await defaults.click()
@@ -254,14 +311,18 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
         const label = await option.innerText()
         await option.click()
         await expect(defaults).toHaveText(label)
-        const upload = loc('[data-settings-upload-guidance]').getByRole('switch')
-        await upload.press('Space')
-        await expect(upload).toBeChecked()
-        for (const tab of ['file', 'automation', 'general', 'about', 'ai']) await openSettings(win, { tab })
-        await expect(defaults).toHaveText(label)
+        const upload = loc('[data-settings-upload-guidance]').getByRole('switch', { name: uiText(locale, 'settings.ai.upload.anonymousPrompt') })
         await expect(upload).toBeChecked()
         await upload.press('Space')
         await expect(upload).not.toBeChecked()
+        const savedHosting = () => win.evaluate(async () => (await window.nomiDesktop.settings.automationPolicy.get()).anonymousAssetHosting)
+        await expect.poll(savedHosting).toBe('allow')
+        for (const tab of ['file', 'automation', 'general', 'about', 'ai']) await openSettings(win, { tab })
+        await expect(defaults).toHaveText(label)
+        await expect(upload).not.toBeChecked()
+        await upload.press('Space')
+        await expect(upload).toBeChecked()
+        await expect.poll(savedHosting).toBe('ask')
         await box.locator('summary').click()
         const model = loc('[data-model-box-row]').first()
         const key = await model.getAttribute('data-model-box-row')
@@ -312,8 +373,9 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
     throw error
   } finally { offline = false; await close() }
 }
-try {
+async function runWalkthrough() {
   await scenario('old')
+  await scenario('old-search')
   await scenario('notice')
   await scenario('fresh')
   await scenario('connected')
@@ -323,7 +385,7 @@ try {
   assert.equal(comparisons.length, 7)
   const score = renderScorecard({
     version: 1, date: '2026-11-24', scenarioId: 'settings-model',
-    change: { title: 'T-6a 模型账户、用量与 AI 策略', headSha: '2cdc60d58', headNote: '本次隔离构建的基线，含本提交的全部改动',
+    change: { title: 'T-6a 模型账户、用量与 AI 策略', headSha: execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), headNote: '实测工作树的父提交，含本次待提交修改',
       added: ['APIMart 账户卡与用量页'], changed: ['旧连接分组与策略整理'], removed: ['首页未配置平台与推荐徽标'],
       userCan: '连接或管理 APIMart，在本机查看近期积分明细，找回旧连接，设置模型和上传偏好。' },
     verifier: { line: '实现线', kind: '隔离 Electron 实窗' },
@@ -343,13 +405,18 @@ try {
     evidence: comparisons.map(name => '[设计与实窗 · ' + name + '](board-vs-impl-' + name + '.png)'),
   })
   const report = [score, '## ui-task-scorecard · 原始走查记录', '',
-    '隔离凭据与回环供应商共收到 ' + requests.length + ' 次 GET。7 天为 1 次、4.9 积分，30 天为 2 次、15.7 积分。公开单价来自独立报价响应。外部付款链接只核对目标地址。',
+    '隔离凭据与回环供应商共收到 ' + requests.length + ' 次 GET。7 天为 41 次、19.6 积分，30 天为 42 次、30.4 积分。公开单价来自独立报价响应。外部付款链接只核对目标地址。',
     '', '| 语言 / 主题 / 视口宽 | 账户页高 | 策略页高 | 共同顶边 |', '| --- | ---: | ---: | ---: |',
     ...measurements.map(m => '| ' + [m.locale + ' / ' + m.theme + ' / ' + m.width, m.home, m.policy, m.top].join(' | ') + ' |'),
-    '', '旧用户场景保留了发布版 Relay One 目录和原始加密字段，并加入 KIE 与同模型的第二家中转以覆盖搜索与排序。新装、旧版与只读目录各自收到零次供应商请求。',
+    '', '旧用户场景保留了发布版 Relay One 目录和原始加密字段，并加入 KIE 和同模型中转，分别验证四个连接不显示搜索、五个连接可搜索及排序。新装、旧版与只读目录各自收到零次供应商请求。',
     '', '调试记录：启动器起初拒绝未由测试世界签发的目录。随后实窗发现模型整理入口缺失；改用各媒体目录后复测通过。上传开关由键盘空格操作，读回持久偏好。新版只读场景显式保留超前版本夹具，以便走到产品的保护逻辑。',
-    '', '样张差异：积分展示遵循金额格式冻结；菜单依 D-account-default 延后更换 Key。公共临时托管沿用现行许可开关，通道由实际解析器提供。模型页折叠既有 AI 接入指引，MCP 安装仍归自动化页。已删除的 settings.drop.test-connection 的 component 为空，沿用 D-1117。',
+    '', '样张差异：积分展示遵循金额格式冻结；菜单依 D-account-default 延后更换 Key。公共临时托管开关开启对应先询问，通道及有效期由实际解析器提供。模型页折叠既有 AI 接入指引，MCP 安装仍归自动化页。已删除的 settings.drop.test-connection 的 component 为空，沿用 D-1117。',
     '', '截图左侧为已批样张，右侧为实窗。后台项目、模型目录、回执次数和余额使用隔离数据；七张原图与同名对照图一起保存。', '']
   fs.writeFileSync(path.join(output, 'walkthrough.md'), report.join('\n'))
-  console.log('Seven board comparisons. Provider requests', requests.length, 'paid submissions 0.')
+  console.log('Seven board comparisons. Provider requests', requests.length, 'paid submissions 0, split quoted names 0.')
+}
+
+try {
+  if (perf.out) await scenario('connected')
+  else await runWalkthrough()
 } finally { await new Promise(resolve => server.close(resolve)) }

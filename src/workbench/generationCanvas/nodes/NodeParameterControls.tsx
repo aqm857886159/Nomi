@@ -1,5 +1,3 @@
-import { rememberGenerationChoice } from '../model/generationModelDefaults'
-import { deriveGenerationDefaultTaskKind, nodeHasImageReference } from './defaultNodeModelSelection'
 import NodeInputReferenceEntry from './NodeInputReferenceEntry'
 import { notify } from '../../../ui/notificationPolicy'
 import { normalizeConditionalParameters } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
@@ -99,7 +97,7 @@ import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelA
 import { buildAspectRatioNodePatch } from './nodeSizing'
 import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 import { parseAspectRatioValue } from '../../../../electron/shared/aspectRatioValue'
-import { buildModeSwitchMeta, buildNodeModelChangePatch } from './buildNodeModelChangePatch'
+import { applyPickedNodeModel, buildModeSwitchMeta } from './buildNodeModelChangePatch'
 import type { ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { isAspectRatioControl, parameterControlChangePatch } from './controls/parameterControlModel'
 
@@ -232,19 +230,8 @@ export default function NodeParameterControls({
   }
 
   const handleModelChange = (value: string, vendor?: string) => {
-    const state = useGenerationCanvasStore.getState()
-    const current = latestNode(node.id) || node
-    const change = buildNodeModelChangePatch({
-      node: current,
-      nodes: state.nodes,
-      edges: state.edges,
-      modelOptions,
-      value,
-      vendor,
-    })
-    rememberGenerationChoice(deriveGenerationDefaultTaskKind({ isImageLike, isVideoLike, hasImageReference: nodeHasImageReference(current.meta) }),
-      change.meta.modelVendor, change.meta.modelKey)
-    updateNode(node.id, { meta: change.meta })
+    const { nodes, edges } = useGenerationCanvasStore.getState()
+    applyPickedNodeModel({ node: latestNode(node.id) || node, nodes, edges, modelOptions, value, vendor }, updateNode)
   }
 
   useNodeModelAutoSelect({

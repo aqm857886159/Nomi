@@ -105,7 +105,7 @@ export function ModelBoxOrderSection(): JSX.Element | null {
     <section
       data-settings-section="model-box-order"
       data-model-box-order
-      className="mb-6"
+      className="mb-3"
       aria-labelledby="settings-model-box-order-title"
     >
       <h3 id="settings-model-box-order-title" className="mb-1 text-caption font-medium text-nomi-ink-60">{t('settings.ai.modelBox.title')}</h3>

@@ -76,8 +76,8 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   //             故更新相关文件哈希；协调会话在交付报告里知情。
   // 2026-10-16（卡顿波 P-compose）：供应商列表改读异步目录 IPC（同步通道已删：主进程忙时「点设置没反应」），
   //             读失败照旧保留上一份；布局与文案一个字没动，协调会话在交付报告里知情。
-  // 2026-11-17 用户「删掉，用设置开关」：开启=allow、关闭=ask，其余布局不变。
-  'AiModelsSection.tsx': '371b39209c0c4c7bcbd9bfefcf1b946bc18960a2aa08e2d4694fa00a67b80ad1',
+  // 2026-11-17 用户「删掉，用设置开关」：偏好值沿用 ask / allow；11-24 按「先问我」展示，开启=ask，其余布局不变。
+  'AiModelsSection.tsx': '1b0b93dc62d217500689230f82708ecf49a9b8261d0db3621a175d0db106cf1b',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。
@@ -256,7 +256,7 @@ describe('settings dialog structure', () => {
   // 误判成「Nomi 根本没接 KIE 上传」，而代码里早接好了，缺的只是他的 key 和这块可见性。
   it('reports the live upload channel per media kind instead of just recommending KIE', () => {
     expect(aiModelsSource).toContain('data-settings-upload-guidance')
-    expect(aiModelsSource).toContain('data-upload-channel={channel.kind}')
+    expect(aiModelsSource).toContain('data-upload-channel={item.kind}')
     expect(aiModelsSource).toContain("settings.ai.upload.channel.title")
     expect(aiModelsSource).not.toContain("settings.ai.upload.channel.configure")
     expect(aiModelsSource).toContain("settings.ai.upload.anonymousPrompt")

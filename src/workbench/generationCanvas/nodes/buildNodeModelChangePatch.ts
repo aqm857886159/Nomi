@@ -1,3 +1,6 @@
+import { rememberGenerationChoice } from '../model/generationModelDefaults'
+import { deriveGenerationDefaultTaskKind, nodeHasImageReference } from './defaultNodeModelSelection'
+import type { NodeWriteAccess } from './nodeWriteAccess'
 import { resolveModelParams } from '../../../../electron/shared/videoCapabilities/resolveModelParams'
 import type { ModelOption } from '../../../config/models'
 import { findModelOptionByIdentifier } from '../adapters/modelOptionsAdapter'
@@ -25,6 +28,19 @@ export type BuildNodeModelChangePatchInput = {
   modelOptions: readonly ModelOption[]
   value: string
   vendor?: string
+}
+
+/** A manual picker choice also becomes the next node's last-used default. */
+export function applyPickedNodeModel(input: BuildNodeModelChangePatchInput, updateNode: NodeWriteAccess['updateNode']): void {
+  const { node } = input
+  const patch = buildNodeModelChangePatch(input)
+  const task = deriveGenerationDefaultTaskKind({
+    isImageLike: isImageLikeGenerationNodeKind(node.kind),
+    isVideoLike: isVideoLikeGenerationNodeKind(node.kind),
+    hasImageReference: nodeHasImageReference(node.meta),
+  })
+  rememberGenerationChoice(task, patch.meta.modelVendor, patch.meta.modelKey)
+  updateNode(node.id, patch)
 }
 
 /** Single source of truth for both the per-node picker and bulk model changes. */

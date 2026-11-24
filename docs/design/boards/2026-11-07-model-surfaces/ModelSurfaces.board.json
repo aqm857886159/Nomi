@@ -447,7 +447,7 @@
         "dark",
         "zh-en"
       ],
-      "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 入口卡（ActionCard）",
+      "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 入口卡（整卡按钮）",
       "candidates": [
         "536-div",
         "537-span-APIMart",

@@ -5,6 +5,7 @@ import { isJsonRecord } from '../../jsonUtils'
 import { getWorkspaceRepositoryDeps } from '../../runtimePaths'
 import { builtinVendorKeyOfKey } from '../../shared/builtinVendorIdentity'
 import type { ModelUnitPrice, ModelUsagePeriods, ModelUsageRow } from '../../shared/contracts/modelSettingsAccount'
+import { connectionWireModel } from '../../shared/modelArchetypes/wireModelIdentity'
 import { listRegisteredProjectIds } from '../../workspace/workspaceRegistry'
 import { readVendorPricePreview } from './vendorPricePreview'
 
@@ -60,7 +61,7 @@ export async function readModelUnitPrices(vendor: string): Promise<ModelUnitPric
     const model = models.find(m => m.modelKey === id || m.modelAlias === id)
     if (!model || (model.kind !== 'image' && model.kind !== 'video')) continue
     const kind = model.kind
-    const quote = await readVendorPricePreview({ vendorKey: vendor, modelId: model.modelAlias || model.modelKey, kind,
+    const quote = await readVendorPricePreview({ vendorKey: vendor, modelId: connectionWireModel(model), kind,
       resolution: kind === 'video' ? '720p' : '1k', size: '1:1', quality: 'medium', count: 1,
       durationSec: 1, referenceCount: 0, hasAudio: false, hasVideoInput: false })
     rows.push({ modelKey: model.modelKey, label: model.labelZh || model.modelKey, kind, credits: quote?.credits ?? null })

@@ -41,7 +41,6 @@ import { useModelSettingsPageFocus } from './useModelSettingsPageFocus'
 import { useOnboardingDrawerCatalog } from './useOnboardingDrawerCatalog'
 import { DREAMINA_CONNECTION_KEY } from './onboardingDrawerConstants'
 import { canConfigureModelRequestScript } from './modelRequestScriptAvailability'
-import { consumePendingModelNetworkScroll } from './apimartConnectRoute'
 import { OtherConnectionWays, ModelUsagePage } from './ModelSettingsWorkspacePages'
 import { ModelSettingsHome } from './ModelSettingsHome'
 import { KnownVendorKeyConnectPage } from './KnownVendorKeyConnectPage'
@@ -89,11 +88,7 @@ export function OnboardingDrawer({ pageRequest = null, dataSourceRequested = fal
   const openPage = React.useCallback((next: Exclude<ModelSettingsPage, { type: 'home' }>) => {
     setNavigation((current) => openModelSettingsPage(current, next))
   }, [])
-  React.useEffect(() => {
-    if (consumePendingModelNetworkScroll()) openPage({ type: 'otherWays', section: 'network' })
-    else if (dataSourceRequested) openPage({ type: 'otherWays', section: 'data' })
-  }, [dataSourceRequested, openPage])
-  useModelPageRequest(pageRequest, openPage)
+  useModelPageRequest(pageRequest, openPage, dataSourceRequested)
   const goBack = React.useCallback(() => setNavigation((current) => backModelSettingsPage(current)), [])
   useModelSettingsPageFocus(page, goBack)
   const openWizard = React.useCallback(
