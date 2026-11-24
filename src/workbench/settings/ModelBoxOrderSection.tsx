@@ -17,7 +17,6 @@ import { IconChevronDown, IconChevronUp, IconEye, IconEyeOff } from '@tabler/ico
 import { useTranslation } from 'react-i18next'
 
 import { IconActionButton, NomiSegmented } from '../../design'
-import type { NodeKind } from '../../config/models'
 import { useModelOptionsState } from '../../config/useModelOptions'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import { modelDisplayLabel, modelProviderLabel } from '../common/useDedupedModelSelect'
@@ -29,7 +28,7 @@ import { buildModelBoxRows, mergeModelOrderForKind, moveModelRow, type ModelBoxR
  * 分段开关的三档 = 三个真实的模型框（图片节点 / 视频节点 / 音频节点各读自己那一类）。
  * 文案键**写死不拼**：拼出来的键静态查不出来，词条哪天被删掉，屏幕上就直接显示那串 key。
  */
-const KINDS: readonly { value: NodeKind; labelKey: string }[] = [
+const KINDS: readonly { value: 'image' | 'video' | 'audio'; labelKey: string }[] = [
   { value: 'image', labelKey: 'settings.ai.modelBox.kind.image' },
   { value: 'video', labelKey: 'settings.ai.modelBox.kind.video' },
   { value: 'audio', labelKey: 'settings.ai.modelBox.kind.audio' },
@@ -58,13 +57,18 @@ function RowChips({ chips, muted = false }: { chips: ModelBoxRow['chips']; muted
 
 export function ModelBoxOrderSection(): JSX.Element | null {
   const { t, i18n } = useTranslation()
-  const [kind, setKind] = React.useState<NodeKind>('image')
-  const { options } = useModelOptionsState(kind)
+  const [kind, setKind] = React.useState<(typeof KINDS)[number]['value']>('image')
+  const image = useModelOptionsState('image', 'any-published').options
+  const video = useModelOptionsState('video', 'any-published').options
+  const audio = useModelOptionsState('audio', 'any-published').options
+  const groups = React.useMemo(() => ({
+    image: dedupeModelOptions(image), video: dedupeModelOptions(video), audio: dedupeModelOptions(audio),
+  }), [image, video, audio])
   const orderedVendorKeys = useVendorPreferenceOrder()
   const preference = useModelBoxPreference()
   const [saveError, setSaveError] = React.useState(false)
 
-  const deduped = React.useMemo(() => dedupeModelOptions([...options]), [options])
+  const deduped = groups[kind]
   const rows = React.useMemo(
     () => buildModelBoxRows(deduped, preference, orderedVendorKeys, modelProviderLabel, modelDisplayLabel),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算行名
@@ -95,7 +99,7 @@ export function ModelBoxOrderSection(): JSX.Element | null {
 
   // 这一类一个模型都没有（还没接入任何能跑这类活的供应商）时整块不出现：
   // 一个空的排序列表既排不了东西，又会让人以为「这里能加模型」（加的家在「模型」tab）。
-  if (rows.visible.length === 0 && rows.hidden.length === 0) return null
+  if (!KINDS.some(k => groups[k.value].length)) return null
 
   return (
     <section
@@ -104,17 +108,20 @@ export function ModelBoxOrderSection(): JSX.Element | null {
       className="mb-6"
       aria-labelledby="settings-model-box-order-title"
     >
+      <h3 id="settings-model-box-order-title" className="mb-1 text-caption font-medium text-nomi-ink-60">{t('settings.ai.modelBox.title')}</h3>
+      <details className="rounded-nomi-sm border border-nomi-line px-3">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-caption">
+          <span>{KINDS.map(k => t(k.labelKey) + ' ' + groups[k.value].length).join(' · ')}</span>
+          <span className="text-nomi-accent">{t('settings.modelsHome.organize')}</span>
+        </summary>
       <div className="mb-1 flex items-center gap-3">
-        <h3 id="settings-model-box-order-title" className="min-w-0 flex-1 text-caption font-medium text-nomi-ink-60">
-          {t('settings.ai.modelBox.title')}
-        </h3>
         <NomiSegmented
           ariaLabel={t('settings.ai.modelBox.kindSwitch')}
           fit="content"
           density="compact"
           value={kind}
           options={KINDS.map((kind) => ({ value: kind.value, label: t(kind.labelKey) }))}
-          onChange={(value) => setKind(value as NodeKind)}
+          onChange={(value) => setKind(value as typeof kind)}
         />
       </div>
       <div className="mb-3 text-micro leading-relaxed text-nomi-ink-40">
@@ -198,6 +205,7 @@ export function ModelBoxOrderSection(): JSX.Element | null {
           ))}
         </div>
       ) : null}
+      </details>
     </section>
   )
 }

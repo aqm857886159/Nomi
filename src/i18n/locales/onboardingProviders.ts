@@ -612,7 +612,7 @@ export const zhOnboardingProviders = {
   // 「用 AI 帮我接入」——模型页顶部那张卡（设计定稿 docs/design/2026-09-11-ai-assisted-onboarding-entry.md）。
   assistedOnboarding: {
     title: '用 AI 帮我接入',
-    subtitle: '让你已经在用的 AI 助手替你把新模型接进 Nomi——地址、参数、模型 ID 都由它去查。',
+    subtitle: '用现有的 AI 助手（Claude Code、Codex 等）接入其他模型。',
     requirement: '需要一个能装 MCP 的 AI 助手',
     otherHost: '其它',
     copy: '复制指引',
@@ -1957,7 +1957,7 @@ export const enOnboardingProviders = {
   // "Let AI connect it for me" — the card at the top of the models page.
   assistedOnboarding: {
     title: 'Let AI connect it for me',
-    subtitle: 'Have the AI assistant you already use connect a new model to Nomi — it looks up the endpoint, parameters and model IDs for you.',
+    subtitle: 'Use Claude Code, Codex or another assistant to connect a provider.',
     requirement: 'You need an AI assistant that can install MCP servers',
     otherHost: 'Other',
     copy: 'Copy guide',

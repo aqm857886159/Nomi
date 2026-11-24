@@ -12,6 +12,7 @@
 
 import { getDesktopBridge } from '../../../desktop/bridge'
 import {
+  normalizeGenerationModelDefaults,
   type GenerationDefaultTaskKind,
   type GenerationModelDefault,
   type GenerationModelDefaults,
@@ -23,6 +24,20 @@ export type GenerationModelDefaultMap = Partial<Record<GenerationDefaultTaskKind
 // 那是主进程的家，渲染层直连它是 `check:boundaries` 的 `src-no-import-electron`。
 // 本模块已经是渲染侧读写这份偏好的唯一入口，类型跟着它走是同一条边界。
 export type { GenerationDefaultTaskKind, GenerationModelDefault }
+
+const LAST_CHOICE_PREFIX = 'nomi:generation:last-model:'
+
+export function lastGenerationChoice(kind: GenerationDefaultTaskKind): GenerationModelDefault | undefined {
+  try {
+    const value = JSON.parse(localStorage.getItem(LAST_CHOICE_PREFIX + kind) || 'null')
+    return normalizeGenerationModelDefaults({ byTaskKind: { [kind]: value } }).byTaskKind[kind]
+  } catch { return undefined }
+}
+
+export function rememberGenerationChoice(kind: GenerationDefaultTaskKind | null, vendorKey: unknown, modelKey: unknown): void {
+  if (!kind || typeof vendorKey !== 'string' || !vendorKey || typeof modelKey !== 'string' || !modelKey) return
+  try { localStorage.setItem(LAST_CHOICE_PREFIX + kind, JSON.stringify({ vendorKey, modelKey })) } catch { /* Optional history. */ }
+}
 
 const EMPTY: GenerationModelDefaultMap = {}
 

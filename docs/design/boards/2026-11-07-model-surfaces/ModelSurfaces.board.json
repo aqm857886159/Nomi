@@ -206,7 +206,8 @@
         "534-div-4个以前的连接APIMa",
         "535-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.header",
       "owner": "S1 设置账户卡"
     },
     {
@@ -219,7 +220,8 @@
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 现有搜索（条件显示）",
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.search",
       "owner": "S1 设置账户卡"
     },
     {
@@ -232,7 +234,8 @@
       ],
       "component": "ModelCatalogNotices（src/ui/onboarding/ModelCatalogNotices.tsx），不动",
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.notices",
       "owner": "S1 设置账户卡"
     },
     {
@@ -373,7 +376,8 @@
         "383-span-用量与单价",
         "384-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.account-card",
       "owner": "花费显示第三步：设置里看账户（未开工）"
     },
     {
@@ -398,7 +402,8 @@
         "238-svg",
         "325-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.account-menu",
       "owner": "花费显示第三步：设置里看账户（未开工）"
     },
     {
@@ -428,7 +433,8 @@
         "1339-div-设置",
         "1358-div"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.frame-height",
       "owner": "S1 设置账户卡"
     },
     {
@@ -448,7 +454,8 @@
         "538-span-还没连一个账户图片视频配",
         "539-span-连接"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.connect-entry",
       "owner": "S1 设置账户卡"
     },
     {
@@ -492,7 +499,8 @@
         "1451-div-用AI帮我接入别家",
         "1452-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.ai-onboard-row",
       "owner": "S1 设置账户卡"
     },
     {
@@ -506,7 +514,8 @@
       ],
       "component": "现有本机接入件原样搬进 ModelSettingsWorkspacePages（src/ui/onboarding/ModelSettingsWorkspacePages.tsx） 二级页",
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.other-ways.local",
       "owner": "S1 设置账户卡"
     },
     {
@@ -524,7 +533,8 @@
         "178-span-本机模型中转站数据源网络",
         "352-span-本机模型中转站数据源网络"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.other-ways.relay",
       "owner": "S1 设置账户卡"
     },
     {
@@ -561,7 +571,8 @@
         "394-span-本机模型中转站数据源网络",
         "395-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.other-ways.misc",
       "owner": "S1 设置账户卡"
     },
     {
@@ -600,7 +611,8 @@
         "564-span-2个连不上",
         "565-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.legacy-group",
       "owner": "S1 设置账户卡"
     },
     {
@@ -618,7 +630,8 @@
         "541-span-你以前接的这些照常能用K",
         "542-span-知道了"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.legacy-banner",
       "owner": "S1 设置账户卡"
     },
     {
@@ -691,7 +704,8 @@
         "666-span-086积分秒",
         "667-span-APIMart公开价按默"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.usage-page",
       "owner": "S1b 用量与单价"
     },
     {
@@ -706,7 +720,8 @@
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx）（删）",
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.drop.recommend-badge",
       "owner": "S1 设置账户卡"
     },
     {
@@ -720,7 +735,8 @@
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx）（删）",
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.drop.fold-status",
       "owner": "S1 设置账户卡"
     },
     {
@@ -1411,7 +1427,8 @@
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 现有任务条（adapterTaskVisibility.ts），只改出现条件",
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/settings.adapter-tasks",
       "owner": "S1 设置账户卡"
     },
     {
@@ -1749,7 +1766,8 @@
         "1381-svg",
         "1382-span-跟上次一样你上次在这类节"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/policy.defaults",
       "owner": "S2 画布模型选择器"
     },
     {
@@ -1764,7 +1782,8 @@
       ],
       "component": "VendorPreferenceOrderSection（src/workbench/settings），不动",
       "candidates": [],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/policy.vendor-order",
       "owner": "S4 大脑与 AI 策略"
     },
     {
@@ -1786,7 +1805,8 @@
         "1387-span-整理",
         "1388-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/policy.model-box",
       "owner": "S2 画布模型选择器"
     },
     {
@@ -1809,7 +1829,8 @@
         "1395-span-只发这次任务要用的素材",
         "1396-span-用公共临时托管前先问我"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/policy.upload",
       "owner": "D2-2 素材上传"
     },
     {
@@ -1826,7 +1847,8 @@
         "1397-span-高级自定义上传中转",
         "1398-svg"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/policy.relay-advanced",
       "owner": "D2-2 素材上传"
     },
     {
@@ -2110,7 +2132,8 @@
         "1356-svg",
         "1357-span-关于"
       ],
-      "status": "missing",
+      "status": "implemented",
+      "assertion": "board:ModelSurfaces/other-tabs.unchanged",
       "owner": "S1 设置账户卡"
     },
     {

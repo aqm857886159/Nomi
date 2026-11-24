@@ -60,7 +60,7 @@ export function buildDefaultModelOptions(
     const wanted = KIND_OF_TASK[taskKind]
     const options: NomiSelectOption[] = [{ value: '', label: autoLabel }]
     usable.forEach((model, index) => {
-      if (model.kind !== wanted) return
+      if (model.kind !== wanted || (model.publishedModes?.length && !model.publishedModes.includes(taskKind))) return
       // 展示名过 model-display 边界：目录里的 labelZh / vendor.name 是稳定中文档案键，
       // 英文界面要显示译名（词典没有的（用户自建模型）原样透传）。
       const vendorName = translateModelDisplayText(vendorNameOf(model.vendorKey) || model.vendorKey)

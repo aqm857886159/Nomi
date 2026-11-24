@@ -212,5 +212,8 @@ export type DesktopOnboardingBridge = {
     kinds: Record<string, 'text' | 'image' | 'video' | 'audio' | 'model3d'>
   }>
   /** 发送键上的约价：交最终请求，回公开价估出的数（只读、不带凭据）；算不出 = null。 */
+  modelAccount: (vendorKey: string, refresh?: boolean) => Promise<import("../../electron/shared/contracts/modelSettingsAccount").ModelAccountBalance | null>
+  modelUsage: (vendorKey: string) => Promise<import("../../electron/shared/contracts/modelSettingsAccount").ModelUsagePeriods | null>
+  modelUnitPrices: (vendorKey: string) => Promise<import("../../electron/shared/contracts/modelSettingsAccount").ModelUnitPrice[]>
   vendorPricePreview: (payload: import("../../electron/shared/contracts/vendorPricePreview").VendorPriceRequest) => Promise<import("../../electron/shared/contracts/vendorPricePreview").VendorPricePreview | null>
 }

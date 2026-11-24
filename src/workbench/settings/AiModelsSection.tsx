@@ -1,4 +1,4 @@
-import { IconAlertTriangle, IconCheck } from '@tabler/icons-react'
+import { IconAlertTriangle } from '@tabler/icons-react'
 import React, { type JSX } from 'react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +7,8 @@ import { DesignSwitch, WorkbenchButton } from '../../design'
 import { getDesktopBridge, type AssetTransportChannelView } from '../../desktop/bridge'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
-import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
+import { dedupeModelOptions } from '../../config/modelIdentity'
+import { toCatalogModelOptions } from '../../config/modelOptionMappers'
 import { buildProviderHealthView, type SettingsProviderInput } from './settingsAutomationView'
 import { listWorkbenchModelCatalogModels, type ModelCatalogModelDto } from '../api/modelCatalogApi'
 import { DefaultGenerationModelsSection } from './DefaultGenerationModelsSection'
@@ -24,8 +25,7 @@ import {
 type Props = {
   settings: AutomationPolicySettings
   onChange: (patch: Partial<AutomationPolicySettings>) => void
-  /** 打开模型工作区；带 vendorKey 时直接落到那家的接入页（上传通道卡靠它一步到 KIE 的 Key 框）。 */
-  onOpenModelCatalog?: (vendorKey?: string) => void
+
 }
 
 /** 链接有效期的人话。不足 1 小时按分钟报——「0 小时」会让人以为是 bug。 */
@@ -49,7 +49,6 @@ function channelHostLabel(
 export function AiModelsSection({
   settings,
   onChange,
-  onOpenModelCatalog,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const [providers, setProviders] = React.useState<SettingsProviderInput[]>([])
@@ -148,9 +147,10 @@ export function AiModelsSection({
   }, [t])
 
   const health = buildProviderHealthView(providers)
-  // 「已接入」按**它是否真的在收文件**判，不按「key 存不存在」判——否则徽章说已接入、下面两行却写着
-  // 走公共图床，用户不知道该信哪个。
-  const kieConnected = channels.some((channel) => builtinVendorKeyOfKey(channel.vendorKey) === 'kie')
+  const overlappingVendors = React.useMemo(() => {
+    const groups = dedupeModelOptions(toCatalogModelOptions(models.filter(m => m.availability.usable)))
+    return new Set(groups.filter(g => new Set(g.providers.map(p => p.vendor)).size > 1).flatMap(g => g.providers.map(p => p.vendor)))
+  }, [models])
   const vendorNameOf = React.useCallback(
     (vendorKey: string) => health.find((provider) => provider.key === vendorKey)?.name || vendorKey,
     [health],
@@ -159,13 +159,14 @@ export function AiModelsSection({
   // 排了还会让人以为排完就能用。判据跟着 buildProviderHealthView 走，不在这里另立一套。
   const configuredVendorEntries = React.useMemo(
     () => health
-      .filter((provider) => provider.state !== 'needs-key' && provider.state !== 'disabled')
+      .filter((provider) => provider.state !== 'needs-key' && provider.state !== 'disabled' && overlappingVendors.has(provider.key))
       .map((provider) => ({ vendorKey: provider.key, name: translateModelDisplayText(provider.name) })),
-    [health],
+    [health, overlappingVendors],
   )
   return (
     <div data-settings-section="ai-models">
-      <h2 className="mb-5 text-title font-medium text-nomi-ink">{t('settings.ai.title')}</h2>
+      <h2 className="text-body font-semibold text-nomi-ink">{t('settings.ai.title')}</h2>
+      <p className="mb-4 text-micro text-nomi-ink-60">{t('settings.modelsHome.policyHint')}</p>
 
       <DefaultGenerationModelsSection
         models={models}
@@ -207,16 +208,7 @@ export function AiModelsSection({
               <div className="min-w-0">
                 <div className="text-body-sm font-medium text-nomi-ink">{t('settings.ai.upload.channel.title')}</div>
               </div>
-              {kieConnected ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-nomi-sm bg-[color-mix(in_oklch,var(--workbench-success)_12%,var(--nomi-paper))] px-2 py-1 text-caption text-[color:var(--workbench-success-ink)]">
-                  <IconCheck size={13} stroke={2} aria-hidden="true" />
-                  {t('settings.ai.upload.channel.kieConnected')}
-                </span>
-              ) : onOpenModelCatalog ? (
-                <WorkbenchButton size="sm" className="shrink-0" onClick={() => onOpenModelCatalog('kie')}>
-                  {t('settings.ai.upload.channel.configure')}
-                </WorkbenchButton>
-              ) : null}
+
             </div>
             <div className="mt-2 grid gap-1.5" data-settings-upload-channels>
               {channels.map((channel) => (
@@ -228,7 +220,7 @@ export function AiModelsSection({
                   <span className="w-8 shrink-0 text-nomi-ink-60">{t(`settings.ai.upload.channel.kind.${channel.kind}`)}</span>
                   <span className="min-w-28 text-nomi-ink">{channelHostLabel(channel, vendorNameOf, t)}</span>
                   {channel.visibility === 'public-anonymous' || channel.visibility === 'public-provider' ? (
-                    <span className="inline-flex items-center gap-1 rounded-nomi-sm bg-[color-mix(in_oklch,var(--nomi-warning)_12%,var(--nomi-paper))] px-1.5 py-0.5 text-[color:var(--nomi-warning)]">
+                    <span className="inline-flex items-center gap-1 rounded-nomi-sm bg-nomi-warning-soft px-1.5 py-0.5 text-nomi-warning-ink">
                       <IconAlertTriangle size={12} stroke={2} aria-hidden="true" />
                       {t('settings.ai.upload.channel.publicLease', { lease: leaseLabel(channel.ttlSeconds, t) })}
                     </span>
@@ -241,14 +233,24 @@ export function AiModelsSection({
               ))}
             </div>
           </div>
+
+          <div className="flex min-h-10 items-center justify-between gap-4 border-t border-nomi-line-soft pt-2">
+            <div className="min-w-0">
+              <div className="text-body-sm text-nomi-ink">{t('settings.ai.upload.anonymousPrompt')}</div>
+              <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.upload.anonymousPromptHint')}</div>
+            </div>
+            <DesignSwitch
+              checked={settings.anonymousAssetHosting === 'allow'}
+              onChange={(event) => onChange({ anonymousAssetHosting: event.currentTarget.checked ? 'allow' : 'ask' })}
+              aria-label={t('settings.ai.upload.anonymousPrompt')}
+            />
+          </div>
+        </div>
           <details className="border-t border-nomi-line-soft pt-2" data-settings-custom-relay>
             <summary className="cursor-pointer text-caption font-medium text-nomi-ink-80">
-              {t('settings.ai.upload.customRelay.title')}
+              {t('settings.modelsHome.advanced')}
             </summary>
             <div className="mt-2 grid gap-2">
-              <div className="text-micro leading-relaxed text-nomi-ink-40">
-                {t(kieConnected ? 'settings.ai.upload.channel.settled' : 'settings.ai.upload.channel.upsell')}
-              </div>
               <div className="text-micro leading-relaxed text-nomi-ink-40">
                 {t('settings.ai.upload.customRelay.hint')}
               </div>
@@ -287,18 +289,6 @@ export function AiModelsSection({
               </div>
             </div>
           </details>
-          <div className="flex min-h-10 items-center justify-between gap-4 border-t border-nomi-line-soft pt-2">
-            <div className="min-w-0">
-              <div className="text-body-sm text-nomi-ink">{t('settings.ai.upload.anonymousPrompt')}</div>
-              <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.upload.anonymousPromptHint')}</div>
-            </div>
-            <DesignSwitch
-              checked={settings.anonymousAssetHosting === 'allow'}
-              onChange={(event) => onChange({ anonymousAssetHosting: event.currentTarget.checked ? 'allow' : 'ask' })}
-              aria-label={t('settings.ai.upload.anonymousPrompt')}
-            />
-          </div>
-        </div>
       </section>
       {/* 2026-09-14 删掉了「默认模型策略」整栏（审计 §⑥ 4/7）：两段纯说明文字与 161 个「允许的供应商 /
           允许的模型」复选框。全局白名单不再存在——已接入的供应商/模型默认放行，每次提交在付费确认卡上

@@ -286,7 +286,7 @@ export async function warmModelCatalog(): Promise<void> {
  */
 export function seedModelCatalogForTests(
   health: ModelCatalogHealthDto,
-  entries: readonly { kind: NodeKind; requiredMode: ProfileKind; options: readonly ModelOption[] }[],
+  entries: readonly { kind: NodeKind; requiredMode: ModelQueryMode; options: readonly ModelOption[] }[],
 ): void {
   catalogHealthCache = health
   for (const entry of entries) {

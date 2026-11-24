@@ -7,6 +7,7 @@
 //  - 分段:每段 5000 事件或 5MB rotation;
 //  - 落盘前去掉上游原话(diskSafePayload,只留结构事实)再 redactDeep(评测安全铁律)。
 // 失败策略:事件落盘是旁路观察,任何 IO 失败只记一条日志(logging/logger),绝不打断产品主流程。
+import { createInterface } from "node:readline";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -278,6 +279,23 @@ export function readEvents(projectId: string, opts: { fromSeq?: number } = {}): 
     return events;
   } catch {
     return [];
+  }
+}
+
+/** Stream just the requested event types without initializing a writer or opening unrelated sidecars. */
+export async function* streamProjectEvents(projectId: string, types: ReadonlySet<string>): AsyncGenerator<NomiEvent> {
+  const root = projectDirResolver(projectId);
+  if (!root) throw new Error("Project unavailable");
+  const dir = path.join(root, ".nomi", "events");
+  for (const index of listSegments(dir)) {
+    const input = fs.createReadStream(segmentPath(dir, index), { encoding: "utf8" });
+    try {
+      for await (const line of createInterface({ input, crlfDelay: Infinity })) {
+        let event: NomiEvent;
+        try { event = JSON.parse(line) as NomiEvent; } catch { continue; }
+        if (types.has(event?.type)) yield { ...event, payload: rehydratePayload(dir, event.payload) };
+      }
+    } finally { input.destroy(); }
   }
 }
 

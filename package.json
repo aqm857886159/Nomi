@@ -104,6 +104,7 @@
     "new:contract": "node ./scripts/new-root-cause-contract.mjs",
     "typecheck": "node ./scripts/typecheck.mjs",
     "lint": "eslint .",
+    "lint:changed": "node scripts/lint-changed.mjs",
     "lint:ci": "eslint . --max-warnings=95 --cache --cache-location .tmp/eslintcache --cache-strategy content",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

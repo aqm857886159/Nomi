@@ -1,3 +1,5 @@
+import { rememberGenerationChoice } from '../model/generationModelDefaults'
+import { deriveGenerationDefaultTaskKind, nodeHasImageReference } from './defaultNodeModelSelection'
 import NodeInputReferenceEntry from './NodeInputReferenceEntry'
 import { notify } from '../../../ui/notificationPolicy'
 import { normalizeConditionalParameters } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
@@ -240,6 +242,8 @@ export default function NodeParameterControls({
       value,
       vendor,
     })
+    rememberGenerationChoice(deriveGenerationDefaultTaskKind({ isImageLike, isVideoLike, hasImageReference: nodeHasImageReference(current.meta) }),
+      change.meta.modelVendor, change.meta.modelKey)
     updateNode(node.id, { meta: change.meta })
   }
 

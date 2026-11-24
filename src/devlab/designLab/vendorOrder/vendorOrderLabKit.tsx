@@ -121,7 +121,7 @@ export function ModelBoxSettingsStage({
 }): JSX.Element {
   const [ready, setReady] = React.useState(false)
   React.useLayoutEffect(() => {
-    seedModelCatalogForTests(LAB_CATALOG_HEALTH, [{ kind: 'image', requiredMode: 'text_to_image', options: models }])
+    seedModelCatalogForTests(LAB_CATALOG_HEALTH, [{ kind: 'image', requiredMode: 'any-published', options: models }])
     seedModelBoxPreferenceForLab(preference)
     setReady(true)
   }, [models, preference])

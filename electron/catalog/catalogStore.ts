@@ -1,3 +1,4 @@
+import { builtinVendorSeed } from "./builtinVendorSeeds";
 import crypto from "node:crypto";
 import { deepFreeze, findNonHeaderSafeChar, isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { sanitizeName } from "../projects/repository";
@@ -224,7 +225,7 @@ function filterByParams<
   });
 }
 export function listModelCatalogVendors(): Vendor[] {
-  return readCatalog().vendors.map(publicVendor);
+  return readCatalog().vendors.map(vendor => ({ ...publicVendor(vendor), builtinPreset: Boolean(builtinVendorSeed(vendor.key)) }));
 }
 /** 目录模型的对外投影。`availability` 见 shared/modelAvailability.ts：那是「能不能用」的唯一答案，
  * 在这里随行下发，渲染层一律读它、谁都不许再拼一份（P0-10 根因）。 */
