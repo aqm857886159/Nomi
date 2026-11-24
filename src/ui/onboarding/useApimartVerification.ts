@@ -4,7 +4,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { refreshOnboardingModelAvailability } from './onboardingModelAvailability'
 import { APIMART_CONNECTED_EVENT, persistApimartOpenedAt } from './apimartConnectRoute'
 
-type Stage = 'idle' | 'checking' | 'format' | 'invalid' | 'keychain' | 'offline' | 'unavailable' | 'passed'
+type Stage = 'idle' | 'checking' | 'format' | 'invalid' | 'keychain' | 'offline' | 'topup' | 'unavailable' | 'passed'
 
 export function useApimartVerification(onSaved: () => void) {
   const [stage, setStage] = React.useState<Stage>('idle')
@@ -49,7 +49,7 @@ export function useApimartVerification(onSaved: () => void) {
       if (!mounted.current) return
       if (result?.status === 'received') {
         setReceived(result)
-        setStage('passed')
+        setStage(result.accountBalance?.remainCredits === 0 && !result.accountBalance.unlimited ? 'topup' : 'passed')
       } else {
         setStage(result?.status ?? 'unavailable')
       }
@@ -65,19 +65,29 @@ export function useApimartVerification(onSaved: () => void) {
     }
   }, [])
   React.useEffect(() => {
-    if (stage !== 'offline') return
     const retry = () => { void check() }
-    window.addEventListener('online', retry)
-    return () => window.removeEventListener('online', retry)
+    if (stage === 'offline') {
+      window.addEventListener('online', retry)
+      return () => window.removeEventListener('online', retry)
+    }
+    if (stage === 'topup') {
+      const onVisible = () => { if (document.visibilityState === 'visible') retry() }
+      window.addEventListener('focus', retry)
+      document.addEventListener('visibilitychange', onVisible)
+      return () => {
+        window.removeEventListener('focus', retry)
+        document.removeEventListener('visibilitychange', onVisible)
+      }
+    }
   }, [check, stage])
   React.useEffect(() => {
     if (stage !== 'passed') return
     const timer = window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent(APIMART_CONNECTED_EVENT, { detail: { remainCredits: null, unlimited: null } }))
+      window.dispatchEvent(new CustomEvent(APIMART_CONNECTED_EVENT, { detail: { remainCredits: received?.accountBalance?.remainCredits ?? null, unlimited: received?.accountBalance?.unlimited ?? null } }))
       onSaved()
     }, 450)
     return () => window.clearTimeout(timer)
-  }, [stage, onSaved])
+  }, [stage, received, onSaved])
   return { stage, suffix, received, check, retry: () => check(stage === 'keychain' ? candidate.current : undefined),
     reset: () => { setStage('idle'); setSuffix(''); candidate.current = '' } }
 }

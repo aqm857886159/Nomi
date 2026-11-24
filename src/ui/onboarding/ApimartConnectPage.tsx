@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useApimartVerification } from './useApimartVerification'
+import { ApimartTopUpNotice } from './ApimartTopUpNotice'
 import { ApimartCheckCard } from './ApimartCheckCard'
 import {
   ICON_TIER_CLASSES,
@@ -456,8 +457,9 @@ export function ApimartConnectPage({
             </Tooltip>
           </TooltipProvider>
         </div>
-        {busy && <ApimartCheckCard complete={stage === 'passed'} token={verification.received?.balance ?? null} counts={apimartCounts} />}
+        {(busy || stage === 'topup') && <ApimartCheckCard complete={stage !== 'checking'} account={verification.received?.accountBalance} token={verification.received?.balance ?? null} counts={apimartCounts} />}
         {stage === 'unavailable' && <p role="alert" className="text-caption text-workbench-danger">{t('onboardingProviders.apimartConnect.keyInput.unavailable')}</p>}
+        {stage === 'topup' && <ApimartTopUpNotice recheck={() => void verification.retry()} />}
         {notice && <ApimartStatusNotice id={errorId} kind={notice} onAction={() => {
           if (notice === 'format' || notice === 'invalid') window.open('https://apimart.ai/keys', '_blank', 'noopener')
           else void verification.retry()

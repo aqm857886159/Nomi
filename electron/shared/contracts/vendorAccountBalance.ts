@@ -22,7 +22,7 @@ export type VendorAccountBalance = {
 };
 
 export type VendorBalanceCheck =
-  | { status: "received"; balance: VendorAccountBalance | null }
+  | { status: "received"; balance: VendorAccountBalance | null; accountBalance?: VendorAccountBalance | null }
   | { status: "offline" | "invalid" | "unavailable" };
 
 /** Local shape check shared by the APIMart input and its main-process write boundary. */

@@ -1,4 +1,7 @@
 export const zhApimartVerification = {
+  topup: "去充值",
+  topupBody: "Key 已存好，就差充值：出图和上传素材都要余额大于 0。充好后回到 Nomi 会自动再查一次。",
+  delayed: "到账可能有延迟；超过 1 小时没到，联系 APIMart 客服。",
   afterPaste: '粘贴后自动检查，不用再点。四项都过了就关掉这一页、回到你的草稿。',
   collapsed: "官网三步（已收起）",
   expanded: "官网三步（已展开）",
@@ -29,6 +32,9 @@ export const zhApimartVerification = {
 }
 
 export const enApimartVerification: typeof zhApimartVerification = {
+  topup: "Top up",
+  topupBody: "Key saved. Images and asset uploads need a balance above zero. Top up, then return to Nomi for an automatic check.",
+  delayed: "Balances can take time to update. If yours is still missing after an hour, contact APIMart support.",
   afterPaste: 'Checks start on paste — nothing else to click. When all four pass, this page closes and you’re back at your draft.',
   collapsed: "Three steps on the site (collapsed)",
   expanded: "Three steps on the site (expanded)",

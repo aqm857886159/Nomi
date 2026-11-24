@@ -1,4 +1,5 @@
 import { getKnownVendor } from '../../config/knownVendors'
+import { ApimartTopUpNotice } from './ApimartTopUpNotice'
 import { ApimartCheckCard } from './ApimartCheckCard'
 import { ApimartStatusNotice } from './ApimartStatusNotice'
 import { useApimartVerification } from './useApimartVerification'
@@ -266,6 +267,35 @@ describe('S6 · APIMart verification', () => {
       expect(h.state().stage).toBe('passed')
       expect(h.back).not.toHaveBeenCalled()
       vi.advanceTimersByTime(450)
+      expect(h.back).toHaveBeenCalledOnce()
+    } finally { h.close() }
+  })
+
+  it('board:Onboarding/topup.card · board:Onboarding/error.no-balance · explicit account zero warns, focus refreshes without resaving', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    const h = mountCheck()
+    try {
+      const account = { remainCredits: 0, remainUsd: 0, unlimited: false, fetchedAt: 1, topUpUrl: APIMART_REGISTER_URL }
+      h.save.mockResolvedValue({ status: 'received', balance: null, accountBalance: account })
+      await h.state().check('sk-loopback')
+      h.flush()
+      expect(h.state().stage).toBe('topup')
+      const card = stripTags(renderWithTheme(<ApimartTopUpNotice recheck={vi.fn()} />))
+      expect(card).toContain(i18n.t('modelSetup.apimartVerification.topupBody'))
+      expect(card).toContain(i18n.t('modelSetup.apimartVerification.delayed'))
+      h.read.mockResolvedValue({ status: 'received', balance: null, accountBalance: { ...account, remainCredits: 52.3, remainUsd: 5.23 } })
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+      h.flush()
+      expect(h.read).toHaveBeenCalledOnce()
+      expect(h.save).toHaveBeenCalledOnce()
+      expect(h.state().stage).toBe('passed')
+      const connected = vi.fn()
+      window.addEventListener('nomi-apimart-connected', connected)
+      vi.advanceTimersByTime(450)
+      expect(connected.mock.calls[0][0].detail.remainCredits).toBe(52.3)
       expect(h.back).toHaveBeenCalledOnce()
     } finally { h.close() }
   })
