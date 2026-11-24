@@ -74,7 +74,7 @@ describe("parseVendorAccountBalance", () => {
 });
 
 describe("readVendorAccountBalance", () => {
-  it("reads GET /v1/balance with Bearer key for official APIMart origin", async () => {
+  it("reads GET /v1/user/balance with Bearer key for official APIMart origin", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ success: true, remain_balance: 0.25, remain_credits: 2.5 }), {
         status: 200,
@@ -88,9 +88,19 @@ describe("readVendorAccountBalance", () => {
     expect(out).toEqual({ remainCredits: 2.5, remainUsd: 0.25, unlimited: false, topUpUrl: TOP_UP, fetchedAt: NOW });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = fetchImpl.mock.calls[0]!;
-    expect(String(url)).toBe("https://api.apimart.ai/v1/balance");
+    expect(String(url)).toBe("https://api.apimart.ai/v1/user/balance");
     expect(init?.method).toBe("GET");
     expect((init?.headers as Record<string, string>)?.Authorization).toBe("Bearer sk-test-balance");
+  });
+
+  it("returns only the account snapshot to send-side readers", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (url) => String(url).endsWith("/v1/user/balance")
+      ? Response.json({ remain_balance: 3 }) : Response.json({ remain_balance: -1 }));
+    const balance = await readVendorAccountBalance({ vendorKey: "apimart" }, {
+      catalog: makeCatalog(), resolveApiKey: () => "sk-fixture", fetchImpl,
+    });
+    expect(balance).toMatchObject({ remainCredits: 30, remainUsd: 3, unlimited: false });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("refuses custom relay origins and missing keys with 0 outbound calls", async () => {
@@ -125,22 +135,58 @@ describe("readVendorAccountBalance", () => {
 
 describe("onboarding balance diagnostics", () => {
   const options = { catalog: makeCatalog(undefined, false), candidateKey: "sk-fixture" };
-  it.each([0, 52.3])("preserves numeric %s independently of unlimited_quota", async (credits) => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ remain_credits: credits, unlimited_quota: true }));
-    expect(await checkVendorAccountBalance({ vendorKey: "apimart" }, { ...options, fetchImpl })).toMatchObject({
-      status: "received", balance: { remainCredits: credits, unlimited: false, unlimitedQuota: true },
+  const request = { vendorKey: "apimart" };
+  function endpoints(account: () => Response, key: () => Response) {
+    return vi.fn<typeof fetch>(async (input, init) => {
+      expect(init).toMatchObject({ method: "GET", redirect: "error", headers: { Authorization: "Bearer sk-fixture" } });
+      const url = new URL(String(input));
+      expect(url.origin).toBe(APIMART_VENDOR_SEED.baseUrl);
+      if (url.pathname === "/v1/user/balance") return account();
+      expect(url.pathname).toBe("/v1/balance");
+      return key();
     });
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  }
+  it.each([
+    { funds: 0, quota: { unlimited_quota: true }, limit: null, unlimited: true },
+    { funds: 52.3, quota: { remain_balance: 0 }, limit: 0, unlimited: false },
+    { funds: 0, quota: { remain_credits: 0, unlimited_quota: true }, limit: null, unlimited: true },
+    { funds: 52.3, quota: { remain_balance: -1 }, limit: null, unlimited: true },
+    { funds: 7, quota: { remain_credits: 11 }, limit: 11, unlimited: false },
+  ])("keeps account $funds independent of key $quota", async ({ funds, quota, limit, unlimited }) => {
+    const fetchImpl = endpoints(() => Response.json({ remain_credits: funds }), () => Response.json(quota));
+    expect(await checkVendorAccountBalance(request, { ...options, fetchImpl })).toMatchObject({
+      status: "received", accountBalance: { remainCredits: funds }, keyQuota: { remainCredits: limit, unlimited },
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
-  it.each([401, 403])("reports explicit HTTP %s refusal", async (status) => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status }));
-    expect(await checkVendorAccountBalance({ vendorKey: "apimart" }, { ...options, fetchImpl })).toEqual({ status: "invalid" });
+
+  const offline = () => { throw new TypeError("offline"); };
+  it.each([
+    ...[401, 403, 404, 500].map((status) => () => new Response(null, { status })),
+    () => Response.json({}), () => Response.json({ remain_balance: -1 }), () => Response.json({ success: false, remain_balance: 0 }), () => new Response("html"), offline,
+  ])("keeps unreadable account funds unknown even with an empty key", async (account) => {
+    const fetchImpl = endpoints(account, () => Response.json({ remain_credits: 0 }));
+    expect(await checkVendorAccountBalance(request, { ...options, fetchImpl })).toMatchObject({
+      status: "received", accountBalance: null, keyQuota: { remainCredits: 0 },
+    });
   });
-  it("distinguishes transport failure from an unknown response", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline"))
-      .mockResolvedValueOnce(new Response("html")).mockResolvedValueOnce(Response.json({})).mockResolvedValueOnce(new Response(null, { status: 502 }));
-    const read = () => checkVendorAccountBalance({ vendorKey: "apimart" }, { ...options, fetchImpl });
-    expect(await read()).toEqual({ status: "offline" });
-    for (let i = 0; i < 3; ++i) expect(await read()).toEqual({ status: "received", balance: null });
+  it("keeps an unlabeled amount separate from reported credits", async () => {
+    const fetchImpl = endpoints(() => Response.json({ remain_balance: 0.75 }), () => Response.json({ remain_credits: 7 }));
+    const result = await checkVendorAccountBalance(request, { ...options, fetchImpl });
+    expect(result).toMatchObject({
+      status: "received", accountBalance: { remainCredits: null, reportedBalance: 0.75 },
+      keyQuota: { remainCredits: 7, reportedBalance: null },
+    });
+  });
+  it.each([401, 403])("reports an explicit key refusal (HTTP %s)", async (status) => {
+    const fetchImpl = endpoints(() => Response.json({ remain_credits: 12 }), () => new Response(null, { status }));
+    expect(await checkVendorAccountBalance(request, { ...options, fetchImpl })).toEqual({ status: "invalid" });
+  });
+  it("reports offline only if neither endpoint responds", async () => {
+    const read = (account: () => Response) => checkVendorAccountBalance(request, { ...options, fetchImpl: endpoints(account, offline) });
+    expect(await read(offline)).toEqual({ status: "offline" });
+    expect(await read(() => Response.json({ remain_balance: 1 }))).toMatchObject({
+      status: "received", accountBalance: { reportedBalance: 1 }, keyQuota: null,
+    });
   });
 });

@@ -1,39 +1,40 @@
 import React from 'react'
 import { IconAlertTriangle, IconCheck, IconCircle } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import type { VendorAccountBalance } from '../../../electron/shared/contracts/vendorAccountBalance'
-import { formatMoney } from '../../workbench/ai/v4/formatMoney'
+import type { VendorReportedBalance } from '../../../electron/shared/contracts/vendorAccountBalance'
 import type { ApimartCatalogCounts } from './onboardingModelAvailability'
 
 export function ApimartCheckCard({ complete, token, account, counts }: {
   complete: boolean
-  token: VendorAccountBalance | null
-  account?: VendorAccountBalance | null
+  token: VendorReportedBalance | null
+  account?: VendorReportedBalance | null
   counts: ApimartCatalogCounts
 }) {
-  const { t, i18n } = useTranslation()
-  const limit = token?.unlimitedQuota || token?.unlimited ? t('modelSetup.apimartVerification.unlimited')
-    : token?.remainCredits != null ? t('modelSetup.apimartVerification.credits', { value: token.remainCredits })
-    : t('modelSetup.apimartVerification.unknown')
-  const balance = account?.unlimited ? t('modelSetup.apimartVerification.unlimited')
-    : account?.remainCredits != null ? t('modelSetup.apimartVerification.credits', { value: account.remainCredits })
-    : t('modelSetup.apimartVerification.unknown')
-  const usd = account?.remainCredits && account.remainUsd != null
-    ? ` (${formatMoney(i18n.language, 'USD', account.remainUsd)})` : ''
+  const { t } = useTranslation()
+  const credits = (snapshot?: VendorReportedBalance | null) => {
+    if (!snapshot) return t('modelSetup.apimartVerification.unknown')
+    if (snapshot.unlimited) return t('modelSetup.apimartVerification.unlimited')
+    if (snapshot.remainCredits !== null) return t('modelSetup.apimartVerification.credits', { value: snapshot.remainCredits })
+    return t('modelSetup.apimartVerification.unspecifiedUnit', { value: snapshot.reportedBalance })
+  }
   const rows = [
-    ['valid', ''], ['account', balance + usd], ['limit', limit],
-    ['models', t('modelSetup.apimartVerification.counts', counts)],
+    { key: 'valid', detail: '' },
+    { key: 'account', detail: credits(account), snapshot: account ?? null },
+    { key: 'limit', detail: credits(token), snapshot: token },
+    { key: 'models', detail: t('modelSetup.apimartVerification.counts', counts) },
   ]
-  const Mark = complete ? IconCheck : IconCircle
   return <>
     <ul aria-live="polite" data-apimart-checks className="space-y-2 rounded-field border border-nomi-line p-3">
-      {rows.map(([key, detail]) => <li key={key} className="flex items-center gap-2 text-body-sm">
-        {key === 'account' && complete && account?.remainCredits === 0 && !account.unlimited
-          ? <IconAlertTriangle size={14} aria-hidden className="text-nomi-warning" />
-          : <Mark size={14} aria-hidden className={complete ? 'text-workbench-success' : 'text-nomi-ink-40'} />}
-        <span>{t(`modelSetup.apimartVerification.${key}`)}</span>
-        {complete && <span className="text-nomi-ink-60">{detail}</span>}
-      </li>)}
+      {rows.map(({ key, detail, snapshot }) => {
+        const known = complete && snapshot !== null
+        const empty = known && snapshot?.remainCredits === 0
+        const Mark = empty ? IconAlertTriangle : known ? IconCheck : IconCircle
+        return <li key={key} className="flex items-center gap-2 text-body-sm">
+          <Mark size={14} aria-hidden className={empty ? 'text-nomi-warning' : known ? 'text-workbench-success' : 'text-nomi-ink-40'} />
+          <span>{t(`modelSetup.apimartVerification.${key}`)}</span>
+          {complete && <span className="text-nomi-ink-60">{detail}</span>}
+        </li>
+      })}
     </ul>
     {account?.remainCredits !== 0 && <p className="text-caption text-nomi-ink-60">{t('modelSetup.apimartVerification.afterPaste')}</p>}
   </>

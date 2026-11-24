@@ -73,7 +73,6 @@ export const FORMAT_MONEY_MODULE = 'src/workbench/ai/v4/formatMoney.ts'
  * 2026-10-27 删了 Agent 面板任务卡那一位（useAgentPanelV4Data.ts：任务卡不再印金额）。
  */
 export const FORMAT_MONEY_IMPORTERS = Object.freeze({
-  'src/ui/onboarding/ApimartCheckCard.tsx': 'D-1124：整窗接入四行检查的官方账户快照（仅在已知余额时显示美元）',
   'src/workbench/ai/v4/agentPanelSpendCard.ts': 'Agent 付费卡的逐镜价',
   'src/workbench/generationCanvas/spend/sendCostFormat.ts': '发送键上的公开约价（悬停那一句里的美元约数）',
 })

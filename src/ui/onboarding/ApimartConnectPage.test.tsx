@@ -196,6 +196,14 @@ describe('S6 · APIMart verification', () => {
     expect(stripTags(markup)).toContain(i18n.t('modelSetup.apimartVerification.counts', counts))
   })
 
+  it('shows a reported amount without inventing credits when its unit is missing', () => {
+    const account = { remainCredits: null, reportedBalance: 0.75, unlimited: false }
+    const counts = { image: 1, video: 1, audio: 1, text: 1, total: 4 }
+    const text = stripTags(renderWithTheme(<ApimartCheckCard counts={counts} complete token={null} account={account} />))
+    expect(text).toContain(i18n.t('modelSetup.apimartVerification.unspecifiedUnit', { value: 0.75 }))
+    expect(text).not.toContain(i18n.t('modelSetup.apimartVerification.credits', { value: 7.5 }))
+  })
+
   it('board:Onboarding/error.keychain · board:Onboarding/error.legacy-copy · localized notices isolate vendor copy', () => {
     expect(getKnownVendor('volcengine')?.promo?.text).toContain('Ark')
     expect(getKnownVendor('apimart')?.promo?.text).not.toMatch(/Volcengine|方舟/)
@@ -255,7 +263,7 @@ describe('S6 · APIMart verification', () => {
     const h = mountCheck()
     try {
       h.save.mockResolvedValue({status: 'offline'})
-      h.read.mockResolvedValue({status: 'received', balance: null})
+      h.read.mockResolvedValue({status: 'received', keyQuota: null, accountBalance: null})
       await h.state().check('sk-loopback')
       h.flush()
       expect(h.state().stage).toBe('offline')
@@ -277,14 +285,14 @@ describe('S6 · APIMart verification', () => {
     const h = mountCheck()
     try {
       const account = { remainCredits: 0, remainUsd: 0, unlimited: false, fetchedAt: 1, topUpUrl: APIMART_REGISTER_URL }
-      h.save.mockResolvedValue({ status: 'received', balance: null, accountBalance: account })
+      h.save.mockResolvedValue({ status: 'received', keyQuota: null, accountBalance: account })
       await h.state().check('sk-loopback')
       h.flush()
       expect(h.state().stage).toBe('topup')
       const card = stripTags(renderWithTheme(<ApimartTopUpNotice recheck={vi.fn()} />))
       expect(card).toContain(i18n.t('modelSetup.apimartVerification.topupBody'))
       expect(card).toContain(i18n.t('modelSetup.apimartVerification.delayed'))
-      h.read.mockResolvedValue({ status: 'received', balance: null, accountBalance: { ...account, remainCredits: 52.3, remainUsd: 5.23 } })
+      h.read.mockResolvedValue({ status: 'received', keyQuota: null, accountBalance: { ...account, remainCredits: 52.3, remainUsd: 5.23 } })
       document.dispatchEvent(new Event('visibilitychange'))
       window.dispatchEvent(new Event('focus'))
       await Promise.resolve()

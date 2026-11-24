@@ -457,7 +457,7 @@ export function ApimartConnectPage({
             </Tooltip>
           </TooltipProvider>
         </div>
-        {(busy || stage === 'topup') && <ApimartCheckCard complete={stage !== 'checking'} account={verification.received?.accountBalance} token={verification.received?.balance ?? null} counts={apimartCounts} />}
+        {(busy || stage === 'topup') && <ApimartCheckCard complete={stage !== 'checking'} account={verification.received?.accountBalance} token={verification.received?.keyQuota ?? null} counts={apimartCounts} />}
         {stage === 'unavailable' && <p role="alert" className="text-caption text-workbench-danger">{t('onboardingProviders.apimartConnect.keyInput.unavailable')}</p>}
         {stage === 'topup' && <ApimartTopUpNotice recheck={() => void verification.retry()} />}
         {notice && <ApimartStatusNotice id={errorId} kind={notice} onAction={() => {

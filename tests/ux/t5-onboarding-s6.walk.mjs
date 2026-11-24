@@ -4,6 +4,7 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
+import { launchVisibilityWalk } from './t5-onboarding-s6-native.mjs'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { applyColorSchemeForShot, expect } from './_assert.mjs'
 import { createBlankProject, collapseAgentPanel, selectedNodeComposer, selectOrAddCanvasNode, switchWorkspace } from './_shell.mjs'
@@ -14,15 +15,20 @@ let response = 'positive'
 const requests = []
 const stub = http.createServer((req, res) => {
   requests.push({ path: req.url, method: req.method })
-  if (req.method !== 'GET' || req.url !== '/v1/balance') {
+  if (req.method !== 'GET' || !['/v1/user/balance', '/v1/balance'].includes(req.url)) {
     res.writeHead(404).end()
     return
   }
   if (response === 'offline') { req.socket.destroy(); return }
   if (response === 'invalid') { res.writeHead(401).end(); return }
   res.setHeader('Content-Type', 'application/json')
-  const credits = response === 'zero' ? 0 : 52.3
-  res.end(JSON.stringify({ success: true, remain_credits: credits, remain_balance: credits / 10, unlimited_quota: false }))
+  if (req.url === '/v1/user/balance') {
+    if (response === 'unknown-account') { res.writeHead(403).end(); return }
+    res.end(JSON.stringify({ success: true, remain_credits: response === 'topup' ? 0 : 52.3 }))
+  } else {
+    const limited = response === 'zero-token' || response === 'unknown-account'
+    res.end(JSON.stringify({ success: true, unlimited_quota: !limited, remain_balance: limited ? 0 : -1 }))
+  }
 })
 stub.listen(0, '127.0.0.1')
 await once(stub, 'listening')
@@ -39,17 +45,22 @@ async function compare(win, name, pairs) {
   }
   const result = await win.evaluate(async (images) => {
     const canvas = document.createElement('canvas')
-    const width = 850, height = 550
+    const width = 1200, height = 800, label = 36
     canvas.width = width * 2
     canvas.height = images.length * height
     const context = canvas.getContext('2d')
+    context.fillStyle = '#f1f1f1'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.font = 'bold 20px sans-serif'
     for (const [row, pair] of images.entries()) {
       for (const [column, url] of pair.entries()) {
         const image = new Image()
         image.src = url
         await image.decode()
-        const scale = Math.min(width / image.width, height / image.height)
-        context.drawImage(image, column * width, row * height, image.width * scale, image.height * scale)
+        const scale = Math.min(width / image.width, (height - label) / image.height)
+        context.fillStyle = '#222'
+        context.fillText(column === 0 ? 'Design board' : 'Electron', column * width + 12, row * height + 25)
+        context.drawImage(image, column * width, row * height + label, image.width * scale, image.height * scale)
       }
     }
     return canvas.toDataURL('image/png').split(',')[1]
@@ -58,29 +69,57 @@ async function compare(win, name, pairs) {
 }
 
 async function run(locale, theme, width, scenario = 'draft') {
-  const { app, win } = await launchNomiApp({
+  const launch = scenario === 'topup' ? launchVisibilityWalk : launchNomiApp
+  const { app, win, close, nativeVisibility } = await launch({
     name: 't5-s6-' + theme + '-' + scenario, viewportSize: { width, height: 900 }, syntheticCredentialStorage: true,
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': theme, 'nomi:canvas-gesture-hint:v1': 'seen' },
     mainRequire: [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')],
     env: { NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_ALLOW_ORIGINS: '', NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify(redirects), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: origin },
   })
   try {
-    // Capture browser handoff without opening an external browser.
-    await app.evaluate(({ shell }) => { shell.openExternal = async () => {} })
     await applyColorSchemeForShot(win, theme)
     const library = win.locator('[data-library-hero-connect]')
     await library.click()
     const input = win.locator('#apimart-connect-key-input')
-    if (scenario === 'zero-token') {
-      response = 'zero'
-      await input.fill('sk-loopback-empty-token')
+    const rows = win.locator('[data-apimart-checks] li')
+    const credits = (value) => uiTextWith(locale, 'modelSetup.apimartVerification.credits', { value })
+    const unlimited = uiText(locale, 'modelSetup.apimartVerification.unlimited')
+    const topup = win.locator('[data-apimart-topup]')
+    if (scenario !== 'draft') {
+      response = scenario
+      await input.fill('sk-loopback-account-check')
       await input.press('Enter')
-      const rows = win.locator('[data-apimart-checks] li')
-      await expect(rows.nth(1)).toContainText(uiText(locale, 'modelSetup.apimartVerification.unknown'))
-      await expect(rows.nth(2)).toContainText(uiTextWith(locale, 'modelSetup.apimartVerification.credits', { value: 0 }))
-      await expect(win.locator('[data-apimart-topup]')).toHaveCount(0)
-      await shoot(win, 'o4a-zero-token')
-      await expect(input).toHaveCount(0)
+      if (scenario === 'topup') {
+        await expect(topup, 'board:Onboarding/topup.card').toBeVisible()
+        await expect(topup, 'board:Onboarding/error.no-balance').toContainText(uiText(locale, 'modelSetup.apimartVerification.topupBody'))
+        await expect(rows.nth(1)).toContainText(credits(0))
+        await expect(rows.nth(2)).toContainText(unlimited)
+        await topup.scrollIntoViewIfNeeded()
+        await shoot(win, 'o5-' + theme)
+        const beforeRefresh = requests.length
+        nativeVisibility('hide')
+        await win.waitForFunction(() => document.hidden, undefined, { timeout: 5000, polling: 50 })
+        response = 'positive'
+        nativeVisibility('restore')
+        await expect(rows.nth(1)).toContainText(credits(52.3))
+        await expect(rows.nth(2)).toContainText(unlimited)
+        await expect(topup).toHaveCount(0)
+        await shoot(win, 'o5-refreshed-' + theme)
+        assert.deepEqual(requests.slice(beforeRefresh).map((req) => req.path).sort(), ['/v1/balance', '/v1/user/balance'])
+      } else {
+        const funds = scenario === 'unknown-account' ? uiText(locale, 'modelSetup.apimartVerification.unknown') : credits(52.3)
+        await expect(rows.nth(1)).toContainText(funds)
+        if (scenario === 'unknown-account') await expect(rows.nth(1).locator('.text-workbench-success')).toHaveCount(0)
+        await expect(rows.nth(2)).toContainText(credits(0))
+        await expect(rows.nth(2).locator('.text-nomi-warning')).toBeVisible()
+        await expect(topup).toHaveCount(0)
+        await shoot(win, 'o4a-' + scenario)
+      }
+      await expect(win.locator('[data-library-tab]')).toBeVisible()
+      await expect(win.locator('[data-apimart-connect-page]')).toHaveCount(0)
+      if (scenario === 'topup') {
+        await compare(win, 'board-vs-impl-o5-' + theme, [['O5-topup', 'o5-' + theme], ['O4a-check', 'o5-refreshed-' + theme]])
+      }
       return
     }
     await win.locator('[data-apimart-open-site]').click()
@@ -146,24 +185,31 @@ async function run(locale, theme, width, scenario = 'draft') {
     await win.context().setOffline(true)
     await win.context().setOffline(false)
     await expect(win.locator('[data-apimart-checks] li'), 'board:Onboarding/return.check-rows').toHaveCount(4)
-    await expect(win.locator('[data-apimart-checks] li').nth(2)).toContainText('52.3')
+    await expect(rows.nth(1)).toContainText(credits(52.3))
+    await expect(rows.nth(2)).toContainText(unlimited)
+    await expect(rows.locator('.text-workbench-success')).toHaveCount(4)
+    await expect(rows.nth(3)).toContainText(/\d+/)
     await shoot(win, 'o4a-' + theme)
     await expect(composer.locator('[data-apimart-connected]'), 'board:Onboarding/return.back').toBeVisible()
+    await expect(composer.locator('[data-apimart-connected]')).toContainText(uiTextWith(locale, 'modelSetup.apimartVerification.connectedBalance', { value: 52.3 }).trim())
     await expect(prompt).toContainText('An orange cat at the window')
     await shoot(win, 'o4b-' + theme)
     await expect(composer.locator('[data-apimart-connected]')).toHaveCount(0, {timeout: 6000})
     if (theme === 'light') {
       await compare(win, 'board-vs-impl-o3-o4', [['O3-waiting', 'o3-light'], ['O4a-check', 'o4a-light'], ['O4b-back', 'o4b-light']])
-      await compare(win, 'board-vs-impl-o6', [['O6-errors', 'o6-invalid-light'], ['O6-errors', 'o6-offline-light']])
+      await compare(win, 'board-vs-impl-o6', ['format', 'invalid', 'offline', 'keychain', 'mirrors'].map((kind) => ['O6-errors', 'o6-' + kind + '-light']).concat([['O6-errors', 'o5-light']]))
     } else {
       await compare(win, 'board-vs-impl-en-dark', [['O4a-en', 'o4a-dark'], ['O6-errors-dark', 'o6-keychain-dark']])
     }
-  } finally { await app.close() }
+  } finally { await close() }
 }
 try {
+  await run('zh-CN', 'light', 1440, 'topup')
+  await run('en', 'dark', 700, 'topup')
   await run('zh-CN', 'light', 1440)
   await run('en', 'dark', 1440)
   await run('zh-CN', 'light', 1440, 'zero-token')
+  await run('en', 'light', 1440, 'unknown-account')
   assert(requests.length > 0 && requests.every((req) => req.method === 'GET'))
   console.log('loopback GET requests:', requests.length)
 } finally {

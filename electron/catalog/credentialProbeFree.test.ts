@@ -253,12 +253,13 @@ describe("whole-page APIMart credential write", () => {
     const { upsertRendererCatalogVendorApiKey } = await import("./rendererCatalogMutation");
     const { readCatalog } = await import("./catalogStore");
     const submit = (apiKey: string) => upsertRendererCatalogVendorApiKey("apimart", { apiKey, source: "apimart-connect" });
-    mockAppFetch.mockResolvedValueOnce(Response.json({ remain_credits: 52.3 }));
+    mockAppFetch.mockImplementation(async () => Response.json({ remain_credits: 52.3 }));
     await expect(submit("sk-previous-fixture")).resolves.toMatchObject({ status: "received" });
     const previous = structuredClone(readCatalog().apiKeysByVendor.apimart);
-    mockAppFetch.mockResolvedValueOnce(new Response(null, { status }));
+    mockAppFetch.mockImplementation(async (url) => String(url).endsWith("/v1/user/balance")
+      ? Response.json({ remain_credits: 52.3 }) : new Response(null, { status }));
     await expect(submit("sk-invalid-fixture")).rejects.toThrow("apimart-key-invalid");
     expect(readCatalog().apiKeysByVendor.apimart).toEqual(previous);
-    expect(mockAppFetch).toHaveBeenCalledTimes(2);
+    expect(mockAppFetch).toHaveBeenCalledTimes(4);
   });
 });

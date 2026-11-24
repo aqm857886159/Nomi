@@ -68,6 +68,7 @@ export const APIMART_VENDOR_SEED = {
    * 仅由 `electron/ai/onboarding/vendorAccountBalance.ts` 读取并在余额不足时提示「还差 N 积分 · 去充值」。
    */
   accountBalance: {
+    userBalancePath: "/v1/user/balance",
     path: "/v1/balance",
     topUpUrl: "https://apimart.ai/register?aff=t55VtP",
   },
