@@ -117,10 +117,10 @@ export function useCanvasEditingFit({
       ...groupBoxes.map((box) => ({ x: box.left, y: box.top, width: box.width, height: box.height })),
     ])
     if (!bounds) return
-    const ids = useGenerationCanvasStore.getState().selectedNodeIds
+    const ids = opening ? useGenerationCanvasStore.getState().selectedNodeIds : []
     const editor = ids.length === 1 ? selectedEditor(host, nodeById.get(ids[0]!), flow.getViewport().zoom) : null
-    const next = opening || editor
-      ? fitEditingBounds(bounds, editingView(host), editor, opening ? undefined : maxZoom)
+    const next = opening
+      ? fitEditingBounds(bounds, editingView(host), editor)
       : getViewportForBounds(bounds, stage.width, stage.height, minZoom, maxZoom, 0.12)
     if (![next.x, next.y, next.zoom].every((value) => Number.isFinite(value))) return
     cancelViewportAnimation()

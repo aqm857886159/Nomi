@@ -1,7 +1,25 @@
 import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { useSelectionComposerPan } from './useSelectionComposerPan'
+import { useCanvasEditingFit, useSelectionComposerPan } from './useSelectionComposerPan'
+
+const { flowMock } = vi.hoisted(() => ({
+  flowMock: {
+    getNodesBounds: () => ({ x: 80, y: 80, width: 3800, height: 2600 }),
+    getNodes: () => [],
+    getViewport: () => ({ x: 0, y: 0, zoom: 0.22 }),
+    setViewport: vi.fn(),
+  },
+}))
+
+vi.mock('@xyflow/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@xyflow/react')>()
+  return {
+    ...actual,
+    useReactFlow: () => flowMock,
+    useStoreApi: () => ({ getState: () => ({ nodeLookup: new Map([['idle', {}]]) }) }),
+  }
+})
 
 vi.mock('./selectionComposerViewport', async (importOriginal) => ({
   ...await importOriginal<typeof import('./selectionComposerViewport')>(),
@@ -90,4 +108,40 @@ it('pans an existing, previously unselected overflowing card once at its current
     expect(animate).toHaveBeenCalledTimes(1)
     expect(callbacks.size).toBe(0)
   } finally { dispose() }
+})
+
+it('reserves composer bounds only during opening fit and keeps manual fitView on full-canvas 0.12 padding', () => {
+  vi.spyOn(React, 'useRef').mockImplementation(current => ({ current }))
+  vi.spyOn(React, 'useCallback').mockImplementation(cb => cb)
+  vi.spyOn(React, 'useEffect').mockImplementation(() => undefined)
+  flowMock.setViewport.mockClear()
+  const host = {
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 933 }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  } as unknown as HTMLDivElement
+  const selected = { id: 'idle', kind: 'video' as const, title: '', position: { x: 80, y: 80 }, size: { width: 384, height: 404 } }
+  useGenerationCanvasStore.setState({ nodes: [selected], edges: [], selectedNodeIds: [selected.id] })
+  const fitView = useCanvasEditingFit({
+    hostRef: { current: host },
+    nodes: [selected] as never,
+    nodeById: new Map([[selected.id, selected as never]]),
+    groupBoxes: [],
+    activeCategoryId: 'shots',
+    hasRememberedViewport: true,
+    ready: true,
+    readOnly: false,
+    zoomRange: [0.2, 3],
+    draggingRef: { current: false },
+    zoomRef: { current: 1 },
+    offsetRef: { current: { x: 0, y: 0 } },
+    animateViewportTo: vi.fn(),
+    cancelViewportAnimation: vi.fn(),
+  })
+  fitView(false, false)
+  fitView(false, true)
+  expect(flowMock.setViewport).toHaveBeenCalledTimes(2)
+  const manual = flowMock.setViewport.mock.calls[0]![0] as { x: number; y: number; zoom: number }
+  const opening = flowMock.setViewport.mock.calls[1]![0] as { x: number; y: number; zoom: number }
+  expect(manual.y).toBeGreaterThan(opening.y)
 })
