@@ -1,0 +1,30 @@
+{
+  "src/workbench/creation/storyboard/StoryboardPlanStrategyPanel.tsx": {
+    "count": 1,
+    "reason": "历史存量（bg-nomi-warning/15）：随分镜规划策略面板下次 UI 对账一并迁至 bg-nomi-warning-soft + text-nomi-warning-ink"
+  },
+  "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx": {
+    "count": 1,
+    "reason": "历史存量（bg-nomi-warning/15）：随分镜镜头行下次 UI 对账一并迁至 bg-nomi-warning-soft + text-nomi-warning-ink"
+  },
+  "src/workbench/generationCanvas/nodes/director/panels/inspector/ActionClipInspector.tsx": {
+    "count": 1,
+    "reason": "历史存量（bg-nomi-warning/10）：随 3D 导演台动作检查器下次 UI 对账一并迁至 bg-nomi-warning-soft + border-nomi-warning-edge"
+  },
+  "src/workbench/generationCanvas/nodes/director/panels/inspector/LookAtClipInspector.tsx": {
+    "count": 1,
+    "reason": "历史存量（bg-nomi-warning/15）：随 3D 导演台视线检查器下次 UI 对账一并迁至 bg-nomi-warning-soft + text-nomi-warning-ink"
+  },
+  "src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx": {
+    "count": 1,
+    "reason": "周四付费确认排队 PR #1548 关联区域存量（bg-nomi-warning/10）：暂存白名单避让冲突，待 #1548 收口后迁至 bg-nomi-warning-soft"
+  },
+  "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx": {
+    "count": 1,
+    "reason": "周四付费确认排队 PR #1548 关联区域存量（bg-nomi-warning/10）：暂存白名单避让冲突，待 #1548 收口后迁至 bg-nomi-warning-soft + border-nomi-warning-edge"
+  },
+  "src/workbench/production/ProductionRunTaskCard.tsx": {
+    "count": 2,
+    "reason": "历史存量（bg-nomi-warning/20 与 bg-nomi-warning/12）：随长跑任务卡下次 UI 对账一并迁至 bg-nomi-warning-soft + text-nomi-warning-ink"
+  }
+}
