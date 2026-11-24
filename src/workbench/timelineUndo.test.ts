@@ -1,3 +1,4 @@
+import { createTimelineHistory } from './history/historyMiddleware'
 import { describe, expect, it, beforeEach } from 'vitest'
 import { useWorkbenchStore } from './workbenchStore'
 import { createDefaultTimeline } from './timeline/timelineMath'
@@ -19,7 +20,7 @@ function imageClip(id: string, start: number, frames: number): TimelineClip {
 describe('时间轴撤销栈', () => {
   beforeEach(() => {
     const tl = createDefaultTimeline()
-    useWorkbenchStore.setState({ timeline: tl, timelineUndoStack: [], timelineRedoStack: [], selectedTimelineClipIds: [], selectedTextClipId: '' })
+    useWorkbenchStore.setState({ timeline: tl, timelineHistory: createTimelineHistory(), selectedTimelineClipIds: [], selectedTextClipId: '' })
   })
 
   it('离散编辑（分割）压栈，undo 还原', () => {
@@ -37,16 +38,16 @@ describe('时间轴撤销栈', () => {
 
   it('无变更的操作不压栈（避免空 undo）', () => {
     useWorkbenchStore.getState().addTimelineClipAtFrame(imageClip('a', 0, 90), 'image', 0)
-    const stackLen = useWorkbenchStore.getState().timelineUndoStack.length
+    const stackLen = useWorkbenchStore.getState().timelineHistory.entries.pastStates.length
     // 在片段边缘分割 = no-op
     useWorkbenchStore.getState().splitTimelineClip('a', 0)
-    expect(useWorkbenchStore.getState().timelineUndoStack.length).toBe(stackLen)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates.length).toBe(stackLen)
   })
 
   it('captureTimelineUndo 去重：连续压同一状态只入一次', () => {
     useWorkbenchStore.getState().captureTimelineUndo()
     useWorkbenchStore.getState().captureTimelineUndo()
-    expect(useWorkbenchStore.getState().timelineUndoStack.length).toBe(1)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates.length).toBe(1)
   })
 
   it('栈封顶 30', () => {
@@ -55,7 +56,7 @@ describe('时间轴撤销栈', () => {
       useWorkbenchStore.setState({ timeline: { ...createDefaultTimeline(), playheadFrame: i } })
       useWorkbenchStore.getState().captureTimelineUndo()
     }
-    expect(useWorkbenchStore.getState().timelineUndoStack.length).toBeLessThanOrEqual(30)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates.length).toBeLessThanOrEqual(30)
   })
 
   it('空栈 undo 安全无操作', () => {
@@ -82,7 +83,7 @@ describe('时间轴撤销栈', () => {
     s.updateTimelineTextClip(textClipId, '第一版文案')
     const beforeFont = useWorkbenchStore.getState().timeline
     useWorkbenchStore.getState().updateTimelineTextClipFont(textClipId, 'font-b')
-    expect(useWorkbenchStore.getState().timelineUndoStack.length).toBeGreaterThan(0)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates.length).toBeGreaterThan(0)
     // undo → 字体回到换字体前（修复前：font 改动不压栈，undo 会退到更早一次编辑）
     useWorkbenchStore.getState().undoTimeline()
     expect(useWorkbenchStore.getState().timeline).toBe(beforeFont)
@@ -93,10 +94,10 @@ describe('时间轴撤销栈', () => {
     s.addTimelineClipAtFrame(imageClip('a', 0, 90), 'image', 0)
     s.splitTimelineClip('a', 45)
     useWorkbenchStore.getState().undoTimeline()
-    expect(useWorkbenchStore.getState().timelineRedoStack.length).toBe(1)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates.length).toBe(1)
     // 撤销后做一个新编辑 → redo 栈必须清空
     useWorkbenchStore.getState().addTimelineClipAtFrame(imageClip('b', 100, 60), 'image', 100)
-    expect(useWorkbenchStore.getState().timelineRedoStack.length).toBe(0)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates.length).toBe(0)
     const before = useWorkbenchStore.getState().timeline
     useWorkbenchStore.getState().redoTimeline() // 空 redo → no-op
     expect(useWorkbenchStore.getState().timeline).toBe(before)

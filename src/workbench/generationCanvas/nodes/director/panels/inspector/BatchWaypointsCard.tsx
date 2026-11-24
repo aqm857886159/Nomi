@@ -31,7 +31,7 @@ export function BatchWaypointsCard({ entity, waypoints }: { entity: TimelineEnti
       {(['pitch', 'roll'] as const).map(axis => (
         <div key={axis}>
           <SectionHeader title={t(axis === 'pitch' ? 'director.timelineInspector.batchPitch' : 'director.timelineInspector.batchRoll')} onReset={() => store.getState().updateWaypointAngles(entity.id, ids, { [axis]: 0 })} />
-          <SliderNumberField label={t(axis === 'pitch' ? 'director.timelineInspector.anglePitch' : 'director.timelineInspector.angleRoll')} value={waypoints[0]?.[axis] ?? 0} min={axis === 'pitch' ? -90 : -180} max={axis === 'pitch' ? 90 : 180} step={1} unit="°" onChangeStart={() => store.getState().saveState()} onChange={value => store.getState().updateWaypointAngles(entity.id, ids, { [axis]: value }, false)} />
+          <SliderNumberField label={t(axis === 'pitch' ? 'director.timelineInspector.anglePitch' : 'director.timelineInspector.angleRoll')} value={waypoints[0]?.[axis] ?? 0} min={axis === 'pitch' ? -90 : -180} max={axis === 'pitch' ? 90 : 180} step={1} unit="°" onChangeStart={store.getState().saveState} onChange={value => store.getState().updateWaypointAngles(entity.id, ids, { [axis]: value }, false)} />
         </div>
       ))}
       <div className="mt-1 flex flex-wrap gap-1">

@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../../history/historyMiddleware'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { TIMELINE_DIFF_ENTRY_LIMIT } from '../../../../electron/shared/agentCapabilities/timelineRead'
@@ -10,7 +11,6 @@ import {
   executeTimelineReadTarget,
   executeTimelineWriteTarget,
 } from './timelineCapabilityTarget'
-import { timelineAgentUndoMetadata } from '../timelineUndoHistory'
 import type { TimelineWriteResult } from '../../../../electron/shared/agentCapabilities/timelineWrite'
 
 // The write result is a discriminated union keyed on `operation`; undoToken is
@@ -46,7 +46,7 @@ function fixture(): TimelineState {
               {
                 id: 'clip-b', type: 'video', sourceNodeId: 'node-b', label: 'B', startFrame: 30,
                 endFrame: 54, frameCount: 24, offsetStartFrame: 0, offsetEndFrame: 0,
-                url: '/Users/private/project-b.mp4',
+                url: '/private/fixtures/project-b.mp4',
               },
             ],
           }
@@ -75,8 +75,7 @@ describe('canonical Timeline capability target', () => {
   beforeEach(() => {
     useWorkbenchStore.setState({
       timeline: fixture(),
-      timelineUndoStack: [],
-      timelineRedoStack: [],
+      timelineHistory: createTimelineHistory(),
       persistRevision: 0,
     })
   })
@@ -90,7 +89,7 @@ describe('canonical Timeline capability target', () => {
     const prepared = _kind === 'transition'
       ? { ...base, tracks: base.tracks.map((track) => track.type === 'video' ? { ...track, clips: track.clips.map((clip) => clip.id === 'clip-b' ? { ...clip, startFrame: 24 } : clip) } : track) }
       : base
-    useWorkbenchStore.setState({ timeline: prepared, timelineUndoStack: [], timelineRedoStack: [] })
+    useWorkbenchStore.setState({ timeline: prepared, timelineHistory: createTimelineHistory() })
     const baseRevision = timelineRevision(prepared)
     const operation = operationFactory(baseRevision)
     const plan = { operation: 'apply_edit_plan' as const, planId: `plan-${_kind}`, baseRevision, summary: `Apply ${_kind}`, operations: [operation] }
@@ -105,17 +104,18 @@ describe('canonical Timeline capability target', () => {
 
   it('projects reads without paths or state mutation', () => {
     const before = useWorkbenchStore.getState()
+    const beforeHistory = before.timelineHistory.entries
     const result = executeTimelineReadTarget({ operation: 'read_timeline' })
     const range = executeTimelineReadTarget({ operation: 'inspect_timeline_range', startFrame: 0, endFrame: 36 })
-    expect(JSON.stringify(result)).not.toContain('/Users/private')
+    expect(JSON.stringify(result)).not.toContain('/private/fixtures')
     expect(JSON.stringify(result)).not.toContain('nomi://')
-    expect(JSON.stringify(range)).not.toContain('/Users/private')
+    expect(JSON.stringify(range)).not.toContain('/private/fixtures')
     expect(JSON.stringify(range)).not.toContain('nomi://')
     expect(result).toMatchObject({ operation: 'read_timeline', revision: timelineRevision(before.timeline) })
     const after = useWorkbenchStore.getState()
     expect(after.timeline).toBe(before.timeline)
-    expect(after.timelineUndoStack).toBe(before.timelineUndoStack)
-    expect(after.timelineRedoStack).toBe(before.timelineRedoStack)
+    expect(after.timelineHistory.entries.pastStates).toBe(beforeHistory.pastStates)
+    expect(after.timelineHistory.entries.futureStates).toBe(beforeHistory.futureStates)
     expect(after.persistRevision).toBe(before.persistRevision)
   })
 
@@ -129,17 +129,18 @@ describe('canonical Timeline capability target', () => {
       operations: [{ kind: 'move' as const, clipId: 'clip-b', startFrame: 72 }],
     }
     const beforePreview = useWorkbenchStore.getState()
+    const beforePreviewHistory = beforePreview.timelineHistory.entries
     const preview = executeTimelineReadTarget({ ...plan, operation: 'propose_edit_plan' })
     expect(preview).toMatchObject({ operation: 'propose_edit_plan', ok: true })
     expect(useWorkbenchStore.getState().timeline).toBe(beforePreview.timeline)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toBe(beforePreview.timelineUndoStack)
-    expect(useWorkbenchStore.getState().timelineRedoStack).toBe(beforePreview.timelineRedoStack)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toBe(beforePreviewHistory.pastStates)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates).toBe(beforePreviewHistory.futureStates)
     expect(useWorkbenchStore.getState().persistRevision).toBe(beforePreview.persistRevision)
 
     const first = applyEditWrite(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: ['clip-b'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval }))
     expect(first).toMatchObject({ operation: 'apply_edit_plan', ok: true, applied: true, replayed: false })
-    expect(useWorkbenchStore.getState().timelineUndoStack).toHaveLength(1)
-    expect(timelineAgentUndoMetadata(useWorkbenchStore.getState().timelineUndoStack.at(-1))).toMatchObject({
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toHaveLength(1)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates.at(-1)?.metadata).toMatchObject({
       projectId: 'project-a',
       planId: 'plan-a',
       beforeRevision: baseRevision,
@@ -151,7 +152,7 @@ describe('canonical Timeline capability target', () => {
     expect(replay).toMatchObject({ operation: 'apply_edit_plan', ok: true, applied: false, replayed: true })
     expect(replay).not.toHaveProperty('preview')
     expect(timelineWriteResultSchema.safeParse(replay).success).toBe(true)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toHaveLength(1)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toHaveLength(1)
   })
 
   it('never projects media locations through remove previews or write receipts', () => {
@@ -165,7 +166,7 @@ describe('canonical Timeline capability target', () => {
     }
     const preview = executeTimelineReadTarget({ ...plan, operation: 'propose_edit_plan' })
     expect(preview).toMatchObject({ ok: true, diff: { changed: true } })
-    expect(JSON.stringify(preview)).not.toContain('/Users/private')
+    expect(JSON.stringify(preview)).not.toContain('/private/fixtures')
     expect(JSON.stringify(preview)).not.toContain('nomi://')
     expect(JSON.stringify(preview)).not.toContain('before')
     expect(JSON.stringify(preview)).not.toContain('after')
@@ -177,13 +178,14 @@ describe('canonical Timeline capability target', () => {
       ...approval,
     }))
     expect(applied).toMatchObject({ ok: true, applied: true, diff: { changed: true } })
-    expect(JSON.stringify(applied)).not.toContain('/Users/private')
+    expect(JSON.stringify(applied)).not.toContain('/private/fixtures')
     expect(JSON.stringify(applied)).not.toContain('nomi://')
     expect(applied).not.toHaveProperty('timeline')
   })
 
   it('rejects stale apply preconditions without mutating Timeline or Undo state', () => {
     const before = useWorkbenchStore.getState()
+    const beforeHistory = before.timelineHistory.entries
     const baseRevision = timelineRevision(before.timeline)
     const result = executeTimelineWriteTarget({
       input: {
@@ -199,8 +201,8 @@ describe('canonical Timeline capability target', () => {
     })
     expect(result).toMatchObject({ ok: false, code: 'capability_target_stale', revision: baseRevision })
     expect(useWorkbenchStore.getState().timeline).toBe(before.timeline)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toBe(before.timelineUndoStack)
-    expect(useWorkbenchStore.getState().timelineRedoStack).toBe(before.timelineRedoStack)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toBe(beforeHistory.pastStates)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates).toBe(beforeHistory.futureStates)
     expect(useWorkbenchStore.getState().persistRevision).toBe(before.persistRevision)
   })
 
@@ -227,7 +229,7 @@ describe('canonical Timeline capability target', () => {
           }
         : track),
     }
-    useWorkbenchStore.setState({ timeline: largeTimeline, timelineUndoStack: [], timelineRedoStack: [] })
+    useWorkbenchStore.setState({ timeline: largeTimeline, timelineHistory: createTimelineHistory() })
     const baseRevision = timelineRevision(largeTimeline)
     const applied = applyEditWrite(executeTimelineWriteTarget({
       input: {
@@ -255,7 +257,7 @@ describe('canonical Timeline capability target', () => {
     expect(applied.diff.entries).toHaveLength(TIMELINE_DIFF_ENTRY_LIMIT)
     expect(timelineWriteResultSchema.safeParse(applied).success).toBe(true)
     expect(JSON.stringify(applied)).not.toContain('/private/')
-    expect(useWorkbenchStore.getState().timelineUndoStack).toHaveLength(1)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toHaveLength(1)
     expect(applied.undoToken).toBe('timeline-undo:v1:receipt-plan-a')
   })
 
@@ -278,8 +280,8 @@ describe('canonical Timeline capability target', () => {
     expect(conflict).toMatchObject({ ok: false, code: 'plan_id_conflict' })
 
     useWorkbenchStore.getState().moveTimelineTextClip('missing', 12)
-    useWorkbenchStore.setState((state) => ({ timelineUndoStack: [...state.timelineUndoStack, state.timeline] }))
-    const stack = useWorkbenchStore.getState().timelineUndoStack
+    useWorkbenchStore.getState().captureTimelineUndo()
+    const stack = useWorkbenchStore.getState().timelineHistory.entries.pastStates
     const undo = executeTimelineWriteTarget({
       input: { operation: 'undo_timeline_edit', undoToken: applied.undoToken, expectedRevision: applied.revision },
       target: { kind: 'timeline', clipIds: [] },
@@ -290,7 +292,7 @@ describe('canonical Timeline capability target', () => {
       ...executionGuard,
     })
     expect(undo).toMatchObject({ ok: false, undone: false, code: 'undo_token_invalid' })
-    expect(useWorkbenchStore.getState().timelineUndoStack).toEqual(stack)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toEqual(stack)
   })
 
   it('undoes only the exact Agent entry and rejects the consumed token', () => {
@@ -312,10 +314,11 @@ describe('canonical Timeline capability target', () => {
     }
     expect(executeTimelineWriteTarget(request)).toMatchObject({ operation: 'undo_timeline_edit', ok: true, undone: true, revision: baseRevision })
     const afterFirstUndo = useWorkbenchStore.getState()
+    const afterFirstUndoHistory = afterFirstUndo.timelineHistory.entries
     expect(executeTimelineWriteTarget(request)).toMatchObject({ ok: false, undone: false })
     expect(useWorkbenchStore.getState().timeline).toBe(afterFirstUndo.timeline)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toBe(afterFirstUndo.timelineUndoStack)
-    expect(useWorkbenchStore.getState().timelineRedoStack).toBe(afterFirstUndo.timelineRedoStack)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toBe(afterFirstUndoHistory.pastStates)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates).toBe(afterFirstUndoHistory.futureStates)
   })
 
   it('rejects Agent undo after a project switch or beneath a legacy Undo entry', () => {
@@ -347,21 +350,20 @@ describe('canonical Timeline capability target', () => {
       ...executionGuard,
     }
 
-    const appliedStack = useWorkbenchStore.getState().timelineUndoStack
+    const appliedStack = useWorkbenchStore.getState().timelineHistory.entries.pastStates
     const appliedTimeline = useWorkbenchStore.getState().timeline
-    const appliedRedo = useWorkbenchStore.getState().timelineRedoStack
+    const appliedRedo = useWorkbenchStore.getState().timelineHistory.entries.futureStates
     expect(executeTimelineWriteTarget({ ...request, projectId: 'project-b' })).toMatchObject({ ok: false, undone: false, code: 'undo_token_invalid' })
     expect(useWorkbenchStore.getState().timeline).toBe(appliedTimeline)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toBe(appliedStack)
-    expect(useWorkbenchStore.getState().timelineRedoStack).toBe(appliedRedo)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toBe(appliedStack)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates).toEqual(appliedRedo)
 
-    const legacyEntry = fixture()
-    useWorkbenchStore.setState({ timelineUndoStack: [...appliedStack, legacyEntry] })
-    const legacyStack = useWorkbenchStore.getState().timelineUndoStack
+    useWorkbenchStore.getState().captureTimelineUndo()
+    const legacyStack = useWorkbenchStore.getState().timelineHistory.entries.pastStates
     expect(executeTimelineWriteTarget(request)).toMatchObject({ ok: false, undone: false, code: 'undo_token_invalid' })
     expect(useWorkbenchStore.getState().timeline).toBe(appliedTimeline)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toBe(legacyStack)
-    expect(useWorkbenchStore.getState().timelineRedoStack).toBe(appliedRedo)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toBe(legacyStack)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates).toEqual(appliedRedo)
   })
 
   it('rejects stale Agent undo after a user edit without changing either Undo stack', () => {
@@ -381,6 +383,7 @@ describe('canonical Timeline capability target', () => {
     }))
     useWorkbenchStore.getState().moveTimelineClip('clip-b', 84)
     const afterUserEdit = useWorkbenchStore.getState()
+    const afterUserEditHistory = afterUserEdit.timelineHistory.entries
     expect(timelineRevision(afterUserEdit.timeline)).not.toBe(applied.revision)
 
     const result = executeTimelineWriteTarget({
@@ -398,7 +401,7 @@ describe('canonical Timeline capability target', () => {
     })
     expect(result).toMatchObject({ ok: false, undone: false, code: 'undo_stale_revision' })
     expect(useWorkbenchStore.getState().timeline).toBe(afterUserEdit.timeline)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toBe(afterUserEdit.timelineUndoStack)
-    expect(useWorkbenchStore.getState().timelineRedoStack).toBe(afterUserEdit.timelineRedoStack)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toBe(afterUserEditHistory.pastStates)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.futureStates).toBe(afterUserEditHistory.futureStates)
   })
 })

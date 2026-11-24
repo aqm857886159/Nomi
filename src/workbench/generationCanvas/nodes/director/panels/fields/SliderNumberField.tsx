@@ -20,7 +20,7 @@ export type SliderNumberFieldProps = {
   wheelAdjust?: boolean
   tip?: string
   onChange: (value: number) => void
-  onChangeStart?: () => void
+  onChangeStart?: (wheelField?: string) => void
   className?: string
 }
 
@@ -38,6 +38,7 @@ export function SliderNumberField({ label, value, min, max, step = 1, unit, digi
     onChangeStart?.()
     onChange(clamped)
   })
+  const wheelField = React.useId()
   const changing = React.useRef(false)
 
   return (
@@ -63,7 +64,7 @@ export function SliderNumberField({ label, value, min, max, step = 1, unit, digi
         onWheel={(event) => {
           if (!wheelAdjust || disabled) return
           event.preventDefault()
-          onChangeStart?.()
+          onChangeStart?.(wheelField)
           const delta = (event.deltaY < 0 ? 1 : -1) * step
           onChange(clamp(snap(value + delta, step)))
         }}

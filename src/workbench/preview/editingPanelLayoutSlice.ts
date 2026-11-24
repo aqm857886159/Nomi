@@ -1,3 +1,4 @@
+import { createLayoutHistory } from '../history/historyMiddleware'
 import type { StateCreator } from 'zustand'
 import {
   clampEditingPanelLayout,
@@ -67,7 +68,7 @@ export type EditingPanelLayoutSlice = {
    */
   timelineSnapEnabled: boolean
   setTimelineSnapEnabled: (next: boolean | ((previous: boolean) => boolean)) => void
-  editingPanelUndoStack: EditingPanelLayout[]
+  editingPanelHistory: ReturnType<typeof createLayoutHistory>
   /** 用户在剪辑面改布局；`recordUndo === false` 是打开项目时还原落盘布局的口（不算编辑、不落盘）。 */
   setEditingPanelLayout: (patch: EditingPanelLayoutPatch, recordUndo?: boolean) => void
   /** Agent 的 `layout.write`：和用户改布局同一套规则，登记成 Agent 动作。 */
@@ -78,8 +79,7 @@ export type EditingPanelLayoutSlice = {
   undoEditingPanelLayout: () => boolean
   /**
    * 用户**亲手拖完**分隔条后记下的宽 / 高（PreviewWorkspace 只在 onLayoutChanged.isUserInteraction 时调，
-   * 规则见 panelLayout 的 editingPanelDragIntent）。不动 preset、不压撤销栈：⌘Z 先撤布局、再撤时间轴，
-   * 拖一下宽度不该占掉一次 ⌘Z；preset → 'custom' 由 markEditingPanelLayoutCustom 走同一个用户动作口。
+   * 规则见 panelLayout 的 editingPanelDragIntent）。不动 preset、不压撤销栈：拖一下宽度不该占掉一次 ⌘Z；preset → 'custom' 由 markEditingPanelLayoutCustom 走同一个用户动作口。
    * 窗口变窄、开关 Nomi、约束重算都不走这里——它们改的是这一刻的实际布局，不是用户的选择。
    */
   syncEditingPanelSize: (patch: Partial<Record<EditingPanelSizeKey, number>>) => void
@@ -87,11 +87,6 @@ export type EditingPanelLayoutSlice = {
 }
 
 type LayoutHostState = { persistRevision: number } & EditingPanelLayoutSlice
-
-const UNDO_LIMIT = 20
-
-const pushUndo = (stack: EditingPanelLayout[], entry: EditingPanelLayout): EditingPanelLayout[] =>
-  [...stack, entry].slice(-UNDO_LIMIT)
 
 const DEFAULT_KEEP: EditingSidePanel = 'source'
 
@@ -190,8 +185,8 @@ function commitLayout(state: LayoutHostState, _action: PersistingLayoutAction, n
 /** 换上一整份布局：撤销栈（存的是此刻的整份布局，会话态）、留哪边、落盘一起对齐。 */
 const replaceLayout = (state: LayoutHostState, action: PersistingLayoutAction, next: EditingPanelLayout, asked?: Partial<PanelVisibility>) => {
   const current = displayEditingPanelLayout(state)
+  state.editingPanelHistory.record(current, next)
   return {
-    editingPanelUndoStack: pushUndo(state.editingPanelUndoStack, current),
     editingPanelKeep: keepAfterLayoutChange(current.visibility, next.visibility, state.editingPanelKeep, asked),
     ...commitLayout(state, action, next),
   }
@@ -206,8 +201,8 @@ const patchLayout = (state: LayoutHostState, action: PersistingLayoutAction, pat
     visibility: { ...current.visibility, ...(patch.visibility ?? {}) },
     preset: patch.preset ?? 'custom',
   })
+  if (!sameLayout(next, current)) state.editingPanelHistory.record(current, next, { target: LAYOUT_ACTION_LAYERS[action] === 'user' })
   return {
-    editingPanelUndoStack: sameLayout(next, current) ? state.editingPanelUndoStack : pushUndo(state.editingPanelUndoStack, current),
     editingPanelKeep: keepAfterLayoutChange(current.visibility, next.visibility, state.editingPanelKeep, patch.visibility),
     ...commitLayout(state, action, next),
   }
@@ -229,7 +224,7 @@ export const createEditingPanelLayoutSlice: StateCreator<
       ? state
       : { projectAgentDockCollapsed: Boolean(collapsed), ...recallIfReopened(state, !collapsed) }
   )),
-  editingPanelUndoStack: [],
+  editingPanelHistory: createLayoutHistory(),
   previewSourceTab: 'shots',
   editingPanelKeep: DEFAULT_KEEP,
 
@@ -292,11 +287,9 @@ export const createEditingPanelLayoutSlice: StateCreator<
   toggleEditingPanel: (panel) => get().showEditingPanel(panel, !displayEditingPanelLayout(get()).visibility[panel]),
 
   undoEditingPanelLayout: () => {
-    const stack = get().editingPanelUndoStack
-    if (stack.length === 0) return false
-    const next = cloneEditingPanelLayout(stack[stack.length - 1])
+    const next = get().editingPanelHistory.travel(displayEditingPanelLayout(get()), 'undo', true)
+    if (!next) return false
     set((state) => ({
-      editingPanelUndoStack: stack.slice(0, -1),
       // 撤回一次「收起」就是把那栏打开：照同一条规则让它成为留下的那栏，不然 1280 宽开着 Nomi 时撤销了也还是收起条。
       editingPanelKeep: keepAfterLayoutChange(displayEditingPanelLayout(state).visibility, next.visibility, state.editingPanelKeep),
       ...commitLayout(state, 'undoEditingPanelLayout', next),

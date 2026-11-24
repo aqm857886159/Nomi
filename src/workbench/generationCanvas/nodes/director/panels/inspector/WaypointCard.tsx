@@ -20,7 +20,7 @@ export function WaypointCard({ entity, waypoint }: { entity: TimelineEntity; way
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const totalDuration = useDirectorStore((state) => state.timeline.totalDuration)
-  const save = () => store.getState().saveState()
+  const save = store.getState().saveState
 
   return (
     <InspectorCard>

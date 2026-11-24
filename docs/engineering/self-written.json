@@ -849,6 +849,31 @@
   ],
   "entries": [
     {
+      "id": "workbench-session-history",
+      "capability": "时间轴和剪辑布局的会话历史、回执授权及快捷键归属",
+      "status": "justified",
+      "paths": [
+        "src/workbench/history/historyMiddleware.ts",
+        "src/workbench/history/timelineAndLayoutHistory.test.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "zundo temporal（记录、限额、撤销、重做）",
+          "source": "node_modules/zundo/dist/index.js"
+        },
+        {
+          "name": "immer patches（正反补丁不负责项目寿命与回执授权）",
+          "source": "node_modules/immer/src/immer.ts"
+        },
+        {
+          "name": "shortcutSurface.ts（沿用已有宿主和模态输入归属）",
+          "source": "src/workbench/shortcutSurface.ts"
+        }
+      ],
+      "whyNotIntegrated": "zundo temporal 负责两份限额历史。Nomi 在项目会话结束时更换历史实例，按时间轴顶条和 revision 授权 Agent 回执，并在同屏时间轴、布局和画布间按用户活动目标分派 ⌘Z。",
+      "revisitWhen": "项目会话、采纳补偿或 Agent 回执协议改变时，与 zundo 的新版本对照。"
+    },
+    {
       "id": "file-lease-lock",
       "capability": "工作区清单事务与生产运行栅栏需要的可核验文件所有权：原盘上协议、同步检查、同步盘恢复与持有者交接",
       "status": "justified",
@@ -1478,6 +1503,30 @@
       ],
       "whyNotIntegrated": "执行直接交给 p-retry。适配只桥接可控 sleep、观察剩余时间截断和跨 tick 领域调度器读取间隔，保留业务错误及其取消语义。",
       "revisitWhen": "主进程改用 ESM，且新版 p-retry 能保持可注入的时钟、末次观察和跨 tick 调度行为时，跑完整特征测试并删除可由库存 API 承担的桥接。"
+    },
+    {
+      "id": "bounded-cache-adapter",
+      "capability": "跨端有界内存缓存与同键请求复用",
+      "status": "justified",
+      "paths": [
+        "electron/shared/boundedCache.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "lru-cache 10.4.3（直接承担容量与淘汰）",
+          "source": "https://github.com/isaacs/node-lru-cache/tree/v10.4.3"
+        },
+        {
+          "name": "SWR cache provider（React 查询作用域）",
+          "source": "https://swr.vercel.app/docs/advanced/cache"
+        },
+        {
+          "name": "SWR deduplication（同查询键去重）",
+          "source": "https://swr.vercel.app/docs/advanced/performance#deduplication"
+        }
+      ],
+      "whyNotIntegrated": "底层直接使用 lru-cache。适配仅收口 Nomi 的跨端缓存入口，保留 FIFO 更新、墙钟 TTL、从发出请求起合流及失败释放同键的行为。渲染查询已有 SWR，终态遥测上下文按任务身份存取。",
+      "revisitWhen": "跨端运行时可升级到直接覆盖 FIFO 原位更新和现有墙钟期限的库版本，或领域不再需要这些行为时，跑特征测试并删除对应桥接。"
     },
     {
       "id": "durable-json",

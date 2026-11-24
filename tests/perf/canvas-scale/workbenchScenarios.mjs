@@ -10,6 +10,7 @@
 // 零花费、零外网（主进程网络闸 walkthrough-network-guard 只放行本机）。
 // D2 付费卡的两条（卡上指向元素 ↔ 画布节点）用同一台本机假 Agent：起草器和走查是同一个（_spendCardWalk.createPresenter），
 // 卡摆出来就一直开着——没人按「生成」，零花费。
+import { timelineTrimHistory } from './timelineTrimHistory.mjs'
 import { generationIdle, prepareGenerationIdle } from './generationIdleScenario.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -33,6 +34,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'creation-ai-rewrite-result',
   'timeline-play',
   'timeline-scrub',
+  'timeline-trim-history',
   'pan-while-generating',
   'generation-idle',
   'pan-while-agent-streaming',
@@ -336,6 +338,10 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'text-node-typing') return textNodeTyping(page, ctx)
   if (scenario === 'creation-ai-rewrite-result') return creationAiRewriteResult(page, ctx)
   if (scenario === 'timeline-play') return timelinePlay(page, ctx)
+  if (scenario === 'timeline-trim-history') {
+    await ensurePreview(page, ctx)
+    return timelineTrimHistory(page, ctx)
+  }
   if (scenario === 'timeline-scrub') return timelineScrub(page, ctx)
   if (scenario === 'generation-idle') return generationIdle(page, ctx)
   if (scenario === 'pan-while-generating') return panWhileGenerating(page, ctx)

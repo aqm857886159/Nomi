@@ -4,7 +4,7 @@ import type { RefObject } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createGenerationNode } from '../model/graphOps'
 import { useGenerationCanvasStore, __resetGenerationCanvasHistoryForTests } from '../store/generationCanvasStore'
-import { canvasZoomShortcutDirection, createCanvasKeydownHandler, isCanvasTextEditingContext, shouldPreferCanvasClipboard } from './useCanvasShortcuts'
+import { canvasZoomShortcutDirection, registerCanvasHistoryShortcut, createCanvasKeydownHandler, isCanvasTextEditingContext, shouldPreferCanvasClipboard } from './useCanvasShortcuts'
 import { installShortcutSurfaceTracker, resetShortcutSurfaceForTest } from '../../shortcutSurface'
 
 function targetWithEditableAncestor(editable: boolean): EventTarget {
@@ -144,25 +144,11 @@ describe('画布快捷键的文本编辑边界', () => {
     store.updateNode(node.id, { meta: { modelKey: 'new-model' } })
     const undo = vi.fn(store.undo)
 
-    const handler = createCanvasKeydownHandler({
+    registerCanvasHistoryShortcut({
       stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>,
-      selectedNodeCount: 0,
-      selectedGroupCount: 0,
-      activeCategoryId: 'shots',
-      setActiveEdge: () => {},
-      cancelConnection: () => {},
-      deleteSelectedNodes: () => {},
-      groupSelectedNodes: () => {},
-      ungroupSelectedNodes: () => {},
-      copySelectedNodes: () => {},
-      cutSelectedNodes: () => {},
-      pasteNodes: () => {},
-      zoomByStep: () => {},
       undo,
       redo: store.redo,
-      ...NO_PARITY_COMMANDS,
     })
-    eventWindow.addEventListener('keydown', (event) => handler(event as KeyboardEvent))
     eventWindow.dispatchEvent(keyboardEvent(modelPicker))
 
     expect(undo).toHaveBeenCalledTimes(1)
@@ -184,25 +170,11 @@ describe('画布快捷键的文本编辑边界', () => {
     store.restoreSnapshot({ nodes: [node], edges: [], groups: [] })
     store.updateNode(node.id, { meta: { modelKey: 'new-model' } })
     const undo = vi.fn(store.undo)
-    const handler = createCanvasKeydownHandler({
+    registerCanvasHistoryShortcut({
       stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>,
-      selectedNodeCount: 0,
-      selectedGroupCount: 0,
-      activeCategoryId: 'shots',
-      setActiveEdge: () => {},
-      cancelConnection: () => {},
-      deleteSelectedNodes: () => {},
-      groupSelectedNodes: () => {},
-      ungroupSelectedNodes: () => {},
-      copySelectedNodes: () => {},
-      cutSelectedNodes: () => {},
-      pasteNodes: () => {},
-      zoomByStep: () => {},
       undo,
       redo: store.redo,
-      ...NO_PARITY_COMMANDS,
     })
-    eventWindow.addEventListener('keydown', (event) => handler(event as KeyboardEvent))
     const event = keyboardEvent(promptTextarea)
     eventWindow.dispatchEvent(event)
 
@@ -223,33 +195,20 @@ describe('画布快捷键的文本编辑边界', () => {
     eventWindow.dispatchEvent(pointer)
 
     const undo = vi.fn()
-    const handler = createCanvasKeydownHandler({
+    registerCanvasHistoryShortcut({
       stageRef: { current: stage } as RefObject<HTMLDivElement>,
-      selectedNodeCount: 0,
-      selectedGroupCount: 0,
-      activeCategoryId: 'shots',
-      setActiveEdge: () => {},
-      cancelConnection: () => {},
-      deleteSelectedNodes: () => {},
-      groupSelectedNodes: () => {},
-      ungroupSelectedNodes: () => {},
-      copySelectedNodes: () => {},
-      cutSelectedNodes: () => {},
-      pasteNodes: () => {},
-      zoomByStep: () => {},
       undo,
       redo: () => {},
-      ...NO_PARITY_COMMANDS,
     })
     const event = keyboardEvent(targetWithEditableAncestor(false))
-    handler(event)
+    eventWindow.dispatchEvent(event)
     expect(undo).not.toHaveBeenCalled()
     expect(event.defaultPrevented).toBe(false)
 
     const backOnCanvas = new Event('pointerdown')
     Object.defineProperty(backOnCanvas, 'target', { value: { closest: () => stage } })
     eventWindow.dispatchEvent(backOnCanvas)
-    handler(keyboardEvent(targetWithEditableAncestor(false)))
+    eventWindow.dispatchEvent(keyboardEvent(targetWithEditableAncestor(false)))
     expect(undo).toHaveBeenCalledTimes(1)
   })
 })

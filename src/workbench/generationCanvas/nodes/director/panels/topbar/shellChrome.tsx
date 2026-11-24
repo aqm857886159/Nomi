@@ -13,7 +13,8 @@ import { useTranslation } from 'react-i18next'
 import { WorkbenchIconButton } from '../../../../../../design'
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowLeft } from '../../../../../../vendor/tablerIcons'
 import { cn } from '../../../../../../utils/cn'
-import { useDirectorStore } from '../../DirectorEditorContext'
+import { useStore } from 'zustand'
+import { useDirectorStoreApi } from '../../DirectorEditorContext'
 import { DIRECTOR_HOTKEYS, formatHotkey } from '../../model/hotkeys'
 
 /** 一个功能簇 = 一枚浮起的胶囊。边界靠间距和描边，不靠分隔线（设计系统 §1.5.3）。 */
@@ -67,10 +68,10 @@ export function ViewModeSwitch({ mode, onChange, testId }: { mode: ViewModeValue
 /** 撤销 / 重做：读写同一个 store 历史栈，名字带快捷键。 */
 export function HistoryButtons(): JSX.Element {
   const { t } = useTranslation()
-  const canUndo = useDirectorStore((state) => state.undoStack.length > 0)
-  const canRedo = useDirectorStore((state) => state.redoStack.length > 0)
-  const undo = useDirectorStore((state) => state.undo)
-  const redo = useDirectorStore((state) => state.redo)
+  const store = useDirectorStoreApi()
+  const canUndo = useStore(store.temporal, (state) => state.pastStates.length > 0)
+  const canRedo = useStore(store.temporal, (state) => state.futureStates.length > 0)
+  const { undo, redo } = store.getState()
   return (
     <>
       <WorkbenchIconButton size="sm" icon={<IconArrowBackUp size={16} stroke={1.9} />} label={`${t('director.bottomBar.undo')} (${formatHotkey(DIRECTOR_HOTKEYS.undo)})`} disabled={!canUndo} onClick={() => undo()} />
