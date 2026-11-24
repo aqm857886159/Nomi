@@ -63,10 +63,6 @@ export class OutboundDestinationRefusedError extends Error {
   }
 }
 
-export function isOutboundDestinationRefusedError(error: unknown): error is OutboundDestinationRefusedError {
-  return error instanceof OutboundDestinationRefusedError;
-}
-
 // ── 环境事实：进程内探一次，提交与取回读同一份 ────────────────────────────────────────
 
 export type OutboundEnvironment = {
@@ -82,7 +78,7 @@ let environmentProbe: Promise<OutboundEnvironment> | null = null;
 let lastKnownEnvironment: OutboundEnvironment = NO_SYNTHETIC_RESOLVER;
 
 /** 注入点（测试用）：默认走真实 DNS。 */
-export type SyntheticResolverProbe = (hostname: string) => Promise<readonly ResolvedHostAddress[]>;
+type SyntheticResolverProbe = (hostname: string) => Promise<readonly ResolvedHostAddress[]>;
 
 let probeImpl: SyntheticResolverProbe = async (hostname) => {
   const resolved = await dnsLookup(hostname, { all: true, verbatim: true });
@@ -198,7 +194,7 @@ export function seedLabTrustedPrivateOrigins(isPackaged: boolean): void {
 
 // ── 判据（纯函数，直测）────────────────────────────────────────────────────────────
 
-export type OutboundVerdict =
+type OutboundVerdict =
   | { allowed: true }
   | { allowed: false; reason: OutboundRefusalReason; observedAddress: string };
 
@@ -271,7 +267,7 @@ export type OutboundAuthorization =
  * 是云主机的**元数据通道**，没有任何供应商住在那儿，它唯一的用途是把凭证读出来。出站请求带着
  * 用户的 API Key，声明式白名单一旦覆盖到这一段，就等于给「把 Key 发去元数据端点」发了张许可证。
  */
-export function isLinkLocalHost(hostname: string): boolean {
+function isLinkLocalHost(hostname: string): boolean {
   const host = hostname.trim().toLowerCase();
   const bare = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
   if (net.isIPv4(bare)) return bare.startsWith("169.254.");

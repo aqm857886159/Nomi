@@ -63,6 +63,9 @@ importers:
       js-yaml:
         specifier: 4.1.1
         version: 4.1.1
+      lru-cache:
+        specifier: 10.4.3
+        version: 10.4.3
       mammoth:
         specifier: ^1.12.0
         version: 1.12.0
@@ -72,6 +75,9 @@ importers:
       p-limit:
         specifier: 3.1.0
         version: 3.1.0
+      p-retry:
+        specifier: 4.6.2
+        version: 4.6.2
       parse5:
         specifier: 7.3.0
         version: 7.3.0

@@ -4,11 +4,11 @@ import { registerQuitDrain } from "./quitTeardown";
 export const SHUTDOWN_FLUSH_REQUEST_CHANNEL = "nomi:project:shutdown-flush-request";
 export const SHUTDOWN_FLUSH_RESPONSE_CHANNEL = "nomi:project:shutdown-flush-response";
 /** Own cap inside the 500ms unattended-exit budget; the Agent lane close runs beside it and keeps its time. */
-export const SHUTDOWN_FLUSH_TIMEOUT_MS = 400;
+const SHUTDOWN_FLUSH_TIMEOUT_MS = 400;
 
-export type ShutdownFlushWindow = { send(channel: string, payload: { requestId: string }): void };
+type ShutdownFlushWindow = { send(channel: string, payload: { requestId: string }): void };
 
-export interface ShutdownProjectFlushDependencies {
+interface ShutdownProjectFlushDependencies {
   /** Live windows only (not destroyed, renderer not crashed). */
   windows(): ShutdownFlushWindow[];
   /** Subscribes to renderer receipts; payload is whatever the renderer sent. */

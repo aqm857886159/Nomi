@@ -85,6 +85,8 @@ export type AgentPanelV4PanelProps = {
   legacy?: LaneLegacyFacts
   /** Live domain feedback remains outside the conversation transcript. */
   flowTail?: React.ReactNode
+  /** 未连文本模型时替代默认起手 chip 的指路 / 一键自愈卡（O1c-agent）。 */
+  emptyOverride?: React.ReactNode
   /** 空态从这里派生它那三条起手（哪个面能做什么）。 */
   surface?: ResidentSurface
   /** 点空态起手 chip：把那句话填进 composer 并聚焦，**不发送**。 */
@@ -217,6 +219,7 @@ export function AgentPanelV4Panel({
   flow,
   legacy,
   flowTail,
+  emptyOverride,
   surface = 'creation',
   onStarter,
   slot,
@@ -429,7 +432,7 @@ export function AgentPanelV4Panel({
             {/* 空态只在**流为空**时占这块地方：来了第一条消息它就永远不再出现，
                 所以它不是常驻件、不参与控件预算（设计系统 §1.5）。 */}
             {historyError ? <div role="alert">{t('agentPanelV4.historyLoadFailed')}</div> : null}
-            {flow.length === 0 ? <V4EmptyState surface={surface} onStarter={onStarter} /> : null}
+            {flow.length === 0 ? (emptyOverride ?? <V4EmptyState surface={surface} onStarter={onStarter} />) : null}
             {flow.map((item, index) => (
               <React.Fragment key={item.identity ?? `${item.kind}-${index}`}>
                 <V4FlowRow

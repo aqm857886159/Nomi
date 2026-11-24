@@ -1,10 +1,10 @@
 import { synchronousSha256 } from '../../../electron/shared/synchronousSha256'
 
-export const SCRIPT_DRAFT_SNAPSHOT_SCHEMA_VERSION = 1 as const
+const SCRIPT_DRAFT_SNAPSHOT_SCHEMA_VERSION = 1 as const
 
-export type ScriptDraftSource = 'user' | 'nomi-agent' | 'external-mcp'
+type ScriptDraftSource = 'user' | 'nomi-agent' | 'external-mcp'
 
-export type ScriptDraftSnapshot = {
+type ScriptDraftSnapshot = {
   schemaVersion: typeof SCRIPT_DRAFT_SNAPSHOT_SCHEMA_VERSION
   kind: 'script'
   projectId?: string

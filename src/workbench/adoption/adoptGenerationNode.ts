@@ -23,11 +23,11 @@ import type { AdoptionApplyPorts, AdoptionOutcome } from './adoptionTypes'
  * 变的是它们背后从「直接写轴」变成「提案 → 查四道闸 → 原子写 → 回执带撤销」。
  */
 
-export type AdoptGenerationNodePlacement =
+type AdoptGenerationNodePlacement =
   | { kind: 'append' }
   | { kind: 'frame'; startFrame: number }
 
-export type AdoptGenerationNodeOptions = {
+type AdoptGenerationNodeOptions = {
   placement?: AdoptGenerationNodePlacement
   ports?: AdoptionApplyPorts
 }

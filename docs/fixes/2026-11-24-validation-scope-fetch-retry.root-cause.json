@@ -1,0 +1,174 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-validation-scope-fetch-retry",
+  "problem_type": "Recovered read-only CI Git transport failures escape into persistent failure annotations",
+  "symptom": "Quality Gate run 45264322182 failed annotation hygiene despite successful Validation Scope job 138007074731 with one failure annotation.",
+  "direct_cause": "Checkout registers a problem matcher for raw Git fatal/error lines before its retrying fetch. Attempt 1 logged the connection error as a failure, waited 15 seconds, and ran the same full-history fetch again. The retry succeeded and the classifier read 10 changed files. The classifier independently converted unexpected exceptions into successful full-profile outputs.",
+  "class_root": "The scope job lacked an outcome boundary that keeps per-attempt diagnostics private and only publishes a profile after acquiring and comparing the requested commits.",
+  "affected_population": [
+    "Quality Gate scope for main pushes, pull requests, merge queue, and manual runs"
+  ],
+  "scope_paths": [
+    ".github/workflows/quality-gate.yml",
+    "scripts/select-quality-gate-profile.mjs",
+    "scripts/lib/transientRetry.mjs"
+  ],
+  "entry_points": [
+    "Quality Gate jobs.scope checkout and profile steps"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/src/git-command-manager.ts",
+      "checked_at": "2026-11-24",
+      "purpose": "Git fetch receives retry wrapping at the action execution boundary."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/dist/problem-matcher.json",
+      "checked_at": "2026-11-24",
+      "purpose": "The Git matcher promotes raw fatal/error output to annotations before the checkout result is known."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://git-scm.com/docs/git-fetch",
+      "checked_at": "2026-11-24",
+      "purpose": "Explicit refspec list and depth limiting."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://git-scm.com/docs/git-diff",
+      "checked_at": "2026-11-24",
+      "purpose": "Two-commit diff compares endpoint trees without walking ancestors."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md",
+      "checked_at": "2026-11-24",
+      "purpose": "The pinned runner image family provides Git and Node before checkout."
+    }
+  ],
+  "invariants": [
+    "Valid nonzero base and head are available locally before the profile is emitted.",
+    "Recovered fetch attempts do not emit failure annotations.",
+    "Permanent fetch failure, retry exhaustion, and classifier exceptions fail the job."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/select-quality-gate-profile.mjs",
+      "symbol": "resolveProfileFromEnvironment"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/select-quality-gate-profile.mjs",
+      "symbol": "writeGithubOutput"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "The classifier reads and computes the profile; the output writer publishes the result to the separate Actions outputs interface. The second publication call in the error branch is removed."
+  },
+  "generality_proof": "Event-derived SHA pairs follow the same checkout path for push, PR and merge queue. Captured child output cannot create annotations while retry is pending. No-baseline inputs follow explicit policy; failed diff of a supplied range never yields outputs.",
+  "shared_boundaries": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "symbol": "scope",
+      "responsibility": "Acquire the exact event commits before any checked-out code executes and report the terminal fetch result."
+    },
+    {
+      "path": "scripts/select-quality-gate-profile.mjs",
+      "symbol": "resolveProfileFromEnvironment",
+      "responsibility": "Classify the local comparison and propagate failures."
+    },
+    {
+      "path": "scripts/lib/transientRetry.mjs",
+      "symbol": "isTransientGitFetchError",
+      "responsibility": "Classify read-only Git fetch failures. A workflow test locks the cold-start copy and retry defaults to this owner."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "scope push / pull_request / merge_group",
+      "disposition": "enforced",
+      "evidence": "One job-level SHA selection and one checkout step cover these triggers."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "scope workflow_dispatch",
+      "disposition": "enforced",
+      "evidence": "The same checkout acquires head only and the classifier retains manual full validation."
+    },
+    {
+      "path": "scripts/ci-annotation-hygiene.mjs",
+      "entry_point": "requestJson",
+      "disposition": "not-affected",
+      "evidence": "Annotation retrieval is already retried via fetchWithRetry; the checker treats every failure annotation as evidence."
+    },
+    {
+      "path": "scripts/git-delivery.mjs",
+      "entry_point": "fetchRemoteBase",
+      "disposition": "enforced",
+      "evidence": "Delivery fetches wrap the command in retryTransient. The common classifier dispatches Git fetch stderr to isTransientGitFetchError."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "A runner transport failure can occur on any event, and the action can annotate a recovered attempt on each run.",
+    "same_class_scan": [
+      "rg actions/checkout .github/workflows identified repo checkout paths. Scope only needs two endpoint snapshots; other full-history action callers are outside this repair.",
+      "rg select-quality-gate-profile scripts .github traced the sole workflow caller and the output writer test.",
+      "Reviewed #1158 and the existing annotation fetch retry boundary.",
+      "eng-metrics --candidates found shared workflow files but no prior contract for annotations emitted by a recovered Git fetch."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": ".github/workflows/quality-gate.yml",
+    "invariant": "Scope publishes successful checkout only after retrieving its endpoint commits, without forwarding child output from failed attempts.",
+    "failure_mode": "Terminal fetch or diff errors exit nonzero and no profile is published.",
+    "exception_policy": "none",
+    "strategy": "Replace the scope action with an exact-SHA shallow fetch and captured retries; remove the classifier catch that reports success on unexpected errors.",
+    "artifacts": [
+      ".github/workflows/quality-gate.yml",
+      "scripts/select-quality-gate-profile.mjs",
+      "scripts/lib/transientRetry.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/lib/transientRetry.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/lib/transientRetry.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      ".github/workflows/quality-gate.yml",
+      "scripts/select-quality-gate-profile.mjs"
+    ],
+    "rationale": "Remove the full-history scope checkout action and the success exit for classifier exceptions."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Scope removes the checkout action dependency and uses the runner-provided Git CLI. Other jobs keep their existing checkout behavior.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted user data or required check names change.",
+  "residual_risks": [
+    "Hosted Actions replay is unverified before push. Recheck subsequent main runs for zero failure annotations on a recovered scope fetch and a successful exact-SHA receipt; reopen on recurrence."
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": ".github/workflows/quality-gate.yml",
+    "tests": [
+      "scripts/check-quality-gate-workflow.node-test.mjs"
+    ]
+  }
+}

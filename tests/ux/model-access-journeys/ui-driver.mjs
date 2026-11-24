@@ -69,8 +69,6 @@ export async function launchJourneyUi({ journey, recorder }) {
   win.on('console', (message) => { if (message.type() === 'error') diagnostics.push(`console: ${message.text()}`) })
   await win.evaluate((locale) => localStorage.setItem('nomi:locale:v1', locale), WALK_LOCALE)
   await win.reload({ waitUntil: 'domcontentloaded' })
-  const skip = win.locator('[data-splash-skip="true"]')
-  if (await skip.isVisible().catch(() => false)) await skip.click()
 
   async function openModels() {
     await win.getByRole('button', { name: WALK_COPY.settings, exact: true }).first().click()

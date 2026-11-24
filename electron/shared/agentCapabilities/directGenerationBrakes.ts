@@ -29,11 +29,11 @@ import { spendAuthorizationGates } from "../productionSpendAuthority";
 import { spendDecidedByPolicy, type ProjectAgentApprovalMode, type ProjectAgentApprovalPolicy } from "./capabilityApprovalPolicy";
 
 /** 同一镜连续失败这么多次，第 N 次重试之前停（用户拍板：重试超过 2 次 = 第 3 次失败后停）。 */
-export const DIRECT_GENERATION_RETRY_LIMIT = 3;
+const DIRECT_GENERATION_RETRY_LIMIT = 3;
 
-export type DirectGenerationBrakeReason = "stopped" | "retry-limit" | "out-of-plan";
+type DirectGenerationBrakeReason = "stopped" | "retry-limit" | "out-of-plan";
 
-export type DirectGenerationBrakeInput = Readonly<{
+type DirectGenerationBrakeInput = Readonly<{
   tier: ProjectAgentApprovalMode;
   /** 已经说好的计划里有哪些镜。空 = 还没有计划（第一次代批），不存在计划外。 */
   plannedShotIds: readonly string[];
@@ -43,7 +43,7 @@ export type DirectGenerationBrakeInput = Readonly<{
   consecutiveFailures: number;
 }>;
 
-export type DirectGenerationBrakeResult = Readonly<{ allow: true } | { allow: false; reason: DirectGenerationBrakeReason }>;
+type DirectGenerationBrakeResult = Readonly<{ allow: true } | { allow: false; reason: DirectGenerationBrakeReason }>;
 
 /**
  * 单镜判定。停止键与挡位无关（两档都生效）；两个刹车只在 `direct` 档生效——
@@ -66,7 +66,7 @@ export function directGenerationBrake(input: DirectGenerationBrakeInput): Direct
  * 它的尝试住在画布那一个单镜 Run 里。`byHuman` = 那一笔交接是人点的（卡上的「生成」/「再试一次」）。
  * 键 = shotId。由 `withHandedOverAttempts` 按交接记录读出来，不另存。
  */
-export type HandedOverAttempt = Readonly<{ job: ProductionJob; byHuman: boolean }>;
+type HandedOverAttempt = Readonly<{ job: ProductionJob; byHuman: boolean }>;
 
 type RunFacts = Pick<ProductionRun, "generationPlan" | "jobs"> & Partial<Pick<ProductionRun, "status" | "gates">> & Readonly<{
   handedOverAttempts?: ReadonlyMap<string, readonly HandedOverAttempt[]>;

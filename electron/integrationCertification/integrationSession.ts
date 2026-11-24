@@ -81,13 +81,6 @@ export type IntegrationCandidate = {
   classification?: "supported" | "unknown" | "unavailable";
   estimatedCalls?: number;
 };
-export type IntegrationProposal = {
-  candidates?: unknown;
-  selections?: unknown;
-  workflow?: unknown;
-  modelKey?: unknown;
-  adapterDraft?: unknown;
-};
 /**
  * 「Nomi 自己编不动，请你来编」的结构化交底（B 路，见 providerAdapter/agentCompileRequest.ts）。
  * 落盘的只有这几个小字段；目标 schema 与撰写规则是常量，在投影时现加，不占会话文件。
@@ -142,7 +135,7 @@ export type IntegrationSession = {
   adapterDraft?: ProviderAdapterDraft;
 };
 
-export type IntegrationSessionProjection = Omit<
+type IntegrationSessionProjection = Omit<
   IntegrationSession,
   "config" | "credentialRef" | "adapterDraft" | "compileRequest"
 > & {

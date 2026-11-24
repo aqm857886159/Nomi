@@ -106,7 +106,7 @@ function entriesOf(platform: ReferencePlatform, body: JsonRecord): { id: string;
  *            URL 是 `http://`，统一升到 https（实测 xhscdn 两种都返回 206 + video/mp4）。
  *   · 广告库 `video_info.video_url['720p']`（实测可直下：206 / video/mp4 / ftypisom）
  */
-export function extractMediaUrl(platform: ReferencePlatform, raw: JsonRecord): string {
+function extractMediaUrl(platform: ReferencePlatform, raw: JsonRecord): string {
   if (platform === "douyin") {
     const video = isJsonRecord(raw.video) ? raw.video : {};
     const play = isJsonRecord(video.play_addr) ? video.play_addr : {};
@@ -250,7 +250,7 @@ export function normalizeTiktokAds(body: JsonRecord): ReferenceItem[] {
 }
 
 /** 平台 → normalizer 的单一登记表（新增平台只改这里 + 契约里的词表）。 */
-export const REFERENCE_NORMALIZERS: Readonly<Record<ReferencePlatform, (body: JsonRecord) => ReferenceItem[]>> = {
+const REFERENCE_NORMALIZERS: Readonly<Record<ReferencePlatform, (body: JsonRecord) => ReferenceItem[]>> = {
   douyin: normalizeDouyin,
   xhs: normalizeXhs,
   tiktok: normalizeTiktokAds,

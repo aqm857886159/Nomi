@@ -26,7 +26,7 @@ function withReconciledDurations(design: StoryboardDesign): StoryboardDesign {
  * 记日志只记字段路径、不记内容。Agent 写口拿同一份校验回「哪个字段、要什么」（`agentStoryboardDesign` / `applyCanvasToolCall`）。
  * 这样「一处不合格让整份项目存不下」的状态在 store 里写不出来，存盘口的逐项隔离只当兜底。
  */
-export function designWritable(design: StoryboardDesign, door: string): boolean {
+function designWritable(design: StoryboardDesign, door: string): boolean {
   const issues = storyboardDesignIssues(design)
   if (!issues.length) return true
   logRendererWarn('storyboard-write-rejected', { door, issues: issues.map(issue => issue.path).join('; ') })
@@ -110,7 +110,7 @@ type WorkbenchState = {
   activeDocumentId: string
 } & WorkbenchDocumentSlice
 
-export type WorkbenchSliceCreator<T> = StateCreator<
+type WorkbenchSliceCreator<T> = StateCreator<
   WorkbenchState,
   [['zustand/subscribeWithSelector', never]],
   [],

@@ -46,7 +46,7 @@ export function PrimitiveInspector({ object }: { object: DirectorObject }): JSX.
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const update = (patch: Partial<DirectorObject>) => store.getState().updateObject(object.id, patch)
-  const save = () => store.getState().saveState()
+  const save = store.getState().saveState
   const isGroup = object.type === 'group'
   // 组 / 泼溅 / 用户模型没有可调材质：只留名称 + 变换（泼溅颜色来自数据，模型材质随文件）
   const hasMaterial = !isGroup && object.type !== 'splat' && object.type !== 'model'

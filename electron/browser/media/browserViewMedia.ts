@@ -3,6 +3,7 @@ import type { DownloadItem, WebContents } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import pLimit from "p-limit";
 import { renameSyncOnce, renameWithRetry } from "../../jsonFile";
 import { desktopT } from "../../i18n";
 import { captureFileName } from "../captureNaming";
@@ -29,18 +30,17 @@ import type {
   BrowserViewRecord,
 } from "../core/browserViewTypes";
 
-export const BROWSER_PROMPT_IMAGE_MAX_BYTES = 16 * 1024 * 1024;
-const browserBlobDownloadQueues = new Map<number, Promise<void>>();
+const BROWSER_PROMPT_IMAGE_MAX_BYTES = 16 * 1024 * 1024;
+const browserBlobDownloadLimits = new Map<number, ReturnType<typeof pLimit>>();
 
 async function enqueueBrowserBlobDownload<T>(contents: WebContents, task: () => Promise<T>): Promise<T> {
-  const previous = browserBlobDownloadQueues.get(contents.id) ?? Promise.resolve();
-  const run = previous.catch(() => undefined).then(task);
-  const settled = run.then(() => undefined, () => undefined);
-  browserBlobDownloadQueues.set(contents.id, settled);
+  const id = contents.id;
+  const limit = browserBlobDownloadLimits.get(id) ?? pLimit(1);
+  browserBlobDownloadLimits.set(id, limit);
   try {
-    return await run;
+    return await limit(task);
   } finally {
-    if (browserBlobDownloadQueues.get(contents.id) === settled) browserBlobDownloadQueues.delete(contents.id);
+    if (browserBlobDownloadLimits.get(id) === limit && limit.activeCount === 0 && limit.pendingCount === 0) browserBlobDownloadLimits.delete(id);
   }
 }
 
@@ -108,7 +108,7 @@ export function browserMediaReferrer(pageUrl: string, mediaUrl: string): string 
 }
 
 // 会话内媒体请求 init 单源：cookies/cache/credentials 走页面 session + 策略一致 Referer。
-export function browserMediaFetchInit(
+function browserMediaFetchInit(
   pageUrl: string,
   mediaUrl: string,
   requestedMediaType: "image" | "video" | null,

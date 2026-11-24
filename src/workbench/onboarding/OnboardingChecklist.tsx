@@ -14,9 +14,10 @@
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconMap } from '@tabler/icons-react'
+import { IconCheck, IconChevronRight, IconMap } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { DesignProgress } from '../../design'
+import { openApimartConnect } from '../../ui/onboarding/apimartConnectRoute'
 import type { ChecklistStep } from './onboardingState'
 import { useOnboardingProgress } from './onboardingProgress'
 
@@ -46,13 +47,9 @@ export function OnboardingChecklistSection(): JSX.Element | null {
         {steps.map((step) => {
           const done = progress.effective[step.key]
           const isNext = !done && step.key === progress.nextKey
-          return (
-            <li
-              key={step.key}
-              data-step={step.key}
-              data-done={done ? 'true' : 'false'}
-              className={cn('flex items-start gap-2.5 rounded-nomi-sm p-2', isNext && 'bg-nomi-accent-soft')}
-            >
+          const canConnect = step.key === 'model' && !done
+          const body = (
+            <>
               <span
                 className={cn(
                   'mt-px grid size-5 shrink-0 place-items-center rounded-full',
@@ -61,12 +58,34 @@ export function OnboardingChecklistSection(): JSX.Element | null {
               >
                 {done ? <IconCheck size={12} stroke={1.8} aria-hidden="true" /> : null}
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className={cn('block text-body-sm font-medium leading-snug', done ? 'text-nomi-ink-40' : isNext ? 'text-nomi-accent' : 'text-nomi-ink')}>
                   {step.label}
                 </span>
                 {!done ? <span className="mt-px block text-caption leading-snug text-nomi-ink-40">{step.hint}</span> : null}
               </span>
+              {canConnect ? <IconChevronRight size={14} stroke={1.8} className="mt-1 shrink-0 text-nomi-ink-40" aria-hidden="true" /> : null}
+            </>
+          )
+          return (
+            <li
+              key={step.key}
+              data-step={step.key}
+              data-done={done ? 'true' : 'false'}
+              className={cn('rounded-nomi-sm', isNext && 'bg-nomi-accent-soft')}
+            >
+              {canConnect ? (
+                <button
+                  type="button"
+                  onClick={openApimartConnect}
+                  data-onboarding-step-connect="true"
+                  className="flex w-full cursor-pointer items-start gap-2.5 rounded-nomi-sm border-0 bg-transparent p-2 text-left transition-colors hover:bg-nomi-ink-05"
+                >
+                  {body}
+                </button>
+              ) : (
+                <div className="flex items-start gap-2.5 p-2">{body}</div>
+              )}
             </li>
           )
         })}

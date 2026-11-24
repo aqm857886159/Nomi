@@ -76,7 +76,7 @@ import {
 } from "./verifiedCapabilityInvocation";
 import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE, MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE } from "../shared/agentCapabilities/verbDeclaration";
 
-export type CapabilityExecutionErrorCode =
+type CapabilityExecutionErrorCode =
   | "capability_input_invalid"
   | "capability_output_invalid"
   | "capability_timeout"
@@ -178,7 +178,7 @@ type AnyVerifiedInvocation = VerifiedCapabilityInvocation<unknown, unknown>;
 
 export type CanvasReadPortResolver = (invocation: AnyVerifiedInvocation) => CanvasReadPort | Promise<CanvasReadPort>;
 
-export type CapabilityExecutorRegistryOptions = Readonly<{
+type CapabilityExecutorRegistryOptions = Readonly<{
   resolveCanvasReadPort: CanvasReadPortResolver;
   resolveDocumentReadPort?: (invocation: AnyVerifiedInvocation) => DocumentReadPort | Promise<DocumentReadPort>;
   resolveDocumentWritePort?: (invocation: AnyVerifiedInvocation) => DocumentWritePort | Promise<DocumentWritePort>;
@@ -191,7 +191,7 @@ export type CapabilityExecutorRegistryOptions = Readonly<{
   timeoutMs?: number;
 }>;
 
-export type CapabilityExecuteOptions = Readonly<{
+type CapabilityExecuteOptions = Readonly<{
   signal?: AbortSignal;
   approval?: Readonly<{
     receiptProposalId: string;

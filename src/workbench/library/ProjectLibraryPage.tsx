@@ -25,7 +25,9 @@ import type { ProjectTemplateId } from './projectTemplates'
 import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from './libraryDiscovery'
 import { filterProjectLibraryItems } from './libraryAdapters'
 import { LibraryDiscoveryToolbar } from './LibraryDiscoveryToolbar'
+import { LibraryOnboardingHeroCard } from './LibraryOnboardingHeroCard'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { useOnboardingModelAvailability } from '../../ui/onboarding/onboardingModelAvailability'
 import ProjectSyncBadge from './ProjectSyncBadge'
 import { SYNC_TONE_CLASS, syncStatusBlocksOpen } from './projectSyncFace'
 import { librarySyncInspect, useLibrarySyncInspections } from './projectSyncInspectStore'
@@ -48,6 +50,8 @@ type Props = {
   onOpenFolder?: () => void
   onRevealProjectFolder?: (projectId: string) => void
   onOpenModelCatalog?: () => void
+  /** 首屏主卡「用别家服务？去设置」直达设置 › 模型首页；缺省回退 onOpenSettings。 */
+  onOpenModelSettings?: () => void
   /** 打开集中设置页（顶栏齿轮）；缺省则不渲染齿轮入口。 */
   onOpenSettings?: () => void
   /** 看「60 秒预置回放」引导旅途（建示例项目 + 走一遍全流程）；缺省则不渲染该卡 */
@@ -131,12 +135,18 @@ export default function ProjectLibraryPage({
   onOpenFolder,
   onRevealProjectFolder,
   onOpenModelCatalog,
+  onOpenModelSettings,
   onOpenSettings,
   onPlayJourneyTour,
   journeyTourSeen = false,
   hasTextModel = null,
 }: Props): JSX.Element {
   const { t } = useTranslation()
+  const {
+    loading: availabilityLoading,
+    hasUsableModelConnection: catalogHasUsableConnection,
+    apimartCounts,
+  } = useOnboardingModelAvailability()
   // 项目列表由本页自己读：它是这份数据的唯一消费者，外壳不该当数据管道（R9）。
   // `useLocalProjects` 是单一 SWR key，外壳侧的 `refreshProjects` 与这里共享同一份缓存，不是第二个真相源。
   const { projects, projectsError, projectsLoading, refreshProjects: onRetryLoadProjects } = useLocalProjects()
@@ -216,7 +226,6 @@ export default function ProjectLibraryPage({
     { id: 'native', label: t('library.local'), count: sourceCounts.native },
     { id: 'folder', label: t('library.folders'), count: sourceCounts.folder },
   ]
-  const textModelMissing = hasTextModel === false
   const openProject = React.useCallback((projectId: string): void => {
     const status = syncInspectionByProject[projectId]?.status
     if (status && syncStatusBlocksOpen(status)) {
@@ -226,13 +235,20 @@ export default function ProjectLibraryPage({
     onOpenProject(projectId)
     markLibraryUsed('project', projectId)
   }, [onOpenProject, syncInspectionByProject])
-  // 10-08 外壳重设计：模型接入 / 浏览器 / 设置都在 40px 合一顶栏或设置里；这里只剩「缺文本模型」那条提示条。
+  // 10-08 外壳重设计：模型接入 / 浏览器 / 设置都在 40px 合一顶栏或设置里；已有项目且未连模型时顶部出一行提示条（O1b-library）。
   const [tab, setTab] = React.useState<LibraryTab>('projects')
   // Skill / 提示词页签的工具（搜索、类型、导入、新建）和页签同一行（拍板图 SkillLibrary / PromptLibrary）：这一格是它们的落点，库内容自己 portal 进来。
   const [libraryToolbar, setLibraryToolbar] = React.useState<HTMLDivElement | null>(null)
   const libraryTab = tab === 'skills' || tab === 'prompts'
   // 第一次打开（没有项目、没在读、没读错、没在搜）= LibraryEmpty 板：三张大动作卡；有项目后收成右上两颗按钮。
   const firstRun = !projectsError && !projectsLoading && projects.length === 0
+  const hasUsableConnection = catalogHasUsableConnection || hasTextModel === true
+  const hasCatalogBridge = Boolean(getDesktopBridge()?.modelCatalog)
+  const modelUnconnected = hasCatalogBridge
+    ? !availabilityLoading && !hasUsableConnection
+    : hasTextModel === false
+  const showHeroCard = firstRun && !availabilityLoading && !hasUsableConnection
+  const showModelBanner = !firstRun && !projectsLoading && !projectsError && modelUnconnected && Boolean(onOpenModelCatalog)
   const tabs: Array<{ id: LibraryTab; label: string }> = [
     { id: 'projects', label: t('appShell.library.tabProjects') },
     { id: 'skills', label: t('appShell.library.tabSkills') },
@@ -241,7 +257,7 @@ export default function ProjectLibraryPage({
   const actionCards = (
     <section className="flex flex-wrap items-stretch justify-center gap-4" aria-label={t('library.startProject')}>
       <ActionCard
-        variant="primary"
+        variant={showHeroCard ? 'default' : 'primary'}
         icon={<IconPlus size={18} stroke={1.8} />}
         title={t('library.newBlankProject')}
         description={t('library.newBlankProjectDescription')}
@@ -265,15 +281,15 @@ export default function ProjectLibraryPage({
       ) : null}
     </section>
   )
-  // ── 缺文本模型 → 提示条（模型接入在项目库的唯一入口形态；生成失败卡仍可直达设置 › 模型接入） ──
-  const modelBanner = textModelMissing && onOpenModelCatalog ? (
+  // ── 已有项目但未连模型 → 顶部一行提示条（O1b-library；老用户有任一可用连接时不出） ──
+  const modelBanner = showModelBanner && onOpenModelCatalog ? (
     <section
       className="flex min-h-11 items-center gap-2.5 rounded-panel bg-nomi-info-soft py-1.5 pl-3.5 pr-2 text-body-sm text-nomi-info-ink ring-1 ring-inset ring-nomi-line"
       aria-label={t('library.modelStatus')}
       data-model-banner="true"
     >
       <IconPlugConnected size={16} stroke={1.5} className="shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 [text-wrap:pretty]">
         <span className="font-medium">{t('library.textModelMissing')}</span>
         <span className="ml-1.5 text-nomi-info-ink/80">{t('library.textModelMissingHint')}</span>
       </span>
@@ -401,15 +417,26 @@ export default function ProjectLibraryPage({
             <PromptLibraryContent host="page" toolbarHost={libraryToolbar} className="min-h-0 flex-1" />
           </React.Suspense>
         ) : firstRun ? (
-          // LibraryEmpty 板：第一次打开 = 三张大动作卡（设计系统：起始页 / 空状态用 ActionCard）。
-          <section className="mx-auto flex w-full max-w-[880px] flex-col items-center gap-5 pt-4" data-library-first-run>
-            <div className="text-center">
-              <h1 className="m-0 text-h2 font-semibold text-nomi-ink">{t('library.startProject')}</h1>
-              <p className="m-0 mt-1.5 text-body-sm text-nomi-ink-60">{t('appShell.library.startSubtitle')}</p>
-            </div>
-            {actionCards}
-            {modelBanner ? <div className="w-full">{modelBanner}</div> : null}
-          </section>
+          availabilityLoading ? (
+            <section className="mx-auto min-h-[320px] w-full max-w-[872px] pt-4" data-library-first-run-pending aria-busy="true" />
+          ) : (
+            // LibraryEmpty / O0-library：0 项目且无任何可用连接时最上方出主卡（取代首屏提示条），「新建空白项目」降为普通卡；
+            // 老用户已有连接但空项目（O0-old-user-empty）不出主卡，保留原三张起始卡。
+            <section className="mx-auto flex w-full max-w-[880px] flex-col items-center gap-5 pt-4" data-library-first-run>
+              {showHeroCard ? (
+                <LibraryOnboardingHeroCard
+                  modelCount={apimartCounts.total}
+                  onConnect={onOpenModelCatalog}
+                  onOpenOtherProviderSettings={onOpenModelSettings ?? onOpenSettings}
+                />
+              ) : null}
+              <div className="text-center">
+                <h1 className="m-0 text-h2 font-semibold text-nomi-ink">{t('library.startProject')}</h1>
+                <p className="m-0 mt-1.5 text-body-sm text-nomi-ink-60">{t('appShell.library.startSubtitle')}</p>
+              </div>
+              {actionCards}
+            </section>
+          )
         ) : (
         <>
           {modelBanner}

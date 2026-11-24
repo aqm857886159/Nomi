@@ -73,7 +73,6 @@ const EXPECTED = {
   'ps-42-comfy-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-43-crop-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-44-shotcut-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
-  'ps-45-splash-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-46-journey-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-47-browser-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-48-onboarding-expanded-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },

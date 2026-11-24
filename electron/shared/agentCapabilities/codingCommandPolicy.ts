@@ -36,9 +36,6 @@
 // 碰了 fs/electron 就只有第一个用得上，于是没人测，于是一条 `sudo` 的漏网要等真机才发现。
 import path from "node:path";
 
-/** 三档。用户面只有两句话（可撤销的「本会话允许这类」/ 花钱不可逆的「每次确认」），这是它们的机器侧分档。 */
-export type CommandTier = "sandboxed" | "escape" | "hard-list";
-
 /** 硬清单的规则身份。闭合词表——UI 分档、日志归因、单测断言都认它，不认自由文本。 */
 export type HardRuleId =
   /** 不可逆删除：递归强删。 */
@@ -61,7 +58,7 @@ export type EscapeReasonId =
   | "sandbox-unavailable"
   | "unparseable-command";
 
-export interface CommandPolicyInput {
+interface CommandPolicyInput {
   /** 模型要跑的那条命令，原样。 */
   readonly command: string;
   /** 当前项目根（绝对路径）。命令的 cwd 就是它。 */

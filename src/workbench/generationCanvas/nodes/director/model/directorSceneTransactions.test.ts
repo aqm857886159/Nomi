@@ -38,13 +38,13 @@ describe('director project transactions', () => {
     const store = setup(), api = store.getState()
     const before = api.exportProject()
     api.withHistory(() => { api.addObject(object('A')); api.addAssetFolder('F') })
-    expect(store.getState().undoStack).toHaveLength(1)
+    expect(store.temporal.getState().pastStates).toHaveLength(1)
     api.undo()
     expect(api.exportProject()).toEqual(before)
-    const redo = store.getState().redoStack
+    const redo = store.temporal.getState().futureStates
     expect(() => api.withHistory(() => { api.addObject(object('B')); throw new Error('cancelled') })).toThrow('cancelled')
     expect(api.exportProject()).toEqual(before)
-    expect(store.getState().redoStack).toEqual(redo)
+    expect(store.temporal.getState().futureStates).toEqual(redo)
   })
 
   it.each([false, true])('copies/moves a whole group using the project draft (move=%s)', move => {
@@ -292,10 +292,10 @@ describe('sceneConfig has one write door and it records its own undo step', () =
     const store = setup(), api = store.getState()
     api.addLight('point', 'Light')
     const afterEdit = api.exportProject()
-    const depth = store.getState().undoStack.length
+    const depth = store.temporal.getState().pastStates.length
     api.saveState()
     for (const gridHeight of [0.1, 0.2, 0.3, 0.4]) api.patchSceneConfig({ gridHeight })
-    expect(store.getState().undoStack).toHaveLength(depth + 1)
+    expect(store.temporal.getState().pastStates).toHaveLength(depth + 1)
     api.undo()
     expect(store.getState().exportProject()).toEqual(afterEdit)
   })
@@ -331,12 +331,12 @@ describe('sceneConfig has one write door and it records its own undo step', () =
     expect(store.getState().activeScene().sceneConfig.showRuleOfThirds).toBe(false)
     api.undo()
     expect(store.getState().activeScene().sceneConfig.showRuleOfThirds).toBe(true)
-    expect(store.getState().undoStack).toHaveLength(0)
+    expect(store.temporal.getState().pastStates).toHaveLength(0)
   })
 
   it('inside a composed withHistory action the door adds no step of its own', () => {
     const store = setup(), api = store.getState()
     api.withHistory(() => { api.addObject(object('A')); api.patchSceneConfig({ showSkeleton: true }) })
-    expect(store.getState().undoStack).toHaveLength(1)
+    expect(store.temporal.getState().pastStates).toHaveLength(1)
   })
 })

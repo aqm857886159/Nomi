@@ -27,7 +27,7 @@ import { designCommittedNow } from '../../creation/storyboard/exec/storyboardNod
 export type GenerationListCardVariant = 'generation' | 'tool'
 
 /** 节点在列表里的归类（每个节点恰好落进一类）。 */
-export type GenerationListRole = 'generation' | 'tool' | 'asset'
+type GenerationListRole = 'generation' | 'tool' | 'asset'
 
 const TOOL_KINDS: ReadonlySet<string> = new Set(['clip', 'director', 'model3d', 'panorama', 'whiteboard', 'output', 'agent-artifact', 'shot_table', 'shot'])
 const REFERENCE_KINDS: ReadonlySet<string> = new Set(['asset', 'character', 'scene'])
@@ -80,7 +80,7 @@ export type GenerationListModel = {
   sections: GenerationListSection[]
 }
 
-export type GenerationListInput = {
+type GenerationListInput = {
   nodes: readonly GenerationCanvasNode[]
   edges: readonly GenerationCanvasEdge[]
   groups: readonly NodeGroup[]

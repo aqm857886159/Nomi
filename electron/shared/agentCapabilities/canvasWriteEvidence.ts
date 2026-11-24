@@ -117,12 +117,12 @@ export const canvasWriteBatchRawEvidenceSchema = z
   .strict();
 export type CanvasWriteBatchRawEvidence = z.infer<typeof canvasWriteBatchRawEvidenceSchema>;
 
-export type CanvasWriteAdmission = Readonly<{
+type CanvasWriteAdmission = Readonly<{
   target: Extract<TargetRef, { kind: "canvas" }>;
   preconditions: PreconditionSet;
 }>;
 
-export type CanvasWriteEvidenceErrorCode = "capability_input_invalid" | "capability_target_stale";
+type CanvasWriteEvidenceErrorCode = "capability_input_invalid" | "capability_target_stale";
 
 export class CanvasWriteEvidenceError extends Error {
   constructor(readonly code: CanvasWriteEvidenceErrorCode) {

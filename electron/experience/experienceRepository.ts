@@ -71,7 +71,7 @@ function appendProjectionEvent(projectId: string, type: string, candidate: Exper
   }]);
 }
 
-export type ExperienceRepository = {
+type ExperienceRepository = {
   complete(input: unknown): Promise<ExperienceCandidate[]>;
   list(projectId: string): ExperienceCandidate[];
   recordReuse(projectId: string, candidateId: string, reuse: ExperienceReuse): Promise<ExperienceCandidate | null>;
@@ -119,14 +119,4 @@ export function createExperienceRepository(): ExperienceRepository {
       return next;
     },
   };
-}
-
-let repository: ExperienceRepository | null = null;
-
-export function getExperienceRepository(): ExperienceRepository {
-  return repository ??= createExperienceRepository();
-}
-
-export function resetExperienceRepositoryForTests(): void {
-  repository = null;
 }

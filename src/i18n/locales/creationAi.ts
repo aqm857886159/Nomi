@@ -75,7 +75,7 @@ export const zhCreationAi = {
     language: { en: '英文', zh: '中文', ja: '日文' },
     failed: '没改成：{{reason}}',
     noProject: '当前没有打开的项目',
-    noTextModel: '还没有可用的文本模型，到「设置 → 模型」启用一个',
+    noTextModel: '还没有可用的文本模型，请先点「连接模型」接入',
     emptyResult: '模型没有返回内容',
     unchanged: '模型返回的内容和原文一样',
     unknownReason: '原因不明',
@@ -90,7 +90,7 @@ export const zhCreationAi = {
     textModel: '文本对话模型',
     descriptionAfter: '当大脑。',
     enable: '启用 {{model}}',
-    settings: '检查模型',
+    settings: '连接模型',
   },
   mode: {
     general: {
@@ -218,7 +218,7 @@ export const enCreationAi = {
     language: { en: 'English', zh: 'Chinese', ja: 'Japanese' },
     failed: 'Could not edit: {{reason}}',
     noProject: 'No project is open',
-    noTextModel: 'No text model is available yet. Enable one in Settings → Models',
+    noTextModel: 'No text model is available yet. Select “Connect” to connect a model first.',
     emptyResult: 'The model returned nothing',
     unchanged: 'The model returned the same text',
     unknownReason: 'Unknown reason',
@@ -235,7 +235,7 @@ export const enCreationAi = {
     textModel: 'text conversation model',
     descriptionAfter: ' as the assistant’s brain.',
     enable: 'Enable {{model}}',
-    settings: 'Model Setup',
+    settings: 'Connect',
   },
   mode: {
     general: {

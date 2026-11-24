@@ -35,102 +35,11 @@ const check = (name, ok, detail = '') => {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
-// 页内量一次「跳过」：中心命中谁、几何（拖拽带 / Windows 原生三键区推算）。
-// 系统视角按 Chromium 收集拖拽区的规则近似：带 -webkit-app-region 的元素按 DOM 顺序、后者覆盖前者（drag 加、no-drag 减）。
-async function measureSplashSkip(win) {
-  return win.evaluate(() => {
-    const skip = document.querySelector('[data-splash-skip="true"]')
-    if (!skip) return { present: false }
-    const rect = skip.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    const hit = document.elementFromPoint(cx, cy)
-    const regions = []
-    for (const el of document.querySelectorAll('*')) {
-      const value = getComputedStyle(el).getPropertyValue('-webkit-app-region').trim()
-      if (value === 'drag' || value === 'no-drag') regions.push({ value, box: el.getBoundingClientRect() })
-    }
-    let centerStatus = 'none'
-    for (const { value, box } of regions) {
-      if (box.width > 0 && box.height > 0 && cx >= box.left && cx < box.right && cy >= box.top && cy < box.bottom) centerStatus = value
-    }
-    // 顶栏带（40px）里每 40px 取一点：开屏整屏时全命中开屏；顶栏压在开屏上面时命中顶栏。
-    const bandHits = []
-    for (let x = 20; x < window.innerWidth; x += 40) bandHits.push(Boolean(document.elementFromPoint(x, 20)?.closest('.nomi-splash')))
-    const label = hit?.getAttribute('aria-label')
-    return {
-      present: true,
-      isSkip: Boolean(hit?.closest('[data-splash-skip]')),
-      hit: hit ? `${hit.tagName.toLowerCase()}${label ? `[${label}]` : ''}` : null,
-      rect: `${Math.round(rect.left)},${Math.round(rect.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`,
-      centerStatus,
-      overlapBand: Math.max(0, Math.min(rect.bottom, 40) - Math.max(rect.top, 0)),
-      inWindowsCaptionZone: rect.left >= window.innerWidth - 138 && rect.top < 40,
-      bandCovered: bandHits.filter(Boolean).length,
-      bandSamples: bandHits.length,
-    }
-  })
-}
-
-// 首启开屏：先于一切别的断言。命中、几何三项、整屏、真点、项目库出现；中间夹同一次运行内的阳性对照（证明断言不恒真）。
-async function assertSplashSkipReachable(win, tag, lang) {
-  const skip = win.locator('[data-splash-skip="true"]')
-  await skip.waitFor({ state: 'visible', timeout: stationTimeout() })
-  // 淡入走完再量：命中不看透明度，这只是让截图读得清。
-  await win.waitForFunction(() => {
-    const el = document.querySelector('.nomi-splash')
-    return Boolean(el) && Number(getComputedStyle(el).opacity) >= 0.99
-  }, undefined, { timeout: stationTimeout() })
-  const asIs = await measureSplashSkip(win)
-  check(`[${lang}] 开屏出现时「跳过」中心最上层就是按钮自己`, asIs.isSkip, `命中=${asIs.hit}，按钮 ${asIs.rect}`)
-  // 几何三项：真用户点击要过的那一关，CDP 合成点击量不到，只能量几何。
-  check(`[${lang}] 几何：「跳过」中心点系统视角不是拖拽区（${asIs.centerStatus}）`, asIs.centerStatus !== 'drag', `按钮 ${asIs.rect}`)
-  check(`[${lang}] 几何：「跳过」与 40px 顶栏带重叠 = 0`, asIs.overlapBand === 0, `重叠 ${asIs.overlapBand}px，按钮 ${asIs.rect}`)
-  check(`[${lang}] 几何：「跳过」不落在 Windows 原生三键区（推算，未在 Windows 实测）`, !asIs.inWindowsCaptionZone, `inWindowsCaptionZone=${asIs.inWindowsCaptionZone}`)
-  // 开屏整屏（方案 B：盖住顶栏，不是让开顶栏）：顶栏带的采样点全命中开屏，动画没被顶栏切。
-  check(`[${lang}] 开屏整屏：顶栏带 ${asIs.bandSamples} 个采样点全命中开屏（没被顶栏切）`, asIs.bandSamples > 0 && asIs.bandCovered === asIs.bandSamples, `${asIs.bandCovered}/${asIs.bandSamples}`)
-  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}-${lang}-splash.png`) })
-
-  // 对照 1（同一次运行内，运行时改内联 z-index，不动源码）：开屏压到 60，顶栏就压到开屏上面——顶栏带的采样点必须翻成别的元素（整屏断言翻红）。
-  // 注意「跳过」本身的命中不会翻：方案 B 把它挪到了带外（y ≥ 48，顶栏只有 40px 高），层级退回去也盖不住它，只是动画被顶栏切掉一条。
-  // 这一点是 B 的收益，也是为什么层级的守卫要落在「整屏」这一项上，而不是「跳过命中」那一项。
-  await win.evaluate(() => { document.querySelector('.nomi-splash').style.zIndex = '60' })
-  const lowered = await measureSplashSkip(win)
-  check(`[${lang}] 阳性对照：开屏压到 z-60，顶栏压到开屏上面、顶栏带不再全是开屏（断言不恒真）`, lowered.bandSamples > 0 && lowered.bandCovered < lowered.bandSamples, `顶栏带命中开屏 ${lowered.bandCovered}/${lowered.bandSamples}；「跳过」命中=${lowered.hit}（在带外，不受层级影响）`)
-  await win.evaluate(() => { document.querySelector('.nomi-splash').style.zIndex = '' })
-  // 对照 2：「跳过」挪回老位置（原 top-7 = 28px），重叠与三键区两项必须翻红。中心系统视角这一项在 Mac 当前布局下翻不了
-  // （右上图标簇是 no-drag，把老位置整块罩住，碰巧不是拖拽区），所以它守的是将来图标簇变窄的情形，对照里不测它。
-  const originalTop = await win.evaluate(() => {
-    const el = document.querySelector('[data-splash-skip="true"]')
-    const before = el.style.top
-    el.style.top = '28px'
-    return before
-  })
-  const movedBack = await measureSplashSkip(win)
-  check(`[${lang}] 阳性对照：「跳过」挪回老位置 top 28px，与顶栏带重叠 > 0 且落进三键区（断言不恒真）`, movedBack.overlapBand > 0 && movedBack.inWindowsCaptionZone, `重叠 ${movedBack.overlapBand}px，三键区=${movedBack.inWindowsCaptionZone}`)
-  await win.evaluate((top) => { document.querySelector('[data-splash-skip="true"]').style.top = top }, originalTop)
-  const restored = await measureSplashSkip(win)
-  check(`[${lang}] 对照撤掉后恢复：「跳过」回到带外、命中是按钮自己`, restored.isSkip && restored.overlapBand === 0 && restored.bandCovered === restored.bandSamples, `重叠 ${restored.overlapBand}px，命中=${restored.hit}`)
-
-  // 真点（Playwright 会做命中检查，被盖住会超时；不 force）。
-  let clicked = true
-  let clickDetail = ''
-  try {
-    await skip.click({ timeout: 3_000 })
-  } catch (error) {
-    clicked = false
-    clickDetail = String(error).split('\n')[0].slice(0, 120)
-  }
-  check(`[${lang}] 真点「跳过」点得动（不 force）`, clicked, clickDetail)
-  if (!clicked) {
-    // 收尾：这条走查后面还要验语言，开屏得先关掉。上一条已经把红记下了，这一步不是放行。
-    await win.evaluate(() => { document.querySelector('[data-splash-skip="true"]')?.click() })
-  }
-  await win.locator('.nomi-splash').waitFor({ state: 'detached', timeout: stationTimeout() })
-  check(`[${lang}] 开屏关掉`, true)
+// 首启直达项目库（Q18 已删除开屏 SplashIntro）：确认顶栏当前页标题可见且没有任何开屏遮罩。
+async function assertFirstLaunchLibraryReachable(win, tag, lang) {
   await win.locator('[data-shell-here]').waitFor({ state: 'visible', timeout: stationTimeout() })
-  check(`[${lang}] 项目库出现（顶栏「${await win.locator('[data-shell-here]').innerText()}」）`, true)
-  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}-${lang}-after-skip.png`) })
+  check(`[${lang}] 首启无开屏直接进入项目库（顶栏「${await win.locator('[data-shell-here]').innerText()}」）`, true)
+  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}-${lang}-first-screen.png`) })
 }
 
 // 伪造系统语言启动一个全新隔离实例（无存储偏好）。
@@ -145,7 +54,7 @@ async function launchWithSystemLang(tag, lang) {
     // NOMI_TEST_SYSTEM_LOCALE=1：显式开启系统语言探测（其余走查默认关，保中文选择器确定性）。
     env: { NOMI_TEST_SYSTEM_LOCALE: '1' },
   })
-  await assertSplashSkipReachable(win, tag, lang)
+  await assertFirstLaunchLibraryReachable(win, tag, lang)
   return { app, win, iso }
 }
 

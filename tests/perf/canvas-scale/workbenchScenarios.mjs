@@ -16,7 +16,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { armResponse, takeResponse } from './responseTimer.mjs'
 import { findCanvasBlankPoint, revealArrivals } from '../../ux/_canvasHit.mjs'
-import { addCanvasNode, canvasAddBar, canvasFitViewButton, ensureAgentPanelOpen, revealCanvasDock } from '../../ux/_shell.mjs'
+import { addCanvasNode, canvasAddBar, canvasFitViewButton, ensureAgentPanelOpen, openModelSettings, revealCanvasDock } from '../../ux/_shell.mjs'
 import { uiText } from '../../ux/full-walk/invariants.mjs'
 
 /** 本模块提供的场景名（canvas-scale-bench 的 --scenarios 可选值的一部分）。 */
@@ -52,6 +52,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'chat-scroll-500-cpu4x',
   'window-narrow-drag',
   'topbar-yield-resize',
+  'onboarding-connect-open',
 ])
 
 const sleep = (page, ms) => page.waitForTimeout(ms)
@@ -108,9 +109,9 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
     seedLongDocument(fixture, REWRITE_DOCUMENT_PARAGRAPHS)
     return { launch: {}, close: async () => {} }
   }
-  if (scenario.startsWith('library-')) {
-    // 技能库 / 提示词库（设计卡 docs/plan/2026-10-23-skill-prompt-library-layout.md ★7）：零外网（网络闸只放行本机，
-    // 远端示例媒体照样「发出去」、被闸拦下，媒体请求数照数）；提示词场景把公开库撑到最坏规模（5 个来源 × 280 = 1400 条）。
+  if (scenario.startsWith('library-') || scenario === 'onboarding-connect-open') {
+    // 技能库 / 提示词库（设计卡 docs/plan/2026-10-23-skill-prompt-library-layout.md ★7）与 T-5 连接 APIMart 大页：
+    // 零外网（网络闸只放行本机，远端示例媒体照样「发出去」、被闸拦下，媒体请求数照数）；提示词场景把公开库撑到最坏规模（5 个来源 × 280 = 1400 条）。
     const settingsDir = path.join(root, 'settings')
     fs.mkdirSync(settingsDir, { recursive: true })
     const publicPrompts = scenario.startsWith('library-prompt') ? seedPublicPromptCache(settingsDir, repoRoot) : 0
@@ -355,6 +356,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario.startsWith('chat-scroll-500')) return chatScroll(page, ctx, CHAT_SCENARIOS[scenario])
   if (scenario === 'window-narrow-drag') return windowNarrowDrag(page, ctx)
   if (scenario === 'topbar-yield-resize') return topbarYieldResize(page, ctx)
+  if (scenario === 'onboarding-connect-open') return onboardingConnectOpen(page, ctx)
   throw new Error(`未知工作台场景 ${scenario}`)
 }
 
@@ -1548,4 +1550,42 @@ async function listQueueSettle(page, ctx) {
   const raw = await ctx.stopWindow(page)
   await page.locator('[data-generation-view-switcher]').first().click()
   return { raw, responseMs: Math.max(...times), queueSettled: ids.length, listCards: count, path: '20 real queue settlements → visible list labels + two frames' }
+}
+
+/**
+ * T-5 连接 APIMart 整窗平级页打开（设计卡 docs/plan/2026-11-24-t5-onboarding-s7b.md ★7）：
+ * 从项目画布触发统一入口 `nomi-open-apimart-connect`（与生成框「连接模型」/ 设置 › 模型 › APIMart / 项目库主卡同源）→
+ * 整窗大页主按钮与 Key 输入框可见再过两帧（`apimartConnectReady`），并校验零公网媒体请求；采样完按 Esc 返回原工作区以便重复 5 轮。
+ */
+async function onboardingConnectOpen(page, ctx) {
+  if (await page.locator('[data-apimart-connect-page]').count()) {
+    await page.keyboard.press('Escape')
+    await page.locator('[data-apimart-connect-page]').waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {})
+    await sleep(page, 200)
+  }
+  await openModelSettings(page, { label: '准备测量连接 APIMart 整窗页打开响应' })
+  const apimartRowBtn = page.locator('[data-model-home-adapted-platforms] button').first()
+  await apimartRowBtn.waitFor({ state: 'visible', timeout: 15_000 })
+  await sleep(page, 150)
+
+  const stopCounting = countMediaRequests(page)
+  await armResponse(page, { trigger: 'click', predicate: 'apimartConnectReady' })
+  await ctx.startWindow(page)
+  await apimartRowBtn.click()
+  const response = await takeResponse(page)
+  await sleep(page, 250)
+  const raw = await ctx.stopWindow(page)
+  const requests = stopCounting()
+  if (ctx.state.coldResponseMs === undefined) ctx.state.coldResponseMs = response.ms
+  await page.keyboard.press('Escape')
+  await page.locator('[data-apimart-connect-page]').waitFor({ state: 'detached', timeout: 10_000 })
+  await sleep(page, 200)
+  return {
+    raw,
+    responseMs: response.ms,
+    coldResponseMs: ctx.state.coldResponseMs,
+    mediaRequests: requests.total,
+    remoteMediaRequests: requests.remote,
+    path: 'Settings › Models › APIMart click → full-window ApimartConnectPage ready + 2 frames',
+  }
 }

@@ -1,4 +1,4 @@
-import { TtlLruCache } from "./taskCache";
+import { BoundedCache } from "../shared/boundedCache";
 import type { JsonRecord } from "../jsonUtils";
 import { desktopT } from "../i18n";
 
@@ -6,7 +6,7 @@ import { desktopT } from "../i18n";
 // 存活更久：高并发(>200)把仍在轮询的条目从工作缓存 LRU 驱逐后，这里仍记得它「曾被受理」，
 // 让 fetchTaskResult 的 miss 能区分「未知 id」与「本地追踪丢失（vendor 侧可能已成功）」。
 // 从 runtime.ts 拆出（巨壳门岗·只减不增）：账本与诊断是独立关注点，runtime 只调本模块。
-const admittedTaskIds = new TtlLruCache<true>({ maxEntries: 5000, ttlMs: 24 * 60 * 60 * 1000 });
+const admittedTaskIds = new BoundedCache<string, true>({ maxEntries: 5000, ttlMs: 24 * 60 * 60 * 1000 });
 
 /** 记一笔「该异步任务已受理」。runtime.admitTask 在写工作缓存的同时调它（单一入口防漏记）。 */
 export function markTaskAdmitted(id: string): void {

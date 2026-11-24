@@ -1,4 +1,4 @@
-import { canvasWindowInput } from '../../../shortcutSurface'
+import { canvasWindowInput, registerHistoryShortcut, shortcutSurfaceMayHandle, workspaceInputSurfaceIsActive } from '../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、./DirectorEditorContext 的 useDirectorStoreApi、./model/hotkeys（DIRECTOR_HOTKEYS / matchesHotkey）
  *          ../../../generation/pageLayerContext 的 useGenerationPageLayerActive（藏着时整条监听摘掉）
@@ -6,7 +6,7 @@ import { canvasWindowInput } from '../../../shortcutSurface'
  * [OUTPUT]: 对外提供 useDirectorHotkeys、isTextTarget、isDirectorKeyboardBlocked：区域感知快捷键与持续导航共用输入归属；多选命令一次操作只入一次撤销
  * [POS]: director 的键盘入口（清单 §5.4 L7 + §8 键位）：S1 接工具 1/2/3、0 归位、F 聚焦、Esc、撤销重做、打组解组、删除、克隆；
  *        时间轴键位由 timeline/useTimelineHotkeys 用同一分发器注册（子组件先注册先收到，返回 false 让位）。
- *        捕获期监听，命中后 preventDefault + stopImmediatePropagation，不让画布与后续分发器收到。
+ *        撤销/重做由 shortcutSurface 统一路由。其余键捕获期监听，命中后 preventDefault + stopImmediatePropagation，不让画布与后续分发器收到。
  *        导演台藏着（切去创作 / 预览页、列表视图）时监听整条摘掉：它挂在 window 上，留着就会吞掉别的页的 Backspace / ⌘Z / 空格。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -14,6 +14,7 @@ import React from 'react'
 import { useGenerationPageLayerActive } from '../../../generation/pageLayerContext'
 import { useDirectorStoreApi } from './DirectorEditorContext'
 import { DIRECTOR_HOTKEYS, matchesHotkey, type DirectorHotkeyId, type DirectorHotkeyScope } from './model/hotkeys'
+import type { DirectorStore } from './model/directorStore'
 import { selectedRoots } from './model/sceneObjectGraph'
 
 // 处理器返回 false = 这次不接管（事件继续给后面注册的分发器 / 浏览器默认）
@@ -35,6 +36,21 @@ export function isDirectorKeyboardBlocked(event: Pick<KeyboardEvent, 'target' | 
   // 有浮层 / 按需面板开着时导演台快捷键让路——除非它声明了 data-nomi-hotkeys="pass"：精修「▤ ▾」大纲浮层、场景设置卡、资产库抽屉
   // 是会开很久的工作面（在里面打组、删、改名后要能 Ctrl+Z），不是一次性的小菜单。Esc 仍归它们自己（编辑器 Esc 照样让路）。
   return event.defaultPrevented || event.isComposing || isTextTarget(event.target) || Boolean(document.querySelector('[data-nomi-escape-layer]:not([data-nomi-hotkeys="pass"])'))
+}
+
+/** One history binding per editor. Both the viewport and timeline mount the scoped hotkey hook. */
+export function useDirectorHistoryShortcut(editorRef: React.RefObject<Element | null>, store: DirectorStore, readOnly: boolean): void {
+  const layerActive = useGenerationPageLayerActive()
+  React.useEffect(() => {
+    if (!layerActive) return
+    return registerHistoryShortcut('director', () =>
+      workspaceInputSurfaceIsActive(editorRef.current) &&
+      (shortcutSurfaceMayHandle(editorRef.current) || shortcutSurfaceMayHandle(document.querySelector('[data-shortcut-surface="canvas"]'))),
+    (direction, event) => {
+      if (isDirectorKeyboardBlocked(event) || readOnly) return false
+      store.getState()[direction]()
+    })
+  }, [editorRef, layerActive, readOnly, store])
 }
 
 export function useDirectorHotkeys({ scopeRef, handlers }: { scopeRef: React.MutableRefObject<DirectorHotkeyScope>; handlers: HotkeyHandlers }): void {

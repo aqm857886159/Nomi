@@ -14,10 +14,10 @@ export type UpdaterInstaller = {
 };
 
 /** restart = 用户点「重启以更新」（非静默，装完重开）；quit = 退出时静默安装（装完不重开）。 */
-export type InstallMode = "restart" | "quit";
+type InstallMode = "restart" | "quit";
 export type InstallOutcome = "started" | "busy" | "failed";
 
-export type InstallGateDeps = {
+type InstallGateDeps = {
   getUpdater: () => UpdaterInstaller | null;
   /** 同步判断「现在能不能装」：true = 有活在跑，不许打断。senderId 只有用户点击那条路才有。 */
   isBusy: (mode: InstallMode, senderId?: number) => boolean;

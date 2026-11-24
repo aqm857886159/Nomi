@@ -68,7 +68,7 @@ async function measure() {
     const cardRect = card.getBoundingClientRect()
     const pm = card.querySelector('.ProseMirror')
     const scroller = pm ? pm.closest('.overflow-y-auto') : null
-    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"]')
+    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"], button[data-composer-connect="true"]')
     const bRect = btn?.getBoundingClientRect()
     const cs = scroller ? getComputedStyle(scroller) : null
     let scrollableBy = null

@@ -76,11 +76,6 @@ export function runReferenceGroupHead(key: string): string {
   return runReferenceGroupOf(key)?.[0] ?? key;
 }
 
-/** 族 / 帧 → 合同参考放到的标准输入键（`placeApprovedRunReferences` 写的就是它们）。 */
-export function isStandardRunReferenceKey(key: string): boolean {
-  return Object.values(STANDARD_LIST_KEY).includes(key) || Object.values(STANDARD_FRAME_KEY).includes(key);
-}
-
 function present(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "" && !(Array.isArray(value) && value.length === 0);
 }
@@ -105,7 +100,7 @@ function slotKindForContractReference(reference: { kind?: string; role?: string 
           : "image_ref";
 }
 
-export type ApprovedRunReference = Readonly<{ url: string; kind?: string; role?: string }>;
+type ApprovedRunReference = Readonly<{ url: string; kind?: string; role?: string }>;
 
 const FAMILY_SLOT_KIND: Readonly<Record<ReferenceFamily, ArchetypeReferenceSlotKind>> = {
   image: "image_ref",

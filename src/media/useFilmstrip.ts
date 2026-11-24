@@ -10,7 +10,7 @@ import { parseNomiLocalAssetUrl } from './nomiLocalAssetUrl'
  * 并发闸 2：几十个视频同屏时不并发拉起几十个 ffmpeg。
  * 产物落项目缓存区（.nomi/cache/），不进素材库（见 electron/assets/projectCacheFile.ts）。
  */
-export type FilmstripEntry =
+type FilmstripEntry =
   | { status: 'ready'; url: string; tiles: number }
   | { status: 'pending' }
   | { status: 'failed' }
@@ -59,7 +59,7 @@ function request(key: string, videoUrl: string, projectId: string): void {
   pump()
 }
 
-export type FilmstripRequest = {
+type FilmstripRequest = {
   videoUrl: string
   projectId: string
   key: string
@@ -115,11 +115,4 @@ export function useFilmstrip(
   }, [key, url, projectId])
 
   return entry
-}
-
-/** 测试用：清缓存与队列。 */
-export function resetFilmstripForTests(): void {
-  cache.clear()
-  queue.length = 0
-  running = 0
 }

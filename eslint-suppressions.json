@@ -1,22 +1,7 @@
 {
-  "electron/agentLane/laneApprovalGate.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/agentLane/laneProviderGuard.mts": {
     "vendor-failure-one-home/no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "electron/agentLane/laneToolInputBoundary.mts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/ai/onboarding/vendorPricePreview.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/assets/assetBytes.ts": {
@@ -114,11 +99,6 @@
       "count": 2
     }
   },
-  "electron/capabilityCore/generationDocumentPlan.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/capabilityCore/hostConfigWrite.ts": {
     "main-sync-wait/no-restricted-syntax": {
       "count": 1
@@ -126,11 +106,6 @@
   },
   "electron/capabilityCore/mcpProfiles.ts": {
     "generic-fs-watch/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/capabilityCore/projectLease.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -145,9 +120,6 @@
     }
   },
   "electron/catalog/dreaminaCli.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
-      "count": 1
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 1
     }
@@ -215,11 +187,6 @@
   "electron/export/mediaProbe.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 6
-    }
-  },
-  "electron/integrationCertification/credentialElicitation.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/integrationCertification/operationLedger.ts": {
@@ -320,11 +287,6 @@
       "count": 1
     }
   },
-  "electron/productionRun/singleShotGenerationObserver.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/productionRun/submissionIntent.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 11
@@ -352,16 +314,6 @@
   },
   "electron/shared/generationFailureDetect.ts": {
     "vendor-failure-one-home/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/tasks/taskCache.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/telemetry/intakeQueue.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -397,7 +349,7 @@
   },
   "electron/workspace/workspaceManifestLock.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 18
+      "count": 3
     }
   },
   "electron/workspace/workspaceManifestTransaction.ts": {
@@ -1309,33 +1261,8 @@
       "count": 1
     }
   },
-  "src/ui/toast.tsx": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/adoption/adoptionProposalRegistry.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "src/workbench/ai/resident/residentToolText.ts": {
     "vendor-failure-one-home/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/api/taskApi.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/observability/perfCollector.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
       "count": 1
     }
   },

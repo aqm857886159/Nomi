@@ -24,7 +24,7 @@ async function addNode(label) {
 async function inspectComposer() {
   return win.locator('.generation-canvas-v2-node__composer-card').last().evaluate((card) => {
     const cardRect = card.getBoundingClientRect()
-    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"]')
+    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"], button[data-composer-connect="true"]')
     const editor = card.querySelector('.ProseMirror') || card.querySelector('[contenteditable]')
     const b = btn?.getBoundingClientRect()
     return {
