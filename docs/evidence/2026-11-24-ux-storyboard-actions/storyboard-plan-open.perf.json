@@ -1,0 +1,55 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 16GB",
+  "commit": "f5d1a14e3",
+  "head": "f5d1a14e315cf6eec18104eb6ece9f38bde5d7d8",
+  "dirty": true,
+  "sourceTree": "b8d9396b96239a7992a7bd979cbb7288726f16d5",
+  "date": "2026-11-24",
+  "runs": 5,
+  "results": [
+    {
+      "id": "storyboard-plan-open",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 528.2,
+          "p95": 535.9
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 2,
+          "p95": 3
+        }
+      },
+      "samples": {
+        "response": [
+          489.7,
+          532.5,
+          528.2,
+          512.5,
+          536.7
+        ],
+        "longTasks": [
+          3,
+          2,
+          2,
+          3,
+          2
+        ]
+      },
+      "budget": 1000,
+      "baseline": {
+        "median": 18219.5,
+        "p95": 18692.7,
+        "runs": 5,
+        "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
+        "date": "2026-10-16",
+        "commit": "94724f860"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

@@ -77,6 +77,7 @@ export function StoryboardPlanEditorFooter({
   progress,
   issueLabel,
   onBack,
+  onAddShot,
   onGenerate,
   busy,
   runnableCount,
@@ -85,6 +86,7 @@ export function StoryboardPlanEditorFooter({
   progress: string
   issueLabel?: string
   onBack: () => void
+  onAddShot?: () => void
   onGenerate: () => void
   busy: boolean
   runnableCount: number
@@ -103,6 +105,12 @@ export function StoryboardPlanEditorFooter({
         ) : <span className="text-caption text-nomi-ink-60 min-w-0 truncate" data-storyboard-progress="true">{progress}</span>}
       </div>
       <div className="flex items-center gap-2.5 shrink-0">
+        {onAddShot ? (
+          <WorkbenchButton size="sm" onClick={onAddShot} data-storyboard-add-shot="true">
+            <IconPlus />
+            {t('storyboardEditor.addShot')}
+          </WorkbenchButton>
+        ) : null}
         <WorkbenchButton variant="primary" onClick={onGenerate} disabled={busy || runnableCount === 0} data-storyboard-batch="true">
           <IconPlayerPlay size={15} stroke={1.8} />
           {generateLabel ?? t('storyboardEditor.footer.generateRemaining', { count: runnableCount })}
@@ -125,7 +133,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const designId = activeDesign?.id ?? ''
   const legacySetStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
   const setStoryboardPlan = React.useMemo(() => (next: StoryboardPlan) => {
-    if (activeDesign) legacySetStoryboardPlan(next, activeDesign.documentId, activeDesign.id)
+    return activeDesign ? legacySetStoryboardPlan(next, activeDesign.documentId, activeDesign.id) : null
   }, [activeDesign, legacySetStoryboardPlan])
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
@@ -318,6 +326,25 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }, [strategyState, t])
 
   if (!plan) return null
+
+  const onAddShot = (): void => {
+    const saved = flushSync(() => {
+      const updated = setStoryboardPlan(addShot(plan))
+      if (updated) setFilterAnchorId(null)
+      return updated
+    })
+    const shot = saved?.plan.shots.at(-1)
+    if (!shot) return
+
+    const row = scrollRef.current?.querySelector(`[data-storyboard-row="${shot.index}"]`)
+    if (row) {
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      row.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' })
+    } else {
+      // The table already knows how to reveal rows outside its visible range or inside folded scenes.
+      useWorkbenchStore.getState().setStoryboardRowFocus({ designId, rowId: stableShotId(shot) })
+    }
+  }
 
   const issues = validatePlan(plan).filter(issue => issue.kind !== 'anchor-not-consumable')
   // 刚建出来、一个字都还没写的空白起手式**不报错**（2026-09-21 真机截图：新建方案一落地，
@@ -621,14 +648,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               filterAnchorId={filterAnchorId}
               scrollRef={scrollRef}
             />
-            <button
-              type="button"
-              onClick={() => setStoryboardPlan(addShot(plan))}
-              className="self-start h-6 px-2.5 rounded-full border border-dashed border-nomi-ink-20 text-caption text-nomi-ink-60 inline-flex items-center gap-1 hover:text-nomi-ink-80"
-            >
-              <IconPlus size={13} stroke={1.8} />
-              {t('storyboardEditor.addShot')}
-            </button>
           </div>
         </section>
       </div>
@@ -637,6 +656,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         progress={`${t('storyboardEditor.footer.progress', { done: batch.doneCount + batch.excluded.locked, total: plan.shots.length })}${excludedReasons.length > 0 ? ` ${excludedReasons.join(t('storyboardEditor.footer.reasonSeparator'))}${t('storyboardEditor.footer.excludedSuffix')}` : ''}`}
         issueLabel={visibleIssues.length > 0 ? t('storyboardEditor.issuesSummary', { count: visibleIssues.length, issue: firstIssueLabel(visibleIssues[0]) }) : undefined}
         onBack={() => { setActiveStoryboardId(null); setWorkspaceMode('creation') }}
+        onAddShot={onAddShot}
         onGenerate={onRunBatch}
         busy={busy}
         runnableCount={batch.runnable.length}
