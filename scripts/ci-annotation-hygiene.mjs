@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { fetchWithRetry } from './lib/transientRetry.mjs'
+import { fetchWithRetry, isTransientGitFetchError } from './lib/transientRetry.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES } from './validation-policy.mjs'
 
 const API_ROOT = 'https://api.github.com'
@@ -32,18 +32,20 @@ function delegatedOwner(annotation) {
   ) {
     return 'workflow orchestration cancellation'
   }
-  // GitHub runner 下载 action 失败后自己退避重试（`Failed to download action …` + `Back off N seconds before retry.`），
-  // 重试成功、job 照常跑完时，这两条 warning 归 runner 基础设施，不是我们代码或工作流的噪声。
-  // 只认 job 最终 success：重试也没下下来时 job 本身会失败，由 job 结论拦，不靠这条。
-  // 来由：2026-11-22 main 752ade403（#1604 合并）所有 job 全绿，只因 Unit (2) 上这 4 条重试 warning
-  // 被判 unexpected，汇总红、收据红，合并整体停下。
-  if (
-    annotation.level === 'warning' &&
-    annotation.path === '.github' &&
-    annotation.jobConclusion === 'success' &&
-    /^(?:Failed to download action '[^']+'\. Error: |Back off [\d.]+ seconds before retry\.)/.test(String(annotation.message ?? ''))
-  ) {
-    return 'runner action-download retry (job succeeded)'
+  // Repository warning commands must identify their source with a file or title.
+  if (annotation.path === '.github' && annotation.title === '' && annotation.jobConclusion === 'success') {
+    if (annotation.level === 'warning' && !/deprecated|will be forced to run with|save-state|set-output/iu.test(annotation.message)) {
+      return 'github actions platform warning (job succeeded)'
+    }
+    // checkout's matcher strips the Git fatal/error prefix. Require a Git
+    // diagnostic before passing the untyped message to the network classifier.
+    if (
+      annotation.level === 'failure' &&
+      /^(?:unable to access '[^']+':|RPC failed; curl\b|the remote end hung up unexpectedly\b)/u.test(annotation.message) &&
+      isTransientGitFetchError({ stderr: annotation.message })
+    ) {
+      return 'github actions transient git retry (job succeeded)'
+    }
   }
   if (
     annotation.level === 'warning' &&
