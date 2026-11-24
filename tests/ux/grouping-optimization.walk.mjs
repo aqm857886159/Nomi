@@ -1,15 +1,15 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { canvasFitViewButton, newProjectEntry } from './_shell.mjs'
+import { GROUP_TOOLBAR } from './_groupGenerate.mjs'
+import { frameBlankPosition, GROUP_FRAME_SELECTOR, selectFrameByBlankClick } from './_groupFrame.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/grouping-optimization')
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
+const shotsDir = makeTempDir('nomi-grouping-optimization-')
+process.env.EVIDENCE_DIR = shotsDir
 
 const { app, win } = await launchNomiApp({
   name: 'grouping-optimization',
@@ -30,46 +30,34 @@ try {
   await win.keyboard.press('Control+a')
   await expect(win.locator('.generation-canvas-v2-node[data-selected="true"]')).toHaveCount(4)
   await win.locator('[aria-label^="创建分组"]').first().click()
-  await expectVisible(win.locator('.generation-canvas-v2__group-box').first(), '组框已生成')
-  await expectVisible(win.locator('[data-group-toolbar="true"]'), '组工具条已出现')
-  await expect(win.locator('.generation-canvas-v2__group-box').first()).toHaveAttribute('data-frame-selected', 'true')
+  const frame = win.locator(GROUP_FRAME_SELECTOR)
+  const toolbar = win.locator(GROUP_TOOLBAR)
+  await expectVisible(frame, '组框已生成')
+  await expectVisible(toolbar, '组工具条已出现')
+  await expect(frame).toHaveAttribute('data-frame-selected', 'true')
   for (const label of ['颜色', '排列', '生成整组', '进时间轴', '解组', '下载']) {
     const control =
       label === '颜色'
-        ? win.locator('[data-toolbar-action-menu="group-color"]')
+        ? toolbar.locator('[data-toolbar-action-menu="group-color"]')
         : label === '排列'
-          ? win.locator('[data-toolbar-action-menu="group-arrange"]')
-          : win.locator(`[data-group-toolbar="true"] button[aria-label="${label}"]`)
+          ? toolbar.locator('[data-toolbar-action-menu="group-arrange"]')
+          : toolbar.getByRole('button', { name: label, exact: true })
     await expect(control).toBeVisible()
   }
   const groupPortHandles = win.locator('.generation-canvas-react-flow__handle[data-affordance="magnetic"]')
   await expect(groupPortHandles).toHaveCount(2)
-  const selectedBlank = await win
-    .locator('.generation-canvas-v2__group-box')
-    .first()
-    .evaluate((box) => {
-      const rect = box.getBoundingClientRect()
-      for (let y = rect.top + 14; y < rect.bottom - 14; y += 8)
-        for (let x = rect.left + 14; x < rect.right - 14; x += 8) {
-          const stack = document.elementsFromPoint(x, y)
-          if (stack.some((el) => el.closest('[data-group-id]')) && !stack.some((el) => el.closest('[data-node-id]')))
-            return { x, y }
-        }
-      return null
-    })
-  if (!selectedBlank) throw new Error('编组框内找不到空白点')
-  await win.mouse.click(selectedBlank.x, selectedBlank.y)
-  await expect(win.locator('.generation-canvas-v2__group-box').first()).toHaveAttribute('data-frame-selected', 'true')
+  await selectFrameByBlankClick(frame)
+  await expect(frame).toHaveAttribute('data-frame-selected', 'true')
   await expect(groupPortHandles).toHaveCount(2)
   const stage = await win.locator('.generation-canvas-v2__stage').boundingBox()
   if (!stage) throw new Error('画布舞台缺失')
-  const toolbarProof = await proveProbe(win.locator('[data-group-toolbar="true"]'), '选中整组时组工具条真的在屏上')
+  const toolbarProof = await proveProbe(toolbar, '选中整组时组工具条真的在屏上')
   const portProof = await proveProbe(groupPortHandles, '选中整组时左右两个编组端口真的在屏上')
   await win.mouse.click(stage.x + 8, stage.y + 8)
-  await expectAbsent(win.locator('[data-group-toolbar="true"]'), { provenBy: toolbarProof, message: '点画布空白后组工具条收起' })
+  await expectAbsent(toolbar, { provenBy: toolbarProof, message: '点画布空白后组工具条收起' })
   await expectAbsent(groupPortHandles, { provenBy: portProof, message: '点画布空白后编组端口收起' })
-  await win.mouse.click(selectedBlank.x, selectedBlank.y)
-  await expectVisible(win.locator('[data-group-toolbar="true"]'), '再次点击空白组框后工具条出现')
+  await selectFrameByBlankClick(frame)
+  await expectVisible(toolbar, '再次点击空白组框后工具条出现')
 
   const readGroupGeometry = () =>
     win.evaluate(() => {
@@ -81,35 +69,24 @@ try {
       return { frame: frame?.getBoundingClientRect().toJSON(), nodes }
     })
   const beforeGroupDrag = await readGroupGeometry()
-  const groupDragStart = await win
-    .locator('.generation-canvas-v2__group-box')
-    .first()
-    .evaluate((box) => {
-      const rect = box.getBoundingClientRect()
-      for (let y = rect.top + 18; y < rect.bottom - 18; y += 8)
-        for (let x = rect.left + 18; x < rect.right - 18; x += 8) {
-          const stack = document.elementsFromPoint(x, y)
-          if (
-            stack.some((el) => el.closest('[data-group-drag-surface="true"]')) &&
-            !stack.some((el) => el.closest('[data-node-id]'))
-          )
-            return { x, y }
-        }
-      return null
-    })
-  if (!groupDragStart) throw new Error('编组框内找不到可拖动的空白表面')
+  const frameBox = await frame.boundingBox()
+  if (!frameBox) throw new Error('编组框几何缺失')
+  const blank = await frameBlankPosition(frame)
+  const groupDragStart = { x: frameBox.x + blank.x, y: frameBox.y + blank.y }
   await win.mouse.move(groupDragStart.x, groupDragStart.y)
   await win.mouse.down()
   await win.mouse.move(groupDragStart.x + 36, groupDragStart.y + 24, { steps: 8 })
-  // 拖动进行中（还没松手）：成员壳必须已经在平移。框动内容不动＝选择器没选中成员壳，
-  // 松手后才会被 settle 一次性写回，只量松手后的几何看不出来（2026-10-11 方案卡 §6）。
-  const liveMemberPreview = await win.evaluate(() =>
-    [...document.querySelectorAll('.generation-canvas-react-flow__node-shell')]
-      .map((shell) => shell.style.translate)
-      .filter((value) => value !== ''),
-  )
-  if (liveMemberPreview.length === 0)
-    throw new Error('拖动进行中成员壳没有任何 translate：框动内容不动（成员壳选择器没命中）')
+  // 松手前量可见几何。预览由动画帧更新，等框和每个成员都一起移动。
+  await expect.poll(async () => {
+    const preview = await readGroupGeometry()
+    if (!beforeGroupDrag.frame || !preview.frame) return false
+    const dx = preview.frame.x - beforeGroupDrag.frame.x
+    const dy = preview.frame.y - beforeGroupDrag.frame.y
+    return dx >= 20 && dy >= 12 && beforeGroupDrag.nodes.every((before) => {
+      const current = preview.nodes.find((node) => node.id === before.id)
+      return current && Math.abs(current.rect.x - before.rect.x - dx) <= 2 && Math.abs(current.rect.y - before.rect.y - dy) <= 2
+    })
+  }, { message: '拖动中框和成员同步平移' }).toBe(true)
   await win.mouse.up()
   await win.waitForTimeout(80)
   const afterGroupDrag = await readGroupGeometry()
@@ -170,13 +147,13 @@ try {
   await win.getByRole('menuitemradio', { name: '青绿', exact: true }).click()
   await screenshotSettled(win, { path: path.join(shotsDir, '03-group-color.png') })
 
-  const facts = await win.evaluate(() => ({
-    toolbar: document.querySelector('[data-group-toolbar="true"]')?.textContent,
+  const facts = await win.evaluate((toolbarSelector) => ({
+    toolbar: document.querySelector(toolbarSelector)?.textContent,
     selectedFrame: document.querySelector('.generation-canvas-v2__group-box')?.getAttribute('data-frame-selected'),
     frameBorder: getComputedStyle(document.querySelector('.generation-canvas-v2__group-box')).borderColor,
     magneticHandles: document.querySelectorAll('.generation-canvas-react-flow__handle[data-affordance="magnetic"]')
       .length,
-  }))
+  }), GROUP_TOOLBAR)
   fs.writeFileSync(path.join(shotsDir, 'facts.json'), JSON.stringify(facts, null, 2))
   console.log('✅ 编组优化走查完成 →', shotsDir, JSON.stringify(facts))
 } finally {
