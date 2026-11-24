@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createInternalDocumentReadVerifiedInvocationFactory } from '../capabilityCore/verifiedCapabilityInvocation'
 import { createMainCapabilityExecutorRegistry } from '../capabilityCore/capabilityExecutorRegistry'
 import { logWarn } from '../logging/logger'
+import { modelFacingToolSpecs } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE, MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE } from '../shared/agentCapabilities/verbDeclaration'
 import type { LaneToolDescriptor } from './laneRuntimePort'
 import { createLaneTools, takeLaneToolFailure } from './laneTools.mts'
@@ -102,4 +103,14 @@ it('stops a still-pending descriptor immediately on user abort and removes the g
   expect(takeLaneToolFailure('call')).toBeUndefined()
   expect(logWarn).not.toHaveBeenCalled()
   await result
+})
+
+it('derives every published internal tool catalog timeout strictly inside the lane deadlock guard', () => {
+  const internalCatalog = modelFacingToolSpecs('internal')
+  expect(internalCatalog.length).toBeGreaterThan(0)
+  for (const spec of internalCatalog) {
+    const expectedBudget = spec.effect === 'read' ? MODEL_TOOL_READ_TIMEOUT_MS_VALUE : MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE
+    expect(spec.execution.timeoutMs).toBe(expectedBudget)
+    expect(spec.execution.timeoutMs).toBeLessThan(spec.execution.timeoutMs + 5_000)
+  }
 })

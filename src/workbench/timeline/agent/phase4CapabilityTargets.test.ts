@@ -16,8 +16,10 @@ vi.mock("../../generationCanvas/agent/proposalUndo", () => ({
   createProposalReceiptCoordinator: deps.createCoordinator,
 }));
 
+import { modelFacingToolSpecs } from "../../../../electron/shared/agentCapabilities/modelFacingToolRegistry";
 import { SurfacePortWireError } from "../../../../electron/shared/surfacePortBinding";
 import { useGenerationCanvasStore } from "../../generationCanvas/store/generationCanvasStore";
+import { WAVEFORM_READ_TIMEOUT_MS } from "./mediaToolCall";
 import { executeAssetReadTarget, executeExportWriteTarget } from "./phase4CapabilityTargets";
 
 const result = {
@@ -245,5 +247,14 @@ describe("Phase 4 waveform deadline and cancellation", () => {
     });
     expect(close).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("keeps WAVEFORM_READ_TIMEOUT_MS strictly inside every published internal asset.read catalog budget", () => {
+    const assetReadCatalog = modelFacingToolSpecs("internal").filter((spec) => spec.contractId === "asset.read");
+    expect(assetReadCatalog.length).toBeGreaterThan(0);
+    for (const spec of assetReadCatalog) {
+      expect(WAVEFORM_READ_TIMEOUT_MS).toBeGreaterThan(0);
+      expect(WAVEFORM_READ_TIMEOUT_MS).toBeLessThan(spec.execution.timeoutMs);
+    }
   });
 });
