@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
-import { listenOutsidePress } from '../../design/outsidePress'
+import { useFloatingOutsideDismiss } from '../../design'
 import { usePointerSession } from '../timeline/timelineGesture'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
@@ -226,13 +226,12 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   }, [addTimelineTextClip, playheadFrame])
 
   // 文字预设菜单：点外部关闭
-  React.useEffect(() => {
-    if (!textMenuOpen) return
-    return listenOutsidePress(
-      (target) => !textMenuRef.current || (target instanceof globalThis.Node && textMenuRef.current.contains(target)),
-      () => setTextMenuOpen(false),
-    )
-  }, [textMenuOpen])
+  useFloatingOutsideDismiss({
+    open: textMenuOpen,
+    floating: textMenuRef,
+    isInside: () => !textMenuRef.current,
+    onDismiss: () => setTextMenuOpen(false),
+  })
 
   const beginEditText = React.useCallback((id: string, text: string) => {
     selectTimelineTextClip(id)

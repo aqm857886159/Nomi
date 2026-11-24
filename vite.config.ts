@@ -261,6 +261,7 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         '@radix-ui/react-hover-card',
         '@radix-ui/react-switch',
         '@floating-ui/dom',
+        '@floating-ui/react',
         '@fluentui/priority-overflow',
         '@mantine/core',
         '@mantine/modals',
