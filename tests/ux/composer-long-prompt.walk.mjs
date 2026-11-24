@@ -2,37 +2,22 @@
 // 症状（用户截图）：图片节点选中后浮出的 composer，超长 prompt 整片下溢、盖住底栏（选择模型/优化/生成钮）。
 // 根因：overflow-auto 曾挂在「无高度约束的内层静态块」上 → 该块按内容长到全高、overflow-auto 永不触发。
 // 修：overflow-auto 挂到 flex-1 有界伸缩区（被卡片 maxHeight 卡住 → 有界 → 真滚动），底栏 shrink-0 恒贴底。
-// DEV 模式（真 import /src 造节点 + 注入长 prompt）。用法: node tests/ux/composer-long-prompt.walk.mjs
+// 使用构建产物，在真实编辑器里输入长提示词。用法: node tests/ux/composer-long-prompt.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
-import { spawn } from 'node:child_process'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import http from 'node:http'
-import { screenshotSettled } from './_assert.mjs'
+import { expect, screenshotSettled } from './_assert.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-const repoRoot = process.cwd()
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/composer-long-prompt')
+const tempRoot = makeTempDir('nomi-composer-long-')
+const shotsDir = process.env.EVIDENCE_DIR ? assertOutsideRepo(process.env.EVIDENCE_DIR) : path.join(tempRoot, 'evidence')
 fs.mkdirSync(shotsDir, { recursive: true })
-
-const userData = path.join(repoRoot, '.tmp', 'nomi-composer-long')
-const projectsDir = path.join(repoRoot, '.tmp', 'nomi-composer-long-projects')
-for (const d of [userData, projectsDir]) { fs.rmSync(d, { recursive: true, force: true }); fs.mkdirSync(d, { recursive: true }) }
+process.env.EVIDENCE_DIR = shotsDir
 
 const results = []
 function check(name, ok, detail) { results.push({ name, ok }); console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`) }
-
-function waitForUrl(url, timeoutMs) {
-  const deadline = Date.now() + timeoutMs
-  return new Promise((resolve, reject) => {
-    const tick = () => {
-      const req = http.get(url, (res) => { res.destroy(); resolve(true) })
-      req.on('error', () => { if (Date.now() > deadline) reject(new Error('vite 未就绪')); else setTimeout(tick, 400) })
-      req.setTimeout(1500, () => { req.destroy() })
-    }
-    tick()
-  })
-}
 
 // 用户截图里那条角色身份板长 prompt，并显著加长（~1800 字），保证在任意卡宽（含 880px 上限）都溢出，
 // 从而真正复现「文字太长」条件 → 能验证滚动是否生效、底栏是否被盖。
@@ -43,9 +28,8 @@ const LONG_PROMPT = '你是顶尖游戏/动漫概念美术大师，擅长详尽�
 console.log('  … 启动构建产物（Electron）…')
 const { app, win: _initialWin } = await launchNomiApp({
   name: 'composer-long-prompt',
-  userDataDir: userData,
-  settingsDir: userData,
-  projectsDir,
+  settingsDir: path.join(tempRoot, 'settings'),
+  projectsDir: path.join(tempRoot, 'projects'),
   settleMs: 0,
 })
 let win = _initialWin
@@ -66,9 +50,8 @@ async function dismiss() {
 async function measure() {
   return getWin().locator('.generation-canvas-v2-node__composer-card').last().evaluate((card) => {
     const cardRect = card.getBoundingClientRect()
-    const pm = card.querySelector('.ProseMirror')
-    const scroller = pm ? pm.closest('.overflow-y-auto') : null
-    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"], button[data-composer-connect="true"]')
+    const scroller = card.querySelector('[data-node-composer-prompt]')
+    const btn = card.querySelector('[data-node-composer-footer] button[data-bar-segment="generate"]')
     const bRect = btn?.getBoundingClientRect()
     const cs = scroller ? getComputedStyle(scroller) : null
     let scrollableBy = null
@@ -159,9 +142,8 @@ try {
   check('长 prompt 已输入编辑器', ((await editor.textContent().catch(() => '')) || '').length > 200)
 
   // ── AFTER（已修）── 先确保滚到顶，截图展示 composer 自然态（prompt 从头、底栏干净）
-  await getWin().locator('.generation-canvas-v2-node__composer-card').last().evaluate((card) => {
-    const pm = card.querySelector('.ProseMirror'); const s = pm && pm.closest('.overflow-auto'); if (s) s.scrollTop = 0
-  })
+  const promptScroller = composer.locator('[data-node-composer-prompt]')
+  await promptScroller.evaluate((element) => { element.scrollTop = 0 })
   const after = await measure()
   await screenshotSettled(composer, { path: path.join(shotsDir, 'after-fixed.png') })
   await getWin().screenshot({ path: path.join(shotsDir, 'after-fixed-full.png') }).catch(() => {})
@@ -173,8 +155,7 @@ try {
 
   // 滚轮归属回归：滚动手势从提示词区开始，就始终属于提示词区。到顶部/底部后继续滚只能停住，
   // 不能把同一个手势交给画布缩放或平移（否则用户会突然找不到节点）。
-  const promptScroller = composer.locator('.overflow-y-auto').first()
-  const canvasLayer = getWin().locator('.generation-canvas-v2__canvas').first()
+  const canvasLayer = getWin().locator('.react-flow__viewport')
   await promptScroller.hover()
   await promptScroller.evaluate((element) => { element.scrollTop = 0 })
   const middleCanvasBefore = await canvasLayer.getAttribute('style')
@@ -200,12 +181,12 @@ try {
   const ctrlCanvasBefore = await canvasLayer.getAttribute('style')
   await dispatchWheelWithModifier('ctrlKey')
   const ctrlCanvasAfter = await canvasLayer.getAttribute('style')
-  check('提示词区 Ctrl+滚轮仍缩放画布', ctrlCanvasAfter !== ctrlCanvasBefore)
+  check('提示词区 Ctrl+滚轮不改变画布视口', ctrlCanvasAfter === ctrlCanvasBefore)
 
   const metaCanvasBefore = await canvasLayer.getAttribute('style')
   await dispatchWheelWithModifier('metaKey')
   const metaCanvasAfter = await canvasLayer.getAttribute('style')
-  check('提示词区 Command+滚轮仍缩放画布', metaCanvasAfter !== metaCanvasBefore)
+  check('提示词区 Command+滚轮不改变画布视口', metaCanvasAfter === metaCanvasBefore)
 
   await promptScroller.evaluate((element) => { element.scrollTop = element.scrollHeight })
   await promptScroller.hover()
@@ -239,18 +220,13 @@ try {
   check('画布空白区滚轮仍能缩放/平移', blankCanvasAfter !== blankCanvasBefore)
 
   // ── BEFORE（A/B 定罪）── 把 overflow 改回 visible 复现「不剪裁 → 内容下溢盖底栏」
-  await getWin().locator('.generation-canvas-v2-node__composer-card').last().evaluate((card) => {
-    const pm = card.querySelector('.ProseMirror'); const scroller = pm && pm.closest('.overflow-y-auto')
-    if (scroller) scroller.style.overflow = 'visible'
-  })
+  await promptScroller.evaluate((element) => { element.style.overflow = 'visible' })
   await getWin().waitForTimeout(400)
   await screenshotSettled(composer, { path: path.join(shotsDir, 'before-broken.png') })
   await getWin().screenshot({ path: path.join(shotsDir, 'before-broken-full.png') }).catch(() => {})
-  const brokenScrollable = await getWin().locator('.generation-canvas-v2-node__composer-card').last().evaluate((card) => {
-    const pm = card.querySelector('.ProseMirror'); const scroller = pm && pm.closest('.overflow-y-auto')
-    if (!scroller) return null
-    const before = scroller.scrollTop; scroller.scrollTop = 9999; const v = scroller.scrollTop; scroller.scrollTop = before
-    return v
+  const brokenScrollable = await promptScroller.evaluate((element) => {
+    element.scrollTop = 9999
+    return element.scrollTop
   })
   check('A/B 定罪：overflow:visible 时不可滚动(scrollTop 恒 0 → 内容只能下溢盖底栏)', brokenScrollable === 0, `scrollableBy=${brokenScrollable}`)
 
@@ -259,7 +235,17 @@ try {
   await getWin().mouse.wheel(0, 120)
   await getWin().waitForTimeout(180)
   const visibleCanvasAfter = await canvasLayer.getAttribute('style')
-  check('滚动区运行时切为 visible 后，画布重新接管滚轮', visibleCanvasAfter !== visibleCanvasBefore)
+  check('只改 overflow 不会移除 React Flow 的滚轮隔离', visibleCanvasAfter === visibleCanvasBefore)
+
+  // 变异对照：移除滚轮标记后，相同手势必须能作用在画布上。
+  await promptScroller.evaluate((element) => {
+    element.classList.remove('nowheel')
+    element.closest('.generation-canvas-v2-node__composer-card')?.classList.remove('nowheel')
+  })
+  const unguardedCanvasBefore = await canvasLayer.getAttribute('style')
+  await getWin().mouse.wheel(0, -120)
+  await expect.poll(() => canvasLayer.getAttribute('style')).not.toBe(unguardedCanvasBefore)
+  check('A/B 定罪：移除 nowheel 后画布重新接管滚轮', true)
 
   console.log('\n' + JSON.stringify({ after, brokenScrollable }, null, 2))
 } catch (error) {
