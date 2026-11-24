@@ -1,12 +1,12 @@
 验收结论：通过
-验收 SHA：3bcc351f730688df011c28ab44be7aa754d78cb8
+验收 SHA：8e73fd2f899cda33705b30d880e40c3c715e68b8
 验收线：canvas-add-more-verify
 实现线：codex-astra-1685
-verified_sha: 3bcc351f730688df011c28ab44be7aa754d78cb8
+verified_sha: 8e73fd2f899cda33705b30d880e40c3c715e68b8
 
 ## 1. 验收概览与范围核查
 
-- 待验分支：`fix/canvas-toolbar-more-menu-occlusion`（`3bcc351f730688df011c28ab44be7aa754d78cb8`，基线 `8ac07cffb`）
+- 待验分支：`fix/canvas-toolbar-more-menu-occlusion`（增量重签 HEAD `8e73fd2f899cda33705b30d880e40c3c715e68b8`，前序完整验收基线 `3bcc351f730688df011c28ab44be7aa754d78cb8`，分支基线 `8ac07cffb`）
 - 改动摘要（14 个文件，`370 insertions(+), 134 deletions(-)`）：
   - 生产代码：`src/workbench/generationCanvas/components/CanvasToolbar.tsx` 与 `src/workbench/generationCanvas/components/CanvasEmptyState.tsx` 统一由 `CanvasMoreAddMenu` 经设计系统 `AnchoredPopover`（`align="end" side="top" gap={12}`）挂载 Portal，删除原内联定位与手动文档监听，并补齐 `if (!canvasActive) return null` 与非激活态收起联动。
   - 回归测试与走查：`src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx`、`tests/ux/runninghub-onboarding.walk.mjs`。
@@ -66,7 +66,18 @@ verified_sha: 3bcc351f730688df011c28ab44be7aa754d78cb8
 6. `docs/evidence/canvas-add-more-verify/before-zh-narrow-1100x690.png`（`1100×690` 中文窄窗基线）：窄窗下同款截断复现，菜单被完全裁掉。
 7. `docs/evidence/canvas-add-more-verify/after-zh-narrow-1100x690.png`（`1100×690` 中文窄窗修复后）：窄窗下「空间」菜单四项仍完整落在可视窗口与生成框上方，无顶边/右边溢出或文字截断。
 
-## 6. 未验证边界（如实标注）
+## 6. 增量修补重签核验（`930bc55b5..8e73fd2f899cda33705b30d880e40c3c715e68b8`）
+
+- 增量范围确认（仅 2 个文件，`32 insertions(+), 7 deletions(-)`，0 路径泄露）：
+  - `src/workbench/generationCanvas/components/CanvasToolbar.tsx`：底栏调用 `CanvasMoreAddMenu` 传入 `anchorRect`（`r.width + 4`）还原底栏右缘对齐；`CanvasMoreAddMenu` 增加 `menuRef` + `tabIndex={-1}` + `useLayoutEffect` 在激活态把初始焦点落到 `role="menu"` 容器，消除首项「导演台」伪 `:focus-visible` 焦点框。
+  - `src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx`：改为经 `window.__hideCanvas` 切换画布激活态并用 `expect.poll` 等待输出与 `aria-expanded="false"` 提交，消除 Linux CI 异步状态提交竞态。
+- 增量复跑门岗（4/4 通过，均于 `8e73fd2f899cda33705b30d880e40c3c715e68b8` 实跑）：
+  - `VITEST_MAX_WORKERS=1 npx vitest run src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx src/design/outsidePress.structure.test.ts`：`EXIT=0`（2 文件，18/18 PASS）
+  - `NOMI_BASE_REF=origin/main node ./scripts/lint-changed.mjs`：`EXIT=0`（4 个改动文件，0 errors）
+  - `node ./scripts/check-concept-owners.mjs`：`EXIT=0`（409 个概念，0 新增第二写口）
+  - `node ./scripts/check-root-cause-contracts.mjs`：`EXIT=0`（PASS）
+
+## 7. 未验证边界（如实标注）
 
 - 空态起步行（`CanvasEmptyState`）点击「更多」创建白板且不与下方拖入提示相交的实窗交互本次未单独再起一轮真 Electron 截图，依托 `CanvasEmptyState.tsx` 代码复核（与底栏共用同一 `CanvasMoreAddMenu` + `AnchoredPopover` 向上展开组件）及实现线记录，标为 `unverified（独立线真窗仅复跑 runninghub-onboarding.walk.mjs）`。
 - Linux / Windows 桌面端真窗渲染未在本次 macOS 本机环境覆盖，标为 `unverified`。
