@@ -2636,6 +2636,33 @@
       ],
       "whyNotIntegrated": "按领域裁决的重要性顺序，多控件多样子；列表溢出组件（Fluent priority-overflow、rc-overflow 等）展开到第一个放不下就停，不跳过放不下的去补放得下的，也不表达摘要整值、方式字、生成字。只自写约 10 行的清单挑法，字体排版与尺寸观察用浏览器。",
       "revisitWhen": "外框校准一个月改两次以上，或增加另一种让位形状时回到方向复盘。2026-11-24复查。"
+    },
+    {
+      "id": "apimart-onboarding-balance",
+      "capability": "接入页和画布发送侧按官方来源展示账户资金，接入页单列这把 Key 的额度并恢复创作者的草稿",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-24-t5-onboarding-s6.md",
+      "paths": [
+        "electron/ai/onboarding/vendorAccountBalance.ts",
+        "electron/shared/contracts/vendorAccountBalance.ts",
+        "src/ui/onboarding/useApimartVerification.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "APIMart 账户资金协议，直接读取官方数据",
+          "source": "https://docs.apimart.ai/en/api-reference/account/user-balance"
+        },
+        {
+          "name": "APIMart Key 额度协议，单独读取不限额标记和余额",
+          "source": "https://docs.apimart.ai/en/api-reference/account/token-balance"
+        },
+        {
+          "name": "沿用带凭据请求的官方 origin 校验及现有镜像传输",
+          "source": "electron/vendor/vendorBaseFallback.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：两份官方结果在 Nomi 中控制不同动作。只有账户确认为零才停在充值卡；Key 额度用于单行提示。保存凭据、回到原节点草稿与发送侧余额快照共享同一账户来源。",
+      "revisitWhen": "供应商账户合同或 Nomi 接入流程取消这两个独立信号时，合并或删除对应投影。"
     }
   ]
 }

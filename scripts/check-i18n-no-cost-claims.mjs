@@ -70,6 +70,11 @@ export const COST_LABEL_EXACT = Object.freeze({
   'generationCommon.composer.sendCost.estimate': Object.freeze({ 'zh-CN': '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。', en: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.' }),
   'generationCommon.composer.sendCost.outputEstimate': Object.freeze({ 'zh-CN': '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算', en: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens' }),
   'generationCommon.composer.sendCost.priceUnknown': Object.freeze({ 'zh-CN': '暂时估不出这次用量', en: 'No usage estimate yet' }),
+  'modelSetup.apimartVerification.credits': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
+  'modelSetup.apimartVerification.connectedBalance': Object.freeze({ 'zh-CN': ' · 余额 {{value}} 积分', en: ' · Balance {{value}} credits' }),
+  'modelSetup.apimartVerification.topup': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
+  'modelSetup.apimartVerification.topupBody': Object.freeze({ 'zh-CN': 'Key 已存好，就差充值：出图和上传素材都要余额大于 0。充好后回到 Nomi 会自动再查一次。', en: 'Key saved. Images and asset uploads need a balance above zero. Top up, then return to Nomi for an automatic check.' }),
+  'modelSetup.apimartVerification.opened': Object.freeze({ 'zh-CN': '已在浏览器打开 APIMart（{{time}}），注册、充值、建 Key 都在那边做。', en: 'Opened APIMart in your browser at {{time}}. Sign up, top up and create your key there.' }),
   // T-5 接入引导首屏主卡与连接 APIMart 大页（板 Onboarding 2026-11-07 Q1/Q16/Q17 与 2026-11-15 r8 用户拍板原文）：每个键只认精确原句。
   'onboardingProviders.apimartConnect.hero.cost': Object.freeze({ 'zh-CN': '$5 大约能出 470 张图（按公开价估算）', en: '$5 makes about 470 images (public-price estimate)' }),
   'onboardingProviders.apimartConnect.reasons.savingsLabel': Object.freeze({ 'zh-CN': '比官方便宜', en: 'below official prices' }),

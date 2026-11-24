@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { NomiEvent } from '../../events/types'
-import { readVendorAccountBalance } from './vendorAccountBalance'
+import { readModelSettingsAccount } from './vendorAccountBalance'
 import { summarizeModelUsage } from './modelSettingsUsage'
 
 import { buildWorld } from '../../../tests/world'
@@ -30,7 +30,7 @@ describe('local generation receipts', () => {
   })
   it('makes no network request for other vendors', async () => {
     const request = vi.mocked(transport.fetchVendorWithBaseFallback).mockClear()
-    expect(await readVendorAccountBalance('kie', true)).toBeNull()
+    expect(await readModelSettingsAccount('kie', true)).toBeNull()
     expect(request).not.toHaveBeenCalled()
   })
 })
@@ -50,16 +50,16 @@ describe('APIMart account snapshot', () => {
         if (String(url).endsWith('/user/balance')) return online ? Response.json({ data: { remain_credits: 0 } }) : new Response(null, { status: 503 })
         return Response.json({ unlimited_quota: true })
       })
-      const [first, same] = await Promise.all([readVendorAccountBalance('apimart', true), readVendorAccountBalance('apimart')])
+      const [first, same] = await Promise.all([readModelSettingsAccount('apimart', true), readModelSettingsAccount('apimart')])
       expect(reads).toHaveBeenCalledTimes(2)
       expect(first).toMatchObject({ accountCredits: 0, keySuffix: '1234', unlimited: true, accountStaleSince: null })
       expect(same).toEqual(first)
       online = false
-      expect(await readVendorAccountBalance('apimart', true)).toMatchObject({ accountCredits: 0, accountStaleSince: first?.observedAt, unlimited: true })
+      expect(await readModelSettingsAccount('apimart', true)).toMatchObject({ accountCredits: 0, accountStaleSince: first?.observedAt, unlimited: true })
       buildWorld({ rootDir: world.rootDir, projects: [], encryptedApiKeys: { apimart: { ...key, apiKey: 'fixture-two' } } })
-      expect(await readVendorAccountBalance('apimart')).toMatchObject({ accountCredits: null, accountStaleSince: null })
+      expect(await readModelSettingsAccount('apimart')).toMatchObject({ accountCredits: null, accountStaleSince: null })
       buildWorld({ rootDir: world.rootDir, projects: [], catalog: { vendors: [{ ...vendor, baseUrlHint: 'https://relay.invalid' }] } })
-      expect(await readVendorAccountBalance('apimart', true)).toBeNull()
+      expect(await readModelSettingsAccount('apimart', true)).toBeNull()
       expect(reads).toHaveBeenCalledTimes(6)
     } finally { restore(); world.cleanup() }
   })

@@ -62,6 +62,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'antigravity.capability', why: '动态: 能力名;枚举来源: antigravity capabilities 数组(capability.* 词条)' },
   // ── community ──
   // ── modelSetup ──
+  { prefix: 'modelSetup.apimartVerification', why: '动态: 接入检查按行名取标签、错误卡按种类取标题与正文；枚举来源: ApimartCheckCard 的四行和 ApimartStatusNotice 的 kind' },
   { prefix: 'modelSetup.kinds', why: '动态: 模型能力种类;枚举来源: DirectScriptDraftForm 的 KINDS 常量(kinds.* 词条)' },
   { prefix: 'modelSetup.existingConnectionError', why: '动态: 既有连接错误码;枚举来源: ExistingConnectionErrorCode 联合(existingConnectionError.* 词条)' },
   // ── browserAssets ──

@@ -216,4 +216,6 @@ export type DesktopOnboardingBridge = {
   modelUsage: (vendorKey: string) => Promise<import("../../electron/shared/contracts/modelSettingsAccount").ModelUsagePeriods | null>
   modelUnitPrices: (vendorKey: string) => Promise<import("../../electron/shared/contracts/modelSettingsAccount").ModelUnitPrice[]>
   vendorPricePreview: (payload: import("../../electron/shared/contracts/vendorPricePreview").VendorPriceRequest) => Promise<import("../../electron/shared/contracts/vendorPricePreview").VendorPricePreview | null>
+  /** 官方供应商账户余额只读查询（与公开约价解耦）；读不到或非官方源 = null。 */
+  vendorAccountBalance?: (payload: import("../../electron/shared/contracts/vendorAccountBalance").VendorAccountBalanceRequest) => Promise<import("../../electron/shared/contracts/vendorAccountBalance").VendorAccountBalance | null>
 }

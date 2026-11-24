@@ -13,8 +13,8 @@ import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
 import { priceQueryFromRequest } from "./vendorPriceRequest";
 import { readVendorPricePreview } from "./vendorPricePreview";
+import { checkVendorAccountBalance, readModelSettingsAccount, readVendorAccountBalance } from "./vendorAccountBalance";
 
-import { readVendorAccountBalance } from "./vendorAccountBalance";
 import { readModelSettingsUsage, readModelUnitPrices } from "./modelSettingsUsage";
 import { assertTrustedSender } from "../../ipcSenderGuard";
 import { registerAntigravityIpc } from "../antigravityIpc";
@@ -51,7 +51,7 @@ export function registerOnboardingIpc(): void {
 
   ipcMain.handle("nomi:onboarding:model-account", (event, vendorKey: string, refresh?: boolean) => {
     assertTrustedSender(event);
-    return readVendorAccountBalance(vendorKey, refresh === true);
+    return readModelSettingsAccount(vendorKey, refresh === true);
   });
 
   // 发送键上的约价：渲染层交来最终请求，这里只投影成询价、读公开价目（不带凭据的 GET）。
@@ -60,6 +60,15 @@ export function registerOnboardingIpc(): void {
     assertTrustedSender(event);
     const query = priceQueryFromRequest(payload, readCatalog());
     return query ? readVendorPricePreview(query) : null;
+  });
+
+  // 官方供应商账户余额只读查询（与公开约价解耦，仅在余额不足时提示「还差 N 积分 · 去充值」）。
+  ipcMain.handle("nomi:onboarding:vendor-account-balance", (event, payload) => {
+    assertTrustedSender(event);
+    if (payload?.source === "apimart-connect") {
+      return checkVendorAccountBalance({ vendorKey: "apimart" });
+    }
+    return readVendorAccountBalance(payload);
   });
 
   // 类型启发式（Issue #8）：从 /v1/models 拉到/手填的模型 id 没带类型，主进程按关键词猜
