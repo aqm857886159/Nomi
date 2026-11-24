@@ -3,6 +3,7 @@ import { once } from 'node:events'
 import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { applyColorSchemeForShot, expect } from './_assert.mjs'
 import { createBlankProject, collapseAgentPanel, selectedNodeComposer, selectOrAddCanvasNode, switchWorkspace } from './_shell.mjs'
@@ -75,8 +76,8 @@ async function run(locale, theme, width, scenario = 'draft') {
       await input.fill('sk-loopback-empty-token')
       await input.press('Enter')
       const rows = win.locator('[data-apimart-checks] li')
-      await expect(rows.nth(1)).toContainText('暂时读不到')
-      await expect(rows.nth(2)).toContainText('0 积分')
+      await expect(rows.nth(1)).toContainText(uiText(locale, 'modelSetup.apimartVerification.unknown'))
+      await expect(rows.nth(2)).toContainText(uiTextWith(locale, 'modelSetup.apimartVerification.credits', { value: 0 }))
       await expect(win.locator('[data-apimart-topup]')).toHaveCount(0)
       await shoot(win, 'o4a-zero-token')
       await expect(input).toHaveCount(0)
