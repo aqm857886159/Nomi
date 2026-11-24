@@ -236,7 +236,7 @@ try {
     }
     return problems
   }, NODE_COMPOSER_WIDTH), { message: `参数卡必须钉在自己节点正下方（顶边 = 节点底边 + 14×缩放、中线对齐、宽 ${NODE_COMPOSER_WIDTH}），并且不被别的节点盖住` }).toEqual([])
-  const regenerate = imageNode.locator('.generation-canvas-v2-node__composer-card').getByRole('button', { name: '重新生成', exact: true })
+  const regenerate = imageNode.locator('.generation-canvas-v2-node__composer-card').locator('button[aria-label="重新生成"], button[data-composer-connect="true"]').first()
   await regenerate.scrollIntoViewIfNeeded()
   await expect.poll(() => regenerate.evaluate(button => {
     const bounds = button.getBoundingClientRect()

@@ -53,6 +53,25 @@ export function fitsAssistantTextRole(model: Pick<AssistantCatalogModelLike, 'ki
   return model.kind === 'text' && !isPromptRefineOnly(model.meta) && modelSupportsToolCalls(model.meta)
 }
 
+export type RecoverableTextBrain = { vendorKey: string; modelKey: string; labelZh: string }
+
+/** 从已停用的文本模型与供应商清单里挑出第一个已配 Key、非退役且满足助手主控角色的可恢复大脑。 */
+export function pickRecoverableAssistantBrain(
+  disabledTextModels: ReadonlyArray<{
+    vendorKey: string
+    modelKey: string
+    labelZh: string
+    kind: string
+    unlisted?: boolean
+    meta?: unknown
+  }>,
+  vendors: ReadonlyArray<{ key: string; hasApiKey?: boolean }>,
+): RecoverableTextBrain | null {
+  const keyed = new Set(vendors.filter((v) => v.hasApiKey).map((v) => v.key))
+  const hit = disabledTextModels.find((m) => keyed.has(m.vendorKey) && !m.unlisted && fitsAssistantTextRole(m))
+  return hit ? { vendorKey: hit.vendorKey, modelKey: hit.modelKey, labelZh: hit.labelZh } : null
+}
+
 /** 两段身份 → DOM 安全且可逆的 option value。用 encodeURIComponent 是因为 vendorKey 是从
  *  baseUrl 派生的串，什么字符都可能有，随便挑个分隔符迟早撞上。 */
 export function encodeModelIdentity(identity: ModelIdentity): string {

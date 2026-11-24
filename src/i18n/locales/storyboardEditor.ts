@@ -226,7 +226,7 @@ export const zhStoryboardEditor = {
   videoPromptPlaceholder: '这镜画什么：运镜 + 动作演进（不复述参考卡里的静态描述）',
   anchor: {
     kind: { character: '角色', scene: '场景', prop: '道具', style: '风格' },
-    noImageModel: '暂无可用图片模型，请先在设置中接入并验证图片模型。',
+    noImageModel: '还没连图片模型，请先点「连接模型」接入。',
     namePlaceholder: '起个名字',
     nameAria: '参考卡名字',
     delete: '删除参考卡',
@@ -287,9 +287,9 @@ export const zhStoryboardEditor = {
     rowUnderflow: '低于模型单条下限',
     rowWarningAria: '第 {{index}} 镜：{{reason}}',
     // 面板不可用态：给人话 + 下一步，不把内部错误码摆给用户（R2/D4）。
-    noVideoModelTitle: '还没有可用的视频模型',
-    noVideoModelBody: '添加并启用一个视频模型后，这里会按它的真实时长上限检查每一镜。',
-    goToSettings: '去设置',
+    noVideoModelTitle: '还没连视频模型',
+    noVideoModelBody: '连上模型后，这里会按真实时长上限检查每一镜。',
+    goToSettings: '连接模型',
     projectStale: '项目已切换，重新打开这份分镜即可继续检查。',
     // 机器判据的人话模板（引擎只产 code + 数值，句子在这里成形 —— R15）。
     issue: {
@@ -544,7 +544,7 @@ export const enStoryboardEditor = {
     'Describe the shot: camera movement + action progression (do not repeat static reference card descriptions)',
   anchor: {
     kind: { character: 'Character', scene: 'Scene', prop: 'Prop', style: 'Style' },
-    noImageModel: 'No image model is available. Connect and verify an image model in Settings first.',
+    noImageModel: 'No image model connected yet. Select “Connect” to connect one.',
     namePlaceholder: 'Name it',
     nameAria: 'Reference card name',
     delete: 'Delete reference card',
@@ -605,9 +605,9 @@ export const enStoryboardEditor = {
     rowOverflow: 'Longer than the model allows in one shot',
     rowUnderflow: 'Shorter than the model allows in one shot',
     rowWarningAria: 'Shot {{index}}: {{reason}}',
-    noVideoModelTitle: 'No video model available yet',
-    noVideoModelBody: 'Add and enable a video model, and every shot gets checked against its real duration limits here.',
-    goToSettings: 'Open settings',
+    noVideoModelTitle: 'No video model connected yet',
+    noVideoModelBody: 'Once connected, every shot gets checked against its real duration limits here.',
+    goToSettings: 'Connect',
     projectStale: 'The project changed. Reopen this storyboard to keep checking.',
     issue: {
       noCandidates: 'No video model is available, so this shot has no mode or parameters yet.',

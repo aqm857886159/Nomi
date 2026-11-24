@@ -727,12 +727,6 @@ export default function NomiStudioApp(): JSX.Element {
           onNewProject={() => void newProject()}
         />
 
-        {handbookOpened ? (
-          <React.Suspense fallback={null}>
-            <HandbookPanel opened={handbookOpened} onClose={() => setHandbookOpened(false)} />
-          </React.Suspense>
-        ) : null}
-
         {journeyTourControllerMounted ? (
           <React.Suspense fallback={null}>
             <JourneyTourController onStartReal={newProject} />
@@ -762,6 +756,11 @@ export default function NomiStudioApp(): JSX.Element {
         </div>
       )}
       {settingsDialog}
+      {handbookOpened ? (
+        <React.Suspense fallback={null}>
+          <HandbookPanel opened={handbookOpened} onClose={() => setHandbookOpened(false)} />
+        </React.Suspense>
+      ) : null}
       <ConfirmDialogHost />
       <FeedbackShareHost />
       <UpdateDialog />

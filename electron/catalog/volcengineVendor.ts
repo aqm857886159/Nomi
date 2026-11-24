@@ -36,5 +36,8 @@ export const VOLCENGINE_SPEECH_VENDOR_SEED = {
   baseUrl: "https://openspeech.bytedance.com",
   authType: "none" as const,
   authHeader: null,
+  // 2026-11-06 用户拍板 ✅1（Onboarding 板 O1a-canvas）：新装不再预置启用火山语音，
+  // 填入 App ID:Access Token 保存时由 upsertRendererCatalogVendorApiKey 自动置为 enabled: true。
+  enabled: false,
   keyValidation: "first-use" as const,
 } as const;

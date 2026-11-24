@@ -169,7 +169,14 @@ export default function StoryboardComposerParams({
             options: modeOptions,
           },
         } : {})}
-        footer={{ ...footer, wrap: compact, attrs: { ...footer.attrs, 'data-storyboard-composer-params': kind } }}
+        footer={{
+          ...footer,
+          connectTooltip: kind === 'image'
+            ? t('onboardingProviders.entries.composerTooltipImage')
+            : t('onboardingProviders.entries.composerTooltipVideo'),
+          wrap: compact,
+          attrs: { ...footer.attrs, 'data-storyboard-composer-params': kind },
+        }}
       />
   )
 }

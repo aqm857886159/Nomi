@@ -242,16 +242,82 @@ test('取消的 Mac Package 超时注解归 workflow 编排 owner', () => {
   assert.equal(result.unexpected.length, 0)
 })
 
-test('runner 下载 action 失败后重试成功：两条重试 warning 归 runner 基础设施；job 没成功或换了内容照样是意外', () => {
-  const retry = (jobConclusion, message) => ({ jobName: 'Unit (2)', jobConclusion, path: '.github', level: 'warning', title: '', message })
-  const download = "Failed to download action 'https://codeload.github.com/pnpm/action-setup/tar.gz/73e46992e05b19abd31f2f3c20e0e7370d762115'. Error: The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
-  const backOff = 'Back off 16.03 seconds before retry.'
-  const ok = evaluateAnnotations([retry('success', download), retry('success', backOff)], { schemaVersion: 1, entries: [] }, new Date('2026-11-22T00:00:00Z'))
-  assert.equal(ok.unexpected.length, 0)
-  assert.deepEqual(ok.delegated.map((entry) => entry.owner), ['runner action-download retry (job succeeded)', 'runner action-download retry (job succeeded)'])
-  // 反例：job 没成功（重试也没下下来）→ 仍是意外；别的 .github warning 不跟着放过
-  const bad = evaluateAnnotations([retry('failure', download), retry('success', 'Node.js 16 actions are deprecated.')], { schemaVersion: 1, entries: [] }, new Date('2026-11-22T00:00:00Z'))
-  assert.equal(bad.unexpected.length, 2)
+const platformIncidents = [
+  {
+    jobName: 'Unit (2)', level: 'warning',
+    message: "Failed to download action 'https://codeload.github.com/pnpm/action-setup/tar.gz/73e46992e05b19abd31f2f3c20e0e7370d762115'. Error: The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing.",
+  },
+  { jobName: 'Unit (2)', level: 'warning', message: 'Back off 16.03 seconds before retry.' },
+  {
+    jobName: 'Validation Scope', level: 'failure',
+    message: "unable to access 'https://github.com/aqm857886159/Nomi/': Failed to connect to github.com port 443 after 133476 ms: Couldn't connect to server",
+  },
+  {
+    jobName: 'Unit (3)', level: 'warning',
+    message: 'Failed to restore: Failed to GetCacheEntryDownloadURL: Unable to make request: ECONNRESET\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github',
+  },
+].map((incident) => ({ path: '.github', title: '', jobConclusion: 'success', ...incident }))
+
+const emptyAllowlist = { schemaVersion: 1, entries: [] }
+
+test('delegates all four platform annotations from the three main receipt incidents', () => {
+  const result = evaluateAnnotations(platformIncidents, emptyAllowlist)
+  assert.deepEqual(result.unexpected.map(({ jobName, message }) => ({ jobName, message })), [])
+  assert.deepEqual(result.delegated, platformIncidents.map((annotation) => ({
+    annotation,
+    owner: annotation.level === 'warning'
+      ? 'github actions platform warning (job succeeded)'
+      : 'github actions transient git retry (job succeeded)',
+  })))
+})
+
+test('keeps repository annotations, platform maintenance and unsuccessful jobs actionable', () => {
+  const [, warning, gitFailure] = platformIncidents
+  const annotations = [
+    { ...warning, path: 'scripts/foo.mjs' },
+    { ...warning, title: 'custom-script' },
+    { ...gitFailure, path: 'scripts/foo.mjs' },
+    { ...gitFailure, title: 'custom-script' },
+    { ...gitFailure, message: 'Process completed with exit code 1.' },
+    { ...gitFailure, message: 'Step emitted ##[error] but exited 0' },
+    { ...gitFailure, message: 'Upload timed out; step exited 0' },
+    { ...gitFailure, message: "unable to access 'https://github.com/owner/repo/': The requested URL returned error: 403" },
+    { ...warning, message: 'Node.js 20 actions are deprecated. Please update the following actions to use Node.js 24.' },
+    { ...warning, message: 'Actions will be forced to run with Node.js 24.' },
+    { ...warning, message: 'Update the save-state command.' },
+    { ...warning, message: 'Update the set-output command.' },
+    { ...warning, jobConclusion: null },
+    { ...warning, title: undefined },
+    ...platformIncidents.map((annotation) => ({ ...annotation, jobConclusion: 'failure' })),
+  ]
+  const result = evaluateAnnotations(annotations, emptyAllowlist)
+  assert.deepEqual(result.unexpected, annotations)
+  assert.deepEqual(result.delegated, [])
+})
+
+test('repository workflow commands identify the source of handwritten warnings', () => {
+  const cwd = fileURLToPath(new URL('../', import.meta.url))
+  const files = fs.globSync(['.github/workflows/**/*.{yml,yaml}', 'scripts/**/*.{mjs,cjs,js,ts,sh}'], {
+    cwd,
+    exclude: ['**/*.{node-test,test,spec}.*', '**/{test,tests,__tests__,fixtures}/**'],
+  })
+  const unmarked = []
+  for (const file of files) {
+    const lines = fs.readFileSync(path.join(cwd, file), 'utf8').split('\n')
+    for (const [index, line] of lines.entries()) {
+      if (/^\s*(?:#(?!#\[)|\/\/|\/\*|\*)/u.test(line)) continue
+      const commands = line.matchAll(/::warning(?=\s|::)([^\r\n]*?)::|##\[warning(?:\s+([^\]\r\n]*))?\]/giu)
+      for (const [, workflowProperties, legacyProperties] of commands) {
+        const properties = workflowProperties ?? legacyProperties ?? ''
+        const separator = workflowProperties === undefined ? ';' : ','
+        const identified = properties.trim().split(separator).some((property) => /^(?:file|title)=\s*\S/iu.test(property))
+        if (!identified) {
+          unmarked.push(`${file}:${index + 1}`)
+        }
+      }
+    }
+  }
+  assert.deepEqual(unmarked, [], 'Handwritten warning commands need a file= or title= property')
 })
 
 // ── 非阻断核心冒烟格（2026-09-22 用户拍板）────────────────────────────────────

@@ -81,6 +81,16 @@ export const zhOnboardingProviders = {
       saveFailed: '保存失败：{{message}}',
     },
   },
+  entries: {
+    connectModel: '连接模型',
+    modelChipEmpty: '未连模型',
+    composerTooltipImage: '出图要先连一个 APIMart 账户（通常几分钟），这段草稿会留着',
+    composerTooltipVideo: '出视频要先连一个 APIMart 账户（通常几分钟），这段草稿会留着',
+    composerTooltipGeneric: '生成要先连一个 APIMart 账户（通常几分钟），这段草稿会留着',
+    agentPointerBody: '我还没有能用的模型，写分镜、出图、出视频都要先连一个。Nomi 用 APIMart：一个账户全都能用，通常几分钟连好。',
+    agentPointerTitle: '连接 APIMart',
+    agentPointerSubtitle: '点一下打开接入页，三步说明和价钱都在那里',
+  },
   journey: {
     finaleAria: '引导结束',
     finaleTitle: '这就是全程，现在轮到你',
@@ -1404,6 +1414,17 @@ export const enOnboardingProviders = {
       unavailable: 'Model catalog is unavailable right now — restart Nomi and try again',
       saveFailed: 'Could not save key: {{message}}',
     },
+  },
+  entries: {
+    connectModel: 'Connect',
+    modelChipEmpty: 'No model',
+    composerTooltipImage: 'Generating images needs an APIMart account (usually a few minutes). Your draft stays here.',
+    composerTooltipVideo: 'Generating video needs an APIMart account (usually a few minutes). Your draft stays here.',
+    composerTooltipGeneric: 'Generating needs an APIMart account (usually a few minutes). Your draft stays here.',
+    agentPointerBody:
+      'I don’t have a usable model yet — splitting shots, making images, and making video all need one first. Nomi uses APIMart: one account works everywhere, usually connected in a few minutes.',
+    agentPointerTitle: 'Connect APIMart',
+    agentPointerSubtitle: 'Open the setup page — all three steps and details are right there',
   },
   journey: {
     finaleAria: 'Tour complete',

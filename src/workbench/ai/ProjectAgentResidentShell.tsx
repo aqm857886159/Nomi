@@ -20,7 +20,6 @@ import type { NomiEditorOwner } from '../common/useNomiRichTextEditor'
 import { openFeedbackFor } from '../../ui/community/FeedbackButton'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { useTranslation } from 'react-i18next'
-import { cn } from '../../utils/cn'
 import { DesignModal } from '../../design'
 import { SystemPromptSection } from './systemPrompt/SystemPromptSection'
 import { storyboardLaunchMessage } from '../generationCanvas/agent/storyboardLauncher'
@@ -59,7 +58,10 @@ import { usePromptLibrary } from '../promptLibrary/usePromptLibrary'
 import { useUserPrompts } from '../promptLibrary/useUserPrompts'
 import type { ComposerPopover, QueueRowData } from './v4/agentPanelV4Types'
 import { buildV4ModelRows } from './v4/agentPanelV4ModelRows'
-import { useAgentTraceDirectory } from '../../desktop/useAgentTraceDirectory'
+import { ResidentThreadMenu } from './resident/ResidentThreadMenu'
+import { openApimartConnect, openModelSettingsHome } from '../../ui/onboarding/apimartConnectRoute'
+import { useHasTextModel } from '../library/useHasTextModel'
+import { NoTextModelRecoveryCard } from './NoTextModelRecoveryCard'
 
 /**
  * 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。
@@ -100,7 +102,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const { t } = useTranslation()
   const openProjectId = useOpenProjectId()
   const labels = useV4Labels()
-  const trace = useAgentTraceDirectory()
   const size = usePanelSize()
   const collapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
   const setCollapsed = useWorkbenchStore((state) => state.setProjectAgentDockCollapsed)
@@ -114,6 +115,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const timeline = useWorkbenchStore((state) => state.timeline)
 
   const data = useAgentPanelV4Data()
+  const { hasTextModel } = useHasTextModel()
   const actions = useAgentPanelV4Actions(surface, data)
   const connectionFailure = data.connectionFailure
   const connectionError = connectionFailure && !connectionFailure.ok
@@ -205,7 +207,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         onReject: actions.reject,
         onEscalate: actions.stopAsking,
         onAnswer: actions.answerQuestion,
-        onAlternate: () => window.dispatchEvent(new Event('nomi-open-model-catalog')),
+        onAlternate: () => openApimartConnect(),
         ...planSlotHandlers,
       }
   const autoModeBanner = autoMode.bannerVisible ? (
@@ -464,7 +466,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const modelRows = React.useMemo(() => buildV4ModelRows(data, t), [data, t])
 
   const composerPopover = popover === 'model'
-    ? <V4ModelPopover rows={modelRows} onOpenLibrary={() => { window.dispatchEvent(new Event('nomi-open-model-catalog')); setPopover(null) }} />
+    ? (
+      <V4ModelPopover
+        rows={modelRows}
+        onOpenLibrary={() => { openApimartConnect(); setPopover(null) }}
+        onOpenAssisted={() => { openModelSettingsHome(); setPopover(null) }}
+      />
+    )
     : popover === 'skill'
       ? (
         <V4SkillPopover
@@ -530,7 +538,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           await data.loadOlder!()
           return laneClient.projection().history?.before
         } : undefined}
-        flowTail={shotVerifyFeedback}
+        flowTail={hasTextModel === false && flow.length > 0 ? <>{shotVerifyFeedback}<NoTextModelRecoveryCard /></> : shotVerifyFeedback}
+        {...(hasTextModel === false ? { emptyOverride: <NoTextModelRecoveryCard /> } : {})}
         surface={surface}
         onStarter={startFromStarter}
         slot={activeSlot}
@@ -597,7 +606,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onStop: actions.stop,
           onAddFile: () => attachmentApi.inputRef.current?.click(),
           onAddReference: pickReferenceOnCanvas,
-          modelLabel: data.modelLabel,
+          modelLabel: hasTextModel === false && !data.selectedModel
+            ? t('onboardingProviders.entries.modelChipEmpty')
+            : data.modelLabel,
           skillSelected: Boolean(activeSkill || actions.selectedLibraryPrompt),
           // 上面那张卡是在**问**用户（不是在求批准）时，composer 降一档（2026-09-21 拍板）。
           // 降的是注意力不是能力：淡下去、占位改口，仍然能用——用户本来就可以不理那个问题、
@@ -621,55 +632,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         {systemPromptOpen ? <SystemPromptSection /> : null}
       </DesignModal>
       {threadsOpen ? (
-        <div
-          className="absolute right-2 top-10 z-50 w-[280px] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg"
-          data-agent-thread-menu="true"
-          role="menu"
-        >
-          <div className="flex items-center gap-1.5 px-2 py-1 text-micro text-nomi-ink-60">
-            <span>{t('agentResident.threads')}</span>
-            <button type="button" className="text-nomi-accent" onClick={() => { actions.newThread(); setThreadsOpen(false) }}>
-              {t('agentResident.newThread')}
-            </button>
-          </div>
-          {data.snapshot.lanes.map((thread) => (
-            <div
-              key={thread.laneName}
-              className={cn('flex items-center gap-1 rounded-nomi-sm px-2 py-1', thread.laneName === data.snapshot.active.lane && 'bg-nomi-accent-soft')}
-            >
-              <button
-                type="button"
-                className="min-w-0 flex-1 truncate text-left text-caption"
-                onClick={() => { actions.activateThread(thread.laneName); setThreadsOpen(false) }}
-              >
-                {thread.laneName === 'main' ? t('agentResident.untitledThread') : thread.laneName}
-              </button>
-              <button
-                type="button"
-                className="grid size-7 place-items-center rounded-nomi-sm hover:bg-nomi-ink-10"
-                aria-label={t('agentResident.removeThread')}
-                onClick={() => actions.removeThread(thread.laneName)}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {trace.available ? (
-            <div className="mt-1 border-t border-nomi-line pt-1">
-              <button
-                type="button"
-                role="menuitem"
-                data-agent-trace-open="session"
-                disabled={trace.busy}
-                className="w-full rounded-nomi-sm px-2 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 disabled:opacity-50"
-                onClick={() => { void trace.open(data.snapshot.active.lane) }}
-              >
-                {t(trace.busy ? 'settings.general.trace.opening' : 'agentResident.viewTrace')}
-              </button>
-              {trace.message ? <p role="alert" className="px-2 py-1 text-caption text-nomi-ink-60">{trace.message}</p> : null}
-            </div>
-          ) : null}
-        </div>
+        <ResidentThreadMenu
+          lanes={data.snapshot.lanes}
+          activeLane={data.snapshot.active.lane}
+          onNewThread={actions.newThread}
+          onActivateThread={actions.activateThread}
+          onRemoveThread={actions.removeThread}
+          onClose={() => setThreadsOpen(false)}
+        />
       ) : null}
     </div>
   )
