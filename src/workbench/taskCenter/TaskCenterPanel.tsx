@@ -22,7 +22,7 @@ import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPrevi
 import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'
 import { buildTaskCenterView, formatElapsed, summarizeTaskCenterRows, type TaskCenterRow } from './taskCenterEntries'
 import { notify } from '../../ui/notificationPolicy'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, listenOutsidePress } from '../../design'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, useFloatingOutsideDismiss } from '../../design'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
 import { TASK_CENTER_GROUPS, type TaskCenterGroup, type TaskCenterProjection } from './taskCenterProjection'
@@ -72,15 +72,13 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
     return () => window.removeEventListener('keydown', handler)
   }, [opened, onClose])
 
-  React.useEffect(() => {
-    if (!opened) return
-    // 点开它的那一下（pointerdown）早在打开之前就过去了，不会把自己关掉；触发钮自己负责开合（再点一次 = 收），不算点外面。
-    return listenOutsidePress(
-      (target) => (target instanceof Node && Boolean(panelRef.current?.contains(target)))
-        || (target instanceof Element && Boolean(target.closest('[data-task-center-trigger]'))),
-      () => onClose(),
-    )
-  }, [opened, onClose])
+  // 点开它的那一下（pointerdown）早在打开之前就过去了，不会把自己关掉；触发钮自己负责开合（再点一次 = 收），不算点外面。
+  const { getFloatingProps } = useFloatingOutsideDismiss({
+    open: opened,
+    floating: panelRef,
+    isInside: (target) => target instanceof Element && Boolean(target.closest('[data-task-center-trigger]')),
+    onDismiss: () => onClose(),
+  })
 
   const view = React.useMemo(
     () => buildTaskCenterView({ entries, batches, nodes, fallbackTitle: t('taskCenter.untitledShot'), now }),
@@ -194,6 +192,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
     <Portal>
       <div
         ref={panelRef}
+        {...getFloatingProps()}
         role="dialog"
         aria-label={t('taskCenter.title')}
         data-nomi-right-panel="tasks"
