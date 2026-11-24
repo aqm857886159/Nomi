@@ -83,7 +83,7 @@ export function shortcutSurfaceMayHandle(surface: Element | null): boolean {
 
 const canvasSurface = (): Element | null => document.querySelector('[data-shortcut-surface="canvas"]')
 
-export function canvasSurfaceMayHandleInput(): boolean {
+function canvasSurfaceMayHandleInput(): boolean {
   return typeof document !== 'undefined' && workspaceInputSurfaceIsActive(canvasSurface())
 }
 

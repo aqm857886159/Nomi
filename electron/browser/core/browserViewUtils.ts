@@ -70,12 +70,12 @@ export function normalizeBrowserUrl(url: unknown): string {
   return parsed.toString();
 }
 
-export function normalizePromptExtractionMode(value: unknown): BrowserPromptExtractionMode {
+function normalizePromptExtractionMode(value: unknown): BrowserPromptExtractionMode {
   return value === "style" ? "style" : "replicate";
 }
 
 /** 页内「提取」转给主窗口的那一条事件（`browser:view:prompt-capture`）。 */
-export type BrowserPromptCaptureEvent =
+type BrowserPromptCaptureEvent =
   | {
       ok: true;
       viewId: number;

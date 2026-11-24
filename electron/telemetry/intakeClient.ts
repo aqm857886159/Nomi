@@ -62,7 +62,7 @@ export function resetIntakeConfigCache(): void {
 }
 
 /** 接收端的三条路由。写成联合类型而不是 string：新增一条货物必须来这里登记一次。 */
-export type IntakeRoute = '/v1/events' | '/v1/feedback'
+type IntakeRoute = '/v1/events' | '/v1/feedback'
 
 export type IntakeResult = {
   /** 只有 /v1/feedback 会给：用户能口述的编号 NF-MMDD-NNNN。 */
@@ -72,7 +72,7 @@ export type IntakeResult = {
   accepted?: number
 }
 
-export type IntakeFetch = typeof globalThis.fetch
+type IntakeFetch = typeof globalThis.fetch
 
 const BASE_TIMEOUT_MS = 8_000
 /** 按最慢多少算上传时间：16 字节每毫秒，也就是 16 KB/s。 */

@@ -27,7 +27,7 @@ import { appendBinding } from '../shotRow/shotReferenceSlots'
  * 判断「名字包含」时用方案里**全部**参考卡的名字（不只出了图的那几张），见 `insertAutoMentions` 的 `knownNames`。
  */
 
-export type ReadyAnchorImage = { anchorId: string; name: string; url: string }
+type ReadyAnchorImage = { anchorId: string; name: string; url: string }
 
 function shotArchetype(shot: PlanShot): ModelArchetype | null {
   if (!shot.modelKey) return null
@@ -118,7 +118,6 @@ export function autoReferencePlan(
   })
   return changed ? { ...plan, shots } : plan
 }
-
 
 /** Editor effects and the reference-to-shot phase boundary share the same ready/settled census. */
 export function autoReferenceFromCanvas(plan: StoryboardPlan, designId: string, nodes: GenerationCanvasNode[], entries: readonly GenerationQueueEntry[]): StoryboardPlan {

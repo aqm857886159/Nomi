@@ -87,7 +87,7 @@ export function unwrapWholeArguments(args: unknown): Record<string, unknown> {
   return {};
 }
 
-export interface ModelToleranceShape {
+interface ModelToleranceShape {
   /** 声明成数组的字段名。B 族（JSON 文本）与 C 族（单对象→一元数组）都只对它们生效。 */
   readonly arrayFields?: readonly string[];
   /** 声明成嵌套对象的字段名。只做 B 族。 */
@@ -159,5 +159,3 @@ export function modelArgumentTolerance(shape: ModelToleranceShape): (args: unkno
 export function noArgumentTolerance(): Record<string, never> {
   return {};
 }
-
-export { parseJsonText as parseModelArgumentJsonText };

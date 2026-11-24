@@ -62,7 +62,7 @@ import type { ExportQuality } from './export/exportTypes'
 import { registerTimelineReconciler } from './generationCanvas/store/canvasTimelineBridge'
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
-export type TimelineSnapGuide = { frame: number; label: string }
+type TimelineSnapGuide = { frame: number; label: string }
 
 // 时间轴撤销栈封顶（防无限增长）。
 const TIMELINE_UNDO_LIMIT = 30

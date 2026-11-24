@@ -176,7 +176,7 @@ function normalizeBlockContent(value: unknown): Array<Record<string, unknown>> {
   return value.content.flatMap(normalizeBlockNodes)
 }
 
-export function createDefaultWorkbenchContentJson(): unknown {
+function createDefaultWorkbenchContentJson(): unknown {
   return {
     type: 'doc',
     content: [],
@@ -216,7 +216,6 @@ export function mintStoryboardDesignId(): string {
   }
   return `storyboard-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
-
 
 export type PreviewAspectRatio = '16:9' | '9:16' | '1:1' | '4:5' | '3:4' | '4:3' | '21:9'
 

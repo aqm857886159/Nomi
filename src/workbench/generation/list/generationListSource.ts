@@ -12,7 +12,7 @@ import { focusCanvasNodeWhenReady } from '../../deepLinkFocus'
 import { deriveGenerationList, type GenerationListCard, type GenerationListModel, type GenerationListSection } from './generationListModel'
 import { useGenerationViewStore } from './generationViewStore'
 
-export type ListRow =
+type ListRow =
   | { kind: 'header'; key: string; section: GenerationListSection }
   | { kind: 'cards'; key: string; section: GenerationListSection; cards: GenerationListCard[] }
   | { kind: 'assets'; key: string; nodeIds: string[] }

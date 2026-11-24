@@ -42,7 +42,7 @@ type RewriteMeta =
   | { type: 'document'; id: string | null }
 
 /** 插件状态：当前编辑器里是哪篇文稿 + 至多一个会话。 */
-export type RewritePluginState = Readonly<{ documentId: string | null; session: RewriteSession | null }>
+type RewritePluginState = Readonly<{ documentId: string | null; session: RewriteSession | null }>
 
 export const rewriteSessionKey = new PluginKey<RewritePluginState>('nomiAiRewrite')
 
@@ -72,9 +72,9 @@ export function setRewriteDocumentIdentityTransaction(state: EditorState, id: st
 // —— 区间里的文字与「文字偏移 → 文档位置」 ——————————————————————————————————————
 
 /** 区间文字 + 每个字符对应的文档位置（块之间补的换行没有位置，记 -1）。 */
-export type RangeText = { text: string; positions: number[] }
+type RangeText = { text: string; positions: number[] }
 
-export function readRange(doc: ProseMirrorNode, from: number, to: number): RangeText {
+function readRange(doc: ProseMirrorNode, from: number, to: number): RangeText {
   let text = ''
   const positions: number[] = []
   doc.nodesBetween(from, to, (node, pos) => {
@@ -122,7 +122,7 @@ export function trimmedRange(doc: ProseMirrorNode, from: number, to: number): { 
 }
 
 /** 「段尾」：区间最后一个字所在文字块的末尾，✓ ✕ 跟在这里。 */
-export function paragraphEnd(doc: ProseMirrorNode, to: number): number {
+function paragraphEnd(doc: ProseMirrorNode, to: number): number {
   const $to = doc.resolve(Math.min(to, doc.content.size))
   return $to.parent.isTextblock ? $to.end() : to
 }
@@ -196,8 +196,8 @@ const ACTION_GROUP_CLASS = 'nomi-ai-rewrite-actions relative ml-2 inline-flex se
 const ACTION_BUTTON_CLASS = 'group/btn relative inline-flex size-6 cursor-pointer items-center justify-center rounded-full border border-workbench-border bg-workbench-surface p-0 text-workbench-muted shadow-workbench-pop hover:text-workbench-ink'
 const TIP_CLASS = 'pointer-events-none absolute left-0 top-[30px] z-30 hidden whitespace-nowrap rounded-nomi-sm bg-workbench-ink px-2 text-caption text-workbench-surface group-hover/btn:block'
 
-export const REWRITE_LABELS_DEFAULT = { accept: 'Accept', discard: 'Discard', acceptHint: 'Accept Enter', discardHint: 'Discard Esc' }
-export type RewriteLabels = typeof REWRITE_LABELS_DEFAULT
+const REWRITE_LABELS_DEFAULT = { accept: 'Accept', discard: 'Discard', acceptHint: 'Accept Enter', discardHint: 'Discard Esc' }
+type RewriteLabels = typeof REWRITE_LABELS_DEFAULT
 
 let labelProvider: () => RewriteLabels = () => REWRITE_LABELS_DEFAULT
 

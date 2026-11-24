@@ -15,7 +15,7 @@ import { issuesOfZodError, storyboardPlanIssues, type SchemaFieldIssue } from '.
  * 主进程换成给模型的「哪个字段、要什么」。判官只有 store 写入口一个；这里只负责解释，不再判一次。
  * 方案本身没问题（拒收是别的原因：方案已删等）时返回 null，沿用原来的错误。
  */
-export type StoryboardRejectedReply = { status: 'rejected'; issues: SchemaFieldIssue[] }
+type StoryboardRejectedReply = { status: 'rejected'; issues: SchemaFieldIssue[] }
 /** 模型给的方案 / 镜头过不了严格解析：同样回「哪个字段、要什么」，不让裸 zod 原文出去。 */
 function rejectionOfZod(error: unknown, prefix = ''): StoryboardRejectedReply | null {
   if (!(error instanceof ZodError)) return null

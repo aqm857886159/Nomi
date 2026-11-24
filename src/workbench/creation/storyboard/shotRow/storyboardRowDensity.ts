@@ -10,16 +10,12 @@ import type { StoryboardRowDensity } from './shotFrameGeometry'
  *
  * 740 = 两侧内边距 24 + 行首 14 + 两个列间距 24 + 横版预览 240 + 底栏一行的最小宽 ≈ 440（英文实测）。
  */
-export const STORYBOARD_ROW_NARROW_BELOW = 740
+const STORYBOARD_ROW_NARROW_BELOW = 740
 
 /** 再窄（< 520）：预览框缩成缩略图排到最上一行，参考 / 提示词 / 底栏占满整行宽（E1a 的 400 / 320 两档）。 */
-export const STORYBOARD_ROW_COMPACT_BELOW = 520
+const STORYBOARD_ROW_COMPACT_BELOW = 520
 
-export function storyboardRowIsNarrow(rowWidth: number | null): boolean {
-  return rowWidth !== null && rowWidth < STORYBOARD_ROW_NARROW_BELOW
-}
-
-export function storyboardRowDensityOf(rowWidth: number | null): StoryboardRowDensity {
+function storyboardRowDensityOf(rowWidth: number | null): StoryboardRowDensity {
   if (rowWidth === null) return 'wide'
   return rowWidth < STORYBOARD_ROW_COMPACT_BELOW ? 'compact' : rowWidth < STORYBOARD_ROW_NARROW_BELOW ? 'narrow' : 'wide'
 }

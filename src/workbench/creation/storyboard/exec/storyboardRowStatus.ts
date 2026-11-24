@@ -1,4 +1,3 @@
-import { anchorsConsumedBy } from '../../../../../electron/shared/modelArchetypes/anchorPolicy'
 import { ignoredShotAnchors, type IgnoredAnchor } from '../../../generationCanvas/agent/storyboardAnchorPolicy'
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { ArchetypeMode, ArchetypeReferenceSlot } from '../../../../../electron/shared/modelArchetypes/types'
@@ -12,7 +11,6 @@ import { effectiveShotValue, missingRequiredSlots, plannedFirstFrameSlot, refere
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import { findModelOptionByIdentifier } from '../../../../config/modelOptionResolvers'
 import { peekVendorPreferenceOrder } from '../../../common/useVendorPreference'
-
 
 /**
  * 分镜行的**执行态 derive 层**（纯函数，v5 B）：行状态不是存的，是从「plan × 画布节点」推出来的
@@ -100,11 +98,6 @@ function isNodeRecoverable(node: GenerationCanvasNode | null): boolean {
 function resultDisplayUrl(node: GenerationCanvasNode | null): string | null {
   const url = node?.result?.thumbnailUrl || node?.result?.url
   return typeof url === 'string' && url ? url : null
-}
-
-/** 该行（按当前解析的档案模式）吃不吃参考：无档案（默认模型）按吃处理（保守，同建边行为）。 */
-export function rowConsumesReferences(mode: ArchetypeMode | null | undefined): boolean {
-  return !mode || !anchorsConsumedBy(mode).includes('none')
 }
 
 export function deriveShotRowExec(input: {
@@ -329,7 +322,7 @@ export function deriveAnchorCardRuntimes(input: {
 
 export type StoryboardRowWithExec = { shot: PlanShot; exec: ShotRowExec }
 
-export type StoryboardBatchView<T extends StoryboardRowWithExec = StoryboardRowRuntime> = {
+type StoryboardBatchView<T extends StoryboardRowWithExec = StoryboardRowRuntime> = {
   /** 进批次的行（ready + failed 重试；镜序）。**不含 recoverable**——那一批已经付过钱了。 */
   runnable: T[]
   /** 不进批次的原因分桶（footer 写明原因）。 */

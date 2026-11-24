@@ -40,7 +40,7 @@ import {
   type GenerationProblemInput,
 } from "../shared/generationProblem";
 
-export type TransportFailure = Extract<RuntimeToolDecision, { ok: false }>;
+type TransportFailure = Extract<RuntimeToolDecision, { ok: false }>;
 
 /**
  * 我们**有意**拒绝一次生成调用时抛的错：带一个闭合原因（`GenerationProblem`），给模型读的正文由原因和事实生成。
@@ -73,7 +73,7 @@ export function refuseArgument(detail: string, where: Pick<GenerationProblem, "f
   return refuseGeneration({ code: "parameter_not_allowed", ...where, detail });
 }
 
-export type SafeTransportFailureOptions = Readonly<{
+type SafeTransportFailureOptions = Readonly<{
   /** 这条传输路允许送到模型那里的码（`CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES` + 本路自有的几个）。 */
   allowedCodes: ReadonlySet<string>;
   /** 码不在放行表里时用它。 */

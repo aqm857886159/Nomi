@@ -10,7 +10,7 @@
  *      （`supportsLanguage`），不在这里另抄一份语言表。markdown / 纯文本这类「标了也是文字」的语言除外。
  *   ② 没标语言、标的是文字类语言、或标了高亮器不认得的词（`prompt`、`english`…）→ 看内容像不像代码。
  */
-export type CodeFenceTypeface = 'code' | 'prose'
+type CodeFenceTypeface = 'code' | 'prose'
 
 /** 高亮器认得、但写出来的仍是人读的文字的围栏语言：它们的内容照样按文字/代码去看。 */
 const TEXT_FENCE_LANGUAGES = new Set(['markdown', 'md', 'mdx', 'text', 'txt', 'plain', 'plaintext'])

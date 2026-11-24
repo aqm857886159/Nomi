@@ -6,7 +6,7 @@ import { diffWordsWithSpace } from 'diff'
  * 比较交给成熟库 `diff`（jsdiff，通用文本比较不是我们独有的）；中文没有空格，
  * 靠 `Intl.Segmenter` 按词切（桌面端 Chromium 自带），切不了才退回按空白切。
  */
-export type RewriteDiffPart = { kind: 'keep' | 'del' | 'add'; text: string }
+type RewriteDiffPart = { kind: 'keep' | 'del' | 'add'; text: string }
 
 // tsconfig 的 lib 还没带 Intl.Segmenter（运行时 Chromium / Node 都有），这里只声明用到的那一小块。
 type WordSegmenterConstructor = new (locale: string | undefined, options: { granularity: 'word' }) => unknown

@@ -39,7 +39,7 @@ const EXTRACTION_PARAMETERS: Record<BrowserPromptExtractionMode, { temperature: 
 const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
 /** 窄 payload：缺模型、缺指令、缺图一律整次拒（这几样渲染层在发起前就该备齐）。 */
-export function parseBrowserPromptExtractionRunRequest(payload: unknown): BrowserPromptExtractionRunRequest {
+function parseBrowserPromptExtractionRunRequest(payload: unknown): BrowserPromptExtractionRunRequest {
   const raw = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
   const request: BrowserPromptExtractionRunRequest = {
     vendor: str(raw.vendor),
@@ -63,7 +63,7 @@ let confirming = false;
  * 问一次人 → 铸一颗令牌 → 发一次读图调用。没确认（含卡没弹出来就收了）→ not-confirmed，什么都不发；
  * 渲染层没了 → 抛 RendererUnavailableError（不铸、不发）。失败照 `nomi:tasks:run` 的编码抛出（runTaskIpcGuard）。
  */
-export async function runBrowserPromptExtraction(
+async function runBrowserPromptExtraction(
   request: BrowserPromptExtractionRunRequest,
   runTask: RunTask,
 ): Promise<BrowserPromptExtractionRunOutcome> {

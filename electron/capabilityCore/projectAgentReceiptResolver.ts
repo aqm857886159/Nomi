@@ -8,7 +8,7 @@ import {
   type ProjectAgentProposalReceiptService,
 } from "./projectAgentProposalReceiptStore";
 
-export type DesktopProposalReceiptResolverDependencies = Readonly<{
+type DesktopProposalReceiptResolverDependencies = Readonly<{
   getWorkspaceRepositoryDeps: () => WorkspaceRepositoryDeps;
   resolveWorkspaceProjectDir: (projectId: string, deps: WorkspaceRepositoryDeps) => string | null;
   createProjectAgentProposalReceiptService: (input: Readonly<{
@@ -17,7 +17,7 @@ export type DesktopProposalReceiptResolverDependencies = Readonly<{
   }>) => ProjectAgentProposalReceiptService;
 }>;
 
-export type DesktopProposalReceiptResolver = (
+type DesktopProposalReceiptResolver = (
   binding: ProjectBinding | null | undefined,
 ) => ProjectAgentProposalReceiptService | undefined;
 

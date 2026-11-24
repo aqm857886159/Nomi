@@ -21,7 +21,7 @@ export type TaskProvenance = {
 };
 
 /** 生成请求里决定产物的字段(结构对齐 runtime.TaskRequest 的子集,避免循环依赖)。 */
-export type RecipeRequestFields = {
+type RecipeRequestFields = {
   kind: string;
   prompt: string;
   negativePrompt?: string;
@@ -67,7 +67,7 @@ export function inlineAssetDigest(value: string): string {
 }
 
 /** 递归把结构里的内联素材换成摘要(返回新结构,不改原对象)。非内联值一律原样。 */
-export function digestInlineAssets<T>(value: T): T {
+function digestInlineAssets<T>(value: T): T {
   if (classifyAssetValue(value) === "inline-data") return inlineAssetDigest(value as string) as unknown as T;
   if (Array.isArray(value)) return value.map((item) => digestInlineAssets(item)) as unknown as T;
   if (value && typeof value === "object") {

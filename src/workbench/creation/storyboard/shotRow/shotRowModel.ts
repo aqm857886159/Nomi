@@ -64,7 +64,7 @@ export function plannedFirstFrameSlot(
 }
 
 /** 除绑定之外，生成时还会往槽里放东西的两条来源。 */
-export type RequiredSlotCredits = {
+type RequiredSlotCredits = {
   /** 计划首帧落的槽（`plannedFirstFrameSlot`）；无 → null。 */
   plannedFirstFrame: ArchetypeReferenceSlot | null
 }
@@ -80,7 +80,7 @@ export type RequiredSlotCredits = {
  * 之后又只把计划首帧记在 first_frame 槽上——只有 image_ref 的图生视频开了首帧也永远红、进不了批量，
  * 而那张首帧生成时照样发进了 image_ref（0.22.0 回归）。
  */
-export function missingRequiredSlotsOf(
+function missingRequiredSlotsOf(
   mode: ArchetypeMode | null | undefined,
   bindings: ReferenceBindingMap | undefined,
   credits: RequiredSlotCredits,

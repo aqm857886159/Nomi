@@ -4,7 +4,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 /** 骨架段范围。`ariaLabel` 由调用方（持 i18n 上下文的那层）给——装饰段可点击，必须有可访问名。 */
 export type PromptEditorSegment = { key: string; start: number; end: number; ariaLabel?: string }
 
-export type PromptRun = { promptStart: number; promptEnd: number; docStart: number; docEnd: number; atom: boolean }
+type PromptRun = { promptStart: number; promptEnd: number; docStart: number; docEnd: number; atom: boolean }
 
 /** 用同一套 @[url] 序列化规则，把 prompt 字符范围映射到 ProseMirror 文档位置。 */
 export function promptRunsFromDocument(doc: ProseMirrorNode): PromptRun[] {
