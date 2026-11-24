@@ -1554,11 +1554,6 @@
       "count": 1
     }
   },
-  "tests/ux/asset-library-native-import.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/asset-tab-overlap-and-nomi-entry.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -1761,9 +1756,6 @@
     }
   },
   "tests/ux/composer-long-prompt.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    },
     "no-empty": {
       "count": 2
     }
@@ -2350,9 +2342,6 @@
     }
   },
   "tests/ux/project-switch-background-run.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-useless-assignment": {
       "count": 1
     }

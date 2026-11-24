@@ -95,7 +95,7 @@ const nodeId = await win.evaluate(() => document.querySelector('[data-node-id]')
 console.log('  → 视频节点:', nodeId)
 const hasVideo = await win.evaluate(() => Boolean(document.querySelector('[data-node-id] video')))
 check('视频真的进画布了', Boolean(nodeId) && hasVideo, `node=${nodeId} video=${hasVideo}`)
-if (!nodeId || !hasVideo) { await app.close(); process.exit(1) }
+if (!nodeId || !hasVideo) throw new Error('视频没有进入画布')
 
 // 点「按镜头拆」
 await win.locator(`[data-node-id="${nodeId}"]`).first().click({ timeout: 4000 })
