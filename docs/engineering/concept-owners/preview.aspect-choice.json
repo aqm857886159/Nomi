@@ -1,0 +1,32 @@
+{
+  "name": "预览与导出画幅首次画面自动对齐与显式偏好保持判据",
+  "subject": "preview.aspect-choice",
+  "lifecycle": "project-data",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/previewAspectRatios.ts",
+    "symbol": "matchFirstVisualAspect"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/previewAspectRatios.ts",
+      "symbol": "matchFirstVisualAspect"
+    },
+    {
+      "path": "src/workbench/preview/previewAspectRatios.ts",
+      "symbol": "reconcileAutoPreviewAspectOnTravel"
+    },
+    {
+      "path": "src/workbench/preview/previewAspectRatios.ts",
+      "symbol": "selectPreviewAspectRatio"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/preview/previewAspectOnInsert.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "合同 docs/fixes/2026-11-24-preview-ux3.root-cause.json：首次有视觉片段入轨且无显式手动选择时自动按素材内在比例匹配项目画幅；显式选择记 manual 不再被覆盖，撤销回空轴还原 auto。"
+}
