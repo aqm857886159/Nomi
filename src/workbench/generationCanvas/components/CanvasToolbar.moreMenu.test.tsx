@@ -25,8 +25,10 @@ it('adds a 3D node through More while the selected node composer clips the dock,
           window.addEventListener('keydown', onKeyDown)
           return () => window.removeEventListener('keydown', onKeyDown)
         }, [])
+        React.useEffect(() => {
+          (window as unknown as { __hideCanvas?: () => void }).__hideCanvas = () => setActive(false)
+        }, [])
         return <GenerationPageLayerProvider value={{ host: null, active }}>
-          <button type="button" data-hide-canvas="true" onClick={() => setActive(false)}>hide</button>
           <main data-shortcut-surface="canvas">
             <div className="generation-canvas-v2-node__composer" />
             <CanvasToolbar getInsertionPosition={() => ({ x: 0, y: 0 })} />
@@ -63,14 +65,19 @@ it('adds a 3D node through More while the selected node composer clips the dock,
     await menu.waitFor({ state: 'detached' })
     await trigger.click()
     await menu.locator('[data-node-kind="model3d"]').click()
-    expect(await page.locator('output').textContent()).toBe('video,model3d:0')
+    await expect.poll(() => page.locator('output').textContent()).toBe('video,model3d:0')
     expect(await menu.count()).toBe(0)
     await trigger.click()
     await menu.waitFor()
-    await page.evaluate(() => (document.querySelector('[data-hide-canvas="true"]') as HTMLButtonElement).click())
+    await page.evaluate(() => {
+      (document.activeElement as HTMLElement | null)?.blur?.()
+      ;(window as unknown as { __hideCanvas: () => void }).__hideCanvas()
+    })
     await menu.waitFor({ state: 'detached' })
+    await expect.poll(() => trigger.getAttribute('aria-expanded')).toBe('false')
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
     await page.keyboard.press('Escape')
-    expect(await page.locator('output').textContent()).toBe('video,model3d:1')
+    await expect.poll(() => page.locator('output').textContent()).toBe('video,model3d:1')
   } finally {
     await browser.close()
   }

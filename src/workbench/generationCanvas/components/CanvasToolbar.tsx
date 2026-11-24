@@ -86,21 +86,29 @@ function CanvasAddSectionList({
  * 底部加节点条最后的「+」和空画布起步行的「更多」**同一个**菜单组件（Claude Design 拍板稿 EmptyStates），不另写一份。
  * 点开 / Esc / 点外面收起；定位与关闭交互由 AnchoredPopover 负责。
  */
-export function CanvasMoreAddMenu({ anchorRef, onPick, onClose }: {
+export function CanvasMoreAddMenu({ anchorRef, anchorRect, onPick, onClose }: {
   anchorRef: React.RefObject<HTMLButtonElement | null>
+  anchorRect?: () => DOMRect
   onPick: (intent: CanvasAddIntent) => void
   onClose: () => void
 }): JSX.Element | null {
   const { t } = useTranslation()
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
   const canvasActive = useGenerationPageLayerActive()
+  const menuRef = React.useRef<HTMLDivElement>(null)
+  React.useLayoutEffect(() => {
+    if (canvasActive) menuRef.current?.focus({ preventScroll: true })
+  }, [canvasActive])
   React.useEffect(() => {
     if (!canvasActive) onClose()
   }, [canvasActive, onClose])
   if (!canvasActive) return null
   return (
-    <AnchoredPopover anchorRef={anchorRef} align="end" side="top" gap={12} onClose={onClose}>
+    <AnchoredPopover anchorRef={anchorRef} anchorRect={anchorRect} align="end" side="top" gap={12} onClose={onClose}>
       <div
+        ref={menuRef}
+        tabIndex={-1}
+        style={{ outline: 'none' }}
         className="generation-canvas-v2-toolbar__more-menu grid w-[176px] gap-0.5 rounded-nomi border border-workbench-border bg-nomi-paper p-[6px] shadow-workbench-pop"
         role="menu"
         aria-label={t('canvas.moreMenu')}
@@ -278,7 +286,17 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId, stageW
           </TooltipTrigger>
           {moreOpen ? null : <TooltipContent side="top">{t('canvas.moreMenu')}</TooltipContent>}
         </Tooltip>
-        {moreOpen ? <CanvasMoreAddMenu anchorRef={moreAnchorRef} onPick={handlePick} onClose={closeMore} /> : null}
+        {moreOpen ? (
+          <CanvasMoreAddMenu
+            anchorRef={moreAnchorRef}
+            anchorRect={() => {
+              const r = moreAnchorRef.current!.getBoundingClientRect()
+              return new DOMRect(r.left, r.top, r.width + 4, r.height)
+            }}
+            onPick={handlePick}
+            onClose={closeMore}
+          />
+        ) : null}
         {workflowTemplates.length ? (
           <>
             <span className="mx-1 h-[18px] w-px shrink-0 bg-nomi-line" aria-hidden="true" />
