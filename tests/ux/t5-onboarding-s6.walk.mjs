@@ -6,7 +6,7 @@ import path from 'node:path'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { launchVisibilityWalk } from './t5-onboarding-s6-native.mjs'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { applyColorSchemeForShot, expect } from './_assert.mjs'
+import { applyColorSchemeForShot, DEFAULT_TIMEOUT_MS, expect } from './_assert.mjs'
 import { createBlankProject, collapseAgentPanel, selectedNodeComposer, selectOrAddCanvasNode, switchWorkspace } from './_shell.mjs'
 
 const out = path.join(repoRoot, 'docs/evidence/2026-11-24-t5-onboarding-s6')
@@ -98,7 +98,7 @@ async function run(locale, theme, width, scenario = 'draft') {
         await shoot(win, 'o5-' + theme)
         const beforeRefresh = requests.length
         nativeVisibility('hide')
-        await win.waitForFunction(() => document.hidden, undefined, { timeout: 5000, polling: 50 })
+        await win.waitForFunction(() => document.hidden, undefined, { timeout: DEFAULT_TIMEOUT_MS, polling: 50 })
         response = 'positive'
         nativeVisibility('restore')
         await expect(rows.nth(1)).toContainText(credits(52.3))
@@ -179,7 +179,7 @@ async function run(locale, theme, width, scenario = 'draft') {
     await shoot(win, 'o6-keychain-' + theme)
     response = 'offline'
     await win.locator('[data-apimart-key-error=keychain] button').click()
-    await expect(win.locator('[data-apimart-key-error=offline]'), 'board:Onboarding/error.offline').toBeVisible({timeout: 30000})
+    await expect(win.locator('[data-apimart-key-error=offline]'), 'board:Onboarding/error.offline').toBeVisible({timeout: DEFAULT_TIMEOUT_MS})
     await shoot(win, 'o6-offline-' + theme)
     response = 'positive'
     await win.context().setOffline(true)
@@ -194,7 +194,7 @@ async function run(locale, theme, width, scenario = 'draft') {
     await expect(composer.locator('[data-apimart-connected]')).toContainText(uiTextWith(locale, 'modelSetup.apimartVerification.connectedBalance', { value: 52.3 }).trim())
     await expect(prompt).toContainText('An orange cat at the window')
     await shoot(win, 'o4b-' + theme)
-    await expect(composer.locator('[data-apimart-connected]')).toHaveCount(0, {timeout: 6000})
+    await expect(composer.locator('[data-apimart-connected]')).toHaveCount(0, {timeout: DEFAULT_TIMEOUT_MS})
     if (theme === 'light') {
       await compare(win, 'board-vs-impl-o3-o4', [['O3-waiting', 'o3-light'], ['O4a-check', 'o4a-light'], ['O4b-back', 'o4b-light']])
       await compare(win, 'board-vs-impl-o6', ['format', 'invalid', 'offline', 'keychain', 'mirrors'].map((kind) => ['O6-errors', 'o6-' + kind + '-light']).concat([['O6-errors', 'o5-light']]))

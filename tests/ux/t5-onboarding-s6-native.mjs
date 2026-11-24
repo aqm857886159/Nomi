@@ -4,6 +4,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
 import { chromium } from 'playwright'
+import { stationTimeout } from './_station-budget.mjs'
 import { buildWorld } from './_world.mjs'
 import { buildNomiLaunchEnv, CREDENTIAL_STORAGE_MODULE, prepareCredentialSource, prepareHostConfigDir,
   prepareLocalStorageSeed, repoRoot, spawnQuietElectron } from './_launchApp.mjs'
@@ -32,7 +33,7 @@ export async function launchVisibilityWalk({ initialLocalStorage, env, viewportS
   try {
     const lines = createInterface({ input: child.stderr })
     const endpoint = await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => lines.close(), 30_000)
+      const timeout = setTimeout(() => lines.close(), stationTimeout({ operations: 2 }))
       lines.on('line', (line) => {
         const match = /^DevTools listening on (ws:\/\/127\.0\.0\.1:\d+\/devtools\/browser\/[\w-]+)$/.exec(line)
         if (match) { resolve(match[1]); lines.close() }

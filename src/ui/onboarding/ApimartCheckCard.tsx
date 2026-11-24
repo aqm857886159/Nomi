@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconAlertTriangle, IconCheck, IconCircle } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconCircleDashed } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { VendorReportedBalance } from '../../../electron/shared/contracts/vendorAccountBalance'
 import type { ApimartCatalogCounts } from './onboardingModelAvailability'
@@ -28,7 +28,7 @@ export function ApimartCheckCard({ complete, token, account, counts }: {
       {rows.map(({ key, detail, snapshot }) => {
         const known = complete && snapshot !== null
         const empty = known && snapshot?.remainCredits === 0
-        const Mark = empty ? IconAlertTriangle : known ? IconCheck : IconCircle
+        const Mark = empty ? IconAlertTriangle : known ? IconCheck : IconCircleDashed
         return <li key={key} className="flex items-center gap-2 text-body-sm">
           <Mark size={14} aria-hidden className={empty ? 'text-nomi-warning' : known ? 'text-workbench-success' : 'text-nomi-ink-40'} />
           <span>{t(`modelSetup.apimartVerification.${key}`)}</span>

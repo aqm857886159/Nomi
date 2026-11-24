@@ -407,7 +407,7 @@ export function ApimartConnectPage({
             disabled={busy}
             aria-invalid={error || (notice && notice !== 'offline') ? true : undefined}
             aria-describedby={error || (notice && notice !== 'offline') ? errorId : undefined}
-            placeholder={checking ? `sk-••••••••••••••••${verification.suffix}` : t('onboardingProviders.apimartConnect.keyInput.placeholder')}
+            placeholder={checking ? t('modelSetup.apimartVerification.maskedKey', { suffix: verification.suffix }) : t('onboardingProviders.apimartConnect.keyInput.placeholder')}
             onChange={() => {
               if (stage !== 'idle') verification.reset()
               if (error) setError('')

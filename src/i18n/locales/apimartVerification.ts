@@ -1,4 +1,5 @@
 export const zhApimartVerification = {
+  maskedKey: "sk-••••••••••••••••{{suffix}}",
   topup: "去充值",
   topupBody: "Key 已存好，就差充值：出图和上传素材都要余额大于 0。充好后回到 Nomi 会自动再查一次。",
   delayed: "到账可能有延迟；超过 1 小时没到，联系 APIMart 客服。",
@@ -33,6 +34,7 @@ export const zhApimartVerification = {
 }
 
 export const enApimartVerification: typeof zhApimartVerification = {
+  maskedKey: "sk-••••••••••••••••{{suffix}}",
   topup: "Top up",
   topupBody: "Key saved. Images and asset uploads need a balance above zero. Top up, then return to Nomi for an automatic check.",
   delayed: "Balances can take time to update. If yours is still missing after an hour, contact APIMart support.",

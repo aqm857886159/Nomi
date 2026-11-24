@@ -9,7 +9,7 @@
 | O4b 等待检查页关闭 | 回到原图片节点，草稿仍为 “An orange cat at the window”。Composer 显示 52.3 积分，提示随后淡出、移除 | [中文原稿](o4b-light.png) · [英文原稿](o4b-dark.png) |
 | O5 / O6 将账户设为 0，Key 为不限额 | 第二行显示 0，第三行显示不限额，页面停在「Key 已存好，就差充值」。隐藏窗口后把夹具资金改为 52.3，恢复窗口，两行更新，充值卡消失，随后回项目库 | [充值前](o5-light.png) · [恢复后](o5-refreshed-light.png) · [英文深色窄窗](o5-dark.png) · [窄窗恢复](o5-refreshed-dark.png) |
 | O4a 账户 52.3，Key 额度 0 | 第三行显示警告和 0 积分，直接回项目库 | [Key 额度用完](o4a-zero-token.png) |
-| O4a 账户端点返回 403，Key 额度 0 | 第二行显示 Unavailable 和空心圆，第三行显示 0。没有充值卡，随后回项目库 | [账户未知](o4a-unknown-account.png) |
+| O4a 账户端点返回 403，Key 额度 0 | 第二行显示 Unavailable 和虚线圆，第三行显示 0。没有充值卡，随后回项目库 | [账户未知](o4a-unknown-account.png) |
 | O6 提交网址，再粘贴被拒绝的 Key | 格式错新增请求 0 次；HTTP 401 显示 APIMart 的错 Key 提示，留在原页 | [格式](o6-format-light.png) · [拒收](o6-invalid-dark.png) |
 | O6 模拟一次钥匙串加密失败，重试时断网，再恢复在线 | 第一次提示解锁后重试；断网卡提示 Key 已存；恢复后用已存 Key 读回四行 | [钥匙串](o6-keychain-dark.png) · [断网](o6-offline-light.png) |
 

@@ -1,10 +1,11 @@
 import React from 'react'
-import { isApimartKeyCandidate, type VendorBalanceCheck } from '../../../electron/shared/contracts/vendorAccountBalance'
+import { isApimartKeyCandidate, type VendorBalanceCheck, type VendorBalanceFailure } from '../../../electron/shared/contracts/vendorAccountBalance'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { refreshOnboardingModelAvailability } from './onboardingModelAvailability'
 import { APIMART_CONNECTED_EVENT, persistApimartOpenedAt } from './apimartConnectRoute'
 
-type Stage = 'idle' | 'checking' | 'format' | 'invalid' | 'keychain' | 'offline' | 'topup' | 'unavailable' | 'passed'
+type LocalStage = 'idle' | 'checking' | 'format' | 'keychain' | 'topup' | 'passed'
+type Stage = LocalStage | VendorBalanceFailure
 
 export function useApimartVerification(onSaved: () => void) {
   const [stage, setStage] = React.useState<Stage>('idle')

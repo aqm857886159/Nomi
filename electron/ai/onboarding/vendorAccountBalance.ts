@@ -6,7 +6,7 @@ import { userVendorBaseUrl } from "../../catalog/userVendorBase";
 import { vendorAuthSpec } from "../../catalog/vendorAuthSpec";
 import { findIllegalHeader, isJsonRecord } from "../../jsonUtils";
 import { builtinVendorKeyOfKey } from "../../shared/builtinVendorIdentity";
-import type { VendorAccountBalance, VendorAccountBalanceRequest, VendorBalanceCheck, VendorReportedBalance } from "../../shared/contracts/vendorAccountBalance";
+import type { VendorAccountBalance, VendorAccountBalanceRequest, VendorBalanceCheck, VendorBalanceFailure, VendorReportedBalance } from "../../shared/contracts/vendorAccountBalance";
 import { codeDeclaredFallbackOrigins, fetchVendorWithBaseFallback } from "../../vendor/vendorBaseFallback";
 import { authorizeSubmitDestination } from "../../vendor/vendorOutboundGuard";
 import { authHeaders } from "../requestPipeline";
@@ -61,7 +61,7 @@ type BalanceReadOptions = {
 
 type EndpointResult =
   | { status: "received"; body: unknown }
-  | { status: "offline" | "invalid" | "unavailable" };
+  | { status: VendorBalanceFailure };
 
 function balanceReader(payload: VendorAccountBalanceRequest, options: BalanceReadOptions & { candidateKey?: string }) {
   const vendorKey = typeof payload?.vendorKey === "string" ? payload.vendorKey.trim() : "";

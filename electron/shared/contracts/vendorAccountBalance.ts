@@ -26,9 +26,11 @@ export type VendorReportedBalance = {
   unlimited: boolean;
 };
 
+export type VendorBalanceFailure = "offline" | "invalid" | "unavailable";
+
 export type VendorBalanceCheck =
   | { status: "received"; keyQuota: VendorReportedBalance | null; accountBalance: VendorReportedBalance | null }
-  | { status: "offline" | "invalid" | "unavailable" };
+  | { status: VendorBalanceFailure };
 
 /** Local shape check shared by the APIMart input and its main-process write boundary. */
 export function isApimartKeyCandidate(key: string): boolean {

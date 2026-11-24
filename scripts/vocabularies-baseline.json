@@ -2178,6 +2178,18 @@
       ],
       "reason": "模型 / 连接「显示成什么」的唯一五档（可使用 / 配置中 / 待设置 / 已关闭 / 待接入，D-1117-delete-verification，协调 2026-11-18 Q1 Q2 Q8）。它是可用性主人 deriveModelAvailability 结论的展示投影，不是第二个可用性判断：MODEL_UNUSABLE_REASONS 回答「为什么不能用」（十几个原因码），这里回答「对创作者说哪一个词」，多个原因折成同一档。词条键、点色、i18n 动态前缀成员都从这一个 as const 派生；原来各出口各自的状态词表（ModelHomeStatus、ModelHomeConnectionState、VendorPill.status、AdapterProviderCardState、ChipModel.adapterState 等）同提交删除，收成这一份。",
       "site": "electron/shared/modelStatusPresentation.ts::variable:MODEL_STATUS_STATES/as-const"
+    },
+    {
+      "site": "src/ui/onboarding/useApimartVerification.ts::type:LocalStage/type-union",
+      "members": [
+        "checking",
+        "format",
+        "idle",
+        "keychain",
+        "passed",
+        "topup"
+      ],
+      "reason": "接入页自己的操作阶段，涵盖本地输入、存储和账户到账后的返回。远端失败使用 VendorBalanceFailure，共享 IPC 无需暴露这些界面阶段。"
     }
   ],
   "debt": [
