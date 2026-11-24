@@ -1397,8 +1397,9 @@
         "1119-span-Nomi备好的模型",
         "1120-span-图片24视频28声音9文"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（检查与回来）"
+      "status": "in-progress",
+      "owner": "S6 回来与检查（检查与回来）",
+      "note": "窗口与恢复分流已接入。账户级余额来源待裁定；单把 Key 的额度不能作为账户充值依据。"
     },
     {
       "id": "return.back",
@@ -1415,8 +1416,9 @@
         "1050-svg",
         "1051-span-已连接APIMart余额"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（检查与回来）"
+      "status": "in-progress",
+      "owner": "S6 回来与检查（检查与回来）",
+      "note": "窗口与恢复分流已接入。账户级余额来源待裁定；单把 Key 的额度不能作为账户充值依据。"
     },
     {
       "id": "topup.card",
@@ -1438,8 +1440,9 @@
         "1126-span-重新检查回到Nomi时也",
         "1127-span-到账可能有延迟超过1小时"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（充值）"
+      "status": "in-progress",
+      "owner": "S6 回来与检查（充值）",
+      "note": "窗口与恢复分流已接入。账户级余额来源待裁定；单把 Key 的额度不能作为账户充值依据。"
     },
     {
       "id": "error.key-invalid",
@@ -1587,8 +1590,9 @@
         "1344-span-去充值",
         "1345-svg"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（出错）"
+      "status": "in-progress",
+      "owner": "S6 回来与检查（出错）",
+      "note": "窗口与恢复分流已接入。账户级余额来源待裁定；单把 Key 的额度不能作为账户充值依据。"
     },
     {
       "id": "error.offline",

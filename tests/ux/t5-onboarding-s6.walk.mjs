@@ -20,7 +20,8 @@ const stub = http.createServer((req, res) => {
   if (response === 'offline') { req.socket.destroy(); return }
   if (response === 'invalid') { res.writeHead(401).end(); return }
   res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify({ success: true, remain_credits: 52.3, remain_balance: 5.23, unlimited_quota: false }))
+  const credits = response === 'zero' ? 0 : 52.3
+  res.end(JSON.stringify({ success: true, remain_credits: credits, remain_balance: credits / 10, unlimited_quota: false }))
 })
 stub.listen(0, '127.0.0.1')
 await once(stub, 'listening')
@@ -55,9 +56,9 @@ async function compare(win, name, pairs) {
   await fs.writeFile(path.join(out, name + '.png'), Buffer.from(result, 'base64'))
 }
 
-async function run(locale, theme, width) {
+async function run(locale, theme, width, scenario = 'draft') {
   const { app, win } = await launchNomiApp({
-    name: 't5-s6-' + theme, viewportSize: { width, height: 900 }, syntheticCredentialStorage: true,
+    name: 't5-s6-' + theme + '-' + scenario, viewportSize: { width, height: 900 }, syntheticCredentialStorage: true,
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': theme, 'nomi:canvas-gesture-hint:v1': 'seen' },
     mainRequire: [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')],
     env: { NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_ALLOW_ORIGINS: '', NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify(redirects), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: origin },
@@ -69,6 +70,18 @@ async function run(locale, theme, width) {
     const library = win.locator('[data-library-hero-connect]')
     await library.click()
     const input = win.locator('#apimart-connect-key-input')
+    if (scenario === 'zero-token') {
+      response = 'zero'
+      await input.fill('sk-loopback-empty-token')
+      await input.press('Enter')
+      const rows = win.locator('[data-apimart-checks] li')
+      await expect(rows.nth(1)).toContainText('暂时读不到')
+      await expect(rows.nth(2)).toContainText('0 积分')
+      await expect(win.locator('[data-apimart-topup]')).toHaveCount(0)
+      await shoot(win, 'o4a-zero-token')
+      await expect(input).toHaveCount(0)
+      return
+    }
     await win.locator('[data-apimart-open-site]').click()
     await expect(win.locator('[data-apimart-waiting]'), 'board:Onboarding/wait.banner').toBeVisible()
     await win.keyboard.press('Escape')
@@ -149,6 +162,7 @@ async function run(locale, theme, width) {
 try {
   await run('zh-CN', 'light', 1440)
   await run('en', 'dark', 1440)
+  await run('zh-CN', 'light', 1440, 'zero-token')
   assert(requests.length > 0 && requests.every((req) => req.method === 'GET'))
   console.log('loopback GET requests:', requests.length)
 } finally {
