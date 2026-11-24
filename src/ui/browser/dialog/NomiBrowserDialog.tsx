@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { listenOutsidePress } from '../../../design/outsidePress'
+import { useFloatingOutsideDismiss } from '../../../design'
 import {
   getDesktopBridge,
   type DesktopBrowserAssetOverlayCaptureRequest,
@@ -341,15 +341,17 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose, opened])
 
-  React.useEffect(() => {
-    if (!tabContextMenu) return
-    return listenOutsidePress((target) => target instanceof Node && Boolean(tabContextMenuRef.current?.contains(target)), () => setTabContextMenu(null))
-  }, [tabContextMenu])
+  useFloatingOutsideDismiss({
+    open: Boolean(tabContextMenu),
+    floating: tabContextMenuRef,
+    onDismiss: () => setTabContextMenu(null),
+  })
 
-  React.useEffect(() => {
-    if (!bookmarkContextMenu) return
-    return listenOutsidePress((target) => target instanceof Node && Boolean(bookmarkContextMenuRef.current?.contains(target)), () => setBookmarkContextMenu(null))
-  }, [bookmarkContextMenu])
+  useFloatingOutsideDismiss({
+    open: Boolean(bookmarkContextMenu),
+    floating: bookmarkContextMenuRef,
+    onDismiss: () => setBookmarkContextMenu(null),
+  })
 
   React.useEffect(() => {
     if (!tabContextMenu) return
