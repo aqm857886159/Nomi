@@ -82,7 +82,7 @@ function mountBoard(options: { state?: WhiteboardState; frame?: Size } = {}) {
   renderer.flushPassiveEffects()
   const flush = () => renderer.flushPassiveEffects()
   const toolbar = () => harness.toolbar as {
-    dimensions: CanvasDimensions; canRedo: boolean
+    dimensions: CanvasDimensions; canUndo: boolean; canRedo: boolean
     onRatioChange: (ratio: string) => void; onDimensionsChange: (dimensions: CanvasDimensions) => void; onUndo: () => void
   }
   return {
@@ -215,6 +215,23 @@ describe('every door commits its own value, not one the frame passed through', (
       if (name === 'undo') expect(board.toolbar().canRedo, 'redo is still there after the undo').toBe(true)
     })
   }
+
+  it('keeps undo inside the newest 50 whiteboard revisions', () => {
+    const board = mountBoard()
+    board.notify()
+    for (let index = 1; index <= 50; index += 1) {
+      board.act(() => board.toolbar().onDimensionsChange({ width: 1280 + index, height: 720 }))
+    }
+    expect(board.document()?.width).toBe(1330)
+    for (let index = 0; index < 49; index += 1) {
+      expect(board.toolbar().canUndo).toBe(true)
+      board.act(() => board.toolbar().onUndo())
+    }
+    expect(board.document()?.width).toBe(1281)
+    expect(board.toolbar().canUndo).toBe(false)
+    expect(board.toolbar().canRedo).toBe(true)
+    board.close()
+  })
 
   it('size field typed fast (64, then 640): both fits land in order and the board stays at 640', () => {
     const board = mountBoard()

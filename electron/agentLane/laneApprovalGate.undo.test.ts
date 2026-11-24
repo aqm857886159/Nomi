@@ -30,6 +30,21 @@ describe('undo 不走「编辑计划」复审，edit_timeline 仍然走', () => 
     expect(lane.pending()).toBeUndefined()
   })
 
+  it('remembers 256 settled decisions in insertion order and forgets on request', async () => {
+    const lane = gate()
+    const settle = (index: number) => lane.preflight({
+      toolCallId: String(index), toolName: 'undo', args: { changeId: 'canvas:v1:receipt-1' },
+    }, undefined)
+    for (let index = 0; index < 256; index += 1) await settle(index)
+    expect(lane.decisionFor('0')).toBe('auto-granted')
+    await settle(256)
+    expect(lane.decisionFor('0')).toBeUndefined()
+    expect(lane.decisionFor('1')).toBe('auto-granted')
+    expect(lane.decisionFor('256')).toBe('auto-granted')
+    lane.forget('256')
+    expect(lane.decisionFor('256')).toBeUndefined()
+  })
+
   it('edit_timeline 的第一笔仍然先出复审卡', async () => {
     const lane = gate()
     const controller = new AbortController()

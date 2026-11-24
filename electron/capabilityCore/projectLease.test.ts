@@ -114,6 +114,19 @@ describe('ProjectLeaseAuthority v2', () => {
     })).resolves.toEqual(lease.lease)
   })
 
+  it('retains 512 short handles in issue order even after resolving the oldest', () => {
+    const { authority } = makeAuthority()
+    const issue = () => authority.issueSelectionHandle(selection, connection)
+    const first = issue()
+    const second = issue()
+    for (let index = 2; index < 512; index += 1) issue()
+    expect(authority.resolveSelectionHandle(first.handle.handleId)).toBe(first.token)
+    const newest = issue()
+    expect(() => authority.resolveSelectionHandle(first.handle.handleId)).toThrow(ProjectLeaseScopeError)
+    expect(authority.resolveSelectionHandle(second.handle.handleId)).toBe(second.token)
+    expect(authority.resolveSelectionHandle(newest.handle.handleId)).toBe(newest.token)
+  })
+
   it('rejects a selection or lease replayed by another transport connection', async () => {
     const { authority } = makeAuthority()
     const handle = authority.issueSelectionHandle(selection, connection)

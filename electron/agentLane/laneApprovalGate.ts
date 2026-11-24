@@ -14,6 +14,7 @@
 // ③ **等待期写进转录的记录不会被 abort 冲出去**（abort 不是一个边界，探针 §2.1）。
 //    所以 `cancelled` 的记录不在钩子里写——它进 `drainNotes()`，由宿主在 abort **之后**的
 //    idle 路径上补。写在钩子里的那条会悬在 `queues` 里，用户永远看不到。
+import { BoundedCache } from "../shared/boundedCache";
 import {
   laneApprovalGrantable,
   preflightLaneApproval,
@@ -164,20 +165,17 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
    * 被闸拦下的调用在某些路径上不走 `after_tool`，而一条永远只涨不落的表在一条活一整天的
    * lane 上就是泄漏。超了丢最老的（Map 按插入序），丢掉的后果只是那条回执少一句限定语。
    */
-  const decisions = new Map<string, LaneApprovalDecision>();
   /** `toolCallId` → 用户答这道题时的原话。只有 `answered` 有，随 `decisions` 同生同死。 */
   const answers = new Map<string, string>();
-  const DECISION_MEMORY = 256;
+  const decisions = new BoundedCache<string, LaneApprovalDecision>({
+    maxEntries: 256,
+    order: "fifo",
+    onEvict: (toolCallId) => { answers.delete(toolCallId); },
+  });
 
   function rememberDecision(toolCallId: string, decision: LaneApprovalDecision): void {
     if (!toolCallId) return;
     decisions.set(toolCallId, decision);
-    while (decisions.size > DECISION_MEMORY) {
-      const oldest = decisions.keys().next();
-      if (oldest.done) break;
-      answers.delete(oldest.value);
-      decisions.delete(oldest.value);
-    }
   }
 
   function rememberAnswer(toolCallId: string, text: string): void {

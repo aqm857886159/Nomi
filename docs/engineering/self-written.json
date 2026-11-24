@@ -1505,6 +1505,30 @@
       "revisitWhen": "主进程改用 ESM，且新版 p-retry 能保持可注入的时钟、末次观察和跨 tick 调度行为时，跑完整特征测试并删除可由库存 API 承担的桥接。"
     },
     {
+      "id": "bounded-cache-adapter",
+      "capability": "跨端有界内存缓存与同键请求复用",
+      "status": "justified",
+      "paths": [
+        "electron/shared/boundedCache.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "lru-cache 10.4.3（直接承担容量与淘汰）",
+          "source": "https://github.com/isaacs/node-lru-cache/tree/v10.4.3"
+        },
+        {
+          "name": "SWR cache provider（React 查询作用域）",
+          "source": "https://swr.vercel.app/docs/advanced/cache"
+        },
+        {
+          "name": "SWR deduplication（同查询键去重）",
+          "source": "https://swr.vercel.app/docs/advanced/performance#deduplication"
+        }
+      ],
+      "whyNotIntegrated": "底层直接使用 lru-cache。适配仅收口 Nomi 的跨端缓存入口，保留 FIFO 更新、墙钟 TTL、从发出请求起合流及失败释放同键的行为。渲染查询已有 SWR，终态遥测上下文按任务身份存取。",
+      "revisitWhen": "跨端运行时可升级到直接覆盖 FIFO 原位更新和现有墙钟期限的库版本，或领域不再需要这些行为时，跑特征测试并删除对应桥接。"
+    },
+    {
       "id": "durable-json",
       "capability": "原子写 JSON 与 fsync 屏障",
       "status": "under-review",

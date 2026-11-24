@@ -1,3 +1,4 @@
+import { BoundedCache } from '../../../electron/shared/boundedCache'
 import type {
   AdoptProposal,
   AdoptionPlacementKind,
@@ -26,7 +27,7 @@ type RegistryEntry = {
   slotId: string
 }
 
-const entries = new Map<string, RegistryEntry>()
+const entries = new BoundedCache<string, RegistryEntry>({ maxEntries: REGISTRY_LIMIT, order: 'write' })
 
 /** 测试与切项目用：清空在途提案。 */
 export function resetAdoptionRegistry(): void {
@@ -73,14 +74,6 @@ export function findLandedProposalForSlot(
     if (proposalIsLanded(candidate, timeline)) return candidate
   }
   return undefined
-}
-
-function evictIfNeeded(): void {
-  while (entries.size > REGISTRY_LIMIT) {
-    const oldest = entries.keys().next()
-    if (oldest.done) return
-    entries.delete(oldest.value)
-  }
 }
 
 export type LookupResult =
@@ -165,9 +158,6 @@ export function registerAdoptionProposal(
     skipped: details.skipped || [],
     createdAt: Date.now(),
   }
-  // 先删再插：Map 保持插入序 = 淘汰顺序，重登记的提案应算「最新」。
-  entries.delete(keyId)
   entries.set(keyId, { proposal, identityId: proposalIdentityId(key), slotId: proposalSlotId(key) })
-  evictIfNeeded()
   return proposal
 }
