@@ -20,6 +20,7 @@ import { providerIdentityIcon } from '../../config/modelProviderIdentity'
 import { modelArchetypeOf, modelBrandIcon } from '../../config/modelFamilyIcons'
 import { modelCapabilityLine } from '../../config/modelCapabilityLine'
 import { applyModelBoxDefaults } from '../../config/modelBoxDefaults'
+import { openApimartConnect } from '../../ui/onboarding/apimartConnectRoute'
 import { EVERY_VARIANT } from '../../../electron/shared/modelArchetypes'
 
 import type { ModelProviderRef } from '../../config/modelIdentity'
@@ -107,8 +108,8 @@ function isModelAiling(model: DedupedModel, isAiling: AilingProbe): boolean {
  *
  * 为什么不能就让它空着：空白下拉的意思是「没有匹配项」，而这里的真相是「你还没接入任何供应商」——
  * 两件事差得远，用户读到空白只会以为是加载失败或程序坏了（D4 诚实交付：缺口明着标）。
- * 这一行既说清现状，也自带出路：点它 = 打开设置里的模型接入页
- * （与全仓其它「去接入」共用同一条 `nomi-open-model-catalog`，不另起第二条路）。
+ * 这一行既说清现状，也自带出路：点它 = 打开整窗「连接 APIMart」接入大页
+ * （与全仓其它「连接模型」入口共用同一条 `nomi-open-apimart-connect` 路由，不另起第二条路）。
  */
 export const CONNECT_VENDOR_OPTION_VALUE = '\u0000nomi-connect-vendor'
 
@@ -144,7 +145,7 @@ function openModelVisibilitySettings(): void {
 }
 
 export function openModelCatalog(): void {
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
+  openApimartConnect()
 }
 
 function connectVendorOption(): NomiSelectOption {

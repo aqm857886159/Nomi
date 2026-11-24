@@ -13,9 +13,9 @@ const NOW = "2026-06-24T00:00:00.000Z";
 describe("即梦 dreamina 全量接线", () => {
   const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
 
-  it("vendor：dreamina，authType none（设备码登录非 bearer）", () => {
+  it("vendor：dreamina，authType none（设备码登录非 bearer），新装默认未启用（11-06 拍板）", () => {
     const v = state.vendors.find((x) => x.key === "dreamina");
-    expect(v).toMatchObject({ key: "dreamina", enabled: true, authType: "none" });
+    expect(v).toMatchObject({ key: "dreamina", enabled: false, authType: "none" });
   });
 
   it("模型：视频 1 + 图片 2，kind/档案正确", () => {

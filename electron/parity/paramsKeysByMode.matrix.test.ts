@@ -56,7 +56,7 @@ const SNAPSHOT_PATH = fileURLToPath(new URL("./paramsKeysByMode.snapshot.json", 
 const updateSnapshot = process.env.NOMI_UPDATE_PARAMS_KEYS_SNAPSHOT === "1";
 
 const capture = installFetchCapture();
-const seeded = await seedParityCatalog([]);
+const seeded = await seedParityCatalog(["dreamina", "volcengine_speech"]);
 {
   const store = await import("../catalog/catalogStore");
   for (const vendor of seeded.vendors) store.upsertModelCatalogVendorApiKey(vendor.key, { apiKey: `sk-parity-${vendor.key}` });

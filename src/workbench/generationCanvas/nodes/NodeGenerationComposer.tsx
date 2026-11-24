@@ -522,6 +522,11 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
               disabled: !canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null,
               onClick: handleGenerate,
             },
+            connectTooltip: nodeExecutionKind === 'image'
+              ? t('onboardingProviders.entries.composerTooltipImage')
+              : nodeExecutionKind === 'video'
+                ? t('onboardingProviders.entries.composerTooltipVideo')
+                : t('onboardingProviders.entries.composerTooltipGeneric'),
           }}
         />
       )}

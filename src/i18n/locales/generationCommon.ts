@@ -800,8 +800,8 @@ export const zhGenerationCommon = {
     // 设置页那条是整句（要解释「所以我没动你的开关」），下拉里只放得下这几个字——
     // 长一点就会把模型名挤没（2026-09-06 实测）。同一件事、两个长度，不是两份判据。
     unlisted: '暂未列出',
-    noVendorConnected: '还没接入供应商',
-    connectVendorAction: '去接入',
+    noVendorConnected: '还没连模型',
+    connectVendorAction: '连接模型',
     // 模型框底部脚注：列表变短了要说出来，否则「我藏的」和「坏了」在屏幕上长得一样。
     // 模型框最后一行「隐藏模型 N」：点它去设置里的模型顺序页（N = 眼下被收起的行数）。
     hiddenModels: '隐藏模型 {{count}}',
@@ -2577,7 +2577,7 @@ export const enGenerationCommon = {
     provider: 'Provider',
     // EN 串长 1.5–2 倍：'not listed now' 在这个下拉里实测被截成「not listed…」（zh/en 双轨真截图）。
     unlisted: 'unlisted',
-    noVendorConnected: 'No provider connected yet',
+    noVendorConnected: 'No model connected yet',
     connectVendorAction: 'Connect',
     hiddenModels: 'Hidden models {{count}}',
     modelLine: {

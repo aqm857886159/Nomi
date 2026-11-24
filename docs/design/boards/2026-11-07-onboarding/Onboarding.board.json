@@ -283,8 +283,9 @@
         "748-span-连接模型",
         "763-div-出图要先连一个APIMa"
       ],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.composer-connect"
     },
     {
       "id": "entry.persona-setup",
@@ -299,9 +300,10 @@
       "candidates": [
         "769-span-先连一个模型"
       ],
-      "status": "missing",
+      "status": "implemented",
       "owner": "S7a 入口指路（入口）",
-      "note": "落点改成顶栏 Nomi 入口（2026-11-22 NomiEntryTopbar 板起没有右下小球）；仍未做。"
+      "note": "落点改成顶栏 Nomi 入口（2026-11-22 NomiEntryTopbar 板 D1/D3/D5 起没有右下小球，且不画「先连一个模型」特例胶囊）：点击顶栏 Nomi 入口展开面板，未连模型时由面板内 entry.agent-pointer 指路卡直达连接 APIMart 大页。",
+      "assertion": "board:Onboarding/entry.persona-setup"
     },
     {
       "id": "entry.library-banner",
@@ -323,8 +325,9 @@
         "802-span-出图出视频Agent都靠",
         "803-span-连接模型"
       ],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.library-banner"
     },
     {
       "id": "entry.library-main-card",
@@ -652,8 +655,9 @@
         "835-span-点一下打开接入页三步说明",
         "836-svg"
       ],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.agent-pointer"
     },
     {
       "id": "entry.picker-empty",
@@ -665,8 +669,9 @@
       ],
       "component": "NodeGenerationComposer（src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx） 模型下拉空态文案（useDedupedModelSelect）",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.picker-empty"
     },
     {
       "id": "entry.copy-unify",
@@ -679,8 +684,9 @@
       ],
       "component": "只改文案（i18n），无新件",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.copy-unify"
     },
     {
       "id": "entry.kept-recovery",
@@ -692,8 +698,9 @@
       ],
       "component": "现有，不动",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.kept-recovery"
     },
     {
       "id": "depart.steps",
