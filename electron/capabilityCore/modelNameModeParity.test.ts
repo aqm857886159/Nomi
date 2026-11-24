@@ -51,6 +51,7 @@ const ROWS: ReadonlyArray<{ vendor: string; modelId: string; modelAlias?: string
   { vendor: "minimax", modelId: "minimax-h3" },
   { vendor: "acme", modelId: "Clip-X", modelAlias: "clipx-pro" },
   { vendor: "studio", modelId: "base-video" },
+  { vendor: "apimart", modelId: "wan2.7" },
 ];
 const PATCH_BASE = { providerId: "studio", modelId: "base-video" };
 
@@ -224,6 +225,13 @@ const NO_DEFAULT: DefaultFor = () => undefined;
 const DEFAULT_IS_APIMART_H3: DefaultFor = (kind) => (kind.endsWith("video") ? { providerId: "apimart", modelId: "minimax-h3" } : undefined);
 const DEFAULT_IS_KIE_H3: DefaultFor = (kind) => (kind.endsWith("video") ? { providerId: "kie", modelId: "minimax-h3" } : undefined);
 const DEFAULT_IS_OTHER_MODEL: DefaultFor = (kind) => (kind.endsWith("video") ? { providerId: "apimart", modelId: "doubao-seedance-2.0" } : undefined);
+
+it("keeps the Wan 2.7 wire mode across all five planning entrances", async () => {
+  const name = { label: "Wan 2.7 reference", lane: "wan-2.7-r2v@apimart", providerId: "apimart", modelId: "wan2.7-r2v" };
+  const results = await fiveEntries(name, { label: "reference image", references: [{ assetId: "asset-a" }] }, NO_DEFAULT);
+  expect(Object.keys(results)).toHaveLength(5);
+  expectSameEverywhere(results, { ok: true, model: "apimart/wan2.7", modeId: "ref" });
+});
 
 describe("五入口对拍：名字写法 × 输入组合", () => {
   const NAMES: ReadonlyArray<{ name: NameForm; expect: (input: InputCombo) => Outcome }> = [

@@ -15,6 +15,7 @@ import {
   type RunReferenceGroup,
 } from "../shared/generationLowering/runReferences";
 import { comparableReferenceUrl } from "../catalog/outboundReferenceUrl";
+import type { ProviderReferenceValueValidator } from "./generationProviderReferenceValue";
 import { tagNomiError } from "../shared/nomiErrorCodes";
 
 type JsonRecord = Record<string, unknown>;
@@ -40,20 +41,24 @@ export type ApimartReferenceProjection = Readonly<{
   lastFrameUrl?: string;
 }>;
 
+export const PROJECTION_CREDENTIAL = "__nomi_catalog_projection__";
+
+export function assertNoProjectionCredential(body: JsonRecord, vendorKey: string): void {
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(body);
+  } catch {
+    throw new ApimartGenerationProviderError(`${vendorKey} catalog request is not serializable`);
+  }
+  if (serialized?.includes(PROJECTION_CREDENTIAL)) {
+    throw new ApimartGenerationProviderError(`${vendorKey} catalog mapping attempted to place credentials in the request body`);
+  }
+}
+
 /** Stable structural equality used when alias and resolver channels overlap. */
 export function sameJson(left: unknown, right: unknown): boolean {
   try {
     return productionGenerationPayloadHash(left) === productionGenerationPayloadHash(right);
-  } catch {
-    return false;
-  }
-}
-
-function isProviderUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !value.trim() || value.trim() !== value) return false;
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
     return false;
   }
@@ -73,7 +78,7 @@ function groupOf(shape: RunReferenceGroup["shape"], member: string): RunReferenc
   return { keys: runReferenceGroupOf(member) ?? [member], shape };
 }
 
-function assertReferenceValue(group: RunReferenceGroup, value: unknown): void {
+function assertReferenceValue(group: RunReferenceGroup, value: unknown, isDeliverable: ProviderReferenceValueValidator): void {
   if (group.shape === "role-objects") {
     const key = group.keys[0]!;
     if (!Array.isArray(value) || value.length === 0) {
@@ -84,7 +89,7 @@ function assertReferenceValue(group: RunReferenceGroup, value: unknown): void {
         throw new ApimartGenerationProviderError(`catalog reference URL projection contains an invalid ${key} entry`);
       }
       const entry = item as Record<string, unknown>;
-      if (Object.keys(entry).some((entryKey) => entryKey !== "url" && entryKey !== "role") || !isProviderUrl(entry.url)) {
+      if (Object.keys(entry).some((entryKey) => entryKey !== "url" && entryKey !== "role") || !isDeliverable(entry.url)) {
         throw new ApimartGenerationProviderError(`catalog reference URL projection contains an invalid ${key} URL`);
       }
       if (entry.role !== undefined && (typeof entry.role !== "string" || !entry.role.trim())) {
@@ -94,10 +99,10 @@ function assertReferenceValue(group: RunReferenceGroup, value: unknown): void {
     return;
   }
   if (group.shape === "frame") {
-    if (!isProviderUrl(value)) throw new ApimartGenerationProviderError("catalog references must be resolved to provider URLs before submission");
+    if (!isDeliverable(value)) throw new ApimartGenerationProviderError("catalog references must be resolved to provider URLs before submission");
     return;
   }
-  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => !isProviderUrl(entry))) {
+  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => !isDeliverable(entry))) {
     throw new ApimartGenerationProviderError("catalog references must be resolved to provider URLs before submission");
   }
 }
@@ -117,11 +122,11 @@ function assertReferenceAliasConsistency(parameters: Record<string, unknown>, gr
  * 参考位的值形状（按 shared 声明表分组：同一参考位的几种写法必须一致；角色数组每项只有 url / role；
  * 首尾帧是一个 provider URL；列表是非空的 provider URL 数组）。参数和最终请求体都过这一道。
  */
-export function assertReferenceParameters(parameters: Record<string, unknown>): void {
+export function assertReferenceParameters(parameters: Record<string, unknown>, isDeliverable: ProviderReferenceValueValidator): void {
   for (const group of runReferenceGroups()) {
     assertReferenceAliasConsistency(parameters, group);
     const value = groupValue(parameters, group);
-    if (referenceValuePresent(value)) assertReferenceValue(group, value);
+    if (referenceValuePresent(value)) assertReferenceValue(group, value, isDeliverable);
   }
 }
 
@@ -143,9 +148,10 @@ function referenceChannelCount(parameters: Record<string, unknown>, group: RunRe
 function assertResolvedReferences(
   input: GenerationProviderRequestInputV1,
   combineKey: string | null,
+  isDeliverable: ProviderReferenceValueValidator,
 ): void {
   const parameters = input.parameters;
-  assertReferenceParameters(parameters);
+  assertReferenceParameters(parameters, isDeliverable);
 
   if (input.references.length === 0) return;
   // 档案模式声明的合并槽可以是任意键（用户自写契约也能声明），它承载的就是这一整组参考。
@@ -190,6 +196,7 @@ export function placeRunReferences(
   /** 用户选的档案模式（没带 modeId / 没有档案 → null，走按 body 推出的声明）。 */
   mode: ArchetypeMode | null,
   combineKey: string | null,
+  isDeliverable: ProviderReferenceValueValidator,
 ): PlacedRunReferences {
   let parameters = structuredClone(input.parameters);
   let placedReferenceKeys: readonly string[] = [];
@@ -197,7 +204,7 @@ export function placeRunReferences(
     const urls = input.referenceUrls;
     const approved = input.references.map((reference) => {
       const url = urls[spendReferenceKey(reference)];
-      if (!isProviderUrl(url)) throw new ApimartGenerationProviderError("Approved reference URL is unavailable");
+      if (!isDeliverable(url)) throw new ApimartGenerationProviderError("Approved reference URL is unavailable");
       return { url, ...(reference.kind ? { kind: reference.kind } : {}), ...(reference.role ? { role: reference.role } : {}) };
     });
     try {
@@ -212,7 +219,7 @@ export function placeRunReferences(
     }
   }
   const projected = { ...input, parameters };
-  assertResolvedReferences(projected, combineKey);
+  assertResolvedReferences(projected, combineKey, isDeliverable);
   return { ...projected, placedReferenceKeys };
 }
 
@@ -270,17 +277,17 @@ export function normalizeParameters(
   return normalized;
 }
 
-function collectProviderUrls(value: unknown, out: string[] = []): string[] {
+function collectProviderUrls(value: unknown, isDeliverable: ProviderReferenceValueValidator, out: string[] = []): string[] {
   if (typeof value === "string") {
-    if (isProviderUrl(value)) out.push(value);
+    if (isDeliverable(value)) out.push(value);
     return out;
   }
   if (Array.isArray(value)) {
-    for (const item of value) collectProviderUrls(item, out);
+    for (const item of value) collectProviderUrls(item, isDeliverable, out);
     return out;
   }
   if (value && typeof value === "object") {
-    for (const item of Object.values(value as Record<string, unknown>)) collectProviderUrls(item, out);
+    for (const item of Object.values(value as Record<string, unknown>)) collectProviderUrls(item, isDeliverable, out);
   }
   return out;
 }
@@ -291,9 +298,9 @@ function collectProviderUrls(value: unknown, out: string[] = []): string[] {
  * 此刻可能已经落在 body 键上（`image_urls` / `image_with_roles` / `first_frame_image`…，按 shared 声明表分组），
  * 所以要把它们捞回来喂给那把共享的尺子——而不是在 Run 路另写一份「带没带参考」的判据。
  */
-export function resolvedReferenceUrls(parameters: Record<string, unknown>): string[] {
+export function resolvedReferenceUrls(parameters: Record<string, unknown>, isDeliverable: ProviderReferenceValueValidator): string[] {
   const urls: string[] = [];
-  for (const group of runReferenceGroups()) collectProviderUrls(groupValue(parameters, group), urls);
+  for (const group of runReferenceGroups()) collectProviderUrls(groupValue(parameters, group), isDeliverable, urls);
   return [...new Set(urls)];
 }
 
@@ -302,15 +309,16 @@ export function assertReferencesReachBody(
   input: GenerationProviderRequestInputV1,
   parameters: Record<string, unknown>,
   body: JsonRecord,
+  isDeliverable: ProviderReferenceValueValidator,
 ): void {
   if (input.references.length === 0) return;
   const parameterUrls: string[] = [];
-  for (const group of runReferenceGroups()) collectProviderUrls(groupValue(parameters, group), parameterUrls);
+  for (const group of runReferenceGroups()) collectProviderUrls(groupValue(parameters, group), isDeliverable, parameterUrls);
   if (parameterUrls.length < input.references.length) {
     throw new ApimartGenerationProviderError("catalog references must be resolved to provider URLs before submission");
   }
   // 请求体里的参考是参数层序列化后的写法：两边按同一个序列化比，带空格的已批准参考不被当成「被丢了」。
-  const bodyUrls = new Set(collectProviderUrls(body).map(comparableReferenceUrl));
+  const bodyUrls = new Set(collectProviderUrls(body, isDeliverable).map(comparableReferenceUrl));
   for (const url of new Set(parameterUrls)) {
     if (!bodyUrls.has(comparableReferenceUrl(url))) {
       throw new ApimartGenerationProviderError("catalog mapping dropped a resolved reference");

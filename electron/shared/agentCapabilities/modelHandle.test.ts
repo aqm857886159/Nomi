@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { modelHandleOf, resolveModelForTask, resolveModelHandle } from "./modelHandle";
+import { modelHandleOf, resolvedModelNameOf, resolveModelForTask, resolveModelHandle } from "./modelHandle";
+import { EVERY_VARIANT, installModelNameSourceLookup, resolveModelArchetype } from "../modelArchetypes";
 import { modeForInputs } from "../modelArchetypes/modeForInputs";
 
 const rows = [
@@ -113,5 +114,59 @@ describe("方式主人只收事实（类型）", () => {
       task: { kind: "text_to_video", vendor: null, mode: { id: "i2v" } },
     });
     expect(call).toThrow();
+  });
+});
+
+describe("NF-1119-0001 · declared Wan model names", () => {
+  const apimart = [
+    { vendor: "apimart", modelId: "wan3.0-video", archetypeId: "wan-3.0-apimart" },
+    { vendor: "apimart", modelId: "wan3.0-video-prime", archetypeId: "wan-3.0-prime-apimart" },
+    { vendor: "apimart", modelId: "wan2.7", archetypeId: "wan-2.7" },
+    { vendor: "apimart", modelId: "wan2.7-image", archetypeId: "wan2.7-image" },
+    { vendor: "apimart", modelId: "wan2.7-image-pro", archetypeId: "wan2.7-image-pro" },
+  ];
+
+  it.each(["wan-3.0", "wan3.0"])("offers both APIMart tiers for %s without selecting one", (written) => {
+    const distractors = ["wan3.0-lite", "wan3.0-alt", "wan3.0-hd"].map(modelId => ({ modelId, vendor: "relay" }));
+    const hit = resolveModelHandle([...apimart, ...distractors], written, { preferred: apimart[0] });
+    expect(hit).toMatchObject({ ok: false, reason: "unknown", nearest: expect.arrayContaining(["wan3.0-video@apimart", "wan3.0-video-prime@apimart"]) });
+  });
+
+  it.each(["wan2.7-r2v", "wan-2.7-r2v", "wan2.7-r2v@apimart"])("preserves the reference mode for %s", (written) => {
+    const hit = resolveModelHandle(apimart, written);
+    expect(hit).toMatchObject({ ok: true, handle: "wan2.7@apimart", modeId: "ref" });
+    if (hit.ok) expect(resolvedModelNameOf(written, hit)).toMatchObject({ model: "wan2.7@apimart", modeId: "ref" });
+  });
+
+  it("preserves a separately declared archetype variant", () => {
+    const hit = resolveModelHandle([{ vendor: "kie", modelId: "wan/3-0-video", archetypeId: "wan-3.0" }], "wan/3-0-video-prime@kie");
+    expect(hit).toMatchObject({ ok: true, handle: "wan/3-0-video@kie", variantId: "prime" });
+  });
+
+  it("keeps image tiers distinct and rejects disabled or invented identities", () => {
+    expect(resolveModelHandle(apimart, "wan-2.7-image")).toMatchObject({ ok: true, handle: "wan2.7-image@apimart" });
+    expect(resolveModelHandle(apimart, "wan-2.7-image-pro")).toMatchObject({ ok: true, handle: "wan2.7-image-pro@apimart" });
+    expect(resolveModelArchetype({ modelKey: "wan-2.7-image-pro" }, { variant: EVERY_VARIANT })?.id).toBe("wan2.7-image-pro");
+    expect(resolveModelHandle(apimart, "wan-2.7-r2v@kie").ok).toBe(false);
+    expect(resolveModelHandle(apimart.filter((row) => row.modelId !== "wan2.7"), "wan2.7-r2v").ok).toBe(false);
+    expect(resolveModelHandle(apimart, "wan-99-ultra").ok).toBe(false);
+  });
+
+  it("preserves a non-Wan variant and honors the row-owned name scope", () => {
+    const row = { vendor: "apimart", modelId: "qwen-image-3.0", archetypeId: "qwen-image-3" };
+    expect(resolveModelHandle([row], "qwen-image-3-0-pro")).toMatchObject({ ok: true, variantId: "pro" });
+    const removeLookup = installModelNameSourceLookup(() => "row");
+    try {
+      expect(resolveModelHandle([row], "qwen-image-3-0-pro").ok).toBe(false);
+    } finally {
+      removeLookup();
+    }
+  });
+
+  it("requires a unique enabled owner of a wire name", () => {
+    const relays = [...apimart, { ...apimart[2]!, vendor: "relay" }];
+    expect(resolveModelHandle(relays, "wan2.7-r2v", { preferred: apimart[2] })).toMatchObject({
+      ok: false, reason: "ambiguous", handles: ["wan2.7@apimart", "wan2.7@relay"],
+    });
   });
 });

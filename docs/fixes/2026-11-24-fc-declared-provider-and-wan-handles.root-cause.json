@@ -1,0 +1,423 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-fc-declared-provider-and-wan-handles",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-08",
+  "problem_type": "Published catalog facts lost at generation admission boundaries",
+  "symptom": "#975 G1/G2: configured_provider for a keyless local declaration and generation_reference_url_unavailable for a localized inline reference. NF-1119-0001: Wan wire names rejected or both applicable APIMart tiers missing from suggestions.",
+  "direct_cause": "Run bootstrap and sending assume a nonempty key. Reference sealing and request projection only accept HTTP. Handle lookup omits per-row wire identities and compares split archetype IDs in suggestions.",
+  "class_root": "Consumers of an enabled catalog row use narrower credential, reference delivery and model identity rules than the declarations consumed by the generation engine.",
+  "affected_population": [
+    "Published custom keyless HTTP providers",
+    "Declared or built-in inline reference ingestion",
+    "Agent read, planning and edit callers naming a catalog mode, variant or Wan 3.0 family"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/apimartGenerationProjection.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/generationPlanPatch.ts",
+    "electron/capabilityCore/generationProviderBootstrap.ts",
+    "electron/capabilityCore/productionReferenceUrls.ts",
+    "electron/capabilityCore/generationProviderReferenceValue.ts",
+    "electron/capabilityCore/semanticGenerationCandidate.ts",
+    "electron/shared/agentCapabilities/modelHandle.ts",
+    "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+    "electron/shared/modelArchetypes/types.ts",
+    "electron/shared/modelArchetypes/wan27Image.ts",
+    "electron/shared/videoCapabilities/types.ts",
+    "electron/shared/videoCapabilities/wan30Apimart.ts"
+  ],
+  "entry_points": [
+    "MCP declaration, live generation bootstrap and catalog dispatch",
+    "Run approval and rework reference localization, request projection and submission",
+    "Shared model lookup, lane draft projection and host semantic planning"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The user audit reproduces internal catalog and Run disagreements. Existing repository owners define supported auth types, transport values, and published wire identifiers.",
+  "invariants": [
+    "A live non-direct-key no-auth connection can submit and query with an empty credential.",
+    "A bounded, valid inline media value from a declared channel can survive localization, sealing, rendering and submit.",
+    "Only an enabled row can own a wire alias and ambiguity never chooses a paid tier."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelRead.mts",
+      "symbol": "resolveModelHandle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "resolveDraftShotModels"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "draftShotToPlanShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "draftShotToCandidatePatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "draftShotToFlatCreate"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+      "symbol": "resolveProductionReferenceUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProjection.ts",
+      "symbol": "PROJECTION_CREDENTIAL"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProjection.ts",
+      "symbol": "assertReferenceParameters"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "providerReferenceValueValidator"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "placeRunReferences"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "resolvedReferenceUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "PROJECTION_CREDENTIAL"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "assertNoProjectionCredential"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "assertReferenceParameters"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "assertReferencesReachBody"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationProductionActions.ts",
+      "symbol": "reworkReferenceUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasModelIdentity.ts",
+      "symbol": "resolveModelIdentity"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasModelIdentity.ts",
+      "symbol": "nearestModelHandles"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
+      "symbol": "semanticCandidateFromParams"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationPlanPatch.ts",
+      "symbol": "resolvePatchedModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createCatalogGenerationProvider"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "semanticCandidateFromParams"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "resolvePlanPatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelSpecRead.ts",
+      "symbol": "resolveModelIdentity"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelSpecRead.ts",
+      "symbol": "resolveModelHandle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "providerReferenceValueValidator"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "localizeProductionReferenceUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "resolveProductionReferenceUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationProviderReferenceValue.ts",
+      "symbol": "validInlineReference"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/semanticGenerationCandidate.ts",
+      "symbol": "resolveModelForTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/semanticGenerationCandidate.ts",
+      "symbol": "resolvedModelNameOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/prepareProductionGenerationAuthorization.ts",
+      "symbol": "resolveProductionReferenceUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "familyIdentifierPatterns"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "nearestModelHandles"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "resolveModelHandle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "resolveModelIdentity"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+      "symbol": "resolveModelForTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+      "symbol": "resolvedModelNameOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/builtInCatalog.ts",
+      "symbol": "WAN_27_IMAGE_ARCHETYPE"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/builtInCatalog.ts",
+      "symbol": "WAN_27_IMAGE_PRO_ARCHETYPE"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/entry.ts",
+      "symbol": "ModelArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/types.ts",
+      "symbol": "ModelArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/variantResolution.ts",
+      "symbol": "ModelArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/wan27Image.ts",
+      "symbol": "wan27Image"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "symbol": "WAN_3_0_APIMART_ARCHETYPE"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "symbol": "WAN_3_0_PRIME_APIMART_ARCHETYPE"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/types.ts",
+      "symbol": "ModelArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/wan30Apimart.ts",
+      "symbol": "WAN_3_0_APIMART_ARCHETYPE"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "ModelArchetypeVariant"
+    }
+  ],
+  "door_reduction": {
+    "before": 38,
+    "after": 52,
+    "why_not": "Live and domain bootstrap provide different runtime assembly entry points. Reference authorization and rework retain their distinct lifecycle, as do projection and submit integrity checks. Catalog read, Agent transport and host planning keep separate consumers with a single handle lookup. Registry and catalog reads keep wiring profiles to their existing owners. The additional entries are callers of the common reference validator and consumers of shared wire-name hints."
+  },
+  "generality_proof": "Catalog availability covers keyless and existing credential-backed runtime paths. One strategy-aware reference validator is reused for admission and rendering. Handle resolution consults the matched row’s own profile for named wire modes and variants, before propagating the explicit selection.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createGenerationProviderBootstrap",
+      "responsibility": "Use shared catalog credential status and keep built-in ownership checks."
+    },
+    {
+      "path": "electron/capabilityCore/generationProviderReferenceValue.ts",
+      "symbol": "providerReferenceValueValidator",
+      "responsibility": "Validate HTTP(S) and inline references for the effective provider channel."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/modelHandle.ts",
+      "symbol": "resolveModelHandle",
+      "responsibility": "Resolve model wire identities from enabled rows and report their selection or admissible suggestions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
+      "disposition": "not-affected",
+      "evidence": "Canvas already localizes inputs through assetIngestionResolver and delegates auth to shared profile rendering."
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "createCatalogGenerationProvider",
+      "disposition": "enforced",
+      "evidence": "Run projects and checks the authorized wire body and uses the live provider connection for submit and query."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+      "entry_point": "resolveDraftShotModels",
+      "disposition": "enforced",
+      "evidence": "Lane draft resolution propagates the shared handle result into the host candidate."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same split affects new published declarations, multiple reference media routes and other shared profile wire identities.",
+    "same_class_scan": [
+      "Search for parseInlineDataAsset and assetIngestionResolver found independent canvas and Run preparation.",
+      "Search for resolveModelForTask and resolvedModelNameOf found independent lane and host name admission.",
+      "Wan 2.7 R2V is a mode modelEnum and Wan 3.0 KIE Prime is a profile variant; both shapes must keep their identity."
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron",
+    "tests": [
+      "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts",
+      "electron/capabilityCore/productionReferenceUrls.test.ts",
+      "electron/capabilityCore/modelNameModeParity.test.ts",
+      "electron/shared/agentCapabilities/modelHandle.test.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/generationProviderReferenceValue.ts",
+    "invariant": "Provider declarations govern credential readiness, reference delivery and model alias hints at the appropriate shared boundary.",
+    "failure_mode": "Missing keyed connection or invalid reference fails before dispatch. Ambiguous names return candidates and unsupported names stay unresolved.",
+    "exception_policy": "none",
+    "strategy": "Use the shared catalog availability, effective ingestion resolver and profile-backed model handle owner so Run consumes the same declarations as canvas.",
+    "artifacts": [
+      "electron/capabilityCore/apimartGenerationProjection.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts",
+      "electron/capabilityCore/generationPlanPatch.ts",
+      "electron/capabilityCore/generationProviderBootstrap.ts",
+      "electron/capabilityCore/productionReferenceUrls.ts",
+      "electron/capabilityCore/generationProviderReferenceValue.ts",
+      "electron/capabilityCore/semanticGenerationCandidate.ts",
+      "electron/shared/agentCapabilities/modelHandle.ts",
+      "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+      "electron/shared/modelArchetypes/types.ts",
+      "electron/shared/modelArchetypes/wan27Image.ts",
+      "electron/shared/videoCapabilities/types.ts",
+      "electron/shared/videoCapabilities/wan30Apimart.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/generationProviderBootstrap.test.ts",
+    "electron/capabilityCore/modelNameModeParity.test.ts",
+    "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts",
+    "electron/capabilityCore/productionReferenceUrls.test.ts",
+    "electron/shared/agentCapabilities/modelHandle.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts",
+    "electron/capabilityCore/productionReferenceUrls.test.ts",
+    "electron/capabilityCore/modelNameModeParity.test.ts",
+    "electron/shared/agentCapabilities/modelHandle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/generationProviderBootstrap.ts",
+      "electron/capabilityCore/productionReferenceUrls.ts",
+      "electron/capabilityCore/apimartGenerationProjection.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts"
+    ],
+    "rationale": "Replace credential-only readiness, the HTTP-only reference checks and the unconditional empty-key send rejection in place."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "These failures arise in repository-owned catalog contracts and projection. Native URL and the existing media parser remain available.",
+    "exit_criteria": []
+  },
+  "migration": "No migration. The catalog rows, reference identities and canonical model handles keep their existing persisted shape.",
+  "residual_risks": [
+    "Original Windows desktop flow and live paid provider results are unverified under the Node-only scope. Loopback substitutes a local service and a pinned asset index for the original environment.",
+    "At the recurrence date check the three targeted regressions and user feedback for any repeat of configured_provider, inline delivery or Wan identity rejection. The target is zero repeats.",
+    "Inline admission follows existing catalog media-kind support. The current ingestion registry limits inline-base64 delivery to images, including image references for video generation."
+  ]
+}

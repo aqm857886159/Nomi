@@ -7,6 +7,7 @@
  * 「本次改动的合同」重新全量校验（要求它们的回归测试也出现在同一个 diff 里）——
  * 那是一次应该自己被审的机械改名，不该混在这刀行为变更里。
  */
+import { providerReferenceValueValidator } from "./generationProviderReferenceValue";
 import type { GenerationProvider, GenerationProviderRequestInputV1 } from "./generationRuntimeAdapter";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { appFetch } from "../appFetch";
@@ -34,10 +35,12 @@ import type { TaskRequest } from "../runtime";
 import "../catalog/apimartMinimaxH3";
 import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
 import {
+  assertNoProjectionCredential,
   assertReferenceParameters,
   assertReferencesReachBody,
   normalizeParameters,
   placeRunReferences,
+  PROJECTION_CREDENTIAL,
   resolvedReferenceUrls,
   sameJson,
 } from "./apimartGenerationProjection";
@@ -262,7 +265,8 @@ function projectionRequest(
   const { meta, kind, modelKey } = selection.model;
   const modeIdentity = { meta, kind, modelKey, vendorKey, modeId: input.modeId, variantId: input.variantId };
   const combineKey = referenceCombineChannelFor({ ...modeIdentity, createBody })?.key ?? null;
-  const projected = placeRunReferences(input, createBody, archetypeModeForModel(modeIdentity), combineKey);
+  const isDeliverable = providerReferenceValueValidator(selection.vendor);
+  const projected = placeRunReferences(input, createBody, archetypeModeForModel(modeIdentity), combineKey, isDeliverable);
   const placed = normalizeParameters(projected.parameters, selection.mapping, projected.placedReferenceKeys);
   const parameters = standardizeExplicitRunReferences(placed, bodyReferencedParamKeys(createBody));
   const archetypeId = selection.model.meta && typeof selection.model.meta === "object" && !Array.isArray(selection.model.meta)
@@ -303,7 +307,7 @@ function projectionRequest(
       .map((reference) => input.referenceUrls?.[spendReferenceKey(reference)])
       .filter((url): url is string => typeof url === "string" && Boolean(url.trim())),
     // 合同里显式写死的 canonical 参数（付款卡直接给 `image_urls` 的那条路）同样算数。
-    ...resolvedReferenceUrls(defaulted),
+    ...resolvedReferenceUrls(defaulted, isDeliverable),
   ])];
   const guardError = imageEditGuardError(
     selection.mapping.taskKind,
@@ -320,7 +324,7 @@ function projectionRequest(
       model: selection.model,
       // The profile renderer needs a value for auth placeholders. This value
       // is never sent: submit resolves the real key only at the network edge.
-      apiKey: "__nomi_catalog_projection__",
+      apiKey: PROJECTION_CREDENTIAL,
       request,
       operation: selection.mapping.create,
     });
@@ -333,8 +337,8 @@ function projectionRequest(
   const sealed = applyCatalogRequestTransform(built.sealed, selection, vendorKey, request);
   const transformed = record(profileBodySnapshot(sealed), vendorKey, "transformed catalog request");
   assertNoProjectionCredential(transformed, vendorKey);
-  assertReferenceParameters(transformed);
-  assertReferencesReachBody(input, defaulted, transformed);
+  assertReferenceParameters(transformed, isDeliverable);
+  assertReferencesReachBody(input, defaulted, transformed, isDeliverable);
   return { body: transformed, sealed, request };
 }
 
@@ -344,18 +348,6 @@ function transformRequestContext(input: GenerationProviderRequestInputV1, vendor
     prompt: input.prompt,
     extras: structuredClone(input.parameters),
   } as TaskRequest;
-}
-
-function assertNoProjectionCredential(body: JsonRecord, vendorKey: string): void {
-  let serialized: string | undefined;
-  try {
-    serialized = JSON.stringify(body);
-  } catch {
-    throw new CatalogGenerationProviderError(`${vendorKey} catalog request is not serializable`);
-  }
-  if (serialized?.includes("__nomi_catalog_projection__")) {
-    throw new CatalogGenerationProviderError(`${vendorKey} catalog mapping attempted to place credentials in the request body`);
-  }
 }
 
 /**
@@ -468,7 +460,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
    * 否则 keychain 会被同一次提交问两遍，测试里那条「第一次真网络请求之前不解密」的断言
    * 也就名存实亡了。
    */
-  const requireApiKey = (): string => {
+  const requireApiKey = (vendor: Vendor): string => {
     let connection: { apiKey: string; baseUrl?: string } | null = null;
     try {
       connection = options.resolveConnection();
@@ -477,7 +469,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
       // Keep OS/keychain details private while preserving a structured provider error.
     }
     const apiKey = typeof connection?.apiKey === "string" ? connection.apiKey.trim() : "";
-    if (!apiKey) throw new CatalogGenerationProviderError(`${vendorKey} connection is disabled, missing, or locked`);
+    if (!connection || (!apiKey && (isBuiltinDirectKeyVendor(vendorKey) || vendor.authType !== "none"))) throw new CatalogGenerationProviderError(`${vendorKey} connection is disabled, missing, or locked`);
     return apiKey;
   };
 
@@ -568,7 +560,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     const queryOperation = target.operation;
     const providerMeta: JsonRecord = { task_id: taskId, query_id: taskId, id: taskId };
     const request = { kind: target.mapping.taskKind, prompt: "", extras: { ...providerMeta } } as TaskRequest;
-    const apiKey = requireApiKey();
+    const apiKey = requireApiKey(target.vendor);
     const built = renderOperation(target, queryOperation, request, providerMeta, apiKey);
     const payload = await send(target.vendor, apiKey, built, undefined, "task query");
     const responseMapping = isJsonRecord(queryOperation.response_mapping) ? queryOperation.response_mapping : null;
@@ -598,10 +590,10 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     );
     const body = record(profileBodySnapshot(sealed), vendorKey, "submit");
     assertNoProjectionCredential(body, vendorKey);
-    assertReferenceParameters(body);
+    assertReferenceParameters(body, providerReferenceValueValidator(selection.vendor));
     const rendered = requestByPreparedKey.get(preparedKey(prepared));
     if (!rendered) throw sealMissing();
-    const apiKey = requireApiKey();
+    const apiKey = requireApiKey(selection.vendor);
     const built = renderOperation(selection, selection.mapping.create, rendered, {}, apiKey);
     // **发的是封存过的那份 body**（用户批准的就是它），传输层（method/url/headers/query）
     // 才是这一刻按真 key 现渲染的。两者分开，正是「批准的是 A、发出去的是 B」的反面。
