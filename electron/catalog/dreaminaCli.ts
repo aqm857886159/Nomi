@@ -8,6 +8,8 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { desktopT } from "../desktopStrings";
+import { retryWithBackoff } from "../shared/retryPolicy";
 
 /** dreamina 可能的安装位（官方脚本默认 ~/.local/bin；homebrew/手动放 /usr/local/bin、/opt/homebrew/bin）。 */
 function candidateBinPaths(): string[] {
@@ -92,10 +94,6 @@ function isNetworkTimeoutResult(result: DreaminaRunResult): boolean {
   return hasNetworkTimeoutSignal(result.stderr);
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
  * 跑一条 dreamina 命令，收齐 stdout/stderr。超时杀进程；网络超时类故障默认重试 1 次。
  * 参数走数组（不过 shell），无注入面。env.PATH 补兜底目录。
@@ -141,16 +139,15 @@ export async function runDreaminaCli(args: string[], opts: DreaminaRunOptions = 
       });
     });
 
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    try {
-      const result = await runOnce(attempt);
-      if (!isNetworkTimeoutResult(result) || attempt >= maxRetries) return result;
-    } catch (error) {
-      lastError = error;
-      if (!isRetryableNetworkError(error) || attempt >= maxRetries) throw error;
-    }
-    await delay(retryDelayMs * Math.max(1, 2 ** attempt));
-  }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError || "即梦 CLI 调用失败"));
+  if (Number.isNaN(maxRetries)) throw new Error(desktopT("dreamina.invokeFailed"));
+  const retryTimeoutResult = new Error("Dreamina CLI returned a network timeout");
+  return retryWithBackoff(async (attempt) => {
+    const result = await runOnce(attempt - 1);
+    if (attempt <= maxRetries && isNetworkTimeoutResult(result)) throw retryTimeoutResult;
+    return result;
+  }, {
+    retries: maxRetries,
+    initialDelayMs: retryDelayMs,
+    shouldRetry: (error) => error === retryTimeoutResult || isRetryableNetworkError(error),
+  });
 }

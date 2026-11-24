@@ -13,6 +13,7 @@ import path from 'node:path'
 import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from '../jsonFile'
 import { logWarn } from '../logging/logger'
 import { getSettingsRoot } from '../settings/settingsRoot'
+import { exponentialBackoffMs } from '../shared/retryPolicy'
 import { intakeConfigured, IntakeHttpError, postIntake, type IntakeResult } from './intakeClient'
 
 /** 队列按货物分文件（文件名带货物名）；现在只有反馈一种。 */
@@ -159,12 +160,13 @@ function shrunkItem(kind: IntakeQueueKind, item: IntakeQueueItem): IntakeQueueIt
 }
 
 const retryTimers = new Map<IntakeQueueKind, ReturnType<typeof setTimeout>>()
-const retryDelays = new Map<IntakeQueueKind, number>()
+const retrySteps = new Map<IntakeQueueKind, number>()
 
 function scheduleRetry(kind: IntakeQueueKind): void {
   if (retryTimers.has(kind)) return
-  const delay = retryDelays.get(kind) ?? RETRY_BASE_MS
-  retryDelays.set(kind, Math.min(delay * 2, RETRY_MAX_MS))
+  const step = retrySteps.get(kind) ?? 0
+  const delay = exponentialBackoffMs(RETRY_BASE_MS, step, RETRY_MAX_MS)
+  retrySteps.set(kind, step + 1)
   const timer = setTimeout(() => {
     retryTimers.delete(kind)
     void flushIntakeQueue(kind)
@@ -181,7 +183,7 @@ async function sendItem(kind: IntakeQueueKind, first: IntakeQueueItem): Promise<
       const prepare = prepareHandlers.get(kind)
       if (prepare) item = { ...item, payload: prepare(item.payload) }
       const result = await postIntake(`/v1/${kind}`, item.payload)
-      retryDelays.delete(kind)
+      retrySteps.delete(kind)
       removeItem(kind, item.id)
       return { status: 'delivered', result, shrunk: item.shrunk === true }
     } catch (error) {
@@ -284,7 +286,7 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
       // clearTimeout(undefined) 是 no-op，所以不用先取再判。
       clearTimeout(retryTimers.get(kind))
       retryTimers.delete(kind)
-      retryDelays.delete(kind)
+      retrySteps.delete(kind)
     }
   })().catch((error: unknown) => {
     logWarn('diagnostics', 'intake-queue-read-failed', { kind }, error)
@@ -300,7 +302,7 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
 export function resetIntakeQueueTimers(): void {
   for (const timer of retryTimers.values()) clearTimeout(timer)
   retryTimers.clear()
-  retryDelays.clear()
+  retrySteps.clear()
   flushing.clear()
   delivering.clear()
   prepareHandlers.clear()
