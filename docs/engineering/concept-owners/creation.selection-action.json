@@ -18,6 +18,10 @@
     {
       "path": "src/workbench/creation/selectionActions.ts",
       "symbol": "runSelectionAction"
+    },
+    {
+      "path": "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "symbol": "SelectionGeneratePopover"
     }
   ],
   "forbidden_derivations": [],

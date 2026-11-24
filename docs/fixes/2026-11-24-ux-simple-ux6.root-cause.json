@@ -1,0 +1,222 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-ux-simple-ux6",
+  "change_kind": "corrective",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "problem_type": "Presentation obscures the scope or availability of a creator action",
+  "symptom": "Selecting prose shows duplicate formatting and ambiguous icons, the whole document has no split action, empty sessions show usage, and project titles swallow clicks.",
+  "direct_cause": "Each surface exposed secondary actions or empty measurements in place of a useful primary action.",
+  "class_root": "Surface composition did not enforce the intended activation target, scope, or availability.",
+  "affected_population": [
+    "Creators opening projects and working in the bilingual document editor with a resident Agent."
+  ],
+  "scope_paths": [
+    "src/workbench/creation/WorkbenchEditor.tsx",
+    "src/workbench/creation/SelectionGeneratePopover.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+    "src/workbench/library/ProjectLibraryPage.tsx",
+    "src/design/NomiOverflowRow.tsx",
+    "src/i18n/locales/creationAi.ts"
+  ],
+  "entry_points": [
+    "Library project cards",
+    "Document and selection toolbars",
+    "Resident Agent header"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The approved Nomi interaction and the actual lane projection determine the presentation.",
+  "invariants": [
+    "Expose document-wide actions and group formatting by frequency.",
+    "Expose named actions over the selected passage.",
+    "Render usage feedback only when informative or explicitly expanded.",
+    "Keep card opening and inline rename on distinct activation targets."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/design/NomiOverflowRow.tsx",
+      "symbol": "useOverflowManager"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/creationAiRewrite/SelectionActionsStage.tsx",
+      "symbol": "SelectionGeneratePopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/updateReminder/updateReminderLabKit.tsx",
+      "symbol": "ProjectLibraryPage"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/01-vocabulary.tsx",
+      "symbol": "V4ContextRing"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/creationAi.ts",
+      "symbol": "zhCreationAi"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhCreationAi"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "enCreationAi"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "symbol": "contextPercent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "V4ContextRing"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "symbol": "resolveSelectionPosition"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "symbol": "WorkbenchEditorToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "symbol": "SelectionGeneratePopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "isProjectUnavailable"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "ProjectLibraryPage"
+    }
+  ],
+  "door_reduction": {
+    "before": 14,
+    "after": 14,
+    "why_not": "The live surfaces and design previews each need their own mount. Both language dictionaries are used, and the shared components measure overflow, place the popover, read availability and display usage for those mounts. No component caller was removed."
+  },
+  "generality_proof": "The editor, project cards and context header each render through the same component for both locales, window sizes and existing projects.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "symbol": "WorkbenchEditorToolbar",
+      "responsibility": "Expose document-wide actions and group formatting by frequency."
+    },
+    {
+      "path": "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "symbol": "SelectionGeneratePopover",
+      "responsibility": "Expose named actions over the selected passage."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "symbol": "V4ContextRing",
+      "responsibility": "Render usage feedback only when informative or explicitly expanded."
+    },
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "ProjectLibraryPage",
+      "responsibility": "Keep card opening and inline rename on distinct activation targets."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "entry_point": "WorkbenchEditorToolbar",
+      "disposition": "enforced",
+      "evidence": "Expose document-wide actions and group formatting by frequency."
+    },
+    {
+      "path": "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "entry_point": "SelectionGeneratePopover",
+      "disposition": "enforced",
+      "evidence": "Expose named actions over the selected passage."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "entry_point": "V4ContextRing",
+      "disposition": "enforced",
+      "evidence": "Render usage feedback only when informative or explicitly expanded."
+    },
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "entry_point": "ProjectLibraryPage",
+      "disposition": "enforced",
+      "evidence": "Keep card opening and inline rename on distinct activation targets."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new session or document and every card in either locale could exhibit the same behavior.",
+    "same_class_scan": [
+      "door-map on WorkbenchEditorToolbar, SelectionGeneratePopover, V4ContextRing and ProjectLibraryPage enumerated production and lab callers.",
+      "Inspected stored documents, laneViewModel empty metrics, the project card keyboard path, and the WindowNarrow overflow contract."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/WorkbenchEditor.tsx",
+    "invariant": "Action visibility and scope are decided at the rendering boundary shared by the production and preview callers.",
+    "failure_mode": "Blank prose cannot launch planning. Unavailable projects cannot be renamed. Empty context is omitted.",
+    "exception_policy": "none",
+    "strategy": "Remove duplicate activation targets, reuse existing action owners, reserve overflow space with the native manager and evaluate session visibility at the component.",
+    "artifacts": [
+      "src/workbench/creation/WorkbenchEditor.tsx",
+      "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "src/workbench/library/ProjectLibraryPage.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/WorkbenchEditorToolbar.structure.test.ts",
+    "src/workbench/creation/selectionActions.test.ts",
+    "src/workbench/ai/v4/agentPanelV4ContextRing.test.tsx",
+    "src/workbench/library/ProjectLibraryPage.folderMissing.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/WorkbenchEditorToolbar.structure.test.ts",
+    "src/workbench/creation/selectionActions.test.ts",
+    "src/workbench/ai/v4/agentPanelV4ContextRing.test.tsx",
+    "src/workbench/library/ProjectLibraryPage.folderMissing.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "src/workbench/library/ProjectLibraryPage.tsx"
+    ],
+    "rationale": "Removed inline format duplicates and the double-click rename handler from the original surfaces."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency defect or dependency change. Fluent measures the toolbar and Tiptap owns document commands.",
+    "exit_criteria": []
+  },
+  "migration": "All edits reuse existing commands and stored project/document representations.",
+  "residual_risks": [
+    "Visual coverage is limited to the requested desktop sizes and locales."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/WorkbenchEditor.tsx",
+    "tests": [
+      "src/workbench/creation/WorkbenchEditorToolbar.structure.test.ts",
+      "src/workbench/creation/selectionActions.test.ts",
+      "src/workbench/ai/v4/agentPanelV4ContextRing.test.tsx",
+      "src/workbench/library/ProjectLibraryPage.folderMissing.test.tsx"
+    ]
+  }
+}

@@ -37,6 +37,13 @@ describe('创作页编辑区：窄时不裁、撤销重做钉右端', () => {
     expect(editor.slice(row, pinnedRender)).not.toMatch(/rightGroup|'undo'|'redo'/)
   })
 
+  it('keeps infrequent formats in the menu and the full-document action at the right', () => {
+    const row = literalGroups('TOOLBAR_LEFT_GROUPS').flat()
+    for (const id of ['code', 'horizontal-rule', 'table']) expect(row).not.toContain(id)
+    expect(editor).toContain('overflowItems=')
+    expect(editor.indexOf('data-document-storyboard')).toBeGreaterThan(editor.indexOf('rightGroup.map('))
+  })
+
   it('不按窗口宽写断点：编辑区、收起组件、四个工作区根都只认量出来的放不下', () => {
     const files = [
       'src/workbench/creation/WorkbenchEditor.tsx',

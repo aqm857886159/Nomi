@@ -2,13 +2,14 @@ import React, { type JSX } from 'react'
 import { workspacePanelFrame, workspacePanelHeader } from '../WorkspacePanelFrame'
 import { CreationDocumentSwitcher } from './CreationDocumentSwitcher'
 import { useTranslation } from 'react-i18next'
-import { EditorContent, type Editor, type JSONContent } from '@tiptap/react'
+import { EditorContent, useEditorState, type Editor, type JSONContent } from '@tiptap/react'
 import SelectionGeneratePopover from './SelectionGeneratePopover'
 import { AiRewriteBar } from './aiRewrite/AiRewriteBar'
 import { rewriteDocumentIdentity, setRewriteDocumentIdentityTransaction, setRewriteLabelProvider } from './aiRewrite/rewriteSession'
 import { useOpenProjectId } from '../project/useOpenProjectId'
 import { toast } from '../../ui/toast'
 import { useAiRewrite } from './aiRewrite/aiRewriteBinding'
+import { WorkbenchButton } from '../../design/actions'
 import { NomiOverflowRow, TooltipProvider, type NomiOverflowRowGroup, type NomiOverflowRowItem, type WorkbenchMenuIcon } from '../../design'
 import { TIPTAP_PLACEHOLDER_CLASSES } from '../assets/tiptapPlaceholderClasses'
 import { cn } from '../../utils/cn'
@@ -37,11 +38,12 @@ const NOT_READ = Symbol('not-read')
 const EMPTY_DOCUMENT: JSONContent = { type: 'doc', content: [] }
 
 const TOOLBAR_LEFT_GROUPS: readonly (readonly string[])[] = [
-  ['bold', 'italic', 'strike', 'code', 'highlight'],
-  ['h1', 'h2', 'h3', 'blockquote', 'horizontal-rule'],
+  ['bold', 'italic', 'strike', 'highlight'],
+  ['h1', 'h2', 'h3', 'blockquote'],
   ['bullet-list', 'ordered-list', 'task-list'],
-  ['table', 'link'],
+  ['link'],
 ]
+const TOOLBAR_MENU_ONLY = ['code', 'horizontal-rule', 'table'] as const
 const TOOLBAR_RIGHT_GROUP: readonly string[] = ['undo', 'redo']
 const TOOLBAR_BUTTON_CLASS = 'workbench-editor-toolbar__button h-[30px] w-[30px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-ink [&>svg]:size-4 [&>svg]:stroke-2'
 
@@ -59,16 +61,24 @@ function menuIconFor(element: JSX.Element): WorkbenchMenuIcon {
   return Icon
 }
 
+function toMenuItem(action: RichTextAction) {
+  return { id: action.id, label: action.label, icon: menuIconFor(action.icon), disabled: action.disabled, onSelect: action.onClick }
+}
+
 function toOverflowItem(action: RichTextAction): NomiOverflowRowItem {
   return {
     id: action.id,
     node: <RichTextActionButton action={action} className={TOOLBAR_BUTTON_CLASS} />,
-    menuItem: { label: action.label, icon: menuIconFor(action.icon), disabled: action.disabled, onSelect: () => action.onClick() },
+    menuItem: toMenuItem(action),
   }
 }
 
-function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Element {
+function WorkbenchEditorToolbar({ editor, storyboardPlannerLauncher }: {
+  editor: Editor | null
+  storyboardPlannerLauncher: ((text: string) => void) | null
+}): JSX.Element {
   const { t } = useTranslation()
+  const hasText = useEditorState({ editor, selector: () => Boolean(editor?.getText().trim()) })
   const actions = useRichTextActions(editor)
   const byId = new Map(actions.map((action) => [action.id, action]))
   const pick = (ids: readonly string[]) => ids.map((id) => byId.get(id)).filter((a): a is RichTextAction => Boolean(a))
@@ -91,12 +101,23 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
       <TooltipProvider delayDuration={250} disableHoverableContent>
         <NomiOverflowRow
           groups={leftGroups}
+          overflowItems={pick(TOOLBAR_MENU_ONLY).map(toMenuItem)}
           overflowLabel={t('creationAi.editor.moreTools')}
           overflowButtonClassName={TOOLBAR_BUTTON_CLASS}
         />
         {rightGroup.map((action) => (
           <RichTextActionButton key={action.id} action={action} className={TOOLBAR_BUTTON_CLASS} />
         ))}
+        <WorkbenchButton
+          size="sm"
+          variant="accent"
+          className="shrink-0"
+          data-document-storyboard
+          disabled={!storyboardPlannerLauncher || !hasText}
+          onClick={() => { if (editor) storyboardPlannerLauncher?.(editor.getText().trim()) }}
+        >
+          {t('creationAi.editor.splitDocument')}
+        </WorkbenchButton>
       </TooltipProvider>
     </div>
   )
@@ -248,7 +269,7 @@ export default function WorkbenchEditor(): JSX.Element {
       onKeyDown={(event) => event.stopPropagation()}
       onKeyUp={(event) => event.stopPropagation()}
     >
-      <WorkbenchEditorToolbar editor={editor} />
+      <WorkbenchEditorToolbar editor={editor} storyboardPlannerLauncher={storyboardPlannerLauncher} />
       <SelectionGeneratePopover
         editor={editor}
         selectedText={selectionState.text}

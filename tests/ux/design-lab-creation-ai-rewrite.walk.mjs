@@ -162,7 +162,6 @@ async function expectSelectionBarState(page, state, record) {
     if (!bar) return null
     const slot = (node) => {
       if (node.classList.contains('workbench-selection-popover__divider')) return 'divider'
-      if (node.classList.contains('workbench-selection-popover__format-group')) return 'format'
       const cluster = node.getAttribute('data-selection-cluster')
       if (!cluster) return node.className
       const items = [...node.children].map((child) => (
@@ -175,6 +174,7 @@ async function expectSelectionBarState(page, state, record) {
       slots: [...bar.children].map(slot),
       storyboardIcon: storyboard?.querySelector('svg')?.getAttribute('class') ?? '',
       storyboardDisabled: storyboard ? storyboard.disabled : null,
+      storyboardText: storyboard?.textContent?.trim(),
       storyboardName: storyboard?.getAttribute('aria-label') ?? '',
       storyboardTitle: storyboard?.getAttribute('title') ?? '',
     }
@@ -185,14 +185,14 @@ async function expectSelectionBarState(page, state, record) {
   }
   const scene = state.id.includes('no-ai-edit') ? 'no-ai-edit' : state.id.includes('unavailable') ? 'unavailable' : 'ready'
   const besideAi = scene === 'no-ai-edit' ? 'beside-ai-edit[storyboard]' : 'beside-ai-edit[ai-edit,storyboard]'
-  const expected = ['format', 'divider', besideAi, 'divider', 'generate[image,video]']
+  const expected = [besideAi, 'divider', 'generate[image,video]']
   // board:SelectionStoryboard/bar.shell board:SelectionStoryboard/bar.storyboard-beside-ai-edit board:SelectionStoryboard/bar.generate-pair
   expect(record, JSON.stringify(layout.slots) === JSON.stringify(expected), `${state.id} 浮条从左到右应是 ${expected.join(' | ')}，实际 ${layout.slots.join(' | ')}`)
   // board:SelectionStoryboard/bar.storyboard-icon
   expect(record, layout.storyboardIcon.includes('tabler-icon-layout-rows'), `${state.id} 「拆成镜头」图标不是分镜 IconLayoutRows：${layout.storyboardIcon}`)
   // board:SelectionStoryboard/bar.storyboard-name
   const name = uiText(state.id.includes('-en-') ? 'en' : 'zh-CN', 'creationAi.selection.storyboard')
-  expect(record, layout.storyboardName === name && layout.storyboardTitle === name, `${state.id} 「拆成镜头」悬停名字不对：${layout.storyboardName} / ${layout.storyboardTitle}`)
+  expect(record, layout.storyboardText === name && layout.storyboardName === name && layout.storyboardTitle === name, `${state.id} 「拆成镜头」悬停名字不对：${layout.storyboardName} / ${layout.storyboardTitle}`)
   // board:SelectionStoryboard/bar.storyboard-unavailable
   expect(record, layout.storyboardDisabled === (scene === 'unavailable'), `${state.id} 「拆成镜头」置灰状态不对：disabled=${layout.storyboardDisabled}`)
   // board:SelectionStoryboard/bar.no-ai-edit

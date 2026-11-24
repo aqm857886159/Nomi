@@ -170,7 +170,7 @@ try {
   measures.library = { topbar: await box(win, '[data-shell-topbar]'), main: await box(win, '.nomi-library-page__main') }
   await shoot(win, 'library')
 
-  // 功能全表 #47（#1136 验收复核）：项目卡的删除入口、双击改名、打开项目文件夹，在新项目库页原样可用。
+  // 功能全表 #47（#1136 验收复核）：项目卡的删除入口、行内改名、打开项目文件夹，在新项目库页原样可用。
   if (want('check-parity')) {
     // 按身份定位（改名时名字变成输入框的值，按文字找会丢）。
     const other = win.locator('[data-project-card][data-project-id="shell-redesign-other"]')
@@ -185,16 +185,16 @@ try {
     const deleteMessage = uiText(locale, 'studio.deleteProjectMessage').replaceAll('{{name}}', T('天台', 'Rooftop')).replaceAll('{{bin}}', trashBin)
     await expect(win.locator('[data-confirm-dialog-surface]').first(), '#47 删除确认框正文不是词典里那句（回收站叫法 / 还原说明） · board:Library/library.delete.confirm').toContainText(deleteMessage, { timeout: DEFAULT_TIMEOUT_MS })
     await clickOrFail(confirmCancel, '#47 确认卡取消（不真删）')
-    await other.getByText(T('天台', 'Rooftop'), { exact: true }).dblclick()
+    await other.locator('[data-project-rename]').click()
     const renameInput = other.locator('input[type="text"]').first()
-    await expect(renameInput, '#47 双击名字没进改名').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(renameInput, '#47 点铅笔没进改名').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await renameInput.fill(T('天台·改名', 'Rooftop renamed'))
     await renameInput.press('Enter')
     await expect(other, '#47 改名没生效').toContainText(T('天台·改名', 'Rooftop renamed'), { timeout: DEFAULT_TIMEOUT_MS })
     const mainCard = win.locator('[data-project-card][data-project-id="shell-redesign"]')
     await mainCard.hover()
     await expect(mainCard.getByRole('button', { name: uiText(locale, 'library.openProjectFolder').replace('{{name}}', '').trim(), exact: false }).first(), '#48 打开项目文件夹入口不在').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    measures.parity = { ...(measures.parity ?? {}), projectCard: 'delete-confirm, dblclick-rename, reveal-folder' }
+    measures.parity = { ...(measures.parity ?? {}), projectCard: 'delete-confirm, rename-button, reveal-folder' }
     await shoot(win, 'check-parity-project-card')
     await win.mouse.move(5, 300)
   }

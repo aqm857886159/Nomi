@@ -1,0 +1,26 @@
+{
+  "name": "Render usage feedback only when informative or explicitly expanded.",
+  "subject": "agent.context-usage-display",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+    "symbol": "V4ContextRing"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "symbol": "V4ContextRing"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/devlab/designLab/v4/states/01-vocabulary.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx"
+  ],
+  "since": "2026-11-24",
+  "notes": "Render usage feedback only when informative or explicitly expanded."
+}
