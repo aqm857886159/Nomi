@@ -26,7 +26,7 @@ import { requestTaskCancel } from './localTaskControl'
 import { recoverNodeResult } from './recoverTaskActions'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { resetModelHealthMemory } from './modelHealthMemory'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { fetchWorkbenchTaskResultByVendor } from '../../api/taskApi'
@@ -254,7 +254,7 @@ describe('节点存活性：注入一个永不返回的查结果函数', () => {
     projectTarget = await projectSession.open('project-test')
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
     useGenerationQueueStore.setState({ entries: [], batches: {} })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     resetModelHealthMemory()
     localizationListeners.clear()

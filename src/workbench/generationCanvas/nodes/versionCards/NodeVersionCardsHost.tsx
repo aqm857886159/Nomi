@@ -3,8 +3,7 @@ import { canvasWindowInput } from '../../../shortcutSurface'
 //
 // 数据只从唯一主人读写：版本列表 / 编号 / 主图 → model/nodeResultLifecycle.ts；铺开状态 → store.setNodeResultStackOpen；
 // 设主图 → store.setNodeMainResult（一个撤销步）；删一版 → assets/removeAssetVersion（原文件保留）。
-// 提示条上的「撤销」只在这一步仍是撤销日志的头时给（canvasUndoJournal.getUndoHeadToken）：撤销是前缀重放，
-// 头变了（又有手势 / 有生成结果落地）再撤，会把那之后落地的结果也撤掉（已报协调会话的老问题），那时请用户走 ⌘Z。
+// The toast owns its original edit only while its project and head token still match.
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
@@ -19,7 +18,7 @@ import { computeMediaMetaPatch } from '../nodeSizing'
 import { downloadNodeResult } from '../useResultDownload'
 import NodeMediaPreviewDialog from '../NodeMediaPreviewDialog'
 import { beginCanvasResultCopyDrag } from '../../components/canvasResultDrag'
-import { getUndoHeadToken } from '../../events/canvasUndoJournal'
+import { getUndoHeadToken } from '../../events/canvasPatchHistory'
 import { notify } from '../../../../ui/notificationPolicy'
 import { useToastStore } from '../../../../ui/toast'
 import { NodeVersionCountBadge, NodeVersionGrid, type VersionCardEntry } from './NodeVersionCards'

@@ -46,7 +46,7 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { isGenerationNodeBusy } from '../components/canvasProductionScope'
 import { attachShotResult } from '../../capability/multiShotCanvasLanding'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendorHttp'
 
@@ -104,7 +104,7 @@ beforeEach(async () => {
   await session.open('project-a')
   store().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   setCanvasEventSinkForTests(() => {})
 })
 afterEach(() => { setCanvasEventSinkForTests(null); session.dispose(); vi.restoreAllMocks() })

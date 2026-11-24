@@ -44,7 +44,7 @@ import {
   subscribePendingAssetDeletions,
   withoutFilesAwaitingTrash,
 } from './pendingAssetDeletions'
-import { __resetCanvasUndoJournalForTests } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory } from '../generationCanvas/events/canvasPatchHistory'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { createDefaultTimeline } from '../timeline/timelineMath'
@@ -221,7 +221,7 @@ let diskProject: { id: string; name: string; payload: { generationCanvas: { node
 
 function resetFixture(): void {
   __resetPendingAssetDeletionsForTests()
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   mocks.deleteFiles.mockReset()
   mocks.persistNow.mockReset()
   mocks.readLocalProjectAsync.mockReset()

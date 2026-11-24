@@ -13,7 +13,7 @@ import { buildCanvasNode } from '../../../../electron/shared/canvas/canvasNodeFa
 import { RENDERER_NODE_FACTORY_DEPS } from './rendererNodeFactoryDeps'
 import { CLIPBOARD_OFFSET, createClipboardNodeId, createNodeId } from './canvasIds'
 import { bumpPersistRevision, isCategoryId, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
-import { getHistoryFlags, getUndoJournalGeneration, pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { getHistoryFlags, getActiveCanvasEditPosition, getUndoJournalGeneration, pushUndoSnapshot } from '../events/canvasPatchHistory'
 import { getActiveCanvasGestureContext } from '../events/canvasGestureContext'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { reconcileTimelineForDeletedNodes } from './canvasTimelineBridge'
@@ -49,18 +49,18 @@ export function removeGroupsEmptiedByNodeDeletion(groups: readonly NodeGroup[], 
 // Cmd+Z 一撤直接跳回上一个结构操作,把整段输入连带丢掉(「回退不到我之前的地方」,
 // 2026-06-12 用户复现)。同一节点的连续编辑算一步;换节点或停顿 >3s 开新一步。
 const EDIT_BURST_WINDOW_MS = 3000
-let lastEditBurst = { nodeId: '', at: 0, generation: -1 }
+let lastEditBurst: { nodeId: string; at: number; generation: number; position?: number } | undefined
 
-function pushEditBurstBarrier(nodeId: string, state: unknown): void {
+function pushEditBurstBarrier(nodeId: string, state: Parameters<typeof pushUndoSnapshot>[0]): void {
   // Agent edits/compensation own a transaction barrier. They must not start or
   // prolong a user's typing burst and swallow the next manual edit's Undo.
   if (getActiveCanvasGestureContext()?.suppressUndoBarriers) return
   const now = Date.now()
   const generation = getUndoJournalGeneration()
-  if (lastEditBurst.generation !== generation || lastEditBurst.nodeId !== nodeId || now - lastEditBurst.at > EDIT_BURST_WINDOW_MS) {
-    pushUndoSnapshot(state)
-  }
-  lastEditBurst = { nodeId, at: now, generation }
+  const position = getActiveCanvasEditPosition()
+  if (!lastEditBurst || position === undefined || lastEditBurst.position !== position || lastEditBurst.generation !== generation
+      || lastEditBurst.nodeId !== nodeId || now - lastEditBurst.at > EDIT_BURST_WINDOW_MS) pushUndoSnapshot(state)
+  lastEditBurst = { nodeId, at: now, generation, position: getActiveCanvasEditPosition() }
 }
 
 export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (set, get) => ({
