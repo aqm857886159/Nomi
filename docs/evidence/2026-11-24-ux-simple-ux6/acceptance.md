@@ -1,8 +1,8 @@
-结论：通过 · 验收线：ux6-verify · 验收 HEAD：0c5704f4c8e28edb57796edf31856582675660ef
+结论：通过 · 验收线：ux6-verify · 验收 HEAD：b849238788a4cca7cc31790256dfe241d4e1be3b
 
 - 验收线：ux6-verify
 - 实现线：fix/ux-simple-creation-library-and-context-ring
-- 验收 HEAD：0c5704f4c8e28edb57796edf31856582675660ef
+- 验收 HEAD：b849238788a4cca7cc31790256dfe241d4e1be3b
 - 对应设计卡：`docs/plan/2026-11-24-ux-simple-ux6.md`
 - 方向复盘：`docs/plan/2026-11-24-ux-simple-ux6-direction-check.md`
 - 根因合同：`docs/fixes/2026-11-24-ux-simple-ux6.root-cause.json`
@@ -52,3 +52,7 @@
 ## 5. 设计卡 ★0 出处补齐增量复签（`0c5704f4c8e28edb57796edf31856582675660ef`）
 
 - **增量审阅**：`0c5704f4c` 仅在 `docs/plan/2026-11-24-ux-simple-ux6.md` ★0 补齐 4 行出处行号（`:1`）与三段式 `出口：`，生产与测试代码 `0` 改动，`0` 本机路径泄露。
+
+## 6. `creation-columns` 视觉基线图同步增量复签（`b849238788a4cca7cc31790256dfe241d4e1be3b`）
+
+- **增量审阅与目视复核**：`b84923878` 仅更新 `tests/ux/design-lab/__baselines__/creation-columns/{columns-current,columns-specimen,columns-specimen-dark}.png` 3 张基线图（代码 `0` 改动，`0` 本机路径泄露）；亲眼 `read_file` 核对全部 3 张图，亮/暗双模下文稿工具栏右端「拆成分镜」与 `⋯` 菜单完整清晰、右侧 Nomi 零用量头部无多余 `—` 占位、无裁切溢出。
