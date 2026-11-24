@@ -40,8 +40,8 @@ The implementation-line evidence is for local draft editing. Windows, paid gener
 
 ## Performance and gates
 
-- perf-scenario：storyboard-plan-open 中位数 396.2 / p95 410.9 / 预算 1000 / 原始结果 docs/evidence/2026-11-24-ux-storyboard-actions/storyboard-plan-open.perf.json
+- perf-scenario：storyboard-plan-open 中位数 436.2 / p95 531.2 / 预算 1000 / 原始结果 docs/evidence/2026-11-24-ux-storyboard-actions/storyboard-plan-open.perf.json
 
-The five cross-review samples opened a 320-shot plan in a 160-document project from a clean build of `22cc8a2b8`. The report's source tree matches the production build stamp and its `dirty` flag is `false`. The initial implementation passed 17 changed-file tests and 54 other storyboard files, including the original editor, Agent handoff, and popover keyboard suites.
+The five samples opened a 320-shot plan in a 160-document project from a clean build of `669d5185c`. The report's source tree matches the production build stamp and its `dirty` flag is `false`. The initial implementation passed 17 changed-file tests and 54 other storyboard files, including the original editor, Agent handoff, and popover keyboard suites.
 
 The board parity, token, and i18n commands passed. This checkout exposes changed-file lint through `node scripts/lint-changed.mjs`, which reported zero errors and zero added warnings. The commit's changed texts and images were scanned for local path markers. A repository-wide scan against the starting tree already found matching text in 823 tracked files.
