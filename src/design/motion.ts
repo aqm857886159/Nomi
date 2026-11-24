@@ -37,8 +37,40 @@ export const NOMI_EASE_VARS: Record<string, string> = {
   '--nomi-ease-morph': 'var(--nomi-ease-spatial)',
 }
 
+export type ProcessMotionCapability = {
+  renderer: string | null
+  prefersReducedMotion: boolean
+}
+
+/**
+ * The no-argument probe also runs in a standalone browser realm via page.evaluate.
+ * Keep its body self-contained. Ordinary UI readers request only the live media
+ * query, which never allocates a WebGL context.
+ */
+export function readBrowserMotion(input: 'media-query'): MediaQueryList | undefined
+export function readBrowserMotion(): ProcessMotionCapability
+export function readBrowserMotion(input?: 'media-query'): MediaQueryList | ProcessMotionCapability | undefined {
+  const query = typeof window === 'undefined' ? undefined : window.matchMedia?.('(prefers-reduced-motion: reduce)')
+  if (input === 'media-query') return query
+  const prefersReducedMotion = query?.matches ?? false
+  if (typeof document === 'undefined') return { renderer: '', prefersReducedMotion }
+  let gl: WebGLRenderingContext | null = null
+  try {
+    gl = document.createElement('canvas').getContext('webgl')
+    if (!gl) return { renderer: null, prefersReducedMotion }
+    const ext = gl.getExtension('WEBGL_debug_renderer_info')
+    const renderer = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) ?? '') : ''
+    return { renderer, prefersReducedMotion }
+  } catch {
+    return { renderer: null, prefersReducedMotion }
+  } finally {
+    // Release this temporary probe even if reading fails.
+    try { gl?.getExtension('WEBGL_lose_context')?.loseContext() } catch { /* Cleanup cannot invalidate a capability read. */ }
+  }
+}
+
 export function reducedMotionQuery(): MediaQueryList | undefined {
-  return typeof window === 'undefined' ? undefined : window.matchMedia?.('(prefers-reduced-motion: reduce)')
+  return readBrowserMotion('media-query')
 }
 
 export function shouldReduceMotion(): boolean {
