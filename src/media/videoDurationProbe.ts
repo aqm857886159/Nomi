@@ -8,7 +8,9 @@ import { buildVideoPlaybackUrl } from './videoPlaybackUrl'
  * 用途：拖入/上传的视频没有「生成参数时长」，clip 不能再钉死 5 秒——这里给出文件真实时长，
  * 写进 node.meta.videoDuration（buildClipFromGenerationNode 的时长真相键）。
  */
-export function readVideoDurationSeconds(url: string): Promise<number | null> {
+export type VideoMetadata = { durationSeconds: number | null; aspectRatio: number | undefined }
+
+export function readVideoMetadata(url: string): Promise<VideoMetadata | null> {
   if (typeof document === 'undefined' || !url.trim()) return Promise.resolve(null)
   return new Promise((resolve) => {
     const video = document.createElement('video')
@@ -16,7 +18,7 @@ export function readVideoDurationSeconds(url: string): Promise<number | null> {
     video.muted = true
     video.crossOrigin = 'use-credentials'
     let settled = false
-    const finish = (value: number | null) => {
+    const finish = (value: VideoMetadata | null) => {
       if (settled) return
       settled = true
       window.clearTimeout(timer)
@@ -27,9 +29,16 @@ export function readVideoDurationSeconds(url: string): Promise<number | null> {
     const timer = window.setTimeout(() => finish(null), 8000)
     video.onloadedmetadata = () => {
       const duration = video.duration
-      finish(Number.isFinite(duration) && duration > 0 ? duration : null)
+      finish({
+        durationSeconds: Number.isFinite(duration) && duration > 0 ? duration : null,
+        aspectRatio: video.videoWidth > 0 && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : undefined,
+      })
     }
     video.onerror = () => finish(null)
     video.src = buildVideoPlaybackUrl(url)
   })
+}
+
+export async function readVideoDurationSeconds(url: string): Promise<number | null> {
+  return (await readVideoMetadata(url))?.durationSeconds ?? null
 }

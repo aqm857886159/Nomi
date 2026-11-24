@@ -42,6 +42,8 @@ export type TimelineClip = {
   text?: string
   url?: string
   thumbnailUrl?: string
+  /** Intrinsic visual width divided by height, measured when preparing an insertion. */
+  sourceAspectRatio?: number
   /** Valid for audio clips and the source audio carried by video clips. */
   audio?: TimelineClipAudio
   // 取景（适应/填充 + 缩放 + 平移）。缺省 = DEFAULT_CLIP_FRAMING（contain/1/0/0）。

@@ -19,10 +19,9 @@ import { usePreviewBgmPlayback } from './usePreviewBgmPlayback'
 import { PREVIEW_RATIOS } from './previewAspectRatios'
 import { exportTimelineToMp4, type ExportTimelineToMp4Options } from '../export/exportApi'
 import { markChecklistStep } from '../onboarding/onboardingState'
-import { reportPreviewExportFailure } from './previewExportFeedback'
+import { reportPreviewExportFailure, reportPreviewExportSuccess } from './previewExportFeedback'
 import { useVideoPlaybackHeal } from '../../media/useVideoPlaybackHeal'
 import { computeTimelineDuration } from '../timeline/timelineMath'
-import { getDesktopBridge } from '../../desktop/bridge'
 import { isProjectOpen, withProjectAction } from '../project/projectCanvasReadSurface'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
@@ -35,6 +34,7 @@ import { recordVideoPlaybackState } from '../../media/videoPlaybackTelemetry'
 import {
   PREVIEW_EXPORT_EVENT,
   PREVIEW_EXPORT_IDLE,
+  canExportPreviewTimeline,
   isPreviewExportBusy,
   previewExportStageKey,
   publishPreviewExportState,
@@ -246,7 +246,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   }, [editingDraft, updateTimelineTextClip])
 
   const handleExport = React.useCallback(async () => {
-    if (exportBusy) return
+    if (exportBusy || !canExportPreviewTimeline(timeline)) return
     // 导出是后台作业：点下去那一刻签发原项目，mp4 与失败提示都归它，之后切项目不改归属。
     const projectId = withProjectAction((project) => project.binding.projectId) ?? ''
     setExportError(null)
@@ -265,7 +265,12 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
       })
       // 上手清单第 4 步「导出成片」打勾（导出 fire-and-forget 无持久历史，靠这里标记）。
       markChecklistStep('exported')
-      void getDesktopBridge()?.exports.showInFolder({ projectId, relativePath: result.relativePath }).catch(() => undefined)
+      reportPreviewExportSuccess({
+        projectId,
+        relativePath: result.relativePath,
+        message: t('timelinePreview.exportComplete'),
+        actionLabel: t('timelinePreview.showExportedFile'),
+      })
       publishPreviewExportState(PREVIEW_EXPORT_IDLE)
     } catch (error) {
       publishPreviewExportState(PREVIEW_EXPORT_IDLE)

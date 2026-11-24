@@ -2,6 +2,7 @@ import { buildGenerationNodeTimelineClip } from '../timeline/buildGenerationNode
 import { findAppendFrame } from '../timeline/timelineMath'
 import { getTrackTypeForClipType } from '../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
+import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
 import { applyAdoption } from './adoptionApply'
 import { destinationOf, proposalKeyForNode, timelineRevisionOf } from './adoptionProposalKey'
 import {
@@ -44,9 +45,9 @@ export async function adoptGenerationNode(
   }
 
   const timeline = ports.readTimeline()
-  // 先按 0 帧构建（拿 clip 的类型/时长），再据类型定轨、据轨定落点——
+  // 先按 0 帧确定 clip 类型，再据类型定轨、据轨定落点——
   // 落点依赖轨道，轨道依赖 clip 类型，顺序不能反。
-  const probe = await buildGenerationNodeTimelineClip(node, { fps: timeline.fps, startFrame: 0 })
+  const probe = buildClipFromGenerationNode(node, { fps: timeline.fps, startFrame: 0 })
   if (!probe) {
     return { status: 'nothing_to_adopt', skipped: [{ nodeId: node.id, reason: 'clip_unavailable' }] }
   }

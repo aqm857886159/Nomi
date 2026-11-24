@@ -17,6 +17,7 @@ export function readCurrentWorkbenchProjectContent(): WorkbenchProjectContent {
     workbenchDocuments: workbench.workbenchDocuments,
     activeDocumentId: workbench.activeDocumentId,
     timeline: workbench.timeline,
+    ...(workbench.previewAspect ? { previewAspect: workbench.previewAspect } : {}),
     // S5-b-0:持久化走 document 视图(选区是会话态不进项目文件)
     generationCanvas: generation.readDocumentSnapshot(),
     categories: workbench.categories,
@@ -42,7 +43,7 @@ const UI_STATE = { none: '界面 / 选择 / 进度状态，只存 id、计数或
 
 export const PROJECT_SESSION_FIELD_ROLES: Readonly<Record<string, Readonly<Record<string, ProjectSessionFieldRole>>>> = {
   'useWorkbenchStore': {
-    workbenchDocuments: 'content', activeDocumentId: 'content', categories: 'content', timeline: 'content',
+    workbenchDocuments: 'content', activeDocumentId: 'content', categories: 'content', timeline: 'content', previewAspect: 'content',
     storyboardDesignsByDocumentId: 'content', editingPanelLayout: 'content',
     projectAgentDraft: 'pending', projectAgentDraftDisplayText: 'pending', projectAgentDraftIntent: 'pending',
     projectAgentAttachments: 'pending', projectAgentReferences: 'pending', selectedLibraryPrompt: 'pending', creationActiveSkill: 'pending',
@@ -50,7 +51,7 @@ export const PROJECT_SESSION_FIELD_ROLES: Readonly<Record<string, Readonly<Recor
     workspaceMode: UI_STATE, activeCategoryId: UI_STATE, categoryViewports: UI_STATE, canvasFitNonce: UI_STATE, canvasFitCategoryId: UI_STATE,
     creationAiModeId: UI_STATE, storyboardPlannerLauncher: { none: '视图发布的回调函数，不是数据' },
     activeStoryboardId: UI_STATE, storyboardRowFocus: UI_STATE, projectAgentDraftRevision: UI_STATE, projectAgentAdmissionId: UI_STATE,
-    projectAgentApprovalPolicy: UI_STATE, projectAgentDockCollapsed: UI_STATE, timelinePlaying: UI_STATE, previewAspectRatio: UI_STATE,
+    projectAgentApprovalPolicy: UI_STATE, projectAgentDockCollapsed: UI_STATE, timelinePlaying: UI_STATE,
     selectedTimelineClipIds: UI_STATE, selectedTextClipId: UI_STATE, timelineSnapGuide: UI_STATE, timelineSplitMode: UI_STATE,
     editingPanelHistory: { none: '面板尺寸 / 显隐的撤销，不装文件' }, editingPanelKeep: UI_STATE,
   },

@@ -69,6 +69,8 @@ function normalizeClip(input: unknown, fallbackType: TimelineTrackType): Timelin
     offsetEndFrame: toFiniteNonNegativeInteger(raw.offsetEndFrame, 0),
     ...(normalizeString(raw.url) ? { url: normalizeString(raw.url) } : {}),
     ...(normalizeString(raw.thumbnailUrl) ? { thumbnailUrl: normalizeString(raw.thumbnailUrl) } : {}),
+    ...(type !== 'audio' && typeof raw.sourceAspectRatio === 'number' &&
+      Number.isFinite(raw.sourceAspectRatio) && raw.sourceAspectRatio > 0 ? { sourceAspectRatio: raw.sourceAspectRatio } : {}),
     ...(type !== 'image' && raw.audio && typeof raw.audio === 'object' && !Array.isArray(raw.audio)
       ? { audio: resolveClipAudio(raw.audio as TimelineClipAudio, endFrame - startFrame) }
       : {}),
@@ -212,7 +214,7 @@ export function normalizeTimeline(input: unknown): TimelineState {
   }
 }
 
-export function computeTimelineDuration(timeline: TimelineState): number {
+export function computeTimelineDuration(timeline: Pick<TimelineState, 'tracks' | 'textClips'>): number {
   // 防御缺字段：textClips 是后加的字段，旧时间轴 / 直接构造的对象可能没有；tracks 同理保险。
   // 无文本片段 = 不撑时长（textMax 0），不应 undefined.reduce 崩掉整条导出/时长计算。
   const trackMax = (timeline.tracks ?? []).reduce((maxFrame, track) => {

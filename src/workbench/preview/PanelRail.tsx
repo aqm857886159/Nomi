@@ -10,12 +10,14 @@ export function PanelRail({
   icon,
   label,
   title,
+  horizontalLabel = false,
   statusDotClassName,
   onClick,
 }: {
   icon: React.ReactNode
   label: string
   title: string
+  horizontalLabel?: boolean
   /**
    * 收起后仍要看得见「它有没有在动」的面板（现在只有 Nomi）传这一格 token 类名，
    * 图标下方画一颗状态点。不传就不画——素材/属性没有运行态，不该凭空多一颗点。
@@ -37,7 +39,7 @@ export function PanelRail({
     >
       {icon}
       {statusDotClassName ? <span className={cn('size-1.5 shrink-0 rounded-pill', statusDotClassName)} data-panel-rail-status="true" aria-hidden="true" /> : null}
-      <span className="text-micro leading-none [writing-mode:vertical-rl]">{label}</span>
+      <span className={cn('text-micro leading-none', !horizontalLabel && '[writing-mode:vertical-rl]')}>{label}</span>
     </button>
   )
 }

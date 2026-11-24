@@ -1,0 +1,408 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-preview-ux3",
+  "problem_type": "Preview and export controls out of sync with the saved project, timeline media, or export receipt.",
+  "symptom": "First portrait and square clips retained the default landscape canvas, an empty timeline invited export, and success provided no actionable in-app receipt.",
+  "direct_cause": "Clip inserts omitted intrinsic dimensions, the ratio was session-only, and the toolbar only knew the busy state. Export completion immediately revealed a file.",
+  "class_root": "The clip commit, project save and export receipt boundaries did not publish the facts used by preview and export consumers.",
+  "affected_population": [
+    "Preview timeline editors using shot adoption or asset insertion",
+    "Creators exporting from Preview"
+  ],
+  "scope_paths": [
+    "src/workbench/workbenchStore.ts",
+    "src/workbench/workbenchStoreLifetime.ts",
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/project/projectNormalize.ts",
+    "src/workbench/project/workbenchProjectContent.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/adoption/adoptionStorePorts.ts",
+    "src/workbench/adoption/adoptGenerationNode.ts",
+    "src/workbench/timeline/timelineTypes.ts",
+    "src/workbench/timeline/timelineMath.ts",
+    "src/workbench/timeline/addAssetToTimeline.ts",
+    "src/workbench/timeline/buildGenerationNodeTimelineClip.ts",
+    "src/workbench/timeline/agent/exportToolCall.ts",
+    "src/workbench/preview/previewAspectRatios.ts",
+    "src/workbench/preview/previewExportRequest.ts",
+    "src/workbench/preview/previewExportFeedback.ts",
+    "src/workbench/preview/TimelinePreview.tsx",
+    "src/workbench/preview/PreviewWorkspace.tsx",
+    "src/workbench/preview/inspector/PreviewInspector.tsx",
+    "src/workbench/preview/PanelRail.tsx",
+    "src/workbench/preview/PreviewSourcePanel.tsx",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/ui/app-shell/shell/ShellTopBar.tsx",
+    "src/media/videoDurationProbe.ts",
+    "src/media/imageAspectRatioProbe.ts",
+    "src/devlab/designLab/editing/editingLabKit.tsx"
+  ],
+  "entry_points": [
+    "Preview shot click, shot drag from Preview or Generation, storyboard adoption, asset-library click and drag",
+    "Preview MP4 button"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/shell/#shellshowiteminfolderfullpath",
+      "checked_at": "2026-11-24",
+      "purpose": "Existing file manager reveal behavior."
+    }
+  ],
+  "invariants": [
+    "A committed first visual source can initialize project aspect only when no explicit choice exists.",
+    "Export availability follows positive timeline duration, and success feedback targets the saved output of the starting project."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/editing/editingLabKit.tsx",
+      "symbol": "TimelineState"
+    },
+    {
+      "kind": "read",
+      "path": "src/media/imageAspectRatioProbe.ts",
+      "symbol": "Image"
+    },
+    {
+      "kind": "read",
+      "path": "src/media/videoDurationProbe.ts",
+      "symbol": "readVideoMetadata"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/ShellTopBar.tsx",
+      "symbol": "canExportPreviewTimeline"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/ShellTopBar.tsx",
+      "symbol": "selectPreviewAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/adoption/adoptGenerationNode.ts",
+      "symbol": "buildGenerationNodeTimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/adoption/adoptStoryboardBatch.ts",
+      "symbol": "buildGenerationNodeTimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/adoption/adoptionStorePorts.ts",
+      "symbol": "previewAspect"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/projectLivenessContent.ts",
+      "symbol": "readCurrentWorkbenchProjectContent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "selectPreviewAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PanelRail.tsx",
+      "symbol": "horizontalLabel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewSourcePanel.tsx",
+      "symbol": "horizontalLabel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "selectPreviewAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "symbol": "canExportPreviewTimeline"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "selectPreviewAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/previewAspectRatios.ts",
+      "symbol": "previewAspect"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/previewAspectRatios.ts",
+      "symbol": "sourceAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/previewExportFeedback.ts",
+      "symbol": "showInFolder"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/previewExportRequest.ts",
+      "symbol": "computeTimelineDuration"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "previewAspect"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "workbenchProjectPayloadSkeletonSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectRecordSchema.ts",
+      "symbol": "workbenchProjectPayloadSkeletonSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectContent.ts",
+      "symbol": "previewAspect"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "previewAspect"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "readCurrentWorkbenchProjectContent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/exportJobTaskAction.ts",
+      "symbol": "showInFolder"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "symbol": "readImageAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "symbol": "readVideoMetadata"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "symbol": "sourceAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/agent/exportToolCall.ts",
+      "symbol": "selectPreviewAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/buildGenerationNodeTimelineClip.ts",
+      "symbol": "readImageAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/buildGenerationNodeTimelineClip.ts",
+      "symbol": "readVideoMetadata"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/buildGenerationNodeTimelineClip.ts",
+      "symbol": "sourceAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineMath.ts",
+      "symbol": "TimelineTrack"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineMath.ts",
+      "symbol": "sourceAspectRatio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineTypes.ts",
+      "symbol": "TimelineTrack"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "previewAspect"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "setTimeline"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/adoption/adoptionApply.ts",
+      "symbol": "commitTimeline"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/adoption/adoptionStorePorts.ts",
+      "symbol": "matchFirstVisualAspect"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "symbol": "reportPreviewExportSuccess"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "setPreviewAspectRatio"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePreviewAspect"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "setTimeline"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "symbol": "addTimelineClipAtFrame"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "symbol": "commitTimeline"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "matchFirstVisualAspect"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/workbenchStoreLifetime.ts",
+      "symbol": "declareStoreLifetime"
+    }
+  ],
+  "door_reduction": {
+    "before": 22,
+    "after": 48,
+    "why_not": "The asset write, adoption transaction, and snapshot hydration have independent callers. The new projection and receipt make the shared decisions directly consumable by each output surface. The post-change map includes new metadata and persistence doors."
+  },
+  "generality_proof": "Direct asset and shot adoption writes share one first-visual decision function. All readers use the project preference projection. The preview action and its button share timeline export eligibility.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/preview/previewAspectRatios.ts",
+      "symbol": "matchFirstVisualAspect",
+      "responsibility": "Choose aspect at an empty-to-visual transition using the source metadata."
+    },
+    {
+      "path": "src/workbench/preview/previewExportRequest.ts",
+      "symbol": "canExportPreviewTimeline",
+      "responsibility": "Interpret exportable timeline duration at both preview action and button."
+    },
+    {
+      "path": "src/workbench/preview/previewExportFeedback.ts",
+      "symbol": "reportPreviewExportSuccess",
+      "responsibility": "Bind the completed export receipt to its project and saved file."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "entry_point": "addAssetToTimeline",
+      "disposition": "enforced",
+      "evidence": "Asset drag and click share the asset clip builder and direct commit."
+    },
+    {
+      "path": "src/workbench/adoption/adoptionStorePorts.ts",
+      "entry_point": "commitTimeline",
+      "disposition": "enforced",
+      "evidence": "Single shot, batch adoption and Agent edits share this renderer commit."
+    },
+    {
+      "path": "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "entry_point": "commitTimeline",
+      "disposition": "not-affected",
+      "evidence": "The kernel edits existing media and creates text, and cannot introduce the first visual source."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any fresh or emptied timeline and more than one media entry point could meet the same missing aspect decision. Any empty timeline rendered the same misleading export control.",
+    "same_class_scan": [
+      "door-map for addTimelineClipAtFrame, commitTimeline, setPreviewAspectRatio and previewAspectRatio",
+      "rg callers through buildGenerationNodeTimelineClip, buildAssetTimelineClip, createWorkbenchAdoptionPorts and timeline capability operations"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/preview/previewAspectRatios.ts",
+    "invariant": "The commit decision sees previous and next timelines and the persisted user intent.",
+    "failure_mode": "Unknown media dimensions preserve the current canvas; nonpositive timeline duration leaves preview MP4 unavailable.",
+    "exception_policy": "none",
+    "strategy": "Share the same decision across timeline commits, derive the top-bar state from the shared export guard, and emit a reveal action from the saved export receipt.",
+    "artifacts": [
+      "src/workbench/preview/previewAspectRatios.ts",
+      "src/workbench/workbenchStore.ts",
+      "src/workbench/adoption/adoptionStorePorts.ts",
+      "src/workbench/preview/previewExportRequest.ts",
+      "src/workbench/preview/previewExportFeedback.ts",
+      "src/ui/app-shell/shell/ShellTopBar.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/preview/previewAspectOnInsert.test.ts",
+    "src/workbench/preview/previewExportFeedback.test.ts",
+    "src/ui/app-shell/shell/ShellTopBar.previewExport.test.tsx",
+    "src/workbench/preview/previewUxLabels.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/preview/previewAspectOnInsert.test.ts",
+    "src/workbench/preview/previewExportFeedback.test.ts",
+    "src/ui/app-shell/shell/ShellTopBar.previewExport.test.tsx",
+    "src/workbench/preview/previewUxLabels.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/workbenchStore.ts",
+      "src/ui/app-shell/shell/ShellTopBar.tsx",
+      "src/workbench/preview/TimelinePreview.tsx"
+    ],
+    "rationale": "Replace session-only aspect, duplicate title tooltip and automatic file reveal."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The application owns the aspect decision and receipt. Existing browser metadata and Electron IPC remain the dependency boundaries.",
+    "exit_criteria": []
+  },
+  "migration": "The optional field leaves older payloads valid. No saved aspect existed; the original 16:9 remains the effective ratio until a new manual decision or first visual commit.",
+  "residual_risks": [
+    "Unmeasurable or unavailable source media retains the effective project aspect.",
+    "Unsupported source ratios approximate the nearest available canvas aspect."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-24",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/preview/previewAspectRatios.ts",
+    "tests": [
+      "src/workbench/preview/previewAspectOnInsert.test.ts",
+      "src/workbench/preview/previewExportFeedback.test.ts",
+      "src/ui/app-shell/shell/ShellTopBar.previewExport.test.tsx",
+      "src/workbench/preview/previewUxLabels.test.tsx"
+    ]
+  }
+}

@@ -14,6 +14,7 @@ import {
 } from './projectRecordSchema'
 import { normalizeCategories, projectCategorySchema } from './projectCategories'
 import { editingPanelLayoutSchema } from '../preview/panelLayout'
+import { normalizePreviewAspect } from '../preview/previewAspectRatios'
 import { issuesOfZodError, storyboardDesignSchema, type SchemaFieldIssue } from '../creation/storyboard/storyboardDesignSchema'
 import { storyboardDraftPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
 import { renumberStoryboardShots } from '../../../electron/shared/storyboard/storyboardSubjectIdentity'
@@ -288,10 +289,12 @@ function buildPayload(payload: ItemizedPayload, input: unknown): WorkbenchProjec
         }
         return migrated
       })()
+  const previewAspect = normalizePreviewAspect(payload.previewAspect)
   return {
     workbenchDocuments: normalizedDocuments,
     activeDocumentId,
     timeline: normalizeTimeline(payload.timeline),
+    ...(previewAspect ? { previewAspect } : {}),
     generationCanvas: payload.generationCanvas,
     categories: normalizeCategories(payload.categories),
     generationCanvasLastSeq: payload.generationCanvasLastSeq,

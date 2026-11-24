@@ -1,6 +1,26 @@
 import { notify, revealNotificationTarget } from '../../ui/notificationPolicy'
 import { isProjectOpen } from '../project/projectCanvasReadSurface'
 import { useWorkbenchStore } from '../workbenchStore'
+import { getDesktopBridge } from '../../desktop/bridge'
+
+export function reportPreviewExportSuccess(input: {
+  projectId: string
+  relativePath: string
+  message: string
+  actionLabel: string
+}): void {
+  const { projectId, relativePath, message, actionLabel } = input
+  if (!relativePath) return
+  notify({
+    identity: `export:${projectId}:${relativePath}`,
+    reason: 'export-complete',
+    level: 'background',
+    type: 'success',
+    message,
+    actionLabel,
+    onAction: () => { void getDesktopBridge()?.exports.showInFolder({ projectId, relativePath }).catch(() => undefined) },
+  })
+}
 
 /** An export keeps its starting project identity even if its preview unmounts. */
 export function reportPreviewExportFailure(input: {

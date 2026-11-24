@@ -2,7 +2,7 @@ import type React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { notifications, notificationsStore } from '@mantine/notifications'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../project/projectSessionTestHarness'
-import { reportPreviewExportFailure } from './previewExportFeedback'
+import { reportPreviewExportFailure, reportPreviewExportSuccess } from './previewExportFeedback'
 const state = vi.hoisted(() => ({ workspaceMode: 'preview' }))
 vi.mock('../workbenchStore', () => ({ useWorkbenchStore: { getState: () => state } }))
 
@@ -53,5 +53,21 @@ describe('preview export failure ownership', () => {
     const message = notice.message as React.ReactElement<{ onAction: () => void }>
     message.props.onAction()
     expect(dispatchEvent).toHaveBeenCalledOnce()
+  })
+})
+
+describe('successful preview export', () => {
+  afterEach(() => { notifications.clean(); vi.unstubAllGlobals() })
+
+  it('reveals the saved file in its original project only after the toast action', () => {
+    const showInFolder = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('window', { nomiDesktop: { exports: { showInFolder } } })
+    reportPreviewExportSuccess({ projectId: 'original', relativePath: 'exports/final.mp4', message: 'MP4 exported', actionLabel: 'Show file' })
+    expect(showInFolder).not.toHaveBeenCalled()
+    const notice = notificationsStore.getState().notifications[0]
+    const message = notice.message as React.ReactElement<{ message: string; actionLabel: string; onAction: () => void }>
+    expect(message.props).toMatchObject({ message: 'MP4 exported', actionLabel: 'Show file' })
+    message.props.onAction()
+    expect(showInFolder).toHaveBeenCalledExactlyOnceWith({ projectId: 'original', relativePath: 'exports/final.mp4' })
   })
 })

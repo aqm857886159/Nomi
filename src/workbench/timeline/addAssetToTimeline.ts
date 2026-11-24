@@ -1,6 +1,7 @@
 import { isProjectExecutionContextCurrent, withProjectAction, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 import { readAudioDurationSeconds } from '../../media/audioDurationProbe'
-import { readVideoDurationSeconds } from '../../media/videoDurationProbe'
+import { readVideoMetadata } from '../../media/videoDurationProbe'
+import { readImageAspectRatio } from '../../media/imageAspectRatioProbe'
 import { parseAssetLibraryDrag, type AssetLibraryDragPayload } from '../assets/assetLibraryDrag'
 import { materializeAssetLibraryItems } from '../assets/assetLibraryMaterialize'
 import type { AssetKind, AssetRef } from '../assets/assetTypes'
@@ -17,13 +18,13 @@ export type AssetDropResolution =
 
 type TimelineAssetRef = AssetRef & { kind: TimelineTrackType }
 
-type DurationProbes = {
-  readVideoDuration: (url: string) => Promise<number | null>
+type MediaProbes = {
+  readVideoMetadata: typeof readVideoMetadata
   readAudioDuration: (url: string) => Promise<number | null>
 }
 
-const DEFAULT_PROBES: DurationProbes = {
-  readVideoDuration: readVideoDurationSeconds,
+const DEFAULT_PROBES: MediaProbes = {
+  readVideoMetadata,
   readAudioDuration: readAudioDurationSeconds,
 }
 
@@ -63,15 +64,14 @@ export function findAssetAppendFrame(timeline: TimelineState, kind: TimelineTrac
 export async function buildAssetTimelineClip(
   asset: AssetRef,
   options: { fps: number; startFrame: number },
-  probes: DurationProbes = DEFAULT_PROBES,
+  probes: MediaProbes = DEFAULT_PROBES,
 ): Promise<TimelineClip | null> {
   if (asset.kind === 'model3d') return null
-  const durationSeconds = asset.kind === 'video'
-    ? await probes.readVideoDuration(asset.renderUrl)
-    : asset.kind === 'audio'
-      ? await probes.readAudioDuration(asset.renderUrl)
-      : null
-  return buildClipFromAssetRef(asset, { ...options, durationSeconds })
+  const video = asset.kind === 'video' ? await probes.readVideoMetadata(asset.renderUrl) : null
+  const durationSeconds = asset.kind === 'audio' ? await probes.readAudioDuration(asset.renderUrl) : video?.durationSeconds
+  const sourceAspectRatio = asset.kind === 'image' ? await readImageAspectRatio(asset.renderUrl) : video?.aspectRatio
+  const clip = buildClipFromAssetRef(asset, { ...options, durationSeconds })
+  return clip && sourceAspectRatio ? { ...clip, sourceAspectRatio } : clip
 }
 
 /**
