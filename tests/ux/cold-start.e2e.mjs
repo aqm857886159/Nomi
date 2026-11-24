@@ -77,38 +77,30 @@ try {
   check("可见「打开已有文件夹」入口", libraryProbe.hasOpenFolder, `titles=${JSON.stringify(libraryProbe.titles)}`);
   check("旧空库介绍 hero / 「30 秒体验」CTA 已删除（不再渲染）", libraryProbe.heroGone);
 
-  // CS2：目录状态决定入口形态。最新版可预置文本模型，不能再硬编码“新安装必为零”。
-  // hasTextModel 异步查询完成后，有模型显示弱入口；无模型显示升权恢复条。
-  const banner = win.locator("[data-model-banner]").first();
-  await banner.waitFor({ state: "visible", timeout: 4000 }).catch(() => {});
-  const bannerProbe = await win.evaluate(() => {
-    const el = document.querySelector("[data-model-banner]");
+  // CS2：目录状态决定首屏引导形态（T-5 S7b / Q19）：
+  // 0 项目且无可用连接时由首屏主卡 [data-library-hero-card] 承载「连接模型」主入口；已有连接时不出现首屏主卡。
+  const hero = win.locator("[data-library-hero-card]").first();
+  await hero.waitFor({ state: "visible", timeout: 4000 }).catch(() => {});
+  const heroProbe = await win.evaluate(() => {
+    const el = document.querySelector("[data-library-hero-card]");
     if (!el) return { shown: false, hasCta: false };
-    const ctaBtn = Array.from(el.querySelectorAll("button")).find((b) => /接入文本模型/.test(b.textContent || ""));
+    const ctaBtn = el.querySelector("[data-library-hero-connect]");
     return { shown: true, hasCta: Boolean(ctaBtn) };
   });
-  const normalEntryVisible = await win.locator('[aria-label="模型接入"]:visible').first().waitFor({ state: 'visible' }).then(() => true, () => false);
-  console.log("\n── CS2：模型目录状态与接入入口互斥 ──");
-  check("模型入口与目录状态一致", initial.textModels > 0 ? normalEntryVisible && !bannerProbe.shown : bannerProbe.shown && !normalEntryVisible,
-    `models=${initial.textModels}, normal=${normalEntryVisible}, banner=${bannerProbe.shown}`);
-  if (initial.textModels === 0) check("状态条带「接入文本模型」按钮", bannerProbe.hasCta);
+  console.log("\n── CS2：模型目录状态与首屏主卡一致 ──");
+  check("首屏主卡与可用模型状态一致", initial.textModels > 0 ? !heroProbe.shown : heroProbe.shown,
+    `models=${initial.textModels}, hero=${heroProbe.shown}`);
+  if (initial.textModels === 0) check("首屏主卡带「连接模型」按钮", heroProbe.hasCta);
 
-  if (initial.textModels === 0 && bannerProbe.shown && bannerProbe.hasCta) {
-    // 点状态条「接入文本模型」→ 应打开模型接入面板，让用户当场能填 key 往下走（不死路）。
-    await win.locator("[data-model-banner] button", { hasText: "接入文本模型" }).first().click().catch(() => {});
-    await win.waitForTimeout(1200);
+  if (initial.textModels === 0 && heroProbe.shown && heroProbe.hasCta) {
+    // 点首屏主卡「连接模型」→ 打开整窗连接 APIMart 大页，让用户当场能填 key 往下走（不死路）。
+    await win.locator("[data-library-hero-connect]").first().click().catch(() => {});
+    await win.waitForTimeout(800);
     await win.screenshot({ path: path.join(shotsDir, "cold-02-after-model-cta.png") });
     const onboardingOpen = await win.evaluate(() =>
-      Boolean(document.querySelector('[aria-label="模型设置"], [aria-label="模型接入"]')),
+      Boolean(document.querySelector('[data-apimart-connect-page]')),
     );
-    check("点「接入文本模型」打开模型接入面板（不死路）", onboardingOpen, `onboardingOpen=${onboardingOpen}`);
-  } else if (initial.textModels > 0) {
-    await win.locator('[aria-label="模型接入"]:visible').click();
-    await win.waitForTimeout(800);
-    const onboardingOpen = await win.evaluate(() =>
-      Boolean(document.querySelector('[aria-label="模型设置"], [aria-label="模型接入"]')),
-    );
-    check("常态「模型接入」入口可打开目录（不死路）", onboardingOpen, `onboardingOpen=${onboardingOpen}`);
+    check("点「连接模型」打开整窗接入大页（不死路）", onboardingOpen, `onboardingOpen=${onboardingOpen}`);
   }
 
   console.log(`\n冷启动 J3：${passed} 项达标，${findings.length} 项断路/缺口`);

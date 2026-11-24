@@ -68,14 +68,12 @@ export function SettingsDialog({
   initialSection = null,
   initialModelPageRequest = null,
   onClose,
-  onReplaySplash,
 }: {
   initialTab?: SettingsTab
   initialSection?: SettingsInitialSection
   /** 打开设置时就要落到模型 tab 里某一家的接入页（外部入口，如画布「高清 → 去接入」）。 */
   initialModelPageRequest?: ModelPageRequest
   onClose: () => void
-  onReplaySplash?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
@@ -395,7 +393,7 @@ export function SettingsDialog({
                 <DiagnosticsBundleSection />
               </div>
             ) : tab === 'about' ? (
-              <AboutSection onClose={() => { void requestClose() }} onReplaySplash={onReplaySplash} />
+              <AboutSection onClose={() => { void requestClose() }} />
             ) : null}
           </section>
         </div>

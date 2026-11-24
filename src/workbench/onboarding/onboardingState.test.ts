@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import * as onboardingState from './onboardingState'
 import {
-  hasSeenSplash,
-  markSplashSeen,
   readChecklist,
   markChecklistStep,
   isChecklistDismissed,
@@ -27,10 +26,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('onboardingState', () => {
-  it('splash 默认未看过，标记后为 true', () => {
-    expect(hasSeenSplash()).toBe(false)
-    markSplashSeen()
-    expect(hasSeenSplash()).toBe(true)
+  it('Q18 删开屏后不再导出 splash 标记读写，老用户残留 nomi:splash:v1 无副作用', () => {
+    localStorageStub.setItem('nomi:splash:v1', 'seen')
+    expect('hasSeenSplash' in onboardingState).toBe(false)
+    expect('markSplashSeen' in onboardingState).toBe(false)
+    expect(readChecklist().model).toBe(false)
   })
 
   it('清单步骤累积打勾', () => {

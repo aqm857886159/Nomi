@@ -15,6 +15,11 @@ export function registerOnboardingDemoAssetSourceDir(resolve: (() => string) | n
   resolveSourceDir = resolve;
 }
 
+/** 随包 `resources/onboarding-demo` 目录；单测未注册主进程 app 路径时回退到仓库/打包根相对目录。 */
+export function resolveOnboardingDemoAssetSourceDir(): string {
+  return resolveSourceDir ? resolveSourceDir() : path.resolve(__dirname, "../../resources/onboarding-demo");
+}
+
 /** 只认清单里的文件名（不接受任意路径拼进来）；读不到返回 null。 */
 export function readOnboardingDemoAssetBytes(fileName: string): Buffer | null {
   if (!resolveSourceDir || !DEMO_ASSET_FILE_NAMES.has(fileName)) return null;

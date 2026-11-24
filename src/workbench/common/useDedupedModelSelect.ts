@@ -133,7 +133,13 @@ export function modelVisibilityFooterAction(
     // 以前「已隐藏 N 个 · 在设置里找回」是另一行脚注——同一件事两行字，并成这一行。
     label: hiddenCount > 0 ? i18n.t('generationCommon.parameters.hiddenModels', { count: hiddenCount }) : i18n.t('onboardingProviders.modelControls.manageVisibility'),
     icon: React.createElement(IconEyeOff, { size: 13, stroke: 1.8, 'aria-hidden': true }),
-    onSelect: openModelCatalog,
+    onSelect: openModelVisibilitySettings,
+  }
+}
+
+function openModelVisibilitySettings(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } }))
   }
 }
 

@@ -66,10 +66,16 @@ try {
   assert(seed.hasMapping, "(kie, image_to_video) mapping 在位");
 
   // 2) 项目库渲染（渲染 → IPC listProjects → projects/repository 真实数据）
-  // 空库与有项目走同一套布局：主入口动作卡片「新建空白项目」恒在（hero 介绍首屏已删）。
+  // 0 项目 0 可用连接首启时首屏主卡承载唯一主动作（「新建空白项目」降为 default）；已连接时「新建空白项目」为 primary。
   await win.getByText("项目库", { exact: false }).first().waitFor({ timeout: 8000 });
-  const primaryCard = win.locator('[data-variant="primary"]', { hasText: "新建空白项目" });
-  assert(await primaryCard.first().waitFor({ state: "visible" }).then(() => true, () => false), "项目库主入口动作卡片「新建空白项目」可见");
+  const newBlankCard = win.locator('.tc-action-card', { hasText: "新建空白项目" }).first();
+  assert(await newBlankCard.waitFor({ state: "visible" }).then(() => true, () => false), "项目库动作卡片「新建空白项目」可见");
+  const heroCardVisible = await win.locator('[data-library-hero-card]').isVisible().catch(() => false);
+  const newBlankVariant = await newBlankCard.getAttribute('data-variant');
+  assert(
+    heroCardVisible ? newBlankVariant === 'default' : newBlankVariant === 'primary',
+    `空库主动作互斥一致（hero=${heroCardVisible} variant=${newBlankVariant}）`,
+  );
 
   // 3) 开项目 → 工作台画布（开项目 → readProject/资产 → 画布挂载）
   // 优先打开已有项目卡（不污染库）；空库时走「新建空白项目」。

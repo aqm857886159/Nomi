@@ -1,0 +1,77 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 16GB",
+  "commit": "bde4f7c4b",
+  "head": "bde4f7c4bd9dd3fba258b49d4ada3980a0d17adf",
+  "dirty": false,
+  "sourceTree": "06697fbb86ab59f8ec559402cf369584707577c5",
+  "date": "2026-11-23",
+  "runs": 5,
+  "results": [
+    {
+      "id": "onboarding-connect-open",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 47.4,
+          "p95": 47.9
+        },
+        "mediaRequests": {
+          "runs": 5,
+          "median": 0,
+          "p95": 2.4
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          17.7,
+          19,
+          18.7,
+          18.2,
+          19.4
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [
+          47.6,
+          45.3,
+          48,
+          47.2,
+          47.4
+        ],
+        "mainRoundTripMax": [],
+        "mediaRequests": [
+          0,
+          0,
+          3,
+          0,
+          0
+        ],
+        "blankCardPct": []
+      },
+      "budget": 150,
+      "baseline": {
+        "median": 46.3,
+        "p95": 47.2,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 16GB",
+        "date": "2026-11-23",
+        "commit": "6ed4c34b8",
+        "noisy": true
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

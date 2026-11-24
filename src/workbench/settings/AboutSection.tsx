@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconChevronRight, IconCircleCheck, IconMap, IconMessage, IconPlayerPlay } from '@tabler/icons-react'
+import { IconAlertTriangle, IconChevronRight, IconCircleCheck, IconMap, IconMessage } from '@tabler/icons-react'
 import { NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
 import { useUpdater } from '../../ui/app-shell/useUpdater'
 import { FeedbackShareContent } from '../../ui/community/FeedbackShareContent'
@@ -9,10 +9,7 @@ import { FeedbackShareContent } from '../../ui/community/FeedbackShareContent'
 // 这一整块原先住在品牌钮的 AboutNomiPopover 里——那个弹窗一钮四用（品牌 + 手册 + 明暗 + 更新），
 // 品牌钮回归纯品牌后，版本/手册/更新搬来这儿，「外观」归到「通用」分区（同属偏好）。
 // P1 加新必删旧：AboutNomiPopover 已在同 commit 删除，不留并行版。
-//
-// 「重看开屏动画」也归位到这里：它重放的是 SplashIntro 品牌开场（≠ 项目库主卡的「重看一遍引导」，
-// 后者会建 demo 项目回放整条流水线）。两者过去名字撞车（「看看 Nomi」vs「看 Nomi 怎么出片」），
-// 用户分不出是两件事；开屏重播 10 次里用不到 1 次（L4），和版本/更新同属「关于这个软件」。
+// 开屏 SplashIntro 与「重看开屏动画」已按 Q18 删除。
 
 function platformLabel(info: { platform: string; arch: string } | null): string {
   if (!info) return ''
@@ -21,10 +18,8 @@ function platformLabel(info: { platform: string; arch: string } | null): string 
 }
 
 type AboutSectionProps = {
-  /** 关掉设置弹窗——手册/开屏都是「离开设置去看别的东西」，不关会被盖住。 */
+  /** 关掉设置弹窗——手册是「离开设置去看别的东西」，不关会被盖住。 */
   onClose: () => void
-  /** 重放开屏动画；宿主没提供（理论上不会）时整行不渲染，不留死按钮。 */
-  onReplaySplash?: () => void
 }
 
 /** 设置里的一行「图标 + 标题/副标题 + 右箭头」按钮，和手册/开屏两行共用。 */
@@ -55,7 +50,7 @@ function AboutActionRow({
   )
 }
 
-export function AboutSection({ onClose, onReplaySplash }: AboutSectionProps): JSX.Element {
+export function AboutSection({ onClose }: AboutSectionProps): JSX.Element {
   const { t } = useTranslation()
   const updater = useUpdater()
   // 反馈与分享**内嵌**在「关于」区块里（获批样张：docs/design/mockups/2026-09-01-feedback-share-center*.png
@@ -102,17 +97,6 @@ export function AboutSection({ onClose, onReplaySplash }: AboutSectionProps): JS
             onClose()
           }}
         />
-        {onReplaySplash ? (
-          <AboutActionRow
-            icon={<IconPlayerPlay size={18} stroke={1.6} aria-hidden="true" />}
-            title={t('about.replaySplash')}
-            description={t('about.replaySplashDescription')}
-            onClick={() => {
-              onClose()
-              onReplaySplash()
-            }}
-          />
-        ) : null}
       </div>
 
       <div className="border-t border-nomi-line-soft pt-4">

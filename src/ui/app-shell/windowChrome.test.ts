@@ -1,12 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
 import { describe, expect, it } from 'vitest'
 import { NOMI_OVERLAY_Z_INDEX, NOMI_OVERLAY_Z_INDEX_CSS_VARS } from '../../design/overlayLayers'
 import '../../i18n'
-import { SplashIntro } from '../../workbench/onboarding/SplashIntro'
 import { fullscreenOverlayTopOffset, workbenchFloatingTopOffset } from './windowChrome'
 import { SHELL_TOPBAR_HEIGHT } from './shellGeometry'
 
@@ -189,16 +186,13 @@ function coveringOverlayViolations(html: string): { interactive: number; violati
   return { interactive: interactive.length, violations }
 }
 
-// 盖住顶栏的整屏层名单。每一项都要渲染出真标记过 coveringOverlayViolations，并且至少有 minInteractive 个可交互元素
-// （判据不能在一个空集合上恒真）。
-const TOPBAR_COVERING_OVERLAYS = [
-  {
-    name: '开屏动画',
-    file: 'workbench/onboarding/SplashIntro.tsx',
-    minInteractive: 1,
-    render: () => renderToStaticMarkup(createElement(SplashIntro, { onDone: () => undefined })),
-  },
-] as const
+// 盖住顶栏的整屏层名单（SplashIntro 已按 Q18 删除，当前为 0 项；保留空名单与 coveringOverlayViolations 自证，防未来新增整屏层绕过）。
+const TOPBAR_COVERING_OVERLAYS: readonly {
+  name: string
+  file: string
+  minInteractive: number
+  render: () => string
+}[] = []
 
 // 铺满整窗、但在另一份文档里的层：没有外壳，也就没有顶栏 / 窗口栏可盖（2026-09-04 合同判 not-affected 的那一个）。
 const SEPARATE_DOCUMENT_OVERLAYS = [
@@ -223,10 +217,13 @@ const fixedInsetLiterals = (source: string): string[] =>
 const isFullBleedRoot = (source: string): boolean => fixedInsetLiterals(source).some((literal) => !CENTERED_SCRIM.test(literal))
 
 describe('盖住顶栏的整屏层：根在顶栏之上、可交互内容全在带外（开屏「跳过」点不到那一类）', () => {
-  it.each(TOPBAR_COVERING_OVERLAYS)('$name 渲染出来：根走刻度，可交互元素都落在顶栏带外', ({ render, minInteractive }) => {
-    const { interactive, violations } = coveringOverlayViolations(render())
-    expect(violations).toEqual([])
-    expect(interactive).toBeGreaterThanOrEqual(minInteractive)
+  it('Q18 删开屏后无盖住顶栏的整屏层；名单有条目时每项都过 coveringOverlayViolations', () => {
+    for (const { render, minInteractive } of TOPBAR_COVERING_OVERLAYS) {
+      const { interactive, violations } = coveringOverlayViolations(render())
+      expect(violations).toEqual([])
+      expect(interactive).toBeGreaterThanOrEqual(minInteractive)
+    }
+    expect(TOPBAR_COVERING_OVERLAYS).toEqual([])
   })
 
   it('判据自身不恒真：top-7 类名、手写 z-[60]、没定位的按钮各自被判出来，正确写法放行', () => {
