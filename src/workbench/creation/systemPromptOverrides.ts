@@ -16,7 +16,7 @@ import {
   type CustomSystemPrompt,
   type SystemPromptModeId,
   type SystemPromptOverrides,
-} from '../../../electron/settings/systemPromptsContract'
+} from '../../../electron/shared/contracts/systemPromptsContract'
 
 export type SystemPromptOverrideMap = Partial<Record<SystemPromptModeId, string>>
 

@@ -6,15 +6,15 @@
 //   数据 connector 是「给链接/ID → 拿结构化数据」的读取面，塞进生成 catalog = 概念错配（P4）。
 // 凭据仍复用 catalog 的 safeStorage 加密层（secretOwner:'nomi-settings'），不另起加密管线（P1）。
 
-export type ConnectorTransport = "native-api" | "mcp-stdio" | "mcp-http";
+type ConnectorTransport = "native-api" | "mcp-stdio" | "mcp-http";
 
-export type ConnectorAuth = {
+type ConnectorAuth = {
   kind: "none" | "api-key" | "oauth";
   /** 谁持有密钥。'nomi-settings' = 用户在 Nomi 设置里自带（BYO-key），落 safeStorage。 */
   secretOwner: "nomi-settings";
 };
 
-export type ConnectorNetworkPolicy = {
+type ConnectorNetworkPolicy = {
   /** 出站只允许这些 origin（hostname 精确白名单）。connector 的每次 fetch 都要过它。 */
   allowedOrigins: readonly string[];
   redirectPolicy: "same-origin" | "allowlist";
@@ -27,9 +27,9 @@ export type ConnectorNetworkPolicy = {
  *   · write    ：向第三方写（v1 无）。
  *   · spend    ：按次计费——必须接既有费用确认流后才发起。
  */
-export type ConnectorToolEffect = "read" | "download" | "write" | "spend";
+type ConnectorToolEffect = "read" | "download" | "write" | "spend";
 
-export type ConnectorTool = {
+type ConnectorTool = {
   /** 第三方侧的端点/方法名（对账用，如 fetch_video_high_quality_play_url）。 */
   externalName: string;
   /** Nomi 侧稳定名（UI/日志/契约测试引用它，与第三方改名解耦）。 */
@@ -43,7 +43,7 @@ export type ConnectorTool = {
   maxBytes?: number;
 };
 
-export type ConnectorDataEgress = {
+type ConnectorDataEgress = {
   /** 会发往第三方的数据类别（如 'share-link','video-id'）。 */
   categories: readonly string[];
   retention?: string;
@@ -142,7 +142,7 @@ export const ASSET_PROVENANCE_ALLOWED_ROLES: ReadonlySet<IntendedRole> = new Set
  * 与 M4 provenance 兼容：checkedAt + termsHash 可被 M4 直接读取，
  * 不需要另造快照结构。
  */
-export type LicenseSnapshot = {
+type LicenseSnapshot = {
   /** 许可条款的页面 URL（存原站，不存中间层）。 */
   termsUrl: string;
   /** 核验时间（ISO-8601）。 */

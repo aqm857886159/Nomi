@@ -7,15 +7,15 @@
  */
 export type LegacyVec3 = [number, number, number]
 
-export type LegacyObjectType = 'mesh' | 'model' | 'light' | 'group' | 'mannequin' | 'mannequinCrowd' | 'prop'
+type LegacyObjectType = 'mesh' | 'model' | 'light' | 'group' | 'mannequin' | 'mannequinCrowd' | 'prop'
 export type LegacyPropKind =
   | 'car' | 'building' | 'tree' | 'streetlamp' | 'wall' | 'suv' | 'bus' | 'bicycle' | 'scooter'
   | 'sofa' | 'diningTable' | 'fridge' | 'washingMachine' | 'trashBins' | 'atm' | 'backpack'
-export type LegacyGeometry = 'box' | 'sphere' | 'cylinder' | 'plane'
-export type LegacyLightType = 'point' | 'directional' | 'spot'
+type LegacyGeometry = 'box' | 'sphere' | 'cylinder' | 'plane'
+type LegacyLightType = 'point' | 'directional' | 'spot'
 export type LegacyAspectRatio = '16:9' | '9:16' | '4:3' | '3:4' | '1:1' | '2.39:1'
 
-export type LegacyPoseKeyframe = { time: number; presetId?: string; pose?: Record<string, LegacyVec3> }
+type LegacyPoseKeyframe = { time: number; presetId?: string; pose?: Record<string, LegacyVec3> }
 
 export type LegacyObject = {
   id: string
@@ -57,8 +57,8 @@ export type LegacyCamera = {
   shakeAmplitude?: number
 }
 
-export type LegacyTrajectoryPoint = { id: string; position: LegacyVec3; timeRatio?: number }
-export type LegacyCurveControl = { segmentStartPointId: string; position: LegacyVec3 }
+type LegacyTrajectoryPoint = { id: string; position: LegacyVec3; timeRatio?: number }
+type LegacyCurveControl = { segmentStartPointId: string; position: LegacyVec3 }
 export type LegacyTrajectory = {
   id: string
   name: string
@@ -96,7 +96,7 @@ export type LegacyScene3DState = {
 
 /** V1 默认：假人 scale 2.5、颜色序列、群众上限 */
 export const LEGACY_MANNEQUIN_SCALE = 2.5
-export const LEGACY_ASPECT_RATIOS: LegacyAspectRatio[] = ['16:9', '9:16', '4:3', '3:4', '1:1', '2.39:1']
+const LEGACY_ASPECT_RATIOS: LegacyAspectRatio[] = ['16:9', '9:16', '4:3', '3:4', '1:1', '2.39:1']
 
 const OBJECT_TYPES = new Set<LegacyObjectType>(['mesh', 'model', 'light', 'group', 'mannequin', 'mannequinCrowd', 'prop'])
 const GEOMETRIES = new Set<LegacyGeometry>(['box', 'sphere', 'cylinder', 'plane'])
