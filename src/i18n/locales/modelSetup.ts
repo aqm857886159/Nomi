@@ -1,4 +1,7 @@
+import { enApimartVerification, zhApimartVerification } from './apimartVerification'
+
 export const zhModelSetup = {
+  apimartVerification: zhApimartVerification,
   addModel: '添加一个 AI 模型',
   customApiTitle: '接入 API / 中转站',
   customApiSubtitle: '先保存连接，再选择要使用的模型',
@@ -120,6 +123,7 @@ type TranslationShape<T> = {
 }
 
 export const enModelSetup = {
+  apimartVerification: enApimartVerification,
   addModel: 'Add an AI model',
   customApiTitle: 'Connect an API or relay',
   customApiSubtitle: 'Save the connection first, then choose the models to use',

@@ -15,6 +15,7 @@ export type DesktopModelCatalogSurface = CustomCallBridge & {
   health: () => Promise<unknown>
   upsertVendor: (payload: unknown) => unknown
   deleteVendor: (key: string) => void
+  recheckApimartBalance?: () => Promise<import('../../electron/shared/contracts/vendorAccountBalance').VendorBalanceCheck>
   upsertVendorApiKey: (vendorKey: string, payload: unknown) => Promise<unknown>
   clearVendorApiKey: (vendorKey: string) => unknown
   /**

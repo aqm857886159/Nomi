@@ -13,7 +13,7 @@ import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
 import { priceQueryFromRequest } from "./vendorPriceRequest";
 import { readVendorPricePreview } from "./vendorPricePreview";
-import { readVendorAccountBalance } from "./vendorAccountBalance";
+import { checkVendorAccountBalance, readVendorAccountBalance } from "./vendorAccountBalance";
 
 import { assertTrustedSender } from "../../ipcSenderGuard";
 import { registerAntigravityIpc } from "../antigravityIpc";
@@ -49,6 +49,9 @@ export function registerOnboardingIpc(): void {
   // 官方供应商账户余额只读查询（与公开约价解耦，仅在余额不足时提示「还差 N 积分 · 去充值」）。
   ipcMain.handle("nomi:onboarding:vendor-account-balance", (event, payload) => {
     assertTrustedSender(event);
+    if (payload?.source === "apimart-connect") {
+      return checkVendorAccountBalance({ vendorKey: "apimart" });
+    }
     return readVendorAccountBalance(payload);
   });
 

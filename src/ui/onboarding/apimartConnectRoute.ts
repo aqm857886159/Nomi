@@ -70,3 +70,4 @@ export function openExternalUrlWithDebounce(
   }
   return true
 }
+export const APIMART_CONNECTED_EVENT = 'nomi-apimart-connected'

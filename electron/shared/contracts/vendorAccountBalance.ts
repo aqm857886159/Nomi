@@ -13,8 +13,19 @@ export type VendorAccountBalance = {
   remainUsd: number | null;
   /** True when the upstream reports an unlimited balance (e.g. APIMart remain_balance === -1). */
   unlimited: boolean;
+  /** Token-specific quota flag, independent of the account display. */
+  unlimitedQuota?: boolean;
   /** Official top-up / account URL (including invite code when configured). */
   topUpUrl: string;
   /** Epoch ms when main process fetched this snapshot. */
   fetchedAt: number;
 };
+
+export type VendorBalanceCheck =
+  | { status: "received"; balance: VendorAccountBalance | null }
+  | { status: "offline" | "invalid" | "unavailable" };
+
+/** Local shape check shared by the APIMart input and its main-process write boundary. */
+export function isApimartKeyCandidate(key: string): boolean {
+  return /^sk-\S+$/.test(key);
+}

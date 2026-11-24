@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { APIMART_VENDOR_SEED } from "../../catalog/apimartVendor";
 import type { CatalogState } from "../../catalog/types";
-import { parseVendorAccountBalance, readVendorAccountBalance } from "./vendorAccountBalance";
+import { checkVendorAccountBalance, parseVendorAccountBalance, readVendorAccountBalance } from "./vendorAccountBalance";
 
 const NOW = 1_763_800_000_000;
 const TOP_UP = APIMART_VENDOR_SEED.accountBalance.topUpUrl;
@@ -120,5 +120,27 @@ describe("readVendorAccountBalance", () => {
       { vendorKey: "apimart" },
       { catalog: makeCatalog(), resolveApiKey: () => "sk-test", fetchImpl: failFetch },
     )).toBeNull();
+  });
+});
+
+describe("onboarding balance diagnostics", () => {
+  const options = { catalog: makeCatalog(undefined, false), candidateKey: "sk-fixture" };
+  it.each([0, 52.3])("preserves numeric %s independently of unlimited_quota", async (credits) => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ remain_credits: credits, unlimited_quota: true }));
+    expect(await checkVendorAccountBalance({ vendorKey: "apimart" }, { ...options, fetchImpl })).toMatchObject({
+      status: "received", balance: { remainCredits: credits, unlimited: false, unlimitedQuota: true },
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it.each([401, 403])("reports explicit HTTP %s refusal", async (status) => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status }));
+    expect(await checkVendorAccountBalance({ vendorKey: "apimart" }, { ...options, fetchImpl })).toEqual({ status: "invalid" });
+  });
+  it("distinguishes transport failure from an unknown response", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce(new Response("html")).mockResolvedValueOnce(Response.json({})).mockResolvedValueOnce(new Response(null, { status: 502 }));
+    const read = () => checkVendorAccountBalance({ vendorKey: "apimart" }, { ...options, fetchImpl });
+    expect(await read()).toEqual({ status: "offline" });
+    for (let i = 0; i < 3; ++i) expect(await read()).toEqual({ status: "received", balance: null });
   });
 });

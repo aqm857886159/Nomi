@@ -5,7 +5,8 @@ import {
   IconExternalLink,
 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import { getDesktopBridge } from '../../desktop/bridge'
+import { useApimartVerification } from './useApimartVerification'
+import { ApimartCheckCard } from './ApimartCheckCard'
 import {
   ICON_TIER_CLASSES,
   Tooltip,
@@ -30,9 +31,11 @@ import {
   openModelSettingsHome,
 } from './apimartConnectRoute'
 import {
-  refreshOnboardingModelAvailability,
   useOnboardingModelAvailability,
 } from './onboardingModelAvailability'
+
+import { ApimartWaitingBanner, persistApimartOpenedAt, readApimartOpenedAt } from './ApimartWaitingBanner'
+import { ApimartStatusNotice } from './ApimartStatusNotice'
 
 const CONNECT_PAGE_TWO_COLUMN_MIN_WIDTH = 1180
 
@@ -96,13 +99,27 @@ export function ApimartConnectPage({
   const [fineprintOpen, setFineprintOpen] = React.useState(false)
   const [cantOpenExpanded, setCantOpenExpanded] = React.useState(false)
   const [hoveredStep, setHoveredStep] = React.useState<number | null>(null)
-  const [busy, setBusy] = React.useState(false)
+  const [openedAt, setOpenedAt] = React.useState(readApimartOpenedAt)
+  const verification = useApimartVerification(onSaved)
+  const { stage, check: saveKey } = verification
+  const busy = stage === 'checking' || stage === 'passed'
+  const notice = stage === 'format' || stage === 'invalid' || stage === 'keychain' || stage === 'offline' ? stage : null
+  const checking = verification.suffix !== '' && stage !== 'idle'
+  const [showSteps, setShowSteps] = React.useState(false)
+  const departing = !openedAt && !checking
   const [error, setError] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const lastOpenedSiteAtRef = React.useRef(0)
+
+  const openSite = (url: string): void => {
+    if (openExternalUrlWithDebounce(url, lastOpenedSiteAtRef)) {
+      setOpenedAt(lastOpenedSiteAtRef.current)
+      persistApimartOpenedAt(lastOpenedSiteAtRef.current)
+    }
+  }
   const errorId = React.useId()
 
-  const autoStep = useStepAutoCycle(hoveredStep !== null)
+  const autoStep = useStepAutoCycle(hoveredStep !== null || (checking && !showSteps))
 
   React.useEffect(() => {
     if (focusNonce > 0) {
@@ -133,41 +150,6 @@ export function ApimartConnectPage({
     shortcut: pasteShortcut,
   })
 
-  const saveKey = React.useCallback(
-    async (rawValue: string): Promise<void> => {
-      if (busy) return
-      const cleanKey = rawValue.trim()
-      if (!cleanKey) {
-        setError(t('onboardingProviders.apimartConnect.keyInput.keyRequired'))
-        inputRef.current?.focus()
-        return
-      }
-      const catalog = getDesktopBridge()?.modelCatalog
-      if (!catalog) {
-        setError(t('onboardingProviders.apimartConnect.keyInput.unavailable'))
-        return
-      }
-      setBusy(true)
-      setError('')
-      try {
-        await catalog.upsertVendorApiKey('apimart', { apiKey: cleanKey, enabled: false })
-        if (inputRef.current) inputRef.current.value = ''
-        window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed'))
-        await refreshOnboardingModelAvailability()
-        onSaved()
-      } catch (reason) {
-        setError(
-          t('onboardingProviders.apimartConnect.keyInput.saveFailed', {
-            message: reason instanceof Error ? reason.message : String(reason),
-          }),
-        )
-      } finally {
-        setBusy(false)
-      }
-    },
-    [busy, onSaved, t],
-  )
-
   const handlePasteButtonClick = React.useCallback(async (): Promise<void> => {
     if (busy) return
     try {
@@ -181,7 +163,8 @@ export function ApimartConnectPage({
         inputRef.current?.focus()
         return
       }
-      if (inputRef.current) inputRef.current.value = trimmed
+      setError('')
+      if (inputRef.current) inputRef.current.value = ''
       await saveKey(trimmed)
     } catch {
       setError(t('onboardingProviders.apimartConnect.keyInput.pasteEmpty', { shortcut: pasteShortcut }))
@@ -225,11 +208,12 @@ export function ApimartConnectPage({
         >
           {t('onboardingProviders.apimartConnect.claimTitle')}
         </h1>
-        <p className="m-0 text-body font-normal text-nomi-ink-60" data-apimart-subtitle>
+        {departing && <p className="m-0 text-body font-normal text-nomi-ink-60" data-apimart-subtitle>
           {t('onboardingProviders.apimartConnect.claimSubtitle')}
-        </p>
+        </p>}
       </div>
 
+      {departing && <>
       <div
         className={cn('grid grid-cols-3 gap-6', isNarrow ? 'mt-6' : 'mt-8')}
         data-apimart-reasons
@@ -272,7 +256,14 @@ export function ApimartConnectPage({
         />
       </div>
 
-      <div className={cn('flex flex-col gap-2', isNarrow ? 'mt-6' : 'mt-10')} data-apimart-steps>
+      </>}
+      {openedAt > 0 && !checking && <ApimartWaitingBanner at={openedAt} reopen={() => openSite(APIMART_REGISTER_URL)}
+        toggle={() => setCantOpenExpanded((value) => !value)} expanded={cantOpenExpanded} />}
+      {checking && <button type="button" aria-expanded={showSteps} className="mt-4 self-start text-caption text-nomi-ink-60"
+        onClick={() => setShowSteps((open) => !open)}>
+        {showSteps ? '⌄ ' : '› '}{t(showSteps ? 'modelSetup.apimartVerification.expanded' : 'modelSetup.apimartVerification.collapsed')}
+      </button>}
+      {(!checking || showSteps) && <div className={cn('flex flex-col gap-2', openedAt ? 'mt-3' : isNarrow ? 'mt-6' : 'mt-10')} data-apimart-steps>
         <span className="text-caption font-normal text-nomi-ink-60">
           {t('onboardingProviders.apimartConnect.stepsHeading')}
         </span>
@@ -316,16 +307,16 @@ export function ApimartConnectPage({
             )
           })}
         </div>
-      </div>
+      </div>}
 
-      <div className={cn('flex flex-col', isNarrow ? 'mt-4' : 'mt-5')}>
-        <div className="flex flex-wrap items-center gap-3" data-apimart-cta-row>
+      {(departing || (cantOpenExpanded && !checking)) && <div className={cn('flex flex-col', isNarrow ? 'mt-4' : 'mt-5')}>
+        {departing && <div className="flex flex-wrap items-center gap-3" data-apimart-cta-row>
           <WorkbenchButton
             variant="primary"
             iconTier="corner"
             className="rounded-pill px-4 font-semibold"
             onClick={() => {
-              openExternalUrlWithDebounce(APIMART_REGISTER_URL, lastOpenedSiteAtRef)
+              openSite(APIMART_REGISTER_URL)
             }}
             data-apimart-open-site
           >
@@ -348,9 +339,9 @@ export function ApimartConnectPage({
             </button>
             <span className="ml-1">{t('onboardingProviders.apimartConnect.inviteNote')}</span>
           </span>
-        </div>
+        </div>}
 
-        {cantOpenExpanded ? (
+        {cantOpenExpanded && !checking ? (
           <div
             className="mt-2.5 flex flex-col gap-1.5 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2.5"
             data-apimart-cant-open-panel
@@ -367,7 +358,7 @@ export function ApimartConnectPage({
                 <button
                   type="button"
                   onClick={() => {
-                    openExternalUrlWithDebounce(buildApimartMirrorUrl(domain), lastOpenedSiteAtRef)
+                    openSite(buildApimartMirrorUrl(domain))
                   }}
                   data-apimart-mirror={domain}
                   className={cn(
@@ -393,14 +384,14 @@ export function ApimartConnectPage({
             </p>
           </div>
         ) : null}
-      </div>
+      </div>}
 
-      <p className="m-0 mt-2 text-caption font-normal text-nomi-ink-60" data-apimart-worries>
+      {departing && <p className="m-0 mt-2 text-caption font-normal text-nomi-ink-60" data-apimart-worries>
         {t('onboardingProviders.apimartConnect.worries')}
-      </p>
+      </p>}
 
-      <div className={cn('flex flex-col gap-2', isNarrow ? 'mt-6' : 'mt-10')} data-apimart-key-section>
-        <label htmlFor="apimart-connect-key-input" className="text-caption font-normal text-nomi-ink-60">
+      <div className={cn('flex flex-col gap-2', checking ? 'mt-2' : isNarrow ? 'mt-6' : 'mt-8')} data-apimart-key-section>
+        <label hidden={checking} htmlFor="apimart-connect-key-input" className="text-caption font-normal text-nomi-ink-60">
           {t('onboardingProviders.apimartConnect.keyInput.label')}
         </label>
         <div className="flex items-center gap-2">
@@ -411,29 +402,38 @@ export function ApimartConnectPage({
             defaultValue=""
             autoComplete="off"
             disabled={busy}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? errorId : undefined}
-            placeholder={t('onboardingProviders.apimartConnect.keyInput.placeholder')}
+            aria-invalid={error || (notice && notice !== 'offline') ? true : undefined}
+            aria-describedby={error || (notice && notice !== 'offline') ? errorId : undefined}
+            placeholder={checking ? `sk-••••••••••••••••${verification.suffix}` : t('onboardingProviders.apimartConnect.keyInput.placeholder')}
             onChange={() => {
+              if (stage !== 'idle') verification.reset()
               if (error) setError('')
             }}
             onPaste={(event) => {
               const pasted = event.clipboardData.getData('text')
               if (pasted.trim()) {
                 event.preventDefault()
-                event.currentTarget.value = pasted.trim()
+                event.currentTarget.value = ''
+                setError('')
                 void saveKey(pasted)
               }
             }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()
-                void saveKey(event.currentTarget.value)
+                if (checking && !event.currentTarget.value) {
+                  if (stage === 'offline' || stage === 'keychain') void verification.retry()
+                  return
+                }
+                const value = event.currentTarget.value
+                event.currentTarget.value = ''
+                setError('')
+                void saveKey(value)
               }
             }}
             className={cn(
               'h-9 min-w-0 flex-1 rounded-field border bg-nomi-paper px-3 font-nomi-sans text-body-sm font-normal text-nomi-ink outline-none placeholder:text-nomi-ink-40 focus:border-nomi-ink-40 disabled:cursor-not-allowed disabled:opacity-60',
-              error ? 'border-workbench-danger' : 'border-nomi-line',
+              error || (notice && notice !== 'offline') ? 'border-workbench-danger' : 'border-nomi-line',
             )}
           />
           <TooltipProvider delayDuration={200} disableHoverableContent>
@@ -454,11 +454,20 @@ export function ApimartConnectPage({
             </Tooltip>
           </TooltipProvider>
         </div>
+        {busy && <ApimartCheckCard complete={stage === 'passed'} token={verification.received?.balance ?? null} counts={apimartCounts} />}
+        {stage === 'unavailable' && <p role="alert" className="text-caption text-workbench-danger">{t('onboardingProviders.apimartConnect.keyInput.unavailable')}</p>}
+        {notice && <ApimartStatusNotice id={errorId} kind={notice} onAction={() => {
+          if (notice === 'format' || notice === 'invalid') window.open('https://apimart.ai/keys', '_blank', 'noopener')
+          else void verification.retry()
+        }} />}
         {error ? (
           <p id={errorId} role="alert" className="m-0 text-caption font-normal text-workbench-danger" data-apimart-key-error>
             {error}
           </p>
         ) : null}
+        <p data-apimart-return-line className="m-0 break-words text-caption text-nomi-ink-60">
+          {t('modelSetup.apimartVerification.returnLine', { origin: originLabel })}
+        </p>
       </div>
     </div>
   )

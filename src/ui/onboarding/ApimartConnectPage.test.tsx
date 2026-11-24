@@ -1,3 +1,9 @@
+import { getKnownVendor } from '../../config/knownVendors'
+import { ApimartCheckCard } from './ApimartCheckCard'
+import { ApimartStatusNotice } from './ApimartStatusNotice'
+import { persistApimartOpenedAt } from './ApimartWaitingBanner'
+import { useApimartVerification } from './useApimartVerification'
+import { createReactTestRenderer } from '../../workbench/ai/v4/testReactRenderer'
 import fs from 'node:fs'
 import path from 'node:path'
 import React from 'react'
@@ -135,8 +141,9 @@ describe('T-5 E0+S7b 首屏主卡与连接 APIMart 整窗大页', () => {
     // C4：绝不在 focus / visibilitychange 偷读剪贴板（防 macOS 15.4 系统粘贴弹窗）
     expect(pageSource).not.toMatch(/addEventListener\(\s*['"](?:focus|visibilitychange)['"][\s\S]{0,200}clipboard/)
     // manualCertificationBoundary：渲染层保存凭据永不传 enabled: true
-    expect(pageSource).toContain("upsertVendorApiKey('apimart', { apiKey: cleanKey, enabled: false })")
-    expect(pageSource).not.toMatch(/upsertVendorApiKey\([\s\S]{0,180}enabled:\s*true/)
+    const saveSource = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/useApimartVerification.ts'), 'utf8')
+    expect(saveSource).toContain("upsertVendorApiKey('apimart', { apiKey: key, enabled: false, source: 'apimart-connect' })")
+    expect(saveSource).not.toMatch(/upsertVendorApiKey\([\s\S]{0,180}enabled:\s*true/)
     // 大页右栏只用 400（font-normal）与 600（font-semibold），不用 font-medium / font-bold
     expect(pageSource).not.toMatch(/\bfont-(?:medium|bold|extrabold|light)\b/)
 
@@ -159,5 +166,107 @@ describe('T-5 E0+S7b 首屏主卡与连接 APIMart 整窗大页', () => {
     expect(stripTags(markup)).toContain(i18n.t('onboardingProviders.apimartConnect.claimTitle'))
     expect(stripTags(markup)).toContain(i18n.t('onboardingProviders.apimartConnect.openSite'))
     expect(stripTags(markup)).toContain(i18n.t('onboardingProviders.apimartConnect.worries'))
+  })
+})
+
+describe('S6 · APIMart verification', () => {
+  const origin = 'Storyboard draft'
+  afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
+
+  it('board:Onboarding/wait.banner · board:Onboarding/wait.return-line · board:Onboarding/error.site-blocked', () => {
+    const values = new Map()
+    vi.stubGlobal('window', { localStorage: { getItem: (key: string) => values.get(key), setItem: (k: string, v: string) => values.set(k, v), removeItem: (k: string) => values.delete(k) } })
+    const now = new Date(2026, 10, 24, 14, 2).getTime()
+    persistApimartOpenedAt(now)
+    const page = () => renderWithTheme(<ApimartConnectPage originLabel={origin} onBack={vi.fn()} onSaved={vi.fn()} />)
+    const waiting = page()
+    expect(waiting).toContain('14:02')
+    expect(waiting).toContain(i18n.t('modelSetup.apimartVerification.returnLine', {origin}))
+    expect(waiting.match(/data-apimart-step="/g)).toHaveLength(3)
+    expect(waiting).not.toContain('data-apimart-cta-row')
+    persistApimartOpenedAt(0)
+    expect(page()).not.toContain('data-apimart-waiting')
+  })
+
+  it('board:Onboarding/return.check-rows · renders four left-hand marks and current model counts', () => {
+    const counts = { image: 4, video: 3, audio: 2, text: 1, total: 10 }
+    const markup = renderToStaticMarkup(<ApimartCheckCard counts={counts} complete token={null} />)
+    expect(markup.match(/<li[^>]*><svg/g)).toHaveLength(4)
+    expect(stripTags(markup)).toContain(i18n.t('modelSetup.apimartVerification.counts', counts))
+  })
+
+  it('board:Onboarding/error.keychain · board:Onboarding/error.legacy-copy · localized notices isolate vendor copy', () => {
+    expect(getKnownVendor('volcengine')?.promo?.text).toContain('Ark')
+    expect(getKnownVendor('apimart')?.promo?.text).not.toMatch(/Volcengine|方舟/)
+    for (const kind of ['keychain', 'invalid', 'format', 'offline'] as const) {
+      const text = stripTags(renderWithTheme(<ApimartStatusNotice kind={kind} id="test" onAction={vi.fn()} />))
+      expect(text).toContain(i18n.t(`modelSetup.apimartVerification.${kind}Title`))
+      expect(text).toContain(i18n.t(`modelSetup.apimartVerification.${kind}Body`))
+      expect(text).not.toMatch(/keychain|Volcengine|方舟/i)
+    }
+  })
+
+  function mountCheck() {
+    const save = vi.fn(), read = vi.fn(), back = vi.fn()
+    const windowEvents = Object.assign(new EventTarget(), {
+      nomiDesktop: { modelCatalog: { upsertVendorApiKey: save, recheckApimartBalance: read } },
+      setTimeout, clearTimeout,
+    })
+    vi.stubGlobal('window', windowEvents)
+    const renderer = createReactTestRenderer()
+    let state: ReturnType<typeof useApimartVerification>
+    function Harness() { state = useApimartVerification(back); return null }
+    const flush = () => renderer.render(<Harness />)
+    flush()
+    return { save, read, back, flush, state: () => state, close: () => renderer.close() }
+  }
+
+  it('board:Onboarding/depart.key-input · board:Onboarding/error.key-format · rejects malformed candidates before IPC', async () => {
+    const h = mountCheck()
+    try {
+      for (const value of ['https://example.invalid', 'mistyped', 'sk-a b', 'sk-']) {
+        await h.state().check(value)
+        h.flush()
+        expect(h.state().stage).toBe('format')
+      }
+      expect(h.save).not.toHaveBeenCalled()
+      expect(h.read).not.toHaveBeenCalled()
+    } finally { h.close() }
+  })
+
+  it('board:Onboarding/error.key-invalid · secure storage retry and auth refusal stay on page', async () => {
+    const h = mountCheck()
+    try {
+      h.save.mockRejectedValueOnce(new Error('could not be encrypted')).mockRejectedValueOnce(new Error('apimart-key-invalid'))
+      await h.state().check('sk-loopback')
+      h.flush()
+      expect(h.state().stage).toBe('keychain')
+      await h.state().retry()
+      h.flush()
+      expect(h.state().stage).toBe('invalid')
+      expect(h.save.mock.calls[0]).toEqual(h.save.mock.calls[1])
+      expect(h.back).not.toHaveBeenCalled()
+    } finally { h.close() }
+  })
+
+  it('board:Onboarding/error.offline · board:Onboarding/return.back · online only reads the saved key, unknown passes after a visible pause', async () => {
+    vi.useFakeTimers()
+    const h = mountCheck()
+    try {
+      h.save.mockResolvedValue({status: 'offline'})
+      h.read.mockResolvedValue({status: 'received', balance: null})
+      await h.state().check('sk-loopback')
+      h.flush()
+      expect(h.state().stage).toBe('offline')
+      window.dispatchEvent(new Event('online'))
+      await Promise.resolve()
+      h.flush()
+      expect(h.read).toHaveBeenCalledTimes(1)
+      expect(h.save).toHaveBeenCalledTimes(1)
+      expect(h.state().stage).toBe('passed')
+      expect(h.back).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(450)
+      expect(h.back).toHaveBeenCalledOnce()
+    } finally { h.close() }
   })
 })
