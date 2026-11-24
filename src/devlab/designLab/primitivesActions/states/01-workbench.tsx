@@ -39,7 +39,7 @@ export const WORKBENCH_ACTION_STATES: readonly LabState[] = [
     name: 'WorkbenchButton · 三变体 × 两尺寸全矩阵',
     source: SOURCE_ACTIONS,
     mirrors: [
-      'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx:423',
+      'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx:419',
       'src/workbench/generationCanvas/nodes/ClipNode.tsx:582',
     ],
     coverage: 'shell',
@@ -75,7 +75,7 @@ export const WORKBENCH_ACTION_STATES: readonly LabState[] = [
     mirrors: [
       'src/workbench/generationCanvas/nodes/ClipNode.tsx:582',
       'src/workbench/ai/NoTextModelRecoveryCard.tsx:105',
-      'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx:421',
+      'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx:417',
     ],
     coverage: 'shell',
     // loading 走品牌 N 转圈（NomiLoadingMark），不是第四套 spinner。这一格钉住的正是

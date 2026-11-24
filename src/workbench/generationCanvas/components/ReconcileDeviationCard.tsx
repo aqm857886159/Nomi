@@ -16,9 +16,9 @@ type ReconcileDeviationCardProps = {
    *  内容偏差卡(画面校验)不传:verify 没改任何东西,无可撤销。 */
   onUndoAll?: () => void
   onDismiss: () => void
-  /** 创作者显式「照用」未校验镜头（传 id 数组照用单镜，不传则照用全部未校验镜头）。 */
+  // 创作者显式「照用」未校验镜头（传 id 数组照用单镜，不传则照用全部未校验镜头）。
   onAcceptUnverified?: (shotNodeIds?: readonly string[]) => void
-  /** 创作者显式「重新审片」（传 id 数组重审单镜，不传则重审全部未校验镜头）。 */
+  /** 创作者显式「重审」（传 id 数组重审单镜，不传则重审全部未校验镜头）。 */
   onRetryUnverified?: (shotNodeIds?: readonly string[]) => void
   /** 重新审片请求进行中（驱动按钮品牌转圈与禁用防重）。 */
   retryingVerify?: boolean
@@ -196,7 +196,7 @@ export default function ReconcileDeviationCard({
   const showAiFix = Boolean(onAiFix) && (hasEdgeMiss || hasContentMiss) && !exhausted
   // 撤销只对结构偏差有意义(verify 没改东西);内容偏差卡无可撤销。
   const showUndo = Boolean(onUndoAll) && hasStructural
-  // 纯未校验态：标题一句说清几镜没审成，原因按需展开，行内直接给「重新审片 / 照用」真实创作者动作。
+  // 纯未校验态：标题一句说清几镜没审成，原因按需展开，行内统一给「重审 / 照用」真实创作者动作（多镜另附底栏批量全部按钮）。
   const isPureUnverified = deviations.length === 0 && hasUnverified && !showAiFix && !showUndo && !exhausted
   const isMultiUnverified = unverified.length > 1
   const acceptShots = onAcceptUnverified ?? (() => onDismiss())
@@ -264,7 +264,7 @@ export default function ReconcileDeviationCard({
                   <span className={cn('flex shrink-0 items-center gap-1.5')}>
                     {onRetryUnverified ? (
                       <WorkbenchButton
-                        className={cn('shrink-0', isMultiUnverified && 'px-2.5')}
+                        className={cn('shrink-0 px-2.5')}
                         variant="default"
                         size="sm"
                         loading={rowLoading}
@@ -272,22 +272,18 @@ export default function ReconcileDeviationCard({
                         data-reconcile-recheck={entry.shotNodeId}
                         onClick={() => triggerRetry([entry.shotNodeId])}
                       >
-                        {isMultiUnverified
-                          ? t('generationCommon.reconcile.recheckShort')
-                          : t('generationCommon.reconcile.recheckOne')}
+                        {t('generationCommon.reconcile.recheckShort')}
                       </WorkbenchButton>
                     ) : null}
                     <WorkbenchButton
-                      className={cn('shrink-0', isMultiUnverified && 'px-2.5')}
+                      className={cn('shrink-0 px-2.5')}
                       variant="default"
                       size="sm"
                       disabled={retryingVerify}
                       data-reconcile-accept={entry.shotNodeId}
                       onClick={() => acceptShots([entry.shotNodeId])}
                     >
-                      {isMultiUnverified
-                        ? t('generationCommon.reconcile.acceptShort')
-                        : t('generationCommon.reconcile.acceptOne')}
+                      {t('generationCommon.reconcile.acceptShort')}
                     </WorkbenchButton>
                   </span>
                 </div>

@@ -97,26 +97,37 @@ describe('verified shots use the existing domain card and admission budget', () 
     expect(next.budget.roundsUsed).toBe(0)
   })
 
-  it('renders single-shot unverified card with concise count header, collapsed Why toggle, and explicit Re-check + Use shot actions', () => {
+  it('renders single-shot unverified card with concise count header, collapsed Why toggle, and unified short row actions in zh-CN and en', async () => {
+    expect(i18n.exists('generationCommon.reconcile.recheckOne')).toBe(false)
+    expect(i18n.exists('generationCommon.reconcile.acceptOne')).toBe(false)
     ;(useShotVerifyStore.getState().setDeviations as (d: unknown[], u?: unknown[]) => void)(
       [],
       [{ shotNodeId: 'shot-2', shotTitle: '镜头 2', reason: 'invalid_verdict_json' }],
     )
-    const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
-    expect(markup).toContain('data-reconcile-deviation-card="true"')
-    expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
-    expect(markup).toContain('镜头 2')
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedOnlyCaption', { count: 1 }))
-    expect(markup).toContain('data-reconcile-why-toggle="true"')
-    expect(markup).toContain('aria-expanded="false"')
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.showReasons'))
-    // 默认收起：不直接铺开模型报错原因
-    expect(markup).not.toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.invalid_verdict_json'))
-    // 明确给出创作者可执行的两个动作（重新审片 + 照用此镜），不摆含糊的「确认」或不可用的「AI 修复」
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.recheckOne'))
-    expect(markup).toContain(i18n.t('generationCommon.reconcile.acceptOne'))
-    expect(markup).not.toContain(`>${i18n.t('generationCommon.reconcile.acknowledge')}<`)
-    expect(markup).not.toContain('data-reconcile-ai-fix')
+    const previousLang = i18n.language
+    try {
+      for (const lang of ['zh-CN', 'en'] as const) {
+        await i18n.changeLanguage(lang)
+        const markup = renderToStaticMarkup(React.createElement(FeedbackPanel, { surface: 'generation' }))
+        expect(markup).toContain('data-reconcile-deviation-card="true"')
+        expect(markup).toContain('data-reconcile-unverified-item="shot-2"')
+        expect(markup).toContain('镜头 2')
+        expect(markup).toContain(i18n.t('generationCommon.reconcile.unverifiedOnlyCaption', { count: 1 }))
+        expect(markup).toContain('data-reconcile-why-toggle="true"')
+        expect(markup).toContain('aria-expanded="false"')
+        expect(markup).toContain(i18n.t('generationCommon.reconcile.showReasons'))
+        // 默认收起：不直接铺开模型报错原因
+        expect(markup).not.toContain(i18n.t('generationCommon.reconcile.unverifiedReasons.invalid_verdict_json'))
+        // 单镜与多镜行内统一共用短词条（重审 / 照用，Re-check / Use），单镜不出底栏批量按钮
+        expect(markup).toContain(`>${i18n.t('generationCommon.reconcile.recheckShort')}<`)
+        expect(markup).toContain(`>${i18n.t('generationCommon.reconcile.acceptShort')}<`)
+        expect(markup).not.toContain('data-reconcile-unverified-batch="true"')
+        expect(markup).not.toContain(`>${i18n.t('generationCommon.reconcile.acknowledge')}<`)
+        expect(markup).not.toContain('data-reconcile-ai-fix')
+      }
+    } finally {
+      await i18n.changeLanguage(previousLang)
+    }
   })
 
   it('renders multi-shot unverified card (e.g. 5 shots) with compact per-row actions and batch footer', () => {
