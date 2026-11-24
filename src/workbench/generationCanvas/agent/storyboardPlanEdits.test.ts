@@ -109,7 +109,7 @@ describe('storyboardPlanEdits — 镜头', () => {
   it('addShot 追加并续号（时长继承上一镜，v5）', () => {
     const p = addShot(base())
     expect(p.shots.map((s) => s.index)).toEqual([1, 2, 3])
-    expect(p.shots.at(-1)).toMatchObject({ index: 3, durationSec: 8, anchorIds: [], prompt: '' })
+    expect(p.shots.at(-1)).toMatchObject({ index: 3, shotId: 'shot-3', durationSec: 8, anchorIds: [], prompt: '' })
   })
 
   it('allocates a new identity when the next display number is held by a surviving shot', () => {
@@ -122,21 +122,21 @@ describe('storyboardPlanEdits — 镜头', () => {
     const appended = added.shots.at(-1)!
 
     expect(added.shots).toHaveLength(51)
-    expect(appended).toMatchObject({ index: 51, prompt: '' })
+    expect(appended).toMatchObject({ index: 51, shotId: 'shot-52', prompt: '' })
     expect(added.shots.find(shot => stableShotId(shot) === stableShotId(appended))).toBe(appended)
     expect(added.shots.slice(0, -1).map(stableShotId)).toEqual(removed.shots.map(stableShotId))
   })
 
-  it('keeps the appended identity separate from legacy display numbers and deleted IDs', () => {
+  it('keeps the appended identity separate from legacy display numbers and IDs reserved for undo', () => {
     const legacy = base()
     const added = addShot(legacy)
     const appendedId = stableShotId(added.shots.at(-1)!)
     const moved = moveShot(added, 2, 0)
-    expect(moved.shots.map(stableShotId).filter(id => id === appendedId)).toHaveLength(1)
+    expect(moved.shots.map(stableShotId)).toEqual([appendedId, 'shot-1', 'shot-2'])
 
     const removed = removeShotAt(added, 2)
-    const replacement = addShot(removed).shots.at(-1)!
-    expect(stableShotId(replacement)).not.toBe(appendedId)
+    const replacement = addShot(removed, [appendedId]).shots.at(-1)!
+    expect(stableShotId(replacement)).toBe('shot-4')
   })
 
   it('addShot 继承图片+视频模式', () => {

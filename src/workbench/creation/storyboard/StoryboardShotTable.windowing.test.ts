@@ -149,9 +149,13 @@ describe('结构：行不量自己、不各取素材池、不靠 DOM 找行', ()
 
   it('镜头表用仓库现成的虚拟列表，不靠 DOM 找行', () => {
     const table = stripComments(read(`${STORYBOARD_DIR}/StoryboardShotTable.tsx`))
+    const mounting = stripComments(read(`${STORYBOARD_DIR}/storyboardMountPlan.ts`))
     expect(table).toContain("from '@tanstack/react-virtual'")
-    expect(table).toContain('virtualizer.scrollToIndex(')
-    expect(table).not.toContain('document.querySelector')
-    expect(table).not.toContain('scrollIntoView')
+    expect(table).toContain('useStoryboardRowFocus(')
+    expect(mounting).toContain('virtualizer.scrollToIndex(')
+    for (const source of [table, mounting]) {
+      expect(source).not.toContain('document.querySelector')
+      expect(source).not.toContain('scrollIntoView')
+    }
   })
 })

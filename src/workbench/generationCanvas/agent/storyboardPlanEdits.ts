@@ -173,14 +173,13 @@ export function removeAnchor(plan: StoryboardPlan, id: string): StoryboardPlan {
 /** 镜号重排成连续 1..N（删除/拖动后调用，保证 shot.index 唯一且连续，转换器据此生成 clientId）。 */
 const renumber = renumberStoryboardShots<PlanShot>
 
-export function addShot(plan: StoryboardPlan): StoryboardPlan {
+export function addShot(plan: StoryboardPlan, reservedShotIds?: readonly string[]): StoryboardPlan {
   // 新镜头继承上一镜的种类/模型/模式/画幅/时长/所属场（v5：手加的镜头别突然换血统）；空方案默认视频 5s（旧行为）。
   const last = plan.shots[plan.shots.length - 1]
   const lastKind = last?.shotKind
   const lastKeyframeEnabled = last?.keyframe?.enabled === true
   const lastAspect = last?.params?.aspect_ratio
-  // A position-derived ID can collide again after dragging legacy rows or undoing a deletion.
-  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot', shotId: `shot-${crypto.randomUUID()}` }])
+  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot' }], reservedShotIds)
   const shot: PlanShot = {
     shotId,
     index: plan.shots.length + 1,
@@ -200,8 +199,9 @@ export function addShot(plan: StoryboardPlan): StoryboardPlan {
 }
 
 /** D3 行间插镜：只继承上一镜的生成血统，内容保持空白，避免复制出用户未要求的 prompt/引用。 */
-export function insertShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+export function insertShotAt(plan: StoryboardPlan, pos: number, reservedShotIds?: readonly string[]): StoryboardPlan {
   const previous = plan.shots[pos - 1] ?? plan.shots[pos]
+  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot' }], reservedShotIds)
   const next: PlanShot = previous
     ? {
         index: pos + 1,
@@ -216,15 +216,16 @@ export function insertShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan 
       }
     : { index: 1, durationSec: DEFAULT_VIDEO_DURATION_SEC, anchorIds: [], prompt: '' }
   const shots = [...plan.shots]
-  shots.splice(Math.max(0, Math.min(pos, shots.length)), 0, next)
+  shots.splice(Math.max(0, Math.min(pos, shots.length)), 0, { ...next, shotId })
   return { ...plan, shots: renumber(shots) }
 }
 
 /** D3 复制镜头：复制可见内容但不给新行复用稳定身份。 */
-export function duplicateShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+export function duplicateShotAt(plan: StoryboardPlan, pos: number, reservedShotIds?: readonly string[]): StoryboardPlan {
   const source = plan.shots[pos]
   if (!source) return plan
-  const copy: PlanShot = { ...source, shotId: undefined, index: source.index + 1, anchorIds: [...source.anchorIds], ...(source.params ? { params: { ...source.params } } : {}), ...(source.keyframe ? { keyframe: { ...source.keyframe, ...(source.keyframe.params ? { params: { ...source.keyframe.params } } : {}) } } : {}) }
+  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot' }], reservedShotIds)
+  const copy: PlanShot = { ...source, shotId, index: source.index + 1, anchorIds: [...source.anchorIds], ...(source.params ? { params: { ...source.params } } : {}), ...(source.keyframe ? { keyframe: { ...source.keyframe, ...(source.keyframe.params ? { params: { ...source.keyframe.params } } : {}) } } : {}) }
   const shots = [...plan.shots]
   shots.splice(pos + 1, 0, copy)
   return { ...plan, shots: renumber(shots) }

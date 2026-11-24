@@ -59,6 +59,8 @@ export type StoryboardShotTableProps = {
   onAgentHandoff?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 播放本场；整片播放复用同一 playback queue owner。 */
   onPlayGroup?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
+  /** Keep IDs used by the current deletion undo available for restoration. */
+  reservedShotIds?: readonly string[] | undefined
   /** Reveal a committed footer append and focus its prompt when the table mounts the row. */
   appendRevealRef?: React.Ref<(shotId: string) => void>
   /**

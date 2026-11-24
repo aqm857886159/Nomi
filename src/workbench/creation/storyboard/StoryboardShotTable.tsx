@@ -25,7 +25,7 @@ import { useShotMentionPool, useShotMentionSource, type ShotMentionPool } from '
 import { StoryboardRowDensityContext, useStoryboardRowsDensity } from './shotRow/storyboardRowDensity'
 import { StoryboardPromptHistoryContext } from './shotRow/promptHistoryCarry'
 import StoryboardShotRowPlaceholder from './shotRow/StoryboardShotRowPlaceholder'
-import { planItemMounts } from './storyboardMountPlan'
+import { planItemMounts, useStoryboardRowFocus } from './storyboardMountPlan'
 import { appendBinding } from './shotRow/shotReferenceSlots'
 import { resolveShotArchetypeMode } from './shotRow/shotRowModel'
 import { referenceSlotAccept } from '../../generationCanvas/nodes/controls/archetypeMeta'
@@ -93,6 +93,8 @@ type TableItem =
   | { kind: 'head'; key: string; group: SceneGroup; groupIndex: number }
   | { kind: 'shot'; key: string; shot: PlanShot; pos: number }
 
+const promptEditorOf = (row: HTMLElement): HTMLElement | null =>
+  row.querySelector<HTMLElement>('[data-prompt-box] [contenteditable="true"]')
 
 /**
  * 行级 @ mention 适配层（C1）：`useShotMentionSource` 需要 shot 作为参数，所以必须在行级调用。
@@ -145,7 +147,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ pendingActions, plan, planSource, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleFrozenRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, appendRevealRef, scrollRef }: Props): JSX.Element {
+export default function StoryboardShotTable({ pendingActions, plan, planSource, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleFrozenRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, reservedShotIds, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, appendRevealRef, scrollRef }: Props): JSX.Element {
   const { t } = useTranslation()
   const shotModelOptions = React.useMemo(() => [...imageModelOptions, ...videoModelOptions], [imageModelOptions, videoModelOptions])
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
@@ -235,23 +237,12 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
     return () => observer.disconnect()
   }, [measureScrollMargin, scrollRef])
 
-  // 「聚焦第 N 镜」：先让那一项进视口（它可能还没挂），挂上之后再给焦点。
-  // `nativeScroll`：聚焦时让浏览器把它滚进视口（键盘上下移）；否则视口已经由虚拟列表摆好（定位到某一镜，居中）。
-  // `prompt`：焦点进这一镜的提示词编辑器（光标放末尾），否则落在行上。
-  const [pendingFocus, setPendingFocus] = React.useState<{ itemKey: string; nativeScroll: boolean; prompt?: boolean; reveal?: boolean } | null>(null)
-  const itemElementOf = (itemKey: string): HTMLElement | null =>
-    tableRef.current?.querySelector<HTMLElement>(`[data-storyboard-item="${CSS.escape(itemKey)}"]`) ?? null
-  /** 交给虚拟列表按下标滚。续写时对齐行首，让短窗口也先露出提示词。 */
-  const revealShot = React.useEffectEvent((shot: PlanShot, target: 'row' | 'prompt'): boolean => {
-    const itemKey = shotKeyOf(shot)
-    const itemIndex = itemIndexOfKey(itemKey)
-    if (itemIndex < 0) return false
-    const prompt = target === 'prompt'
-    const smooth = prompt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    virtualizer.scrollToIndex(itemIndex, { align: prompt ? 'start' : 'center', behavior: smooth ? 'smooth' : 'auto' })
-    setPendingFocus({ itemKey, nativeScroll: false, prompt, reveal: prompt })
-    return true
+  const virtualItems = virtualizer.getVirtualItems()
+  const { itemElementOf, pendingFocus, setPendingFocus, revealRow } = useStoryboardRowFocus({
+    tableRef, scrollRef, virtualizer, shotKeyOf, itemIndexOfKey, promptEditorOf,
+    mountedSignature: virtualItems.map((item) => item.key).join('|'),
   })
+  const revealShot = React.useEffectEvent(revealRow)
   /**
    * 键盘上下移：相邻那一行通常在缓冲里已经挂着——直接聚焦，浏览器自己把它滚进视口（与窗口化前同一个行为）。
    * 它不在 DOM 里（焦点所在行被钉住、视口早已滚远）时，先把滚动区直接摆到那一项的估算位置，挂上后再原生聚焦
@@ -275,7 +266,6 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
     scrollElement.scrollTop = offset
     setPendingFocus({ itemKey, nativeScroll: true })
   }
-  const virtualItems = virtualizer.getVirtualItems()
   // 滚动中新进来的镜头行先挂轻量占位，停下后每帧升级一行（storyboardMountPlan）：滚动中不建编辑器。
   const mountedFullRef = React.useRef<ReadonlySet<string>>(new Set())
   const mountedLightRef = React.useRef<ReadonlySet<string>>(new Set())
@@ -312,34 +302,6 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
   // 编辑器撤销历史跨卸载：按镜头 id 存在这张表里（promptHistoryCarry），与表同寿。
   const promptHistoryRef = React.useRef<Map<string, import('@tiptap/react').JSONContent[]>>(new Map())
 
-  // 挂着哪几项一变（滚到了、那一行挂上了）就再找一次。
-  const mountedSignature = virtualItems.map((virtualItem) => virtualItem.key).join('|')
-  React.useLayoutEffect(() => {
-    if (pendingFocus === null) return
-    const row = itemElementOf(pendingFocus.itemKey)?.querySelector<HTMLElement>('[data-storyboard-row]')
-    if (!row) return
-    // Finish against the mounted geometry before focus can scroll the editor's selection into view.
-    const scroll = scrollRef?.current
-    if (pendingFocus.reveal && scroll) {
-      const viewport = scroll.getBoundingClientRect()
-      const bounds = row.getBoundingClientRect()
-      if (bounds.top < viewport.top || bounds.bottom > viewport.bottom) {
-        virtualizer.scrollToOffset(scroll.scrollTop + bounds.top - viewport.top, { behavior: 'instant' })
-      }
-    }
-    const editable = pendingFocus.prompt ? row.querySelector<HTMLElement>('[data-prompt-box] [contenteditable="true"]') : null
-    if (editable) {
-      editable.focus({ preventScroll: true })
-      // 光标放到末尾（ProseMirror 跟随 DOM 选区）。
-      const range = document.createRange()
-      range.selectNodeContents(editable)
-      range.collapse(false)
-      const selection = window.getSelection()
-      selection?.removeAllRanges()
-      selection?.addRange(range)
-    } else row.focus({ preventScroll: !pendingFocus.nativeScroll })
-    setPendingFocus(null)
-  }, [pendingFocus, mountedSignature, scrollRef, virtualizer])
   /**
    * 点在还没换掉的占位行上（V-1210 复验 R2-1）：在按下的这一刻**同步**把它钉成完整行并交出焦点——
    * flushSync 让升级、挂编辑器、聚焦都在这次 pointerdown 里完成，紧跟着的按键直接进编辑器，一个字都不落空。
@@ -519,11 +481,11 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
       onAdoptVariant: runtime && props_onAdoptVariant ? (variant: ShotVariant) => props_onAdoptVariant(runtime, variant) : undefined,
       onDeleteVariant: runtime && props_onDeleteVariant ? (variant: ShotVariant) => props_onDeleteVariant(runtime, variant) : undefined,
       outputTag: outputTagByShotId?.[shotKey],
-      onInsertBelow: () => onChange(insertShotAt(plan, pos + 1)),
+      onInsertBelow: () => onChange(insertShotAt(plan, pos + 1, reservedShotIds)),
       selected: selectedShotIds.has(selectKeyOf(shot)),
       onSelect: (event: React.MouseEvent) => onSelectShot(pos, event),
       scenes: plan.scenes ?? [],
-      onCopy: () => onChange(duplicateShotAt(plan, pos)),
+      onCopy: () => onChange(duplicateShotAt(plan, pos, reservedShotIds)),
       onMoveToScene: (sceneId: string) => onChange(updateShotAt(plan, pos, sceneId === NO_SCENE_VALUE ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { sceneId })),
       onKeyboardMove: (direction: -1 | 1) => {
         const target = pos + direction
@@ -580,7 +542,7 @@ export default function StoryboardShotTable({ pendingActions, plan, planSource, 
           <div className="group/insert relative h-1.5" data-storyboard-insert-line={shot.index}>
             <button
               type="button"
-              onClick={() => onChange(insertShotAt(plan, pos))}
+              onClick={() => onChange(insertShotAt(plan, pos, reservedShotIds))}
               aria-label={t('storyboardEditor.selection.insert')}
               // 也在 focus-within 时现身：只靠 hover 的话键盘用户永远看不见这个入口。
               className="absolute inset-x-2 top-1/2 z-[2] hidden h-5 -translate-y-1/2 items-center justify-center rounded-full border border-nomi-ink-30 bg-nomi-paper text-nomi-accent group-hover/insert:flex group-focus-within/insert:flex focus:flex"

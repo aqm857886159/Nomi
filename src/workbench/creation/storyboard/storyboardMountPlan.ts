@@ -1,3 +1,7 @@
+import React from 'react'
+import type { Virtualizer } from '@tanstack/react-virtual'
+import type { PlanShot } from '../../generationCanvas/agent/storyboardPlan'
+
 /**
  * 窗口化列表里，每一项这一帧挂「完整行」还是「轻量占位」。
  *
@@ -40,4 +44,62 @@ export function planItemMounts({ items, isScrolling, previousFull, previousLight
     else light.add(item.key)
   }
   return { full, light }
+}
+
+type Options = {
+  tableRef: React.RefObject<HTMLDivElement | null>
+  scrollRef: React.RefObject<HTMLElement | null> | undefined
+  virtualizer: Virtualizer<HTMLElement, Element>
+  mountedSignature: string
+  shotKeyOf: (shot: PlanShot) => string
+  itemIndexOfKey: (key: string) => number
+  promptEditorOf: (row: HTMLElement) => HTMLElement | null
+}
+
+export function useStoryboardRowFocus({ tableRef, scrollRef, virtualizer, mountedSignature, shotKeyOf, itemIndexOfKey, promptEditorOf }: Options) {
+  // 「聚焦第 N 镜」：先让那一项进视口（它可能还没挂），挂上之后再给焦点。
+  // `nativeScroll`：聚焦时让浏览器把它滚进视口（键盘上下移）；否则视口已经由虚拟列表摆好（定位到某一镜，居中）。
+  // `prompt`：焦点进这一镜的提示词编辑器（光标放末尾），否则落在行上。
+  const [pendingFocus, setPendingFocus] = React.useState<{ itemKey: string; nativeScroll: boolean; prompt?: boolean; reveal?: boolean } | null>(null)
+  const itemElementOf = React.useCallback((itemKey: string): HTMLElement | null =>
+    tableRef.current?.querySelector<HTMLElement>(`[data-storyboard-item="${CSS.escape(itemKey)}"]`) ?? null, [tableRef])
+  /** 交给虚拟列表按下标滚。续写时对齐行首，让短窗口也先露出提示词。 */
+  const revealRow = (shot: PlanShot, target: 'row' | 'prompt'): boolean => {
+    const itemKey = shotKeyOf(shot)
+    const itemIndex = itemIndexOfKey(itemKey)
+    if (itemIndex < 0) return false
+    const prompt = target === 'prompt'
+    const smooth = prompt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    virtualizer.scrollToIndex(itemIndex, { align: prompt ? 'start' : 'center', behavior: smooth ? 'smooth' : 'auto' })
+    setPendingFocus({ itemKey, nativeScroll: false, prompt, reveal: prompt })
+    return true
+  }
+  // 挂着哪几项一变（滚到了、那一行挂上了）就再找一次。
+  React.useLayoutEffect(() => {
+    if (pendingFocus === null) return
+    const row = itemElementOf(pendingFocus.itemKey)?.querySelector<HTMLElement>('[data-storyboard-row]')
+    if (!row) return
+    // Finish against the mounted geometry before focus can scroll the editor's selection into view.
+    const scroll = scrollRef?.current
+    if (pendingFocus.reveal && scroll) {
+      const viewport = scroll.getBoundingClientRect()
+      const bounds = row.getBoundingClientRect()
+      if (bounds.top < viewport.top || bounds.bottom > viewport.bottom) {
+        virtualizer.scrollToOffset(scroll.scrollTop + bounds.top - viewport.top, { behavior: 'instant' })
+      }
+    }
+    const editable = pendingFocus.prompt ? promptEditorOf(row) : null
+    if (editable) {
+      editable.focus({ preventScroll: true })
+      // 光标放到末尾（ProseMirror 跟随 DOM 选区）。
+      const range = document.createRange()
+      range.selectNodeContents(editable)
+      range.collapse(false)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+    } else row.focus({ preventScroll: !pendingFocus.nativeScroll })
+    setPendingFocus(null)
+  }, [itemElementOf, mountedSignature, pendingFocus, promptEditorOf, scrollRef, virtualizer])
+  return { itemElementOf, pendingFocus, setPendingFocus, revealRow }
 }
