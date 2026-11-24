@@ -66,3 +66,5 @@
 原截图和走查通过时未跑到控件和走查契约的验收判据。两道已有门岗分别在 `scripts/control-contract-copy.mjs` 和 `scripts/check-walkthroughs.mjs` 检出。用量与单价的失败提示移出按钮，目标页保留完整标题。走查的缺席判据改为先证明探针有效，再持续采样。12 月 8 日复核这两道门岗与实窗反例，任一复发重开。
 
 变更范围 lint 检出上传设置和模型可用性走查仍冻结已消失的未用变量告警，本次删除对应抑制。
+
+复测从干净提交 `87e42046a` 运行。桌面走查 8/8 通过，重拍并核对七组样张。打开用量的五次实测中位数为 64.9 毫秒，p95 为 66.5 毫秒，均低于预算。[实窗记录](../evidence/2026-11-24-t6a-model-settings/walkthrough.md) · [性能原始结果](../evidence/2026-11-24-t6a-model-settings/usage-open.perf.json)

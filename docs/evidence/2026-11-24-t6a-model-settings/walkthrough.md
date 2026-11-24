@@ -1,7 +1,7 @@
 # 体验成绩单：T-6a 模型账户、用量与 AI 策略
 
 - 改动：T-6a 模型账户、用量与 AI 策略
-- 验收 head：`cabce4bb8`（实测工作树的父提交，含本次待提交修改）
+- 验收 head：`87e42046a`
 - 场景 id：`settings-model`
 - 谁验：实现线（隔离 Electron 实窗）
 - 日期：2026-11-24
@@ -17,11 +17,11 @@
 
 | 尝试 | 结果 | 说明 | 证据 |
 | --- | --- | --- | --- |
-| old · zh-CN · light · 1280 | 通过 |  |  |
 | old-search · zh-CN · light · 1280 | 通过 |  |  |
+| old · zh-CN · light · 1280 | 通过 |  |  |
 | notice · zh-CN · light · 1280 | 通过 |  |  |
-| fresh · zh-CN · light · 1280 | 通过 |  |  |
 | connected · zh-CN · light · 1280 | 通过 |  |  |
+| fresh · zh-CN · light · 1280 | 通过 |  |  |
 | connected · en · light · 1280 | 通过 |  |  |
 | connected · zh-CN · dark · 1280 | 通过 |  |  |
 | connected · zh-CN · light · 700 | 通过 |  |  |
