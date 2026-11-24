@@ -3,10 +3,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { openModalInputLayer, type ModalInputLayerHandle } from '../design/modalInputLayer'
 import { beginCanvasDragging, CANVAS_DRAGGING_OWNER } from './generationCanvas/components/canvasDraggingFlag'
-import { createCanvasKeydownHandler } from './generationCanvas/components/useCanvasShortcuts'
+import { registerCanvasHistoryShortcut, createCanvasKeydownHandler } from './generationCanvas/components/useCanvasShortcuts'
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
-import { dispatchTimelineShortcut, isTimelineShortcutsHelpKey } from './timeline/timelineShortcuts'
+import { registerTimelineHistoryShortcut, dispatchTimelineShortcut, isTimelineShortcutsHelpKey } from './timeline/timelineShortcuts'
 import {
+  dispatchHistoryShortcut,
   canvasLayerMayHandleInput,
   canvasWindowInput,
   installShortcutSurfaceTracker,
@@ -92,6 +93,9 @@ function pressCanvas(key: KeyCell): { effects: string[]; prevented: boolean } {
   const record = (name: string) => () => { effects.push(name) }
   vi.spyOn(useGenerationCanvasStore.getState(), 'selectAllNodes').mockImplementation(record('selectAll'))
   const event = keyEvent(key.input)
+  const unregister = registerCanvasHistoryShortcut({ stageRef: { current: canvas as HTMLDivElement }, undo: record('undo'), redo: record('redo') })
+  dispatchHistoryShortcut(event)
+  unregister()
   createCanvasKeydownHandler({
     stageRef: { current: canvas as HTMLDivElement }, selectedNodeCount: 1, selectedGroupCount: 1, activeCategoryId: 'shots',
     setActiveEdge: record('setActiveEdge'), cancelConnection: record('cancelConnection'), deleteSelectedNodes: record('delete'),
@@ -105,6 +109,9 @@ function pressCanvas(key: KeyCell): { effects: string[]; prevented: boolean } {
 function pressTimeline(key: KeyCell, surface: Element): { effects: string[]; prevented: boolean } {
   const effects: string[] = []
   const event = keyEvent(key.input)
+  const unregister = registerTimelineHistoryShortcut(() => surface, () => effects.push('undo'), () => effects.push('redo'))
+  dispatchHistoryShortcut(event)
+  unregister()
   dispatchTimelineShortcut(event, { hasSelection: true, hasPrimaryClip: true, hasSelectedTextClip: false, splitMode: false }, (action) => { effects.push(action.type) }, surface)
   return { effects, prevented: event.defaultPrevented }
 }

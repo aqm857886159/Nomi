@@ -1,7 +1,7 @@
 import type { DesktopAssetDto } from '../../../desktop/bridge'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { requireCapabilityProjectId } from '../../capability/capabilityProjectBinding'
-import { workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
+import { readWorkbenchTimeline } from '../../adoption/adoptionStorePorts'
 import type { TimelineClip, TimelineState } from '../timelineTypes'
 import { ASSET_SOURCE_USAGE_LIMIT } from '../../../../electron/shared/agentCapabilities/assetRead'
 
@@ -315,7 +315,7 @@ const defaultRuntime: MediaToolRuntime = {
   listProjectAssets,
   inspectAsset: loadElementMetadata,
   readWaveform: decodeWaveform,
-  readTimeline: () => workbenchAdoptionPorts.readTimeline(),
+  readTimeline: readWorkbenchTimeline,
 }
 
 /**

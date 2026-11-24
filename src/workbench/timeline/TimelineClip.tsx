@@ -89,7 +89,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
       const startX = event.clientX
       const originEdge = edge === 'left' ? clip.startFrame : clip.endFrame
       let appliedDelta = 0
-      let captured = false
+      let captured: symbol | undefined
       lastSnapLabelRef.current = null
 
       startSession({
@@ -110,8 +110,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
           if (incremental === 0) return
           // 手势首次真正改动才压撤销栈（避免空点也压）
           if (!captured) {
-            useWorkbenchStore.getState().captureTimelineUndo()
-            captured = true
+            captured = useWorkbenchStore.getState().captureTimelineUndo()
           }
           appliedDelta = deltaFrame
           useWorkbenchStore.getState().resizeTimelineClip(clip.id, edge, incremental)
@@ -128,6 +127,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
         // 被系统打断（pointercancel / 失焦 / 丢 capture / Esc）：回到按下之前，不留半截裁剪。
         onCancel: () => revertCapturedTimelineEdit(captured),
         onEnd: () => {
+          useWorkbenchStore.getState().timelineHistory.finishGesture(captured)
           useWorkbenchStore.getState().setTimelineSnapGuide(null)
           setResizeTag(null)
         },
@@ -175,7 +175,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
       const draggedLen = Math.max(1, dragged.endFrame - dragged.startFrame)
       let lastDesired = dragged.startFrame
       let lastPositions: Record<string, number> = {}
-      let captured = false
+      let captured: symbol | undefined
 
       setIsDragging(true)
 
@@ -186,8 +186,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
           if (Math.abs(moveEvent.clientX - startX) > 3 && !didDragRef.current) {
             didDragRef.current = true
             // 拖拽手势首次真正移动 → 压撤销栈（拖动前的状态）
-            useWorkbenchStore.getState().captureTimelineUndo()
-            captured = true
+            captured = useWorkbenchStore.getState().captureTimelineUndo()
           }
           let desiredStart = Math.max(0, dragged.startFrame + Math.round((moveEvent.clientX - startX) / scaleNow))
 
@@ -242,6 +241,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
           didDragRef.current = false
         },
         onEnd: () => {
+          useWorkbenchStore.getState().timelineHistory.finishGesture(captured)
           setIsDragging(false)
           useWorkbenchStore.getState().setTimelineSnapGuide(null)
         },

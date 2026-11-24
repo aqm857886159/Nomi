@@ -7,7 +7,7 @@ import { getClipboard, setClipboard } from '../store/canvasClipboard'
 import { __resetGenerationCanvasHistoryForTests, useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canvasControlsHelpSections } from './canvasControlsHelpModel'
 import { planSelectionConnection } from './canvasSelectionConnection'
-import { canvasShortcutKey, createCanvasKeydownHandler, tabBelongsToCanvas } from './useCanvasShortcuts'
+import { registerCanvasHistoryShortcut, canvasShortcutKey, createCanvasKeydownHandler, tabBelongsToCanvas } from './useCanvasShortcuts'
 
 const originalWindow = globalThis.window
 const originalDocument = globalThis.document
@@ -32,7 +32,7 @@ const EDITOR = { closest: () => EDITOR_ROOT } as unknown as EventTarget
 const CANVAS = { closest: () => null } as unknown as EventTarget
 
 function installDom(activeElement: Element = BODY) {
-  globalThis.window = { getSelection: () => ({ isCollapsed: true }) } as unknown as Window & typeof globalThis
+  globalThis.window = Object.assign(new EventTarget(), { getSelection: () => ({ isCollapsed: true }) }) as unknown as Window & typeof globalThis
   globalThis.document = { activeElement, body: BODY, querySelector: () => null } as unknown as Document
 }
 
@@ -65,8 +65,8 @@ function harness(selectedNodeCount: number) {
     groupSelectedNodes: vi.fn(),
     ungroupSelectedNodes: vi.fn(),
   }
-  const handler = createCanvasKeydownHandler({
-    stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>,
+  const stageRef = { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>
+  const handler = createCanvasKeydownHandler({ stageRef,
     selectedNodeCount,
     selectedGroupCount: 0,
     activeCategoryId: 'shots',
@@ -79,7 +79,7 @@ function harness(selectedNodeCount: number) {
     zoomByStep: () => {},
     ...commands,
   })
-  return { handler, commands }
+  return { handler, commands, stageRef }
 }
 
 // 每一个新键：按什么、要几个选中、应该落到哪个命令。
@@ -168,10 +168,12 @@ describe('LibTV 对齐快捷键：分发', () => {
 
   it('既有键不受影响：⌘G / ⌘⇧G / ⌘Z / ⌘⇧Z（俄文布局按 code 回退）', () => {
     installDom()
-    const { handler, commands } = harness(2)
+    const { handler, commands, stageRef } = harness(2)
+    const unregister = registerCanvasHistoryShortcut({ stageRef, ...commands })
     press(handler, { key: 'g', code: 'KeyG', meta: true })
-    press(handler, { key: 'я', code: 'KeyZ', meta: true })
-    press(handler, { key: 'Z', code: 'KeyZ', meta: true, shift: true })
+    press(event => window.dispatchEvent(event), { key: 'я', code: 'KeyZ', meta: true })
+    press(event => window.dispatchEvent(event), { key: 'Z', code: 'KeyZ', meta: true, shift: true })
+    unregister()
     expect(commands.groupSelectedNodes).toHaveBeenCalledTimes(1)
     expect(commands.undo).toHaveBeenCalledTimes(1)
     expect(commands.redo).toHaveBeenCalledTimes(1)

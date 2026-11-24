@@ -849,6 +849,31 @@
   ],
   "entries": [
     {
+      "id": "workbench-session-history",
+      "capability": "时间轴和剪辑布局的会话历史、回执授权及快捷键归属",
+      "status": "justified",
+      "paths": [
+        "src/workbench/history/historyMiddleware.ts",
+        "src/workbench/history/timelineAndLayoutHistory.test.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "zundo temporal（记录、限额、撤销、重做）",
+          "source": "node_modules/zundo/dist/index.js"
+        },
+        {
+          "name": "immer patches（正反补丁不负责项目寿命与回执授权）",
+          "source": "node_modules/immer/src/immer.ts"
+        },
+        {
+          "name": "shortcutSurface.ts（沿用已有宿主和模态输入归属）",
+          "source": "src/workbench/shortcutSurface.ts"
+        }
+      ],
+      "whyNotIntegrated": "zundo temporal 负责两份限额历史。Nomi 在项目会话结束时更换历史实例，按时间轴顶条和 revision 授权 Agent 回执，并在同屏时间轴、布局和画布间按用户活动目标分派 ⌘Z。",
+      "revisitWhen": "项目会话、采纳补偿或 Agent 回执协议改变时，与 zundo 的新版本对照。"
+    },
+    {
       "id": "file-lease-lock",
       "capability": "工作区清单事务与生产运行栅栏需要的可核验文件所有权：原盘上协议、同步检查、同步盘恢复与持有者交接",
       "status": "justified",
@@ -2350,31 +2375,6 @@
       ],
       "whyNotIntegrated": "领域约束：「这个助手这次运行里用了哪个 Nomi 工具、几次、还有几个没跑完」是 Nomi 工具面的事实，只有 Nomi 的工具目录与回环 RPC 边界知道；通用的部分（推送、相对时间、协议）都已接现成能力，自写的只剩一本几十行的账与一张展示名表。",
       "revisitWhen": "MCP SDK 提供跨传输的会话 / 调用观测钩子，或要把使用情况持久化成审计账时（审计走收据，不走这本账）"
-    },
-    {
-      "id": "outside-press-listener",
-      "capability": "「点外面就收起」的唯一听法：document 上 pointerdown 捕获阶段，调用方只给「算不算点在自己身上」与收起动作",
-      "status": "to-replace",
-      "plan": "docs/engineering/direction-checks/2026-10-23-outside-press-and-rich-text-controls.md",
-      "paths": [
-        "src/design/outsidePress.ts"
-      ],
-      "alternativesChecked": [
-        {
-          "name": "Floating UI useDismiss：outsidePressEvent 默认 pointerdown、capture.outsidePress 默认 true——本文件的听法就是照它的默认值写的；但它要求浮层由 useFloating 管开合并铺 getFloatingProps，我们只装了 @floating-ui/dom（AnchoredPopover 用它的 autoUpdate 定位），9 个消费者没有一个在 @floating-ui/react 的上下文里",
-          "source": "https://floating-ui.com/docs/useDismiss"
-        },
-        {
-          "name": "Radix DismissableLayer（Popover / DropdownMenu 自带 onPointerDownOutside）：只随 Radix 的浮层组件一起用，不单独暴露给自管开合的面板；我们的菜单族已经在用它（src/design/menu.tsx）",
-          "source": "https://www.radix-ui.com/primitives/docs/components/popover#content"
-        },
-        {
-          "name": "Mantine useClickOutside：默认事件 mousedown + touchstart、冒泡阶段，画布平移面（d3-zoom）在 mousedown 上 stopImmediatePropagation，正是本次 bug 的来源，删掉了它的用法",
-          "source": "https://mantine.dev/hooks/use-click-outside/"
-        }
-      ],
-      "whyNotIntegrated": "领域约束：所有浮在画布上的面板都必须在任何画布手势处理器之前听到按下（画布平移面吞 mousedown），而现有 9 个面各自管开合、焦点与 overlayLayers 让位规则，不在 Floating UI React 的上下文里；本文件只有一个十几行的注册函数，听法与 useDismiss 默认值一致，等浮层整体换到 @floating-ui/react 时整体删除。",
-      "revisitWhen": "AnchoredPopover 换到 @floating-ui/react（useFloating + useDismiss）时删除本文件，其余消费者随之迁移"
     },
     {
       "id": "modal-input-layer",

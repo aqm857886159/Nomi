@@ -5,14 +5,14 @@
 //   底部：收起左栏（收起后只剩顶栏里一颗「展开左栏」）
 //
 // 点一项 = 从左栏右侧浮出一张抽屉卡（浮在内容上、不挤画布；点空白 / 再点同一项 / Esc 收起；右缘可拖宽）。
-// 抽屉用 Mantine Drawer（无遮罩，画布照常可点、素材可直接拖进画布）+ design 的 listenOutsidePress（点空白收起）。
+// 抽屉用 Mantine Drawer（无遮罩，画布照常可点、素材可直接拖进画布）+ design 的 useFloatingOutsideDismiss（点空白收起）。
 // 项目库页不放左栏（Skill / 提示词在项目库是左上页签）。左栏不放任何「我在哪」的信息（项目名只在顶栏）。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Drawer } from '@mantine/core'
 import { useWindowEvent } from '@mantine/hooks'
 import { IconBooks, IconBulb, IconFileText, IconFolder, IconLayoutSidebarLeftCollapse, IconListTree, IconPlus, IconRoute } from '@tabler/icons-react'
-import { NOMI_OVERLAY_Z_INDEX, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchIconButton, listenOutsidePress } from '../../../design'
+import { NOMI_OVERLAY_Z_INDEX, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchIconButton, useFloatingOutsideDismiss } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { lazyWithChunkBoundary } from '../../chunkBoundary'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
@@ -195,13 +195,15 @@ export function ShellRail({ projectId }: { projectId: string | null }): JSX.Elem
   const [libraryToolbar, setLibraryToolbar] = React.useState<HTMLDivElement | null>(null)
   // 点空白收起；左栏自己的点击由「再点同一项」处理，不算外面。
   // 抽屉里点出的菜单 / 弹窗（portal 到 body）不算外面：它们挂着 Radix / Mantine 的弹层属性。
-  React.useEffect(() => {
-    if (!open) return undefined
-    return listenOutsidePress((target) => {
-      if (target instanceof Node && (railNode?.contains(target) || drawerNode?.contains(target))) return true
-      return target instanceof Element && Boolean(target.closest('[role="menu"], [role="dialog"], [data-radix-popper-content-wrapper], .mantine-Popover-dropdown'))
-    }, () => setOpen(null))
-  }, [open, railNode, drawerNode])
+  useFloatingOutsideDismiss({
+    open: Boolean(open),
+    floating: drawerNode,
+    reference: railNode,
+    isInside: (target) =>
+      target instanceof Element
+      && Boolean(target.closest('[role="menu"], [role="dialog"], [data-radix-popper-content-wrapper], .mantine-Popover-dropdown')),
+    onDismiss: () => setOpen(null),
+  })
 
   // Esc 收抽屉——但抽屉上面还叠着别的弹层（素材全屏预览、确认卡…）时，这一下 Esc 归那一层，抽屉不跟着关
   // （#1136 复核实测：在素材抽屉里双击开全屏预览，按 Esc 预览和抽屉一起没了）。所以不用 Drawer 自带的 closeOnEscape。

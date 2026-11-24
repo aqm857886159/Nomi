@@ -41,7 +41,8 @@ export function SectionHeader({ title, onReset, resetLabel, resetHint }: { title
   )
 }
 
-function NumberInput({ value, onCommit, digits = 2, className }: { value: number; onCommit: (next: number) => void; digits?: number; className?: string }): JSX.Element {
+function NumberInput({ value, onCommit, digits = 2, className }: { value: number; onCommit: (next: number, wheelField?: string) => void; digits?: number; className?: string }): JSX.Element {
+  const wheelField = React.useId()
   const draft = useNumberDraft(value, digits, onCommit)
   return (
     <input
@@ -52,13 +53,13 @@ function NumberInput({ value, onCommit, digits = 2, className }: { value: number
       onWheel={(event) => {
         event.preventDefault()
         const step = digits === 0 ? 1 : digits === 1 ? 0.1 : 0.01
-        onCommit(Number((value + (event.deltaY < 0 ? step : -step)).toFixed(digits)))
+        onCommit(Number((value + (event.deltaY < 0 ? step : -step)).toFixed(digits)), wheelField)
       }}
     />
   )
 }
 
-export function Vec3Fields({ label, value, onChange, onChangeStart, digits = 2, axisLabels }: { label: string; value: Vec3; onChange: (next: Vec3) => void; onChangeStart?: () => void; digits?: number; axisLabels?: [string, string, string] }): JSX.Element {
+export function Vec3Fields({ label, value, onChange, onChangeStart, digits = 2, axisLabels }: { label: string; value: Vec3; onChange: (next: Vec3) => void; onChangeStart?: (wheelField?: string) => void; digits?: number; axisLabels?: [string, string, string] }): JSX.Element {
   const labels = axisLabels ?? ['X', 'Y', 'Z']
   return (
     <div className="mb-2 flex items-center gap-2 text-caption">
@@ -71,8 +72,8 @@ export function Vec3Fields({ label, value, onChange, onChangeStart, digits = 2, 
             value={value[axis]}
             digits={digits}
             className="pl-[26px]"
-            onCommit={(next) => {
-              onChangeStart?.()
+            onCommit={(next, wheelField) => {
+              onChangeStart?.(wheelField)
               onChange({ ...value, [axis]: next })
             }}
           />

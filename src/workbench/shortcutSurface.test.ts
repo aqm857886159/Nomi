@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { dispatchTimelineShortcut } from './timeline/timelineShortcuts'
-import { installShortcutSurfaceTracker, resetShortcutSurfaceForTest, shortcutSurfaceMayHandle } from './shortcutSurface'
+import { registerTimelineHistoryShortcut, dispatchTimelineShortcut } from './timeline/timelineShortcuts'
+import { dispatchHistoryShortcut, installShortcutSurfaceTracker, resetShortcutSurfaceForTest, shortcutSurfaceMayHandle } from './shortcutSurface'
 
 type FakeSurface = { name: string; offsetParent: object | null; isConnected: boolean; active: boolean; closest(selector: string): FakeSurface | null }
 
@@ -96,8 +96,12 @@ describe('shortcut surface ownership', () => {
   it('before any pointer lands in a surface, each visible surface keeps its previous behaviour', () => {
     const timeline = surface('timeline') as unknown as Element
     const onAction = vi.fn()
-    expect(dispatchTimelineShortcut(modZ(), CONTEXT, onAction, timeline)).toBe(true)
-    expect(onAction).toHaveBeenCalledWith({ type: 'undo' })
+    vi.stubGlobal('window', new EventTarget())
+    const unregister = registerTimelineHistoryShortcut(() => timeline, onAction, vi.fn())
+    expect(dispatchHistoryShortcut(modZ())).toBe(true)
+    expect(onAction).toHaveBeenCalledOnce()
+    unregister()
+    vi.unstubAllGlobals()
     expect(shortcutSurfaceMayHandle(null)).toBe(false)
   })
 })

@@ -38,7 +38,7 @@ import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMat
 import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
 import type { TimelineTransition } from './timeline/timelineTypes'
 import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
-import { timelineUndoTimeline, type TimelineUndoEntry } from './timeline/timelineUndoHistory'
+import { createTimelineHistory, type HistoryDirection } from './history/historyMiddleware'
 import { normalizeWorkbenchDocument, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import type { ProjectAgentDraftRecoveryState } from './ai/projectAgentDraftRecovery'
@@ -63,15 +63,6 @@ import { registerTimelineReconciler } from './generationCanvas/store/canvasTimel
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
 type TimelineSnapGuide = { frame: number; label: string }
-
-// 时间轴撤销栈封顶（防无限增长）。
-const TIMELINE_UNDO_LIMIT = 30
-// 离散编辑生效时把旧 timeline 压栈：仅当真的变了。供 set 内联调用。
-function pushTimelineUndo(stack: TimelineUndoEntry[], previous: TimelineState): TimelineUndoEntry[] {
-  const next = [...stack, previous]
-  if (next.length > TIMELINE_UNDO_LIMIT) next.shift()
-  return next
-}
 
 export const WORKSPACE_MODES = ['creation', 'storyboard', 'generation', 'preview'] as const
 
@@ -143,15 +134,12 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   exportQuality: ExportQuality
   setExportResolution: (resolution: '720p' | '1080p') => void
   setExportQuality: (quality: ExportQuality) => void
-  /** 时间轴撤销栈（仅时间轴编辑，非持久化）。封顶后丢最旧。 */
-  timelineUndoStack: TimelineUndoEntry[]
-  /** 时间轴重做栈。撤销时压入；任一新编辑清空（新编辑使 redo 失效，标准语义）。 */
-  timelineRedoStack: TimelineState[]
+  timelineHistory: ReturnType<typeof createTimelineHistory>
   /** 删节点时摘下的 clip / 转场（按 sourceNodeId），撤销放回节点时凭它放回；会话内存，切项目即清。 */
   detachedTimelineClips: Record<string, DetachedClips>
   setTimelineSplitMode: (on: boolean) => void
   /** 把当前 timeline 压入撤销栈（变更生效前 / 拖拽手势首次移动时调）。 */
-  captureTimelineUndo: () => void
+  captureTimelineUndo: () => symbol
   /** 弹出上一个 timeline 快照恢复（⌘Z）。 */
   undoTimeline: () => void
   /** 重做（⇧⌘Z）：把撤销掉的编辑再放回。 */
@@ -239,6 +227,19 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
 }
 export function isWorkspaceMode(value: unknown): value is WorkspaceMode {
   return typeof value === 'string' && WORKSPACE_MODES.includes(value as WorkspaceMode)
+}
+
+function travelTimeline(state: WorkbenchState, direction: HistoryDirection): Partial<WorkbenchState> {
+  const timeline = state.timelineHistory.travel(state.timeline, direction)
+  if (!timeline) return state
+  const liveIds = new Set(timeline.tracks.flatMap(track => track.clips.map(clip => clip.id)))
+  return {
+    timeline,
+    selectedTimelineClipIds: state.selectedTimelineClipIds.filter(id => liveIds.has(id)),
+    selectedTextClipId: timeline.textClips.some(clip => clip.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
+    timelinePlaying: false,
+    persistRevision: state.persistRevision + 1,
+  }
 }
 
 export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector((set, get, store) => ({
@@ -352,8 +353,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   exportQuality: 'standard',
   setExportResolution: (exportResolution) => set({ exportResolution }),
   setExportQuality: (exportQuality) => set({ exportQuality }),
-  timelineUndoStack: [],
-  timelineRedoStack: [],
+  timelineHistory: createTimelineHistory(),
   detachedTimelineClips: {},
   setWorkspaceMode: (mode) => {
     if (!isWorkspaceMode(mode)) return
@@ -411,10 +411,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const nextTimeline = addClipAtFrame(state.timeline, clip, trackType, startFrame)
       const inserted = nextTimeline !== state.timeline
         && nextTimeline.tracks.some((track) => track.clips.some((current) => current.id === clip.id))
+      if (inserted) state.timelineHistory.record(state.timeline, nextTimeline)
       return {
         timeline: nextTimeline,
-        timelineUndoStack: inserted ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
-        timelineRedoStack: inserted ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: inserted ? [clip.id] : state.selectedTimelineClipIds,
         persistRevision: inserted ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -451,48 +450,13 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set({ timelineSplitMode: Boolean(on) })
   },
   captureTimelineUndo: () => {
-    set((state) => {
-      const stack = state.timelineUndoStack
-      if (stack.length > 0 && stack[stack.length - 1] === state.timeline) return state
-      const next = [...stack, state.timeline]
-      if (next.length > TIMELINE_UNDO_LIMIT) next.shift()
-      return { timelineUndoStack: next, timelineRedoStack: [] }
-    })
+    const state = get()
+    const token = state.timelineHistory.capture(state.timeline)
+    set({})
+    return token
   },
-  undoTimeline: () => {
-    set((state) => {
-      const stack = state.timelineUndoStack
-      if (stack.length === 0) return state
-      const previous = timelineUndoTimeline(stack[stack.length - 1])
-      const liveIds = new Set(previous.tracks.flatMap((track) => track.clips.map((clip) => clip.id)))
-      return {
-        timeline: previous,
-        timelineUndoStack: stack.slice(0, -1),
-        timelineRedoStack: [...state.timelineRedoStack, state.timeline].slice(-TIMELINE_UNDO_LIMIT),
-        selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
-        selectedTextClipId: previous.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
-        timelinePlaying: false,
-        persistRevision: state.persistRevision + 1,
-      }
-    })
-  },
-  redoTimeline: () => {
-    set((state) => {
-      const stack = state.timelineRedoStack
-      if (stack.length === 0) return state
-      const restored = stack[stack.length - 1]
-      const liveIds = new Set(restored.tracks.flatMap((track) => track.clips.map((clip) => clip.id)))
-      return {
-        timeline: restored,
-        timelineUndoStack: [...state.timelineUndoStack, state.timeline].slice(-TIMELINE_UNDO_LIMIT),
-        timelineRedoStack: stack.slice(0, -1),
-        selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
-        selectedTextClipId: restored.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
-        timelinePlaying: false,
-        persistRevision: state.persistRevision + 1,
-      }
-    })
-  },
+  undoTimeline: () => set(state => travelTimeline(state, 'undo')),
+  redoTimeline: () => set(state => travelTimeline(state, 'redo')),
   removeTimelineClip: (clipId) => {
     set((state) => {
       const id = String(clipId || '').trim()
@@ -511,10 +475,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       if (ids.length === 0) return state
       const nextTimeline = removeClipsByIds(state.timeline, ids)
       const changed = nextTimeline !== state.timeline
+      if (changed) state.timelineHistory.record(state.timeline, nextTimeline)
       return {
         timeline: nextTimeline,
-        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
-        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [],
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
@@ -527,10 +490,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       if (ids.length === 0) return state
       const result = applyTimelineOperation(state.timeline, { kind: 'remove', clipIds: ids, ripple })
       if (!result.ok || !result.diff.changed) return state
+      state.timelineHistory.record(state.timeline, result.timeline)
       return {
         timeline: result.timeline,
-        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
-        timelineRedoStack: [],
         selectedTimelineClipIds: [],
         timelinePlaying: false,
         persistRevision: state.persistRevision + 1,
@@ -546,10 +508,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         else transitions.push(entry)
       }
       if (JSON.stringify(transitions) === JSON.stringify(state.timeline.transitions ?? [])) return state
+      const timeline = { ...state.timeline, transitions }
+      state.timelineHistory.record(state.timeline, timeline)
       return {
-        timeline: { ...state.timeline, transitions },
-        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
-        timelineRedoStack: [],
+        timeline,
         persistRevision: state.persistRevision + 1,
       }
     })
@@ -559,10 +521,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const transitions = state.timeline.transitions ?? []
       const next = transitions.filter((item) => item.fromClipId !== fromClipId || item.toClipId !== toClipId)
       if (next.length === transitions.length) return state
+      const timeline = { ...state.timeline, transitions: next }
+      state.timelineHistory.record(state.timeline, timeline)
       return {
-        timeline: { ...state.timeline, transitions: next },
-        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
-        timelineRedoStack: [],
+        timeline,
         persistRevision: state.persistRevision + 1,
       }
     })
@@ -574,10 +536,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const tracks = state.timeline.tracks.map((item) => item.id === trackId
         ? { ...item, clips: item.clips.map((clip) => ({ ...clip, audio: { ...clip.audio, muted } })) }
         : item)
+      const timeline = { ...state.timeline, tracks }
+      state.timelineHistory.record(state.timeline, timeline)
       return {
-        timeline: { ...state.timeline, tracks },
-        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
-        timelineRedoStack: [],
+        timeline,
         persistRevision: state.persistRevision + 1,
       }
     })
@@ -632,10 +594,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set((state) => {
       const nextTimeline = splitClipAtFrame(state.timeline, clipId, frame)
       const changed = nextTimeline !== state.timeline
+      if (changed) state.timelineHistory.record(state.timeline, nextTimeline)
       return {
         timeline: nextTimeline,
-        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
-        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -645,10 +606,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set((state) => {
       const nextTimeline = duplicateClipById(state.timeline, clipId)
       const changed = nextTimeline !== state.timeline
+      if (changed) state.timelineHistory.record(state.timeline, nextTimeline)
       return {
         timeline: nextTimeline,
-        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
-        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -658,10 +618,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set((state) => {
       const nextTimeline = nudgeClipById(state.timeline, clipId, deltaFrame)
       const changed = nextTimeline !== state.timeline
+      if (changed) state.timelineHistory.record(state.timeline, nextTimeline)
       return {
         timeline: nextTimeline,
-        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
-        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -708,10 +667,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   addTimelineTextClip: (style, startFrame) => {
     const previous = get().timeline
     const { timeline, id } = addTextClip(previous, style, startFrame)
+    get().timelineHistory.record(previous, timeline)
     set((state) => ({
       timeline,
-      timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, previous),
-      timelineRedoStack: [],
       selectedTextClipId: id,
       selectedTimelineClipIds: [],
       persistRevision: state.persistRevision + 1,
@@ -721,9 +679,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   updateTimelineTextClip: (id, text) => {
     set((state) => {
       const next = updateTextClipText(state.timeline, id, text)
-      return next === state.timeline
-        ? state
-        : { timeline: next, timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline), timelineRedoStack: [], persistRevision: state.persistRevision + 1 }
+      if (next === state.timeline) return state
+      state.timelineHistory.record(state.timeline, next)
+      return { timeline: next, persistRevision: state.persistRevision + 1 }
     })
   },
   moveTimelineTextClip: (id, startFrame, options) => {
@@ -754,10 +712,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set((state) => {
       const next = removeTextClip(state.timeline, id)
       const changed = next !== state.timeline
+      if (changed) state.timelineHistory.record(state.timeline, next)
       return {
         timeline: next,
-        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
-        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTextClipId: state.selectedTextClipId === id ? '' : state.selectedTextClipId,
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
@@ -779,20 +736,13 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       }
     })
   },
-  ...createTimelineClipWritesSlice(pushTimelineUndo)(set, get, store),
+  ...createTimelineClipWritesSlice(set, get, store),
   updateTimelineTextClipFont: (id, fontId) => {
     set((state) => {
       const next = updateTextClipFont(state.timeline, id, fontId)
-      return next === state.timeline
-        ? state
-        : {
-            timeline: next,
-            // 换字体是离散编辑：必须压 undo、清 redo（同 updateTimelineTextClip），
-            // 否则 ⌘Z 会回退到更早一次编辑、redo 栈语义被破坏。
-            timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
-            timelineRedoStack: [],
-            persistRevision: state.persistRevision + 1,
-          }
+      if (next === state.timeline) return state
+      state.timelineHistory.record(state.timeline, next)
+      return { timeline: next, persistRevision: state.persistRevision + 1 }
     })
   },
 })))

@@ -180,7 +180,7 @@ export function SkeletonTab({ object }: { object: DirectorObject }): JSX.Element
                     max={180}
                     step={1}
                     unit="°"
-                    onChangeStart={() => store.getState().saveState()}
+                    onChangeStart={store.getState().saveState}
                     onChange={(value) => setJoint(boneKey, axis, value)}
                   />
                 ))}

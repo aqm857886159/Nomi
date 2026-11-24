@@ -1,17 +1,19 @@
 /**
- * [INPUT]: 依赖 immer 的 produce（commitProject 草稿写入）、zustand/vanilla 的 createStore、./directorTypes、./directorProject（默认工程/克隆/归一）、
+ * [INPUT]: 依赖 immer 的 produce（commitProject 草稿写入）、./directorHistory 的 zundo 会话、./directorTypes、./directorProject（默认工程/克隆/归一）、
  *          ./timeGrid（sceneContentEndSeconds / ensureDurationSeconds / DIRECTOR_MAX_DURATION_SECONDS）、./storeEntityActions、./storeClipActions
  * [OUTPUT]: 对外提供 DirectorStore / DirectorStoreState / DirectorSelection / TimelineEditContext、createDirectorStore、
  *           HISTORY_LIMIT
  * [POS]: director/model 的编辑器真相源：每次打开导演台创建一个 vanilla store（React 用 useStore 订阅，渲染循环直接
- *        getState），关闭时 exportProject 写回节点 meta。撤销 = 整树快照 50 步（滚轮/拖拽 200ms 合并）；选择态、
+ *        getState），关闭时 exportProject 写回节点 meta。zundo 保留 50 步共享工程引用（拖拽按手势、滚轮按 200ms 合并）；选择态、
  *        时间轴上下文、面板显隐是瞬态不进工程。实体/片段的具体 action 拆在 storeEntityActions / storeClipActions。
- *        sceneConfig 只有 patchSceneConfig 一扇写门、自带撤销步（commitStep：一次调用一步；手势开头 saveState 起锚，
+ *        sceneConfig 只有 patchSceneConfig 一扇写门、自带撤销步（history.step：一次调用一步；手势开头 saveState 起锚，
  *        之后同一组键的写入并进这一步）——2026-10-24 走查：「视图 ▾」开关不存快照，⌘Z 连带撤掉上一步真编辑。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { produce } from 'immer'
-import { createStore, type StoreApi } from 'zustand/vanilla'
+import { createDirectorHistoryStore, type DirectorStore } from './directorHistory'
+export { HISTORY_LIMIT, type DirectorStore } from './directorHistory'
+import { freeze, produce } from 'immer'
+import type { StoreApi } from 'zustand/vanilla'
 import { cloneDirectorProject, createDefaultProject, normalizeDirectorProject, remapSceneIds } from './directorProject'
 import type {
   DirectorCamera,
@@ -32,11 +34,6 @@ import { createEntityActions, type DirectorEntityActions } from './storeEntityAc
 import { createTimelineActions, type DirectorTimelineActions } from './storeTimelineActions'
 import type { ClipboardPayload } from './timelineClipboard'
 import { DIRECTOR_MAX_DURATION_SECONDS, ensureDurationSeconds, sceneContentEndSeconds } from './timeGrid'
-
-export const HISTORY_LIMIT = 50
-const WHEEL_MERGE_MS = 200
-/** 连续手势里「不是自带撤销写口写的」那一笔的记号：它一出现，手势就不再接受并入。 */
-const FOREIGN_WRITE = '\u0000foreign'
 
 export type SelectedClipType = 'trajectory' | 'action' | 'closeup' | 'lookat' | null
 export type TransformMode = 'translate' | 'rotate' | 'scale' | null
@@ -69,8 +66,6 @@ export type TimelineEditContext = {
 
 export type EvaluatedPose = { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number }; fov?: number; lookAtCoords?: { x: number; y: number; z: number } }
 
-type HistoryEntry = { project: DirectorProject }
-
 export type DirectorStoreState = {
   project: DirectorProject
   selection: DirectorSelection
@@ -99,8 +94,6 @@ export type DirectorStoreState = {
   // 每个实体当前「正在编辑」的路径片段（画笔/逐点/录制都往它里面写）
   activeTrajectoryClipIds: Record<string, string>
   pendingSeek: number | null
-  undoStack: HistoryEntry[]
-  redoStack: HistoryEntry[]
   showLeftPanel: boolean
   showRightPanel: boolean
   showCameraPreview: boolean
@@ -111,8 +104,8 @@ export type DirectorStoreState = {
   findCamera: (id: string | null | undefined) => DirectorCamera | undefined
   findLight: (id: string | null | undefined) => DirectorLight | undefined
   // ── 历史 ──
-  saveState: () => void
-  saveStateForWheel: () => void
+  saveState: (wheelField?: string) => void
+  saveStateForWheel: (field?: string) => void
   withHistory: <T>(action: () => T) => T
   undo: () => void
   redo: () => void
@@ -168,8 +161,6 @@ export type DirectorStoreState = {
   toggleTimelineTrackPin: (entityId: string) => void
   toggleTimelineTrackFold: (entityId: string) => void
 } & DirectorEntityActions & DirectorClipActions & DirectorTimelineActions & DirectorCameraActions & DirectorCharacterActions & DirectorAssetActions & DirectorOutputActions & DirectorAiSceneActions
-
-export type DirectorStore = StoreApi<DirectorStoreState>
 
 export function emptySelection(): DirectorSelection {
   return {
@@ -236,64 +227,44 @@ export type CreateDirectorStoreOptions = {
   now?: () => number
 }
 
+function projectState(state: DirectorStoreState, project: DirectorProject) {
+  const scene = activeSceneOf(project)
+  const timeline = { ...state.timeline }
+  const contentEnd = sceneContentEndSeconds(scene)
+  if (contentEnd > timeline.totalDuration) timeline.totalDuration = Math.min(DIRECTOR_MAX_DURATION_SECONDS, contentEnd)
+  return {
+    project,
+    selection: pruneSelection(state.selection, scene),
+    activeTrajectoryClipIds: Object.fromEntries(Object.entries(state.activeTrajectoryClipIds).filter(([id, clipId]) =>
+      [...scene.objects, ...scene.cameras].find(entity => entity.id === id)?.trajectoryClips?.some(clip => clip.id === clipId))),
+    evaluatedPoses: Object.fromEntries(Object.entries(state.evaluatedPoses).filter(([id]) => {
+      const entity = [...scene.objects, ...scene.cameras].find(item => item.id === id)
+      return entity && (entity.trajectoryClips?.length || ('fov' in entity && (entity.closeupClips?.length || entity.lookAtObjectId || entity.lookAtType === 'coordinates')))
+    })),
+    activeCameraId: state.activeCameraId !== 'free' && !scene.cameras.some((camera) => camera.id === state.activeCameraId) ? 'free' : state.activeCameraId,
+    previewCameraId: scene.cameras.some((camera) => camera.id === state.previewCameraId) ? state.previewCameraId : scene.cameras[0]?.id ?? '',
+    timeline,
+  }
+}
+
 export function createDirectorStore(options: CreateDirectorStoreOptions): DirectorStore {
   const now = options.now ?? (() => Date.now())
-  let lastWheelSaveAt = -Infinity
-  let historyDepth = 0
-  // 连续手势的锚：字段原语在手势开头调 saveState（onChangeStart 约定），那张快照就是这次手势的撤销步。之后走自带撤销的写口时，
-  // 只要这张快照还在栈顶、且这段时间里只有同一扇门的同一组键写过，就并进这一步；别的写入（另一组键、别的门、撤销 / 重做）
-  // 一插进来手势就结束。前面没有 saveState 的离散点击永远单独成一步。key 为 null = 手势已开、还没人写。
-  let gesture: { entry: HistoryEntry; key: string | null } | null = null
-  let writingKey: string | null = null
-
-  return createStore<DirectorStoreState>()((set, get) => {
-    const snapshot = (): HistoryEntry => ({ project: cloneDirectorProject(get().project) })
-    const topOfHistory = (): HistoryEntry | undefined => get().undoStack[get().undoStack.length - 1]
-
+  return createDirectorHistoryStore(now, projectState, (set, get, history) => {
     // 所有项目数据的写入口。动作按「改草稿」写，immer 产出结构共享的新树：被改到的实体 / 数组 / 场景 /
     // 项目全部换新引用，没改到的保持原引用——订阅方（useStore 的 Object.is 比对、React.memo）据此判断
     // 该不该重渲染。2026-09-02 栽过：原地 push 后 scene / objects 引用不变，视口与大纲都不重渲染，
     // 只有 `.length` 这类原始值选择器动了。产物被 immer 冻结，任何绕过此入口的原地改写会直接抛错。
     const commitProject = (mutate: (project: DirectorProject, scene: DirectorScene) => void) => {
-      if (gesture && gesture.key === null) gesture.key = writingKey ?? FOREIGN_WRITE
       set((state) => {
         const project = produce(state.project, (draft) => {
           mutate(draft, activeSceneOf(draft))
         })
-        const scene = activeSceneOf(project)
-        const timeline = { ...state.timeline }
-        const contentEnd = sceneContentEndSeconds(scene)
-        if (contentEnd > timeline.totalDuration) timeline.totalDuration = Math.min(DIRECTOR_MAX_DURATION_SECONDS, contentEnd)
-        return {
-          project,
-          selection: pruneSelection(state.selection, scene),
-          activeTrajectoryClipIds: Object.fromEntries(Object.entries(state.activeTrajectoryClipIds).filter(([id, clipId]) =>
-            [...scene.objects, ...scene.cameras].find(entity => entity.id === id)?.trajectoryClips?.some(clip => clip.id === clipId))),
-          evaluatedPoses: Object.fromEntries(Object.entries(state.evaluatedPoses).filter(([id]) => {
-            const entity = [...scene.objects, ...scene.cameras].find(item => item.id === id)
-            return entity && (entity.trajectoryClips?.length || ('fov' in entity && (entity.closeupClips?.length || entity.lookAtObjectId || entity.lookAtType === 'coordinates')))
-          })),
-          activeCameraId: state.activeCameraId !== 'free' && !scene.cameras.some((camera) => camera.id === state.activeCameraId) ? 'free' : state.activeCameraId,
-          previewCameraId: scene.cameras.some((camera) => camera.id === state.previewCameraId) ? state.previewCameraId : scene.cameras[0]?.id ?? '',
-          timeline,
-        }
+        return projectState(state, project)
       })
     }
 
-    // 自带撤销步的写口（现在只有 sceneConfig）：在一次 withHistory 里写，除非正处在同一组键的连续手势里（见 gesture）。
-    const commitStep = (key: string, mutate: (project: DirectorProject, scene: DirectorScene) => void) => {
-      const continuing = historyDepth > 0 || (gesture !== null && topOfHistory() === gesture.entry && (gesture.key === null || gesture.key === key))
-      writingKey = key
-      try {
-        if (continuing) commitProject(mutate)
-        else get().withHistory(() => commitProject(mutate))
-      } finally {
-        writingKey = null
-      }
-    }
-
     const base: Omit<DirectorStoreState, keyof DirectorEntityActions | keyof DirectorClipActions | keyof DirectorTimelineActions | keyof DirectorCameraActions | keyof DirectorCharacterActions | keyof DirectorAssetActions | keyof DirectorOutputActions | keyof DirectorAiSceneActions> = {
-      project: normalizeDirectorProject(options.rawProject, options.defaultSceneName),
+      project: freeze(normalizeDirectorProject(options.rawProject, options.defaultSceneName), true),
       selection: emptySelection(),
       activeCameraId: 'free',
       previewCameraId: '',
@@ -314,8 +285,6 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
       evaluatedPoses: {},
       activeTrajectoryClipIds: {},
       pendingSeek: null,
-      undoStack: [],
-      redoStack: [],
       showLeftPanel: true,
       showRightPanel: true,
       showCameraPreview: true,
@@ -326,74 +295,12 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
       findCamera: (id) => (id ? activeSceneOf(get().project).cameras.find((camera) => camera.id === id) : undefined),
       findLight: (id) => (id ? activeSceneOf(get().project).lights.find((light) => light.id === id) : undefined),
 
-      saveState: () => {
-        if (historyDepth > 0) return
-        const entry = snapshot()
-        set((state) => {
-          const last = state.undoStack[state.undoStack.length - 1]
-          if (last && JSON.stringify(last.project) === JSON.stringify(entry.project)) return state
-          const undoStack = [...state.undoStack, entry]
-          if (undoStack.length > HISTORY_LIMIT) undoStack.shift()
-          return { undoStack, redoStack: [] }
-        })
-        const top = topOfHistory()
-        gesture = top ? { entry: top, key: null } : null
-      },
-      saveStateForWheel: () => {
-        const at = now()
-        if (at - lastWheelSaveAt < WHEEL_MERGE_MS) {
-          lastWheelSaveAt = at
-          return
-        }
-        lastWheelSaveAt = at
-        get().saveState()
-      },
-      withHistory: <T,>(action: () => T): T => {
-        if (historyDepth > 0) return action()
-        const before = get()
-        historyDepth += 1
-        try {
-          const result = action()
-          if (JSON.stringify(before.project) !== JSON.stringify(get().project)) {
-            const last = before.undoStack[before.undoStack.length - 1]
-            const stack = last && JSON.stringify(last.project) === JSON.stringify(before.project)
-              ? before.undoStack : [...before.undoStack, { project: cloneDirectorProject(before.project) }]
-            set({ undoStack: stack.slice(-HISTORY_LIMIT), redoStack: [] })
-          }
-          return result
-        } catch (error) {
-          set(before)
-          throw error
-        } finally {
-          historyDepth -= 1
-        }
-      },
-      undo: () => {
-        const state = get()
-        const entry = state.undoStack[state.undoStack.length - 1]
-        if (!entry) return
-        const current = snapshot()
-        set({ undoStack: state.undoStack.slice(0, -1), redoStack: [...state.redoStack, current] })
-        commitProject((project) => {
-          Object.assign(project, entry.project)
-        })
-        set({ evaluatedPoses: {} })
-      },
-      redo: () => {
-        const state = get()
-        const entry = state.redoStack[state.redoStack.length - 1]
-        if (!entry) return
-        const current = snapshot()
-        set({ redoStack: state.redoStack.slice(0, -1), undoStack: [...state.undoStack, current] })
-        commitProject((project) => {
-          Object.assign(project, entry.project)
-        })
-        set({ evaluatedPoses: {} })
-      },
+      ...history.commands,
 
       loadProject: (raw, defaultSceneName, options) => {
-        const project = normalizeDirectorProject(raw, defaultSceneName)
+        const project = freeze(normalizeDirectorProject(raw, defaultSceneName), true)
         const scene = activeSceneOf(project)
+        history.clear()
         const previous = get()
         const keep = options?.keepView === true
         const cameraKept = (id: string) => scene.cameras.some((camera) => camera.id === id)
@@ -412,8 +319,6 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
           isTimelineDragging: false,
           isKeyframeTimeDragging: false,
           isSkeletonEditing: false,
-          undoStack: [],
-          redoStack: [],
           timeline: { currentTime: keep ? previous.timeline.currentTime : 0, autoKey: false, totalDuration: Math.max(sceneContentEndSeconds(scene), 1) > 1 ? Math.min(DIRECTOR_MAX_DURATION_SECONDS, Math.max(sceneContentEndSeconds(scene) + 2, 10)) : DIRECTOR_MAX_DURATION_SECONDS, isPlaying: false },
         })
       },
@@ -434,7 +339,7 @@ export function createDirectorStore(options: CreateDirectorStoreOptions): Direct
       exportProject: () => cloneDirectorProject(get().project),
       setExportRatio: (ratio) => get().withHistory(() => commitProject(project => { project.exportRatio = ratio })),
       setExportResolution: (resolution) => get().withHistory(() => commitProject(project => { project.exportResolution = resolution })),
-      patchSceneConfig: (patch) => commitStep(`sceneConfig:${Object.keys(patch).sort().join(',')}`, (_, scene) => Object.assign(scene.sceneConfig, patch)),
+      patchSceneConfig: (patch) => history.step(`sceneConfig:${Object.keys(patch).sort().join(',')}`, () => commitProject((_, scene) => Object.assign(scene.sceneConfig, patch))),
       patchPanoramaConfig: (patch) => commitProject((_, scene) => Object.assign(scene.panoramaConfig, patch)),
 
       createSceneLayer: (name) => {

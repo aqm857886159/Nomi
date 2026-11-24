@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../history/historyMiddleware'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { beginPointerSession, revertCapturedTimelineEdit } from './timelineGesture'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -115,25 +116,26 @@ describe('reverting an interrupted workbench timeline edit', () => {
   it('restores the pre-gesture timeline and leaves no redo entry', () => {
     const base = createDefaultTimeline()
     const original = { ...base, tracks: base.tracks.map((track) => track.type === 'image' ? { ...track, clips: [clip('a', 0)] } : track) }
-    useWorkbenchStore.setState({ timeline: original, timelineUndoStack: [], timelineRedoStack: [] })
+    useWorkbenchStore.setState({ timeline: original, timelineHistory: createTimelineHistory() })
     const store = useWorkbenchStore.getState()
-    store.captureTimelineUndo()
+    const captured = store.captureTimelineUndo()
     store.moveTimelineClip('a', 90, { commit: false })
     expect(useWorkbenchStore.getState().timeline).not.toBe(original)
-    revertCapturedTimelineEdit(true)
+    revertCapturedTimelineEdit(captured)
     const after = useWorkbenchStore.getState()
     expect(after.timeline).toBe(original)
-    expect(after.timelineUndoStack).toHaveLength(0)
-    expect(after.timelineRedoStack).toHaveLength(0)
+    expect(after.timelineHistory.entries.pastStates).toHaveLength(0)
+    expect(after.timelineHistory.entries.futureStates).toHaveLength(0)
   })
 
   it('does nothing when the gesture never changed anything (never undoes an unrelated edit)', () => {
     const base = createDefaultTimeline()
     const earlier = { ...base, fps: 25 }
-    useWorkbenchStore.setState({ timeline: base, timelineUndoStack: [earlier], timelineRedoStack: [] })
-    revertCapturedTimelineEdit(false)
+    useWorkbenchStore.setState({ timeline: base, timelineHistory: createTimelineHistory() })
+    useWorkbenchStore.getState().timelineHistory.record(earlier, base)
+    revertCapturedTimelineEdit(undefined)
     const after = useWorkbenchStore.getState()
     expect(after.timeline).toBe(base)
-    expect(after.timelineUndoStack).toEqual([earlier])
+    expect(after.timelineHistory.entries.pastStates.map(entry => entry.value)).toEqual([earlier])
   })
 })

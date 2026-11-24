@@ -10,7 +10,7 @@ import {
   proposalIsLanded,
   registerAdoptionProposal,
 } from './adoptionProposalRegistry'
-import { workbenchAdoptionPorts } from './adoptionStorePorts'
+import { createWorkbenchAdoptionPorts } from './adoptionStorePorts'
 import type { AdoptionApplyPorts, AdoptionOutcome } from './adoptionTypes'
 
 /**
@@ -36,7 +36,7 @@ export async function adoptGenerationNode(
   node: GenerationCanvasNode,
   options: AdoptGenerationNodeOptions = {},
 ): Promise<AdoptionOutcome> {
-  const ports = options.ports || workbenchAdoptionPorts
+  const ports = options.ports || createWorkbenchAdoptionPorts()
   const placement = options.placement || { kind: 'append' }
   const result = node.result
   if (!result || !result.url) {
