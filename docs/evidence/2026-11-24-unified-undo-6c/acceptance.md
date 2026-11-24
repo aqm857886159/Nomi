@@ -2,7 +2,7 @@ t8-r6c-verify：通过
 
 - 验收线：t8-r6c-verify
 - 实现线：t8-r6c-impl
-- 验收 HEAD：87ef9f870f01ac7022cb41f74ae20a92699df5fe
+- 验收 HEAD：21a7fd1c2b8544b733efc5487b307b2d48bcedc2
 - 审批设计卡基线：`docs/plan/2026-11-24-unified-undo-history.md`（★1–★9 Row C）
 - Schema-v3 根因合同：`docs/fixes/2026-11-24-canvas-undo-patches-and-gesture-invariants.root-cause.json`
 - 提交链：`e516cec67`（前置特征测试）→ `a0cbd550d`（Immer 补丁栈替换并同提交删除 `canvasUndoJournal.ts`）→ `c08ce03cf`（场景登记与桌面证据）→ `ecb02a676`（并入 6B 基线）→ `eef1a564d`（干净工作树 5 轮性能基线）→ `c4e6c59a6`（`canvasControlsStructure.test.ts:85` 1 行测试对齐，`25/25` 通过）
@@ -89,3 +89,13 @@ t8-r6c-verify：通过
   - `pnpm exec vitest run --maxWorkers=2 src/workbench/generationCanvas/store/canvasPatchHistory.characterization.test.ts tests/ux/selection-drag-lifecycle.test.mjs`：**2 passed · 37/37 passed**（22 + 15）；
   - `node ./scripts/check-boundaries.mjs`：**✅ 3238 模块 · 53/53 基线冻结 · 0 新增越界/硬环**；
   - `pnpm run check:filesize`、`node scripts/check-root-cause-contracts.mjs`、`node scripts/check-boundary-owners.mjs`（2141 条）、`tsc -p tsconfig.app.json --noEmit`、`tsc -p electron/tsconfig.json --noEmit`、`node scripts/check-test-types.mjs`（`src/ 0 错`）、`NOMI_BASE_REF=origin/main node scripts/lint-changed.mjs`（143 文件 0 错 0 新增警告）：**✅ 全绿**。
+
+## 7. 概念 owner 登记与上游 6B 基线整合增量复验（`21a7fd1c2b8544b733efc5487b307b2d48bcedc2`）
+
+- **增量核查**：干净合入 `origin/feat/unified-undo-6b-director`（`18eb2e2e2`）并在 `docs/engineering/concept-owners/canvas.gesture-lifetime.json` 登记 `src/workbench/generationCanvas/nodes/useNodeDragResize.ts#useNodeDragResize`（相对 `9f42a3676` 仅 4 行 JSON 登记增量，生产业务代码 **0 改动**，提交日志与增量 diff **0 本机路径泄露**）。
+- **独立复跑全绿（`EXIT=0`）**：
+  - `CONCEPT_OWNERS_BASE_REF=origin/main node scripts/check-concept-owners.mjs`：**✅ 401/401 概念通过（converged 397 / pending 4 · 写接口 1063 个 · 第二写口 0 新增）**；
+  - `ROOT_CAUSE_BASE_REF=origin/main node scripts/check-root-cause-contracts.mjs`：**✅ 通过**；
+  - `node scripts/check-boundaries.mjs`（3238 模块 · 53/53 冻结 · 0 新增越界）与 `node scripts/check-boundary-owners.mjs`（2141 条）：**✅ 全绿**；
+  - `canvasPatchHistory.characterization.test.ts`：**22/22 passed**；
+  - 串行 `tsc -p tsconfig.app.json --noEmit` 与 `tsc -p electron/tsconfig.json --noEmit`：**0 错**。
