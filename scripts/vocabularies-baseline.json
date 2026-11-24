@@ -2187,6 +2187,18 @@
       ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes.",
       "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const"
+    },
+    {
+      "site": "src/ui/onboarding/useApimartVerification.ts::type:LocalStage/type-union",
+      "members": [
+        "checking",
+        "format",
+        "idle",
+        "keychain",
+        "passed",
+        "topup"
+      ],
+      "reason": "接入页自己的操作阶段，涵盖本地输入、存储和账户到账后的返回。远端失败使用 VendorBalanceFailure，共享 IPC 无需暴露这些界面阶段。"
     }
   ],
   "debt": [
