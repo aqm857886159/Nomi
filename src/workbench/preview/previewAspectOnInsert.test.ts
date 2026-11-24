@@ -17,7 +17,7 @@ function clip(type: TimelineClip['type'], sourceAspectRatio?: number): TimelineC
 const store = useWorkbenchStore.getState
 
 describe('first visual clip sets the project preview and export aspect', () => {
-  beforeEach(() => workbenchStoreLifetime.releaseProject())
+  beforeEach(() => workbenchStoreLifetime.releaseProject?.())
 
   it.each([
     ['video', 9 / 16, '9:16'],
@@ -42,7 +42,7 @@ describe('first visual clip sets the project preview and export aspect', () => {
   it('preserves even a deliberate choice of the default across reopening and insertion', () => {
     store().setPreviewAspectRatio('16:9')
     const saved = normalizePayload(readCurrentWorkbenchProjectPayload())
-    workbenchStoreLifetime.releaseProject()
+    workbenchStoreLifetime.releaseProject?.()
     restoreWorkbenchProjectPayload(saved)
     store().addTimelineClipAtFrame(clip('image', 1), 'image', 0)
     expect(selectPreviewAspectRatio(store())).toBe('16:9')
@@ -52,7 +52,7 @@ describe('first visual clip sets the project preview and export aspect', () => {
   it('restores the matched ratio after reopening without matching a legacy timeline on load', () => {
     store().addTimelineClipAtFrame(clip('video', 9 / 16), 'video', 0)
     const saved = normalizePayload(readCurrentWorkbenchProjectPayload())
-    workbenchStoreLifetime.releaseProject()
+    workbenchStoreLifetime.releaseProject?.()
     restoreWorkbenchProjectPayload(saved)
     expect(selectPreviewAspectRatio(store())).toBe('9:16')
 

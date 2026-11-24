@@ -34,7 +34,6 @@
     "src/workbench/capability/capabilityApplyHandler.ts",
     "src/ui/app-shell/shell/ShellTopBar.tsx",
     "src/media/videoDurationProbe.ts",
-    "src/media/imageAspectRatioProbe.ts",
     "src/devlab/designLab/editing/editingLabKit.tsx"
   ],
   "entry_points": [
@@ -61,7 +60,7 @@
     },
     {
       "kind": "read",
-      "path": "src/media/imageAspectRatioProbe.ts",
+      "path": "src/media/videoDurationProbe.ts",
       "symbol": "Image"
     },
     {

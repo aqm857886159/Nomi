@@ -1,5 +1,4 @@
-import { readVideoMetadata } from '../../media/videoDurationProbe'
-import { readImageAspectRatio } from '../../media/imageAspectRatioProbe'
+import { readImageAspectRatio, readVideoMetadata } from '../../media/videoDurationProbe'
 import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { TimelineClip } from './timelineTypes'

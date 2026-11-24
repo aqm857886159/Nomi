@@ -17,7 +17,7 @@ export function readCurrentWorkbenchProjectContent(): WorkbenchProjectContent {
     workbenchDocuments: workbench.workbenchDocuments,
     activeDocumentId: workbench.activeDocumentId,
     timeline: workbench.timeline,
-    ...(workbench.previewAspect ? { previewAspect: workbench.previewAspect } : {}),
+    previewAspect: workbench.previewAspect,
     // S5-b-0:持久化走 document 视图(选区是会话态不进项目文件)
     generationCanvas: generation.readDocumentSnapshot(),
     categories: workbench.categories,

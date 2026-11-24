@@ -1,0 +1,59 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 16GB",
+  "commit": "8ac07cffb",
+  "head": "8ac07cffbdbc624cb8dc1a4cb4c98b3765a3d287",
+  "dirty": false,
+  "sourceTree": "d7aa333551651c55da127bafc13eca0bc66bc1b5",
+  "date": "2026-11-24",
+  "runs": 5,
+  "results": [
+    {
+      "id": "timeline-scrub",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 23.4,
+          "p95": 24.9
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          23.4,
+          25.2,
+          23.7,
+          23.2,
+          23.2
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "baseline": {
+        "median": 18.3,
+        "p95": 25.1,
+        "runs": 5,
+        "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
+        "date": "2026-10-16",
+        "commit": "94724f860"
+      },
+      "verdict": {
+        "status": "regression",
+        "note": "中位数 23.4 比基线 18.3 差 28%"
+      }
+    }
+  ]
+}

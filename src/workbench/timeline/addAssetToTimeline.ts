@@ -1,7 +1,6 @@
 import { isProjectExecutionContextCurrent, withProjectAction, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
 import { readAudioDurationSeconds } from '../../media/audioDurationProbe'
-import { readVideoMetadata } from '../../media/videoDurationProbe'
-import { readImageAspectRatio } from '../../media/imageAspectRatioProbe'
+import { readImageAspectRatio, readVideoMetadata } from '../../media/videoDurationProbe'
 import { parseAssetLibraryDrag, type AssetLibraryDragPayload } from '../assets/assetLibraryDrag'
 import { materializeAssetLibraryItems } from '../assets/assetLibraryMaterialize'
 import type { AssetKind, AssetRef } from '../assets/assetTypes'

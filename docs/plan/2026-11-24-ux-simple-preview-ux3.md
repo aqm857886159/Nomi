@@ -7,7 +7,7 @@ Phase 1 #6、#16 前半和 #21，协调批复 [#issuecomment-7126279479](https:/
 - iMovie 从第一段素材确定项目格式，确认在首次入轨时匹配。[Apple](https://support.apple.com/en-gb/102276)
 - Premiere 允许在第一段进入序列时匹配设置，确认以入轨为时点并保留用户已选画幅。[Adobe](https://helpx.adobe.com/ph_fil/premiere-pro/how-to/create-edit-sequence.html)
 - Electron 可在文件管理器中选中已保存的文件，确认沿用现有 reveal IPC 和项目相对路径。[Electron](https://www.electronjs.org/docs/latest/api/shell/#shellshowiteminfolderfullpath)
-- 出口：添加任何有正时长的片段即可启用导出。空态提示给出点击和拖入两条路径，沿用 Premiere 中将素材加到时间轴的起点。[Adobe](https://helpx.adobe.com/premiere/desktop/edit-projects/change-clip-sequence/create-a-sequence.html)
+- 出口：https://helpx.adobe.com/premiere/desktop/edit-projects/change-clip-sequence/create-a-sequence.html · 空序列引导用户点击或拖入首段素材以自动建序列并解锁导出 · 确认空轴禁用导出按钮时在悬停与舞台空态同时给出点击和拖入两条路径。
 
 ## ★1 用户旅程
 
