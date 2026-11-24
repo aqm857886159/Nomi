@@ -929,8 +929,9 @@
         "1103-div-skf3a9",
         "1104-svg"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（检查与回来）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（检查与回来）",
+      "assertion": "board:Onboarding/depart.key-input"
     },
     {
       "id": "big.page",
@@ -1295,8 +1296,9 @@
         "870-span",
         "871-span-打不开"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（等待）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（等待）",
+      "assertion": "board:Onboarding/wait.banner"
     },
     {
       "id": "wait.return-line",
@@ -1319,8 +1321,9 @@
         "1001-div-YoulllandonU",
         "1002-svg"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（等待）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（等待）",
+      "assertion": "board:Onboarding/wait.return-line"
     },
     {
       "id": "return.check-rows",
@@ -1484,8 +1487,9 @@
         "1300-span-打开官网",
         "1301-svg"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（出错）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（出错）",
+      "assertion": "board:Onboarding/error.key-invalid"
     },
     {
       "id": "error.key-format",
@@ -1533,8 +1537,9 @@
         "1333-span-打开官网",
         "1334-svg"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（出错）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（出错）",
+      "assertion": "board:Onboarding/error.key-format"
     },
     {
       "id": "error.no-balance",
@@ -1634,8 +1639,9 @@
         "1312-svg",
         "1313-span-网络设置"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（出错）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（出错）",
+      "assertion": "board:Onboarding/error.offline"
     },
     {
       "id": "error.site-blocked",
@@ -1716,8 +1722,9 @@
         "1366-svg",
         "1367-span-还不行用手机或别的电脑注"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（出错）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（出错）",
+      "assertion": "board:Onboarding/error.site-blocked"
     },
     {
       "id": "error.keychain",
@@ -1762,8 +1769,9 @@
         "1322-div",
         "1323-span-再试一次"
       ],
-      "status": "missing",
-      "owner": "S6 回来与检查（出错）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（出错）",
+      "assertion": "board:Onboarding/error.keychain"
     },
     {
       "id": "error.legacy-copy",
@@ -1775,8 +1783,9 @@
       ],
       "component": "现有，不动",
       "candidates": [],
-      "status": "missing",
-      "owner": "S6 回来与检查（出错）"
+      "status": "implemented",
+      "owner": "S6 回来与检查（出错）",
+      "assertion": "board:Onboarding/error.legacy-copy"
     }
   ],
   "decor": [

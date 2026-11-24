@@ -4,7 +4,7 @@
   "stage": "built",
   "visualReview": "用户 2026-11-17 看真截图后批准，原话「可以，推送」。看的是 4 张生产组件真截图（不是画布样张）：中文列表、中文详情、最窄英文列表、最窄英文详情，原样放在 preview/。协调会话先亲眼看过再交用户。 11-21 用户看 Design Lab 新旧对照后定按新图（D-1121-availability-r3）。",
   "sourceBoundary": "这张板没有画布板源，只有清单：拍板依据是 preview/ 里 4 张真截图（zh-list.png = 设置 → 模型首页「已接入」连接行；zh-detail.png = 点进那家连接的详情页右上徽标；narrow-en-*.png = 最窄窗口英文同两屏），截于 fix/unverified-usable-r2 的 504fb0157，由 tmp 驱动在本机假供应商上拍，零付费。图里没拍到的状态（全部自检失败且都不能用）不算拍过。 11-21 新批准图为 preview/catalog-liveness-{light,dark}.png、ps-30-model-dialog.png、ps-31-onboarding-dialog.png、ps-48-onboarding-expanded-dialog.png，原样取自 CI 44807841772 的生产组件截图（13fdacb7de）；这五张覆盖新词和删除连接诊断。原四张仅保留为11-17历史批准依据，不作为新词预期。",
-  "designIntent": "没验证成功、但照样能用的连接，列表行和详情徽标只说同一个词「未验证」/ \"Not verified\"，点用绿色，表示能用；不再出现「验证没通过，仍可使用」「未通过」「Failed」。",
+  "designIntent": "没验证成功、但照样能用的连接，列表行和详情徽标只说同一个词「未验证」/ \"Not verified\"，点用绿色，表示能用；不再出现「验证没通过，仍可使用」「未通过」「Failed」。 APIMart 整窗在接入时只读检查余额，详情见 D-1124-onboarding-s6-balance。",
   "priorArt": [
     {
       "kind": "same-surface",
@@ -42,6 +42,11 @@
       "what": "列表行和详情徽标只留一个词「未验证」，两处从同一个函数取词和点色；删掉「验证没通过，仍可使用」「未通过」「Failed」",
       "source": "协调会话 2026-11-17 第 3 轮；用户 2026-11-17 看图「可以，推送」",
       "stillValid": "算数"
+    },
+    {
+      "what": "APIMart 接入页例外：只读余额，不拦路，见 D-1124-onboarding-s6-balance",
+      "source": "D-1124-onboarding-s6-balance",
+      "stillValid": "仅 APIMart 整窗使用只读检查；设置页按 D-1117 展示模型可用性。"
     }
   ],
   "components": [
