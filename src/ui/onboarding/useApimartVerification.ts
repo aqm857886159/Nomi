@@ -1,9 +1,8 @@
-import { APIMART_CONNECTED_EVENT } from './apimartConnectRoute'
 import React from 'react'
 import { isApimartKeyCandidate, type VendorBalanceCheck } from '../../../electron/shared/contracts/vendorAccountBalance'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { refreshOnboardingModelAvailability } from './onboardingModelAvailability'
-import { persistApimartOpenedAt } from './ApimartWaitingBanner'
+import { APIMART_CONNECTED_EVENT, persistApimartOpenedAt } from './apimartConnectRoute'
 
 type Stage = 'idle' | 'checking' | 'format' | 'invalid' | 'keychain' | 'offline' | 'unavailable' | 'passed'
 

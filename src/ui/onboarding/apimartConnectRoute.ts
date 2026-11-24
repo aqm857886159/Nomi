@@ -71,3 +71,19 @@ export function openExternalUrlWithDebounce(
   return true
 }
 export const APIMART_CONNECTED_EVENT = 'nomi-apimart-connected'
+
+const apimartOpenedAtKey = 'nomi:apimart:opened-at'
+
+export function readApimartOpenedAt(): number {
+  try {
+    const at = Number(window.localStorage.getItem(apimartOpenedAtKey))
+    return Number.isFinite(new Date(at).getTime()) && at > 0 ? at : 0
+  } catch { return 0 }
+}
+
+export function persistApimartOpenedAt(at: number): void {
+  try {
+    if (at) window.localStorage.setItem(apimartOpenedAtKey, String(at))
+    else window.localStorage.removeItem(apimartOpenedAtKey)
+  } catch { /* Keep the in-memory timestamp when storage is unavailable. */ }
+}

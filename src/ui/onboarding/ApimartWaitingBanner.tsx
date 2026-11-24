@@ -2,22 +2,6 @@ import React from 'react'
 import { IconInfoCircle } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 
-const storageKey = 'nomi:apimart:opened-at'
-
-export function readApimartOpenedAt(): number {
-  try {
-    const at = Number(window.localStorage.getItem(storageKey))
-    return Number.isFinite(new Date(at).getTime()) && at > 0 ? at : 0
-  } catch { return 0 }
-}
-
-export function persistApimartOpenedAt(at: number): void {
-  try {
-    if (at) window.localStorage.setItem(storageKey, String(at))
-    else window.localStorage.removeItem(storageKey)
-  } catch { /* Keep the in-memory timestamp when storage is unavailable. */ }
-}
-
 export function ApimartWaitingBanner({ at, reopen, toggle, expanded }: {
   at: number
   reopen: () => void

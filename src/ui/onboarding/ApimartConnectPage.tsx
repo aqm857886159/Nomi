@@ -29,12 +29,14 @@ import {
   buildApimartMirrorUrl,
   openExternalUrlWithDebounce,
   openModelSettingsHome,
+  persistApimartOpenedAt,
+  readApimartOpenedAt,
 } from './apimartConnectRoute'
 import {
   useOnboardingModelAvailability,
 } from './onboardingModelAvailability'
 
-import { ApimartWaitingBanner, persistApimartOpenedAt, readApimartOpenedAt } from './ApimartWaitingBanner'
+import { ApimartWaitingBanner } from './ApimartWaitingBanner'
 import { ApimartStatusNotice } from './ApimartStatusNotice'
 
 const CONNECT_PAGE_TWO_COLUMN_MIN_WIDTH = 1180

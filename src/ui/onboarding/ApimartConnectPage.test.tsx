@@ -1,7 +1,6 @@
 import { getKnownVendor } from '../../config/knownVendors'
 import { ApimartCheckCard } from './ApimartCheckCard'
 import { ApimartStatusNotice } from './ApimartStatusNotice'
-import { persistApimartOpenedAt } from './ApimartWaitingBanner'
 import { useApimartVerification } from './useApimartVerification'
 import { createReactTestRenderer } from '../../workbench/ai/v4/testReactRenderer'
 import fs from 'node:fs'
@@ -21,6 +20,7 @@ import {
   NOMI_OPEN_APIMART_CONNECT_EVENT,
   buildApimartMirrorUrl,
   openApimartConnect,
+  persistApimartOpenedAt,
   openExternalUrlWithDebounce,
 } from './apimartConnectRoute'
 
