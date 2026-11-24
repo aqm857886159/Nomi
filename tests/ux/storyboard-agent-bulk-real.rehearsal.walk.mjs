@@ -18,6 +18,10 @@ walk.fixture.respond({
 })
 let failure
 try {
-  await runStoryboardAgentBulk({ walk, brainLabel: FIXTURE_TEXT_MODEL_LABEL, imageLabel: FIXTURE_IMAGE_MODEL_LABEL, beforeSend: input => { design = input.design; shotIds = input.shotIds } })
+  await runStoryboardAgentBulk({
+    walk,
+    modelLabels: () => ({ brainLabel: FIXTURE_TEXT_MODEL_LABEL, imageLabel: FIXTURE_IMAGE_MODEL_LABEL }),
+    beforeSend: input => { design = input.design; shotIds = input.shotIds },
+  })
 } catch (error) { failure = error; process.exitCode = 1 }
 finally { await walk.finish(failure, { unscriptedFixture: true }) }
