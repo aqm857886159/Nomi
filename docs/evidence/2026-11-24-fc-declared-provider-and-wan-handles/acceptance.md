@@ -1,4 +1,4 @@
-结论：通过 · 验收线：fc1-verify · 验收 HEAD：98aeeae7087f1152b774456850dc50ce8acecdb3
+结论：通过 · 验收线：fc1-verify · 验收 HEAD：09e72f16c3622e430b908365cbaa368ec073bf56
 
 - 验收线：`fc1-verify`
 - 实现线：`fc-declared-provider-and-wan-handles`
@@ -46,6 +46,13 @@
 ### 概念 owner 登记与基线棘轮下调增量复验（`aaf4c9786..98aeeae70`，全部 `EXIT=0`）
 - 审阅增量仅新增 `docs/engineering/concept-owners/generation.provider-bootstrap.json`、`docs/engineering/concept-owners/generation.reference-value.json` 并下调 `scripts/concept-owners-baseline.json`（生产代码 0 改动，0 本机路径泄露）。
 - 实跑 `CONCEPT_OWNERS_BASE_REF=origin/main node ./scripts/check-concept-owners.mjs`：PASS（`EXIT=0`，410 个概念 converged 406 / pending 4，第二写口 0 新增，未登记共享边界基线从 33 降至 32）；`pnpm run check:filesize`：PASS（`EXIT=0`）。
+
+### 档案唯一入口收拢增量复验（`09e72f16c`，全部 `EXIT=0`）
+- 审阅 `09e72f16c`：`unknownHandle` 同族查询收拢至 `electron/shared/modelArchetypes/entry.ts#archetypeFamilyIdsFor` 并经 `index.ts` 导出，`modelHandle.ts` 移除对 `everyBuiltInArchetype` / `EVERY_VARIANT` 的直接依赖，同步更新根因合同 `doors`（54 项）；0 本机路径泄露。
+- 独立实跑全绿（`EXIT=0`）：
+  - `archetypeSingleEntry.structure.test.ts`（10/10）+ `modelHandle.test.ts`（25/25）+ `modelNameModeParity.test.ts`（58/58）：**3/3 文件，93/93 PASS**；
+  - `node ./scripts/check-root-cause-contracts.mjs`：PASS；
+  - `./node_modules/.bin/tsc -p electron/tsconfig.json --noEmit`：PASS（0 错误）。
 
 ## 3. ★9 真实故障变异验证（3/3 运行时必红 → 还原 32/32 必绿）
 
