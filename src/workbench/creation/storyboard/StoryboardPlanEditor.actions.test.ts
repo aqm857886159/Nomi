@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
-import { chromium } from 'playwright'
-import { beforeAll, describe, test } from 'vitest'
+import { chromium, type Page } from 'playwright'
+import { afterAll, beforeAll, describe, test } from 'vitest'
 import { enStoryboardEditor as copy } from '../../../i18n/locales/storyboardEditor'
 import { FIXTURE_BUILD_BUDGET_MS, useBrowserFixture as setupBrowserFixture } from '../../../../tests/ux/_browserFixture.mjs'
 import { freshTailwindCss } from '../../../../tests/ux/_freshTailwindCss.mjs'
@@ -117,44 +117,71 @@ describe('persistent add shot action', () => {
     }
   })
 
-  test('the footer reveals shot 321 from shot 1, preserving selection and other scene folds', async () => {
-    const page = await fixture.browser.newPage({ viewport: { width: 1280, height: 900 } })
-    try {
-      await page.goto(fixture.url(harness, '?locale=en&windowed'))
-      await page.addStyleTag({ content: freshTailwindCss() })
-      await page.addStyleTag({ url: '/src/styles/index.css' })
-      const scroll = page.locator('[data-storyboard-scroll]')
+  describe('windowed storyboard', () => {
+    let windowedPage: Page
+
+    const storyboardControls = (page: Page) => {
       const rows = page.locator('[data-storyboard-rows]')
-      const interlude = rows.getByRole('button', { name: /^Interlude/ })
-      const departure = rows.getByRole('button', { name: /^Departure/ })
-      const select = (index: number) => rows.locator(`[data-storyboard-row="${index}"] [data-storyboard-visual-column]`)
-      const selection = page.locator('[data-storyboard-selection-toolbar]')
+      return {
+        rows,
+        scroll: page.locator('[data-storyboard-scroll]'),
+        interlude: rows.locator('[data-storyboard-item="head:1:scene-2"] button[aria-expanded]'),
+        departure: rows.locator('[data-storyboard-item="head:2:scene-3"] button[aria-expanded]'),
+        visual: (index: number) => rows.locator(`[data-storyboard-row="${index}"] [data-storyboard-visual-column]`),
+      }
+    }
+
+    const prepareWindowedStoryboard = async () => {
+      await windowedPage?.close()
+      const page = await fixture.browser.newPage({
+        viewport: { width: 1280, height: 900 },
+        reducedMotion: 'reduce',
+      })
+      windowedPage = page
+      await page.goto(fixture.url(harness, '?locale=en&windowed'), { timeout: 0 })
+      await page.addStyleTag({ content: freshTailwindCss() })
+      const { scroll, interlude, departure, visual } = storyboardControls(page)
       await interlude.click()
       await departure.click()
       await scroll.evaluate(element => { element.scrollTop = 0 })
-      await select(1).click({ position: { x: 4, y: 4 } })
-      await select(2).click({ position: { x: 4, y: 4 }, modifiers: ['Shift'] })
-      const selectionText = copy.selection.count.replace('{{count}}', '2')
-      await expect(selection).toContainText(selectionText)
-      await expect(interlude).toHaveAttribute('aria-expanded', 'false')
-      await expect(departure).toHaveAttribute('aria-expanded', 'false')
-      await expect(select(1)).toBeInViewport()
-      await expect(rows.locator('[data-storyboard-item="shot:shot-320"]')).toHaveCount(0)
+      await visual(1).click({ position: { x: 4, y: 4 } })
+      await visual(2).click({ position: { x: 4, y: 4 }, modifiers: ['Shift'] })
+    }
 
-      await page.locator('[data-storyboard-plan-footer]').getByRole('button', { name: copy.addShot, exact: true }).click()
+    beforeAll(prepareWindowedStoryboard, FIXTURE_BUILD_BUDGET_MS)
+    afterAll(async () => { await windowedPage?.close() })
+
+    test('the footer reveals shot 321 from shot 1, preserving selection and other scene folds', async ({ onTestFailed }) => {
+      // A CI retry needs a fresh plan after any partial edit.
+      onTestFailed(prepareWindowedStoryboard, FIXTURE_BUILD_BUDGET_MS)
+      const page = windowedPage
+      const { rows, scroll, interlude, departure, visual } = storyboardControls(page)
+      const selection = page.locator('[data-storyboard-selection-toolbar]')
+      const selectionText = copy.selection.count.replace('{{count}}', '2')
+      await Promise.all([
+        expect(selection).toContainText(selectionText),
+        expect(interlude).toHaveAttribute('aria-expanded', 'false'),
+        expect(departure).toHaveAttribute('aria-expanded', 'false'),
+        expect(visual(1)).toBeInViewport(),
+        expect(rows.locator('[data-storyboard-item="shot:shot-320"]')).toHaveCount(0),
+      ])
+
+      await page.locator('[data-storyboard-plan-footer] [data-storyboard-add-shot]').click()
       const prompt = rows.locator('[data-storyboard-row="321"] [data-prompt-box] [contenteditable="true"]')
-      await expect(prompt).toBeInViewport()
-      await expect(prompt).toBeFocused()
-      await expect(selection).toContainText(selectionText)
-      await expect(rows).toHaveAttribute('data-storyboard-row-count', '321')
-      await page.keyboard.type('Continue at the departure gate')
+      await Promise.all([
+        expect(prompt).toBeInViewport(),
+        expect(prompt).toBeFocused(),
+        expect(selection).toContainText(selectionText),
+        expect(rows).toHaveAttribute('data-storyboard-row-count', '321'),
+      ])
+      await page.keyboard.insertText('Continue at the departure gate')
       await expect(prompt).toHaveText('Continue at the departure gate')
 
       await scroll.evaluate(element => { element.scrollTop = 0 })
-      await expect(interlude).toHaveAttribute('aria-expanded', 'false')
-      await expect(departure).toHaveAttribute('aria-expanded', 'true')
-    } finally {
-      await page.close()
-    }
+      await Promise.all([
+        expect(interlude).toHaveAttribute('aria-expanded', 'false'),
+        expect(departure).toHaveAttribute('aria-expanded', 'true'),
+      ])
+    }, 60_000)
   })
 })

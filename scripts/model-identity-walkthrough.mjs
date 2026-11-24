@@ -254,7 +254,7 @@ async function readRows(win) {
   })))
 }
 
-async function revealRow(win, label) {
+async function revealModelOption(win, label) {
   const row = win.locator('[role="option"]:visible').filter({ has: win.locator('[data-nomi-select-option-label]', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) }).first()
   await row.scrollIntoViewIfNeeded().catch(() => undefined)
   await row.hover().catch(() => undefined)
@@ -262,7 +262,7 @@ async function revealRow(win, label) {
 }
 
 async function pickRow(win, label) {
-  const row = await revealRow(win, label)
+  const row = await revealModelOption(win, label)
   await row.locator('[data-nomi-select-option-label]').click()
 }
 
@@ -312,7 +312,7 @@ async function checkModelBoxes(win, lang) {
     expectThat(!rows.some((row) => row.label === T['zh-CN'].kling), `视频：英文界面不再显示「${T['zh-CN'].kling}」`)
     console.log(`    英文视频框里仍是中文的行：${cjk.join('、') || '无'}`)
   }
-  await revealRow(win, 'Seedance 2.5')
+  await revealModelOption(win, 'Seedance 2.5')
   await shot(win, `${lang}-video-model-box.png`)
   await win.keyboard.press('Escape')
 
@@ -333,10 +333,10 @@ async function checkModelBoxes(win, lang) {
     expectThat(!rows.some((row) => row.label === T['zh-CN'].gemini), `图片：英文界面不再显示「${T['zh-CN'].gemini}」`)
     console.log(`    英文图片框里仍是中文的行：${cjk.join('、') || '无'}`)
   }
-  await revealRow(win, 'GPT Image 2')
+  await revealModelOption(win, 'GPT Image 2')
   await shot(win, `${lang}-image-model-box.png`)
   if (lang === 'en') {
-    await revealRow(win, T.en.gemini)
+    await revealModelOption(win, T.en.gemini)
     await shot(win, 'en-image-model-box-gemini-label.png')
   }
   await win.keyboard.press('Escape')

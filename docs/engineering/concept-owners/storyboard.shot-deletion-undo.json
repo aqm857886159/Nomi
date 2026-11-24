@@ -1,0 +1,23 @@
+{
+  "name": "分镜镜头删除撤销",
+  "subject": "storyboard.shot-deletion-undo",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+    "symbol": "restoredStoryboardPlan"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "restoredStoryboardPlan"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "撤销时按稳定 ID 补回仍缺失的已删镜头，根据现有相邻镜头确定位置，保留后续新增或编辑的内容。"
+}
