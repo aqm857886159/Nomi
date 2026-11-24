@@ -31,7 +31,7 @@ export default function TimelineTextTrack(): JSX.Element {
       const rect = clipsRef.current?.getBoundingClientRect()
       const grabFrame = rect ? pixelToFrame(event.clientX - rect.left, scale) : startFrame
       const grabOffset = grabFrame - startFrame
-      let captured = false
+      let captured: symbol | undefined
 
       const apply = (clientX: number, commit: boolean) => {
         const bounds = clipsRef.current?.getBoundingClientRect()
@@ -45,13 +45,13 @@ export default function TimelineTextTrack(): JSX.Element {
         onMove: (move) => {
           // 真正拖动才压撤销栈（纯点击 select 不污染栈）
           if (!captured) {
-            useWorkbenchStore.getState().captureTimelineUndo()
-            captured = true
+            captured = useWorkbenchStore.getState().captureTimelineUndo()
           }
           apply(move.clientX, false)
         },
         onCommit: (up) => apply(up.clientX, true),
         onCancel: () => revertCapturedTimelineEdit(captured),
+        onEnd: () => useWorkbenchStore.getState().timelineHistory.finishGesture(captured),
       })
     },
     [moveTimelineTextClip, scale, selectTimelineTextClip, startSession],
@@ -63,7 +63,7 @@ export default function TimelineTextTrack(): JSX.Element {
       event.preventDefault()
       event.stopPropagation()
       selectTimelineTextClip(clipId)
-      let captured = false
+      let captured: symbol | undefined
 
       const apply = (clientX: number, commit: boolean) => {
         const bounds = clipsRef.current?.getBoundingClientRect()
@@ -76,13 +76,13 @@ export default function TimelineTextTrack(): JSX.Element {
         event,
         onMove: (move) => {
           if (!captured) {
-            useWorkbenchStore.getState().captureTimelineUndo()
-            captured = true
+            captured = useWorkbenchStore.getState().captureTimelineUndo()
           }
           apply(move.clientX, false)
         },
         onCommit: (up) => apply(up.clientX, true),
         onCancel: () => revertCapturedTimelineEdit(captured),
+        onEnd: () => useWorkbenchStore.getState().timelineHistory.finishGesture(captured),
       })
     },
     [resizeTimelineTextClip, scale, selectTimelineTextClip, startSession],

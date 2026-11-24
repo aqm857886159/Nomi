@@ -3,7 +3,7 @@ import { setClipFraming } from './timelineEdit'
 import type { ClipFraming } from './clipFraming'
 import { applyTimelineOperation } from './kernel/timelineKernel'
 import type { TimelineClipAudio, TimelineState } from './timelineTypes'
-import { timelineUndoTimeline, type TimelineUndoEntry } from './timelineUndoHistory'
+import type { createTimelineHistory } from '../history/historyMiddleware'
 
 /**
  * 片段级写入：取景（适应/填充 · 缩放 · 平移）与音频（音量 · 静音 · 淡入淡出）。
@@ -25,51 +25,44 @@ export type TimelineClipWritesSlice = {
    * 拖拽手势被打断：弹回手势首次真动时压入的撤销快照（= 手势开始前的那一帧），且不留 redo——
    * 半截拖动不该能被「重做」出来。只由 timelineGesture.revertCapturedTimelineEdit 调用。
    */
-  cancelTimelineGesture: () => void
+  cancelTimelineGesture: (token?: symbol) => void
 }
 
 type ClipWritesHostState = {
   timeline: TimelineState
-  timelineUndoStack: TimelineUndoEntry[]
-  timelineRedoStack: TimelineState[]
+  timelineHistory: ReturnType<typeof createTimelineHistory>
   selectedTimelineClipIds: string[]
   persistRevision: number
 } & TimelineClipWritesSlice
 
-export function createTimelineClipWritesSlice(
-  pushTimelineUndo: (stack: TimelineUndoEntry[], entry: TimelineState) => TimelineUndoEntry[],
-): StateCreator<ClipWritesHostState, [['zustand/subscribeWithSelector', never]], [], TimelineClipWritesSlice> {
-  return (set) => ({
-    cancelTimelineGesture: () => {
-      set((state) => {
-        const stack = state.timelineUndoStack
-        if (stack.length === 0) return state
-        return { timeline: timelineUndoTimeline(stack[stack.length - 1]), timelineUndoStack: stack.slice(0, -1), persistRevision: state.persistRevision + 1 }
-      })
-    },
-    setTimelineClipFraming: (clipId, patch, options) => {
-      const commit = options?.commit !== false
-      set((state) => {
-        const next = setClipFraming(state.timeline, clipId, patch)
-        const changed = next !== state.timeline
-        return { timeline: next, persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision }
-      })
-    },
-    setTimelineClipAudio: (clipId, patch, options) => {
-      const commit = options?.commit !== false
-      set((state) => {
-        const source = state.timeline.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId)
-        if (!source || source.type === 'image') return state
-        const result = applyTimelineOperation(state.timeline, { kind: 'clip-audio', clipId, audio: patch })
-        if (!result.ok || !result.diff.changed) return state
-        return {
-          timeline: result.timeline,
-          timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
-          timelineRedoStack: [],
-          selectedTimelineClipIds: [clipId],
-          persistRevision: commit ? state.persistRevision + 1 : state.persistRevision,
-        }
-      })
-    },
-  })
-}
+export const createTimelineClipWritesSlice: StateCreator<ClipWritesHostState, [['zustand/subscribeWithSelector', never]], [], TimelineClipWritesSlice> = (set) => ({
+  cancelTimelineGesture: (token) => {
+    set((state) => {
+      const timeline = state.timelineHistory.cancelGesture(token)
+      return timeline ? { timeline, persistRevision: state.persistRevision + 1 } : state
+    })
+  },
+  setTimelineClipFraming: (clipId, patch, options) => {
+    const commit = options?.commit !== false
+    set((state) => {
+      const next = setClipFraming(state.timeline, clipId, patch)
+      const changed = next !== state.timeline
+      return { timeline: next, persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision }
+    })
+  },
+  setTimelineClipAudio: (clipId, patch, options) => {
+    const commit = options?.commit !== false
+    set((state) => {
+      const source = state.timeline.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId)
+      if (!source || source.type === 'image') return state
+      const result = applyTimelineOperation(state.timeline, { kind: 'clip-audio', clipId, audio: patch })
+      if (!result.ok || !result.diff.changed) return state
+      state.timelineHistory.record(state.timeline, result.timeline)
+      return {
+        timeline: result.timeline,
+        selectedTimelineClipIds: [clipId],
+        persistRevision: commit ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+})

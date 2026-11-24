@@ -46,10 +46,11 @@ export default function EditingLayoutMenu(): JSX.Element {
     }
   }, [open])
 
+  const targetLayout = () => useWorkbenchStore.getState().editingPanelHistory.activate()
   const panels = Object.keys(PANEL_KEYS) as Array<keyof EditingPanelVisibility>
 
   return (
-    <div className="relative" ref={rootRef}>
+    <div className="relative" ref={rootRef} onFocusCapture={targetLayout} onPointerDownCapture={targetLayout}>
       <WorkbenchButton
         className={cn(
           'app-no-drag',

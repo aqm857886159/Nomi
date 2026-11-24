@@ -250,7 +250,6 @@ const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: strin
   'src/workbench/onboarding/HandbookPanel.tsx': { role: 'own-layer', why: '手册自己的 Esc' },
   'src/workbench/onboarding/OnboardingSpotlight.tsx': { role: 'own-layer', why: '教学聚光灯自己的 Esc / 外点' },
   'src/workbench/preview/EditingLayoutMenu.tsx': { role: 'own-layer', why: '布局菜单自己的 Esc' },
-  'src/workbench/preview/PreviewWorkspace.tsx': { role: 'boundary', why: '面板布局撤销' },
   'src/workbench/project/useProjectWindowLifecycle.ts': { role: 'window-command', why: '窗口硬刷新前先存盘，和有没有弹层无关' },
   'src/workbench/promptLibrary/PromptPreviewOverlay.tsx': { role: 'own-layer', why: '提示词预览自己的 Esc' },
   'src/workbench/settings/SettingsDialog.tsx': { role: 'own-layer', why: '设置对话框自己的 Esc' },

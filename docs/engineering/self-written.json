@@ -849,6 +849,31 @@
   ],
   "entries": [
     {
+      "id": "workbench-session-history",
+      "capability": "时间轴和剪辑布局的会话历史、回执授权及快捷键归属",
+      "status": "justified",
+      "paths": [
+        "src/workbench/history/historyMiddleware.ts",
+        "src/workbench/history/timelineAndLayoutHistory.test.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "zundo temporal（记录、限额、撤销、重做）",
+          "source": "node_modules/zundo/dist/index.js"
+        },
+        {
+          "name": "immer patches（正反补丁不负责项目寿命与回执授权）",
+          "source": "node_modules/immer/src/immer.ts"
+        },
+        {
+          "name": "shortcutSurface.ts（沿用已有宿主和模态输入归属）",
+          "source": "src/workbench/shortcutSurface.ts"
+        }
+      ],
+      "whyNotIntegrated": "zundo temporal 负责两份限额历史。Nomi 在项目会话结束时更换历史实例，按时间轴顶条和 revision 授权 Agent 回执，并在同屏时间轴、布局和画布间按用户活动目标分派 ⌘Z。",
+      "revisitWhen": "项目会话、采纳补偿或 Agent 回执协议改变时，与 zundo 的新版本对照。"
+    },
+    {
       "id": "file-lease-lock",
       "capability": "工作区清单事务与生产运行栅栏需要的可核验文件所有权：原盘上协议、同步检查、同步盘恢复与持有者交接",
       "status": "justified",

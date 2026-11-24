@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../history/historyMiddleware'
 import { describe, expect, it, beforeEach } from 'vitest'
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
@@ -6,7 +7,7 @@ import { adoptGenerationNode } from './adoptGenerationNode'
 import { adoptStoryboardBatch } from './adoptStoryboardBatch'
 import { getAdoptionProposal, listAdoptionProposals, lookupAdoptionProposal, registerAdoptionProposal, resetAdoptionRegistry } from './adoptionProposalRegistry'
 import { timelineRevisionOf } from './adoptionProposalKey'
-import { workbenchAdoptionPorts } from './adoptionStorePorts'
+import { createWorkbenchAdoptionPorts } from './adoptionStorePorts'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { AdoptionPlacement, AdoptionProposalKey } from './adoptionTypes'
 import { timelineRevision } from '../timeline/kernel/timelineKernel'
@@ -218,11 +219,13 @@ describe('P5 E1 adoption bridge', () => {
     const redoEntry: TimelineState = { ...base, fps: 30 }
     useWorkbenchStore.setState({
       timeline: base,
-      timelineUndoStack: [earlier],
-      timelineRedoStack: [redoEntry],
+      timelineHistory: createTimelineHistory(),
     })
 
+    useWorkbenchStore.getState().timelineHistory.temporal.setState({ pastStates: [{ value: earlier }], futureStates: [{ value: redoEntry }] })
+
     // 让写入后的校验失败（reducer 静默吞掉片段）→ 走 compensation 分支。
+    const workbenchAdoptionPorts = createWorkbenchAdoptionPorts()
     const failing = {
       ...workbenchAdoptionPorts,
       readTimeline: () => useWorkbenchStore.getState().timeline,
@@ -234,8 +237,8 @@ describe('P5 E1 adoption bridge', () => {
     expect(result.ok).toBe(false)
 
     const after = useWorkbenchStore.getState()
-    expect(after.timelineUndoStack).toEqual([earlier])
-    expect(after.timelineRedoStack).toEqual([redoEntry])
+    expect(after.timelineHistory.entries.pastStates.map(entry => entry.value)).toEqual([earlier])
+    expect(after.timelineHistory.entries.futureStates.map(entry => entry.value)).toEqual([redoEntry])
   })
 
   it('adopts a storyboard batch in supplied shot order as one proposal', async () => {

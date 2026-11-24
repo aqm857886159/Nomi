@@ -1,4 +1,4 @@
-import { canvasDocumentInput, canvasWindowInput } from '../../../../shortcutSurface'
+import { canvasDocumentInput, canvasWindowInput, historyShortcut } from '../../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、../../../../../design 的 BodyPortal / NOMI_OVERLAY_Z_INDEX、../../../../../utils/cn
  * [OUTPUT]: 对外提供 Popover（锚定在触发器上方/下方/右侧的浮层：body 传送门 + fixed 定位、外点关闭、捕获期 Esc 关闭、标记 data-nomi-escape-layer 让编辑器的 Esc 让路；
@@ -148,7 +148,7 @@ export function Popover({ open, onClose, trigger, children, side = 'top', align 
               // 高度封顶 + 内滚：14 项机位预设在矮视口里会顶出视口被顶栏盖住（走查时点到了顶栏的「选择」）
               style={{ ...position, zIndex: NOMI_OVERLAY_Z_INDEX.popover, maxHeight: 'min(60vh, 420px)', overflowY: 'auto' }}
               onPointerDown={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => { if (!passEditorHotkeys || !historyShortcut(event.nativeEvent)) event.stopPropagation() }}
               onWheel={(event) => event.stopPropagation()}
             >
               <PopoverParentContext.Provider value={childContext}>{children}</PopoverParentContext.Provider>

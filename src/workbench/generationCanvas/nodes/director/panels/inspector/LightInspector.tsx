@@ -16,7 +16,7 @@ export function LightInspector({ light }: { light: DirectorLight }): JSX.Element
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const update = (patch: Partial<DirectorLight>) => store.getState().updateLight(light.id, patch)
-  const save = () => store.getState().saveState()
+  const save = store.getState().saveState
   const commit = (patch: Partial<DirectorLight>) => store.getState().withHistory(() => update(patch))
   return (
     <>

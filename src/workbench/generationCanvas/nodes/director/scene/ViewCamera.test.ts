@@ -27,7 +27,7 @@ import { useViewportPicking } from './useViewportPicking'
 import { createSceneRefRegistry, DIRECTOR_IK_HANDLE_KEY, tagEntityObject } from './sceneRefs'
 import { PipRenderer } from './PipRenderer'
 import { CaptureBinder } from './capture/CaptureBinder'
-import { useDirectorHotkeys } from '../useDirectorHotkeys'
+import { useDirectorHistoryShortcut, useDirectorHotkeys } from '../useDirectorHotkeys'
 import { LabelProjector } from './LabelProjector'
 import { SkeletonVisual } from './character/SkeletonVisual'
 import { SkeletonHandles } from './character/SkeletonHandles'
@@ -47,6 +47,7 @@ const META: Partial<KeyboardEvent> = isMacPlatform() ? { metaKey: true } : { ctr
 function key(code: string, fields: Partial<KeyboardEvent> = {}) {
   const event = { code, key: code.startsWith('Key') ? code.slice(3).toLowerCase() : code, target: documentState.activeElement, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), ...fields } as unknown as KeyboardEvent
   handlers.get('keydown')?.forEach((fn) => fn(event))
+  return event
 }
 
 function setup() {
@@ -255,6 +256,8 @@ describe('camera world/local rendering agreement', () => {
 
 describe('multi-entity shortcut undo boundaries', () => {
   function HotkeyHarness() {
+    const host = document.querySelector('[data-shortcut-surface="canvas"]')
+    useDirectorHistoryShortcut({ current: host }, runtime.store, false)
     useDirectorHotkeys({ scopeRef: { current: 'viewport' }, handlers: {} })
     cleanups = runtime.effects.map((effect) => effect()).filter((fn): fn is () => void => Boolean(fn))
   }
@@ -262,7 +265,23 @@ describe('multi-entity shortcut undo boundaries', () => {
   it('hidden layer: the hotkey dispatcher registers nothing, so Backspace / undo of another page are never swallowed', () => {
     const a = object('a'); runtime.store.getState().select({ objectId: a, multiObjectIds: [a] }); runtime.layerActive = false; HotkeyHarness()
     expect(handlers.get('keydown')?.size ?? 0).toBe(0)
-    key('Backspace'); expect(runtime.store.getState().activeScene().objects).toHaveLength(1)
+    expect(key('KeyZ', META).preventDefault).not.toHaveBeenCalled()
+    expect(key('Backspace').preventDefault).not.toHaveBeenCalled()
+    expect(runtime.store.getState().activeScene().objects).toHaveLength(1)
+  })
+  it('dispatches exactly one undo or redo and releases both keys when its host is hidden', () => {
+    object('a')
+    object('b')
+    HotkeyHarness()
+    const names = () => runtime.store.getState().activeScene().objects.map(item => item.name)
+    expect(key('KeyZ', META).preventDefault).toHaveBeenCalledOnce()
+    expect(names()).toEqual(['a'])
+    expect(key('KeyZ', { ...META, shiftKey: true }).preventDefault).toHaveBeenCalledOnce()
+    expect(names()).toEqual(['a', 'b'])
+    workspaceActive = false
+    expect(key('KeyZ', META).preventDefault).not.toHaveBeenCalled()
+    expect(key('Backspace').preventDefault).not.toHaveBeenCalled()
+    expect(names()).toEqual(['a', 'b'])
   })
   it('one undo restores all objects deleted by one Backspace', () => {
     const a = object('a'), b = object('b'); runtime.store.getState().select({ objectId: a, multiObjectIds: [a, b] }); HotkeyHarness()

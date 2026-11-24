@@ -1,3 +1,4 @@
+import { createLayoutHistory } from '../../../workbench/history/historyMiddleware'
 // 打开项目什么都不点：挂上外壳不许让项目落盘（复盘 docs/engineering/direction-checks/2026-11-13-open-writes-project.md）。
 //
 // 旧的「打开不写」测试只跑服务层、从没挂过外壳，挂载期的 effect 看不见——这条就是挂真的 ShellAgentHost，
@@ -86,7 +87,7 @@ describe('挂上外壳不让项目落盘（打开项目什么都不点）', () =
   beforeEach(() => {
     root = createRoot(fakeDom() as unknown as HTMLElement)
     // 项目刚还原完：项目里存的是「Nomi 栏展开」（新版项目的常见值）。
-    useWorkbenchStore.setState({ editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), editingPanelUndoStack: [], projectAgentDockCollapsed: false })
+    useWorkbenchStore.setState({ editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), editingPanelHistory: createLayoutHistory(), projectAgentDockCollapsed: false })
   })
   afterEach(async () => {
     await act(async () => root.unmount())

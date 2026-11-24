@@ -10,7 +10,7 @@ import type {
 import { makeChangeId, parseChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
 import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import { requireCapabilityProjectId } from '../../capability/capabilityProjectBinding'
-import { clearAdoptionUndoSnapshot, workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
+import { createWorkbenchAdoptionPorts, readWorkbenchTimeline } from '../../adoption/adoptionStorePorts'
 import { useWorkbenchStore } from '../../workbenchStore'
 import {
   applyTimelineOperations,
@@ -21,12 +21,7 @@ import {
 } from '../kernel/timelineKernel'
 import type { TimelineState, TimelineTextClip, TimelineTrack } from '../timelineTypes'
 import { resolveClipAudio } from '../clipAudio'
-import {
-  createTimelineAgentUndoEntry,
-  timelineAgentUndoMetadata,
-  timelineUndoTimeline,
-  type TimelineAgentUndoMetadata,
-} from '../timelineUndoHistory'
+import type { TimelineAgentUndoMetadata } from '../../history/historyMiddleware'
 import { runProposalUndoByChangeId } from '../../generationCanvas/agent/proposalUndo'
 
 type JsonRecord = Record<string, unknown>
@@ -185,7 +180,7 @@ function previewPlan(plan: TimelineEditPlanInput, base: TimelineState) {
 }
 
 export function executeTimelineReadTarget(input: TimelineReadInput): JsonRecord {
-  const timeline = workbenchAdoptionPorts.readTimeline()
+  const timeline = readWorkbenchTimeline()
   if (input.operation === 'read_timeline') {
     return { operation: input.operation, ...projectTimeline(timeline) }
   }
@@ -233,7 +228,8 @@ function failure(
 
 function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<TimelineWriteInput, { operation: 'apply_edit_plan' }> }): TimelineWriteResult {
   const { input } = request
-  const base = workbenchAdoptionPorts.readTimeline()
+  const ports = createWorkbenchAdoptionPorts()
+  const base = ports.readTimeline()
   const currentRevision = timelineRevision(base)
   const projectId = writeProjectId(request)
   if (!projectId) return failure(input.operation, 'project_scope_required', currentRevision)
@@ -242,23 +238,23 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
   }
 
   const signature = planSignature(input)
-  const stack = useWorkbenchStore.getState().timelineUndoStack
+  const stack = useWorkbenchStore.getState().timelineHistory.entries.pastStates
   const existing = [...stack]
     .reverse()
-    .map(timelineAgentUndoMetadata)
+    .map(entry => entry.metadata)
     .find((metadata) => metadata?.projectId === projectId && metadata.planId === input.planId)
   if (existing && existing.planSignature !== signature) {
     return failure(input.operation, 'plan_id_conflict', currentRevision, { planId: input.planId })
   }
 
-  const topMetadata = timelineAgentUndoMetadata(stack.at(-1))
+  const head = stack.at(-1)
   if (
     existing &&
-    topMetadata === existing &&
+    head?.value && head.metadata === existing &&
     existing.afterRevision === currentRevision &&
     existing.planSignature === signature
   ) {
-    const replayPreview = previewPlan(input, timelineUndoTimeline(stack.at(-1)!))
+    const replayPreview = previewPlan(input, head.value)
     return {
       operation: input.operation,
       planId: input.planId,
@@ -302,19 +298,18 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
     approvalId: request.approvalId,
     actionHash: request.actionHash,
   }
+  assertExecutionCurrent(request)
   try {
-    assertExecutionCurrent(request)
-    workbenchAdoptionPorts.commitTimeline(result.timeline, base, createTimelineAgentUndoEntry(base, metadata))
+    ports.commitTimeline(result.timeline, base, metadata)
   } catch (error) {
-    try { workbenchAdoptionPorts.restoreTimeline(base) } catch { /* preserve the original error */ }
+    try { ports.restoreTimeline(base) } catch { /* preserve the original error */ }
     throw error
   }
-  const landed = workbenchAdoptionPorts.readTimeline()
+  const landed = ports.readTimeline()
   if (timelineRevision(landed) !== result.revision) {
-    const restored = workbenchAdoptionPorts.restoreTimeline(base)
+    const restored = ports.restoreTimeline(base)
     throw new Error(restored ? 'Timeline edit verification failed; changes were recovered' : 'Timeline edit verification failed; recovery is required')
   }
-  clearAdoptionUndoSnapshot()
   return {
     operation: input.operation,
     planId: input.planId,
@@ -358,7 +353,7 @@ function undoPlan(request: TimelineWriteTargetExecution & { input: Extract<Timel
   }
   const projectId = writeProjectId(request)
   if (!projectId) return failure(input.operation, 'project_scope_required', currentRevision, { undone: false })
-  const metadata = timelineAgentUndoMetadata(state.timelineUndoStack.at(-1))
+  const metadata = state.timelineHistory.entries.pastStates.at(-1)?.metadata
   if (!metadata || metadata.projectId !== projectId || (metadata.changeId !== requestedChangeId && metadata.undoToken !== requestedChangeId)) {
     return failure(input.operation, 'undo_token_invalid', currentRevision, { undone: false })
   }

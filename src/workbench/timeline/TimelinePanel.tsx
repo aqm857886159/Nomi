@@ -1,3 +1,4 @@
+import { useStore } from 'zustand'
 import React, { type JSX } from 'react'
 import { usePointerSession } from './timelineGesture'
 import { useTranslation } from 'react-i18next'
@@ -25,8 +26,8 @@ import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } fr
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
 import { notify } from '../../ui/notificationPolicy'
 import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
-import { dispatchTimelineShortcut, isTimelineShortcutsHelpKey } from './timelineShortcuts'
-import { installShortcutSurfaceTracker, shortcutSurfaceMayHandle } from '../shortcutSurface'
+import { dispatchTimelineShortcut, registerTimelineHistoryShortcut, isTimelineShortcutsHelpKey } from './timelineShortcuts'
+import { shortcutSurfaceMayHandle } from '../shortcutSurface'
 import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
 import { TimelineContextMenu, type TimelineContextTarget } from './TimelineContextMenu'
 import { TimelineShortcutsDialog } from './TimelineShortcutsDialog'
@@ -100,9 +101,10 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const setTimelineZoom = useWorkbenchStore((state) => state.setTimelineZoom)
   const splitMode = useWorkbenchStore((state) => state.timelineSplitMode)
   const setTimelineSplitMode = useWorkbenchStore((state) => state.setTimelineSplitMode)
-  const canUndo = useWorkbenchStore((state) => state.timelineUndoStack.length > 0)
+  const history = useWorkbenchStore(state => state.timelineHistory.temporal)
+  const canUndo = useStore(history, state => state.pastStates.length > 0)
   const undoTimeline = useWorkbenchStore((state) => state.undoTimeline)
-  const canRedo = useWorkbenchStore((state) => state.timelineRedoStack.length > 0)
+  const canRedo = useStore(history, state => state.futureStates.length > 0)
   const redoTimeline = useWorkbenchStore((state) => state.redoTimeline)
   // 单片工具（分割/复制/微调）作用于"最后选中"的 primary
   const primaryClipId = selectedClipIds.length > 0 ? selectedClipIds[selectedClipIds.length - 1] : ''
@@ -199,8 +201,6 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         splitMode,
       }, (action) => {
         switch (action.type) {
-          case 'undo': useWorkbenchStore.getState().undoTimeline(); break
-          case 'redo': useWorkbenchStore.getState().redoTimeline(); break
           case 'exit-split-mode': setTimelineSplitMode(false); break
           case 'nudge-playhead': setTimelinePlayhead(timeline.playheadFrame + action.delta); break
           case 'remove-text-selection': if (selectedTextClipId) removeTimelineTextClip(selectedTextClipId); break
@@ -228,11 +228,13 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         }
       }, panelRef.current)
     }
-    installShortcutSurfaceTracker()
+    const unregisterHistory = registerTimelineHistoryShortcut(() => panelRef.current, undoTimeline, redoTimeline)
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => { unregisterHistory(); window.removeEventListener('keydown', onKeyDown) }
   }, [
     duplicateTimelineClip,
+    undoTimeline,
+    redoTimeline,
     hasSelection,
     nudgeTimelineClip,
     primaryClipId,
@@ -344,6 +346,8 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     <section
       ref={panelRef}
       data-shortcut-surface="timeline"
+      onFocusCapture={() => useWorkbenchStore.getState().timelineHistory.activate()}
+      onPointerDownCapture={() => useWorkbenchStore.getState().timelineHistory.activate()}
       className={cn(
         'workbench-timeline',
         'relative min-w-0 min-h-0 h-full grid grid-rows-[auto_minmax(0,1fr)]',

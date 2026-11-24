@@ -97,9 +97,9 @@ export function CloseupClipInspector({ camera, clip }: { camera: DirectorCamera;
             onChange={(value) => patch({ anchor: value as CloseupAnchor })}
           />
         </Row>
-        <SliderNumberField label={t('director.closeup.start')} value={clip.startTime} min={0} max={totalDuration} step={0.1} unit="s" digits={1} onChangeStart={() => store.getState().saveState()} onChange={(startTime) => setTimes(startTime, clip.endTime)} />
+        <SliderNumberField label={t('director.closeup.start')} value={clip.startTime} min={0} max={totalDuration} step={0.1} unit="s" digits={1} onChangeStart={store.getState().saveState} onChange={(startTime) => setTimes(startTime, clip.endTime)} />
         <div className="-mt-1 text-right font-nomi-mono text-micro text-nomi-ink-40">{t('director.closeup.frameTag', { frame: secondsToFrame(clip.startTime) })}</div>
-        <SliderNumberField label={t('director.closeup.end')} value={clip.endTime} min={0} max={totalDuration} step={0.1} unit="s" digits={1} onChangeStart={() => store.getState().saveState()} onChange={(endTime) => setTimes(clip.startTime, endTime)} />
+        <SliderNumberField label={t('director.closeup.end')} value={clip.endTime} min={0} max={totalDuration} step={0.1} unit="s" digits={1} onChangeStart={store.getState().saveState} onChange={(endTime) => setTimes(clip.startTime, endTime)} />
         <div className="-mt-1 text-right font-nomi-mono text-micro text-nomi-ink-40">{t('director.closeup.frameTag', { frame: secondsToFrame(clip.endTime) })}</div>
         <div className="mt-1 flex items-center justify-between border-t border-nomi-line-soft pt-1 text-caption">
           <span className="text-nomi-ink-40">{t('director.closeup.duration')}</span>
@@ -127,14 +127,14 @@ export function CloseupClipInspector({ camera, clip }: { camera: DirectorCamera;
             onChange={(value) => patch({ azimuth: value as CloseupAzimuth })}
           />
         </Row>
-        <SliderNumberField label={t('director.closeup.horizontalAngle')} value={clip.horizontalAngle} min={-180} max={180} step={1} unit="°" onChangeStart={() => store.getState().saveState()} onChange={(horizontalAngle) => live({ horizontalAngle })} />
-        <SliderNumberField label={t('director.closeup.pitchAngle')} value={clip.pitchAngle} min={-89} max={89} step={1} unit="°" onChangeStart={() => store.getState().saveState()} onChange={(pitchAngle) => live({ pitchAngle })} />
+        <SliderNumberField label={t('director.closeup.horizontalAngle')} value={clip.horizontalAngle} min={-180} max={180} step={1} unit="°" onChangeStart={store.getState().saveState} onChange={(horizontalAngle) => live({ horizontalAngle })} />
+        <SliderNumberField label={t('director.closeup.pitchAngle')} value={clip.pitchAngle} min={-89} max={89} step={1} unit="°" onChangeStart={store.getState().saveState} onChange={(pitchAngle) => live({ pitchAngle })} />
       </InspectorCard>
 
       <InspectorCard>
         <SectionHeader title={t('director.closeup.movementTitle')} />
-        <SliderNumberField label={t('director.closeup.distance')} value={clip.distance} min={CLOSEUP_MIN_DISTANCE} max={20} step={0.1} unit="m" digits={1} onChangeStart={() => store.getState().saveState()} onChange={(distance) => live({ distance })} />
-        <SliderNumberField label={t('director.closeup.height')} value={clip.height} min={-2} max={5} step={0.1} unit="m" digits={1} onChangeStart={() => store.getState().saveState()} onChange={(height) => live({ height })} />
+        <SliderNumberField label={t('director.closeup.distance')} value={clip.distance} min={CLOSEUP_MIN_DISTANCE} max={20} step={0.1} unit="m" digits={1} onChangeStart={store.getState().saveState} onChange={(distance) => live({ distance })} />
+        <SliderNumberField label={t('director.closeup.height')} value={clip.height} min={-2} max={5} step={0.1} unit="m" digits={1} onChangeStart={store.getState().saveState} onChange={(height) => live({ height })} />
         {clip.anchor === 'custom'
           ? (['x', 'y', 'z'] as const).map((axis) => (
               <SliderNumberField
@@ -146,7 +146,7 @@ export function CloseupClipInspector({ camera, clip }: { camera: DirectorCamera;
                 step={0.05}
                 unit="m"
                 digits={2}
-                onChangeStart={() => store.getState().saveState()}
+                onChangeStart={store.getState().saveState}
                 onChange={(value) => live({ customAnchor: { ...customAnchor, [axis]: value } })}
               />
             ))

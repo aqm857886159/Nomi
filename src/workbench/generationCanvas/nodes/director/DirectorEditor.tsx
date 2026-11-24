@@ -1,4 +1,4 @@
-import { canvasWindowInput } from '../../../shortcutSurface'
+import { canvasWindowInput, historyShortcut } from '../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../design 的 confirmDialog / TooltipProvider、
  *          ../../../generation/pageLayerContext 的 useGenerationPageLayerActive（这一格此刻看不看得见）、
@@ -44,7 +44,7 @@ import { useBoxDraw } from './scene/creation/useBoxDraw'
 import { useCharacterPlacement } from './scene/creation/useCharacterPlacement'
 import { readDirectorPreferences, writeDirectorPreferences, type DirectorPreferences } from './scene/viewSettings'
 import { ViewportApiContext, type ViewportApi } from './scene/ViewportApiContext'
-import { isTextTarget, useDirectorHotkeys } from './useDirectorHotkeys'
+import { useDirectorHistoryShortcut, isTextTarget, useDirectorHotkeys } from './useDirectorHotkeys'
 import { transformCameraPose } from './model/cameraCoordinateSpace'
 import { invertFrame, sceneFrame } from './model/sceneObjectGraph'
 import { orderedTimelineEntities } from './model/timelineTracks'
@@ -294,7 +294,9 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
   if (!storeRef.current) {
     storeRef.current = createDirectorStore({ rawProject, defaultSceneName: t('director.node.sceneDefaultName') })
   }
+  const editorRef = React.useRef<HTMLDivElement>(null)
   const store = storeRef.current
+  useDirectorHistoryShortcut(editorRef, store, readOnly)
   const onProjectChangeRef = React.useRef(onProjectChange)
   onProjectChangeRef.current = onProjectChange
   // 写回规矩（一个写者、外部改动重载、空闲自动保存、撤销前落盘）只有 directorEditorPersistence 一个家，不看界面模式（导演 / 精修）。
@@ -407,8 +409,10 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
           role="region"
           aria-label={nodeTitle ? `${t('director.editor.aria')} · ${nodeTitle}` : t('director.editor.aria')}
           tabIndex={0}
+          ref={editorRef}
+          data-shortcut-surface="director"
           data-testid="director-editor"
-          onKeyDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => { if (!historyShortcut(event.nativeEvent)) event.stopPropagation() }}
           onKeyUp={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
           onWheel={(event) => event.stopPropagation()}
