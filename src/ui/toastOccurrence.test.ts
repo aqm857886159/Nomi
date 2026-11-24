@@ -48,6 +48,18 @@ describe('occurrence: the same event announced again is not another event', () =
     expect(items()[0]['data-notification-count']).toBe(3)
   })
 
+  it('remembers the newest 200 closed occurrences in close order', () => {
+    const announce = (index: number) => push({ id: `cache:${index}`, occurrence: 'once', message: 'x', type: 'warning', ttl: false })
+    for (let index = 0; index <= 200; index += 1) {
+      announce(index)
+      notifications.hide(`cache:${index}`)
+    }
+    announce(1)
+    expect(items()).toHaveLength(0)
+    announce(0)
+    expect(items().map(item => item.id)).toEqual(['cache:0'])
+  })
+
   it('an occurrence that was closed is not brought back by the next re-announcement; the next event is', () => {
     push({ id: 'node-recovery:n1', reason: 'server', occurrence: 'run-1@10', message: 'failed', type: 'warning', ttl: false })
     notifications.hide('node-recovery:n1') // 用户点了 ×

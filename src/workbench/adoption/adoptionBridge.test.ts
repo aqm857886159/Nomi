@@ -4,7 +4,7 @@ import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
 import { applyAdoption, buildAdoptedTimeline } from './adoptionApply'
 import { adoptGenerationNode } from './adoptGenerationNode'
 import { adoptStoryboardBatch } from './adoptStoryboardBatch'
-import { lookupAdoptionProposal, registerAdoptionProposal, resetAdoptionRegistry } from './adoptionProposalRegistry'
+import { getAdoptionProposal, listAdoptionProposals, lookupAdoptionProposal, registerAdoptionProposal, resetAdoptionRegistry } from './adoptionProposalRegistry'
 import { timelineRevisionOf } from './adoptionProposalKey'
 import { workbenchAdoptionPorts } from './adoptionStorePorts'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -44,6 +44,23 @@ function key(overrides: Partial<AdoptionProposalKey> = {}): AdoptionProposalKey 
 
 describe('P5 E1 adoption bridge', () => {
   beforeEach(() => resetAdoptionRegistry())
+
+  it('retains 200 proposals in registration order and refreshes only on registration', () => {
+    const register = (index: number) => registerAdoptionProposal(key({ artifactId: String(index) }), 'applied')
+    const first = register(0)
+    const second = register(1)
+    for (let index = 2; index < 200; index += 1) register(index)
+    expect(getAdoptionProposal(second.keyId)).toBe(second)
+    const updated = register(0)
+    const latest = register(200)
+    const proposals = listAdoptionProposals()
+    expect(proposals).toHaveLength(200)
+    expect(proposals).not.toContain(second)
+    expect(proposals).not.toContain(first)
+    expect(proposals.slice(-2)).toEqual([updated, latest])
+    resetAdoptionRegistry()
+    expect(listAdoptionProposals()).toEqual([])
+  })
 
   it('builds an ordered batch without mutating the base timeline', () => {
     const base = createDefaultTimeline()

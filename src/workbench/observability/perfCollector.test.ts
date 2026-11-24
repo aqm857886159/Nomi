@@ -69,6 +69,20 @@ describe('perfCollector：汇总', () => {
     })
   })
 
+  it('drops the oldest of 1000 interactions even when a later event raises its duration', () => {
+    const h = harness()
+    h.collector.start()
+    const feed = h.feeds.event!
+    feed(Array.from({ length: 1000 }, (_, index) => h.interaction(index + 1, index > 949 ? 300 : 40)))
+    feed([h.interaction(1, 300)])
+    expect(h.collector.snapshot()?.interactionP95).toBe('200-500')
+    feed([h.interaction(1001, 40)])
+    expect(h.collector.snapshot()?.interactionP95).toBe('lt-100')
+    h.advance(60_000)
+    h.collector.flush()
+    expect(h.collector.snapshot()?.interactionP95).toBe('none')
+  })
+
   it('没有场景源 = 在项目库', () => {
     const h = harness()
     h.collector.start()
