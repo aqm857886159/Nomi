@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { toMenuItem } from './WorkbenchEditor'
+import { toMenuItem } from './editorToolbarMenuItem'
 
 const read = (file: string): string => fs.readFileSync(path.join(process.cwd(), file), 'utf8')
 const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '')

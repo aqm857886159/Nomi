@@ -10,7 +10,8 @@ import { useOpenProjectId } from '../project/useOpenProjectId'
 import { toast } from '../../ui/toast'
 import { useAiRewrite } from './aiRewrite/aiRewriteBinding'
 import { WorkbenchButton } from '../../design/actions'
-import { NomiOverflowRow, TooltipProvider, type NomiOverflowRowGroup, type NomiOverflowRowItem, type WorkbenchMenuAction, type WorkbenchMenuCheckbox, type WorkbenchMenuIcon } from '../../design'
+import { NomiOverflowRow, TooltipProvider, type NomiOverflowRowGroup, type NomiOverflowRowItem } from '../../design'
+import { toMenuItem } from './editorToolbarMenuItem'
 import { TIPTAP_PLACEHOLDER_CLASSES } from '../assets/tiptapPlaceholderClasses'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -49,23 +50,6 @@ const TOOLBAR_BUTTON_CLASS = 'workbench-editor-toolbar__button h-[30px] w-[30px]
 
 function ToolbarDivider(): JSX.Element {
   return <div className="w-px h-[18px] bg-workbench-border mx-1 shrink-0" aria-hidden="true" />
-}
-
-// 菜单项要的是组件（WorkbenchMenu 统一给图标上尺寸）；格式钮的图标是模块级常量元素，按元素缓存一份组件，免得每次渲染换身份。
-const menuIconByElement = new WeakMap<JSX.Element, WorkbenchMenuIcon>()
-function menuIconFor(element: JSX.Element): WorkbenchMenuIcon {
-  const cached = menuIconByElement.get(element)
-  if (cached) return cached
-  const Icon: WorkbenchMenuIcon = () => element
-  menuIconByElement.set(element, Icon)
-  return Icon
-}
-
-export function toMenuItem(action: RichTextAction): WorkbenchMenuAction | WorkbenchMenuCheckbox {
-  const item = { id: action.id, label: action.label, icon: menuIconFor(action.icon), disabled: action.disabled }
-  return typeof action.active === 'boolean'
-    ? { ...item, kind: 'checkbox', checked: action.active, onCheckedChange: action.onClick }
-    : { ...item, onSelect: action.onClick }
 }
 
 function toOverflowItem(action: RichTextAction): NomiOverflowRowItem {

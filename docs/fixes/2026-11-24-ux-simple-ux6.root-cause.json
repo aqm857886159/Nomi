@@ -13,6 +13,7 @@
   ],
   "scope_paths": [
     "src/workbench/creation/WorkbenchEditor.tsx",
+    "src/workbench/creation/editorToolbarMenuItem.ts",
     "src/workbench/creation/SelectionGeneratePopover.tsx",
     "src/workbench/ai/v4/AgentPanelV4Context.tsx",
     "src/workbench/library/ProjectLibraryPage.tsx",
@@ -92,6 +93,11 @@
     },
     {
       "kind": "read",
+      "path": "src/workbench/creation/editorToolbarMenuItem.ts",
+      "symbol": "toMenuItem"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/creation/WorkbenchEditor.tsx",
       "symbol": "toMenuItem"
     },
@@ -113,7 +119,7 @@
   ],
   "door_reduction": {
     "before": 15,
-    "after": 15,
+    "after": 16,
     "why_not": "The live surfaces and design previews each need their own mount. Both language dictionaries are used, and the shared components measure overflow, place the popover, read availability and display usage for those mounts. Both permanently and conditionally hidden formats share toMenuItem."
   },
   "generality_proof": "The editor, project cards and context header each render through the same component for both locales, window sizes and existing projects.",
@@ -183,6 +189,7 @@
     "strategy": "Remove duplicate activation targets, reuse existing action owners, reserve overflow space with the native manager and evaluate session visibility at the component.",
     "artifacts": [
       "src/workbench/creation/WorkbenchEditor.tsx",
+      "src/workbench/creation/editorToolbarMenuItem.ts",
       "src/workbench/creation/SelectionGeneratePopover.tsx",
       "src/workbench/ai/v4/AgentPanelV4Context.tsx",
       "src/workbench/library/ProjectLibraryPage.tsx"
