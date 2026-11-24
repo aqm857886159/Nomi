@@ -246,3 +246,20 @@ describe("09-21 拍板不回退：没有 key 也写得完、校验得了整份�
     expect(outboundCalls()).toEqual([]);
   });
 });
+
+describe("whole-page APIMart credential write", () => {
+  it.each([401, 403])("retains the stored credential on HTTP %s", async (status) => {
+    seedApimartCatalog();
+    const { upsertRendererCatalogVendorApiKey } = await import("./rendererCatalogMutation");
+    const { readCatalog } = await import("./catalogStore");
+    const submit = (apiKey: string) => upsertRendererCatalogVendorApiKey("apimart", { apiKey, source: "apimart-connect" });
+    mockAppFetch.mockImplementation(async () => Response.json({ remain_credits: 52.3 }));
+    await expect(submit("sk-previous-fixture")).resolves.toMatchObject({ status: "received" });
+    const previous = structuredClone(readCatalog().apiKeysByVendor.apimart);
+    mockAppFetch.mockImplementation(async (url) => String(url).endsWith("/v1/user/balance")
+      ? Response.json({ remain_credits: 52.3 }) : new Response(null, { status }));
+    await expect(submit("sk-invalid-fixture")).rejects.toThrow("apimart-key-invalid");
+    expect(readCatalog().apiKeysByVendor.apimart).toEqual(previous);
+    expect(mockAppFetch).toHaveBeenCalledTimes(4);
+  });
+});

@@ -225,6 +225,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       }>,
     vendorPricePreview: (payload: import("./shared/contracts/vendorPricePreview").VendorPriceRequest) =>
       ipcRenderer.invoke("nomi:onboarding:vendor-price-preview", payload) as Promise<import("./shared/contracts/vendorPricePreview").VendorPricePreview | null>,
+    vendorAccountBalance: (payload: import("./shared/contracts/vendorAccountBalance").VendorAccountBalanceRequest) =>
+      ipcRenderer.invoke("nomi:onboarding:vendor-account-balance", payload) as Promise<import("./shared/contracts/vendorAccountBalance").VendorAccountBalance | null>,
   },
   promptLibrary: {
     list: () =>
