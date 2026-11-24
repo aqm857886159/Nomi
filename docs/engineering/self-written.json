@@ -1656,6 +1656,7 @@
       "paths": [
         "src/design/Nomi*",
         "src/design/iconTiers.ts",
+        "src/design/motion.ts",
         "src/theme/"
       ],
       "alternativesChecked": [
@@ -1680,7 +1681,7 @@
           "source": "https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/new-york-v4/ui/button.tsx"
         }
       ],
-      "whyNotIntegrated": "领域约束：产品的视觉识别与密度优先的规范是 Nomi 自己的（token 翻转、天黑自动暗、一致的控件层级）；基础交互原语已经用 Mantine，不自写。这里自写的只有品牌层（登记只覆盖 Nomi 前缀的品牌组件与主题，加上图标四档令牌 src/design/iconTiers.ts——四档的数值是 Nomi 拍板的视觉规范，不是通用能力）。新增的通用交互组件（例如又一个浮层）仍应先看 Mantine / Radix 有没有。",
+      "whyNotIntegrated": "领域约束：产品的视觉识别与密度优先的规范是 Nomi 自己的（token 翻转、天黑自动暗、一致的控件层级）；基础交互原语已经用 Mantine，不自写。这里自写的只有品牌层（登记只覆盖 Nomi 前缀的品牌组件与主题，加上图标四档和动效六档——取值是 Nomi 拍板的视觉规范，不是通用能力）。新增的通用交互组件（例如又一个浮层）仍应先看 Mantine / Radix 有没有。",
       "revisitWhen": "0.24 S6：Tailwind 4 与 AI Elements 评估时，一并评估设计系统与它们的冲突与可替换部分",
       "revisitBy": "2026-12-31"
     },

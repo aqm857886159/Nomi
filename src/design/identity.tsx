@@ -1,3 +1,4 @@
+import { shouldReduceMotion } from './motion'
 import React, { type JSX, type CSSProperties, type HTMLAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
@@ -200,9 +201,6 @@ function smileStyle(pose: NomiAgentPose, side: 0 | 1): CSSProperties {
   }
 }
 
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
 /**
  * 空闲 / 有新消息时约 20 秒眨一下：定时器给脸根加一次 data-blink、眨完摘掉（不进 React state）。
  * 窗口在后台或系统开了减弱动效就这一轮不眨；不用无限循环的 CSS 动画，空闲时没有在跑的动画。
@@ -213,7 +211,7 @@ function useAgentBlink(root: React.RefObject<HTMLSpanElement | null>, enabled: b
     if (!enabled || !element) return undefined
     let open: ReturnType<typeof setTimeout> | undefined
     const tick = (): void => {
-      if (document.hidden || prefersReducedMotion()) return
+      if (document.hidden || shouldReduceMotion()) return
       element.setAttribute('data-blink', '')
       open = setTimeout(() => element.removeAttribute('data-blink'), AGENT_BLINK_MS)
     }
@@ -312,6 +310,7 @@ export function NomiLoadingMark({ size = 18, className, label }: NomiLoadingMark
       )}
       aria-label={label ?? t('common.loading')}
       role="status"
+      aria-busy="true"
       style={{ '--nomi-loading-size': `${size}px`, width: `${size}px`, height: `${size}px` } as CSSProperties}
     >
       <NomiLogoMark size={size} className={cn('nomi-loading-mark__logo', 'block')} />

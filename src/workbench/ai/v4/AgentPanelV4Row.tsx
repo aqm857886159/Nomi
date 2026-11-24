@@ -1,3 +1,4 @@
+import { reducedMotionQuery } from '../../../design/motion'
 import React, { type JSX } from 'react'
 import { cn } from '../../../utils/cn'
 
@@ -12,7 +13,8 @@ export function V4Row({ as: Tag = 'div', className, ...props }: React.ButtonHTML
 export function V4Shimmer({ children }: { children: React.ReactNode }): JSX.Element {
   const ref = React.useRef<HTMLSpanElement>(null)
   React.useEffect(() => {
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const motion = reducedMotionQuery()
+    if (!motion) return
     let animation: Animation | undefined
     const update = () => {
       animation?.cancel()

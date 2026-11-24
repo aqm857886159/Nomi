@@ -1,3 +1,4 @@
+import { shouldReduceMotion } from '../../../design/motion'
 export type ProcessMotionCapability = {
   renderer: string | null
   prefersReducedMotion: boolean
@@ -5,7 +6,7 @@ export type ProcessMotionCapability = {
 
 /** Read browser inputs separately so the decision can also be checked outside React. */
 export function readProcessMotionCapability(): ProcessMotionCapability {
-  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const prefersReducedMotion = shouldReduceMotion()
   if (typeof document === 'undefined') return { renderer: '', prefersReducedMotion }
   let gl: WebGLRenderingContext | null = null
   try {

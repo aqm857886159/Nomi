@@ -16,7 +16,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { gitPaths } from "./lib/gitPaths.mjs";
+import { resolveMergeBase, readJsonAtRevision, readTreeTexts } from './lib/walkthroughBaselineGuard.mjs'
+import { compareMotionBaseline, isMotionSource, scanMotionTokens } from './lib/motionTokenScan.mjs'
+import { NOMI_DURATION_VARS, NOMI_EASE_VARS } from '../src/design/motion.ts'
+import { gitPaths, trackedFiles } from "./lib/gitPaths.mjs";
 
 import {
   HUE_DRIFT_THRESHOLD,
@@ -80,6 +83,35 @@ for (const rel of files) {
 
 const errors = [];
 const warnings = [];
+const motionBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/motion-token-baseline.json'), 'utf8'));
+const motionBase = resolveMergeBase(ROOT);
+if (!motionBase && Object.keys(motionBaseline).length) {
+  errors.push('Cannot verify motion exceptions without a merge base with origin/main');
+} else if (motionBase) {
+  // On first adoption only, measure the protected in-flight directories at the merge base.
+  const previous = readJsonAtRevision(ROOT, motionBase, 'scripts/motion-token-baseline.json')
+    ?? Object.fromEntries(readTreeTexts(ROOT, motionBase, ['src/ui/onboarding', 'src/workbench/settings'], /\.tsx?$/)
+      .map(({ path: file, text }) => [file, scanMotionTokens(file, text).map(hit => hit.signature)]));
+  for (const [file, exceptions] of Object.entries(motionBaseline)) {
+    const available = [...(previous[file] ?? [])];
+    for (const exception of exceptions) {
+      const index = available.indexOf(exception);
+      if (index < 0) errors.push(`✗ motion baseline grew: ${file} — ${exception}`);
+      else available.splice(index, 1);
+    }
+  }
+}
+const motionFiles = new Set(trackedFiles({ cwd: ROOT, roots: ['src'] }).filter(isMotionSource));
+for (const rel of new Set([...motionFiles, ...Object.keys(motionBaseline)])) {
+  const hits = motionFiles.has(rel) ? scanMotionTokens(rel, fs.readFileSync(path.join(ROOT, rel), 'utf8')) : [];
+  errors.push(...compareMotionBaseline(rel, hits, motionBaseline));
+}
+const cssMirror = fs.readFileSync(path.join(ROOT, 'src/theme/nomi-tokens.css'), 'utf8');
+const mirrored = Object.fromEntries([...cssMirror.matchAll(/^\s*(--nomi-(?:duration|ease)-[\w-]+):\s*([^;]+);/gm)].map(([, key, value]) => [key, value]));
+const motionVars = { ...NOMI_DURATION_VARS, ...NOMI_EASE_VARS };
+for (const key of new Set([...Object.keys(mirrored), ...Object.keys(motionVars)])) {
+  if (mirrored[key] !== motionVars[key]) errors.push(`✗ motion mirror: ${key} expected ${motionVars[key]}, got ${mirrored[key]}`);
+}
 // AI rows are debt-free. Other production paths may only remove existing debt.
 const edgeClasses = /\b(?:ml-auto|justify-between)\b/g;
 const edgeBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/design-row-edge-baseline.json'), 'utf8'));

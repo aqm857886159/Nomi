@@ -42,7 +42,7 @@ export const DesignSearchInput = React.forwardRef<HTMLInputElement, DesignSearch
     <div
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border border-nomi-line bg-nomi-paper text-nomi-ink-40',
-        'transition-colors duration-150',
+        'transition-colors duration-nomi-micro',
         size === 'md' ? 'h-9 px-3' : 'h-[30px] px-2.5',
         className,
       )}

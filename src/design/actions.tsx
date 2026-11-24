@@ -2,6 +2,7 @@ import { ActionIcon, Button, type ActionIconProps, type ButtonProps } from '@man
 import { IconChevronDown } from '@tabler/icons-react'
 import { type JSX, forwardRef, type ButtonHTMLAttributes, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 import { cn } from '../utils/cn'
+import { TEXT_BUTTON_PRESS } from './motion'
 import { NomiLoadingMark } from './identity'
 import { ICON_TIER_CHEVRON_CLASS, ICON_TIER_CLASSES, type IconTier } from './iconTiers'
 import { WORKBENCH_BUTTON_PRIMARY_CLASS } from './tokens'
@@ -22,7 +23,7 @@ export const IconActionButton = forwardRef<HTMLButtonElement, IconActionButtonPr
     'inline-flex items-center justify-center',
     'size-8 rounded-workbench-control',
     'text-workbench-muted',
-    'transition-[background,color] duration-150 ease-out',
+    'transition-[background,color] duration-nomi-micro ease-nomi-out',
     'hover:bg-workbench-hover hover:text-workbench-ink',
     'disabled:opacity-40 disabled:cursor-not-allowed',
     className,
@@ -89,7 +90,8 @@ export const DesignButton = forwardRef<HTMLButtonElement, DesignButtonProps>(fun
     'inline-flex items-center justify-center gap-1.5',
     'rounded-nomi-sm font-medium',
     DESIGN_BUTTON_SIZE[size],
-    'transition-[background,color,border-color] duration-150 ease-out',
+    TEXT_BUTTON_PRESS,
+    'transition-[background,color,border-color,transform] duration-nomi-micro ease-nomi-out',
     'disabled:opacity-50 disabled:cursor-not-allowed',
     className,
   )
@@ -101,8 +103,9 @@ export const DesignButton = forwardRef<HTMLButtonElement, DesignButtonProps>(fun
       ref={ref}
       className={rootClassName}
       disabled={disabled || isLoading}
-      leftSection={isLoading ? <NomiLoadingMark size={14} /> : leftSection}
-      loading={false}
+      leftSection={leftSection}
+      loading={isLoading}
+      loaderProps={{ children: <NomiLoadingMark size={14} />, ...props.loaderProps }}
       radius={radius}
       variant={variant}
       aria-busy={isLoading || undefined}
@@ -144,7 +147,7 @@ export const WorkbenchIconButton = forwardRef<HTMLButtonElement, WorkbenchIconBu
     'rounded-workbench-control border-0',
     'bg-transparent text-workbench-muted',
     'cursor-pointer',
-    'transition-[background,color] duration-150 ease-out',
+    'transition-[background,color] duration-nomi-micro ease-nomi-out',
     'hover:bg-workbench-hover hover:text-workbench-ink',
     'disabled:opacity-40 disabled:cursor-not-allowed',
     ICON_TIER_CLASSES[iconTier],
@@ -200,7 +203,7 @@ export const ActionCard = forwardRef<HTMLButtonElement, ActionCardProps>(functio
         'tc-action-card',
         'flex items-center gap-3 w-[280px] h-[88px] px-5 text-left cursor-pointer font-inherit',
         'rounded-nomi border shadow-nomi-sm',
-        'transition-[background,border-color,box-shadow,transform] duration-150 ease-out',
+        'transition-[background,border-color,box-shadow,transform] duration-nomi-micro ease-nomi-out',
         'hover:-translate-y-0.5 hover:shadow-nomi-md active:translate-y-0 active:shadow-nomi-sm',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         isPrimary
@@ -297,8 +300,10 @@ export const WorkbenchButton = forwardRef<HTMLButtonElement, WorkbenchButtonProp
     // whitespace-nowrap:按钮文字永不逐字折行(根因治本)——窄容器里被挤压时宁可溢出/由
     // 调用处给 shrink-0,也绝不把「整笔撤销」这种 4 字标签折成竖排(2026-06-23 用户截图根因)。
     'inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap',
-    'cursor-pointer',
-    'transition-[background,border-color,color,box-shadow] duration-150 ease-out',
+    'relative cursor-pointer',
+    loading && '[&[aria-busy]]:text-transparent [&>*:not([data-loading-overlay])]:opacity-0',
+    TEXT_BUTTON_PRESS,
+    'transition-[background,border-color,color,box-shadow,transform] duration-nomi-micro ease-nomi-out',
     'disabled:opacity-50 disabled:cursor-not-allowed',
     ICON_TIER_CLASSES[iconTier],
     chevron && ICON_TIER_CHEVRON_CLASS,
@@ -316,7 +321,7 @@ export const WorkbenchButton = forwardRef<HTMLButtonElement, WorkbenchButtonProp
       disabled={disabled || loading}
       aria-busy={loading || undefined}
     >
-      {loading ? <NomiLoadingMark size={14} /> : null}
+      {loading ? <span data-loading-overlay="" className="pointer-events-none absolute inset-0 grid place-items-center"><NomiLoadingMark size={14} /></span> : null}
       {children}
       {chevron ? <IconChevronDown data-button-chevron="" aria-hidden="true" /> : null}
     </button>

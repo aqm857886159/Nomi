@@ -71,13 +71,13 @@
 /* 一键整理：仅整理瞬间给节点开 transform 过渡，让它们滑入归位。
    只在 data-tidying 期间开——常驻会让拖拽迟滞跟手（手感 bug）。 */
 .generation-canvas-v2__nodes[data-tidying='true'] .generation-canvas-v2-node {
-  transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.3, 1);
+  transition: transform var(--nomi-duration-morph) var(--nomi-ease-spatial);
 }
 
 /* 新落点节点弹入（add/paste/Agent）。用**独立 scale 属性**而非 transform——
    根节点 transform 已被 translate(定位) 占用，独立 scale 与之组合不冲突（不会把节点弹回原点）。 */
 .generation-canvas-v2-node[data-appear='true'] {
-  animation: generation-canvas-v2-node-in 340ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  animation: generation-canvas-v2-node-in var(--nomi-duration-spatial) var(--nomi-ease-spatial) both;
 }
 
 @keyframes generation-canvas-v2-node-in {
@@ -112,7 +112,7 @@
     color-mix(in oklab, var(--nomi-paper) 72%, transparent) 48%,
     transparent 100%
   );
-  animation: generation-canvas-v2-media-loading-sweep 1.25s ease-in-out infinite;
+  animation: generation-canvas-v2-media-loading-sweep 1.25s var(--nomi-ease-in-out) infinite;
   transform: translateX(-38%);
 }
 
@@ -129,6 +129,13 @@
     0 0 0 1px color-mix(in oklab, var(--nomi-ink) 8%, transparent),
     0 10px 26px color-mix(in oklab, var(--nomi-ink) 10%, transparent);
   transform: translate(-50%, -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-canvas-v2-node__media-loading[data-media-state='loading']::before {
+    animation: none;
+    opacity: 0.65;
+  }
 }
 
 @keyframes generation-canvas-v2-media-loading-sweep {
@@ -189,7 +196,7 @@
   pointer-events: none;
   /* E5 降噪：边默认淡到近背景，多锚点不再「毛线球」；hover 边 / 选中节点的关联边 / 选中边 才点亮。 */
   stroke-opacity: 0.18;
-  transition: stroke-opacity 140ms ease;
+  transition: stroke-opacity var(--nomi-duration-micro) var(--nomi-ease-out);
 }
 
 /* 终点圆点：指明「谁喂谁」的方向。半径恒定（非缩放）。 */
@@ -198,7 +205,7 @@
   vector-effect: non-scaling-stroke;
   pointer-events: none;
   opacity: 0.18;
-  transition: opacity 140ms ease;
+  transition: opacity var(--nomi-duration-micro) var(--nomi-ease-out);
 }
 
 /* 点亮（Claude Design 拍板稿 Edges）：该边属于聚焦（单选）节点 = 强调色实线；悬停 / 选中这一条 = 深灰、略粗（中点同时出 ×）。 */
