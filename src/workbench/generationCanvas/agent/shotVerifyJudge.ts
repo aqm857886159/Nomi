@@ -1,12 +1,13 @@
 // 镜级 verify 的真实 deps(impure 接线)—— 把 shotVerifyRunner 的注入口接到 app 现成基建:
 //   · extractFrame：复用抽帧 IPC(getDesktopBridge().video.extractFrame,which:'first')→ nomi-local 首帧 URL；
 //   · judge：复用 agent 的 mode:'chat' 多模态 single-shot 链路,非新建视觉 IPC；
-//   · visionAvailable：默认 true，靠 judge 的逐镜 try/catch 优雅降级(非多模态模型 → 解析失败 → 跳过该镜)。
+//   · visionAvailable：查主进程文本大脑的真实读图声明（modelImageInputSupport，拒绝缺模型与声明不支持看图）。
 // 方案:docs/plan/2026-06-28-storyboard-closed-loop-verify.md（Stage 1 实时编排，架构决策已锁定）。
 
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { shotVerifySessionKey } from '../../ai/agentSessionKey'
 import { runSingleShotAgent } from '../../ai/agentLoopMode'
+import { getAssistantModelPref } from '../../ai/assistantModelPref'
 import { readWindowUrlParam } from '../../windowUrlParam'
 import type { ShotVerifyDeps } from './shotVerifyRunner'
 
@@ -64,7 +65,19 @@ export function makeShotVerifyDeps(projectIdInput?: string): ShotVerifyDeps {
       })
       return response.text ?? ''
     },
-    // 默认视觉开;非多模态模型 → judge 返回非 JSON,runner 逐镜 catch 跳过(降级仅结构校验)。
-    visionAvailable: () => true,
+    // 查当前文本大脑真实读图声明（modelImageInputSupport 唯一主人）：无模型或显式 unsupported → 直接判不可用；
+    // supported 或未声明（unknown，如自配本地/中转模型）→ 放行由真实 judge 判定，失败则由 runner 记 unverified。
+    visionAvailable: async (): Promise<boolean> => {
+      const textBrain = getDesktopBridge()?.promptLibrary?.textBrain
+      if (!textBrain) return false
+      try {
+        const pref = getAssistantModelPref()
+        const resolved = await textBrain(pref ? { ...pref, strict: true } : undefined)
+        if (!resolved?.ok || !resolved.brain) return false
+        return resolved.imageInput !== 'unsupported'
+      } catch {
+        return false
+      }
+    },
   }
 }
