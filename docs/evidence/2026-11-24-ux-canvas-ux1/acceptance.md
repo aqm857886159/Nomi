@@ -1,8 +1,8 @@
-结论：通过 · 验收线：ux1-verify · 验收 HEAD：8f6ef24560eb75cfc4a1fdea045bb2c3187f3799
+结论：通过 · 验收线：ux1-verify · 验收 HEAD：ebaf23a5dc599c57ea5074ebe11d4b91188d438b
 
 - 验收线：ux1-verify
 - 实现线：ux-canvas-ux1
-- 验收 HEAD：8f6ef24560eb75cfc4a1fdea045bb2c3187f3799
+- 验收 HEAD：ebaf23a5dc599c57ea5074ebe11d4b91188d438b
 - 对应设计卡：`docs/plan/2026-11-24-ux-simple-canvas-ux1.md`
 - 方向复盘：`docs/plan/2026-11-24-ux-simple-canvas-ux1-direction-check.md`
 - 验收结论：通过（无阻塞缺陷）
@@ -49,3 +49,11 @@
 |---|---|---|---|
 | M1（假等待文案回归） | 在 `src/workbench/generationCanvas/hooks/useNodeRelationships.ts` 退回旧逻辑强制 `waitingForFrameSource()` 返回 `true` | `useNodeRelationships.test.ts` 退出码 `1`（**2/12 失败**：已出图上游与历史 URL 场景均命中 `expected true to be false`） | `git checkout --` 后复绿 |
 | M2（顶标签留白与缩放上限失效） | 在 `src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts` 将 `initialAbove` 置零并把 `fitEditingBounds` `maxZoom` 放开到 `3` | `selectionComposerViewport.test.ts` 退出码 `1`（**4/10 失败**：顶边距跌破 26px 报 `-37.27` / `5.60` / `-20.43`，记忆视口上裁切返回 `null`） | `git checkout --` 后两套复跑 **22/22 必绿（`EXIT=0`）** |
+
+## 5. 手动全览留白修复增量复验（`ebaf23a5dc599c57ea5074ebe11d4b91188d438b`）
+
+- **增量审阅**：`useSelectionComposerPan.ts` 中 `useCanvasEditingFit` 仅在 `opening === true` 首进适应时预留选中编辑区，手动全览（`opening === false`）保持 `getViewportForBounds(..., 0.12)` 全画布留白，`useSelectionComposerPan.test.ts` 补齐定向单测锁定手动全览与首进适应差异，增量 diff 与提交信息 `0` 本机路径泄露。
+- **独立复跑全绿（`EXIT=0`）**：
+  - 3 套定向 Vitest（`useSelectionComposerPan.test.ts`、`selectionComposerViewport.test.ts`、`canvasZoomBoundary.test.ts`）：**3/3 文件，23/23 passed**；
+  - `node ./scripts/check-root-cause-contracts.mjs`：**PASS**（1 个高风险生产文件均有合同和变化中的回归测试）；
+  - `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit`：**PASS**（0 错误）。
