@@ -8,10 +8,10 @@
 
 ### ★0 先查别人
 
-- `src/workbench/creation/selectionActions.ts` 把图像、视频动作送入画布节点，把分镜送给 Agent。提示应说明节点和全文、选区各自的作用范围。
-- `src/design/NomiOverflowRow.tsx` 用 Fluent priority-overflow 测量空间。其 `hasHiddenItems` 选项能为固定的更多菜单预留宽度，继续沿用同一排及同一个菜单。
-- `src/workbench/library/ProjectLibraryPage.tsx` 已有随卡片悬停或键盘聚焦露出的文件夹动作。改名并列放置，沿用原输入框、保存及取消。
-- 出口：输入正文后全文按钮可用；选区可建图像或视频节点。菜单关闭仍可继续写作。
+- `src/workbench/creation/selectionActions.ts:1` · 把图像、视频动作送入画布节点，把分镜送给 Agent · 确认占位提示与动作命名分别说明全文和选区的作用范围。
+- `src/design/NomiOverflowRow.tsx:1` · 用 Fluent priority-overflow 测量空间并为更多菜单预留宽度 · 沿用 `hasHiddenItems` 将三项低频格式与窄窗溢出项合并进同一菜单。
+- `src/workbench/library/ProjectLibraryPage.tsx:1` · 已有随卡片悬停或键盘聚焦露出的文件夹动作 · 改名按钮并列放置并复用原输入框、保存及取消。
+- 出口：src/workbench/creation/selectionActions.ts:1 · 输入正文后全文按钮立即可用且选区直接建图像或视频节点 · 确认菜单关闭不阻断继续写作。
 
 ### ★1 创作者任务
 
