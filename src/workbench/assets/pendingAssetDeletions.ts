@@ -4,12 +4,12 @@ import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
+import { readReachableUndoNodes, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasPatchHistory'
 import { collectProjectFileReferences, isProjectFileReferenced, type ProjectFileReferences, type ProjectFileTarget } from './assetResultDeletion'
 import { readLoadedProjectLivenessContent, type ProjectSessionMoment } from './projectLivenessContent'
 import type { AssetRef } from './assetTypes'
 
-type PendingAssetDeletion = ProjectFileTarget & {
+export type PendingAssetDeletion = ProjectFileTarget & {
   source: 'asset-library'
   /** 记账时的撤销日志代号；代号变了（换了画布）= 这一步已经不可能再撤回。没有 = 从盘上读回来的遗留。 */
   journalGeneration?: number
@@ -20,12 +20,12 @@ type PendingAssetDeletion = ProjectFileTarget & {
 }
 
 /** 存进项目文件的样子：项目自己知道自己是谁，只记相对路径（和失败过几次）。 */
-type PersistedAssetDeletion = { relativePath: string; source: 'asset-library'; failedAttempts?: number }
+export type PersistedAssetDeletion = { relativePath: string; source: 'asset-library'; failedAttempts?: number }
 
 /** 同一份文件真删失败到第几次就放弃（文件留在盘上只占空间；不无限重试）。 */
 export const MAX_DELETE_ATTEMPTS = 3
 
-type AssetDeletionRelease = { deletedFileCount: number; failedFileCount: number; keptReferencedCount: number }
+export type AssetDeletionRelease = { deletedFileCount: number; failedFileCount: number; keptReferencedCount: number }
 
 const pending = new Map<string, PendingAssetDeletion>()
 /** 已经到点、正在进回收站（deleteFiles 还没回来）的那几笔：这期间列表照样不列它。 */
@@ -38,6 +38,7 @@ function keyOf(target: ProjectFileTarget): string {
 }
 
 function changed(): void {
+  if (!pending.size && !releasing.size) listMemo = null
   version += 1
   for (const listener of [...listeners]) listener()
 }
@@ -161,12 +162,24 @@ async function release(due: readonly PendingAssetDeletion[], requeue: boolean, m
 }
 
 /** 撤销日志挤出了最老的几步：只放行「那一步本身已经退不回去」的待删。 */
-function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Promise<AssetDeletionRelease> {
-  return release(take((entry) => (
-    entry.journalGeneration === eviction.generation
-    && entry.journalPosition !== undefined
-    && entry.journalPosition < eviction.oldestReachablePosition
-  )), true, 'alive')
+export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Promise<AssetDeletionRelease> {
+  const discarded = new Set(eviction.discardedPositions)
+  const due = take(entry => entry.journalGeneration === eviction.generation && entry.journalPosition !== undefined
+    && (discarded.has(entry.journalPosition) || entry.journalPosition < eviction.oldestReachablePosition))
+  const expired = due.filter(entry => {
+    if (isProjectFileReferenced(entry, listReferences(entry.projectId))) return false
+    for (const frame of readReachableUndoNodes()) {
+      if (isProjectFileReferenced(entry, collectProjectFileReferences(frame.nodes, {}))) {
+        pending.set(keyOf(entry), { ...entry, journalPosition: frame.position })
+        return false
+      }
+    }
+    return true
+  })
+  if (due.length) changed()
+  // Claim expired requests synchronously. A branch-opening edit can publish new
+  // live references before recycling starts, so check the project again after it.
+  return Promise.resolve().then(() => release(expired, true, 'alive'))
 }
 
 /**
@@ -174,6 +187,7 @@ function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Promise<As
  * **之前**同步调用——引用判定读的是此刻的画布（`take` 和判定都在第一个 await 之前完成）。
  */
 export function releaseLoadedProjectAssetDeletions(): Promise<AssetDeletionRelease> {
+  listMemo = null
   // 撤销栈随后清零：会话撤销材料这一次不算「有人用」，不然文件永远删不掉。
   return release(take(() => true), false, 'ending')
 }

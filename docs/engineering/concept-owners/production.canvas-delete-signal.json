@@ -20,7 +20,7 @@
       "symbol": "replayProductionCanvasIntent"
     },
     {
-      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "path": "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
       "symbol": "recordProductionCanvasSignal"
     }
   ],

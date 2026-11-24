@@ -8,7 +8,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { recoverNodeResult } from './recoverTaskActions'
 import { fetchWorkbenchTaskResultByVendor, type FetchWorkbenchTaskResultResponseDto } from '../../api/taskApi'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import i18n from '../../../i18n'
@@ -66,7 +66,7 @@ beforeEach(async () => {
   })
   vi.mocked(fetchWorkbenchTaskResultByVendor).mockReset()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   setCanvasEventSinkForTests(() => {})
   session = createProjectSessionTestHarness()
   await session.open('project-a')

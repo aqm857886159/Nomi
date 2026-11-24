@@ -9,7 +9,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { runGenerationNode, runGenerationNodesBatch } from './generationRunController'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { isModelRecentlyAiling, recordModelFailure, resetModelHealthMemory } from './modelHealthMemory'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
@@ -35,7 +35,7 @@ beforeEach(() => {
   session = createProjectSessionTestHarness()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   setCanvasEventSinkForTests(() => {})
   resetModelHealthMemory()
 })

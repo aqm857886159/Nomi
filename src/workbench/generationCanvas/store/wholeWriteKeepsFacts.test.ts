@@ -19,7 +19,7 @@ import { laneClient } from '../../ai/lane/laneClient'
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { pushUndoSnapshot } from '../events/canvasPatchHistory'
 import {
   clearCommittedProposal,
   applyCompensationOps,

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { applyProposalBatch } from './proposalTxn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests, getHistoryFlags } from '../events/canvasUndoJournal'
+import { clearHistory, getHistoryFlags } from '../events/canvasPatchHistory'
 import type { ProposalReceiptCoordinator, ProposalReceiptDisposition } from './proposalUndo'
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
 
@@ -17,7 +17,7 @@ let captured: CanvasShadowEvent[] = []
 beforeEach(() => {
   abandonPendingCanvasWrite()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   captured = []
   setCanvasEventSinkForTests((events) => captured.push(...events))
 })

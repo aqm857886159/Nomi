@@ -4,7 +4,7 @@ import { buildCanvasWriteAdmissionForOperation } from '../../../../electron/shar
 import type { CanvasWriteInput } from '../../../../electron/shared/agentCapabilities/canvasWrite'
 import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { readGenerationCanvasSnapshot } from './generationCanvasTools'
@@ -76,7 +76,7 @@ function buildRequest(input: CanvasWriteInput): CanvasWriteTargetExecution {
 beforeEach(() => {
   abandonPendingCanvasWrite()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   resetClientIdRegistry()
   receiptHarness.onPrepare = undefined
   receiptHarness.metadata.length = 0

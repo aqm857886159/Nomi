@@ -2,7 +2,7 @@ import React from 'react'
 import { getViewportForBounds } from '@xyflow/react'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { getUndoJournalGeneration } from '../events/canvasUndoJournal'
+import { getUndoJournalGeneration } from '../events/canvasPatchHistory'
 import { arrivalBounds, nextUnseenArrivals, resolveArrivalHint, type ArrivalHint } from '../components/canvasArrivalModel'
 import { CANVAS_MIN_ZOOM } from '../model/canvasFitBounds'
 
