@@ -1,12 +1,12 @@
 验收结论：通过
-验收 SHA：8e73fd2f899cda33705b30d880e40c3c715e68b8
+验收 SHA：49927a17bd0e77c74ca1f94ec2d8b862e0323565
 验收线：canvas-add-more-verify
 实现线：codex-astra-1685
-verified_sha: 8e73fd2f899cda33705b30d880e40c3c715e68b8
+verified_sha: 49927a17bd0e77c74ca1f94ec2d8b862e0323565
 
 ## 1. 验收概览与范围核查
 
-- 待验分支：`fix/canvas-toolbar-more-menu-occlusion`（增量重签 HEAD `8e73fd2f899cda33705b30d880e40c3c715e68b8`，前序完整验收基线 `3bcc351f730688df011c28ab44be7aa754d78cb8`，分支基线 `8ac07cffb`）
+- 待验分支：`fix/canvas-toolbar-more-menu-occlusion`（最新重签 HEAD `49927a17bd0e77c74ca1f94ec2d8b862e0323565`，前序增量修补 `8e73fd2f899cda33705b30d880e40c3c715e68b8`，完整验收基线 `3bcc351f730688df011c28ab44be7aa754d78cb8`，分支基线 `8ac07cffb`）
 - 改动摘要（14 个文件，`370 insertions(+), 134 deletions(-)`）：
   - 生产代码：`src/workbench/generationCanvas/components/CanvasToolbar.tsx` 与 `src/workbench/generationCanvas/components/CanvasEmptyState.tsx` 统一由 `CanvasMoreAddMenu` 经设计系统 `AnchoredPopover`（`align="end" side="top" gap={12}`）挂载 Portal，删除原内联定位与手动文档监听，并补齐 `if (!canvasActive) return null` 与非激活态收起联动。
   - 回归测试与走查：`src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx`、`tests/ux/runninghub-onboarding.walk.mjs`。
@@ -76,6 +76,11 @@ verified_sha: 8e73fd2f899cda33705b30d880e40c3c715e68b8
   - `NOMI_BASE_REF=origin/main node ./scripts/lint-changed.mjs`：`EXIT=0`（4 个改动文件，0 errors）
   - `node ./scripts/check-concept-owners.mjs`：`EXIT=0`（409 个概念，0 新增第二写口）
   - `node ./scripts/check-root-cause-contracts.mjs`：`EXIT=0`（PASS）
+
+### 6.2 基线图对齐重签（`050d28660..49927a17bd0e77c74ca1f94ec2d8b862e0323565`）
+
+- 增量范围确认：`git show --stat 49927a17bd0e77c74ca1f94ec2d8b862e0323565` 仅更新 1 张视觉基线图 `tests/ux/design-lab/__baselines__/canvas-add-menu/canvas-add-02-rail-more-open.png`（15121 → 14883 bytes），**零生产与测试代码变更**。
+- 亲眼 Read 核验结论：底栏「+」展开后的「空间」菜单右缘与底栏外缘精确齐平，首项「导演台」无多余 `:focus-visible` 焦点框，四项（导演台 / 3D 模型 / 全景图 / 画板）边框、阴影与字距清晰干净，无裁切与溢出。
 
 ## 7. 未验证边界（如实标注）
 
