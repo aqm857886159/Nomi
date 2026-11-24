@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+:root, .L {
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-chrome: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-info-ink: oklch(0.45 0.13 250);
+  --nomi-info-soft: oklch(0.957 0.021 250);
+  --nomi-overlay-chip: oklch(0.18 0.01 80 / 0.72);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.88 0.005 80);
+}
+.D {
+  color-scheme: dark;
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-chrome: oklch(0.155 0.006 80);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-info-ink: oklch(0.82 0.13 250);
+  --nomi-info-soft: oklch(0.295 0.045 250);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.80);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.30 0.006 85);
+}
+.board {
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.t11 { font-size: 11px; line-height: 16px; }
+.t12 { font-size: 12px; line-height: 18px; }
+.t13 { font-size: 13px; line-height: 20px; }
+.t14 { font-size: 14px; line-height: 20px; }
+.w5 { font-weight: 500; }
+.w6 { font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.c80 { color: var(--nomi-ink-80); }
+.c60 { color: var(--nomi-ink-60); }
+.c40 { color: var(--nomi-ink-40); }
+.cacc { color: var(--nomi-accent); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.f1 { flex: 1; min-width: 0; }
+.sh0 { flex-shrink: 0; }
+.g4 { gap: 4px; }
+.g6 { gap: 6px; }
+.g8 { gap: 8px; }
+.g10 { gap: 10px; }
+.g12 { gap: 12px; }
+.g16 { gap: 16px; }
+.trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.topbar {
+  height: 40px;
+  padding: 0 16px;
+  background: var(--nomi-chrome);
+  border-bottom: 1px solid var(--nomi-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.exp-tag {
+  padding: 2px 8px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-warning-soft);
+  border: 1px solid var(--nomi-warning-edge);
+  color: var(--nomi-warning-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-rec {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-success-soft);
+  border: 1px solid var(--nomi-success-edge);
+  color: var(--nomi-success-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-warn {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-warning-soft);
+  border: 1px solid var(--nomi-warning-edge);
+  color: var(--nomi-warning-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-err {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-danger-soft);
+  border: 1px solid var(--nomi-danger-edge);
+  color: var(--nomi-danger-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-neutral {
+  padding: 2px 6px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink-05);
+  border: 1px solid var(--nomi-line);
+  color: var(--nomi-ink-60);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.panel {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+  box-shadow: var(--nomi-shadow-sm);
+}
+.panel-flat {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+}
+.user-bubble {
+  align-self: flex-end;
+  max-width: 86%;
+  padding: 7px 11px;
+  border-radius: var(--nomi-radius);
+  background: var(--nomi-ink);
+  color: var(--nomi-paper);
+  font-size: 13px;
+}
+.btn-pri {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink);
+  color: var(--nomi-paper);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.btn-sec {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-paper);
+  color: var(--nomi-ink);
+  border: 1px solid var(--nomi-line);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.btn-ghost {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--nomi-radius-sm);
+  background: transparent;
+  color: var(--nomi-ink-60);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.shot-tag {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--nomi-ink-05);
+  border: 1px solid var(--nomi-line);
+  color: var(--nomi-ink-60);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.thumb-16-9 {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--nomi-radius-sm);
+  border: 1px solid var(--nomi-line);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bg-sea { background: linear-gradient(135deg, oklch(0.45 0.08 235), oklch(0.68 0.09 210)); }
+.bg-dawn { background: linear-gradient(135deg, oklch(0.52 0.10 55), oklch(0.74 0.09 78)); }
+.bg-forest { background: linear-gradient(135deg, oklch(0.42 0.07 155), oklch(0.62 0.08 145)); }
+.bg-night { background: linear-gradient(135deg, oklch(0.28 0.05 260), oklch(0.44 0.08 245)); }
+.bg-Wait {
+  background-color: var(--nomi-ink-05);
+  background-image: linear-gradient(to right, var(--nomi-line-soft) 1px, transparent 1px), linear-gradient(to bottom, var(--nomi-line-soft) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+.center-pill {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--nomi-overlay-chip);
+  color: var(--nomi-media-ink);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.clean-ol {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.clean-ol > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--nomi-ink-80);
+}
+.clean-ol > li > .num-mk {
+  width: 16px;
+  flex-shrink: 0;
+  color: var(--nomi-ink-40);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.dot-grid {
+  background-color: var(--nomi-bg);
+  background-image: radial-gradient(var(--nomi-dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+</style></head>
+<body>
+<div class="board D" data-mark="exploration" style="width:1440px;height:900px">
+  <div class="topbar">
+    <div class="row g8">
+      <span class="t14 w6">S-A · Full State Matrix: Pointer States · Approval Lifecycle · Ordered List & PNG/SVG Boundary</span>
+      <span class="badge-neutral">1440×900 · English Dark</span>
+    </div>
+    <div class="row g8">
+      <span class="t12 c60">4 Font Sizes · Right Checkmark ✓ · Neutral Outlines</span>
+      <span class="exp-tag">EXPLORATION</span>
+    </div>
+  </div>
+
+  <div class="row g16 f1" style="padding:14px 16px;align-items:stretch">
+    <!-- COL 1 (360px): NodePointer 6 States + Expanded 6-Shot Grid + 28-Char Vertical -->
+    <div class="panel col g10 sh0" style="width:368px;padding:12px 14px">
+      <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:6px">
+        <span class="t13 w6">1. NodePointer States & Expanded Grid</span>
+        <span class="t11 c40 num">368px</span>
+      </div>
+
+      <!-- 6-shot expanded state -->
+      <span class="t11 c60 w5">6 Shots Expanded In-Place (12px vertical margin)</span>
+      <div class="panel-flat col g8" style="padding:9px;background:var(--nomi-bg)">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div class="col g4"><div class="row g4"><span class="shot-tag">01</span><span class="t11 trunc">Gull Reef</span></div><div class="thumb-16-9 bg-sea"></div></div>
+          <div class="col g4"><div class="row g4"><span class="shot-tag">02</span><span class="t11 trunc">Fog Beacon</span></div><div class="thumb-16-9 bg-dawn"><span class="center-pill">Running</span></div></div>
+          <div class="col g4"><div class="row g4"><span class="shot-tag">03</span><span class="t11 trunc">Wave Steps</span></div><div class="thumb-16-9 bg-forest"></div></div>
+          <div class="col g4"><div class="row g4"><span class="shot-tag">04</span><span class="t11 trunc">Reef Macro</span></div><div class="thumb-16-9 bg-Wait"><span class="center-pill">Queued</span></div></div>
+          <div class="col g4"><div class="row g4"><span class="shot-tag">05</span><span class="t11 trunc">Lone Boat</span></div><div class="thumb-16-9 bg-Wait" style="border-color:var(--nomi-danger-edge)"><span class="badge-err">Failed</span></div></div>
+          <div class="col g4" style="opacity:0.55"><div class="row g4"><span class="shot-tag">06</span><span class="t11 trunc">Wide Outro</span></div><div class="thumb-16-9 bg-Wait"><span class="t11 c40">Deleted</span></div></div>
+        </div>
+        <div class="row g6" style="justify-content:space-between">
+          <span class="t11 c60 trunc">Grok Imagine Video 1.5 Official</span>
+          <span class="t11 c40 num sh0">16:9 · 30s total</span>
+        </div>
+        <button class="btn-sec" style="width:100%;height:25px;justify-content:center">
+          <span class="t11 c60">Show fewer</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6 -6l6 6"/></svg>
+        </button>
+      </div>
+
+      <!-- Portrait 9:16 + 28-char model -->
+      <span class="t11 c60 w5">Vertical 9:16 + 28-Char Max Model Name</span>
+      <div class="panel-flat row g10" style="padding:8px 10px;background:var(--nomi-bg)">
+        <div class="sh0" style="width:76px;height:64px;border-radius:6px;background:var(--nomi-ink-05);border:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:center">
+          <div class="bg-dawn" style="width:34px;height:58px;border-radius:3px"></div>
+        </div>
+        <div class="col g4 f1">
+          <div class="row g6"><span class="shot-tag">Shot 07</span><span class="t12 w6 trunc">Portrait Hero Freeze</span></div>
+          <span class="t11 c60 trunc">GPT Image 2.6 Sunburst Official</span>
+          <span class="t11 c40 num">9:16 Vertical · 2K</span>
+        </div>
+      </div>
+
+      <!-- Empty / Unloaded neutral state (D4) -->
+      <span class="t11 c60 w5">Empty & Unloaded Neutral Placeholder</span>
+      <div class="panel-flat row g10" style="padding:8px 10px;background:var(--nomi-bg)">
+        <div class="thumb-16-9 bg-Wait sh0" style="width:88px"><span class="t11 c40">Loading</span></div>
+        <div class="col g4 f1">
+          <div class="row g6"><span class="shot-tag">Shot 08</span><span class="t12 c60 trunc">Syncing canvas node…</span></div>
+          <span class="t11 c40">Clickable once canvas loads</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COL 2 (368px): Command Approval Lifecycle & Error States -->
+    <div class="panel col g10 sh0" style="width:368px;padding:12px 14px">
+      <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:6px">
+        <span class="t13 w6">2. Command Lifecycle & Single Error</span>
+        <span class="t11 c40">Neutral Edge</span>
+      </div>
+
+      <!-- State A: Active Pending Command (Neutral border, cancel left, run right, no checkmark in button!) -->
+      <span class="t11 c60 w5">Pending Approval (Neutral border, collapses on run)</span>
+      <div class="panel-flat col g8" style="padding:10px 12px;background:var(--nomi-paper)">
+        <div class="row" style="justify-content:space-between">
+          <span class="t12 w6">Allow local command?</span>
+          <span class="badge-neutral">Once</span>
+        </div>
+        <div class="mono t11 c80" style="padding:6px 8px;background:var(--nomi-ink-05);border-radius:6px">ffmpeg -i take01.mp4 -vframes 1 frame01.png</div>
+        <div class="row" style="justify-content:space-between">
+          <span class="t11 c60" style="cursor:pointer">Always allow this pattern →</span>
+          <div class="row g6">
+            <button class="btn-sec">Deny</button>
+            <button class="btn-pri">Run</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- State B: Settled Multi-Step Process (Collapsed 1-line!) -->
+      <span class="t11 c60 w5">Completed State (Auto-collapses to 1-line receipt)</span>
+      <div class="panel-flat row" style="height:32px;padding:0 10px;justify-content:space-between;background:var(--nomi-bg)">
+        <div class="row g6 f1 c60"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5l-5 5"/><path d="M12 19l7 0"/></svg><span class="t12 trunc">Ran 3 steps (read script, extract frame, patch)</span></div>
+        <div class="row g4 sh0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-success-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg><span class="t11 c40 num">1.2s</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6l-6 6"/></svg></div>
+      </div>
+
+      <!-- State C: Single-Home Tool Failure -->
+      <span class="t11 c60 w5">Tool Failure (Single human reason, no duplicate bar)</span>
+      <div class="panel-flat col g6" style="padding:9px 10px;background:var(--nomi-bg)">
+        <div class="row g6" style="justify-content:space-between">
+          <span class="t12 c60">Read reference</span>
+          <span class="row g4 t11 c40"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-success-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg><span>0.1s</span></span>
+        </div>
+        <div style="height:1px;background:var(--nomi-line-soft)"></div>
+        <div class="row g6" style="align-items:flex-start">
+          <span class="sh0" style="margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-danger-ink)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg></span>
+          <div class="col g4 f1">
+            <span class="t12 w5" style="color:var(--nomi-danger-ink)">Draft rejected: duration must be 4–15s (got 20s).</span>
+            <span class="t11 c40 row g4">Technical details<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6l6 -6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- State D: Permission Popover showing right-side checkmark! -->
+      <span class="t11 c60 w5">Permission Menu (Checkmark ✓ strictly on right)</span>
+      <div class="panel col g4" style="padding:6px;background:var(--nomi-paper)">
+        <div class="row" style="height:28px;padding:0 8px;justify-content:space-between;border-radius:6px;background:var(--nomi-ink-05)">
+          <span class="t12 w5">Ask before edits & commands</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg>
+        </div>
+        <div class="row" style="height:28px;padding:0 8px;justify-content:space-between;border-radius:6px">
+          <span class="t12 c80">Auto-edit (ask on spend only)</span>
+          <span style="width:14px"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COL 3 (flex-1): Numbered List 1.2.3.4 Typography + PNG/SVG 4-Case Security Matrix -->
+    <div class="panel col g10 f1" style="padding:12px 14px">
+      <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:6px">
+        <span class="t13 w6">3. Clean Ordered List Typography + PNG / SVG 4-Tier Security Contract</span>
+        <span class="badge-rec">Zero XSS · Zero Tracking Leak</span>
+      </div>
+
+      <!-- Top compare: Big 1234 vs Clean 1. 2. 3. 4. -->
+      <div class="row g12" style="align-items:stretch">
+        <div class="panel-flat col g6 f1" style="padding:9px 11px;background:var(--nomi-bg)">
+          <div class="row" style="justify-content:space-between">
+            <span class="t11 w6 c60">Before: Oversized Headers / Heavy Badges</span>
+            <span class="badge-err">Noisy</span>
+          </div>
+          <div class="col g6" style="opacity:0.85">
+            <div class="row g6"><span style="padding:1px 7px;border-radius:4px;background:var(--nomi-ink);color:var(--nomi-paper);font-size:13px;font-weight:700">1</span><span class="t14 w6">Opening Wide Framing</span></div>
+            <div class="row g6"><span style="padding:1px 7px;border-radius:4px;background:var(--nomi-ink);color:var(--nomi-paper);font-size:13px;font-weight:700">2</span><span class="t14 w6">Backlit Rim Silhouette</span></div>
+            <div class="row g6"><span style="padding:1px 7px;border-radius:4px;background:var(--nomi-ink);color:var(--nomi-paper);font-size:13px;font-weight:700">3</span><span class="t14 w6">Dolly Speed & Pacing</span></div>
+          </div>
+        </div>
+
+        <div class="panel-flat col g6 f1" style="padding:9px 11px;background:var(--nomi-paper)">
+          <div class="row" style="justify-content:space-between">
+            <span class="t11 w6 c60">After: 13px Tabular Hanging List (20px Gutter)</span>
+            <span class="badge-rec">Clean Prose</span>
+          </div>
+          <ol class="clean-ol">
+            <li><span class="num-mk">1.</span><span><strong class="w6" style="color:var(--nomi-ink)">Opening wide</strong> — keep horizon low with two-thirds misty sky.</span></li>
+            <li><span class="num-mk">2.</span><span><strong class="w6" style="color:var(--nomi-ink)">Rim lighting</strong> — outline shoulders without flat front fill.</span></li>
+            <li><span class="num-mk">3.</span><span><strong class="w6" style="color:var(--nomi-ink)">Slow dolly-in</strong> — push 15% over 5s for steady film weight.</span></li>
+            <li><span class="num-mk">4.</span><span><strong class="w6" style="color:var(--nomi-ink)">Hold tail frame</strong> — hold final 0.8s for clean cut.</span></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Bottom: 4-Case Media Rendering Contract -->
+      <span class="t12 w6">4-Tier Rendering Policy for Model-Returned PNG / SVG</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1">
+        <!-- Case 1: Belongs to Canvas Node -->
+        <div class="panel-flat col g6" style="padding:9px 11px;background:var(--nomi-bg)">
+          <div class="row" style="justify-content:space-between">
+            <span class="t12 w6">Tier A · Existing Canvas Node</span>
+            <span class="badge-neutral">§1.0 NodePointer</span>
+          </div>
+          <span class="t11 c60">Never duplicate raw image; render NodePointer linking to node.</span>
+          <div class="panel-flat row g8" style="padding:6px 8px;background:var(--nomi-paper);margin-top:auto">
+            <div class="thumb-16-9 bg-sea sh0" style="width:60px"></div>
+            <div class="col f1"><span class="t11 w6 trunc">Shot 01 · Gull Reef</span><span class="t11 c40">Seedance 2.5 · 16:9</span></div>
+          </div>
+        </div>
+
+        <!-- Case 2: Controlled Local Asset -->
+        <div class="panel-flat col g6" style="padding:9px 11px;background:var(--nomi-bg)">
+          <div class="row" style="justify-content:space-between">
+            <span class="t12 w6">Tier B · Local Controlled PNG</span>
+            <span class="badge-rec">Safe Inline</span>
+          </div>
+          <span class="t11 c60">Local tool crops/charts: zero network leak, safe inline preview.</span>
+          <div class="row g8" style="padding:6px 8px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:6px;margin-top:auto;justify-content:space-between">
+            <div class="row g8"><div class="bg-dawn" style="width:52px;height:34px;border-radius:4px"></div><span class="t11 c80">frame-crop-02.png · 640×360</span></div>
+            <span class="t11 cacc sh0">To Canvas</span>
+          </div>
+        </div>
+
+        <!-- Case 3: Model SVG Fence -->
+        <div class="panel-flat col g6" style="padding:9px 11px;background:var(--nomi-bg)">
+          <div class="row" style="justify-content:space-between">
+            <span class="t12 w6">Tier C · Model SVG Fence</span>
+            <span class="badge-rec">Sandboxed SVG</span>
+          </div>
+          <span class="t11 c60">Never raw DOM inject! Render in zero-script opaque sandbox + code toggle.</span>
+          <div class="panel-flat row g8" style="padding:6px 8px;background:var(--nomi-paper);margin-top:auto;justify-content:space-between">
+            <div class="row g8">
+              <svg width="52" height="34" viewBox="0 0 52 34"><rect width="52" height="34" rx="4" fill="var(--nomi-ink-05)" stroke="var(--nomi-line)"/><circle cx="17" cy="17" r="8" fill="none" stroke="var(--nomi-accent)" stroke-width="2"/><path d="M29 23L36 11L43 23Z" fill="none" stroke="var(--nomi-ink-60)" stroke-width="1.8"/></svg>
+              <span class="t11 c60"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/></svg> Scriptless SVG</span>
+            </div>
+            <div class="row g4">
+              <span class="badge-neutral" style="color:var(--nomi-ink)">Preview</span>
+              <span class="t11 c40" style="padding:0 4px">Code</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 4: External HTTPS Image -->
+        <div class="panel-flat col g6" style="padding:9px 11px;background:var(--nomi-bg)">
+          <div class="row" style="justify-content:space-between">
+            <span class="t12 w6">Tier D · External URL (https://)</span>
+            <span class="badge-warn">No Auto-Fetch</span>
+          </div>
+          <span class="t11 c60">Blocks tracking pixels/IP leak: never auto-fetched; explicit external link chip.</span>
+          <div class="row" style="margin-top:auto">
+            <span class="panel-flat row g6" style="padding:4px 9px;background:var(--nomi-paper);border-radius:6px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg><span class="t11 c80">Open external image · images.example.com</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7l-10 10"/><path d="M8 7l9 0l0 9"/></svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

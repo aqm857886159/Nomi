@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+:root, .L {
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-chrome: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-info-ink: oklch(0.45 0.13 250);
+  --nomi-info-soft: oklch(0.957 0.021 250);
+  --nomi-overlay-chip: oklch(0.18 0.01 80 / 0.72);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.88 0.005 80);
+}
+.D {
+  color-scheme: dark;
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-chrome: oklch(0.155 0.006 80);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-info-ink: oklch(0.82 0.13 250);
+  --nomi-info-soft: oklch(0.295 0.045 250);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.80);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.30 0.006 85);
+}
+.board {
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.t11 { font-size: 11px; line-height: 16px; }
+.t12 { font-size: 12px; line-height: 18px; }
+.t13 { font-size: 13px; line-height: 20px; }
+.t14 { font-size: 14px; line-height: 20px; }
+.w5 { font-weight: 500; }
+.w6 { font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.c80 { color: var(--nomi-ink-80); }
+.c60 { color: var(--nomi-ink-60); }
+.c40 { color: var(--nomi-ink-40); }
+.cacc { color: var(--nomi-accent); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.f1 { flex: 1; min-width: 0; }
+.sh0 { flex-shrink: 0; }
+.g4 { gap: 4px; }
+.g6 { gap: 6px; }
+.g8 { gap: 8px; }
+.g10 { gap: 10px; }
+.g12 { gap: 12px; }
+.g16 { gap: 16px; }
+.trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.topbar {
+  height: 40px;
+  padding: 0 16px;
+  background: var(--nomi-chrome);
+  border-bottom: 1px solid var(--nomi-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.exp-tag {
+  padding: 2px 8px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-warning-soft);
+  border: 1px solid var(--nomi-warning-edge);
+  color: var(--nomi-warning-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-rec {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-success-soft);
+  border: 1px solid var(--nomi-success-edge);
+  color: var(--nomi-success-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-warn {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-warning-soft);
+  border: 1px solid var(--nomi-warning-edge);
+  color: var(--nomi-warning-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-err {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-danger-soft);
+  border: 1px solid var(--nomi-danger-edge);
+  color: var(--nomi-danger-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-neutral {
+  padding: 2px 6px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink-05);
+  border: 1px solid var(--nomi-line);
+  color: var(--nomi-ink-60);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.panel {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+  box-shadow: var(--nomi-shadow-sm);
+}
+.panel-flat {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+}
+.user-bubble {
+  align-self: flex-end;
+  max-width: 86%;
+  padding: 7px 11px;
+  border-radius: var(--nomi-radius);
+  background: var(--nomi-ink);
+  color: var(--nomi-paper);
+  font-size: 13px;
+}
+.btn-pri {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink);
+  color: var(--nomi-paper);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.btn-sec {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-paper);
+  color: var(--nomi-ink);
+  border: 1px solid var(--nomi-line);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.btn-ghost {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--nomi-radius-sm);
+  background: transparent;
+  color: var(--nomi-ink-60);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.shot-tag {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--nomi-ink-05);
+  border: 1px solid var(--nomi-line);
+  color: var(--nomi-ink-60);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.thumb-16-9 {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--nomi-radius-sm);
+  border: 1px solid var(--nomi-line);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bg-sea { background: linear-gradient(135deg, oklch(0.45 0.08 235), oklch(0.68 0.09 210)); }
+.bg-dawn { background: linear-gradient(135deg, oklch(0.52 0.10 55), oklch(0.74 0.09 78)); }
+.bg-forest { background: linear-gradient(135deg, oklch(0.42 0.07 155), oklch(0.62 0.08 145)); }
+.bg-night { background: linear-gradient(135deg, oklch(0.28 0.05 260), oklch(0.44 0.08 245)); }
+.bg-Wait {
+  background-color: var(--nomi-ink-05);
+  background-image: linear-gradient(to right, var(--nomi-line-soft) 1px, transparent 1px), linear-gradient(to bottom, var(--nomi-line-soft) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+.center-pill {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--nomi-overlay-chip);
+  color: var(--nomi-media-ink);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.clean-ol {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.clean-ol > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--nomi-ink-80);
+}
+.clean-ol > li > .num-mk {
+  width: 16px;
+  flex-shrink: 0;
+  color: var(--nomi-ink-40);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.dot-grid {
+  background-color: var(--nomi-bg);
+  background-image: radial-gradient(var(--nomi-dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+</style></head>
+<body>
+<div class="board L" data-mark="exploration" style="width:1440px;height:900px">
+  <div class="topbar">
+    <div class="row g8">
+      <span class="t14 w6">S-A · Agent 面板一批 · 方案对比（① 指向卡排版与第 4 个起折叠 · ② 命令回执与错误单点人话）</span>
+      <span class="badge-neutral">Issue #1586 · C.1</span>
+    </div>
+    <div class="row g8">
+      <span class="t12 c60">基线面板宽 360px · 最长 28 字模型名实测</span>
+      <span class="exp-tag">EXPLORATION · 探索稿</span>
+    </div>
+  </div>
+
+  <div class="row g16 f1" style="padding:14px 16px;align-items:stretch">
+    <!-- COLUMN 1: BEFORE (Current Pain Points) -->
+    <div class="panel col g10 f1" style="padding:12px 14px">
+      <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:8px">
+        <span class="t13 w6">现状痛点（11-08 反馈复现）</span>
+        <span class="badge-err">3 处体验摩擦</span>
+      </div>
+
+      <!-- Simulated 360px chat body -->
+      <div class="panel-flat col" style="padding:10px 12px;background:var(--nomi-bg);flex:1;gap:4px">
+        <div class="user-bubble">按分镜起草 6 段海边预告片视频。</div>
+
+        <!-- Pain 1: Zero margin + 28-char model truncates ratio/duration + tile 3 hides image -->
+        <p class="t13 c80" style="margin-top:2px">已起草 6 个视频节点，点击任意卡片定位：</p>
+        <div class="col g4" style="padding:0">
+          <div class="row g6">
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">01</span><span class="t11 trunc">海鸥掠礁</span></div>
+              <div class="thumb-16-9 bg-sea"></div>
+            </div>
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">02</span><span class="t11 trunc">晨雾灯塔</span></div>
+              <div class="thumb-16-9 bg-dawn"></div>
+            </div>
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">03</span><span class="t11 trunc">浪拍石阶</span></div>
+              <div class="thumb-16-9 bg-Wait"><span class="t11 c60">还有 3 个</span></div>
+            </div>
+          </div>
+          <div class="row g4">
+            <span class="t11 c60 trunc">Grok Imagine Video 1.5 官方 · 16:9 · 共 30s</span>
+          </div>
+          <div class="badge-warn" style="align-self:flex-start;white-space:normal">问题 ①：紧贴正文 0 间距；28 字模型挤掉比例时长；第 3 格画面被遮且打不开第 4–6 镜</div>
+        </div>
+
+        <p class="t13 c80" style="margin-top:2px">接下来检查本地素材并写入参数：</p>
+
+        <!-- Pain 2a: Lingering tall command box with blue border -->
+        <div class="col g6" style="padding:8px 10px;border-radius:var(--nomi-radius-sm);border:1.5px solid var(--nomi-accent);background:var(--nomi-paper)">
+          <div class="row" style="justify-content:space-between"><span class="t12 w6">已确认命令（仍占高不收起）</span><span class="t11 c40">可撤销</span></div>
+          <div class="t11 mono c60" style="padding:4px 6px;background:var(--nomi-ink-05);border-radius:4px">ffprobe -v error -show_entries stream=width,height</div>
+        </div>
+
+        <!-- Pain 2b: Triple duplicated error + raw code -->
+        <div class="col g6" style="margin-top:4px;padding-left:8px;border-left:2px solid var(--nomi-line)">
+          <div class="row g6" style="justify-content:space-between">
+            <span class="t12 c80">起草镜头 · 不支持 21:9 画幅</span>
+            <span class="t11" style="color:var(--nomi-danger-ink)">⚠ 失败</span>
+          </div>
+          <div class="t11 mono c60" style="padding:6px 8px;background:var(--nomi-ink-05);border:1px solid var(--nomi-line);border-radius:4px">
+            Error (generation_input_invalid): shots[0].aspect_ratio "21:9" not allowed.
+          </div>
+          <div class="row g6" style="padding:7px 9px;background:var(--nomi-danger-soft);border:1px solid var(--nomi-danger-edge);border-radius:6px;color:var(--nomi-danger-ink)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-danger-ink)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg><span class="t12">起草失败：不支持 21:9 画幅（generation_input_invalid）</span>
+          </div>
+          <div class="badge-warn" style="align-self:flex-start">问题 ②：同一失败说 3 遍 + 裸露机器原码 + 审批蓝框滞留</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMN 2: OPTION A (RECOMMENDED) -->
+    <div class="panel col g10 f1" style="padding:12px 14px">
+      <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:8px">
+        <span class="t13 w6">方案 A · 推荐：三格完整露脸 + 底栏折叠 + 单点人话</span>
+        <span class="badge-rec">推荐 · 体验最清</span>
+      </div>
+
+      <div class="panel-flat col" style="padding:12px 14px;background:var(--nomi-bg);flex:1;gap:10px">
+        <div class="user-bubble">按分镜起草 6 段海边预告片视频。</div>
+
+        <p class="t13 c80">已在画布起草 6 个视频节点，点卡片定位修改：</p>
+
+        <!-- Clean NodePointerGroup: my-3 (12px) breathing space via parent gap:10px + 2px pad, 3 full thumbs + expand pill + shrink-0 tail -->
+        <div class="panel-flat col g8" style="padding:10px;background:var(--nomi-paper)">
+          <div class="row g8">
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">01</span><span class="t11 trunc">海鸥掠礁</span></div>
+              <div class="thumb-16-9 bg-sea"></div>
+            </div>
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">02</span><span class="t11 trunc">晨雾灯塔</span></div>
+              <div class="thumb-16-9 bg-dawn"></div>
+            </div>
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">03</span><span class="t11 trunc">浪拍石阶</span></div>
+              <div class="thumb-16-9 bg-forest"></div>
+            </div>
+          </div>
+
+          <!-- Two-segment flex summary: model truncates, ratio+duration shrink-0 NEVER clipped -->
+          <div class="row g6" style="justify-content:space-between">
+            <span class="t11 c60 trunc">Grok Imagine Video 1.5 官方</span>
+            <span class="t11 c40 num sh0">16:9 · 5s × 6</span>
+          </div>
+
+          <!-- Explicit 4th+ fold button keeping all 3 thumbnails visible -->
+          <button class="btn-sec" style="width:100%;height:26px;justify-content:center;background:var(--nomi-ink-05)">
+            <span class="t11 c80 num">展开其余 3 个镜头（04 – 06）</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6l6 -6"/></svg>
+          </button>
+        </div>
+
+        <p class="t13 c80">素材尺寸核对完毕，第 4 镜画幅需调整：</p>
+
+        <!-- Clean settled command receipt: 1 single 28px line! -->
+        <div class="panel-flat col g6" style="padding:8px 10px;background:var(--nomi-paper)">
+          <div class="row g6" style="height:24px;justify-content:space-between">
+            <div class="row g6 f1" style="color:var(--nomi-ink-60)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5l-5 5"/><path d="M12 19l7 0"/></svg><span class="t12 trunc">执行命令 · 读取视频分辨率（ffprobe）</span>
+            </div>
+            <div class="row g4 sh0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-success-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg><span class="t11 c40 num">0.4s</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6l-6 6"/></svg></div>
+          </div>
+
+          <div style="height:1px;background:var(--nomi-line-soft)"></div>
+
+          <!-- Single-home human error + progressive technical details -->
+          <div class="col g6">
+            <div class="row g6" style="align-items:flex-start">
+              <span class="sh0" style="margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-danger-ink)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg></span>
+              <div class="col g4 f1">
+                <span class="t12 w5" style="color:var(--nomi-danger-ink)">起草镜 04 未通过：该模型不支持 21:9 画幅，可选 16:9、9:16、1:1。</span>
+                <div class="row g8">
+                  <span class="t11 c40 row g4" style="cursor:pointer"><span>查看技术详情</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6l6 -6"/></svg></span>
+                  <span class="t11 cacc" style="cursor:pointer">去镜 04 修改 →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col g4" style="margin-top:auto;padding:8px 10px;background:var(--nomi-success-soft);border:1px solid var(--nomi-success-edge);border-radius:var(--nomi-radius-sm);color:var(--nomi-success-ink)">
+          <span class="t12 w6">方案 A 核心收益</span>
+          <span class="t11">1. 前 3 镜画面全部可见，第 4 个起一键原地展开/收起；比例与时长锁右永不截断。</span>
+          <span class="t11">2. 已批命令立即收成 1 行 24px 回执；错误人话只说 1 次，原码收进折叠区。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMN 3: OPTION B (Alternative Fold + Expanded Tech Details) -->
+    <div class="panel col g10 f1" style="padding:12px 14px">
+      <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:8px">
+        <span class="t13 w6">方案 B · 对照：沿用第 3 格遮罩 + 技术详情展开态</span>
+        <span class="badge-neutral">备选对照</span>
+      </div>
+
+      <div class="panel-flat col" style="padding:12px 14px;background:var(--nomi-bg);flex:1;gap:10px">
+        <span class="t12 w6 c60">折叠态 B（沿用旧 D5 第 3 格盖「+4」，省 28px 高但遮第 3 镜画面）：</span>
+        <div class="panel-flat col g8" style="padding:10px;background:var(--nomi-paper)">
+          <div class="row g8">
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">01</span><span class="t11 trunc">海鸥掠礁</span></div>
+              <div class="thumb-16-9 bg-sea"></div>
+            </div>
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">02</span><span class="t11 trunc">晨雾灯塔</span></div>
+              <div class="thumb-16-9 bg-dawn"></div>
+            </div>
+            <div class="col g4 f1">
+              <div class="row g4"><span class="shot-tag">03</span><span class="t11 trunc">浪拍石阶</span></div>
+              <div class="thumb-16-9 bg-forest">
+                <div style="position:absolute;inset:0;background:var(--nomi-overlay-chip);display:flex;align-items:center;justify-content:center;color:var(--nomi-media-ink)">
+                  <span class="t12 w6 num">+4 展开</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row g6" style="justify-content:space-between">
+            <span class="t11 c60 trunc">Grok Imagine Video 1.5 官方</span>
+            <span class="t11 c40 num sh0">16:9 · 5s × 6</span>
+          </div>
+        </div>
+
+        <span class="t12 w6 c60">点开「查看技术详情 ▴」后的排障展开态（默认收起）：</span>
+        <div class="panel-flat col g8" style="padding:10px;background:var(--nomi-paper)">
+          <div class="row g6" style="align-items:flex-start">
+            <span class="sh0" style="margin-top:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-danger-ink)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg></span>
+            <div class="col g6 f1">
+              <span class="t12 w5" style="color:var(--nomi-danger-ink)">起草镜 04 未通过：该模型不支持 21:9 画幅，可选 16:9、9:16、1:1。</span>
+              <div class="row" style="justify-content:space-between">
+                <span class="t11 c60 row g4"><span>收起技术详情</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6 -6l6 6"/></svg></span>
+                <button class="btn-ghost" style="height:22px;padding:0 6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg><span class="t11">复制诊断</span></button>
+              </div>
+              <div class="col g4 mono t11 c60" style="padding:7px 9px;background:var(--nomi-ink-05);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-sm)">
+                <span>code: generation_input_invalid</span>
+                <span>field: shots[3].parameters.aspect_ratio</span>
+                <span>allowed: 16:9, 9:16, 1:1, 4:3, 3:4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <span class="t12 w6 c60">单张横排指向卡（P1）28 字模型双行让位合同：</span>
+        <div class="panel-flat row g10" style="padding:8px 10px;background:var(--nomi-paper)">
+          <div class="thumb-16-9 bg-night sh0" style="width:104px"></div>
+          <div class="col g4 f1">
+            <div class="row g6"><span class="shot-tag">镜 01</span><span class="t12 w6 trunc">海鸥掠过礁石推镜</span></div>
+            <span class="t11 c60 trunc">Grok Imagine Video 1.5 官方</span>
+            <span class="t11 c40 num">16:9 · 1080p · 5s</span>
+          </div>
+        </div>
+
+        <div class="panel-flat col g4" style="margin-top:auto;padding:8px 10px;background:var(--nomi-ink-05)">
+          <span class="t12 w6">与已拍板清单（NodePointer D5）的衔接说明</span>
+          <span class="t11 c60">推荐用方案 A 更新 D5：保留第 3 镜真实缩略图，底部加 26px 折叠条，解决「4 个也挡第 3 张图且无法在对话内展开看第 4–6 镜」的死角。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

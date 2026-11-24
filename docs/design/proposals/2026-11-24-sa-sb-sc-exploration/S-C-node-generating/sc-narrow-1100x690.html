@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+:root, .L {
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-chrome: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-overlay-chip: oklch(0.16 0.01 80 / 0.76);
+  --nomi-card-bar: oklch(1 0 0 / 0.92);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.08);
+  --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.06), 0 18px 42px oklch(0 0 0 / 0.10);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.88 0.005 80);
+}
+.D {
+  color-scheme: dark;
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-chrome: oklch(0.155 0.006 80);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.82);
+  --nomi-card-bar: oklch(0.21 0.007 80 / 0.92);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.36);
+  --nomi-shadow-lg: 0 4px 12px oklch(0 0 0 / 0.36), 0 22px 52px oklch(0 0 0 / 0.44);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.30 0.006 85);
+}
+.board {
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.t11 { font-size: 11px; line-height: 16px; }
+.t12 { font-size: 12px; line-height: 18px; }
+.t13 { font-size: 13px; line-height: 20px; }
+.t14 { font-size: 14px; line-height: 20px; }
+.w5 { font-weight: 500; }
+.w6 { font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.c80 { color: var(--nomi-ink-80); }
+.c60 { color: var(--nomi-ink-60); }
+.c40 { color: var(--nomi-ink-40); }
+.cacc { color: var(--nomi-accent); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.f1 { flex: 1; min-width: 0; }
+.sh0 { flex-shrink: 0; }
+.g4 { gap: 4px; }
+.g6 { gap: 6px; }
+.g8 { gap: 8px; }
+.g10 { gap: 10px; }
+.g12 { gap: 12px; }
+.g16 { gap: 16px; }
+.trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.topbar {
+  height: 40px;
+  padding: 0 16px;
+  background: var(--nomi-chrome);
+  border-bottom: 1px solid var(--nomi-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.exp-tag {
+  padding: 2px 8px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-warning-soft);
+  border: 1px solid var(--nomi-warning-edge);
+  color: var(--nomi-warning-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-rec {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-success-soft);
+  border: 1px solid var(--nomi-success-edge);
+  color: var(--nomi-success-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-warn {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-warning-soft);
+  border: 1px solid var(--nomi-warning-edge);
+  color: var(--nomi-warning-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-err {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-danger-soft);
+  border: 1px solid var(--nomi-danger-edge);
+  color: var(--nomi-danger-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-neutral {
+  padding: 2px 6px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink-05);
+  border: 1px solid var(--nomi-line);
+  color: var(--nomi-ink-60);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.panel {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+  box-shadow: var(--nomi-shadow-sm);
+}
+.panel-flat {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+}
+.dot-grid {
+  background-color: var(--nomi-bg);
+  background-image: radial-gradient(var(--nomi-dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.wait-grid {
+  background-color: var(--nomi-ink-05);
+  background-image:
+    linear-gradient(to right, var(--nomi-line-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--nomi-line-soft) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+.bg-sea { background: linear-gradient(140deg, oklch(0.42 0.08 236), oklch(0.66 0.09 212)); }
+.bg-dawn { background: linear-gradient(140deg, oklch(0.50 0.10 58), oklch(0.72 0.09 78)); }
+.node-card {
+  width: 100%;
+  border-radius: var(--nomi-radius);
+  border: 1px solid var(--nomi-line);
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--nomi-shadow-sm);
+}
+.in-card-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-card-bar);
+  border: 1px solid var(--nomi-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
+}
+.dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--nomi-accent);
+  flex-shrink: 0;
+}
+.dot-warn {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--nomi-warning-ink);
+  flex-shrink: 0;
+}
+.prog-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--nomi-line-soft);
+}
+.prog-fill {
+  height: 100%;
+  background: var(--nomi-accent);
+}
+</style></head>
+<body>
+<div class="board L" data-mark="exploration" style="width:1100px;height:690px">
+  <div class="topbar">
+    <div class="row g10">
+      <div style="width:22px;height:22px;border-radius:5px;background:var(--nomi-ink);color:var(--nomi-paper);display:grid;place-items:center;font-weight:700;font-size:12px">N</div>
+      <span class="t13 w6">海边灯塔预告片</span>
+      <span class="exp-tag">S-C · 1100×690 窄窗整屏验证（画布卡内状态 ↔ 顶栏任务中心同源）</span>
+    </div>
+    <div class="row g8">
+      <div class="row g6" style="padding:3px 9px;border-radius:6px;background:var(--nomi-ink-10);border:1px solid var(--nomi-line)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l11 0"/><path d="M9 12l11 0"/><path d="M9 18l11 0"/><path d="M5 6l0 .01"/><path d="M5 12l0 .01"/><path d="M5 18l0 .01"/></svg><span class="t12 w6 num">任务 2</span>
+      </div>
+      <span class="badge-neutral">Nomi</span>
+    </div>
+  </div>
+
+  <div class="row f1" style="min-height:0;align-items:stretch">
+    <div class="col g12 sh0" style="width:48px;height:100%;background:var(--nomi-chrome);border-right:1px solid var(--nomi-line);padding:14px 0;align-items:center">
+      <span class="t11 c60">文稿</span>
+      <span class="t11 c60">素材</span>
+      <span class="t11 w6">画布</span>
+      <span class="t11 c60">技能</span>
+    </div>
+
+    <div class="dot-grid f1" style="position:relative;height:100%;overflow:hidden">
+      <!-- Node 1: Completed clean (zero top pill, zero permanent badge) -->
+      <div class="col g6" style="position:absolute;left:36px;top:72px;width:248px">
+        <div class="row g6"><span class="badge-neutral">图片</span><span class="t12 w6">镜 01 · 海鸥掠礁（已完成）</span></div>
+        <div class="node-card bg-sea" style="height:140px"></div>
+      </div>
+
+      <!-- Node 2: Selected + FloatingToolbar above + Status cleanly INSIDE card! -->
+      <div class="col g6" style="position:absolute;left:324px;top:32px;width:272px;align-items:center">
+        <!-- FloatingToolbar sits cleanly above NodeLabelRow with ZERO status pill collision! -->
+        <div class="panel row g6" style="height:34px;padding:0 10px;border-radius:8px;box-shadow:var(--nomi-shadow-md)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg><span class="t12">复制变体</span>
+        </div>
+        <div class="row g6" style="width:100%"><span class="badge-neutral">视频</span><span class="t12 w6">镜 02 · 晨雾灯塔</span></div>
+        <div class="node-card wait-grid" style="height:152px;border-color:var(--nomi-ink-60);box-shadow:var(--nomi-shadow-md)">
+          <div class="in-card-bar">
+            <div class="row g6"><span class="dot-pulse"></span><span class="t12 w5 num">生成中 64% · 0:24</span></div>
+            <span class="t11 c60">取消</span>
+            <div class="prog-track"><div class="prog-fill" style="width:64%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Node 3: Queued inside card -->
+      <div class="col g6" style="position:absolute;left:324px;top:292px;width:272px">
+        <div class="row g6"><span class="badge-neutral">视频</span><span class="t12 w6">镜 03 · 浪拍石阶</span></div>
+        <div class="node-card wait-grid" style="height:152px">
+          <div class="in-card-bar">
+            <div class="row g6 c80"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span class="t12 w5 num">排队中 · 前面 1 个</span></div>
+            <span class="t11 cacc w5">取消</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Open Top-Right TaskCenterPanel Popover reading 1:1 identical strings -->
+      <div class="panel col g8" style="position:absolute;right:16px;top:12px;width:332px;padding:12px;box-shadow:var(--nomi-shadow-lg)">
+        <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:6px">
+          <span class="t13 w6">进行中的任务（2）</span>
+          <span class="badge-rec">与节点卡内逐字一致</span>
+        </div>
+
+        <div class="panel-flat col g4" style="padding:8px 10px;background:var(--nomi-bg);position:relative;overflow:hidden">
+          <div class="row" style="justify-content:space-between">
+            <div class="row g6"><span class="dot-pulse"></span><span class="t12 w6">镜 02 · 晨雾灯塔</span></div>
+            <div class="row g6"><span class="t11 c60">取消</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7l-10 10"/><path d="M8 7l9 0l0 9"/></svg></div>
+          </div>
+          <span class="t11 c60 num">生成中 64% · 0:24</span>
+          <div class="prog-track"><div class="prog-fill" style="width:64%"></div></div>
+        </div>
+
+        <div class="panel-flat col g4" style="padding:8px 10px;background:var(--nomi-bg)">
+          <div class="row" style="justify-content:space-between">
+            <div class="row g6 c80"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span class="t12 w6">镜 03 · 浪拍石阶</span></div>
+            <div class="row g6"><span class="t11 cacc w5">取消</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7l-10 10"/><path d="M8 7l9 0l0 9"/></svg></div>
+          </div>
+          <span class="t11 c60 num">排队中 · 前面 1 个</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

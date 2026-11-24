@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+:root, .L {
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-chrome: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-overlay-chip: oklch(0.16 0.01 80 / 0.76);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.08);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.88 0.005 80);
+}
+.D {
+  color-scheme: dark;
+  --nomi-media-ink: oklch(1 0 0);
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-chrome: oklch(0.155 0.006 80);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-overlay-chip: oklch(0.06 0.004 80 / 0.82);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.36);
+  --nomi-radius-sm: 6px;
+  --nomi-radius: 10px;
+  --nomi-radius-lg: 14px;
+  --nomi-dot: oklch(0.30 0.006 85);
+}
+.board {
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.t11 { font-size: 11px; line-height: 16px; }
+.t12 { font-size: 12px; line-height: 18px; }
+.t13 { font-size: 13px; line-height: 20px; }
+.t14 { font-size: 14px; line-height: 20px; }
+.w5 { font-weight: 500; }
+.w6 { font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.c80 { color: var(--nomi-ink-80); }
+.c60 { color: var(--nomi-ink-60); }
+.c40 { color: var(--nomi-ink-40); }
+.cacc { color: var(--nomi-accent); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.f1 { flex: 1; min-width: 0; }
+.sh0 { flex-shrink: 0; }
+.g4 { gap: 4px; }
+.g6 { gap: 6px; }
+.g8 { gap: 8px; }
+.g10 { gap: 10px; }
+.g12 { gap: 12px; }
+.g16 { gap: 16px; }
+.trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.topbar {
+  height: 40px;
+  padding: 0 16px;
+  background: var(--nomi-chrome);
+  border-bottom: 1px solid var(--nomi-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.exp-tag {
+  padding: 2px 8px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-warning-soft);
+  border: 1px solid var(--nomi-warning-edge);
+  color: var(--nomi-warning-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-rec {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-success-soft);
+  border: 1px solid var(--nomi-success-edge);
+  color: var(--nomi-success-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-err {
+  padding: 2px 7px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-danger-soft);
+  border: 1px solid var(--nomi-danger-edge);
+  color: var(--nomi-danger-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-neutral {
+  padding: 2px 6px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink-05);
+  border: 1px solid var(--nomi-line);
+  color: var(--nomi-ink-60);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.panel {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+  box-shadow: var(--nomi-shadow-sm);
+}
+.panel-flat {
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius);
+}
+.dot-grid {
+  background-color: var(--nomi-bg);
+  background-image: radial-gradient(var(--nomi-dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.tb-shell {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  height: 40px;
+  padding: 0 6px;
+  border-radius: var(--nomi-radius);
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  box-shadow: var(--nomi-shadow-md);
+}
+.tb-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--nomi-radius-sm);
+  display: grid;
+  place-items: center;
+  color: var(--nomi-ink-80);
+  flex-shrink: 0;
+}
+.tb-btn.active {
+  background: var(--nomi-ink-10);
+  color: var(--nomi-ink);
+  font-weight: 600;
+}
+.tb-div {
+  width: 1px;
+  height: 16px;
+  background: var(--nomi-line);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+.btn-done {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-ink);
+  color: var(--nomi-paper);
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.stage-photo {
+  background: linear-gradient(150deg, oklch(0.36 0.07 238) 0%, oklch(0.55 0.08 215) 52%, oklch(0.72 0.09 75) 100%);
+  border-radius: var(--nomi-radius);
+  border: 1px solid var(--nomi-line);
+  position: relative;
+  overflow: hidden;
+}
+.inplace-editor {
+  position: absolute;
+  padding: 6px 10px;
+  border-radius: var(--nomi-radius-sm);
+  background: var(--nomi-overlay-chip);
+  border: 1.5px dashed oklch(1 0 0 / 0.82);
+  color: var(--nomi-media-ink);
+  box-shadow: var(--nomi-shadow-md);
+}
+.caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 14px;
+  background: oklch(1 0 0);
+  vertical-align: -2px;
+  margin-left: 1px;
+}
+</style></head>
+<body>
+<div class="board L" data-mark="exploration" style="width:1440px;height:900px">
+  <div class="topbar">
+    <div class="row g8">
+      <span class="t14 w6">S-B · 图片标注里直接在图上打字 + 底部工具栏单行收口</span>
+      <span class="badge-neutral">Issue #1586 · C.2 · 中文亮色</span>
+    </div>
+    <div class="row g8">
+      <span class="t12 c60">删除底栏 96px 文本框 · 点击画面即输 · 完成稳居同行右端</span>
+      <span class="exp-tag">EXPLORATION · 探索稿</span>
+    </div>
+  </div>
+
+  <div class="col g14 f1" style="padding:14px 16px;gap:14px">
+    <!-- TOP HALF: Left = Before (Broken 2-row toolbar), Right = After (Direct on-image typing + 1-row toolbar) -->
+    <div class="row g16" style="height:508px;align-items:stretch">
+      <!-- BEFORE (470px) -->
+      <div class="panel col g10 sh0" style="width:472px;padding:12px 14px">
+        <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:6px">
+          <span class="t13 w6">现状问题（WhiteboardEditingToolbar.tsx:98）</span>
+          <span class="badge-err">视线割裂 + 折两行</span>
+        </div>
+
+        <div class="dot-grid col f1" style="border-radius:10px;border:1px solid var(--nomi-line-soft);padding:14px;align-items:center;justify-content:center;gap:12px">
+          <!-- Image stage stamping static placeholder -->
+          <div class="stage-photo" style="width:360px;height:210px">
+            <div style="position:absolute;left:96px;top:82px;padding:3px 6px;border:1px solid var(--nomi-accent);color:#ffffff;font-size:14px;font-weight:600">
+              文字（静态印章，不能在图上改）
+            </div>
+          </div>
+
+          <!-- Broken 2-row wrapped toolbar -->
+          <div class="panel col g6" style="width:416px;padding:6px 8px;box-shadow:var(--nomi-shadow-md)">
+            <div class="row g4" style="flex-wrap:nowrap">
+              <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l4.153 11.793a0.365 .365 0 0 0 .331 .207a0.366 .366 0 0 0 .332 -.207l2.184 -4.793l4.793 -2.184a0.365 .365 0 0 0 .207 -.331a0.366 .366 0 0 0 -.207 -.332l-11.793 -4.153z"/></svg></span>
+              <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"/><path d="M21 3a16 16 0 0 0 -12.8 10.2"/><path d="M21 3a16 16 0 0 1 -10.2 12.8"/></svg></span>
+              <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3"/></svg></span>
+              <span class="tb-btn active"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg></span>
+              <span style="width:16px;height:16px;border-radius:999px;background:#2563eb;flex-shrink:0"></span>
+              <!-- The culprit w-24 (96px) input + w-12 font size inside toolbar! -->
+              <div style="width:94px;height:26px;border:1px solid var(--nomi-accent);border-radius:6px;padding:0 6px;display:flex;align-items:center" class="t11 trunc">低头在这窄框打字…</div>
+              <div style="width:44px;height:26px;border:1px solid var(--nomi-line);border-radius:6px;display:grid;place-items:center" class="t11 num">32</div>
+              <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4 -4l4 -4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg></span>
+              <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg></span>
+            </div>
+            <!-- Wrapped 2nd row with Done all alone! -->
+            <div class="row g8" style="justify-content:center;border-top:1px dashed var(--nomi-danger-edge);padding-top:4px">
+              <span class="t11 c60 num">1280 × 720</span>
+              <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2"/><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg></span>
+              <span class="t12 w6" style="color:var(--nomi-accent)">完成（被挤到第二行）</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col g4" style="padding:8px 10px;background:var(--nomi-danger-soft);border:1px solid var(--nomi-danger-edge);border-radius:6px;color:var(--nomi-danger-ink)">
+          <span class="t11">根因：文字内容输入框（w-24）被塞进底栏，既无法在画面点哪打哪，又把总宽撑过舞台上限，导致「完成」折到第二行。</span>
+        </div>
+      </div>
+
+      <!-- AFTER (flex-1 = 920px) -->
+      <div class="panel col g10 f1" style="padding:12px 14px">
+        <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--nomi-line-soft);padding-bottom:6px">
+          <span class="t13 w6">推荐设计：点击画面原位浮出可拖拽文字框 · 底部工具条恒定单行 40px</span>
+          <span class="badge-rec">推荐 · 所见即所得</span>
+        </div>
+
+        <div class="dot-grid col f1" style="border-radius:10px;border:1px solid var(--nomi-line-soft);padding:14px;align-items:center;justify-content:center;position:relative;gap:14px">
+          <!-- NodeLabelRow -->
+          <div class="row g6" style="width:620px;justify-content:space-between">
+            <div class="row g6"><span class="badge-neutral">图片 · 标注编辑中</span><span class="t12 w6">镜 02 · 晨雾灯塔构图批注</span></div>
+            <span class="t11 c40">Esc 或点「完成」保存落盘</span>
+          </div>
+
+          <!-- Large crisp image stage with live on-image text overlay + brush arrow -->
+          <div class="stage-photo" style="width:620px;height:296px">
+            <!-- Hand-drawn annotation arrow -->
+            <svg width="620" height="296" viewBox="0 0 620 296" style="position:absolute;inset:0;pointer-events:none">
+              <circle cx="430" cy="138" r="38" fill="none" stroke="#facc15" stroke-width="2.5" stroke-dasharray="5 4"/>
+              <path d="M312 118 C 350 112, 372 118, 390 126" fill="none" stroke="#facc15" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M383 119 L392 127 L381 131" fill="none" stroke="#facc15" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+
+            <!-- Direct In-Place Floating Textarea right at clicked (x,y)! -->
+            <div class="inplace-editor col g4" style="left:82px;top:86px;max-width:248px">
+              <div class="row" style="justify-content:space-between;color:oklch(1 0 0 / 0.72)">
+                <span class="row g4 t11"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/></svg><span>拖拽移位</span></span>
+                <span class="tb-btn" style="width:20px;height:20px;color:oklch(1 0 0 / 0.75)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/></svg></span>
+              </div>
+              <div class="t14 w6" style="color:#facc15;line-height:20px">
+                灯塔向右平移 15%<br/>
+                补一束暖色侧逆光<span class="caret"></span>
+              </div>
+              <div class="t11" style="color:oklch(1 0 0 / 0.68)">
+                Enter 完成 · Shift+Enter 换行
+              </div>
+            </div>
+
+            <!-- Existing committed text layer on image (double-click to re-edit) -->
+            <div style="position:absolute;right:18px;top:16px;padding:3px 8px;border-radius:4px;background:oklch(0.14 0.01 80 / 0.58);color:#ffffff" class="t12 w5">
+              前景礁石压暗（双击可重改）
+            </div>
+          </div>
+
+          <!-- Font Size Preset Popover (Right-aligned checkmark ✓!) floating cleanly above toolbar -->
+          <div class="panel col g4" style="position:absolute;left:368px;bottom:62px;width:116px;padding:5px;z-index:5">
+            <div class="row" style="height:24px;padding:0 8px;justify-content:space-between;border-radius:4px"><span class="t12 num c80">18 px</span><span style="width:14px"></span></div>
+            <div class="row" style="height:24px;padding:0 8px;justify-content:space-between;border-radius:4px;background:var(--nomi-ink-05)"><span class="t12 num w6">28 px</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg></div>
+            <div class="row" style="height:24px;padding:0 8px;justify-content:space-between;border-radius:4px"><span class="t12 num c80">40 px</span><span style="width:14px"></span></div>
+            <div class="row" style="height:24px;padding:0 8px;justify-content:space-between;border-radius:4px"><span class="t12 num c80">56 px</span><span style="width:14px"></span></div>
+          </div>
+
+          <!-- Single-row compact toolbar -->
+          
+  <div class="tb-shell">
+    <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l4.153 11.793a0.365 .365 0 0 0 .331 .207a0.366 .366 0 0 0 .332 -.207l2.184 -4.793l4.793 -2.184a0.365 .365 0 0 0 .207 -.331a0.366 .366 0 0 0 -.207 -.332l-11.793 -4.153z"/></svg></span>
+    <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"/><path d="M21 3a16 16 0 0 0 -12.8 10.2"/><path d="M21 3a16 16 0 0 1 -10.2 12.8"/></svg></span>
+    <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3"/></svg></span>
+    <span class="tb-btn active"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg></span>
+    <span class="tb-div"></span>
+    <!-- Color dot + compact font-size trigger ONLY (deleted w-24 text input!) -->
+    <span style="width:18px;height:18px;border-radius:999px;background:#facc15;border:1.5px solid var(--nomi-line);margin:0 4px;flex-shrink:0"></span>
+    <span class="row g4" style="height:26px;padding:0 7px;border-radius:6px;border:1px solid var(--nomi-line);font-size:12px;font-variant-numeric:tabular-nums;flex-shrink:0">
+      <span>28</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6l6 -6"/></svg>
+    </span>
+    <span class="tb-div"></span>
+    <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4 -4l4 -4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg></span>
+    <span class="tb-btn" style="opacity:0.4"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l4 -4l-4 -4"/><path d="M19 10h-11a4 4 0 1 0 0 8h1"/></svg></span>
+    <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8h.01"/><path d="M12.5 21h-6.5a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v6.5"/><path d="M16 19h6"/><path d="M19 16v6"/></svg></span>
+    <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg></span>
+    <span class="tb-div"></span>
+    <span class="t11 c60 num sh0" style="padding:0 5px">1280×720</span>
+    <span class="tb-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2"/><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg></span>
+    <button class="btn-done">完成</button>
+  </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM STRIP: 4 Mandatory Edge & Boundary States -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex:1">
+      <div class="panel col g6" style="padding:10px 12px">
+        <div class="row" style="justify-content:space-between"><span class="t12 w6">① 初次点击空态 & 空框失焦</span><span class="badge-neutral">零垃圾图层</span></div>
+        <span class="t11 c60">选 T 后鼠标变 I 型光标，点图即出光标框；未输任何字直接点空白或按 Esc，静默销毁不进历史栈。</span>
+        <div class="stage-photo" style="height:68px;margin-top:auto">
+          <div class="inplace-editor row g6" style="left:14px;top:16px;padding:5px 9px">
+            <span class="caret"></span><span class="t12" style="color:oklch(1 0 0 / 0.55)">输入标注文字…</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel col g6" style="padding:10px 12px">
+        <div class="row" style="justify-content:space-between"><span class="t12 w6">② 超长文字贴图右沿自动折行</span><span class="badge-neutral">max-width</span></div>
+        <span class="t11 c60">输入框最大宽度自动锁为「图片右缘 − 点击 X − 12px」，长句自动多行折行，绝不冲出画布外。</span>
+        <div class="stage-photo" style="height:68px;margin-top:auto">
+          <div class="inplace-editor t11" style="right:10px;top:8px;width:196px;padding:4px 8px">
+            镜头缓慢推进至人物眼部特写，保留海风吹动发丝细节
+          </div>
+        </div>
+      </div>
+
+      <div class="panel col g6" style="padding:10px 12px">
+        <div class="row" style="justify-content:space-between"><span class="t12 w6">③ 选中已有文字 / 双击重改</span><span class="badge-neutral">无损矢量层</span></div>
+        <span class="t11 c60">单击拖拽位置、底栏改色改字号实时生效；双击原位重新进入编辑，文字始终存为独立可开关图层。</span>
+        <div class="panel-flat row" style="height:44px;padding:0 10px;margin-top:auto;justify-content:space-between;background:var(--nomi-bg)">
+          <span class="t12 trunc">图层：T 灯塔向右平移 15%</span>
+          <span class="badge-neutral">可显隐 / 可撤回</span>
+        </div>
+      </div>
+
+      <div class="panel col g6" style="padding:10px 12px">
+        <div class="row" style="justify-content:space-between"><span class="t12 w6">④ 保存落盘中与失败完整提示</span><span class="badge-err">原因不截断</span></div>
+        <span class="t11 c60">点「完成」先自动提交未关文字框再合成快照；若磁盘写入失败，保留编辑态并完整写出原因。</span>
+        <div class="row g6" style="padding:6px 8px;margin-top:auto;background:var(--nomi-danger-soft);border:1px solid var(--nomi-danger-edge);border-radius:6px;color:var(--nomi-danger-ink)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nomi-danger-ink)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg><span class="t11">保存标注失败：磁盘空间不足，请清理后再点完成。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "board": "NodeGeneratingStatus",
+  "stage": "draft-exploration",
+  "mark": "exploration",
+  "issue": "#1586 (C.3 / S-C)",
+  "designIntent": "彻底删除悬在节点标题行上方的外挂胶囊（data-node-inline-status，bottom-[calc(100%+40px)]），将提交中/排队中/生成中/耗时偏长/完成淡出/失败重试统一收进节点卡片内部底栏（方案 A），并收敛为单一纯函数真源 projectGenerationTaskStatus，供画布节点卡内状态、顶栏任务中心（TaskCenterPanel）、Agent 指向小卡与时间轴槽位 1:1 逐字共读。",
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "peer": "LibTV",
+      "url": "https://www.liblib.tv/",
+      "seenOn": "2026-11-24",
+      "screenshotSha256": "3277cb75d501b64abace1464bb30cd4f6a0ffad828d9071ac6e00c0104dc57b6",
+      "takeaway": "画布节点上方只留干净镜号标题与选中操作浮条，生成进度与耗时安静承载在卡片画框内部，绝不在卡片外顶叠第二层胶囊。",
+      "decisionImpact": "确认删除 BaseGenerationNode 顶部外挂 data-node-inline-status，把卡片上方空间完全还给 NodeLabelRow 与选中浮条。"
+    },
+    {
+      "peer": "TapNow",
+      "url": "https://docs.tapnow.ai/",
+      "seenOn": "2026-11-24",
+      "screenshotSha256": "407663b900c5fde7cc49fe7b085115f29b24434b7fb117ada254114bee42146",
+      "takeaway": "基于已有画面重新抽卡新版本时保留旧图可见，状态条贴卡片内侧底边不遮挡画面中心人物。",
+      "decisionImpact": "确认推荐方案 A（卡内底栏静默条）优于方案 B（正中胶囊），兼顾空节点首生与已有结果重生成。"
+    },
+    {
+      "peer": "Krea / Runway Gen-3 Canvas",
+      "url": "https://www.krea.ai/",
+      "takeaway": "只有后端真实上报步数/百分比时才画细进度条，纯云端轮询只报阶段与已用秒数，生成完成后 2 秒收起过程条留纯画面。",
+      "decisionImpact": "保留无百分比不画假进度条原则，并在 TaskCenterPanel 同步补齐真实 percent 细条与一致取消态。"
+    }
+  ],
+  "priorDecisions": [
+    {
+      "source": "docs/plan/2026-09-08-process-feedback-c1.md & docs/plan/2026-10-31-generation-idle-work.md",
+      "decision": "等待面用静止中性细格、无真实进度不画缓动假条、完成零遮挡。",
+      "disposition": "完全继承，并将原本散落在外挂 GenerationStatusBar、卡内 GenerationTimingHint 与 TaskCenterPanel 的三处状态拼装合一。"
+    }
+  ],
+  "boundarySheet": {
+    "externalTopPillCount": 0,
+    "inCardBarInsetPx": 8,
+    "inCardBarMinHeightPx": 28,
+    "settledFadeMs": 2000,
+    "softTimeoutWarnMs": 300000,
+    "minReadableCanvasZoom": 0.6,
+    "fontSizesPx": [11, 12, 13, 14]
+  },
+  "functionCensus": [
+    { "id": "sc.node.delete-top-pill", "home": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx", "action": "delete", "summary": "同提交删除 bottom-[calc(100%+40px)] 的 data-node-inline-status 外挂容器" },
+    { "id": "sc.status.single-truth", "home": "src/workbench/observability/generationFeedback.ts", "action": "update", "summary": "升级为唯一纯函数真源 projectGenerationTaskStatus，统一阶段文案、真实 percent、已用时长与可否取消判据" },
+    { "id": "sc.node.in-card-bar", "home": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx & GenerationStatusBar.tsx", "action": "update", "summary": "合并 GenerationStatusBar 与 GenerationTimingHint 为卡内底栏状态条，兼容空节点与已有旧图重生成、失败保留旧图完整报错" },
+    { "id": "sc.taskcenter.parity", "home": "src/workbench/taskCenter/taskCenterEntries.ts & TaskCenterPanel.tsx", "action": "update", "summary": "TaskCenterPanel 直接消费同一投影对象（含真实 percent 进度条与取消语义），消除文案分叉；修正时间轴槽位分隔符" }
+  ]
+}

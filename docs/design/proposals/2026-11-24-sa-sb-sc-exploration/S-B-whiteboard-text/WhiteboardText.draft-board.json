@@ -1,0 +1,53 @@
+{
+  "board": "WhiteboardText",
+  "stage": "draft-exploration",
+  "mark": "exploration",
+  "issue": "#1586 (C.2 / S-B)",
+  "designIntent": "根治图片标注（InlineWhiteboard）两大交互痛点：① 删除底部工具栏内的 96px 窄文本输入框（w-24），选文字工具 T 点击图片任意位置 (x, y) 即原位浮出可拖拽自动增高编辑框直接在图上打字，双击已有文字原位重改，空框失焦静默销毁不留垃圾图层；② 底部 WhiteboardEditingToolbar 收束为紧凑单行（flex-nowrap，高 40px），颜色与字号收为圆点 + 步进下拉（右侧 ✓），「完成」在 1440×900 与 1100×690 窄窗下稳居同行右端绝不折第二行。",
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "peer": "TapNow",
+      "url": "https://app.tapnow.ai/",
+      "seenOn": "2026-11-24",
+      "screenshotSha256": "110aeb938e51e8a39d5a0de44a484ada999b3ae575ce85f901a8f5571e04d464",
+      "takeaway": "画布图片局部编辑浮条始终维持单行紧凑胶囊，主确认钮锚定最右，不在浮条里塞正文输入框。",
+      "decisionImpact": "确认删除 WhiteboardEditingToolbar 里的 input.w-24，底部浮条锁死单行 40px、完成钮常驻最右。"
+    },
+    {
+      "peer": "LibTV",
+      "url": "https://www.liblib.tv/",
+      "seenOn": "2026-11-24",
+      "screenshotSha256": "9755b18ffb9be3c5a703a32071951a8bd3e2117ef380e52a66859a027c1d4e4e",
+      "takeaway": "画布节点就地编辑操作直接作用在画面坐标上，工具条只留工具切换与轻量字号/颜色属性。",
+      "decisionImpact": "确认文字内容归画面坐标原位输入（一功能一个家 §1.5.2），工具条只保留颜色圆点与字号下拉。"
+    },
+    {
+      "peer": "剪映专业版 / macOS 预览标注",
+      "url": "https://www.capcut.cn/",
+      "takeaway": "点击画面直接生成带闪烁光标与拖拽手柄的原位透明文本框，Enter 或点外部落字，空内容自动丢弃。",
+      "decisionImpact": "确立了 Enter 提交 / Shift+Enter 换行 / Esc 取消 / 空框失焦不入历史栈的完整键盘与焦点契约。"
+    }
+  ],
+  "priorDecisions": [
+    {
+      "source": "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx:211",
+      "decision": "用户 2026-10-22 拍板：点「完成」将当前画板光栅化写回节点结果并保留可再编辑 whiteboardState。",
+      "disposition": "完全继承：点「完成」前若有未提交的原位文字框，先自动 commit 进 whiteboardState 再执行光栅化落盘，防丢字。"
+    }
+  ],
+  "boundarySheet": {
+    "toolbarHeightPx": 40,
+    "toolbarMaxWidthAt1100NarrowPx": 532,
+    "stageMinWidthWithAgentOpenPx": 732,
+    "textFontSizeRangePx": [12, 120],
+    "inPlaceMaxWidthFormula": "imageRight - clickX - 12px",
+    "fontSizesPx": [11, 12, 13, 14],
+    "checkmarkSide": "right"
+  },
+  "functionCensus": [
+    { "id": "sb.toolbar.delete-input", "home": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardEditingToolbar.tsx", "action": "delete", "summary": "同提交删除底栏 p.textValue 对应的 input.w-24，杜绝双处输入与底栏撑折" },
+    { "id": "sb.toolbar.single-row", "home": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardEditingToolbar.tsx & NodeFloatingToolbar.tsx", "action": "update", "summary": "字号改为紧凑下拉（右侧 ✓），次级操作按序收敛，确保 1100×690 窄窗下仍单行高 40px、完成稳居右端" },
+    { "id": "sb.canvas.inplace-text", "home": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx & WhiteboardLeaferCanvas.tsx", "action": "new", "summary": "点击坐标 (x,y) 挂载原位可拖拽自动折行 textarea，支持双击已有文字重改、空框自动丢弃、点完成前自动落字" }
+  ]
+}

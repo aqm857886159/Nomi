@@ -1,0 +1,68 @@
+{
+  "board": "AgentPanelBatch",
+  "stage": "draft-exploration",
+  "mark": "exploration",
+  "issue": "#1586 (C.1 / S-A)",
+  "designIntent": "一次性收口 Agent 面板三项高频阅读与交互摩擦：① 回复内 NodePointer 卡留出 12px 垂直呼吸间距，模型名与比例时长双段弹性让位（28 字模型截断但比例时长锁右不丢），组指向前 3 镜全露缩略图、第 4 镜起底栏一键展开/收起；② 命令/改写确认做完即坍缩为单行 28px 过程回执（去掉蓝框，统一中性描边），工具失败人话原因只说一处，机器原码收进「查看技术详情 ▾」；③ 编号列表回归 13px 等宽挂排正文（1. 2. 3. 4. 20px 槽），模型返回的 PNG/SVG 按四档安全边界渲染（节点归 NodePointer、本机受控 PNG 内联、SVG 进零脚本不透明沙箱、外链默认不拉取）。",
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "peer": "LibTV",
+      "url": "https://www.liblib.tv/",
+      "seenOn": "2026-11-24",
+      "screenshotSha256": "3277cb75d501b64abace1464bb30cd4f6a0ffad828d9071ac6e00c0104dc57b6",
+      "takeaway": "右侧对话流引用画布视频产物时保持紧凑卡片预览与单行核心规格（比例与秒数固定在右端可见），不把完整生成表单或重复技术报错塞进聊天列。",
+      "decisionImpact": "确认了模型名与「比例 · 时长」左右分栏弹性让位（模型名可省、比例时长 shrink-0 必显），以及错误只留一句人话在原位工具行。"
+    },
+    {
+      "peer": "Streamdown (Vercel)",
+      "url": "https://github.com/vercel/streamdown",
+      "takeaway": "Streamdown 默认给 ordered-list 注入 list-inside list-decimal，与多段 li > p 或标题混排时会破坏悬挂缩进并放大列表序号体感；需在宿主 components.ol 显式切回 list-outside + tabular-nums + 收敛对话内 h1–h3 字阶。",
+      "decisionImpact": "定位了 NomiMarkdown.tsx 的编号列表根因，确立对话流 ol 采用 20px 外挂槽 + 13px tabular-nums 次级墨色序号，且气泡内标题上限锁在 14px semibold。"
+    },
+    {
+      "peer": "TapNow",
+      "url": "https://docs.tapnow.ai/",
+      "seenOn": "2026-11-24",
+      "screenshotSha256": "407663b900c5fde7cc49fe7b085115f29b24434b7fb117ada254114bee42146",
+      "takeaway": "画布侧栏只承载过程状态摘要与画布锚点跳转，长耗时与排障信息折叠在次级详情里按需展开。",
+      "decisionImpact": "确认了已完成命令审批收成 1 行 28px 过程条，机器错误码（如 generation_input_invalid）一律收进默认折叠的「查看技术详情 ▾」。"
+    },
+    {
+      "peer": "W3C Content Security Policy Level 3 / HTML Living Standard iframe sandbox",
+      "url": "https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox",
+      "takeaway": "未带 allow-scripts 与 allow-same-origin 的 iframe sandbox 叠加 meta CSP default-src 'none' 可在完全封死脚本与外发请求的前提下渲染静态 SVG。",
+      "decisionImpact": "确立了模型返回 SVG 绝不走 dangerouslySetInnerHTML，统一走本仓已有的 withArtifactSandboxPolicy 无脚本不透明源沙箱预览。"
+    }
+  ],
+  "priorDecisions": [
+    {
+      "source": "docs/design/boards/2026-10-23/NodePointer.board.json#D1-D5",
+      "decision": "P1 镜像小卡 + 中性联动高亮（不许蓝框）；D5 原定超过 3 个在第 3 格画面盖「还有 N 个」。",
+      "disposition": "保留 D1–D4；建议将 D5 升级为方案 A（前 3 格缩略图全露 + 底栏「展开其余 N 个镜头 ▾」原地展开/收起），同时提供方案 B 对照供协调与用户拍板。"
+    },
+    {
+      "source": "docs/design/nomi-design-system.md#1.0",
+      "decision": "一个东西一个家、Agent 只指路。",
+      "disposition": "严格遵守：属于画布节点的图片一律渲 NodePointer，不在聊天里重画第二份大图编辑器。"
+    }
+  ],
+  "boundarySheet": {
+    "maxModelNameChars": 28,
+    "maxInlineGroupVisible": 3,
+    "foldThreshold": 4,
+    "fontSizesPx": [11, 12, 13, 14],
+    "narrowWindowViewport": "1100x690",
+    "minAgentPanelWidthPx": 320,
+    "checkmarkSide": "right"
+  },
+  "functionCensus": [
+    { "id": "sa.pointer.spacing", "home": "src/workbench/ai/pointer/GenerationReceiptPointers.tsx", "action": "update", "summary": "补充上下 12px 呼吸间距（my-3），避免紧贴上下 Markdown 段落" },
+    { "id": "sa.pointer.yield", "home": "src/workbench/ai/pointer/NodePointer.tsx & NodePointerGroup.tsx", "action": "update", "summary": "模型名 min-w-0 truncate，比例与时长 shrink-0 tabular-nums，28 字模型名下比例时长零裁切" },
+    { "id": "sa.pointer.fold", "home": "src/workbench/ai/pointer/NodePointerGroup.tsx", "action": "update", "summary": "≤3 平铺，≥4 露全前 3 张缩略图并由底栏按钮原地展开/收起其余镜头" },
+    { "id": "sa.approval.collapse", "home": "src/workbench/ai/v4/AgentPanelV4Cards.tsx & AgentPanelV4Receipt.tsx", "action": "update", "summary": "待确认卡改中性描边；批准执行完成后撤出介入槽并坍缩为单行 28px 工具回执" },
+    { "id": "sa.error.single-home", "home": "src/workbench/ai/lane/laneViewModel.ts & AgentPanelV4Receipt.tsx", "action": "delete-duplicate", "summary": "删除工具失败时底部重复 V4ErrorBar 与摘要复读；人话原因只在失败工具行说一次，generation_input_invalid 等原码收进默认折叠的查看技术详情" },
+    { "id": "sa.markdown.ol", "home": "src/workbench/common/NomiMarkdown.tsx", "action": "update", "summary": "ol 改为 list-outside pl-5 tabular-nums 次级墨色序号，收敛 agent-v4 标题字号上限至 14px" },
+    { "id": "sa.markdown.media", "home": "src/workbench/common/NomiMarkdown.tsx & artifactSandboxDocument.ts", "action": "update", "summary": "四档安全策略：画布节点走 NodePointer、nomi-local:// 非节点 PNG 安全内联、SVG 走无脚本 CSP 沙箱预览、https 外链禁自动拉取保留显式胶囊" }
+  ]
+}
