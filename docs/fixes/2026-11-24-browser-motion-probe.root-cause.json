@@ -28,7 +28,22 @@
     {
       "kind": "read",
       "path": "src/design/motion.ts",
+      "symbol": "ProcessMotionCapability"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/motion.ts",
       "symbol": "readBrowserMotion"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/processMotionCapability.ts",
+      "symbol": "ProcessMotionCapability"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useReducedProcessMotion.ts",
+      "symbol": "readProcessMotionCapability"
     },
     {
       "kind": "write",
@@ -44,16 +59,11 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/useReducedProcessMotion.ts",
       "symbol": "reducedMotionQuery"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/useReducedProcessMotion.ts",
-      "symbol": "readProcessMotionCapability"
     }
   ],
   "door_reduction": {
     "before": 5,
-    "after": 5,
+    "after": 7,
     "why_not": "Preference consumers require both reactive and immediate reads; the generation renderer and direct automation additionally need the complete snapshot. They now all use a single query in the same browser primitive."
   },
   "generality_proof": "The complete reader has no external runtime symbol. A query-only request returns before the WebGL path, while existing callers retain the no-argument snapshot.",
