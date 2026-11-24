@@ -2,7 +2,7 @@ t8-r6c-verify：通过
 
 - 验收线：t8-r6c-verify
 - 实现线：t8-r6c-impl
-- 验收 HEAD：9912060d1d30c3e5ab921006379cf858903e2d9c
+- 验收 HEAD：5ac7bfcf8bfe5fd64eb197b8a056604718fa05ad
 - 审批设计卡基线：`docs/plan/2026-11-24-unified-undo-history.md`（★1–★9 Row C）
 - Schema-v3 根因合同：`docs/fixes/2026-11-24-canvas-undo-patches-and-gesture-invariants.root-cause.json`
 - 提交链：`e516cec67`（前置特征测试）→ `a0cbd550d`（Immer 补丁栈替换并同提交删除 `canvasUndoJournal.ts`）→ `c08ce03cf`（场景登记与桌面证据）→ `ecb02a676`（并入 6B 基线）→ `eef1a564d`（干净工作树 5 轮性能基线）→ `c4e6c59a6`（`canvasControlsStructure.test.ts:85` 1 行测试对齐，`25/25` 通过）
@@ -112,3 +112,11 @@ t8-r6c-verify：通过
   - 串行 `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit` 与 `./node_modules/.bin/tsc -p electron/tsconfig.json --noEmit`：**0 错误**；
   - `node scripts/check-self-written.mjs`：**✅ 177 个领域目录 · 67 项登记 · 新增代码文件 7 个（0 个未认领）**；
   - `CONCEPT_OWNERS_BASE_REF=origin/main node scripts/check-concept-owners.mjs`：**✅ 405 个概念（converged 401 / pending 4）· 写接口 1072 个 · 第二写口 0 新增**。
+
+## 9. 合入主干（`#1657`）解 `boundary-owners` 冲突增量复验（`5ac7bfcf8bfe5fd64eb197b8a056604718fa05ad`）
+
+- **冲突解算核查（`git show --cc 5ac7bfcf8bfe5fd64eb197b8a056604718fa05ad`）**：
+  - 合并冲突仅涉及 `scripts/boundary-owners-ledger.json` 一处，完整并存本分支 4 条 `src/workbench/generationCanvas/events/canvasUndoJournal.ts` 改锚记录与 `#1657` 新增的 1 条 `src/design/outsidePress.ts`（`listenOutsidePress` → `src/design/overlayLayers.ts#useFloatingOutsideDismiss`）改锚记录；
+  - 合并提交未对任何 `src/` 业务代码做人工修改或冲突改动，提交信息与本验收单均 **0 本机路径泄露**。
+- **独立复跑全绿（`EXIT=0`）**：
+  - `pnpm run check:boundary-owners`：**27/27 自测通过 · ✅ 边界主人门禁通过（声明 2150 条：在位 1881 ｜ 改锚 87 ｜ 退役 87 ｜ 待查 10 ｜ symbol 机器读不了 85）**。
