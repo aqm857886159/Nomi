@@ -3,10 +3,11 @@
 //
 // 一格 = 实验室里现役 `BaseGenerationNode` + `NodeGenerationComposer`（04-model-menu.tsx，目录是 APIMart 的真视频目录）。
 // 每行品牌图标 + 名字 + 一句按档案现算的能力描述；变体各占一行；最后一行「隐藏模型」。
-// 中 / 英 × 明 / 暗各跑一遍，证据进 docs/evidence/2026-11-14-model-menu-icons/。
+// 中 / 英 × 明 / 暗各跑一遍，证据进 NOMI_WALK_OUT 或仓外临时目录。
 //
 // 三个页面（画布节点 / 画布列表详情 / 分镜行）共用同一套模型格和菜单：每个页面真点开模型格，断言同一组锚点
 // （每行都有 `[data-identity-icon]` 方块 + 一行说明；底栏模型格带同一枚图标；最后一行「隐藏模型」）。
+// 分镜另有「默认模型」操作行，显示设置里的继承结果，未配置默认模型时没有品牌图标。
 // 变体行只在调用方声明「我存得了变体」时出现（画布节点、画布列表）；分镜行没有存变体的字段，不声明、一行都不出。
 //
 // 用法：node tests/ux/model-menu-icons.walk.mjs        （EVIDENCE=0 只跑断言不截图）
@@ -17,6 +18,7 @@ import { expect } from '@playwright/test'
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { REPO_ROOT } from './design-lab/labStates.mjs'
 import { assertLabPortOwnership, labPortFor } from './design-lab/labServer.mjs'
 
@@ -24,8 +26,8 @@ const ROLE = 'walk-model-menu-icons'
 const HOST = '127.0.0.1'
 const PORT = labPortFor(ROLE)
 const BASE = `http://${HOST}:${PORT}`
-const EVIDENCE_DIR = path.join(REPO_ROOT, 'docs/evidence/2026-11-14-model-menu-icons')
 const WITH_EVIDENCE = process.env.EVIDENCE !== '0'
+const EVIDENCE_DIR = WITH_EVIDENCE ? process.env.NOMI_WALK_OUT || makeTempDir('nomi-model-menu-evidence-') : null
 const LOCALES = [['zh', 'zh-CN'], ['en', 'en']]
 const SCHEMES = ['light', 'dark']
 
@@ -198,14 +200,30 @@ try {
         check(`同一套 · ${surface.id} 有模型格 · ${tag}`, present)
         if (present) {
           const trigger = await readTrigger(page, locale)
-          if (!surface.opened) { await triggerLoc.click(); await page.waitForTimeout(250) }
+          if (!surface.opened) await triggerLoc.click()
+          await expect(page.locator('[data-nomi-select-dropdown]:visible').getByRole('option').first()).toBeVisible({ timeout: stationTimeout() })
           const menu = await readMenu(page)
           const ok = Boolean(menu) && menu.rows.length > 0
-          check(`同一套 · ${surface.id} 点开模型格：每行同一枚方块图标 + 一行说明 · ${tag}`, ok && menu.rows.filter((row) => row.description).length >= 1 && menu.rows.filter((row) => row.description).every((row) => row.iconW === 28 && row.iconFace), JSON.stringify({ rows: menu?.rows.length, described: menu?.rows.filter((row) => row.description).length }))
+          const defaultLabel = uiText(locale, 'storyboardEditor.defaultModel')
+          const defaultRow = surface.id === 'storyboard-row' ? menu?.rows.find((row) => row.label === defaultLabel) : undefined
+          const modelRows = menu?.rows.filter((row) => row !== defaultRow) ?? []
+          const described = modelRows.filter((row) => row.description)
+          const modelIcons = described.length > 0 && described.every((row) => row.iconW === 28 && row.iconFace && row.descLines === 1)
+          check(`同一套 · ${surface.id} 点开模型格：模型说明行有品牌方块图标 · ${tag}`, modelIcons, JSON.stringify(modelRows))
+          if (surface.id === 'storyboard-row') {
+            const noDefault = uiText(locale, 'storyboardEditor.defaultModelNone')
+            const defaultIconMatches = defaultRow?.description === noDefault
+              ? defaultRow.iconW === 0
+              : defaultRow?.iconW === 28 && Boolean(defaultRow.iconFace)
+            check(`分镜「默认模型」说明反映设置中的继承结果 · ${tag}`,
+              Boolean(defaultRow?.description) && defaultIconMatches, JSON.stringify(defaultRow))
+            check(`分镜目录中的每个模型都有能力说明 · ${tag}`,
+              modelRows.length >= 2 && described.length === modelRows.length, JSON.stringify(modelRows.map((row) => row.label)))
+          }
           check(`同一套 · ${surface.id} 底栏模型格带同一枚图标 · ${tag}`, Boolean(trigger) && trigger.iconW >= 16 && Boolean(trigger.iconFace), JSON.stringify(trigger))
           check(`同一套 · ${surface.id} 最后一行「隐藏模型」· ${tag}`, ok && menu.buttons.some((b) => /^(隐藏模型|Hide models|Hidden models)/.test(b)), JSON.stringify(menu?.buttons))
           if (ok) {
-            const variantRows = menu.rows.filter((row) => /Fast|Mini|快速|轻量|Quality|Lite/i.test(row.label))
+            const variantRows = modelRows.filter((row) => /Fast|Mini|快速|轻量|Quality|Lite/i.test(row.label))
             // 变体行是不是出现，只由「调用方是否声明存得了变体」决定：画布节点 / 列表声明、分镜行不声明。
             if (surface.declaresVariants) check(`同一套 · ${surface.id} 声明了存变体：变体各占一行 · ${tag}`, variantRows.length > 0 || surface.id === 'canvas-list', JSON.stringify(menu.rows.map((row) => row.label)))
             else check(`同一套 · ${surface.id} 没声明存变体：每个模型只一行、没有变体行 · ${tag}`, variantRows.length === 0, JSON.stringify(variantRows.map((row) => row.label)))
