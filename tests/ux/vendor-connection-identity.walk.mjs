@@ -9,15 +9,14 @@
 // 用法: node tests/ux/vendor-connection-identity.walk.mjs
 // 截图保存在系统临时目录。
 import http from 'node:http'
-import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { screenshotSettled } from './_assert.mjs'
 import { openCustomApiWizard, openModelSettings, setAppLanguage } from './_shell.mjs'
 import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
-const shotsDir = fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-vendor-connection-identity-shots-'))
+const shotsDir = assertOutsideRepo(makeTempDir('nomi-vendor-connection-identity-shots-'))
 process.env.EVIDENCE_DIR = shotsDir
 
 const MODELS = ['seedance-2.0', 'seedance-2.0-mini', 'seedance-2.0-fast']

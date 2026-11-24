@@ -2,9 +2,9 @@
 // critical canvas text surfaces in both themes, and corrupt-manifest recovery.
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { canvasAddBar, canvasSetZoomPercent, createBlankProject, leaveProjectIfOpen, switchWorkspace, openRailDrawer } from './_shell.mjs'
@@ -12,9 +12,9 @@ import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const outDir = fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-feedback-batch-shots-'))
+const outDir = assertOutsideRepo(makeTempDir('nomi-feedback-batch-shots-'))
 process.env.EVIDENCE_DIR = outDir
-const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-feedback-batch-profile-'))
+const fixtureDir = makeTempDir('nomi-feedback-batch-profile-')
 const settingsDir = path.join(fixtureDir, 'settings')
 const projectsDir = path.join(fixtureDir, 'projects')
 for (const target of [settingsDir, projectsDir]) fs.mkdirSync(target)

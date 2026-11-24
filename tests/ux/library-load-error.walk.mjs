@@ -13,16 +13,15 @@
 // 注意：不用 win.reload()（会让 getActiveWorkbenchProjectId() 恒 null，面板静默空掉，
 // 像极了真 bug）。故障注入走渲染层替换 window.nomiDesktop 的 projects.list，
 // 再用 window focus 事件触发 SWR 的 revalidateOnFocus 重读。
-import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { prepareIsolation, launchIsolatedApp, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectVisible, expectHidden, proveProbe, expectAbsent, clickOrFail } from './_assert.mjs'
 import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-library-load-error-shots-'))
+const shotsDir = assertOutsideRepo(makeTempDir('nomi-library-load-error-shots-'))
 process.env.EVIDENCE_DIR = shotsDir
 
 const results = []
@@ -31,7 +30,7 @@ const check = (name, ok, detail = '') => {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
-const iso = prepareIsolation(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-library-load-error-profile-')), { requireCatalog: false })
+const iso = prepareIsolation(makeTempDir('nomi-library-load-error-profile-'), { requireCatalog: false })
 const { app, win } = await launchIsolatedApp(repoRoot, iso)
 
 try {

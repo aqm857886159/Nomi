@@ -1,6 +1,5 @@
-import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, clickOrFail } from './_assert.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -8,7 +7,7 @@ import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
 // Start Vite separately; the specimen reads the real Electron host, not fabricated DTOs.
 const base = process.env.NOMI_SKILL_UI_DEV_URL || 'http://127.0.0.1:5297'
-const output = fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-skill-library-specimen-'))
+const output = assertOutsideRepo(makeTempDir('nomi-skill-library-specimen-'))
 process.env.EVIDENCE_DIR = output
 const locale = 'zh-CN'
 const run = await launchNomiApp({

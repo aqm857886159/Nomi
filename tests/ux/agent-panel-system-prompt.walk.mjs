@@ -17,9 +17,8 @@
 // 判定（硬证据，不看截图也成立）：送往 /v1/chat/completions 的 system 消息里必须出现专长层原文，
 // 且排在共享身份层之后（旧 composeAgentSystemPrompt 的层序：identity → panel → skill → memory，已随 lane 换代删除）。
 // 用法：pnpm run build && node tests/ux/agent-panel-system-prompt.walk.mjs [--packaged /abs/Nomi.app/Contents/MacOS/Nomi]
-import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
@@ -51,7 +50,7 @@ function systemTextOf(body) {
 
 process.env.NOMI_WALK_OUT = process.env.NOMI_WALK_OUT
   ? assertOutsideRepo(path.resolve(process.env.NOMI_WALK_OUT))
-  : fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-panel-system-prompt-'))
+  : assertOutsideRepo(makeTempDir('nomi-panel-system-prompt-'))
 process.env.EVIDENCE_DIR = process.env.NOMI_WALK_OUT
 const walk = await createRuntimeWalk('panel-system-prompt')
 let failure
