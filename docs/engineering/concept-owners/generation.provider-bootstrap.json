@@ -1,0 +1,24 @@
+{
+  "name": "正式生成运行目录供应商就绪装配出口",
+  "subject": "generation.provider-bootstrap",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+    "symbol": "createGenerationProviderBootstrap"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/generationProviderBootstrap.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "合同 docs/fixes/2026-11-24-fc-declared-provider-and-wan-handles.root-cause.json：正式生成启动与派发统一按目录凭据健康判据装配供应商（含 authType: none 免密声明卡）。"
+}
