@@ -7,19 +7,18 @@
 // 只提供 /v1/models。zh / en 两轨各跑一遍（R15：EN 串长 1.5-2 倍，截断只有眼睛看得出）。
 //
 // 用法: node tests/ux/vendor-connection-identity.walk.mjs
-// 产出: tests/ux/shots/vendor-connection-identity/*.png —— 人眼判断，不只看断言。
+// 截图保存在系统临时目录。
 import http from 'node:http'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
-import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { launchNomiApp } from './_launchApp.mjs'
 import { screenshotSettled } from './_assert.mjs'
+import { openCustomApiWizard, openModelSettings, setAppLanguage } from './_shell.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-connection-identity')
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
-const userData = path.join(repoRoot, '.tmp', 'nomi-vendor-connection-identity-userdata')
-fs.rmSync(userData, { recursive: true, force: true })
-fs.mkdirSync(userData, { recursive: true })
+const shotsDir = fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-vendor-connection-identity-shots-'))
+process.env.EVIDENCE_DIR = shotsDir
 
 const MODELS = ['seedance-2.0', 'seedance-2.0-mini', 'seedance-2.0-fast']
 const gateway = http.createServer((req, res) => {
@@ -44,20 +43,14 @@ function check(ok, label) {
   }
 }
 
-const { app, win } = await launchNomiApp({ name: 'vendor-connection-identity', userDataDir: userData })
-await win.evaluate(() => {
-  for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
-    window.localStorage.setItem(k, 'seen')
-  }
+const { app, win } = await launchNomiApp({
+  name: 'vendor-connection-identity',
+  initialLocalStorage: {
+    'nomi:locale:v1': 'zh-CN',
+    'nomi:splash:v1': 'seen',
+    'nomi:journey-tour:v1': 'seen',
+  },
 })
-await win.reload()
-await win.waitForTimeout(1800)
-for (let i = 0; i < 5; i += 1) {
-  const skip = win.locator('button, [role="button"], a', { hasText: /跳过|开始创作|进入|完成|Skip|Start/ }).first()
-  if (await skip.count()) await skip.click().catch(() => {})
-  await win.keyboard.press('Escape').catch(() => {})
-  await win.waitForTimeout(300)
-}
 
 let n = 0
 async function snap(name) {
@@ -89,8 +82,8 @@ async function closeOverlays() {
 
 /** 目录里现在有哪几条连接（读真实主进程目录，不是读 DOM 的猜测）。 */
 async function listConnections() {
-  return win.evaluate(() => {
-    const rows = window.nomiDesktop?.modelCatalog?.listVendors?.() ?? []
+  return win.evaluate(async () => {
+    const rows = await window.nomiDesktop.modelCatalog.listVendors()
     return rows.map((row) => ({
       key: String(row.key ?? ''),
       name: String(row.name ?? ''),
@@ -98,17 +91,6 @@ async function listConnections() {
       hasApiKey: Boolean(row.hasApiKey),
     }))
   })
-}
-
-async function openAddConnectionForm(hints) {
-  await clickFirst(hints.modelAccess, '连接模型入口')
-  await win.waitForTimeout(600)
-  await clickFirst(hints.otherWays, '展开其他接入方式')
-  await win.waitForTimeout(500)
-  const customRow = win.locator('[data-model-home-action="custom-api"]').first()
-  await customRow.waitFor({ state: 'visible' })
-  await customRow.click()
-  await win.waitForTimeout(1100)
 }
 
 /** 在打开的表单里填三格。返回填完之后那行 hint 的 marker（none 时为 null）。 */
@@ -161,7 +143,7 @@ const GROUPS = [
 async function runTrack(track, hints) {
   console.log(`\n=== ${track} 轨 ===`)
   for (const [index, group] of GROUPS.entries()) {
-    await openAddConnectionForm(hints)
+    await openCustomApiWizard(win)
     const marker = await fillConnectionForm(group)
     await snap(`${track}-${index + 1}-form-${group.name.replace(/\s+/g, '-').toLowerCase()}`)
     if (index === 0) {
@@ -192,7 +174,7 @@ async function runTrack(track, hints) {
   check(connections.every((row) => row.hasApiKey), `${track}：三条各自都有自己的 Key`)
 
   // 同名那一次：提示行必须改口说「会更新」，不能还说「会新建」。
-  await openAddConnectionForm(hints)
+  await openCustomApiWizard(win)
   const updateMarker = await fillConnectionForm({ name: 'Mini tier', apiKey: 'sk-walk-mini-2' })
   await snap(`${track}-4-form-same-name-update`)
   check(
@@ -212,8 +194,7 @@ async function runTrack(track, hints) {
     `${track}：删「Mini tier」不影响另外两条`,
   )
   // 拍**改动区**：删完之后的连接列表（看得见剩下两条的名字），不是空的添加表单。
-  await clickFirst(hints.modelAccess, '连接模型入口')
-  await win.waitForTimeout(900)
+  await openModelSettings(win)
   const rows = win.locator('[data-model-home-connection]')
   await rows.first().waitFor({ state: 'visible' })
   const listedNames = await win.evaluate(() =>
@@ -250,21 +231,11 @@ async function runTrack(track, hints) {
 // ── zh 轨 ──
 await snap('zh-app-ready')
 await runTrack('zh', {
-  modelAccess: [/连接模型/],
-  otherWays: [/本地运行时与即梦会员/],
   save: [/保存连接/],
 })
 
-// ── 切 en：走真实用户路径（连接模型 → 通用 → English），不 reload。 ──
-await clickFirst([/连接模型/], '打开设置')
-await win.waitForTimeout(700)
-await clickFirst([/通用/], '通用 tab')
-await win.waitForTimeout(500)
-const enBtn = win.locator('[data-settings-locale="en"]').first()
-await enBtn.waitFor({ state: 'visible' }).catch(() => { throw new Error('找不到 [data-settings-locale="en"]：en 轨不成立，不许把没切过去当切过去') })
-await enBtn.click()
-await win.waitForTimeout(1000)
-const locale = await win.evaluate(() => window.localStorage.getItem('i18nextLng') || document.documentElement.lang || '')
+await setAppLanguage(win, 'en')
+const locale = await win.evaluate(() => document.documentElement.lang)
 check(String(locale).startsWith('en'), `界面真的切到 English（locale=${locale}）`)
 await closeOverlays()
 await snap('en-app-ready')
@@ -276,8 +247,6 @@ for (const row of (await listConnections()).filter((r) => r.baseUrl === gatewayB
 await win.waitForTimeout(800)
 
 await runTrack('en', {
-  modelAccess: [/Connect Model/i],
-  otherWays: [/Local runtimes and Dreamina/i],
   save: [/Save connection/i],
 })
 

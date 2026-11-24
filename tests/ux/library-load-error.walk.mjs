@@ -6,7 +6,7 @@
 // `library.firstEmpty`——用户看到的是**崭新的首启空库引导屏**，读作「我的项目全没了」。
 //
 // 这条走查证三件事：
-//   ① 空态探针是活的（读得到的时候确实显示「还没有项目」）——排除「断言恒真」；
+//   ① 空态探针是活的（读得到的时候确实显示首启引导屏）——排除「断言恒真」；
 //   ② 同一个零项目现场，让 list() 抛，界面换成**错误态 + 重新读取**，且空态文案消失；
 //   ③ 修好数据源后点「重新读取」，错误态消失、库恢复正常——证明重试按钮真接线了。
 //
@@ -19,11 +19,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { prepareIsolation, launchIsolatedApp, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectVisible, expectHidden, proveProbe, expectAbsent, clickOrFail } from './_assert.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, '.library-load-error-walk')
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
+const shotsDir = fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-library-load-error-shots-'))
+process.env.EVIDENCE_DIR = shotsDir
 
 const results = []
 const check = (name, ok, detail = '') => {
@@ -31,21 +31,21 @@ const check = (name, ok, detail = '') => {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
-const iso = prepareIsolation(path.join(os.tmpdir(), 'nomi-library-load-error'), { requireCatalog: false })
+const iso = prepareIsolation(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-library-load-error-profile-')), { requireCatalog: false })
 const { app, win } = await launchIsolatedApp(repoRoot, iso)
 
 try {
   await dismissSplashIfPresent(win)
   await win.waitForTimeout(800)
 
-  const emptyState = win.getByText('还没有项目', { exact: false })
+  const emptyState = win.locator('[data-library-first-run]')
   const errorState = win.locator('[data-testid="library-load-error"]')
   const retryButton = win.locator('[data-testid="library-load-retry"]')
 
-  // ── ① 空态探针活着：读得到（零项目）时确实是「还没有项目」引导屏 ──
-  const emptyProof = await proveProbe(emptyState, '首启空库引导屏「还没有项目」')
+  // ── ① 空态探针活着：读得到（零项目）时确实显示首启引导屏 ──
+  const emptyProof = await proveProbe(emptyState, '首启空库引导屏')
   await expectHidden(errorState, '还没出故障，不该有错误态')
-  check('空态探针可证（零项目 → 首启引导屏）', true, '「还没有项目」可见')
+  check('空态探针可证（零项目 → 首启引导屏）', true)
   await screenshotSettled(win, { path: path.join(shotsDir, '01-empty-before-fault.png') })
 
   // ── ② 注入故障：让 nomi:projects:list-async 这条 IPC 抛错 ──

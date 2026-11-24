@@ -17,24 +17,30 @@
 // 判定（硬证据，不看截图也成立）：送往 /v1/chat/completions 的 system 消息里必须出现专长层原文，
 // 且排在共享身份层之后（旧 composeAgentSystemPrompt 的层序：identity → panel → skill → memory，已随 lane 换代删除）。
 // 用法：pnpm run build && node tests/ux/agent-panel-system-prompt.walk.mjs [--packaged /abs/Nomi.app/Contents/MacOS/Nomi]
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   ASSISTANT_MESSAGE, CANVAS_PANEL, COMPOSER, COMPOSER_SEND, chooseAssistantModel, createRuntimeWalk,
   openCanvas, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
 const PROMPT = 'SYSPROMPT_WALK：帮我把这个画布搭起来'
 const REPLY = 'SYSPROMPT_REPLY：收到。我先读一下画布，再给你一个分镜计划。'
 // 共享身份层（electron/harness/context/agentContext.ts 的 NOMI_AGENT_IDENTITY）开头——
 // 用来区分「system 整个没送」和「只丢了专长层」。
 const IDENTITY_MARKER = '你是 Nomi 的 AI 创作伙伴'
-// 专长层第一句（generationCanvasAgentClient.buildStaticAgentSystemPrompt 的 surfaceInstruction）——
+// 专长层第一句（canvasSystemPrompt.buildStaticAgentSystemPrompt）——
 // 它出现在 system 里，就证明这一层真的到了模型面前。
 const PANEL_LAYER_MARKER = '你现在在「生成画布」工作'
-// 专长层该带着它的工具手册和硬约束一起到（证明是整段而不是被截断的一行）。
-// 这三句都取自当前 buildStaticAgentSystemPrompt 原文；旧走查里的 run_generation_batch 早已不在专长层里。
-const PANEL_LAYER_CLAUSES = ['create_staging_reference', 'create_camera_move', '硬约束：']
+// 核对方法约束到达 system 的中段和末尾，并单独核对主进程发布的动词。
+const PANEL_LAYER_CLAUSES = [
+  '多人物的动作、站位、构图和运镜按工具提供的精确参考能力处理；词表表达不了时用自由描述，并说明参考是否真正渲出。',
+  '创建节点不等于生成完成。真实生成、花费、审批与导出以主进程工具结果为准。',
+]
 
 function systemTextOf(body) {
   return (Array.isArray(body?.messages) ? body.messages : [])
@@ -43,6 +49,10 @@ function systemTextOf(body) {
     .join('\n')
 }
 
+process.env.NOMI_WALK_OUT = process.env.NOMI_WALK_OUT
+  ? assertOutsideRepo(path.resolve(process.env.NOMI_WALK_OUT))
+  : fs.mkdtempSync(path.join(assertOutsideRepo(os.tmpdir()), 'nomi-panel-system-prompt-'))
+process.env.EVIDENCE_DIR = process.env.NOMI_WALK_OUT
 const walk = await createRuntimeWalk('panel-system-prompt')
 let failure
 try {
@@ -70,8 +80,9 @@ try {
   for (const clause of PANEL_LAYER_CLAUSES) {
     expect(systemText, `system 里缺少专长层的「${clause}」——像是只到了一部分，检查是否被截断`).toContain(clause)
   }
+  expect(systemText, 'system 的工具手册没有发布现役摆位与运镜动词 stage_shot').toMatch(/^(?:- )?stage_shot: Build or change a 3D-BOX director plan\b/m)
   expect(systemText.indexOf(IDENTITY_MARKER), '专长层应排在共享身份层之后（identity → panel）').toBeLessThan(systemText.indexOf(PANEL_LAYER_MARKER))
-  console.log(`  ✅ wire：system 长度 ${systemText.length}，身份层 + 生成画布专长层 + ${PANEL_LAYER_CLAUSES.length} 条硬约束/工具句均在`)
+  console.log(`  ✅ wire：system 长度 ${systemText.length}，身份层 + 生成画布专长层 + ${PANEL_LAYER_CLAUSES.length} 条约束 + stage_shot 均在`)
 
   // ========== 判定 ②：模型回复渲染回常驻面板（用户看得见这一轮跑通了） ==========
   const assistantItem = win.locator(`${CANVAS_PANEL} ${ASSISTANT_MESSAGE}`).last()
