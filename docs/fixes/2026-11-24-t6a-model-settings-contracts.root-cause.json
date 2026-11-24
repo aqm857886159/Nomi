@@ -77,5 +77,14 @@
     "exit_criteria": []
   },
   "migration": "Existing credentials and settings use their current storage format. Existing walkthroughs target the current model settings surfaces.",
-  "residual_risks": ["Desktop evidence uses isolated fixture data. Real provider reads and billing are outside this repair."]
+  "residual_risks": ["Desktop evidence uses isolated fixture data. Real provider reads and billing are outside this repair."],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+    "tests": [
+      "tests/ux/t6a-model-settings.walk.mjs",
+      "tests/ux/model-availability-agreement.walk.mjs"
+    ]
+  }
 }
