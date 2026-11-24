@@ -1,8 +1,8 @@
-结论：通过 · 验收线：ux-storyboard-verify · 验收 HEAD：25629d8a969b0f261928aad4f55ec9b59eb2c678
+结论：通过 · 验收线：ux-storyboard-verify · 验收 HEAD：b274878cd882312f60a42025fa452fe3c1ef41a2
 
 - 验收线：ux-storyboard-verify
 - 实现线：ux-storyboard-impl
-- 验收 HEAD：25629d8a969b0f261928aad4f55ec9b59eb2c678
+- 验收 HEAD：b274878cd882312f60a42025fa452fe3c1ef41a2
 - 对应设计卡：`docs/plan/2026-11-24-ux-simple-storyboard-actions.md`
 - 验收结论：通过（无阻塞缺陷；干净树性能基线已刷新为 `"dirty": false`）
 
@@ -58,4 +58,13 @@
 - **干净树性能基线核验（`docs/evidence/2026-11-24-ux-storyboard-actions/storyboard-plan-open.perf.json`）**：
   - `"commit": "22cc8a2b8"`，`"head": "22cc8a2b8d1c9f6ad422bd741a33cec4043fc879"`，**`"dirty": false`**；
   - 5 轮 `storyboard-plan-open`（320 镜方案）`response` 样本 `[411.8, 407.3, 395.3, 380.8, 396.2]` ms，中位数 **396.2 ms** / p95 **410.9 ms**（预算 `1000 ms`），`longTasks` 中位数 **0** / p95 **0.8**，`verdict.status = "ok"`。
+
+### 顺序发号、文件瘦身与重复导入修复增量复验（`b274878cd882312f60a42025fa452fe3c1ef41a2`，全部 `EXIT=0`）
+- 审阅增量 `25629d8a9..b274878cd`：`669d5185c` 收口 `shot-1` 顺序发号、拆分 `storyboardMountPlan.ts` 并完成文件行数瘦身；复核阶段拦截 `storyboardDeleteUndo.ts:2-3` 重复 `import type`（`TS2300`），`b274878cd` 已删除重复行；全增量 `0` 本机路径泄露。
+- 独立实跑全绿（`EXIT=0`）：
+  - `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit`：**PASS**（`0` 错误）；
+  - `pnpm run check:filesize`：**PASS**；
+  - `pnpm run check:root-cause-contracts`：**PASS**（55/55）；
+  - 3 套目标 Vitest（`VITEST_MAX_WORKERS=2`：`storyboardPlanSingleOwner.loopback.test.ts` 20/20、`storyboardPlanEdits.test.ts` 37/37、`StoryboardPlanEditor.actions.test.ts` 6/6）：**3/3 文件，63/63 passed**。
+- **刷新干净树性能基线（`storyboard-plan-open.perf.json`）**：`"commit": "669d5185c"`、`"dirty": false`、5 轮 `response` 中位数 **436.2 ms** / p95 **531.2 ms**（预算 `1000 ms`，`verdict.status = "ok"`）。
 - **未验证边界**：Windows 真机、真付费生成与纯键盘全链路沿设计卡如实记为 `unverified`。
