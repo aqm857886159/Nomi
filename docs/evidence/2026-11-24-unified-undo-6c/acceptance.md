@@ -2,7 +2,7 @@ t8-r6c-verify：通过
 
 - 验收线：t8-r6c-verify
 - 实现线：t8-r6c-impl
-- 验收 HEAD：21a7fd1c2b8544b733efc5487b307b2d48bcedc2
+- 验收 HEAD：9912060d1d30c3e5ab921006379cf858903e2d9c
 - 审批设计卡基线：`docs/plan/2026-11-24-unified-undo-history.md`（★1–★9 Row C）
 - Schema-v3 根因合同：`docs/fixes/2026-11-24-canvas-undo-patches-and-gesture-invariants.root-cause.json`
 - 提交链：`e516cec67`（前置特征测试）→ `a0cbd550d`（Immer 补丁栈替换并同提交删除 `canvasUndoJournal.ts`）→ `c08ce03cf`（场景登记与桌面证据）→ `ecb02a676`（并入 6B 基线）→ `eef1a564d`（干净工作树 5 轮性能基线）→ `c4e6c59a6`（`canvasControlsStructure.test.ts:85` 1 行测试对齐，`25/25` 通过）
@@ -99,3 +99,16 @@ t8-r6c-verify：通过
   - `node scripts/check-boundaries.mjs`（3238 模块 · 53/53 冻结 · 0 新增越界）与 `node scripts/check-boundary-owners.mjs`（2141 条）：**✅ 全绿**；
   - `canvasPatchHistory.characterization.test.ts`：**22/22 passed**；
   - 串行 `tsc -p tsconfig.app.json --noEmit` 与 `tsc -p electron/tsconfig.json --noEmit`：**0 错**。
+
+## 8. 合入最新 6A+6B 与主干（`#1647`）冲突解算及性能刷新增量复核（`9912060d1d30c3e5ab921006379cf858903e2d9c`）
+
+- **冲突解算核查（合并提交 `3788b74d7`）**：
+  - `git diff 3788b74d7^1 3788b74d7 -- src/workbench/assets/pendingAssetDeletions.ts` 为空，完整保留 6C 对 `canvasPatchHistory`（`readReachableUndoNodes` + `registerUndoHistoryEvictionHandler`）的依赖接线、`export function releaseEvictedAssetDeletions`（`discardedPositions` 判定 + 可达历史帧重锚定 + 微任务回收）与 `listMemo = null` 清理，未回退至已删除的 `canvasUndoJournal`；
+  - 首父链增量提交（`3788b74d7`、`9912060d1`）及本验收单 **0 本机路径泄露**。
+- **干净树性能基线刷新核查（`9912060d1`，`docs/evidence/2026-11-24-unified-undo-6c/perf-canvas-undo-landed-200.json`）**：
+  - `"dirty": false`（`head: 3788b74d78d3d368728faba1fa99a41f39c9c187`），`canvas-undo-landed-200` 5 轮 `response` 中位数 **17 ms** / p95 **17.3 ms**（预算 `100 ms`），`projectionMs` 中位数 **0.9 ms** / p95 **0.9 ms**，`longTasks` 全 **0**，`heapUsedMiB` 中位数 **38.7 MiB** / p95 **39.2 MiB**，`verdict.status = "ok"`。
+- **独立复跑全绿（`EXIT=0`）**：
+  - 4 套核心 Vitest（`--maxWorkers=2`：`canvasPatchHistory.characterization.test.ts`、`undoKeepsLandedResults.test.ts`、`assetDeletionMatrix.test.ts`、`assetLiveness.realStore.test.ts`）：**4/4 文件，122/122 passed**；
+  - 串行 `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit` 与 `./node_modules/.bin/tsc -p electron/tsconfig.json --noEmit`：**0 错误**；
+  - `node scripts/check-self-written.mjs`：**✅ 177 个领域目录 · 67 项登记 · 新增代码文件 7 个（0 个未认领）**；
+  - `CONCEPT_OWNERS_BASE_REF=origin/main node scripts/check-concept-owners.mjs`：**✅ 405 个概念（converged 401 / pending 4）· 写接口 1072 个 · 第二写口 0 新增**。
