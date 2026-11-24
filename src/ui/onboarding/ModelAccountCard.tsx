@@ -62,7 +62,8 @@ export function ModelAccountCard({ vendor, name, onAddress, onManage, onDisconne
         {balance?.quotaStaleSince && stale(balance.quotaStaleSince)}
         {balance?.quotaStaleSince ? retry : balance?.unlimited ? t('settings.modelsHome.bound') : !loading && balance?.keyCredits == null ? retry : null}</dd></div>
       <div><dt>{t('settings.modelsHome.week')}</dt><dd><strong>{total ? total.credits === null ? t('settings.modelsHome.pending') : credits(total.credits) : periods === undefined ? '…' : t('settings.modelsHome.unavailable')}</strong>
-        {total && <>{t('settings.modelsHome.runs', { count: total.runs })} · </>}<button type="button" className={link} onClick={onUsage}>{t('settings.modelsHome.usage')} <IconChevronRight size={11} /></button></dd></div>
+        {total && <>{t('settings.modelsHome.runs', { count: total.runs })} · </>}<button type="button" className={link} onClick={onUsage}
+          aria-label={t('settings.modelsHome.usage')} title={t('settings.modelsHome.usage')}>{t('settings.modelsHome.usageAction')} <IconChevronRight size={11} /></button></dd></div>
     </dl>
   </section>
 }

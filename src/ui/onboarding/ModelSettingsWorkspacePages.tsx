@@ -356,10 +356,10 @@ export function OtherConnectionWays({ local, onBack, onCustomApi, onDirectScript
       <section><h3 className="text-caption font-semibold">{t('settings.modelsHome.local')}</h3>
         {local.map(c => <button className={row} key={c.vendorKey} onClick={c.onOpen} data-local-connection={c.vendorKey}>
           {translateModelDisplayText(c.name)} <IconChevronRight size={14} /></button>)}{footer}</section>
-      <button className={row} data-model-home-action="custom-api" onClick={onCustomApi}>{t('onboardingProviders.drawer.home.customApi')} <IconChevronRight size={14} /></button>
+      <button type="button" className={row} data-model-home-action="custom-api" onClick={onCustomApi}>{t('onboardingProviders.drawer.home.customApi')} <IconChevronRight size={14} /></button>
       <section data-model-home-data-sources><h3 className="text-caption font-semibold">{t('onboardingProviders.drawer.home.dataSources')}</h3>{dataSource}</section>
       <div ref={networkRef} data-model-home-advanced>{network}<CatalogPackageActions onImported={onImported} />
-        <button className={row} data-model-home-direct-script onClick={onDirectScript}>{t('onboardingProviders.drawer.home.directScript')} <IconChevronRight size={14} /></button>
+        <button type="button" className={row} data-model-home-direct-script onClick={onDirectScript}>{t('onboardingProviders.drawer.home.directScript')} <IconChevronRight size={14} /></button>
       </div>
     </div>
   </div>
@@ -393,7 +393,9 @@ export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name:
         {rows ? rows.map(r => <div key={r.modelKey} data-usage-model={r.modelKey} className={row}>
           <span title={r.modelKey} className="truncate">{prices?.find(p => p.modelKey === r.modelKey)?.label || r.modelKey}</span>
           <span>{amount(r.credits)}</span><span className="text-right">{t('settings.modelsHome.runs', { count: r.runs })}</span></div>)
-          : <p className="p-2 text-caption">{periods === undefined ? t('onboardingProviders.drawer.loading') : <button onClick={refresh}>{t('settings.modelsHome.unavailable')} · {t('settings.modelsHome.retry')}</button>}</p>}
+          : <p className="p-2 text-caption">{periods === undefined ? t('onboardingProviders.drawer.loading') : <>
+            <span>{t('settings.modelsHome.unavailable')}</span> · <button type="button" className="text-nomi-accent hover:underline" onClick={refresh}>{t('settings.modelsHome.retry')}</button>
+          </>}</p>}
         {rows?.length === 0 && <p className="p-2 text-caption">{t('settings.modelsHome.empty')}</p>}
         {total && <div className={row + ' bg-nomi-ink-05 font-semibold'}><span>{t('settings.modelsHome.total')}</span><span>{amount(total.credits)}</span><span className="text-right">{t('settings.modelsHome.runs', { count: total.runs })}</span></div>}
       </div>
@@ -402,7 +404,9 @@ export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name:
       <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line">
         {prices?.map(p => <div key={p.modelKey} data-unit-price={p.modelKey} className="flex gap-2 px-2 py-1.5 text-caption"><span className="min-w-0 flex-1">{translateModelDisplayText(p.label)}</span>
           <span>{p.credits === null ? t('settings.modelsHome.unavailable') : t(p.kind === 'video' ? 'settings.modelsHome.videoUnit' : 'settings.modelsHome.imageUnit', { amount: number(p.credits) })}</span></div>)}
-        {prices === undefined ? <p className="p-2 text-caption">{t('onboardingProviders.drawer.loading')}</p> : !prices?.length && <button className="p-2 text-caption" onClick={retryPrices}>{t('settings.modelsHome.noRates')} · {t('settings.modelsHome.retry')}</button>}
+        {prices === undefined ? <p className="p-2 text-caption">{t('onboardingProviders.drawer.loading')}</p> : !prices?.length && <p className="p-2 text-caption">
+          <span>{t('settings.modelsHome.noRates')}</span> · <button type="button" className="text-nomi-accent hover:underline" onClick={retryPrices}>{t('settings.modelsHome.retry')}</button>
+        </p>}
       </div><p className="text-micro text-nomi-ink-60">{t('settings.modelsHome.rateHint')}</p>
     </div>
   </div>

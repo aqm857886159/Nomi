@@ -148,8 +148,9 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
           {taskCount > 0 && <section data-model-home-task-strip>{taskContent}</section>}
           <h3 className="text-caption font-semibold">{t('settings.modelsHome.others')}</h3>
           <AiAssistedOnboardingSection connections={connections} runs={adapterRuns} />
-          <button data-model-home-action="other-ways" className="flex items-center gap-3 rounded-nomi-sm border border-nomi-line p-3 text-left hover:bg-nomi-ink-05" onClick={onWays}>
-            <IconServerBolt size={18} /><span className="min-w-0 flex-1"><strong className="block text-caption">{t('settings.modelsHome.ways')}</strong>
+          <button type="button" data-model-home-action="other-ways" aria-label={t('settings.modelsHome.ways')}
+            className="flex items-center gap-3 rounded-nomi-sm border border-nomi-line p-3 text-left hover:bg-nomi-ink-05" onClick={onWays}>
+            <IconServerBolt size={18} /><span className="min-w-0 flex-1"><strong className="block text-caption">{t('settings.modelsHome.waysAction')}</strong>
               <span className="text-micro text-nomi-ink-60">{t('settings.modelsHome.waysHint')}</span></span><IconChevronRight size={14} />
           </button>
         </>}

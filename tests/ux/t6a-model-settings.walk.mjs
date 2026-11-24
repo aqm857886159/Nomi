@@ -12,7 +12,7 @@ import { require as requireTs } from 'tsx/cjs/api'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { copyOldUserData } from '../world/oldUserData.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { openModelSettings, openSettings, closeSettings } from './_shell.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { renderScorecard } from './experience/scorecard.mjs'
@@ -20,7 +20,7 @@ import { writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { initialPreferences } from './uiDriverOptions.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-const output = path.join(root, 'docs/evidence/2026-11-24-t6a-model-settings')
+const output = path.resolve(root, process.env.NOMI_WALK_OUT || 'docs/evidence/2026-11-24-t6a-model-settings')
 const board = path.join(root, 'docs/design/boards/2026-11-07-model-surfaces/preview')
 const oldFixture = path.join(root, 'tests/fixtures/old-user-data/catalogs/v0.24.1-wizard')
 const { values: perf } = parseArgs({ options: { runs: { type: 'string' }, out: { type: 'string' } } })
@@ -29,6 +29,7 @@ let offline = false
 const comparisons = []
 const attempts = []
 const measurements = []
+const probes = {}
 let nameChecks = 0
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost')
@@ -182,11 +183,12 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
     if (kind === 'fresh') {
       const entry = loc('[data-model-home-available="apimart"]')
       await expect(entry, 'board:ModelSurfaces/settings.connect-entry').toBeVisible()
-      await expect(loc('[data-model-home-connection]')).toHaveCount(0)
-      await expect(account).toHaveCount(0)
+      await expectAbsent(loc('[data-model-home-connection]'), { provenBy: probes.legacy, message: 'Fresh setup has no previous connections' })
+      await expectAbsent(account, { provenBy: probes.account, message: 'Fresh setup has no connected account' })
       await expect(loc('[data-model-home-available]')).toHaveCount(1)
-      await expect(dialog.getByText('推荐', { exact: true }), 'board:ModelSurfaces/settings.drop.recommend-badge').toHaveCount(0)
-      await expect(loc('[data-model-status]'), 'board:ModelSurfaces/settings.drop.fold-status').toHaveCount(0)
+      const entryText = await proveProbe(entry.getByText(labelFor('connect'), { exact: true }), 'The APIMart setup card has its connect label')
+      await expectAbsent(dialog.getByText('推荐', { exact: true }), { provenBy: entryText, message: 'board:ModelSurfaces/settings.drop.recommend-badge' })
+      await expectAbsent(loc('[data-model-status]'), { provenBy: probes.legacyStatus, message: 'board:ModelSurfaces/settings.drop.fold-status' })
       const assisted = loc('[data-model-home-assisted-onboarding]')
       await expect(assisted.locator('summary'), 'board:ModelSurfaces/settings.ai-onboard-row').toBeVisible()
       await assisted.locator('summary').click()
@@ -213,42 +215,50 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       const row = loc('[data-model-home-connection="local-39017"]')
       await expect(row, 'board:ModelSurfaces/settings.legacy-group').toContainText('Relay One')
       await expect(row.locator('[data-model-status]')).toBeVisible()
+      probes.legacy = await proveProbe(row, 'The migrated profile lists Relay One')
+      probes.legacyStatus = await proveProbe(row.locator('[data-model-status]'), 'Relay One has a connection status')
       await expect(row).toContainText(labelFor('maintenance'))
       await expect(loc('[data-model-home-connection="kie"]')).toContainText(labelFor('kie'))
-      await expect(loc('[data-model-home-task-strip]'), 'board:ModelSurfaces/settings.adapter-tasks').toHaveCount(0)
+      const homeSection = await proveProbe(loc('[data-model-home-connected]'), 'The migrated model settings home renders its previous connections section')
+      await expectAbsent(loc('[data-model-home-task-strip]'), { provenBy: homeSection, message: 'board:ModelSurfaces/settings.adapter-tasks' })
       const count = kind === 'old' ? 4 : 5
       await expect(loc('[data-model-home-connected] h3')).toContainText(labelFor('connections', { count }))
       await expect(loc('[data-model-home-connection]')).toHaveCount(count)
       const search = dialog.getByRole('searchbox')
       if (kind === 'old') {
-        await expect(search).toHaveCount(0)
+        await expectAbsent(search, { provenBy: probes.search, message: 'Four previous connections do not need a search box' })
         await shot(win, 'M1-old-user')
       } else {
         await expect(search, 'board:ModelSurfaces/settings.search').toBeVisible()
+        probes.search = await proveProbe(search, 'Five previous connections show the search box')
         await search.fill('Relay One')
         await expect(loc('[data-model-home-connection]')).toHaveCount(1)
         await search.fill('')
         await expect(loc('[data-model-home-connection]')).toHaveCount(5)
       }
       await checkNames(win)
-      await loc('[data-legacy-notice]').getByRole('button').click()
+      const notice = loc('[data-legacy-notice]')
+      const noticeProof = await proveProbe(notice, 'The migration notice is shown before dismissal')
+      await notice.getByRole('button').click()
       await closeSettings(win)
       await openModelSettings(win)
       await expect(row).toBeVisible()
-      await expect(loc('[data-legacy-notice]'), 'board:ModelSurfaces/settings.legacy-banner').toHaveCount(0)
+      await expectAbsent(notice, { provenBy: noticeProof, message: 'board:ModelSurfaces/settings.legacy-banner' })
       assert.deepEqual(JSON.parse(fs.readFileSync(catalog)).apiKeysByVendor, legacyKeys)
       await openSettings(win, { tab: 'ai' })
       await expect(loc('[data-vendor-preference-order]'), 'board:ModelSurfaces/policy.vendor-order').toBeVisible()
+      probes.vendorOrder = await proveProbe(loc('[data-vendor-preference-order]'), 'The migrated multi-provider profile shows vendor ordering')
       await openModelSettings(win)
       await loc('[data-model-home-available="apimart"]').getByText(labelFor('connect'), { exact: true }).click()
       await expect(win.locator('[data-apimart-right]')).toBeVisible()
     } else {
       await expect(account, 'board:ModelSurfaces/settings.account-card').toContainText(labelFor('credits', { amount: 52.3 }))
+      probes.account = await proveProbe(account, 'The connected profile shows the APIMart account card')
       await expect(account).toContainText(labelFor('unlimited'))
       await expect(account).toContainText(labelFor('credits', { amount: 19.6 }))
       await expect(account.getByRole('link')).toHaveAttribute('href', 'https://apimart.ai/billing')
       await expect(loc('[data-model-settings-page="home"] header').first(), 'board:ModelSurfaces/settings.header').toContainText(zh ? /图片 \d+/ : /Image \d+/)
-      await expect(loc('input[type="search"]')).toHaveCount(0)
+      await expectAbsent(dialog.getByRole('searchbox'), { provenBy: probes.search, message: 'A single account does not need a search box' })
       const frame = loc('[data-settings-frame]')
       const a = await frame.boundingBox()
       assert(a.height >= 360 && a.height <= 560)
@@ -256,9 +266,10 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       const menu = account.getByRole('button', { name: labelFor('more') })
       await menu.click()
       await expect(win.getByRole('menuitem'), 'board:ModelSurfaces/settings.account-menu').toHaveCount(3)
+      const menuProof = await proveProbe(win.getByRole('menuitem'), 'The open account menu shows its actions')
       if (theme === 'dark') await shot(win, 'M1-dark')
       await win.keyboard.press('Escape')
-      await expect(win.getByRole('menuitem')).toHaveCount(0)
+      await expectAbsent(win.getByRole('menuitem'), { provenBy: menuProof, message: 'Escape closes the account menu' })
       await expect(menu).toBeFocused()
       await win.evaluate(() => document.activeElement?.blur())
       await expect(menu).not.toBeFocused()
@@ -291,7 +302,7 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       measurements.push({ locale, theme, width, home: a.height, policy: b.height, top: a.y })
       await expect(loc('[data-settings-tab-id]'), 'board:ModelSurfaces/other-tabs.unchanged').toHaveCount(6)
       await expect(loc('[data-settings-section="default-generation-models"] button'), 'board:ModelSurfaces/policy.defaults').toHaveCount(4)
-      await expect(loc('[data-vendor-preference-order]')).toHaveCount(0)
+      await expectAbsent(loc('[data-vendor-preference-order]'), { provenBy: probes.vendorOrder, message: 'A single vendor does not need priority ordering' })
       const box = loc('[data-model-box-order] details')
       await expect(box.locator('summary'), 'board:ModelSurfaces/policy.model-box').toBeVisible()
       await expect(loc('[data-settings-upload-guidance]'), 'board:ModelSurfaces/policy.upload').toBeVisible()
@@ -374,18 +385,20 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
   } finally { offline = false; await close() }
 }
 async function runWalkthrough() {
-  await scenario('old')
+  const headSha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+  const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim()
   await scenario('old-search')
+  await scenario('old')
   await scenario('notice')
-  await scenario('fresh')
   await scenario('connected')
+  await scenario('fresh')
   await scenario('connected', 'en')
   await scenario('connected', 'zh-CN', 'dark')
   await scenario('connected', 'zh-CN', 'light', 700)
   assert.equal(comparisons.length, 7)
   const score = renderScorecard({
     version: 1, date: '2026-11-24', scenarioId: 'settings-model',
-    change: { title: 'T-6a 模型账户、用量与 AI 策略', headSha: execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), headNote: '实测工作树的父提交，含本次待提交修改',
+    change: { title: 'T-6a 模型账户、用量与 AI 策略', headSha, headNote: dirty ? '实测工作树含未提交修改' : undefined,
       added: ['APIMart 账户卡与用量页'], changed: ['旧连接分组与策略整理'], removed: ['首页未配置平台与推荐徽标'],
       userCan: '连接或管理 APIMart，在本机查看近期积分明细，找回旧连接，设置模型和上传偏好。' },
     verifier: { line: '实现线', kind: '隔离 Electron 实窗' },

@@ -1564,11 +1564,6 @@
       "count": 1
     }
   },
-  "tests/ux/asset-transport-settings.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/asset-video-preview.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2161,11 +2156,6 @@
     },
     "no-empty": {
       "count": 1
-    }
-  },
-  "tests/ux/model-availability-agreement.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
     }
   },
   "tests/ux/model-box-tidy.walk.mjs": {
