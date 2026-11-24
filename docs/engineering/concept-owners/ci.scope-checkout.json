@@ -27,6 +27,7 @@
   "forbidden_derivations": [],
   "parity_test": "scripts/check-quality-gate-workflow.node-test.mjs",
   "allowed_consumers": [
+    "scripts/ci-annotation-hygiene.mjs",
     "scripts/check-quality-gate-workflow.node-test.mjs",
     "scripts/git-delivery.mjs"
   ],
