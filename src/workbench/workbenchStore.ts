@@ -40,7 +40,7 @@ import type { TimelineTransition } from './timeline/timelineTypes'
 import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
 import { createTimelineHistory, type HistoryDirection } from './history/historyMiddleware'
 import { normalizeWorkbenchDocument, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
-import { matchFirstVisualAspect, type PreviewAspect } from './preview/previewAspectRatios'
+import { matchFirstVisualAspect, reconcileAutoPreviewAspectOnTravel, type PreviewAspect } from './preview/previewAspectRatios'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import type { ProjectAgentDraftRecoveryState } from './ai/projectAgentDraftRecovery'
 import { createWorkbenchDocumentSlice, type WorkbenchDocumentSlice } from './workbenchDocumentSlice'
@@ -236,6 +236,7 @@ function travelTimeline(state: WorkbenchState, direction: HistoryDirection): Par
   const liveIds = new Set(timeline.tracks.flatMap(track => track.clips.map(clip => clip.id)))
   return {
     timeline,
+    previewAspect: reconcileAutoPreviewAspectOnTravel(timeline, state.previewAspect),
     selectedTimelineClipIds: state.selectedTimelineClipIds.filter(id => liveIds.has(id)),
     selectedTextClipId: timeline.textClips.some(clip => clip.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
     timelinePlaying: false,

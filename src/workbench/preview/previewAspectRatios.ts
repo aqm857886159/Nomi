@@ -58,3 +58,12 @@ export function matchFirstVisualAspect(
   const closest = PREVIEW_RATIOS.reduce((best, candidate) => distance(candidate) < distance(best) ? candidate : best)
   return { ratio: closest.value, source: 'auto' }
 }
+
+export function reconcileAutoPreviewAspectOnTravel(
+  timeline: TimelineState,
+  aspect: PreviewAspect | undefined,
+): PreviewAspect | undefined {
+  if (aspect?.source === 'manual') return aspect
+  if (!timelineHasVisualClips(timeline)) return undefined
+  return aspect ?? matchFirstVisualAspect({ ...timeline, tracks: [] }, timeline, undefined)
+}
