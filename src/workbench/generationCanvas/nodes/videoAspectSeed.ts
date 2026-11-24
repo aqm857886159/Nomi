@@ -16,7 +16,7 @@ import type { ModelOption } from '../../../config/models'
 import { collectInputAspectRatios, nodeAspectRatioValue, preferredVideoAspect } from './aspectRatio'
 import { isAspectRatioControl, videoAspectDefaultPatch, type DynamicModelControl } from './controls/parameterControlModel'
 import { resolveRenderedControls, resolveRenderedMode } from './nodeModelArchetype'
-import { ASPECT_RATIO_META_KEYS, isAutoOptionValue, normalizeAspectRatioToWH, sameAspectRatio } from '../../../../electron/shared/aspectRatioValue'
+import { ASPECT_RATIO_META_KEYS, isAutoOptionValue, normalizeAspectRatioToWH, parseAspectRatioValue, sameAspectRatio } from '../../../../electron/shared/aspectRatioValue'
 import { readMediaDimensions } from './nodeSizing'
 import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 
@@ -98,7 +98,12 @@ export function videoAspectSeedPatch(input: VideoAspectSeedInput): Record<string
   const source = firstFrame && input.nodes.find(node => node.id === firstFrame.source)
   if (source && (source.kind === 'image' || source.result?.type === 'image')) {
     const frameRatio = firstFrameResultAspect(source) ?? nodeAspectRatioValue(source)
-    for (const preferred of ['auto', frameRatio]) {
+    const frameAspect = parseAspectRatioValue(frameRatio)
+    const portrait = frameAspect !== null && frameAspect < 1 && preferredVideoAspect([
+      frameAspect,
+      ...collectInputAspectRatios(input.nodeId, input.edges.filter(edge => edge !== firstFrame), input.nodes),
+    ]) === '9:16'
+    for (const preferred of [frameRatio, portrait ? '9:16' : null, 'auto']) {
       if (!preferred) continue
       const patch = videoAspectDefaultPatch(input.controls, preferred)
       if (!Object.keys(patch).length) continue

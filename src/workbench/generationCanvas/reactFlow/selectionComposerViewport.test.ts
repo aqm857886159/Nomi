@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { fitEditingBounds, composerSelectionPan, revealEditor } from './selectionComposerViewport'
+import { CANVAS_MAX_ZOOM } from '../model/canvasFitBounds'
+import { fitEditingBounds, composerSelectionPan, revealEditor, selectionRevealMode } from './selectionComposerViewport'
 
 const view = { left: 64, top: 20, width: 750, height: 580 }
 const node = { x: 400, y: 100, width: 340, height: 340 }
 const composer = { width: 600, height: 220, gap: 12 }
 
 describe('canvas editing footprint', () => {
+  it('caps first-open fit at 100% and uses the supplied limit for explicit fit', () => {
+    const tiny = { x: 0, y: 0, width: 1, height: 1 }
+    expect(fitEditingBounds(tiny, view, null).zoom).toBe(1)
+    expect(fitEditingBounds(tiny, view, null, CANVAS_MAX_ZOOM).zoom).toBe(CANVAS_MAX_ZOOM)
+  })
+
   it.each([node, { ...node, x: 0, width: 740 }])('fits all cards and the fixed-size selected composer', bounds => {
     const { x, y, zoom } = fitEditingBounds(bounds, view, { node, composer })
     expect(zoom).toBeLessThanOrEqual(1)
@@ -18,13 +25,19 @@ describe('canvas editing footprint', () => {
   })
 
   it.each<readonly [number, number, string]>([
-    [10, 250, 'left'], [280, 250, 'right'], [100, 430, 'bottom'],
-  ])('reveals overflow from (%i,%i) at the %s edge', (left, top, _edge) => {
-    const rect = { left, top, width: 600, height: 220 }
-    const pan = composerSelectionPan(rect, view)!
-    expect(left + pan.x).toBeGreaterThanOrEqual(view.left)
-    expect(left + 600 + pan.x).toBeLessThanOrEqual(view.left + view.width)
-    expect(top + 220 + pan.y).toBeLessThanOrEqual(view.top + view.height)
+    [-160, 0, 'left'], [100, 0, 'right'], [0, 60, 'bottom'],
+  ])('pans existing selections from (%i,%i) at the %s edge at the current zoom', (x, y, _edge) => {
+    const viewport = { x, y, zoom: 0.8 }
+    const editor = { node, composer }
+    const mode = selectionRevealMode('card', [{ id: 'card' }], [])
+    expect(mode).toBe('pan')
+    const target = revealEditor(viewport, view, editor, false, 1, false)!
+    expect(target).not.toEqual(viewport)
+    expect(target.zoom).toBe(viewport.zoom)
+    const center = target.x + (node.x + node.width / 2) * target.zoom
+    expect(center - composer.width / 2).toBeGreaterThanOrEqual(view.left)
+    expect(center + composer.width / 2).toBeLessThanOrEqual(view.left + view.width)
+    expect(target.y + (node.y + node.height + composer.gap) * target.zoom + composer.height).toBeLessThanOrEqual(view.top + view.height)
   })
 
   it('keeps the viewport still for a visible composer, drag and multi-selection', () => {
@@ -33,6 +46,13 @@ describe('canvas editing footprint', () => {
       expect(revealEditor({ x: -1000, y: 500, zoom: 1 }, view, { node, composer }, true, count, drag)).toBeNull()
     }
   })
+})
+
+it('admits a new card only when it has an incoming edge', () => {
+  const previousNodes = [{ id: 'source' }]
+  expect(selectionRevealMode('card', previousNodes, [])).toBeNull()
+  expect(selectionRevealMode('card', previousNodes, [{ target: 'source' }])).toBeNull()
+  expect(selectionRevealMode('card', previousNodes, [{ target: 'card' }])).toBe('fit')
 })
 
 it('newly derived square video fits together with its editor in a narrow stage; reselecting it only pans', () => {

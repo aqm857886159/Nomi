@@ -2,7 +2,7 @@ import { collectCanvasOverlayRects } from '../../generation/workspaceBottomDocks
 import { CANVAS_MIN_ZOOM, type CanvasFitRect } from '../model/canvasFitBounds'
 import { composerCanvasPlacement, composerInitialFootprint } from '../nodes/composerCanvasPlacement'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
-import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { CANVAS_FOCUS_MAX_ZOOM, CANVAS_FOCUS_PADDING, resolveFreeViewRect, type FocusViewRect } from './focusViewportRecovery'
 
 type Viewport = { x: number; y: number; zoom: number }
@@ -90,6 +90,15 @@ export function composerSelectionPan(rect: FocusViewRect, view: FocusViewRect) {
   const bottom = view.top + view.height - rect.top - rect.height
   const dy = bottom < 0 ? bottom : Math.min(bottom, Math.max(0, view.top - rect.top))
   return dx || dy ? { x: dx, y: dy } : null
+}
+
+export function selectionRevealMode(
+  id: string,
+  previousNodes: readonly Pick<GenerationCanvasNode, 'id'>[],
+  edges: readonly Pick<GenerationCanvasEdge, 'target'>[],
+): 'pan' | 'fit' | null {
+  if (previousNodes.some(node => node.id === id)) return 'pan'
+  return edges.some(edge => edge.target === id) ? 'fit' : null
 }
 
 /** Opening and derivation may fit the complete editor. Ordinary selection preserves zoom. */

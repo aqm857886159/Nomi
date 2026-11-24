@@ -1,17 +1,18 @@
 import React from 'react'
 import { useReactFlow, useStoreApi, getViewportForBounds, type Viewport } from '@xyflow/react'
-import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, unionCanvasFitBounds } from '../model/canvasFitBounds'
+import { unionCanvasFitBounds } from '../model/canvasFitBounds'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { CanvasGroupBox } from '../components/GroupFrame'
 import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
-import { editingView, fitEditingBounds, revealEditor, selectedEditor } from './selectionComposerViewport'
+import { editingView, fitEditingBounds, revealEditor, selectedEditor, selectionRevealMode } from './selectionComposerViewport'
 
 /** One reveal per selection change. Viewport motion, node edits and drag frames do not trigger reveals. */
 export function useSelectionComposerPan(
   hostRef: React.RefObject<HTMLDivElement | null>,
+  renderedNodesRef: React.MutableRefObject<readonly Pick<GenerationCanvasNode, 'id'>[]>,
   dragging: React.RefObject<boolean>,
   getViewport: () => Viewport,
   animate: (zoom: number, offset: { x: number; y: number }, duration: number, settled: () => void) => void,
@@ -43,21 +44,20 @@ export function useSelectionComposerPan(
       if (state.selectedNodeIds === previous.selectedNodeIds ||
         (state.selectedNodeIds.length === 1 && previous.selectedNodeIds.length === 1 && previous.selectedNodeIds[0] === id)) return
       stop()
-      if (state.selectedNodeIds.length !== 1 || dragging.current) return
-      const added = state.nodes !== previous.nodes && !previous.nodes.some(node => node.id === id)
+      if (!id || state.selectedNodeIds.length !== 1 || dragging.current) return
+      const previousNodes = renderedNodesRef.current
       const deadline = performance.now() + 500
-      const reveal = () => {
+      const reveal = (derived: boolean) => {
         const host = hostRef.current
         const latest = useGenerationCanvasStore.getState()
-        if (!host || !id || dragging.current || host.dataset.dragging === 'true' ||
+        if (!host || dragging.current || host.dataset.dragging === 'true' ||
           latest.selectedNodeIds.length !== 1 || latest.selectedNodeIds[0] !== id) return
         const node = latest.nodes.find(candidate => candidate.id === id)
         if (!node || (node.categoryId || 'shots') !== useWorkbenchStore.getState().activeCategoryId) return
-        const derived = added && latest.edges.some(edge => edge.target === id)
         // A new video acquires its first-frame aspect with its model. An unavailable model or a virtualized
         // card must still be reachable, so waiting for the initial layout has a bounded lifetime.
         if (derived && node.kind === 'video' && !nodeSelectedModelAddress(node.meta).modelKey && performance.now() < deadline) {
-          frame.current = requestAnimationFrame(reveal)
+          frame.current = requestAnimationFrame(() => reveal(derived))
           return
         }
         const viewport = getViewport()
@@ -69,7 +69,12 @@ export function useSelectionComposerPan(
           animate(next.zoom, next, 200, () => { animating = false })
         }
       }
-      frame.current = requestAnimationFrame(() => { frame.current = requestAnimationFrame(reveal) })
+      frame.current = requestAnimationFrame(() => {
+        // A derivation adds and connects the card in separate synchronous store writes.
+        // Use the graph at the first frame, before waiting for the editor or model.
+        const mode = selectionRevealMode(id, previousNodes, useGenerationCanvasStore.getState().edges)
+        if (mode) frame.current = requestAnimationFrame(() => reveal(mode === 'fit'))
+      })
     })
     return () => {
       host?.removeEventListener('pointerdown', stop, true)
@@ -77,20 +82,21 @@ export function useSelectionComposerPan(
       unsubscribe()
       stop()
     }
-  }, [hostRef, dragging, getViewport, animate, cancel, cancelPending, readOnly])
+  }, [hostRef, renderedNodesRef, dragging, getViewport, animate, cancel, cancelPending, readOnly])
   return takeViewport
 }
 
-type OpenFit = Pick<Parameters<typeof useAutoFitOnLoad>[0], 'nodes' | 'activeCategoryId' | 'categoryViewports' | 'ready' | 'zoomRef' | 'offsetRef'>
+type OpenFit = Pick<Parameters<typeof useAutoFitOnLoad>[0], 'nodes' | 'activeCategoryId' | 'hasRememberedViewport' | 'ready' | 'zoomRef' | 'offsetRef'>
 
 export function useCanvasEditingFit({
-  hostRef, nodes, nodeById, groupBoxes, activeCategoryId, categoryViewports, ready, readOnly,
+  hostRef, nodes, nodeById, groupBoxes, activeCategoryId, hasRememberedViewport, ready, readOnly, zoomRange: [minZoom, maxZoom],
   draggingRef, zoomRef, offsetRef, animateViewportTo, cancelViewportAnimation,
 }: OpenFit & {
   hostRef: React.RefObject<HTMLDivElement | null>
   nodeById: ReadonlyMap<string, GenerationCanvasNode>
   groupBoxes: readonly CanvasGroupBox[]
   readOnly: boolean
+  zoomRange: readonly [min: number, max: number]
   draggingRef: React.RefObject<boolean>
   animateViewportTo: (zoom: number, offset: Viewport, duration: number) => void
   cancelViewportAnimation: () => void
@@ -113,7 +119,9 @@ export function useCanvasEditingFit({
     if (!bounds) return
     const ids = useGenerationCanvasStore.getState().selectedNodeIds
     const editor = ids.length === 1 ? selectedEditor(host, nodeById.get(ids[0]!), flow.getViewport().zoom) : null
-    const next = opening || editor ? fitEditingBounds(bounds, editingView(host), editor) : getViewportForBounds(bounds, stage.width, stage.height, CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, 0.12)
+    const next = opening || editor
+      ? fitEditingBounds(bounds, editingView(host), editor, opening ? undefined : maxZoom)
+      : getViewportForBounds(bounds, stage.width, stage.height, minZoom, maxZoom, 0.12)
     if (![next.x, next.y, next.zoom].every((value) => Number.isFinite(value))) return
     cancelViewportAnimation()
     if (animate) {
@@ -121,12 +129,12 @@ export function useCanvasEditingFit({
       return
     }
     void flow.setViewport(next, { duration: 0 })
-  }, [animateViewportTo, cancelViewportAnimation, flow, groupBoxes, hostRef, nodeById, nodes.length])
+  }, [animateViewportTo, cancelViewportAnimation, flow, groupBoxes, hostRef, maxZoom, minZoom, nodeById, nodes.length])
   useAutoFitOnLoad({
     ready,
     nodes,
     activeCategoryId,
-    categoryViewports,
+    hasRememberedViewport,
     fitView,
     revealRememberedSelection: () => {
       const host = hostRef.current

@@ -37,18 +37,20 @@ Phase 1 先在真窗留下裁切坐标与动作表，随后用户明确单选时
 
 ### 5. 归属
 
-这一整块：用户选定要编辑的节点后，工作台如何把卡片和其操作面放在可点的舞台里。
+这一整块：打开画布、派生节点或选中已有节点时，把卡片和操作面放进可操作的舞台。
 
 归谁：React Flow 12.11.5 管节点几何与视口变换；Nomi 的空地及对焦计算在 `src/workbench/generationCanvas/reactFlow/focusViewportRecovery.ts:48`，画布动画入口在 `src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts:25`，固定宽度取 `src/workbench/generationCanvas/nodes/nodeSizing.ts:92`。
 
-我们哪里绕开了它：基线 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx:350` 直接以舞台宽高、节点和编组外接盒取景。React Flow 并不知道 Nomi 的停靠条或反向缩放的生成框占地。
+我们哪里绕开了它：基线 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx:350` 直接以舞台宽高、节点和编组外接盒取景。PR 的第一版又用 store 写入先后判定卡片是否已挂载，素材导入分两次写入时会误判。
+
+`canvas-selection-composer-viewport` 保留混合编辑占地适配。React Flow 的取景 API 接收画布单位的矩形，Nomi 的生成框始终保留固定屏幕宽度，还需扣除停靠区域。当前由 React Flow 提供已提交的节点投影、缩放范围和坐标变换，适配只计算混合占地和何时允许自动取景。2026-12-08 复查，生成框改为舞台标准停靠层或 React Flow 支持混合单位取景时，删除该适配并迁回内置 `fitView`。复查沿用双语走查和首次取景、三侧越界、派生与独立建卡的定向用例。[React Flow 12 的 getViewportForBounds](https://reactflow.dev/api-reference/utils/get-viewport-for-bounds)
 
 ### 6. 三条路
 
 | 选项 | 做法 | 代价与风险 |
 | --- | --- | --- |
-| 局部修 | 首进封顶，按入口挨个移动镜头 | 其它单选入口会再漏，两次动画还可能争夺视口 |
-| **共享取景（推荐）** | 首进使用现有空地和生成框足迹；单选变化时量占地，在已有动画入口平移一次。右环和新浮条动作共享建卡写口 | 需协调首进与单选时序，确保拖动能中止动画；固定宽度超过可用宽度时，纯平移在几何上不能全包 |
+| 接入 React Flow 12.11.5 的内置 `fitView` | 用内核的节点和编组矩形完成整块取景 | 可以复用缩放和矩形取景。固定屏幕宽的生成框与停靠区域仍需适配，否则下一步按钮可能出界 |
+| **共享取景（推荐）** | 首进使用现有空地和生成框足迹。单选基于上次已提交的节点投影，已有卡只平移，右环和图片浮条派生在第一帧有入边才取景 | 同一个边界覆盖工具条、粘贴、分步导入和派生。固定宽度超过可用宽度时，纯平移在几何上不能全包 |
 | 删掉首进适应 | 打开时沿用当前视口 | 未保存视口或节点都在屏外的老项目会打开一张空白舞台 |
 
 ### 7. 用户已定的取舍

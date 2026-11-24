@@ -44,6 +44,7 @@ import { useCanvasFitSignal } from '../components/useCanvasFitSignal'
 import { useTidyCanvas } from '../components/useTidyCanvas'
 import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
 import { useCanvasEditingFit, useSelectionComposerPan } from './useSelectionComposerPan'
+import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM } from '../model/canvasFitBounds'
 import { useCanvasArrivalHint } from './useCanvasArrivalHint'
 import { visibleInsertionPoint } from '../store/canvasVisibleArea'
 import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
@@ -234,7 +235,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onAnimationSettled: (settled) => { setLiveViewport(settled); rememberCategoryViewport(activeCategoryId, canvasViewportFromFlow(settled)) },
   })
 
-  const cancelViewportAnimation = useSelectionComposerPan(hostRef, draggingRef, flow.getViewport, animateViewportTo, cancelAnimation, readOnly)
+  const cancelViewportAnimation = useSelectionComposerPan(hostRef, projectedFlowNodesRef, draggingRef, flow.getViewport, animateViewportTo, cancelAnimation, readOnly)
 
   // 下面这段同步把 store 的视口推给 React Flow；React Flow 随后回一次**没有来源事件**的 onMoveEnd。那是回声：
   // 值本来就出自 store——或者 store 里没有这个分类的记忆时，出自上一行的 1:1 兜底。回声不许再被记成「用户留下的视角」：
@@ -333,7 +334,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
 
   // 截图 / 浏览器素材 / 模板落点：与 addNode 默认落点同一个 owner（store/canvasVisibleArea）；新建节点由 addNode 造出节点后自行算落点。
   const getInsertionPosition = React.useCallback(() => visibleInsertionPoint(activeCategoryId) ?? { x: 240, y: 240 }, [activeCategoryId])
-  const fitView = useCanvasEditingFit({ hostRef, nodes, nodeById, groupBoxes, activeCategoryId, categoryViewports,
+  const fitView = useCanvasEditingFit({ hostRef, nodes, nodeById, groupBoxes, activeCategoryId,
+    hasRememberedViewport: Boolean(categoryViewports[activeCategoryId]), zoomRange: [CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM],
     ready: isReady, readOnly, draggingRef, zoomRef, offsetRef, animateViewportTo, cancelViewportAnimation })
   const zoomTo = React.useCallback((nextZoom: number) => {
     cancelViewportAnimation()
