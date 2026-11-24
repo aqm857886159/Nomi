@@ -2,7 +2,7 @@ t5-s6-verify：通过
 
 - 验收线：t5-s6-verify
 - 实现线：t5-onboarding-s6-impl
-- 验收 HEAD：98b395c18e128de080428adcb6445ed79c69f69e（首轮全量验收基线 `3db9c8c8866ca6c1a0fc4fedcabcb8b907eb1afd` + 本轮视觉语义 token 精修与干净工作树性能增量复验）
+- 验收 HEAD：b28676a944e5f3e7c08a05d415fe6a51a9551392（首轮全量基线 `3db9c8c8866c` + 视觉 token 精修 `98b395c18` + 本轮窄窗面包屑修复增量复验）
 - 设计卡与方向复盘：`docs/plan/2026-11-24-t5-onboarding-s6.md`、`docs/engineering/direction-checks/2026-11-24-apimart-balance-sources.md`
 
 ## 1. 跨板合同与 S6 13 项清单核对
@@ -74,6 +74,20 @@ t5-s6-verify：通过
   - `pnpm run check:controls`：PASS（控件交互与文案契约 `0` 违规）
   - `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit`：PASS（`0` 错误）
 
-## 6. 诚实未验证边界
+## 6. 窄窗面包屑修复增量复验（`b28676a94`）
+
+- **`7c188966e` 改动核对**：
+  - `src/ui/app-shell/shell/ShellTopBar.tsx`：无中间分段栏（`!hasSegment`）时顶栏左簇不再误挂 `max-w-[calc(50%-136px)]` 留白；返回按钮补充 `min-w-0 max-w-[240px]`；面包屑右箭头 `›` 与 `data-shell-here` 当前页名绑定于同一 `[@container_(max-width:180px)]:hidden` 容器同收，杜绝孤立箭头。
+  - `src/ui/onboarding/ApimartConnectPage.test.tsx`：新增结构与样式回归断言（不含 `max-w-[calc(50%-136px)]`，含 `[@container_(max-width:180px)]:hidden` 与 `data-shell-here`）。
+  - `tests/ux/t5-onboarding-s6.walk.mjs`：在 O5 与 O3 窄窗实测步新增 `[data-shell-topbar] [data-shell-here]` 可见且 `boundingBox().width > 40` 的真机断言。
+  - `git diff 98b395c18e12..HEAD -- ':!*.png'` 零本机路径泄露。
+- **窄窗真截图 `read_file` 亲眼复核**：
+  - `docs/evidence/2026-11-24-t5-onboarding-s6/board-vs-impl-o5-dark.png` & `docs/evidence/2026-11-24-t5-onboarding-s6/o3-narrow.png`：700px 暗色英文窄窗顶栏均完整清晰显示 `← Projects › Connect APIMart`，不再截断或残留孤立 `›`。
+- **干净工作树性能实测（`docs/evidence/2026-11-24-t5-onboarding-s6/perf-onboarding-connect-open.json`）**：
+  - `commit: 7c188966e`（`head: 7c188966e9d6806d3be4ca840f357f068d4d1681`），`dirty: false`，`runs: 5`，`onboarding-connect-open` response **median `47.5ms` / p95 `48.1ms`**（预算 `150ms`），`longTasks: 0 / 0`，`verdict: ok`。
+- **单测实跑（`EXIT=0`）**：
+  - `VITEST_MAX_WORKERS=2 pnpm exec vitest run src/ui/onboarding/ApimartConnectPage.test.tsx src/ui/app-shell/shell/narrowOneThreshold.structure.test.ts`：PASS（`2/2` 文件、`17/17` 通过：`ApimartConnectPage.test.tsx` 14/14 + `narrowOneThreshold.structure.test.ts` 3/3）。
+
+## 7. 诚实未验证边界
 
 - 本次实测均在 macOS 隔离 Electron + loopback 夹具 + 模拟安全存储环境下完成，真实 APIMart 线上账户扣费/充值流程与原生 Windows 钥匙串记为 `unverified`。
