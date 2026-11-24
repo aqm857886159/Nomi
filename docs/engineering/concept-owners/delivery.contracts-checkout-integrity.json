@@ -1,0 +1,21 @@
+{
+  "name": "Contracts 门岗逐步核对检出状态",
+  "subject": "delivery.contracts-checkout-integrity",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "since": "2026-11-24",
+  "owner": {
+    "path": "scripts/run-gates-contracts.mjs",
+    "symbol": "runGateSuite"
+  },
+  "write_api": [
+    { "path": "scripts/run-gates-contracts.mjs", "symbol": "runGateSuite" }
+  ],
+  "parity_test": "scripts/run-gates-contracts.node-test.mjs",
+  "forbidden_derivations": [],
+  "allowed_consumers": ["tests/system/profiles.mjs"],
+  "notes": "本机、CI 和合后收据共用 Contracts runner。任一步导致 HEAD 或 Git porcelain 状态变化就阻断并点名该步。下一步从实测状态继续核对。"
+}

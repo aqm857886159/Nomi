@@ -4,7 +4,8 @@ import { realpathSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export function followMainCheckout(root) {
+export function followMainCheckout(root, { env = process.env } = {}) {
+  if (env.CI === 'true' || env.CI === '1' || env.GITHUB_ACTIONS === 'true') return ''
   if (!root) return ''
   const git = (...args) =>
     spawnSync('git', args, {

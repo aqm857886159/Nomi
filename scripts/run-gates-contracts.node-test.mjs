@@ -68,6 +68,7 @@ test('全过时退出 0，且不打 warning 注解', async () => {
     runGate: h.runGate,
     write: h.write,
     env: ACTIONS_ENV,
+    readWorktreeSnapshot: () => ({ head: 'af64c5688', status: '' }),
   })
 
   assert.equal(result.exitCode, 0)
@@ -75,6 +76,51 @@ test('全过时退出 0，且不打 warning 注解', async () => {
   assert.equal(result.advisoryFailures.length, 0)
   assert.doesNotMatch(h.output(), /::warning/)
   assert.match(h.output(), /全部阻断性门岗通过/)
+})
+
+test('an advisory step that succeeds but advances HEAD blocks and is the only step blamed', async () => {
+  const h = harness({})
+  const { gates, advisory } = parseGateArgs(['--advisory=check:hook-behavior', 'check:hook-behavior', 'typecheck'])
+  let head = 'af64c5688'
+  const result = await runGateSuite({
+    gates,
+    advisory,
+    runGate: (name) => {
+      if (name === 'check:hook-behavior') head = '0250ecc5e'
+      return h.runGate(name)
+    },
+    readWorktreeSnapshot: () => ({ head, status: '' }),
+    write: h.write,
+    env: ACTIONS_ENV,
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.deepEqual(result.failures.map(({ name }) => name), ['check:hook-behavior'])
+  assert.deepEqual(result.advisoryFailures, [])
+  assert.match(h.output(), /❌ check:hook-behavior 篡改了被测仓库工作区或 HEAD/)
+  assert.match(h.output(), /HEAD: af64c5688 -> 0250ecc5e/)
+  assert.match(h.output(), /✅ typecheck/)
+})
+
+test('a successful step changing tracked or non-ignored untracked entries blocks', async () => {
+  const h = harness({})
+  let status = ' M already-dirty.mjs\n'
+  const result = await runGateSuite({
+    gates: ['check:generates', 'check:reads'],
+    advisory: new Set(),
+    runGate: (name) => {
+      if (name === 'check:generates') status += ' M tracked.mjs\n?? generated.mjs\n'
+      return h.runGate(name)
+    },
+    readWorktreeSnapshot: () => ({ head: 'af64c5688', status }),
+    write: h.write,
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.deepEqual(result.failures.map(({ name }) => name), ['check:generates'])
+  assert.match(h.output(), / M tracked\.mjs/)
+  assert.match(h.output(), /\?\? generated\.mjs/)
+  assert.doesNotMatch(h.output(), /already-dirty\.mjs/)
 })
 
 test('advisory 门岗失败：只出 warning 注解，job 不失败', async () => {

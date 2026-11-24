@@ -1,0 +1,21 @@
+{
+  "name": "登记表 hook 行为探针隔离",
+  "subject": "delivery.settings-hook-probe",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "since": "2026-11-24",
+  "owner": {
+    "path": "scripts/check-hook-behavior.mjs",
+    "symbol": "checkSettingsGuards"
+  },
+  "write_api": [
+    { "path": "scripts/check-hook-behavior.mjs", "symbol": "checkSettingsGuards" }
+  ],
+  "parity_test": "scripts/check-hook-behavior.node-test.mjs",
+  "forbidden_derivations": [],
+  "allowed_consumers": ["scripts/check-hook-behavior.mjs"],
+  "notes": "从登记表取真实命令，脚本缺失和脚本在场两套对照都在临时目录执行。脚本在场时使用独立 Git 仓、用户目录和当日报告缓存。"
+}
