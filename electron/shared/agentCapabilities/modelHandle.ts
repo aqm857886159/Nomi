@@ -19,9 +19,8 @@
 // 名字只是模型面的东西：落盘的候选 `{providerId, modelId}`、节点的 `modelKey/modelVendor` 一个字段都不变。
 import {
   archetypeBaseModelKey,
+  archetypeFamilyIdsFor,
   archetypeIdForModel,
-  EVERY_VARIANT,
-  everyBuiltInArchetype,
   resolveModelArchetype,
 } from "../modelArchetypes";
 import { closestKey, foldKey } from "../agentLane/toolInputIssues";
@@ -88,7 +87,7 @@ function wireSelectionFor(row: ModelHandleRow, wanted: string): ModelWireSelecti
     modelAlias: row.modelAlias,
     vendorKey: row.vendor,
     meta: { archetypeId: row.archetypeId },
-  }, { variant: EVERY_VARIANT });
+  }, { variant: (every) => ({ variantId: every.defaultVariantId, modelId: undefined }) });
   if (!profile) return undefined;
   const lower = wanted.toLowerCase();
   const suffix = row.vendor ? SEPARATOR + row.vendor.toLowerCase() : "";
@@ -149,11 +148,7 @@ export function resolveModelHandle<T extends ModelHandleRow>(rows: readonly T[],
 }
 
 function unknownHandle<T extends ModelHandleRow>(rows: readonly T[], wanted: string): ModelHandleLookup<T> {
-  const identity = archetypeIdForModel(wanted);
-  const folded = foldKey(wanted);
-  const family = new Set(everyBuiltInArchetype().filter(profile =>
-    profile.id === identity || profile.familyIdentifierPatterns?.some(pattern => foldKey(pattern) === folded),
-  ).map(profile => profile.id));
+  const family = archetypeFamilyIdsFor(wanted, foldKey);
   const sameFamily = rows.filter(row => family.has(row.archetypeId ?? archetypeIdForModel(row.modelId, row.modelAlias) ?? ""));
   return { ok: false, reason: "unknown", nearest: nearestModelHandles(rows, wanted, sameFamily) };
 }

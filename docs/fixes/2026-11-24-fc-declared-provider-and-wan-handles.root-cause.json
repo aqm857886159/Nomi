@@ -22,6 +22,8 @@
     "electron/capabilityCore/semanticGenerationCandidate.ts",
     "electron/shared/agentCapabilities/modelHandle.ts",
     "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+    "electron/shared/modelArchetypes/entry.ts",
+    "electron/shared/modelArchetypes/index.ts",
     "electron/shared/modelArchetypes/types.ts",
     "electron/shared/modelArchetypes/wan27Image.ts",
     "electron/shared/videoCapabilities/types.ts",
@@ -216,9 +218,9 @@
       "symbol": "resolveProductionReferenceUrls"
     },
     {
-      "kind": "read",
+      "kind": "write",
       "path": "electron/shared/agentCapabilities/modelHandle.ts",
-      "symbol": "familyIdentifierPatterns"
+      "symbol": "archetypeFamilyIdsFor"
     },
     {
       "kind": "read",
@@ -259,6 +261,16 @@
       "kind": "read",
       "path": "electron/shared/modelArchetypes/entry.ts",
       "symbol": "ModelArchetypeVariant"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/entry.ts",
+      "symbol": "familyIdentifierPatterns"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/modelArchetypes/index.ts",
+      "symbol": "archetypeFamilyIdsFor"
     },
     {
       "kind": "read",
@@ -303,7 +315,7 @@
   ],
   "door_reduction": {
     "before": 38,
-    "after": 52,
+    "after": 54,
     "why_not": "Live and domain bootstrap provide different runtime assembly entry points. Reference authorization and rework retain their distinct lifecycle, as do projection and submit integrity checks. Catalog read, Agent transport and host planning keep separate consumers with a single handle lookup. Registry and catalog reads keep wiring profiles to their existing owners. The additional entries are callers of the common reference validator and consumers of shared wire-name hints."
   },
   "generality_proof": "Catalog availability covers keyless and existing credential-backed runtime paths. One strategy-aware reference validator is reused for admission and rendering. Handle resolution consults the matched row’s own profile for named wire modes and variants, before propagating the explicit selection.",
@@ -380,6 +392,8 @@
       "electron/capabilityCore/semanticGenerationCandidate.ts",
       "electron/shared/agentCapabilities/modelHandle.ts",
       "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+      "electron/shared/modelArchetypes/entry.ts",
+      "electron/shared/modelArchetypes/index.ts",
       "electron/shared/modelArchetypes/types.ts",
       "electron/shared/modelArchetypes/wan27Image.ts",
       "electron/shared/videoCapabilities/types.ts",
