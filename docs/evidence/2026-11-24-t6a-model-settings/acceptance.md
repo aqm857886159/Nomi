@@ -1,4 +1,4 @@
-结论：通过 · 验收线：t6a-verify · 验收 HEAD：3f1781bc49b4f7bb41a598e06310ca0009649b39
+结论：通过 · 验收线：t6a-verify · 验收 HEAD：953eb79737668dd4edc58c4bda903f310e49f939
 
 - 验收线：`t6a-verify`
 - 实现线：`t6a-settings-models-and-policy`
@@ -49,6 +49,14 @@
 | `pnpm run check:boundary-owners` | PASS | `27/27` 自测通过，声明 2158 条全部在位/已登记 |
 | `tsc`（`tsconfig.app.json` + `electron/tsconfig.json`） | PASS | `0` 类型错误 |
 | 变动 TS/TSX ESLint + `check:self-written` / `check:concept-owners` / `check:filesize` / `check:perf-scenarios` / `check:icons` / `check:icon-semantics` / `check:dangling-tokens` / `check:dangling-tailwind` | PASS | 全量 `EXIT=0` |
+
+### 4 项 CI 收口增量复验（`3f1781bc4..953eb7973`，全部 `EXIT=0`）
+- 审阅增量补登 2 份 `concept-owners`（`settings.model-usage-page.json`、`test-harness.walk-absence-assertion.json`）、`SettingsDialog.tsx` 恢复 `centered` 与 `h-[560px] max-h-full min-h-0`（移除 `100dvh`）、`tests/ux/model-access-journeys/harnessContract.mjs` 登记 `ModelUsagePage` 与 `OtherConnectionWays`、`vendorOrderLabKit.tsx` 自动展开整理区并刷新 2 张 Design Lab 基线图；增量 diff `0` 本机路径泄露。
+- 独立实跑全绿（`EXIT=0`）：
+  - `CONCEPT_OWNERS_BASE_REF=origin/main node ./scripts/check-concept-owners.mjs`：PASS（411 概念 converged 407 / pending 4，第二写口 `0` 新增）；
+  - `VITEST_MAX_WORKERS=2 npx vitest run src/design/dialogMigration.structure.test.ts tests/ux/model-access-journeys/inventory.test.mjs`：PASS（`2/2` 文件，`13/13` 通过：`8/8` + `5/5`）；
+  - `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit`：PASS（`0` 错误）。
+- 亲眼 `read_file` 核验 2 张刷新基线图：`ps-20-settings-dialog.png`（760×560 居中设置框布局规整无裁切）与 `vo-10-settings-model-box.png`（展开「整理」区完整呈现 6 条可见模型与 2 条已隐藏模型）。
 
 ## 4. 诚实未验证边界
 
