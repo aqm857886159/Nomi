@@ -17,9 +17,9 @@ describe('canvas editing footprint', () => {
     expect(y + (node.y + node.height + composer.gap) * zoom + 220).toBeLessThanOrEqual(view.top + view.height)
   })
 
-  it.each([
+  it.each<readonly [number, number, string]>([
     [10, 250, 'left'], [280, 250, 'right'], [100, 430, 'bottom'],
-  ] as const)('reveals overflow from (%i,%i) at the %s edge', (left, top) => {
+  ])('reveals overflow from (%i,%i) at the %s edge', (left, top, _edge) => {
     const rect = { left, top, width: 600, height: 220 }
     const pan = composerSelectionPan(rect, view)!
     expect(left + pan.x).toBeGreaterThanOrEqual(view.left)
