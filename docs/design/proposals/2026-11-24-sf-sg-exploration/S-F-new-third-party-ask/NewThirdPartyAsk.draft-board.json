@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 2,
+  "id": "2026-11-24-sf-new-third-party-ask",
+  "title": "S-F（A4c）参考素材第一次发给新的第三方前问一次（探索稿）",
+  "marked": "exploration",
+  "status": "draft-pending-user-approval",
+  "designSystem": "docs/design/nomi-design-system.md",
+  "tokens": "src/theme/nomi-tokens.css",
+  "viewports": [
+    {
+      "name": "desktop-zh-light",
+      "width": 1440,
+      "height": 900,
+      "locale": "zh-CN",
+      "theme": "light",
+      "html": "sf-options-and-states-zh-light.html",
+      "png": "sf-options-and-states-zh-light.png"
+    },
+    {
+      "name": "desktop-en-dark",
+      "width": 1440,
+      "height": 900,
+      "locale": "en",
+      "theme": "dark",
+      "html": "sf-en-dark.html",
+      "png": "sf-en-dark.png"
+    },
+    {
+      "name": "narrow-zh-light",
+      "width": 1100,
+      "height": 690,
+      "locale": "zh-CN",
+      "theme": "light",
+      "html": "sf-narrow-1100x690.html",
+      "png": "sf-narrow-1100x690.png"
+    }
+  ],
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "peer": "LibTV",
+      "url": "https://www.liblib.tv/",
+      "screenshotSha256": "3277cb75d501b64abace1464bb30cd4f6a0ffad828d9071ac6e00c0104dc57b6",
+      "seenOn": "2026-11-24",
+      "howItWorks": "底部生成框挂接多张参考缩略图后点生成直接发往平台自有存储，不在常用生成流里每次弹隐私打断框。",
+      "impactOnDecision": "同一已授权平台绝不每次重复弹窗；只有第一次发给从未允许过的外部接收主体时问一次，同意后立即继续本次生成。"
+    },
+    {
+      "kind": "peer",
+      "peer": "Runway",
+      "url": "https://help.runwayml.com/",
+      "seenOn": "2026-11-24",
+      "howItWorks": "云端工作区统一在账户隐私设置中管理资产可见性与外部共享权限，不在时间轴或镜头卡里拆多套开关。",
+      "impactOnDecision": "事后查看与撤回统一收进现有的「设置 › AI 策略 › 素材上传与隐私」，不新建独立权限中心弹窗。"
+    },
+    {
+      "kind": "cross-category-benchmark",
+      "peer": "macOS TCC / Apple Human Interface Guidelines (Privacy Prompts)",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/privacy",
+      "seenOn": "2026-11-24",
+      "howItWorks": "首次向外部主体交付敏感数据时弹单问题确认（写明给谁、为什么给、左取消右允许），同意后系统持久化并在系统设置提供单行撤回。",
+      "impactOnDecision": "采用主进程持久化 trustedAssetRecipients + SpendConfirmDialog 单问题卡 + 设置页单行「撤回」，杜绝渲染层自授。"
+    }
+  ],
+  "boundarySheet": {
+    "chatVsWorkbench": {
+      "workbenchHome": "设置 › AI 策略 › 素材上传与隐私（src/workbench/settings/AiModelsSection.tsx）+ 生成前统一确认壳 SpendConfirmDialog（src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx）",
+      "chatRole": "常驻 Agent 发起生成遇到新接收方时，只渲染 NodePointer 指向目标卡 + V4Intervention 单问题确认槽（不发送 / 允许发给该接收方），不在聊天流内嵌中转配置或开关列表（严守 §1.0）。"
+    },
+    "mainVsRenderer": {
+      "truthOwner": "electron/settings/automationPolicyContract.ts（automation-policy.json → trustedAssetRecipients）",
+      "enforcementPoint": "electron/catalog/assetLocalization.ts（localizeAssetsForVendor 发字节前核对主进程名单，渲染层请求体零 allow 字段）"
+    },
+    "dataStressLimits": {
+      "maxModelNameChars": 32,
+      "maxHostChars": 38,
+      "maxAuthorizedRowsVisibleBeforeScroll": 4,
+      "localhostRule": "127.0.0.1 / localhost / [::1] / comfyui-upload 永不弹窗（0 次打断）"
+    }
+  },
+  "functionCensus": [
+    {
+      "surface": "主进程素材上传循环",
+      "file": "electron/catalog/assetLocalization.ts",
+      "currentBehavior": "anonymousAssetHosting 为 ask 时遇到公共临时图床直接抛 AnonymousAssetConsentRequiredError 报错中断；跨家借道上传（如 KIE）不问直发。",
+      "proposedChange": "按实际接收主体 recipientId 核对主进程 trustedAssetRecipients；未授权时挂起单次确认，点允许即写入名单并当场继续上传。"
+    },
+    {
+      "surface": "自动化与隐私策略存储契约",
+      "file": "electron/settings/automationPolicyContract.ts",
+      "currentBehavior": "仅存二元开关 anonymousAssetHosting: 'ask' | 'allow'。",
+      "proposedChange": "新增 trustedAssetRecipients 字典；旧 anonymousAssetHosting='allow' 平滑迁移为现有公共临时图床已授权，不丢老用户偏好。"
+    },
+    {
+      "surface": "画布与分镜确认弹窗",
+      "file": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "currentBehavior": "已有 kind='reference' 图标分支与 DesignModal(380) + DecisionBar 外壳。",
+      "proposedChange": "复用 SpendConfirmDialog 展示参考缩略图、接收方名称与域名、可见性（私有接口 vs 公共 1h 链接）及左「取消」右「允许并继续生成」。"
+    },
+    {
+      "surface": "常驻 Agent 面板确认槽",
+      "file": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "currentBehavior": "已有付费与方案单问题确认槽。",
+      "proposedChange": "复用单问题确认槽 + NodePointer，点允许写入同一份主进程 trustedAssetRecipients。"
+    },
+    {
+      "surface": "设置 › AI 策略 › 素材上传与隐私",
+      "file": "src/workbench/settings/AiModelsSection.tsx",
+      "currentBehavior": "展示图片/视频/音频当前通道、自定义中转折叠项与「使用公共临时托管前先问我」二元开关。",
+      "proposedChange": "原位展示「已允许接收参考素材的第三方」列表与单行「撤回」按钮；撤回后下次发往该接收方前重新询问。"
+    }
+  ],
+  "appearsIn": [
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/settings/AiModelsSection.tsx"
+  ],
+  "components": [
+    {
+      "id": "sf.canvas-first-ask-modal",
+      "reuse": "SpendConfirmDialog + DesignModal + DecisionBar",
+      "newComponentNeeded": false,
+      "states": ["public-anonymous-warn", "provider-private-normal", "long-host-38chars", "dark", "zh-en", "narrow-1100x690"]
+    },
+    {
+      "id": "sf.agent-intervention-card",
+      "reuse": "V4Intervention + NodePointer + DecisionBar",
+      "newComponentNeeded": false,
+      "states": ["default", "dark", "zh-en", "narrow-340px-drawer"]
+    },
+    {
+      "id": "sf.settings-trusted-recipients-list",
+      "reuse": "AiModelsSection upload card + WorkbenchButton(sm)",
+      "newComponentNeeded": false,
+      "states": ["populated", "max-scroll", "revoked-feedback", "empty", "dark", "zh-en"]
+    }
+  ],
+  "elements": [
+    {
+      "id": "sf.recipient-identity-rule",
+      "artboard": "sf-options-and-states",
+      "label": "按实际字节接收主体 recipientId 记名：官方同主体归并（vendor:<key>）、借用通道独立（vendor:kie）、自定义中转按 origin、公共图床按 host、本机回环免问",
+      "change": "added",
+      "states": ["default", "localhost-zero-ask", "zh-en", "dark"]
+    },
+    {
+      "id": "sf.canvas-confirm-card",
+      "artboard": "sf-options-and-states",
+      "label": "画布/分镜首次发送确认卡：参考缩略图 + 接收方名称与域名 + 可见性标签（公共 1h 用 warning 语义四件套）+ 左取消右允许并继续生成",
+      "change": "changed",
+      "states": ["public-warn", "private-normal", "long-text", "dark", "zh-en", "narrow"]
+    },
+    {
+      "id": "sf.agent-single-question",
+      "artboard": "sf-options-and-states",
+      "label": "Agent 发起时确认槽：NodePointer 指路 + 一句接收方事实 + 左「不发送」右「允许发给 <接收方>」（§1.0 零表单进聊天）",
+      "change": "changed",
+      "states": ["default", "dark", "zh-en", "narrow"]
+    },
+    {
+      "id": "sf.settings-revoke-list",
+      "artboard": "sf-options-and-states",
+      "label": "设置 › AI 策略 › 已允许接收参考素材的第三方列表：显示名称、域名、通道性质徽标、允许时间与单行「撤回」按钮",
+      "change": "changed",
+      "states": ["populated", "revoked", "dark", "zh-en"]
+    }
+  ],
+  "priorDecisions": [
+    {
+      "date": "2026-11-13",
+      "source": "Issue #1586 (#7102165974 A4c) & PR #1496 (3c0e2022c)",
+      "decision": "删掉按本机解析地址拦截的整层；只拦三种：肯定白花钱、肯定丢活、第一次交给新第三方（只问一次）。",
+      "alignment": "本稿完全遵循：本机 127.0.0.1 / 局域网地址不做 DNS 拦截，仅在本地参考素材字节第一次发往未授权外部接收主体时问一次。"
+    },
+    {
+      "date": "2026-11-17",
+      "source": "PR #1556 (c83694a96) docs/engineering/direction-checks/2026-11-17-hosting-setting-only.md",
+      "decision": "删除渲染层可自授的按次托管许可字段，只认主进程设置。",
+      "alignment": "本稿严格继承防自授边界：渲染层请求体零 allow 参数，授权名单唯一真源在主进程 automation-policy.json，且旧 allow 用户平滑迁移不打断。"
+    },
+    {
+      "date": "2026-11-07",
+      "source": "docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json (M6-ai-policy policy.upload)",
+      "decision": "素材上传与隐私住在「设置 › AI 策略」。",
+      "alignment": "已授权接收方查看与撤回原位挂在 M6-ai-policy 同一卡片底部，与既有拍板同家。"
+    }
+  ]
+}

@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mark="exploration">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<title>EXPLORATION · S-F（A4c）参考图第一次发给新的第三方前问一次 · 1440×900 Light</title>
+<style>
+  :root {
+    --nomi-paper: oklch(0.985 0.002 85);
+    --nomi-surface: oklch(0.962 0.003 85);
+    --nomi-panel: oklch(0.993 0.0015 85);
+    --nomi-elevated: oklch(1 0 0);
+    --nomi-ink: oklch(0.2 0.01 260);
+    --nomi-ink-60: oklch(0.45 0.01 260);
+    --nomi-ink-40: oklch(0.62 0.008 260);
+    --nomi-ink-20: oklch(0.78 0.005 260);
+    --nomi-line: oklch(0.905 0.004 85);
+    --nomi-line-soft: oklch(0.94 0.003 85);
+    --nomi-hover: oklch(0.945 0.004 85);
+    --nomi-active: oklch(0.92 0.006 85);
+    --nomi-accent: oklch(0.54 0.145 248);
+    --nomi-accent-hover: oklch(0.49 0.15 248);
+    --nomi-accent-soft: oklch(0.94 0.025 248);
+    --nomi-accent-edge: oklch(0.84 0.065 248);
+    --nomi-accent-ink: oklch(0.38 0.12 248);
+    --nomi-success-soft: oklch(0.95 0.03 155);
+    --nomi-success-edge: oklch(0.84 0.075 155);
+    --nomi-success-ink: oklch(0.37 0.11 155);
+    --nomi-warning-soft: oklch(0.955 0.035 80);
+    --nomi-warning-edge: oklch(0.855 0.085 80);
+    --nomi-warning-ink: oklch(0.43 0.115 72);
+    --nomi-danger-soft: oklch(0.95 0.03 25);
+    --nomi-danger-edge: oklch(0.84 0.08 25);
+    --nomi-danger-ink: oklch(0.42 0.14 25);
+    --nomi-info-soft: oklch(0.945 0.025 240);
+    --nomi-info-edge: oklch(0.845 0.065 240);
+    --nomi-info-ink: oklch(0.39 0.11 240);
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-pill: 999px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Inter", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1440px;
+    height: 900px;
+    overflow: hidden;
+    background: var(--nomi-paper);
+    color: var(--nomi-ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1.42;
+    -webkit-font-smoothing: antialiased;
+  }
+  .q { white-space: nowrap; }
+  .board {
+    display: grid;
+    grid-template-rows: 46px 1fr;
+    width: 1440px;
+    height: 900px;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    background: var(--nomi-panel);
+    border-bottom: 1px solid var(--nomi-line);
+    gap: 12px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .exp-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--r-pill);
+    background: var(--nomi-warning-soft);
+    border: 1px solid var(--nomi-warning-edge);
+    color: var(--nomi-warning-ink);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+  }
+  .board-title { font-size: 14px; font-weight: 600; color: var(--nomi-ink); white-space: nowrap; }
+  .board-sub { font-size: 12px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--r-sm);
+    background: var(--nomi-surface);
+    border: 1px solid var(--nomi-line);
+    color: var(--nomi-ink-60);
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: 420px 500px 1fr;
+    gap: 14px;
+    padding: 14px 16px;
+    height: 854px;
+  }
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    min-width: 0;
+    min-height: 0;
+  }
+  .panel {
+    background: var(--nomi-panel);
+    border: 1px solid var(--nomi-line);
+    border-radius: var(--r-lg);
+    padding: 12px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+  }
+  .sec-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .sec-title { font-size: 13px; font-weight: 600; color: var(--nomi-ink); }
+  .sec-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: var(--r-pill);
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--nomi-line);
+    background: var(--nomi-surface);
+    color: var(--nomi-ink-60);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .sec-tag.rec {
+    background: var(--nomi-accent-soft);
+    border-color: var(--nomi-accent-edge);
+    color: var(--nomi-accent-ink);
+  }
+  .sec-tag.ok {
+    background: var(--nomi-success-soft);
+    border-color: var(--nomi-success-edge);
+    color: var(--nomi-success-ink);
+  }
+  .sec-tag.warn {
+    background: var(--nomi-warning-soft);
+    border-color: var(--nomi-warning-edge);
+    color: var(--nomi-warning-ink);
+  }
+  .opt-card {
+    border: 1px solid var(--nomi-line);
+    border-radius: var(--r-md);
+    padding: 9px 10px;
+    background: var(--nomi-surface);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .opt-card.active {
+    background: var(--nomi-elevated);
+    border-color: var(--nomi-accent-edge);
+    box-shadow: 0 0 0 1px var(--nomi-accent-soft);
+  }
+  .opt-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .opt-name { font-size: 12px; font-weight: 600; color: var(--nomi-ink); }
+  .check-right { font-size: 14px; font-weight: 700; color: var(--nomi-accent); flex-shrink: 0; line-height: 1; }
+  .opt-desc { font-size: 11px; color: var(--nomi-ink-60); }
+  .matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .matrix th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--nomi-ink-60);
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--nomi-line);
+    font-size: 11px;
+  }
+  .matrix td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--nomi-line-soft);
+    color: var(--nomi-ink);
+    vertical-align: top;
+  }
+  .matrix tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
+  /* Modal simulation (DesignModal 400px inside canvas frame) */
+  .modal-stage {
+    background: var(--nomi-surface);
+    border: 1px solid var(--nomi-line);
+    border-radius: var(--r-lg);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .stage-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--nomi-ink-60);
+  }
+  .modal-card {
+    background: var(--nomi-elevated);
+    border: 1px solid var(--nomi-line);
+    border-radius: var(--r-lg);
+    padding: 13px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 8px 24px rgba(15, 18, 28, 0.07);
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .modal-head-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .icon-box {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-md);
+    background: var(--nomi-accent-soft);
+    border: 1px solid var(--nomi-accent-edge);
+    color: var(--nomi-accent-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .modal-title { font-size: 14px; font-weight: 600; color: var(--nomi-ink); }
+  .close-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--nomi-ink-40);
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ref-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border-radius: var(--r-md);
+    background: var(--nomi-surface);
+    border: 1px solid var(--nomi-line-soft);
+  }
+  .thumb {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--nomi-line);
+    background: linear-gradient(135deg, oklch(0.88 0.03 245), oklch(0.78 0.05 75));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--nomi-ink);
+    flex-shrink: 0;
+  }
+  .thumb.vid {
+    background: linear-gradient(135deg, oklch(0.84 0.04 210), oklch(0.74 0.06 250));
+  }
+  .ref-meta { min-width: 0; flex: 1; }
+  .ref-names {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--nomi-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ref-sub { font-size: 11px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recipient-box {
+    border-radius: var(--r-md);
+    padding: 9px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    border: 1px solid var(--nomi-line);
+    background: var(--nomi-surface);
+  }
+  .recipient-box.public-warn {
+    background: var(--nomi-warning-soft);
+    border-color: var(--nomi-warning-edge);
+  }
+  .kv-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;
+    min-width: 0;
+  }
+  .kv-k {
+    width: 52px;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--nomi-ink-60);
+  }
+  .public-warn .kv-k { color: var(--nomi-warning-ink); }
+  .kv-v {
+    min-width: 0;
+    flex: 1;
+    font-size: 12px;
+    color: var(--nomi-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .public-warn .kv-v { color: var(--nomi-warning-ink); font-weight: 500; }
+  .foot-note { font-size: 11px; color: var(--nomi-ink-60); }
+  .decision-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--nomi-line-soft);
+  }
+  .btn {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--nomi-line);
+    background: var(--nomi-elevated);
+    color: var(--nomi-ink);
+    white-space: nowrap;
+  }
+  .btn-sm { height: 24px; padding: 0 8px; font-size: 11px; }
+  .btn-primary {
+    background: var(--nomi-accent);
+    border-color: var(--nomi-accent);
+    color: var(--nomi-elevated);
+    font-weight: 600;
+  }
+  /* Agent §1.0 single-question slot */
+  .agent-slot {
+    border: 1px solid var(--nomi-line);
+    border-radius: var(--r-md);
+    background: var(--nomi-surface);
+    padding: 10px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .node-pointer {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-start;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--r-pill);
+    background: var(--nomi-info-soft);
+    border: 1px solid var(--nomi-info-edge);
+    color: var(--nomi-info-ink);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  /* Settings AI policy authorized list */
+  .settings-card {
+    border: 1px solid var(--nomi-line);
+    border-radius: var(--r-md);
+    background: var(--nomi-elevated);
+    padding: 10px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--nomi-line-soft);
+  }
+  .toggle-on {
+    width: 32px;
+    height: 18px;
+    border-radius: var(--r-pill);
+    background: var(--nomi-accent);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .toggle-on::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--nomi-elevated);
+  }
+  .auth-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .auth-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--r-sm);
+    background: var(--nomi-surface);
+    border: 1px solid var(--nomi-line-soft);
+    min-width: 0;
+  }
+  .auth-row.revoked {
+    background: var(--nomi-paper);
+    border-style: dashed;
+  }
+  .auth-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .auth-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .auth-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nomi-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .auth-host {
+    font-size: 11px;
+    color: var(--nomi-ink-60);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pill-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: var(--r-pill);
+    font-size: 11px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    border: 1px solid var(--nomi-line);
+    background: var(--nomi-elevated);
+    color: var(--nomi-ink-60);
+  }
+  .pill-badge.warn {
+    background: var(--nomi-warning-soft);
+    border-color: var(--nomi-warning-edge);
+    color: var(--nomi-warning-ink);
+  }
+  .pill-badge.info {
+    background: var(--nomi-info-soft);
+    border-color: var(--nomi-info-edge);
+    color: var(--nomi-info-ink);
+  }
+  .local-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--r-md);
+    background: var(--nomi-success-soft);
+    border: 1px solid var(--nomi-success-edge);
+    color: var(--nomi-success-ink);
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="exp-badge">EXPLORATION</span>
+      <span class="board-title">S-F（A4c）参考素材第一次发给新的第三方前问一次</span>
+      <span class="board-sub">只拦「第一次交给新接收主体」：问一次、记主进程、当场继续生成；本机免问，设置页随时撤回</span>
+    </div>
+    <span class="meta-pill">1440×900 · zh-CN · Light · 4 档字号 (11/12/13/14px)</span>
+  </header>
+
+  <main class="cols">
+    <!-- COLUMN 1: Q1 Tradeoff + Recipient Identity Matrix + Local Zero-Ask + Migration -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">① 谁算「新的第三方」？三方案对比</span>
+          <span class="sec-tag rec">推荐方案 C</span>
+        </div>
+
+        <div class="opt-card">
+          <div class="opt-row">
+            <span class="opt-name">方案 A · 仅按模型供应商 vendorKey 记</span>
+            <span class="sec-tag">不选</span>
+          </div>
+          <div class="opt-desc">漏洞：模型走 APIMart 时，视频参考会借道 KIE 或落到匿名图床 litterbox.catbox.moe；只记 apimart 会把参考片静默传上公网图床。</div>
+        </div>
+
+        <div class="opt-card">
+          <div class="opt-row">
+            <span class="opt-name">方案 B · 仅按原始子域名 url.host 记</span>
+            <span class="sec-tag">不选</span>
+          </div>
+          <div class="opt-desc">摩擦：同一家官方推理 api.apimart.ai 与上传 upload.apimart.ai 连弹两次确认，违背「同一第三方只问一次」。</div>
+        </div>
+
+        <div class="opt-card active">
+          <div class="opt-row">
+            <span class="opt-name">方案 C · 按「实际字节接收主体 recipientId」记</span>
+            <span class="check-right" aria-label="已选">✓</span>
+          </div>
+          <div class="opt-desc">内置供应商官方上传与推理归同一主体（只问 1 次）；借用别家上传通道、自定义中转域名、公共临时图床各自独立记名；本机回环免问。</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">接收主体判定真值表（主进程上传前拦截）</span>
+          <span class="sec-tag">0 自授口</span>
+        </div>
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>通道场景</th>
+              <th>记名键 recipientId</th>
+              <th>首次行为</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>本机 ComfyUI</td>
+              <td class="mono">local (127.0.0.1)</td>
+              <td>免问直发（不出本机）</td>
+            </tr>
+            <tr>
+              <td>已接平台自有上传</td>
+              <td class="mono">vendor:apimart</td>
+              <td>首次发表单确认 1 次</td>
+            </tr>
+            <tr>
+              <td>跨家借道上传（如 KIE）</td>
+              <td class="mono">vendor:kie</td>
+              <td>单独问 KIE 1 次</td>
+            </tr>
+            <tr>
+              <td>自定义中转（换域名重问）</td>
+              <td class="mono">origin:https://…</td>
+              <td>按完整 origin 问 1 次</td>
+            </tr>
+            <tr>
+              <td>公共临时图床（1h 直链）</td>
+              <td class="mono">anon:litterbox…</td>
+              <td>黄底醒目问 1 次，过了即发</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="local-strip">
+          <span><strong>反例态 · 本机回环免问：</strong>ComfyUI <span class="mono">127.0.0.1:8188/upload/image</span></span>
+          <span><strong>0 次弹窗 ✓</strong></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">② 记在哪 & 老用户配置怎么过</span>
+          <span class="sec-tag ok">平滑兼容</span>
+        </div>
+        <div class="opt-desc" style="color: var(--nomi-ink);">
+          <strong>单一真相源：</strong>主进程 <span class="mono">automation-policy.json → trustedAssetRecipients</span>。渲染层请求体不带任何 allow 字段，杜绝调用方自授。<br/>
+          <strong>老用户兼容：</strong>升级前已开 <span class="mono">anonymousAssetHosting="allow"</span> 的老用户自动预填现有公共图床为已允许（不打断熟手）；默认 <span class="mono">"ask"</span> 从「直接报错拦死」升级为「发送前问一次，点允许当场继续生成」。
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2: Canvas / Storyboard SpendConfirmDialog kind='reference' (2 key states) -->
+    <section class="col">
+      <div class="modal-stage">
+        <div class="stage-caption">
+          <span><strong>画布 / 分镜 · 状态 A：</strong>首次落到公共临时图床（含 28+ 字符模型名压力态）</span>
+          <span class="sec-tag warn">公共链接 · 醒目提示</span>
+        </div>
+
+        <div class="modal-card" role="dialog" aria-label="第一次把参考素材发给 Litterbox">
+          <div class="modal-head">
+            <div class="modal-head-left">
+              <span class="icon-box">图</span>
+              <span class="modal-title">第一次把参考素材发给 Litterbox</span>
+            </div>
+            <span class="close-btn" aria-hidden="true">✕</span>
+          </div>
+
+          <div class="ref-strip">
+            <span class="thumb">人像</span>
+            <span class="thumb vid">MP4</span>
+            <div class="ref-meta">
+              <div class="ref-names">林薇定妆正面.png、雨夜走廊运镜参考.mp4（共 2 份）</div>
+              <div class="ref-sub">用于模型：Doubao Seedance 2.5 Pro Preview · 视频生成</div>
+            </div>
+          </div>
+
+          <div class="recipient-box public-warn">
+            <div class="kv-row">
+              <span class="kv-k">接收方</span>
+              <span class="kv-v">Litterbox（litterbox.catbox.moe）</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-k">为什么</span>
+              <span class="kv-v">当前平台暂不直收视频参考，需经临时直链转交模型</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-k">可见性</span>
+              <span class="kv-v">公共临时链接 · 持有链接者可读 · 1 小时自动失效</span>
+            </div>
+          </div>
+
+          <div class="foot-note">
+            同意后发给 Litterbox 不再重复询问；随时可在 <span class="q">「设置 › AI 策略」</span> 撤回。
+          </div>
+
+          <div class="decision-bar">
+            <span class="btn">取消</span>
+            <span class="btn btn-primary">允许并继续生成</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-stage" style="flex: 1; justify-content: space-between;">
+        <div class="stage-caption">
+          <span><strong>画布 / 分镜 · 状态 B：</strong>首次发给新接入平台或长域名自定义中转（常规私有态）</span>
+          <span class="sec-tag">常规确认</span>
+        </div>
+
+        <div class="modal-card" role="dialog" aria-label="第一次把参考素材发给自建中转">
+          <div class="modal-head">
+            <div class="modal-head-left">
+              <span class="icon-box">图</span>
+              <span class="modal-title">第一次把参考素材发给自建素材中转</span>
+            </div>
+            <span class="close-btn" aria-hidden="true">✕</span>
+          </div>
+
+          <div class="ref-strip">
+            <span class="thumb">角色</span>
+            <div class="ref-meta">
+              <div class="ref-names">林薇_侧逆光特写_v3.png（1 份参考图）</div>
+              <div class="ref-sub">用于模型：GPT Image 2.6 Flare · 角色一致性换景</div>
+            </div>
+          </div>
+
+          <div class="recipient-box">
+            <div class="kv-row">
+              <span class="kv-k">接收方</span>
+              <span class="kv-v mono">relay-media-gateway.studio-internal.co</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-k">通道性质</span>
+              <span class="kv-v">你在设置里配置的自定义上传中转 · 带鉴权令牌</span>
+            </div>
+          </div>
+
+          <div class="foot-note">
+            同意后发往该域名不再重复询问；若日后更改中转域名会自动重新确认。
+          </div>
+
+          <div class="decision-bar">
+            <span class="btn">取消</span>
+            <span class="btn btn-primary">允许并继续生成</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3: Resident Agent §1.0 Ask + Settings -> AI Policy Revoke Home -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">③ 常驻 Agent 发起时（严守设计系统 §1.0）</span>
+          <span class="sec-tag rec">只指路 + 单问题</span>
+        </div>
+        <div class="opt-desc">聊天流不塞设置开关或中转表单，只渲染节点指向芯片 + 单问题确认槽；同意后同样写入主进程同一份名单。</div>
+
+        <div class="agent-slot">
+          <span class="node-pointer">↗ 镜头 03 · 雨夜转身（画布视频卡）</span>
+          <div style="font-size: 12px; font-weight: 600; color: var(--nomi-ink);">
+            第一次把参考图 <span class="q">「林薇正面.png」</span> 发给 KIE 上传通道，允许吗？
+          </div>
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">
+            接收域名：<span class="mono">kieai.redpandaai.co</span>（借用已接入 KIE 通道生成直链）· 同意后不再重复问，可在 <span class="q">「设置 › AI 策略」</span> 撤回。
+          </div>
+          <div class="decision-bar" style="padding-top: 6px;">
+            <span class="btn btn-sm">不发送</span>
+            <span class="btn btn-sm btn-primary">允许发给 KIE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">④ 事后撤回家园：设置 › AI 策略 › 素材上传与隐私</span>
+          <span class="sec-tag">原位承接 · 0 新页面</span>
+        </div>
+        <div class="opt-desc">在现有 <span class="mono">AiModelsSection</span> 上传区原位展示已允许的接收方与一键撤回；撤回后下次发给它时重新问一次。</div>
+
+        <div class="settings-card">
+          <div class="switch-row">
+            <div>
+              <div style="font-size: 12px; font-weight: 500; color: var(--nomi-ink);">只发当前任务要用的素材</div>
+              <div style="font-size: 11px; color: var(--nomi-ink-60);">切换模式后未参与本次生成的挂接参考图不上传</div>
+            </div>
+            <span class="toggle-on" aria-label="已开启"></span>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--nomi-ink);">已允许接收参考素材的第三方（3 项生效 · 1 项刚撤回）</span>
+            <span style="font-size: 11px; color: var(--nomi-ink-60);">新第三方首次发送前询问</span>
+          </div>
+
+          <div class="auth-list">
+            <div class="auth-row">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name">APIMart</span>
+                  <span class="pill-badge">平台自有接口</span>
+                </div>
+                <span class="auth-host">api.apimart.ai · 11-20 允许</span>
+              </div>
+              <span class="btn btn-sm">撤回</span>
+            </div>
+
+            <div class="auth-row">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name">KIE 上传通道</span>
+                  <span class="pill-badge info">跨家借用</span>
+                </div>
+                <span class="auth-host">kieai.redpandaai.co · 11-22 允许</span>
+              </div>
+              <span class="btn btn-sm">撤回</span>
+            </div>
+
+            <div class="auth-row">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name">Litterbox 公共临时图床</span>
+                  <span class="pill-badge warn">公开链接 · 1h 失效</span>
+                </div>
+                <span class="auth-host">litterbox.catbox.moe · 刚刚允许</span>
+              </div>
+              <span class="btn btn-sm">撤回</span>
+            </div>
+
+            <div class="auth-row revoked">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name" style="color: var(--nomi-ink-60);">relay-media-gateway.studio-internal.co</span>
+                  <span class="pill-badge">已撤回</span>
+                </div>
+                <span class="auth-host">下次向该域名发送参考素材前会重新询问</span>
+              </div>
+              <span style="font-size: 11px; color: var(--nomi-ink-40); white-space: nowrap;">已撤回</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

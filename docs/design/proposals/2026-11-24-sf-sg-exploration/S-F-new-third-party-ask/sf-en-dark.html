@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-mark="exploration">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<title>EXPLORATION · S-F (A4c) Ask Once Before Sending Reference Media to a New Third Party · 1440×900 Dark</title>
+<style>
+  :root {
+    --nomi-paper: oklch(0.165 0.006 260);
+    --nomi-surface: oklch(0.2 0.007 260);
+    --nomi-panel: oklch(0.185 0.006 260);
+    --nomi-elevated: oklch(0.225 0.008 260);
+    --nomi-ink: oklch(0.93 0.004 85);
+    --nomi-ink-60: oklch(0.68 0.006 260);
+    --nomi-ink-40: oklch(0.5 0.006 260);
+    --nomi-ink-20: oklch(0.35 0.006 260);
+    --nomi-line: oklch(0.27 0.008 260);
+    --nomi-line-soft: oklch(0.23 0.007 260);
+    --nomi-hover: oklch(0.24 0.008 260);
+    --nomi-active: oklch(0.27 0.01 260);
+    --nomi-accent: oklch(0.66 0.14 248);
+    --nomi-accent-hover: oklch(0.71 0.135 248);
+    --nomi-accent-soft: oklch(0.25 0.035 248);
+    --nomi-accent-edge: oklch(0.37 0.075 248);
+    --nomi-accent-ink: oklch(0.8 0.095 248);
+    --nomi-success-soft: oklch(0.24 0.035 155);
+    --nomi-success-edge: oklch(0.36 0.075 155);
+    --nomi-success-ink: oklch(0.8 0.1 155);
+    --nomi-warning-soft: oklch(0.25 0.04 80);
+    --nomi-warning-edge: oklch(0.38 0.085 80);
+    --nomi-warning-ink: oklch(0.83 0.105 82);
+    --nomi-danger-soft: oklch(0.245 0.04 25);
+    --nomi-danger-edge: oklch(0.37 0.09 25);
+    --nomi-danger-ink: oklch(0.81 0.11 25);
+    --nomi-info-soft: oklch(0.245 0.03 240);
+    --nomi-info-edge: oklch(0.365 0.07 240);
+    --nomi-info-ink: oklch(0.8 0.09 240);
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-pill: 999px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1440px;
+    height: 900px;
+    overflow: hidden;
+    background: var(--nomi-paper);
+    color: var(--nomi-ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1.42;
+    -webkit-font-smoothing: antialiased;
+  }
+  .q { white-space: nowrap; }
+  .board { display: grid; grid-template-rows: 46px 1fr; width: 1440px; height: 900px; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; background: var(--nomi-panel); border-bottom: 1px solid var(--nomi-line); gap: 12px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .exp-badge {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-pill);
+    background: var(--nomi-warning-soft); border: 1px solid var(--nomi-warning-edge); color: var(--nomi-warning-ink);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.03em; flex-shrink: 0;
+  }
+  .board-title { font-size: 14px; font-weight: 600; color: var(--nomi-ink); white-space: nowrap; }
+  .board-sub { font-size: 12px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta-pill {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-sm);
+    background: var(--nomi-surface); border: 1px solid var(--nomi-line); color: var(--nomi-ink-60); font-size: 11px; flex-shrink: 0;
+  }
+  .cols { display: grid; grid-template-columns: 420px 500px 1fr; gap: 14px; padding: 14px 16px; height: 854px; }
+  .col { display: flex; flex-direction: column; gap: 11px; min-width: 0; min-height: 0; }
+  .panel {
+    background: var(--nomi-panel); border: 1px solid var(--nomi-line); border-radius: var(--r-lg);
+    padding: 12px 13px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
+  }
+  .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .sec-title { font-size: 13px; font-weight: 600; color: var(--nomi-ink); }
+  .sec-tag {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: var(--r-pill);
+    font-size: 11px; font-weight: 500; border: 1px solid var(--nomi-line); background: var(--nomi-surface); color: var(--nomi-ink-60); white-space: nowrap; flex-shrink: 0;
+  }
+  .sec-tag.rec { background: var(--nomi-accent-soft); border-color: var(--nomi-accent-edge); color: var(--nomi-accent-ink); }
+  .sec-tag.ok { background: var(--nomi-success-soft); border-color: var(--nomi-success-edge); color: var(--nomi-success-ink); }
+  .sec-tag.warn { background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); color: var(--nomi-warning-ink); }
+  .opt-card {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); padding: 9px 10px;
+    background: var(--nomi-surface); display: flex; flex-direction: column; gap: 4px;
+  }
+  .opt-card.active {
+    background: var(--nomi-elevated); border-color: var(--nomi-accent-edge); box-shadow: 0 0 0 1px var(--nomi-accent-soft);
+  }
+  .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .opt-name { font-size: 12px; font-weight: 600; color: var(--nomi-ink); }
+  .check-right { font-size: 14px; font-weight: 700; color: var(--nomi-accent); flex-shrink: 0; line-height: 1; }
+  .opt-desc { font-size: 11px; color: var(--nomi-ink-60); }
+  .matrix { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .matrix th {
+    text-align: left; font-weight: 600; color: var(--nomi-ink-60); padding: 5px 6px;
+    border-bottom: 1px solid var(--nomi-line); font-size: 11px;
+  }
+  .matrix td { padding: 5px 6px; border-bottom: 1px solid var(--nomi-line-soft); color: var(--nomi-ink); vertical-align: top; }
+  .matrix tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
+  .modal-stage {
+    background: var(--nomi-surface); border: 1px solid var(--nomi-line); border-radius: var(--r-lg);
+    padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .stage-caption { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--nomi-ink-60); }
+  .modal-card {
+    background: var(--nomi-elevated); border: 1px solid var(--nomi-line); border-radius: var(--r-lg);
+    padding: 13px 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .modal-head-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .icon-box {
+    width: 30px; height: 30px; border-radius: var(--r-md); background: var(--nomi-accent-soft);
+    border: 1px solid var(--nomi-accent-edge); color: var(--nomi-accent-ink);
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600;
+  }
+  .modal-title { font-size: 14px; font-weight: 600; color: var(--nomi-ink); }
+  .close-btn {
+    width: 24px; height: 24px; border-radius: var(--r-sm); color: var(--nomi-ink-40);
+    font-size: 13px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .ref-strip {
+    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: var(--r-md);
+    background: var(--nomi-surface); border: 1px solid var(--nomi-line-soft);
+  }
+  .thumb {
+    width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--nomi-line);
+    background: linear-gradient(135deg, oklch(0.36 0.05 245), oklch(0.3 0.06 75));
+    display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--nomi-ink); flex-shrink: 0;
+  }
+  .thumb.vid { background: linear-gradient(135deg, oklch(0.34 0.05 210), oklch(0.28 0.07 255)); }
+  .ref-meta { min-width: 0; flex: 1; }
+  .ref-names { font-size: 12px; font-weight: 500; color: var(--nomi-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ref-sub { font-size: 11px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recipient-box {
+    border-radius: var(--r-md); padding: 9px 10px; display: flex; flex-direction: column; gap: 5px;
+    border: 1px solid var(--nomi-line); background: var(--nomi-surface);
+  }
+  .recipient-box.public-warn { background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); }
+  .kv-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; min-width: 0; }
+  .kv-k { width: 68px; flex-shrink: 0; font-size: 11px; color: var(--nomi-ink-60); }
+  .public-warn .kv-k { color: var(--nomi-warning-ink); }
+  .kv-v { min-width: 0; flex: 1; font-size: 12px; color: var(--nomi-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .public-warn .kv-v { color: var(--nomi-warning-ink); font-weight: 500; }
+  .foot-note { font-size: 11px; color: var(--nomi-ink-60); }
+  .decision-bar {
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    padding-top: 8px; border-top: 1px solid var(--nomi-line-soft);
+  }
+  .btn {
+    height: 30px; padding: 0 12px; border-radius: var(--r-sm); font-size: 12px; font-weight: 500;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--nomi-line); background: var(--nomi-surface); color: var(--nomi-ink); white-space: nowrap;
+  }
+  .btn-sm { height: 24px; padding: 0 8px; font-size: 11px; }
+  .btn-primary {
+    background: var(--nomi-accent); border-color: var(--nomi-accent); color: oklch(0.14 0.01 260); font-weight: 600;
+  }
+  .agent-slot {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-surface);
+    padding: 10px 11px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .node-pointer {
+    display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; height: 22px; padding: 0 8px;
+    border-radius: var(--r-pill); background: var(--nomi-info-soft); border: 1px solid var(--nomi-info-edge);
+    color: var(--nomi-info-ink); font-size: 11px; font-weight: 500;
+  }
+  .settings-card {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 10px 11px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .switch-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding-bottom: 7px; border-bottom: 1px solid var(--nomi-line-soft);
+  }
+  .toggle-on {
+    width: 32px; height: 18px; border-radius: var(--r-pill); background: var(--nomi-accent); position: relative; flex-shrink: 0;
+  }
+  .toggle-on::after {
+    content: ""; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: oklch(0.16 0.01 260);
+  }
+  .auth-list { display: flex; flex-direction: column; gap: 5px; }
+  .auth-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 8px; border-radius: var(--r-sm); background: var(--nomi-surface); border: 1px solid var(--nomi-line-soft); min-width: 0;
+  }
+  .auth-row.revoked { background: var(--nomi-paper); border-style: dashed; }
+  .auth-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .auth-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .auth-name { font-size: 12px; font-weight: 600; color: var(--nomi-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .auth-host { font-size: 11px; color: var(--nomi-ink-60); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill-badge {
+    display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: var(--r-pill);
+    font-size: 11px; flex-shrink: 0; white-space: nowrap; border: 1px solid var(--nomi-line); background: var(--nomi-elevated); color: var(--nomi-ink-60);
+  }
+  .pill-badge.warn { background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); color: var(--nomi-warning-ink); }
+  .pill-badge.info { background: var(--nomi-info-soft); border-color: var(--nomi-info-edge); color: var(--nomi-info-ink); }
+  .local-strip {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px;
+    border-radius: var(--r-md); background: var(--nomi-success-soft); border: 1px solid var(--nomi-success-edge);
+    color: var(--nomi-success-ink); font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="exp-badge">EXPLORATION</span>
+      <span class="board-title">S-F (A4c) Ask Once Before Sending Reference Media to a New Third Party</span>
+      <span class="board-sub">Ask once per actual recipient, persist in main process, continue immediately; zero prompt for localhost</span>
+    </div>
+    <span class="meta-pill">1440×900 · en · Dark · 4 Font Sizes (11/12/13/14px)</span>
+  </header>
+
+  <main class="cols">
+    <!-- COLUMN 1 -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">1. What Counts as a “New Third Party”?</span>
+          <span class="sec-tag rec">Option C Recommended</span>
+        </div>
+
+        <div class="opt-card">
+          <div class="opt-row">
+            <span class="opt-name">Option A · Target vendorKey only</span>
+            <span class="sec-tag">Skip</span>
+          </div>
+          <div class="opt-desc">Misses borrowed upload channels (KIE) and fallback public hosts (litterbox.catbox.moe) when running an APIMart video model.</div>
+        </div>
+
+        <div class="opt-card">
+          <div class="opt-row">
+            <span class="opt-name">Option B · Raw subdomain url.host</span>
+            <span class="sec-tag">Skip</span>
+          </div>
+          <div class="opt-desc">Prompts twice for the same official provider when upload.apimart.ai and api.apimart.ai use separate subdomains.</div>
+        </div>
+
+        <div class="opt-card active">
+          <div class="opt-row">
+            <span class="opt-name">Option C · Actual Byte Recipient (recipientId)</span>
+            <span class="check-right" aria-label="Selected">✓</span>
+          </div>
+          <div class="opt-desc">Groups official vendor upload + inference (1 prompt per vendor), separates borrowed channels, custom relay origins, and public hosts; skips localhost.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">Recipient Identity Matrix (Main-Process Gate)</span>
+          <span class="sec-tag">Zero Self-Grant</span>
+        </div>
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>recipientId</th>
+              <th>First-Time Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Local ComfyUI</td>
+              <td class="mono">local (127.0.0.1)</td>
+              <td>0 prompts (stays on device)</td>
+            </tr>
+            <tr>
+              <td>Vendor own upload</td>
+              <td class="mono">vendor:apimart</td>
+              <td>Ask once, then remember</td>
+            </tr>
+            <tr>
+              <td>Borrowed upload (KIE)</td>
+              <td class="mono">vendor:kie</td>
+              <td>Ask once for KIE</td>
+            </tr>
+            <tr>
+              <td>Custom relay origin</td>
+              <td class="mono">origin:https://…</td>
+              <td>Re-ask if domain changes</td>
+            </tr>
+            <tr>
+              <td>Public temp host (1h)</td>
+              <td class="mono">anon:litterbox…</td>
+              <td>Warning ask once, continue</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="local-strip">
+          <span><strong>Localhost Counter-Case:</strong> ComfyUI <span class="mono">127.0.0.1:8188/upload/image</span></span>
+          <span><strong>0 Prompts ✓</strong></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">2. Persistence & Legacy Setting Migration</span>
+          <span class="sec-tag ok">Non-Destructive</span>
+        </div>
+        <div class="opt-desc" style="color: var(--nomi-ink);">
+          <strong>Single owner:</strong> Main-process <span class="mono">automation-policy.json → trustedAssetRecipients</span>. Renderer requests carry no allow flag.<br/>
+          <strong>Legacy users:</strong> Existing <span class="mono">anonymousAssetHosting="allow"</span> migrates cleanly to pre-approved public temp hosts; default <span class="mono">"ask"</span> asks inline instead of failing with an error.
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2 -->
+    <section class="col">
+      <div class="modal-stage">
+        <div class="stage-caption">
+          <span><strong>Canvas / Storyboard · State A:</strong> Public Temporary Host (28+ char model name)</span>
+          <span class="sec-tag warn">Public 1h Link</span>
+        </div>
+
+        <div class="modal-card" role="dialog" aria-label="Send reference media to Litterbox for the first time?">
+          <div class="modal-head">
+            <div class="modal-head-left">
+              <span class="icon-box">IMG</span>
+              <span class="modal-title">Send reference media to Litterbox?</span>
+            </div>
+            <span class="close-btn" aria-hidden="true">✕</span>
+          </div>
+
+          <div class="ref-strip">
+            <span class="thumb">PNG</span>
+            <span class="thumb vid">MP4</span>
+            <div class="ref-meta">
+              <div class="ref-names">linwei_front_sheet.png, corridor_tracking_ref.mp4 (2 files)</div>
+              <div class="ref-sub">For model: Doubao Seedance 2.5 Pro Preview · Video generation</div>
+            </div>
+          </div>
+
+          <div class="recipient-box public-warn">
+            <div class="kv-row">
+              <span class="kv-k">Recipient</span>
+              <span class="kv-v">Litterbox (litterbox.catbox.moe)</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-k">Why needed</span>
+              <span class="kv-v">Current provider needs a reachable URL for video references</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-k">Visibility</span>
+              <span class="kv-v">Public temporary link · Anyone with link · Expires in 1h</span>
+            </div>
+          </div>
+
+          <div class="foot-note">
+            Nomi won’t ask again for Litterbox. Revoke anytime in <span class="q">“Settings › AI Policy”</span>.
+          </div>
+
+          <div class="decision-bar">
+            <span class="btn">Cancel</span>
+            <span class="btn btn-primary">Allow &amp; Generate</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-stage" style="flex: 1; justify-content: space-between;">
+        <div class="stage-caption">
+          <span><strong>Canvas / Storyboard · State B:</strong> Custom Relay / Provider (Long Domain Stress)</span>
+          <span class="sec-tag">Authenticated</span>
+        </div>
+
+        <div class="modal-card" role="dialog" aria-label="Send reference media to custom relay?">
+          <div class="modal-head">
+            <div class="modal-head-left">
+              <span class="icon-box">IMG</span>
+              <span class="modal-title">Send reference media to Custom Relay?</span>
+            </div>
+            <span class="close-btn" aria-hidden="true">✕</span>
+          </div>
+
+          <div class="ref-strip">
+            <span class="thumb">PNG</span>
+            <div class="ref-meta">
+              <div class="ref-names">linwei_backlit_closeup_v3.png (1 reference image)</div>
+              <div class="ref-sub">For model: GPT Image 2.6 Flare · Character consistency</div>
+            </div>
+          </div>
+
+          <div class="recipient-box">
+            <div class="kv-row">
+              <span class="kv-k">Recipient</span>
+              <span class="kv-v mono">relay-media-gateway.studio-internal.co</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-k">Channel</span>
+              <span class="kv-v">Your configured custom upload relay · Bearer token</span>
+            </div>
+          </div>
+
+          <div class="foot-note">
+            Remembered for this origin; changing the relay domain will ask again.
+          </div>
+
+          <div class="decision-bar">
+            <span class="btn">Cancel</span>
+            <span class="btn btn-primary">Allow &amp; Generate</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3 -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">3. Resident Agent Ask (Design System §1.0)</span>
+          <span class="sec-tag rec">Pointer + 1 Question</span>
+        </div>
+        <div class="opt-desc">No settings toggles or relay forms inside chat — only a node pointer chip and a single-question confirmation slot.</div>
+
+        <div class="agent-slot">
+          <span class="node-pointer">↗ Shot 03 · Rainy Alley Turn (Video Node)</span>
+          <div style="font-size: 12px; font-weight: 600; color: var(--nomi-ink);">
+            Send <span class="q">“linwei_front.png”</span> to KIE upload for the first time?
+          </div>
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">
+            Host: <span class="mono">kieai.redpandaai.co</span> (borrowed upload channel) · Remembered once allowed; revoke in <span class="q">“Settings › AI Policy”</span>.
+          </div>
+          <div class="decision-bar" style="padding-top: 6px;">
+            <span class="btn btn-sm">Don’t Send</span>
+            <span class="btn btn-sm btn-primary">Allow KIE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">4. Revoke Anytime: Settings › AI Policy › Asset Privacy</span>
+          <span class="sec-tag">Existing Home</span>
+        </div>
+        <div class="opt-desc">Lives inside <span class="mono">AiModelsSection</span> where upload routing already lives. Revoking re-arms the first-time prompt.</div>
+
+        <div class="settings-card">
+          <div class="switch-row">
+            <div>
+              <div style="font-size: 12px; font-weight: 500; color: var(--nomi-ink);">Only upload assets used by this task</div>
+              <div style="font-size: 11px; color: var(--nomi-ink-60);">Skip attached references inactive in the current mode</div>
+            </div>
+            <span class="toggle-on" aria-label="Enabled"></span>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--nomi-ink);">Allowed Reference Recipients (3 active · 1 revoked)</span>
+            <span style="font-size: 11px; color: var(--nomi-ink-60);">Asks before new recipients</span>
+          </div>
+
+          <div class="auth-list">
+            <div class="auth-row">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name">APIMart</span>
+                  <span class="pill-badge">Official API</span>
+                </div>
+                <span class="auth-host">api.apimart.ai · Allowed Nov 20</span>
+              </div>
+              <span class="btn btn-sm">Revoke</span>
+            </div>
+
+            <div class="auth-row">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name">KIE Upload</span>
+                  <span class="pill-badge info">Borrowed</span>
+                </div>
+                <span class="auth-host">kieai.redpandaai.co · Allowed Nov 22</span>
+              </div>
+              <span class="btn btn-sm">Revoke</span>
+            </div>
+
+            <div class="auth-row">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name">Litterbox Temp Host</span>
+                  <span class="pill-badge warn">Public · 1h TTL</span>
+                </div>
+                <span class="auth-host">litterbox.catbox.moe · Allowed just now</span>
+              </div>
+              <span class="btn btn-sm">Revoke</span>
+            </div>
+
+            <div class="auth-row revoked">
+              <div class="auth-main">
+                <div class="auth-top">
+                  <span class="auth-name" style="color: var(--nomi-ink-60);">relay-media-gateway.studio-internal.co</span>
+                  <span class="pill-badge">Revoked</span>
+                </div>
+                <span class="auth-host">Will ask again before sending reference media</span>
+              </div>
+              <span style="font-size: 11px; color: var(--nomi-ink-40); white-space: nowrap;">Revoked</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mark="exploration">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1100, initial-scale=1" />
+<title>EXPLORATION · S-G（D4-17）窄窗全屏验证 · 1100×690 Light</title>
+<style>
+  :root {
+    --nomi-paper: oklch(0.985 0.002 85);
+    --nomi-surface: oklch(0.962 0.003 85);
+    --nomi-panel: oklch(0.993 0.0015 85);
+    --nomi-elevated: oklch(1 0 0);
+    --nomi-ink: oklch(0.2 0.01 260);
+    --nomi-ink-60: oklch(0.45 0.01 260);
+    --nomi-ink-40: oklch(0.62 0.008 260);
+    --nomi-line: oklch(0.905 0.004 85);
+    --nomi-line-soft: oklch(0.94 0.003 85);
+    --nomi-accent: oklch(0.54 0.145 248);
+    --nomi-accent-soft: oklch(0.94 0.025 248);
+    --nomi-accent-edge: oklch(0.84 0.065 248);
+    --nomi-accent-ink: oklch(0.38 0.12 248);
+    --nomi-warning-soft: oklch(0.955 0.035 80);
+    --nomi-warning-edge: oklch(0.855 0.085 80);
+    --nomi-warning-ink: oklch(0.43 0.115 72);
+    --nomi-info-soft: oklch(0.945 0.025 240);
+    --nomi-info-edge: oklch(0.845 0.065 240);
+    --nomi-info-ink: oklch(0.39 0.11 240);
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-pill: 999px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Inter", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1100px; height: 690px; overflow: hidden;
+    background: var(--nomi-paper); color: var(--nomi-ink);
+    font-family: var(--font-sans); font-size: 12px; line-height: 1.4; -webkit-font-smoothing: antialiased;
+  }
+  .trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .check-right { font-size: 14px; font-weight: 700; color: var(--nomi-accent); flex-shrink: 0; line-height: 1; }
+  .shell { display: grid; grid-template-rows: 38px 1fr; width: 1100px; height: 690px; }
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px; background: var(--nomi-panel); border-bottom: 1px solid var(--nomi-line); gap: 10px;
+  }
+  .tb-left { display: flex; align-items: center; gap: 8px; }
+  .dots { display: flex; gap: 6px; margin-right: 4px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--nomi-line); }
+  .exp-badge {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: var(--r-pill);
+    background: var(--nomi-warning-soft); border: 1px solid var(--nomi-warning-edge); color: var(--nomi-warning-ink);
+    font-size: 11px; font-weight: 600;
+  }
+  .seg {
+    display: inline-flex; align-items: center; background: var(--nomi-surface); border: 1px solid var(--nomi-line);
+    border-radius: var(--r-sm); padding: 2px; gap: 2px;
+  }
+  .seg span { height: 22px; padding: 0 9px; border-radius: 4px; font-size: 11px; display: inline-flex; align-items: center; color: var(--nomi-ink-60); }
+  .seg span.active { background: var(--nomi-elevated); color: var(--nomi-ink); font-weight: 600; }
+  .workspace { display: grid; grid-template-columns: 44px 180px 1fr 340px; height: 652px; }
+  .rail {
+    background: var(--nomi-panel); border-right: 1px solid var(--nomi-line);
+    display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 10px;
+  }
+  .rail-btn {
+    width: 28px; height: 28px; border-radius: var(--r-sm); border: 1px solid var(--nomi-line-soft);
+    background: var(--nomi-surface); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--nomi-ink-60);
+  }
+  .doc-tree {
+    background: var(--nomi-panel); border-right: 1px solid var(--nomi-line); padding: 12px 10px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .tree-item { padding: 6px 8px; border-radius: var(--r-sm); font-size: 12px; color: var(--nomi-ink-60); }
+  .tree-item.active { background: var(--nomi-accent-soft); color: var(--nomi-accent-ink); font-weight: 600; }
+  /* Center Storyboard Editor in 536px narrow width */
+  .sb-main { padding: 14px; display: flex; flex-direction: column; gap: 11px; min-width: 0; background: var(--nomi-paper); }
+  .sb-hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .shot-card {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-lg); background: var(--nomi-elevated);
+    padding: 11px 12px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
+  }
+  .bar-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+  .pills-left { display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px;
+    border-radius: var(--r-pill); border: 1px solid var(--nomi-line); background: var(--nomi-surface);
+    font-size: 12px; color: var(--nomi-ink); min-width: 0;
+  }
+  .chip.model-max { max-width: 195px; }
+  .chip-fixed { flex-shrink: 0; white-space: nowrap; }
+  .gen-btn {
+    height: 26px; padding: 0 11px; border-radius: var(--r-pill); background: var(--nomi-ink);
+    color: var(--nomi-paper); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap;
+  }
+  .menu-pop {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 5px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 8px 20px rgba(15, 18, 28, 0.08);
+  }
+  .menu-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: var(--r-sm); min-width: 0; }
+  .menu-item.selected { background: var(--nomi-accent-soft); }
+  /* Docked Agent 340px */
+  .agent-drawer {
+    background: var(--nomi-panel); border-left: 1px solid var(--nomi-line);
+    display: flex; flex-direction: column; justify-content: space-between; padding: 12px; min-width: 0;
+  }
+  .agent-pop {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 9px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 20px rgba(15, 18, 28, 0.08);
+  }
+  .pointer-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    padding: 6px 8px; border-radius: var(--r-sm); background: var(--nomi-info-soft);
+    border: 1px solid var(--nomi-info-edge); color: var(--nomi-info-ink); font-size: 11px;
+  }
+  .agent-composer {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="titlebar">
+    <div class="tb-left">
+      <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <span class="exp-badge">EXPLORATION</span>
+      <span style="font-size: 13px; font-weight: 600;">窄窗 1100×690 整屏验证（S-G 分镜表 536px 窄栏 + 常驻 Agent 340px 底栏同时在场）</span>
+    </div>
+    <div class="seg">
+      <span class="active">创作</span>
+      <span>生成画布</span>
+      <span>预览</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="rail">
+      <span class="rail-btn">稿</span>
+      <span class="rail-btn">镜</span>
+      <span class="rail-btn">材</span>
+    </aside>
+
+    <aside class="doc-tree">
+      <div style="font-size: 11px; font-weight: 600; color: var(--nomi-ink-60); padding: 0 4px;">项目文稿与分镜</div>
+      <div class="tree-item">原稿：修好一个小机器人</div>
+      <div class="tree-item active">分镜方案 · 2 镜</div>
+    </aside>
+
+    <main class="sb-main">
+      <div class="sb-hdr">
+        <span style="font-size: 14px; font-weight: 600;">分镜 · 2 镜</span>
+        <span class="chip" style="height: 24px; font-size: 11px;">整片画幅：16:9（跟随 Seedance 2.5）▾</span>
+      </div>
+
+      <div class="shot-card">
+        <div style="font-size: 12px; font-weight: 600;">镜头 01 · 黄昏小巷雨中相遇</div>
+        <div style="font-size: 12px; color: var(--nomi-ink-60);">小机器人蹲在霓虹积水边，镜头缓慢推进至眼部微光。</div>
+        <div class="bar-row">
+          <div class="pills-left">
+            <span class="chip model-max"><span class="trunc"><strong>自动 · Seedance 2.5</strong></span> ▴</span>
+            <span class="chip chip-fixed">全能参考 ▾</span>
+            <span class="chip chip-fixed">16:9 · 5s ▾</span>
+          </div>
+          <span class="gen-btn">生成</span>
+        </div>
+
+        <div class="menu-pop" role="listbox" aria-label="镜头 01 模型选择">
+          <div class="menu-item selected">
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--nomi-accent-ink);">自动 · Seedance 2.5</div>
+              <div style="font-size: 11px; color: var(--nomi-ink-60);">跟随「设置 › AI 策略」视频默认</div>
+            </div>
+            <span class="check-right">✓</span>
+          </div>
+          <div class="menu-item">
+            <div style="font-size: 12px;" class="trunc">Seedance 2.5 · APIMart（仅本镜固定）</div>
+          </div>
+          <div class="menu-item">
+            <div style="font-size: 12px;" class="trunc">Doubao Seedance 2.5 Pro Preview · APIMart</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="shot-card">
+        <div style="font-size: 12px; font-weight: 600;">镜头 02 · 28 字符长模型名窄栏压力态</div>
+        <div class="bar-row">
+          <div class="pills-left">
+            <span class="chip model-max"><span class="trunc">自动 · Doubao Seedance 2.5 Pro Preview</span> ▾</span>
+            <span class="chip chip-fixed">16:9 · 5s ▾</span>
+          </div>
+          <span class="gen-btn">生成</span>
+        </div>
+      </div>
+    </main>
+
+    <aside class="agent-drawer">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--nomi-line-soft); padding-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 600;">Nomi 助手</span>
+          <span style="font-size: 11px; color: var(--nomi-ink-60);">340px 窄栏停靠</span>
+        </div>
+        <div style="font-size: 12px; color: var(--nomi-ink-60);">能读文稿、拆分镜、看每镜还缺什么。</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="agent-pop">
+          <div style="font-size: 11px; font-weight: 600; color: var(--nomi-ink-60);">对话大脑</div>
+          <div class="menu-item selected">
+            <span style="font-size: 12px; font-weight: 600; color: var(--nomi-accent-ink);">自动 · DeepSeek V4 Flash</span>
+            <span class="check-right">✓</span>
+          </div>
+          <div class="menu-item">
+            <span style="font-size: 12px;">Claude Opus 5.5</span>
+            <span style="font-size: 11px; color: var(--nomi-ink-60);">32/160</span>
+          </div>
+          <div class="pointer-footer">
+            <span class="trunc">图：GPT Image 2.6 Flare · 影：Seedance 2.5</span>
+            <span style="font-weight: 600; flex-shrink: 0;">AI 策略 ↗</span>
+          </div>
+        </div>
+
+        <div class="agent-composer">
+          <div style="font-size: 12px; color: var(--nomi-ink-40);">继续告诉 Nomi 要改什么…</div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <span class="chip" style="height: 24px; max-width: 195px;"><span class="trunc">自动 · DeepSeek V4 Flash</span> ▴</span>
+            <span style="font-size: 11px; color: var(--nomi-ink-60); flex-shrink: 0;">请求批准 ▾</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

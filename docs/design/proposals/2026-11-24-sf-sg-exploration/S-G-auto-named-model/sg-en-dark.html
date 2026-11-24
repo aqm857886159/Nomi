@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-mark="exploration">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<title>EXPLORATION · S-G (D4-17) Explicit Model Name in “Auto” + Collapse 4 Default Rows to 2 · 1440×900 Dark</title>
+<style>
+  :root {
+    --nomi-paper: oklch(0.165 0.006 260);
+    --nomi-surface: oklch(0.2 0.007 260);
+    --nomi-panel: oklch(0.185 0.006 260);
+    --nomi-elevated: oklch(0.225 0.008 260);
+    --nomi-ink: oklch(0.93 0.004 85);
+    --nomi-ink-60: oklch(0.68 0.006 260);
+    --nomi-ink-40: oklch(0.5 0.006 260);
+    --nomi-line: oklch(0.27 0.008 260);
+    --nomi-line-soft: oklch(0.23 0.007 260);
+    --nomi-accent: oklch(0.66 0.14 248);
+    --nomi-accent-soft: oklch(0.25 0.035 248);
+    --nomi-accent-edge: oklch(0.37 0.075 248);
+    --nomi-accent-ink: oklch(0.8 0.095 248);
+    --nomi-success-soft: oklch(0.24 0.035 155);
+    --nomi-success-edge: oklch(0.36 0.075 155);
+    --nomi-success-ink: oklch(0.8 0.1 155);
+    --nomi-warning-soft: oklch(0.25 0.04 80);
+    --nomi-warning-edge: oklch(0.38 0.085 80);
+    --nomi-warning-ink: oklch(0.83 0.105 82);
+    --nomi-info-soft: oklch(0.245 0.03 240);
+    --nomi-info-edge: oklch(0.365 0.07 240);
+    --nomi-info-ink: oklch(0.8 0.09 240);
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-pill: 999px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1440px; height: 900px; overflow: hidden;
+    background: var(--nomi-paper); color: var(--nomi-ink);
+    font-family: var(--font-sans); font-size: 12px; line-height: 1.4; -webkit-font-smoothing: antialiased;
+  }
+  .q { white-space: nowrap; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
+  .board { display: grid; grid-template-rows: 46px 1fr; width: 1440px; height: 900px; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; background: var(--nomi-panel); border-bottom: 1px solid var(--nomi-line); gap: 12px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .exp-badge {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-pill);
+    background: var(--nomi-warning-soft); border: 1px solid var(--nomi-warning-edge); color: var(--nomi-warning-ink);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.03em; flex-shrink: 0;
+  }
+  .board-title { font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .board-sub { font-size: 12px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta-pill {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-sm);
+    background: var(--nomi-surface); border: 1px solid var(--nomi-line); color: var(--nomi-ink-60); font-size: 11px; flex-shrink: 0;
+  }
+  .cols { display: grid; grid-template-columns: 416px 504px 1fr; gap: 14px; padding: 13px 16px; height: 854px; }
+  .col { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+  .panel {
+    background: var(--nomi-panel); border: 1px solid var(--nomi-line); border-radius: var(--r-lg);
+    padding: 11px 13px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  }
+  .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .sec-title { font-size: 13px; font-weight: 600; color: var(--nomi-ink); }
+  .sec-tag {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: var(--r-pill);
+    font-size: 11px; font-weight: 500; border: 1px solid var(--nomi-line); background: var(--nomi-surface); color: var(--nomi-ink-60); white-space: nowrap; flex-shrink: 0;
+  }
+  .sec-tag.rec { background: var(--nomi-accent-soft); border-color: var(--nomi-accent-edge); color: var(--nomi-accent-ink); }
+  .sec-tag.ok { background: var(--nomi-success-soft); border-color: var(--nomi-success-edge); color: var(--nomi-success-ink); }
+  .opt-card {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); padding: 8px 10px;
+    background: var(--nomi-surface); display: flex; flex-direction: column; gap: 4px;
+  }
+  .opt-card.active {
+    background: var(--nomi-elevated); border-color: var(--nomi-accent-edge); box-shadow: 0 0 0 1px var(--nomi-accent-soft);
+  }
+  .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .opt-name { font-size: 12px; font-weight: 600; color: var(--nomi-ink); }
+  .check-right { font-size: 14px; font-weight: 700; color: var(--nomi-accent); flex-shrink: 0; line-height: 1; }
+  .opt-desc { font-size: 11px; color: var(--nomi-ink-60); }
+  .census-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .census-table th {
+    text-align: left; font-weight: 600; color: var(--nomi-ink-60); padding: 4px 5px;
+    border-bottom: 1px solid var(--nomi-line); font-size: 11px;
+  }
+  .census-table td { padding: 4px 5px; border-bottom: 1px solid var(--nomi-line-soft); vertical-align: top; }
+  .census-table tr:last-child td { border-bottom: none; }
+  .old-txt { color: var(--nomi-ink-40); text-decoration: line-through; }
+  .new-txt { color: var(--nomi-accent-ink); font-weight: 600; }
+  .settings-box {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 11px 12px; display: flex; flex-direction: column; gap: 9px;
+  }
+  .form-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--nomi-ink); width: 56px; flex-shrink: 0; }
+  .select-btn {
+    flex: 1; min-width: 0; height: 30px; padding: 0 10px; border-radius: var(--r-sm);
+    border: 1px solid var(--nomi-line); background: var(--nomi-surface);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--nomi-ink);
+  }
+  .select-btn.open { border-color: var(--nomi-accent-edge); background: var(--nomi-elevated); }
+  .trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .menu-pop {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 5px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  }
+  .menu-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: var(--r-sm); min-width: 0; }
+  .menu-item.selected { background: var(--nomi-accent-soft); }
+  .menu-left { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .menu-title { font-size: 12px; font-weight: 500; color: var(--nomi-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-item.selected .menu-title { font-weight: 600; color: var(--nomi-accent-ink); }
+  .menu-sub { font-size: 11px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-sep { height: 1px; background: var(--nomi-line-soft); margin: 3px 4px; }
+  .compat-card {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-surface);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 5px;
+  }
+  .compat-card.warn { background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); color: var(--nomi-warning-ink); }
+  .composer-mock {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 9px 10px; display: flex; flex-direction: column; gap: 7px;
+  }
+  .bar-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+  .pills-left { display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px;
+    border-radius: var(--r-pill); border: 1px solid var(--nomi-line); background: var(--nomi-surface);
+    font-size: 12px; color: var(--nomi-ink); min-width: 0;
+  }
+  .chip.model-max { max-width: 225px; }
+  .chip-fixed { flex-shrink: 0; white-space: nowrap; }
+  .gen-btn {
+    height: 26px; padding: 0 11px; border-radius: var(--r-pill); background: var(--nomi-ink);
+    color: var(--nomi-paper); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap;
+  }
+  .pointer-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 8px; border-radius: var(--r-sm); background: var(--nomi-info-soft);
+    border: 1px solid var(--nomi-info-edge); color: var(--nomi-info-ink); font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="exp-badge">EXPLORATION</span>
+      <span class="board-title">S-G (D4-17) Name the Actual Model in “Auto” + Collapse 4 Default Rows to 2</span>
+      <span class="board-sub">Replace blind “Auto / Default model / Choose a model” labels with explicit resolved names across all 7 surfaces</span>
+    </div>
+    <span class="meta-pill">1440×900 · en · Dark · 4 Font Sizes (11/12/13/14px)</span>
+  </header>
+
+  <main class="cols">
+    <!-- COLUMN 1 -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">1. Trade-Off: 2 Unified Media Slots vs 4 Task Rows</span>
+          <span class="sec-tag rec">Option G1 Recommended</span>
+        </div>
+
+        <div class="opt-card active">
+          <div class="opt-row">
+            <span class="opt-name">Option G1 · 2 Rows (Image / Video) + “Auto · &lt;Model&gt;” Everywhere</span>
+            <span class="check-right" aria-label="Selected">✓</span>
+          </div>
+          <div class="opt-desc">Catalog DTOs already pool by image and video; modern flagship models switch to edit/first-frame automatically when references attach. Halves config rows.</div>
+        </div>
+
+        <div class="opt-card">
+          <div class="opt-row">
+            <span class="opt-name">Option G2 · Keep 4 Separate Task-Kind Dropdowns</span>
+            <span class="sec-tag">Skip</span>
+          </div>
+          <div class="opt-desc">Forces creators to configure the same multimodal model twice and diverges from the 2-slot Agent popover.</div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">2. Full-Repo 7-Surface Blind “Auto” Census</span>
+          <span class="sec-tag">1 Concept, 1 Pattern</span>
+        </div>
+        <table class="census-table">
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>Today (Blind)</th>
+              <th>Proposed (Named)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Settings › AI Policy (4→2)</td>
+              <td class="old-txt">Automatic (×4)</td>
+              <td class="new-txt">Auto · GPT Image 2.6 Flare</td>
+            </tr>
+            <tr>
+              <td>Storyboard Shot Row</td>
+              <td class="old-txt">Default model ▾</td>
+              <td class="new-txt">Auto · Seedance 2.5 ▾ + 16:9</td>
+            </tr>
+            <tr>
+              <td>Canvas Node Picker</td>
+              <td class="old-txt">No Auto row in menu</td>
+              <td class="new-txt">Row 1: Auto · Recommended ✓</td>
+            </tr>
+            <tr>
+              <td>Agent Bottom Chip</td>
+              <td class="old-txt">Choose a model ▾</td>
+              <td class="new-txt">Auto · DeepSeek V4 Flash ▾</td>
+            </tr>
+            <tr>
+              <td>Agent Popover Defaults</td>
+              <td class="old-txt">Auto (2nd form)</td>
+              <td class="new-txt">Read-only pointer › AI Policy</td>
+            </tr>
+            <tr>
+              <td>ShotTable Vision / ASR</td>
+              <td class="old-txt">Automatic ▾</td>
+              <td class="new-txt">Auto · Gemini 3.5 Flash ▾</td>
+            </tr>
+            <tr>
+              <td>Proposal / Spend Card</td>
+              <td class="old-txt">Default model</td>
+              <td class="new-txt">Auto · Seedance 2.5</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="opt-desc" style="margin-top: auto; padding-top: 4px; border-top: 1px solid var(--nomi-line-soft);">
+          <strong>Out of scope:</strong> Onboarding <span class="q">“Auto-detect protocol”</span> detects wire format (OpenAI vs Anthropic), not a model — kept unchanged.
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2 -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">3. Settings › AI Policy › Default Models (4 → 2 Rows)</span>
+          <span class="sec-tag ok">Right Checkmark ✓</span>
+        </div>
+        <div class="opt-desc">Unpinned slots follow catalog’s recommended model and print its exact name right on the trigger button.</div>
+
+        <div class="settings-box">
+          <div class="form-row">
+            <span class="form-label">Image</span>
+            <div class="select-btn open">
+              <span class="trunc"><strong>Auto · GPT Image 2.6 Flare</strong></span>
+              <span style="font-size: 11px; color: var(--nomi-ink-60); flex-shrink: 0;">▴</span>
+            </div>
+          </div>
+
+          <div class="menu-pop" role="listbox" aria-label="Default Image Model">
+            <div class="menu-item selected" role="option" aria-selected="true">
+              <div class="menu-left">
+                <span class="menu-title">Auto · GPT Image 2.6 Flare</span>
+                <span class="menu-sub">Recommended · Steps aside automatically if a channel is failing</span>
+              </div>
+              <span class="check-right">✓</span>
+            </div>
+            <div class="menu-sep"></div>
+            <div class="menu-item" role="option" aria-selected="false">
+              <div class="menu-left">
+                <span class="menu-title">GPT Image 2.6 Flare · APIMart</span>
+                <span class="menu-sub">Pin manually for both generation &amp; image edit</span>
+              </div>
+            </div>
+            <div class="menu-item" role="option" aria-selected="false">
+              <div class="menu-left">
+                <span class="menu-title">Seedream 5.5 · APIMart</span>
+              </div>
+            </div>
+            <div class="menu-item" role="option" aria-selected="false">
+              <div class="menu-left">
+                <span class="menu-title">Doubao Seedream 5.0 Pro Preview · APIMart</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 2px;">
+            <span class="form-label">Video</span>
+            <div class="select-btn">
+              <span class="trunc">Seedance 2.5 · APIMart <span style="color: var(--nomi-ink-60);">(Pinned)</span></span>
+              <span style="font-size: 11px; color: var(--nomi-ink-60); flex-shrink: 0;">▾</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">4. Legacy 4-Row Non-Destructive Compatibility &amp; Edge States</span>
+          <span class="sec-tag">Zero Data Loss</span>
+        </div>
+
+        <div class="compat-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600;">Edge A · Legacy User Had Split Text-to-Image vs Image-Edit</span>
+            <span class="sec-tag rec">Preserved</span>
+          </div>
+          <div class="opt-desc" style="color: var(--nomi-ink);">
+            Underlying <span class="mono">byTaskKind</span> keys are never overwritten on upgrade. Split values stay active until the user explicitly picks a unified option:
+          </div>
+          <div class="form-row" style="margin-top: 2px;">
+            <span class="form-label">Image</span>
+            <div class="select-btn" style="background: var(--nomi-elevated);">
+              <span class="trunc">Split: T2I GPT Image 2.6 Flare · Edit Seedream 5.5</span>
+              <span style="font-size: 11px; color: var(--nomi-accent-ink); font-weight: 600; flex-shrink: 0;">Unify ▾</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="compat-card warn">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600;">Edge B · Pinned Model Disabled or Provider Disconnected</span>
+            <span style="font-size: 11px; font-weight: 600;">Fallback Notice</span>
+          </div>
+          <div style="font-size: 11px;">
+            Video: Pinned <span class="q">“Kling 2.0 Master”</span> is unavailable; new cards use <strong>Auto · Seedance 2.5</strong> until reconnected.
+          </div>
+        </div>
+
+        <div class="compat-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600;">Edge C · Unconfigured Workspace (0 Connected Models)</span>
+            <span style="font-size: 11px; color: var(--nomi-accent-ink); font-weight: 600;">Connect Model ↗</span>
+          </div>
+          <div class="opt-desc">Never shows a fake “Automatic” option when zero models are usable.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3 -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">5. Canvas Node Composer (Normal + 28-Char Name Stress)</span>
+          <span class="sec-tag">Parameters Intact</span>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">New image node (follows default, shows exact model immediately):</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip model-max"><span class="trunc">Auto · GPT Image 2.6 Flare</span> ▾</span>
+              <span class="chip chip-fixed">1:1 · 2K ▾</span>
+            </div>
+            <span class="gen-btn">Generate</span>
+          </div>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">28+ char model name stress (model chip truncates cleanly; ratio &amp; CTA never clip):</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip model-max"><span class="trunc">Auto · Doubao Seedance 2.5 Pro Preview</span> ▾</span>
+              <span class="chip chip-fixed">16:9 · 1080P · 5s ▾</span>
+            </div>
+            <span class="gen-btn">Generate</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">6. Storyboard Shot Row (Before vs After)</span>
+          <span class="sec-tag rec">−1 Extra Click</span>
+        </div>
+
+        <div class="composer-mock" style="background: var(--nomi-surface);">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">Today: Blind “Default model ▾” hides both model identity and aspect/duration</div>
+          <div class="bar-row">
+            <span class="chip"><span class="old-txt">Default model ▾</span></span>
+            <span class="gen-btn" style="opacity: 0.65;">Generate</span>
+          </div>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-accent-ink); font-weight: 500;">Proposed: Shows resolved model + exposes mode, aspect ratio &amp; duration right away</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip model-max"><span class="trunc"><strong>Auto · Seedance 2.5</strong></span> ▾</span>
+              <span class="chip chip-fixed">Omni Ref ▾</span>
+              <span class="chip chip-fixed">16:9 · 5s ▾</span>
+            </div>
+            <span class="gen-btn">Generate</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">7. Resident Agent Bar (M5 §1.0) &amp; ShotTable Deconstruct</span>
+          <span class="sec-tag">Single Policy Home</span>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">Agent bottom bar prints default brain; popover footer points to AI Policy:</div>
+          <div class="bar-row">
+            <span class="chip"><strong>Auto · DeepSeek V4 Flash</strong> ▾</span>
+            <span style="font-size: 11px; color: var(--nomi-ink-60);">Ask before spend ▾</span>
+          </div>
+          <div class="pointer-footer">
+            <span class="trunc">Image: Auto · GPT Image 2.6 Flare · Video: Auto · Seedance 2.5</span>
+            <span style="font-weight: 600; flex-shrink: 0;">AI Policy ↗</span>
+          </div>
+        </div>
+
+        <div class="composer-mock" style="margin-top: auto;">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">ShotTable vision &amp; transcription controls print exact resolved models:</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip"><span class="trunc">Vision: Auto · Gemini 3.5 Flash</span> ▾</span>
+              <span class="chip"><span class="trunc">ASR: Auto · Local Whisper</span> ▾</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 2,
+  "id": "2026-11-24-sg-auto-named-model",
+  "title": "S-G（D4-17）「自动」写明是哪个模型 + 默认模型 4 行收 2 行（探索稿）",
+  "marked": "exploration",
+  "status": "draft-pending-user-approval",
+  "designSystem": "docs/design/nomi-design-system.md",
+  "tokens": "src/theme/nomi-tokens.css",
+  "viewports": [
+    {
+      "name": "desktop-zh-light",
+      "width": 1440,
+      "height": 900,
+      "locale": "zh-CN",
+      "theme": "light",
+      "html": "sg-overview-and-states-zh-light.html",
+      "png": "sg-overview-and-states-zh-light.png"
+    },
+    {
+      "name": "desktop-en-dark",
+      "width": 1440,
+      "height": 900,
+      "locale": "en",
+      "theme": "dark",
+      "html": "sg-en-dark.html",
+      "png": "sg-en-dark.png"
+    },
+    {
+      "name": "narrow-zh-light",
+      "width": 1100,
+      "height": 690,
+      "locale": "zh-CN",
+      "theme": "light",
+      "html": "sg-narrow-1100x690.html",
+      "png": "sg-narrow-1100x690.png"
+    }
+  ],
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "peer": "LibTV",
+      "url": "https://www.liblib.tv/",
+      "screenshotSha256": "3277cb75d501b64abace1464bb30cd4f6a0ffad828d9071ac6e00c0104dc57b6",
+      "seenOn": "2026-11-24",
+      "howItWorks": "底部生成框左侧直接显示具体模型名与参数胶囊「SD 2.5 | 16:9 · 1080P · 15s」，从不用「默认模型」隐藏真实型号与参数。",
+      "impactOnDecision": "画布节点与分镜行在未手动钉死模型时直接写出「自动 · Seedance 2.5」并当场展开该模型的比例与时长胶囊。"
+    },
+    {
+      "kind": "peer",
+      "peer": "TapNow",
+      "url": "https://docs.tapnow.ai/",
+      "screenshotSha256": "407663b900c5fde7cc49fe7b085115f29b24434b7fb117ada2541144bee42146",
+      "seenOn": "2026-11-24",
+      "howItWorks": "图片与视频各自一个默认模型槽位，挂入首帧图或参考图时自动切换模型输入模式，不拆成文生/图生四套全局默认。",
+      "impactOnDecision": "「设置 › AI 策略 › 新建卡片默认模型」从 4 行（文生图/改图/文生视频/图生视频）收窄为「图片 / 视频」2 行。"
+    },
+    {
+      "kind": "peer",
+      "peer": "Runway",
+      "url": "https://app.runwayml.com/",
+      "seenOn": "2026-11-24",
+      "howItWorks": "新建会话默认选中当前主力推荐模型并直接亮出模型真名与分辨率/时长，创作者零点击即可知道将扣除哪个模型的积分。",
+      "impactOnDecision": "目录显式声明图片与视频推荐模型，所有「自动」文案统一带出当前解析到的真实模型名。"
+    }
+  ],
+  "boundarySheet": {
+    "chatVsWorkbench": {
+      "workbenchHome": "设置 › AI 策略 › 新建卡片默认模型（src/workbench/settings/DefaultGenerationModelsSection.tsx）为图片/视频默认模型的唯一编辑家。",
+      "chatRole": "常驻 Agent 底栏模型钮显示对话大脑（默认「自动 · DeepSeek V4 Flash」）；弹层底部仅保留一行只读指向「设置 › AI 策略」，删掉弹层内的第二套图片/视频默认下拉（对齐 ModelSurfaces M5-brain §1.0）。"
+    },
+    "storageCompatibility": {
+      "contractFile": "electron/shared/contracts/generationModelDefaultsContract.ts",
+      "rule": "底层 byTaskKind 四键结构只读兼容：新选「图片」同时写入 text_to_image 与 image_edit（选自动则双键清空）；若老用户旧盘中两键存了不同模型，绝不静默覆盖，UI 显示「已分别指定」并提供一键统一。"
+    },
+    "dataStressLimits": {
+      "maxModelNameChars": 32,
+      "narrowComposerWidthPx": 536,
+      "narrowAgentDrawerWidthPx": 340,
+      "truncationRule": "模型名胶囊设置 max-width 单行省略，右侧画幅/时长胶囊与「生成」主按钮 flex-shrink: 0 永不裁切。"
+    }
+  },
+  "functionCensus": [
+    {
+      "surface": "设置 › AI 策略 › 新建卡片默认模型",
+      "file": "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+      "currentBehavior": "4 行（文生图/图片编辑/文生视频/图生视频），未设时显示盲盒「自动选择」。",
+      "proposedChange": "收成「图片 / 视频」2 行；未设时显示「自动 · <目录推荐模型>」，兼容老用户分设双值与停用回退警告。"
+    },
+    {
+      "surface": "创作 › 分镜表镜头行与整片画幅栏",
+      "file": "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+      "currentBehavior": "闭合胶囊只写「默认模型 ▾」，不展开该模型的比例与时长控件。",
+      "proposedChange": "闭合胶囊直接显示「自动 · <解析模型名> ▾」并按该模型档案当场渲染模式与画幅时长胶囊。"
+    },
+    {
+      "surface": "生成画布 › 节点底栏与模型挑选菜单",
+      "file": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "currentBehavior": "新卡挂载时把挑出的模型直接钉进 meta，菜单内无「自动」首行，且未优先读目录推荐声明。",
+      "proposedChange": "优先读取目录推荐声明（图片 GPT Image 2.6 Flare、视频 Seedance 2.5）+ 健康避让；菜单首行提供「自动 · <推荐模型>」右侧带 ✓。"
+    },
+    {
+      "surface": "常驻 Agent 底栏模型钮与弹层",
+      "file": "src/workbench/ai/v4/agentPanelV4ModelRows.ts",
+      "currentBehavior": "底栏未选时写「选择模型 ▾」；弹层内重复放「图片默认：自动选 / 视频默认：自动选」两行。",
+      "proposedChange": "底栏未手选时写「自动 · DeepSeek V4 Flash ▾」；弹层底部改为一行只读摘要指路回「设置 › AI 策略」。"
+    },
+    {
+      "surface": "画布拉片表（ShotTable）拆解模型栏",
+      "file": "src/workbench/generationCanvas/nodes/shotTable/deconstructLegChoice.ts",
+      "currentBehavior": "读图与转写默认项只写「自动选择」。",
+      "proposedChange": "拼接实际解析出的首个可用读图/转写模型名（如「自动 · Gemini 3.5 Flash」）。"
+    },
+    {
+      "surface": "Agent 提案卡与付费确认兜底模型行",
+      "file": "src/workbench/capability/spendCardModelLine.ts",
+      "currentBehavior": "未显式传 modelKey 时显示「按默认模型 / 默认模型」。",
+      "proposedChange": "解析并展示真实将调用的模型名「自动 · <模型名>」，绝不让用户对匿名模型确认花钱。"
+    }
+  ],
+  "appearsIn": [
+    "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "src/workbench/generationCanvas/nodes/shotTable/deconstructLegChoice.ts",
+    "src/workbench/capability/spendCardModelLine.ts"
+  ],
+  "components": [
+    {
+      "id": "sg.settings-2row-defaults",
+      "reuse": "DefaultGenerationModelsSection + NomiSelect",
+      "newComponentNeeded": false,
+      "states": ["auto-named", "pinned", "open-dropdown-right-check", "legacy-split-preserved", "unavailable-fallback-warn", "unconfigured-empty", "dark", "zh-en"]
+    },
+    {
+      "id": "sg.composer-auto-pill",
+      "reuse": "InlineParameterBar + ModelPickerPopover",
+      "newComponentNeeded": false,
+      "states": ["auto-named", "long-model-name-32chars", "storyboard-params-exposed", "dark", "zh-en", "narrow-1100x690"]
+    },
+    {
+      "id": "sg.agent-brain-and-pointer",
+      "reuse": "AgentPanelV4Composer + V4ModelPopover",
+      "newComponentNeeded": false,
+      "states": ["auto-brain-named", "policy-pointer-footer", "dark", "zh-en", "narrow-340px"]
+    }
+  ],
+  "elements": [
+    {
+      "id": "sg.settings-collapse-4to2",
+      "artboard": "sg-overview-and-states",
+      "label": "设置 › AI 策略 › 新建卡片默认模型收为「图片 / 视频」2 行，默认项写明「自动 · <推荐模型名>」，勾选 ✓ 在右侧",
+      "change": "changed",
+      "states": ["default", "open", "legacy-split", "unavailable-warn", "empty", "dark", "zh-en"]
+    },
+    {
+      "id": "sg.storyboard-named-default",
+      "artboard": "sg-overview-and-states",
+      "label": "分镜表行闭合模型钮直接显示「自动 · <模型名>」并当场展示该模型的生成方式与比例时长胶囊",
+      "change": "changed",
+      "states": ["default", "open", "long-text", "dark", "zh-en", "narrow"]
+    },
+    {
+      "id": "sg.agent-brain-named-and-pointer",
+      "artboard": "sg-overview-and-states",
+      "label": "Agent 底栏未手选时写「自动 · DeepSeek V4 Flash」，弹层页脚一行只读指路回「设置 › AI 策略」",
+      "change": "changed",
+      "states": ["default", "open", "dark", "zh-en", "narrow"]
+    }
+  ],
+  "priorDecisions": [
+    {
+      "date": "2026-08-18",
+      "source": "electron/shared/contracts/generationModelDefaultsContract.ts",
+      "decision": "双段身份 (vendorKey, modelKey) 存储，缺席代表自动选择，不把默认推荐值硬编码写进用户设置文件。",
+      "alignment": "完全保留双段身份与稀疏存储（选自动 = 删键），改目录推荐模型时老用户自动受益。"
+    },
+    {
+      "date": "2026-11-07",
+      "source": "docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json (M5-brain & M6-ai-policy)",
+      "decision": "M5 拍板 Agent 未选默认 DeepSeek V4 Flash 且弹层底部改只读指向 AI 策略；M6 当时暂保留 4 行「跟上次一样 · 模型名」。",
+      "alignment": "100% 承接 M5；针对 M6，按用户 2026-11-16 D4-17 与 2026-11-24 指示提供「4 行收 2 行（图片/视频）+ 自动 · 推荐模型名」升级拍板稿，拍板后同步更新 ModelSurfaces 清单避免门岗冲突。"
+    }
+  ]
+}

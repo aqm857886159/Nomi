@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>方向 B · 叙事四步胶片管线与 GEO 事实直答 — Nomi 官网探索原型 (exploration)</title>
+  <style>
+    :root,
+    html[data-theme="light"] {
+      --nomi-bg: oklch(0.985 0.003 90);
+      --nomi-paper: oklch(1 0 0);
+      --nomi-chrome: oklch(0.97 0.003 80);
+      --nomi-ink: oklch(0.22 0.01 80);
+      --nomi-ink-80: oklch(0.32 0.01 80);
+      --nomi-ink-60: oklch(0.50 0.01 80);
+      --nomi-ink-40: oklch(0.68 0.01 80);
+      --nomi-ink-20: oklch(0.88 0.005 80);
+      --nomi-ink-10: oklch(0.94 0.003 80);
+      --nomi-ink-05: oklch(0.97 0.003 80);
+      --nomi-line: oklch(0.91 0.004 80);
+      --nomi-line-soft: oklch(0.95 0.003 80);
+      --nomi-accent: oklch(0.55 0.13 250);
+      --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+      --nomi-info-ink: oklch(0.45 0.13 250);
+      --nomi-info-soft: oklch(0.957 0.021 250);
+      --nomi-success-ink: oklch(0.45 0.09 145);
+      --nomi-success-soft: oklch(0.962 0.033 145);
+      --nomi-success-edge: oklch(0.905 0.07 145);
+      --nomi-warning-ink: oklch(0.45 0.085 72);
+      --nomi-warning-soft: oklch(0.968 0.024 72);
+      --nomi-warning-edge: oklch(0.905 0.07 72);
+      --nomi-logo-ground: oklch(0.22 0.01 80);
+      --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+      --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+      --nomi-shadow-lg: 0 4px 12px oklch(0 0 0 / 0.05), 0 24px 56px oklch(0 0 0 / 0.09);
+      --nomi-radius-sm: 6px;
+      --nomi-radius: 10px;
+      --nomi-radius-lg: 16px;
+      --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+      --nomi-font-display: "Fraunces Variable", Fraunces, Georgia, serif;
+      --nomi-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      color-scheme: light;
+    }
+
+    html[data-theme="dark"] {
+      --nomi-bg: oklch(0.18 0.006 80);
+      --nomi-paper: oklch(0.235 0.007 80);
+      --nomi-chrome: oklch(0.155 0.006 80);
+      --nomi-ink: oklch(0.93 0.006 85);
+      --nomi-ink-80: oklch(0.84 0.006 85);
+      --nomi-ink-60: oklch(0.70 0.006 85);
+      --nomi-ink-40: oklch(0.62 0.006 85);
+      --nomi-ink-20: oklch(0.42 0.006 85);
+      --nomi-ink-10: oklch(0.34 0.006 85);
+      --nomi-ink-05: oklch(0.30 0.006 85);
+      --nomi-line: oklch(0.36 0.007 80);
+      --nomi-line-soft: oklch(0.31 0.007 80);
+      --nomi-accent: oklch(0.70 0.13 250);
+      --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+      --nomi-info-ink: oklch(0.82 0.13 250);
+      --nomi-info-soft: oklch(0.295 0.045 250);
+      --nomi-success-ink: oklch(0.82 0.09 145);
+      --nomi-success-soft: oklch(0.295 0.042 145);
+      --nomi-success-edge: oklch(0.395 0.06 145);
+      --nomi-warning-ink: oklch(0.82 0.085 72);
+      --nomi-warning-soft: oklch(0.295 0.04 72);
+      --nomi-warning-edge: oklch(0.395 0.058 72);
+      --nomi-logo-ground: oklch(0.30 0.01 80);
+      --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+      --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+      --nomi-shadow-lg: 0 4px 12px oklch(0 0 0 / 0.35), 0 28px 64px oklch(0 0 0 / 0.45);
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--nomi-bg); color: var(--nomi-ink); font-family: var(--nomi-font-sans); font-size: 14px; line-height: 1.65; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    button { font-family: inherit; cursor: pointer; }
+    .wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding-inline: 24px; }
+    @media (max-width: 640px) { .wrap { padding-inline: 16px; } }
+
+    .proto-banner { background: var(--nomi-chrome); border-bottom: 1px solid var(--nomi-line); padding: 6px 16px; font-size: 12px; color: var(--nomi-ink-60); display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; text-align: center; }
+    .badge-info { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--nomi-info-soft); color: var(--nomi-info-ink); font-size: 11px; font-weight: 600; }
+
+    .site-header { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--nomi-bg) 90%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--nomi-line); }
+    .nav { height: 56px; display: flex; align-items: center; gap: 24px; }
+    .brand { display: inline-flex; align-items: center; gap: 8px; }
+    .wordmark { font-family: var(--nomi-font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+    .wordmark .accent { color: var(--nomi-accent); }
+    .nav-links { display: flex; gap: 20px; font-size: 13px; color: var(--nomi-ink-60); }
+    .nav-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .btn-sm { height: 32px; padding: 0 12px; border-radius: var(--nomi-radius-sm); border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; }
+    .btn-sm.primary { background: var(--nomi-ink); color: var(--nomi-bg); border-color: transparent; }
+    @media (max-width: 820px) { .nav-links { display: none; } }
+
+    /* GEO-Friendly Factual Entity Summary Block at Top */
+    .geo-summary { margin-top: 20px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-left: 3px solid var(--nomi-accent); border-radius: var(--nomi-radius); padding: 14px 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 24px; align-items: center; box-shadow: var(--nomi-shadow-sm); }
+    @media (max-width: 760px) { .geo-summary { grid-template-columns: 1fr; } }
+    .geo-summary p { margin: 0; font-size: 13px; color: var(--nomi-ink-80); max-width: 56em; line-height: 1.6; }
+    .geo-summary strong { color: var(--nomi-ink); }
+    .geo-kv { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; font-family: var(--nomi-font-mono); color: var(--nomi-ink-60); }
+    .geo-kv span { padding: 3px 8px; border-radius: var(--nomi-radius-sm); background: var(--nomi-ink-05); border: 1px solid var(--nomi-line-soft); }
+
+    /* Story-Driven 4-Step Filmstrip Hero */
+    .pipeline-hero { padding-block: 36px 48px; }
+    .hero-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; align-items: end; margin-bottom: 28px; }
+    @media (max-width: 860px) { .hero-head { grid-template-columns: 1fr; } }
+    .hero-head h1 { margin: 8px 0 0; font-size: clamp(28px, 3.8vw, 44px); line-height: 1.18; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+    .hero-head h1 em { font-style: normal; color: var(--nomi-accent); display: inline-block; }
+    .hero-side { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+    .hero-side p { margin: 0; font-size: 15px; color: var(--nomi-ink-80); max-width: 36em; }
+    .cta-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .cta-btn { height: 40px; padding: 0 18px; border-radius: var(--nomi-radius); font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+    .cta-btn.primary { background: var(--nomi-ink); color: var(--nomi-bg); }
+    .cta-btn.outline { background: var(--nomi-paper); border: 1px solid var(--nomi-line); color: var(--nomi-ink); }
+
+    /* Side-by-Side Interactive 4-Step Switcher */
+    .filmstrip-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: stretch; }
+    @media (max-width: 920px) { .filmstrip-grid { grid-template-columns: 1fr; } }
+    .step-list { display: flex; flex-direction: column; gap: 8px; }
+    .step-card { width: 100%; text-align: left; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); padding: 14px 16px; display: grid; gap: 4px; transition: border-color 140ms; }
+    .step-card:hover { border-color: var(--nomi-ink-40); }
+    .step-card[aria-selected="true"] { border-color: var(--nomi-accent); background: var(--nomi-accent-soft); box-shadow: var(--nomi-shadow-sm); }
+    .step-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .step-num { font-family: var(--nomi-font-mono); font-size: 12px; font-weight: 700; color: var(--nomi-accent); }
+    .step-check { font-size: 13px; font-weight: 700; color: var(--nomi-accent); visibility: hidden; }
+    .step-card[aria-selected="true"] .step-check { visibility: visible; }
+    .step-card h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--nomi-ink); }
+    .step-card p { margin: 0; font-size: 13px; color: var(--nomi-ink-80); line-height: 1.55; max-width: 36em; }
+
+    .filmstrip-stage { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-lg); padding: 16px; box-shadow: var(--nomi-shadow-lg); display: flex; flex-direction: column; gap: 12px; }
+    .stage-top-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--nomi-ink-60); }
+    .stage-screen { border-radius: var(--nomi-radius); overflow: hidden; border: 1px solid var(--nomi-line); aspect-ratio: 16 / 9; background: #141311; }
+    .stage-screen img { width: 100%; height: 100%; object-fit: cover; }
+    .stage-io-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    @media (max-width: 560px) { .stage-io-bar { grid-template-columns: 1fr; } }
+    .io-cell { padding: 10px 12px; border-radius: var(--nomi-radius-sm); background: var(--nomi-ink-05); border: 1px solid var(--nomi-line-soft); }
+    .io-cell small { display: block; font-size: 11px; color: var(--nomi-ink-60); }
+    .io-cell strong { display: block; font-size: 12px; color: var(--nomi-ink); margin-top: 2px; }
+
+    /* Transparent BYOK & Sample Workflow Estimator */
+    .section { padding-block: 48px; border-top: 1px solid var(--nomi-line-soft); }
+    .calc-box { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-lg); padding: 28px; display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: 32px; align-items: center; }
+    @media (max-width: 860px) { .calc-box { grid-template-columns: 1fr; padding: 20px; gap: 20px; } }
+    .calc-controls { display: grid; gap: 16px; }
+    .seg-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .seg-btn { height: 34px; padding: 0 14px; border-radius: var(--nomi-radius-sm); border: 1px solid var(--nomi-line); background: var(--nomi-ink-05); color: var(--nomi-ink-80); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .seg-btn[aria-pressed="true"] { background: var(--nomi-accent-soft); border-color: var(--nomi-accent); color: var(--nomi-ink); }
+    .bar-compare { display: grid; gap: 14px; }
+    .bar-track { height: 14px; border-radius: 999px; background: var(--nomi-ink-10); overflow: hidden; margin-top: 6px; }
+    .bar-fill { height: 100%; border-radius: 999px; transition: width 180ms ease; }
+    .bar-fill.saas { background: var(--nomi-ink-60); width: 100%; }
+    .bar-fill.nomi { background: var(--nomi-accent); width: 24%; }
+    .calc-honest-note { margin: 0; padding: 10px 12px; border-radius: var(--nomi-radius-sm); background: var(--nomi-warning-soft); border: 1px solid var(--nomi-warning-edge); color: var(--nomi-warning-ink); font-size: 12px; line-height: 1.55; }
+
+    /* Recipes & Evergreen Community */
+    .recipes-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+    @media (max-width: 820px) { .recipes-grid { grid-template-columns: 1fr; } }
+    .recipe-card { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); padding: 18px; display: grid; gap: 8px; }
+    .recipe-card h3 { margin: 0; font-size: 15px; font-weight: 700; }
+    .recipe-card p { margin: 0; font-size: 13px; color: var(--nomi-ink-80); max-width: 36em; }
+    .comm-strip { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-lg); padding: 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .site-footer { padding-block: 24px 36px; font-size: 12px; color: var(--nomi-ink-60); border-top: 1px solid var(--nomi-line-soft); }
+  </style>
+</head>
+<body>
+  <div class="proto-banner">
+    <span class="badge-info">exploration · 方向 B 演示原型</span>
+    <span>顶部 GEO 实体事实摘要卡 + 四步胶片制作流切换 + BYOK 样片试拍省废片对比器</span>
+  </div>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="#top" aria-label="Nomi">
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)" />
+          <rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
+          <rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
+          <polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white" />
+        </svg>
+        <span class="wordmark">No<span class="accent">m</span>i</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#pipeline">四步管线</a>
+        <a href="#cost">原价直连机制</a>
+        <a href="#recipes">热门配方</a>
+        <a href="#community">社区</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="btn-sm" type="button" id="theme-toggle">◐ 明/暗</button>
+        <a class="btn-sm primary" href="#pipeline">下载 Nomi</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="wrap">
+      <!-- GEO Entity Clarity Factual Block -->
+      <aside class="geo-summary" aria-label="产品核心事实摘要">
+        <p>
+          <strong>Nomi 是什么：</strong>一款开源（AGPL-3.0）、本地优先的 AI 视频创作桌面工作台（支持 macOS 12+ 与 Windows 10/11），将<strong>故事文稿 → 锁脸分镜表 → 节点画布 → 多轨时间轴导出 MP4</strong> 收敛进本地文件夹，支持用户自带 APIMart / Kie.ai / 火山方舟 API Key 按上游原价调用 Seedance 2.5、Seedream 5.5、Kling 4.0 Flash、MiniMax H3 Max 或连接本地 ComfyUI。
+        </p>
+        <div class="geo-kv">
+          <span>版本 v0.24.1</span>
+          <span>24 MCP 工具</span>
+          <span>更新 2026-11-24</span>
+        </div>
+      </aside>
+    </div>
+
+    <section class="pipeline-hero" id="pipeline">
+      <div class="wrap">
+        <div class="hero-head">
+          <div>
+            <span class="badge-info">从抽卡到导演制片</span>
+            <h1>一句话脚本进去，<em>排好时间轴的成片出来。</em></h1>
+          </div>
+          <div class="hero-side">
+            <p>不再把提示词、参考图和废片散落在十几个标签页，每步产物都在本地画布随时可改。</p>
+            <div class="cta-group">
+              <a class="cta-btn primary" href="#community">下载桌面安装包</a>
+              <a class="cta-btn outline" href="https://github.com/aqm857886159/Nomi">GitHub 源码 ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="filmstrip-grid">
+          <div class="step-list" role="tablist" aria-label="创作四步流程">
+            <button class="step-card" role="tab" type="button" data-step="0" aria-selected="true">
+              <div class="step-top"><span class="step-num">STEP 01 · 一句话脚本</span><span class="step-check">✓</span></div>
+              <h3>对常驻 Agent 说清想拍什么</h3>
+              <p>用自然语言描述故事、景别与总时长；默认「自动改」档直接帮你拆好分镜，花钱生成前必停下等你拍板。</p>
+            </button>
+            <button class="step-card" role="tab" type="button" data-step="1" aria-selected="false">
+              <div class="step-top"><span class="step-num">STEP 02 · 分镜表锁脸</span><span class="step-check">✓</span></div>
+              <h3>锁定角色与场景参考卡，跨镜头不串脸</h3>
+              <p>一镜一行核对提示词与首帧。绑定同一张角色三视图后，特写、中景、远景自动携带身份参考。</p>
+            </button>
+            <button class="step-card" role="tab" type="button" data-step="2" aria-selected="false">
+              <div class="step-top"><span class="step-num">STEP 03 · 节点画布试拍</span><span class="step-check">✓</span></div>
+              <h3>先跑 480p 样片定构图，满意再升 1080p</h3>
+              <p>在画布上连线 3D 导演台取景或 Seedream 5.5 分解图层，Seedance 2.5 / Kling 4.0 Flash 同镜多版并排挑片。</p>
+            </button>
+            <button class="step-card" role="tab" type="button" data-step="3" aria-selected="false">
+              <div class="step-top"><span class="step-num">STEP 04 · 时间轴成片</span><span class="step-check">✓</span></div>
+              <h3>排轨、配字幕与背景乐，本地直出 MP4</h3>
+              <p>选中的镜头版本一键落入底部时间轴，原片与工程全在本地硬盘目录，不依赖任何云端导出队列。</p>
+            </button>
+          </div>
+
+          <div class="filmstrip-stage">
+            <div class="stage-top-meta">
+              <strong id="p-stage-label" style="color:var(--nomi-ink);">当前演示：STEP 01 · Agent 将一句话拆成画布四镜头</strong>
+              <span class="badge-info">演示原型 · 真实界面截图</span>
+            </div>
+            <div class="stage-screen">
+              <img id="p-stage-img" src="./assets/still-agent.jpg" alt="Nomi 常驻 Agent 将一句话拆解为画布上的四张关键帧卡片" />
+            </div>
+            <div class="stage-io-bar">
+              <div class="io-cell"><small>本步输入</small><strong id="p-in">一句自然语言故事梗概</strong></div>
+              <div class="io-cell"><small>核心控制点</small><strong id="p-ctrl">三档自主度 · 花钱前必确认</strong></div>
+              <div class="io-cell"><small>落盘产物</small><strong id="p-out">4 张带提示词的画布首帧卡</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="cost">
+      <div class="wrap">
+        <div class="calc-box">
+          <div class="calc-controls">
+            <div>
+              <span class="badge-info">为什么省下大笔冤枉钱</span>
+              <h2 style="margin:8px 0 0; font-size:26px; font-weight:800; line-height:1.25;">自带 API Key 按原价付，再用样片模式砍掉废片。</h2>
+            </div>
+            <div>
+              <div style="font-size:12px; font-weight:600; color:var(--nomi-ink-60); margin-bottom:6px;">选择你要拍的短片规模：</div>
+              <div class="seg-group" role="group" aria-label="短片镜头数">
+                <button class="seg-btn" type="button" data-shots="4" aria-pressed="false">4 镜广告短片</button>
+                <button class="seg-btn" type="button" data-shots="12" aria-pressed="true">12 镜剧情漫剧 ✓</button>
+                <button class="seg-btn" type="button" data-shots="30" aria-pressed="false">30 镜连续短剧</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px; font-weight:600; color:var(--nomi-ink-60); margin-bottom:6px;">试拍策略（Seedance 2.5 / Kling 4.0 Flash）：</div>
+              <div class="seg-group">
+                <button class="seg-btn" type="button" id="toggle-draft" aria-pressed="true">启用 480p 样片试拍，挑中再升 1080p ✓</button>
+              </div>
+            </div>
+            <p class="calc-honest-note">
+              示意说明（非具体报价）：上游各家模型单价实时变动，Nomi 不代理计费、不赚取差价。当你通过 APIMart、火山方舟或本地 ComfyUI 直连时，不仅省去闭源 SaaS 多倍积分溢价，还能用「角色卡锁脸 + 480p 样片定动作」避免盲目跑高清废片。
+            </p>
+          </div>
+
+          <div class="bar-compare">
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600;">
+                <span>传统闭源网页（含会员溢价 + 全程直跑高清抽卡）</span>
+                <span id="saas-shots-note" style="color:var(--nomi-ink-60);">12 镜 × 约 4 次高清盲抽 = 48 次高价消耗</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill saas"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600;">
+                <span>Nomi 工作流（供应商原价直连 + 样片锁构图 + 角色卡锁脸）</span>
+                <span id="nomi-shots-note" style="color:var(--nomi-accent);">36 次低耗样片试拍 + 仅 12 次 1080p 正片</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill nomi" id="nomi-bar"></div></div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:6px;">
+              <div class="io-cell"><small>支持的直连通道</small><strong>APIMart · Kie.ai · 火山方舟 · 即梦 · 本地 ComfyUI</strong></div>
+              <div class="io-cell"><small>Agent 自身开销</small><strong>复用你自选的对话模型（含免费与编程订阅）</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="recipes">
+      <div class="wrap">
+        <span class="badge-info">开箱即用的实战配方</span>
+        <h2 style="margin:8px 0 0; font-size:26px; font-weight:800;">把爆款技能、运镜提示词与最新模型装进一页。</h2>
+        <div class="recipes-grid">
+          <article class="recipe-card">
+            <span class="step-num">配方 01 · Seedance 2.5</span>
+            <h3>30 秒时间戳一镜多切叙事</h3>
+            <p>按 `[0-5s] 全景` → `[5-15s] 中景跟拍` → `[15-30s] 特写` 组织单条提示词，配合角色参考卡一次出连贯段落。</p>
+          </article>
+          <article class="recipe-card">
+            <span class="step-num">配方 02 · Seedream 5.5</span>
+            <h3>单图拆成可独立改字的透明图层</h3>
+            <p>把合成海报分解为干净底图与最多 99 层 RGBA 元素，单独拖出一层交给视频节点做局部动态。</p>
+          </article>
+          <article class="recipe-card">
+            <span class="step-num">配方 03 · 3D 导演台</span>
+            <h3>双人对峙正反打机位预演</h3>
+            <p>在 3D 舞台摆好两人站位，用手机扫两个角度出首帧，彻底解决文字提示词左右朝向颠倒。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="community">
+      <div class="wrap">
+        <div class="comm-strip">
+          <div style="max-width:40em;">
+            <h2 style="margin:0; font-size:22px; font-weight:800;">常青社区与开源协作</h2>
+            <p style="margin:6px 0 0; font-size:13px; color:var(--nomi-ink-80);">微信群二维码每 7 天过期，不再挂静态过期码。添加维护者微信 <strong>TZ857886159</strong>（备注「Nomi」）拉你进最新用户群，或直接在 GitHub Discussions / Issues 交流。</p>
+            <div class="cta-group" style="margin-top:12px;">
+              <a class="btn-sm" href="https://github.com/aqm857886159/Nomi/discussions">Discussions ↗</a>
+              <a class="btn-sm" href="https://github.com/aqm857886159/Nomi/issues">Issues ↗</a>
+              <a class="btn-sm" href="https://github.com/aqm857886159/Nomi/releases">Releases ↗</a>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <img src="./assets/qingyang-wechat.jpg" alt="Nomi 维护者微信二维码" width="84" height="107" style="border-radius:6px; border:1px solid var(--nomi-line); background:#fff; padding:4px;" />
+            <div style="font-size:12px; color:var(--nomi-ink-80);"><strong>微信：TZ857886159</strong><br />扫码长期有效</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <span>Nomi · AGPL-3.0 开源本地优先 AI 视频工作台</span>
+      <span>方向 B 原型（exploration） · 叙事四步管线 + GEO 实体直答</span>
+    </div>
+  </footer>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const t = params.get('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+    });
+
+    const STEPS = [
+      { label: '当前演示：STEP 01 · Agent 将一句话拆成画布四镜头', img: './assets/still-agent.jpg', alt: 'Agent 拆解出四张关键帧', input: '一句自然语言故事梗概', ctrl: '三档自主度 · 花钱前必确认', out: '4 张带提示词的画布首帧卡' },
+      { label: '当前演示：STEP 02 · 分镜表绑定角色参考卡锁脸', img: './assets/still-storyboard.jpg', alt: '分镜表锁定角色参考卡', input: '角色参考图 + 4 行分镜描述', ctrl: '跨镜头共享同一身份锚点', out: '人物一致的多景别关键帧' },
+      { label: '当前演示：STEP 03 · 画布节点切换模型与 3D 机位试拍', img: './assets/still-director.jpg', alt: '3D 导演台与手机取景器', input: '关键帧 + 手机取景构图', ctrl: '480p 样片试拍 → 升 1080p', out: '带原生音效的多版本视频段' },
+      { label: '当前演示：STEP 04 · 时间轴排片与本地导出 MP4', img: './assets/still-model.jpg', alt: '时间轴成片预览', input: '挑中的最佳镜头版本', ctrl: '多轨剪辑 · 字幕与配乐对齐', out: '本地硬盘 exports/成片.mp4' },
+    ];
+    document.querySelectorAll('[data-step]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.getAttribute('data-step'));
+        const item = STEPS[idx];
+        document.getElementById('p-stage-label').textContent = item.label;
+        const img = document.getElementById('p-stage-img');
+        img.src = item.img;
+        img.alt = item.alt;
+        document.getElementById('p-in').textContent = item.input;
+        document.getElementById('p-ctrl').textContent = item.ctrl;
+        document.getElementById('p-out').textContent = item.out;
+        document.querySelectorAll('[data-step]').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+      });
+    });
+
+    let shots = 12;
+    let draftOn = true;
+    function renderCalc() {
+      document.getElementById('saas-shots-note').textContent = `${shots} 镜 × 约 4 次高清盲抽 = ${shots * 4} 次高价消耗`;
+      document.getElementById('nomi-shots-note').textContent = draftOn
+        ? `${shots * 3} 次低耗样片试拍 + 仅 ${shots} 次 1080p 正片`
+        : `${shots * 2} 次角色锁脸原价直出（省去平台会员溢价）`;
+      document.getElementById('nomi-bar').style.width = draftOn ? '24%' : '38%';
+    }
+    document.querySelectorAll('[data-shots]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        shots = Number(btn.getAttribute('data-shots'));
+        document.querySelectorAll('[data-shots]').forEach((b) => {
+          const active = b === btn;
+          b.setAttribute('aria-pressed', String(active));
+          const base = `${b.getAttribute('data-shots')} 镜${b.getAttribute('data-shots') === '4' ? '广告短片' : b.getAttribute('data-shots') === '12' ? '剧情漫剧' : '连续短剧'}`;
+          b.textContent = active ? `${base} ✓` : base;
+        });
+        renderCalc();
+      });
+    });
+    const draftBtn = document.getElementById('toggle-draft');
+    draftBtn.addEventListener('click', () => {
+      draftOn = !draftOn;
+      draftBtn.setAttribute('aria-pressed', String(draftOn));
+      draftBtn.textContent = draftOn ? '启用 480p 样片试拍，挑中再升 1080p ✓' : '启用 480p 样片试拍，挑中再升 1080p';
+      renderCalc();
+    });
+  </script>
+</body>
+</html>

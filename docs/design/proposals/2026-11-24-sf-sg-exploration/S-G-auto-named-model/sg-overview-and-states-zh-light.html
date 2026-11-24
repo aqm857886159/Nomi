@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mark="exploration">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<title>EXPLORATION · S-G（D4-17）「自动」写明模型真名 + 默认模型 4 行收 2 行 · 1440×900 Light</title>
+<style>
+  :root {
+    --nomi-paper: oklch(0.985 0.002 85);
+    --nomi-surface: oklch(0.962 0.003 85);
+    --nomi-panel: oklch(0.993 0.0015 85);
+    --nomi-elevated: oklch(1 0 0);
+    --nomi-ink: oklch(0.2 0.01 260);
+    --nomi-ink-60: oklch(0.45 0.01 260);
+    --nomi-ink-40: oklch(0.62 0.008 260);
+    --nomi-line: oklch(0.905 0.004 85);
+    --nomi-line-soft: oklch(0.94 0.003 85);
+    --nomi-accent: oklch(0.54 0.145 248);
+    --nomi-accent-soft: oklch(0.94 0.025 248);
+    --nomi-accent-edge: oklch(0.84 0.065 248);
+    --nomi-accent-ink: oklch(0.38 0.12 248);
+    --nomi-success-soft: oklch(0.95 0.03 155);
+    --nomi-success-edge: oklch(0.84 0.075 155);
+    --nomi-success-ink: oklch(0.37 0.11 155);
+    --nomi-warning-soft: oklch(0.955 0.035 80);
+    --nomi-warning-edge: oklch(0.855 0.085 80);
+    --nomi-warning-ink: oklch(0.43 0.115 72);
+    --nomi-info-soft: oklch(0.945 0.025 240);
+    --nomi-info-edge: oklch(0.845 0.065 240);
+    --nomi-info-ink: oklch(0.39 0.11 240);
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-pill: 999px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Inter", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1440px;
+    height: 900px;
+    overflow: hidden;
+    background: var(--nomi-paper);
+    color: var(--nomi-ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+  .q { white-space: nowrap; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
+  .board { display: grid; grid-template-rows: 46px 1fr; width: 1440px; height: 900px; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; background: var(--nomi-panel); border-bottom: 1px solid var(--nomi-line); gap: 12px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .exp-badge {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-pill);
+    background: var(--nomi-warning-soft); border: 1px solid var(--nomi-warning-edge); color: var(--nomi-warning-ink);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.03em; flex-shrink: 0;
+  }
+  .board-title { font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .board-sub { font-size: 12px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta-pill {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-sm);
+    background: var(--nomi-surface); border: 1px solid var(--nomi-line); color: var(--nomi-ink-60); font-size: 11px; flex-shrink: 0;
+  }
+  .cols { display: grid; grid-template-columns: 416px 504px 1fr; gap: 14px; padding: 13px 16px; height: 854px; }
+  .col { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+  .panel {
+    background: var(--nomi-panel); border: 1px solid var(--nomi-line); border-radius: var(--r-lg);
+    padding: 11px 13px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  }
+  .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .sec-title { font-size: 13px; font-weight: 600; color: var(--nomi-ink); }
+  .sec-tag {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: var(--r-pill);
+    font-size: 11px; font-weight: 500; border: 1px solid var(--nomi-line); background: var(--nomi-surface); color: var(--nomi-ink-60); white-space: nowrap; flex-shrink: 0;
+  }
+  .sec-tag.rec { background: var(--nomi-accent-soft); border-color: var(--nomi-accent-edge); color: var(--nomi-accent-ink); }
+  .sec-tag.ok { background: var(--nomi-success-soft); border-color: var(--nomi-success-edge); color: var(--nomi-success-ink); }
+  .sec-tag.warn { background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); color: var(--nomi-warning-ink); }
+  .opt-card {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); padding: 8px 10px;
+    background: var(--nomi-surface); display: flex; flex-direction: column; gap: 4px;
+  }
+  .opt-card.active {
+    background: var(--nomi-elevated); border-color: var(--nomi-accent-edge); box-shadow: 0 0 0 1px var(--nomi-accent-soft);
+  }
+  .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .opt-name { font-size: 12px; font-weight: 600; color: var(--nomi-ink); }
+  .check-right { font-size: 14px; font-weight: 700; color: var(--nomi-accent); flex-shrink: 0; line-height: 1; }
+  .opt-desc { font-size: 11px; color: var(--nomi-ink-60); }
+  .census-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .census-table th {
+    text-align: left; font-weight: 600; color: var(--nomi-ink-60); padding: 4px 5px;
+    border-bottom: 1px solid var(--nomi-line); font-size: 11px;
+  }
+  .census-table td { padding: 4px 5px; border-bottom: 1px solid var(--nomi-line-soft); vertical-align: top; }
+  .census-table tr:last-child td { border-bottom: none; }
+  .old-txt { color: var(--nomi-ink-40); text-decoration: line-through; }
+  .new-txt { color: var(--nomi-accent-ink); font-weight: 600; }
+  /* Settings 2-row UI + Dropdown */
+  .settings-box {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 11px 12px; display: flex; flex-direction: column; gap: 9px;
+  }
+  .form-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0;
+  }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--nomi-ink); width: 52px; flex-shrink: 0; }
+  .select-btn {
+    flex: 1; min-width: 0; height: 30px; padding: 0 10px; border-radius: var(--r-sm);
+    border: 1px solid var(--nomi-line); background: var(--nomi-surface);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--nomi-ink);
+  }
+  .select-btn.open { border-color: var(--nomi-accent-edge); background: var(--nomi-elevated); }
+  .trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .menu-pop {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 5px; display: flex; flex-direction: column; gap: 2px;
+    box-shadow: 0 8px 22px rgba(15, 18, 28, 0.08);
+  }
+  .menu-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 8px; border-radius: var(--r-sm); min-width: 0;
+  }
+  .menu-item.selected { background: var(--nomi-accent-soft); }
+  .menu-left { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .menu-title { font-size: 12px; font-weight: 500; color: var(--nomi-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-item.selected .menu-title { font-weight: 600; color: var(--nomi-accent-ink); }
+  .menu-sub { font-size: 11px; color: var(--nomi-ink-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-sep { height: 1px; background: var(--nomi-line-soft); margin: 3px 4px; }
+  /* Legacy compatibility cards */
+  .compat-card {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-surface);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 5px;
+  }
+  .compat-card.warn {
+    background: var(--nomi-warning-soft); border-color: var(--nomi-warning-edge); color: var(--nomi-warning-ink);
+  }
+  /* Composer bars */
+  .composer-mock {
+    border: 1px solid var(--nomi-line); border-radius: var(--r-md); background: var(--nomi-elevated);
+    padding: 9px 10px; display: flex; flex-direction: column; gap: 7px;
+  }
+  .bar-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+  .pills-left { display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px;
+    border-radius: var(--r-pill); border: 1px solid var(--nomi-line); background: var(--nomi-surface);
+    font-size: 12px; color: var(--nomi-ink); min-width: 0;
+  }
+  .chip.model-max { max-width: 220px; }
+  .chip-fixed { flex-shrink: 0; white-space: nowrap; }
+  .gen-btn {
+    height: 26px; padding: 0 11px; border-radius: var(--r-pill); background: var(--nomi-ink);
+    color: var(--nomi-paper); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap;
+  }
+  .pointer-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 8px; border-radius: var(--r-sm); background: var(--nomi-info-soft);
+    border: 1px solid var(--nomi-info-edge); color: var(--nomi-info-ink); font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="exp-badge">EXPLORATION</span>
+      <span class="board-title">S-G（D4-17）「自动」写明是哪个模型 + 默认模型 4 行收 2 行</span>
+      <span class="board-sub">消灭「自动选择 / 默认模型 / 选择模型」盲盒文案：一处设图片与视频两个默认，处处写明当前实际跑哪个模型</span>
+    </div>
+    <span class="meta-pill">1440×900 · zh-CN · Light · 4 档字号 (11/12/13/14px)</span>
+  </header>
+
+  <main class="cols">
+    <!-- COLUMN 1: Census + Option Comparison + ModelSurfaces Alignment -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">① 方案对比：4 行还是 2 行？盲「自动」怎么改？</span>
+          <span class="sec-tag rec">推荐方案 G1</span>
+        </div>
+
+        <div class="opt-card active">
+          <div class="opt-row">
+            <span class="opt-name">方案 G1 · 默认收成「图片 / 视频」2 行 + 全站写「自动 · 模型名」</span>
+            <span class="check-right" aria-label="已选">✓</span>
+          </div>
+          <div class="opt-desc">目录底层本来就只分 image 与 video 两池；现代模型（GPT Image 2.6 Flare、Seedance 2.5）挂图即自动切改图/首帧模式。收成 2 行少一半配置，全站统一写明真名。</div>
+        </div>
+
+        <div class="opt-card">
+          <div class="opt-row">
+            <span class="opt-name">方案 G2 · 维持设置页 4 行（文生图/改图/文生视频/图生视频）</span>
+            <span class="sec-tag">不选</span>
+          </div>
+          <div class="opt-desc">逼创作者给同一个多模态模型设两遍，且与常驻 Agent 早已只有「图片 / 视频」两槽分裂。</div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">② 全仓 7 处盲「自动 / 默认」收口普查表</span>
+          <span class="sec-tag">同一件事一个名字</span>
+        </div>
+        <table class="census-table">
+          <thead>
+            <tr>
+              <th>界面位置</th>
+              <th>现状盲盒词</th>
+              <th>收口后（写明真名）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>设置 › AI 策略（4→2 行）</td>
+              <td class="old-txt">自动选择（×4）</td>
+              <td class="new-txt">自动 · GPT Image 2.6 Flare</td>
+            </tr>
+            <tr>
+              <td>创作 › 分镜行底栏</td>
+              <td class="old-txt">默认模型 ▾（藏参数）</td>
+              <td class="new-txt">自动 · Seedance 2.5 ▾ + 画幅</td>
+            </tr>
+            <tr>
+              <td>画布 › 图片/视频卡菜单</td>
+              <td class="old-txt">出生钉死无「自动」项</td>
+              <td class="new-txt">首行：自动 · 推荐模型 ✓</td>
+            </tr>
+            <tr>
+              <td>常驻 Agent 底栏模型钮</td>
+              <td class="old-txt">选择模型 ▾</td>
+              <td class="new-txt">自动 · DeepSeek V4 Flash ▾</td>
+            </tr>
+            <tr>
+              <td>Agent 弹层生成默认区</td>
+              <td class="old-txt">自动选（第二套下拉）</td>
+              <td class="new-txt">只读指路 › 设置 › AI 策略</td>
+            </tr>
+            <tr>
+              <td>画布 › 拉片表读图/转写</td>
+              <td class="old-txt">自动选择 ▾</td>
+              <td class="new-txt">自动 · Gemini 3.5 Flash ▾</td>
+            </tr>
+            <tr>
+              <td>提案卡 / 付费确认卡</td>
+              <td class="old-txt">按默认模型 / 默认模型</td>
+              <td class="new-txt">自动 · Seedance 2.5（真名）</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="opt-desc" style="margin-top: auto; padding-top: 4px; border-top: 1px solid var(--nomi-line-soft);">
+          <strong>范围边界：</strong>接入向导高级项 <span class="q">「自动识别协议」</span> 探测的是 OpenAI / Anthropic 接口格式，不是选模型，保持原义不动。与 <span class="mono">ModelSurfaces M5/M6</span> 关系：继承 M5 对话默认与底部指路，将 M6 的 4 行升级收窄为 2 行。
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2: Settings -> AI Policy (4->2 rows + Open Menu + Legacy 4-Row Non-Destructive States) -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">③ 设置 › AI 策略 › 新建卡片默认模型（4 行收 2 行）</span>
+          <span class="sec-tag ok">右侧勾选 ✓</span>
+        </div>
+        <div class="opt-desc">不选具体型号时默认走目录推荐模型（图片推荐 GPT Image 2.6 Flare，视频推荐 Seedance 2.5），并在按钮上直接写出名字。</div>
+
+        <div class="settings-box">
+          <div class="form-row">
+            <span class="form-label">图片</span>
+            <div class="select-btn open">
+              <span class="trunc"><strong>自动 · GPT Image 2.6 Flare</strong></span>
+              <span style="font-size: 11px; color: var(--nomi-ink-60); flex-shrink: 0;">▴</span>
+            </div>
+          </div>
+
+          <!-- Open Dropdown Menu showing Auto vs Manual Pin + 28+ char model name -->
+          <div class="menu-pop" role="listbox" aria-label="图片默认模型">
+            <div class="menu-item selected" role="option" aria-selected="true">
+              <div class="menu-left">
+                <span class="menu-title">自动 · GPT Image 2.6 Flare</span>
+                <span class="menu-sub">目录当前推荐 · 若通道连败会自动避让可用模型</span>
+              </div>
+              <span class="check-right">✓</span>
+            </div>
+            <div class="menu-sep"></div>
+            <div class="menu-item" role="option" aria-selected="false">
+              <div class="menu-left">
+                <span class="menu-title">GPT Image 2.6 Flare · APIMart</span>
+                <span class="menu-sub">手动固定为此模型（文生图与改图共用）</span>
+              </div>
+            </div>
+            <div class="menu-item" role="option" aria-selected="false">
+              <div class="menu-left">
+                <span class="menu-title">Seedream 5.5 · APIMart</span>
+              </div>
+            </div>
+            <div class="menu-item" role="option" aria-selected="false">
+              <div class="menu-left">
+                <span class="menu-title">Doubao Seedream 5.0 Pro Preview · APIMart</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 2px;">
+            <span class="form-label">视频</span>
+            <div class="select-btn">
+              <span class="trunc">Seedance 2.5 · APIMart <span style="color: var(--nomi-ink-60);">（手动固定）</span></span>
+              <span style="font-size: 11px; color: var(--nomi-ink-60); flex-shrink: 0;">▾</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">④ 老用户 4 行旧配置兼容态 & 异常边界（零静默覆盖）</span>
+          <span class="sec-tag">3 种边界全覆盖</span>
+        </div>
+
+        <div class="compat-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600;">边界 A · 老用户曾将「文生图」与「改图」设成不同模型</span>
+            <span class="sec-tag rec">原样保留不覆盖</span>
+          </div>
+          <div class="opt-desc" style="color: var(--nomi-ink);">
+            底层 <span class="mono">byTaskKind</span> 四键原样保留。若检测到两键不同，该行诚实显示分设摘要；用户不点合并就继续各自生效，点选任一新项才统一写入双键：
+          </div>
+          <div class="form-row" style="margin-top: 2px;">
+            <span class="form-label">图片</span>
+            <div class="select-btn" style="background: var(--nomi-elevated);">
+              <span class="trunc">已分别指定：文生图 GPT Image 2.6 Flare · 改图 Seedream 5.5</span>
+              <span style="font-size: 11px; color: var(--nomi-accent-ink); font-weight: 600; flex-shrink: 0;">统一 ▾</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="compat-card warn">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600;">边界 B · 手动固定的模型已停用或供应商断开</span>
+            <span style="font-size: 11px; font-weight: 600;">诚实警告</span>
+          </div>
+          <div style="font-size: 11px;">
+            视频：原固定 <span class="q">「Kling 2.0 Master」</span> 当前不可用，新卡暂回退为 <strong>自动 · Seedance 2.5</strong>（重连后自动恢复）。
+          </div>
+        </div>
+
+        <div class="compat-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600;">边界 C · 全新未接任何供应商（空目录态）</span>
+            <span style="font-size: 11px; color: var(--nomi-accent-ink); font-weight: 600;">去接入模型 ↗</span>
+          </div>
+          <div class="opt-desc">不显示假「自动选择」；直接显示 <span class="q">「未连可用图片模型 · 去接入」</span>。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3: Canvas Composer + Storyboard Row + Agent Bottom Bar & Popover -->
+    <section class="col">
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">⑤ 画布节点底栏（常规态 + 28 字符长模型名压力态）</span>
+          <span class="sec-tag">不挤掉参数与生成钮</span>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">新建图片节点（跟随默认 · 一眼看见将用 GPT Image 2.6 Flare）：</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip model-max"><span class="trunc">自动 · GPT Image 2.6 Flare</span> ▾</span>
+              <span class="chip chip-fixed">1:1 · 2K ▾</span>
+            </div>
+            <span class="gen-btn">生成</span>
+          </div>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">28+ 字符长模型名压力态（模型胶囊限宽省略，右侧画幅/时长/生成完整保留）：</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip model-max"><span class="trunc">自动 · Doubao Seedance 2.5 Pro Preview</span> ▾</span>
+              <span class="chip chip-fixed">16:9 · 1080P · 5s ▾</span>
+            </div>
+            <span class="gen-btn">生成</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sec-head">
+          <span class="sec-title">⑥ 创作 › 分镜表镜头行（修前盲盒 vs 修后即刻显形）</span>
+          <span class="sec-tag rec">少 1 次点开确认</span>
+        </div>
+
+        <div class="composer-mock" style="background: var(--nomi-surface);">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">修前现状：只写「默认模型 ▾」，看不出是谁，比例与时长也被藏起</div>
+          <div class="bar-row">
+            <span class="chip"><span class="old-txt">默认模型 ▾</span></span>
+            <span class="gen-btn" style="opacity: 0.65;">生成</span>
+          </div>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-accent-ink); font-weight: 500;">修后：直接写出推荐真名，该模型的生成方式与画幅时长当场可看可改</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip model-max"><span class="trunc"><strong>自动 · Seedance 2.5</strong></span> ▾</span>
+              <span class="chip chip-fixed">全能参考 ▾</span>
+              <span class="chip chip-fixed">16:9 · 5s ▾</span>
+            </div>
+            <span class="gen-btn">生成</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex: 1;">
+        <div class="sec-head">
+          <span class="sec-title">⑦ 常驻 Agent 底栏与弹层（对齐 M5 §1.0）+ 拉片表</span>
+          <span class="sec-tag">消除双头设置</span>
+        </div>
+
+        <div class="composer-mock">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">Agent 底栏未手选大脑时直接写默认真名，弹层底部只读指路回 AI 策略：</div>
+          <div class="bar-row">
+            <span class="chip"><strong>自动 · DeepSeek V4 Flash</strong> ▾</span>
+            <span style="font-size: 11px; color: var(--nomi-ink-60);">请求批准 ▾</span>
+          </div>
+          <div class="pointer-footer">
+            <span class="trunc">出图：自动 · GPT Image 2.6 Flare · 视频：自动 · Seedance 2.5</span>
+            <span style="font-weight: 600; flex-shrink: 0;">设置 › AI 策略 ↗</span>
+          </div>
+        </div>
+
+        <div class="composer-mock" style="margin-top: auto;">
+          <div style="font-size: 11px; color: var(--nomi-ink-60);">画布拉片分镜表（ShotTable）拆解栏同步写明真名：</div>
+          <div class="bar-row">
+            <div class="pills-left">
+              <span class="chip"><span class="trunc">读图：自动 · Gemini 3.5 Flash</span> ▾</span>
+              <span class="chip"><span class="trunc">转写：自动 · 本机 Whisper</span> ▾</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
