@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { getDesktopBridge } from '../../../desktop/bridge'
-import { listenOutsidePress } from '../../../design/outsidePress'
+import { useFloatingOutsideDismiss } from '../../../design'
 import type { NomiBrowserAsset, NomiBrowserAssetTab } from '../assets/browserAssetData'
 import { dispatchBrowserAssetsImportToCanvas } from '../overlay/globalAssetPopoverEvents'
 import {
@@ -173,14 +173,15 @@ export function NomiBrowserAssetPopover({
     setAssetContextMenu(null)
   }, [currentProjectId])
 
-  React.useEffect(() => {
-    if (!popoverOpen || contained) return
-    return listenOutsidePress((target) => {
-      if (!(target instanceof Node)) return false
-      const targetElement = target instanceof HTMLElement ? target : target.parentElement
-      return Boolean(rootRef.current?.contains(target) || targetElement?.closest(PROMPT_EXTRACTION_SETTINGS_DIALOG_SELECTOR))
-    }, () => setPopoverOpen(false))
-  }, [contained, popoverOpen, setPopoverOpen])
+  useFloatingOutsideDismiss({
+    open: popoverOpen && !contained,
+    floating: rootRef,
+    isInside: (target) => {
+      const targetElement = target instanceof Element ? target : target instanceof Node ? target.parentElement : null
+      return Boolean(targetElement?.closest(PROMPT_EXTRACTION_SETTINGS_DIALOG_SELECTOR))
+    },
+    onDismiss: () => setPopoverOpen(false),
+  })
 
   React.useEffect(() => {
     if (!popoverOpen) return
@@ -344,15 +345,18 @@ export function NomiBrowserAssetPopover({
     importFeedbackTimerRef.current = window.setTimeout(() => setCanvasImportedFeedback(false), 4000)
   }, [canImportSelectedAssetsToCanvas, selectedCanvasImportAssets])
 
-  React.useEffect(() => {
-    if (!filtersOpen) return
-    return listenOutsidePress((target) => target instanceof Node && Boolean(filterPopoverRef.current?.contains(target) || filterButtonRef.current?.contains(target)), () => setFiltersOpen(false))
-  }, [filtersOpen])
+  useFloatingOutsideDismiss({
+    open: filtersOpen,
+    floating: filterPopoverRef,
+    reference: filterButtonRef,
+    onDismiss: () => setFiltersOpen(false),
+  })
 
-  React.useEffect(() => {
-    if (!assetContextMenu) return
-    return listenOutsidePress((target) => target instanceof Node && Boolean(assetContextMenuRef.current?.contains(target)), () => setAssetContextMenu(null))
-  }, [assetContextMenu])
+  useFloatingOutsideDismiss({
+    open: Boolean(assetContextMenu),
+    floating: assetContextMenuRef,
+    onDismiss: () => setAssetContextMenu(null),
+  })
 
   React.useEffect(() => {
     setSelectedIds((current) => {
