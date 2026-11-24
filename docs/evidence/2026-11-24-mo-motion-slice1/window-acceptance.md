@@ -7,7 +7,7 @@
 
 # 真实桌面窗口
 
-六条修改前录像沿用基线 1730b7ea3 的原始记录。浏览器探针修复后，从 1dcfe089b 的新构建重录六条修改后录像，并重测按钮状态。录制时的 HEAD 590d801b 与实测实现 1dcfe089b 之间只更新了根因记录和概念登记；已用 package-build-stamp verify 核对 renderer 及 Electron 源码指纹。性能、源码门岗及单测由该目录的其他收据记录。录像来自 Playwright 驱动的 macOS Electron 桌面窗口，逐条读取系统的 ApplicationType 均为 UIElement。隔离项目使用仓库登记的 640×360 真实雨衣镜头抽帧及本机回环模型。生成键按住、移出后松开；12 条录像均读回媒体请求 0 次。每条录像从真实项目的创作面开始，经预览、生成，在画布选中镜头、读工具条和输入框，最后展开 Agent 面板。按下时检查 :active 并读取渲染宽度。短片以原速保留每次交互前后约两秒，片段间直接切换。连续未剪版位于 /tmp/mo1-window-evidence/final/videos/。
+六条修改前录像沿用基线 1730b7ea3 的原始记录。浏览器探针修复后，从 1dcfe089b 的新构建重录六条修改后录像，并重测按钮状态。录制时的 HEAD 590d801b 与实测实现 1dcfe089b 之间只更新了根因记录和概念登记；已用 package-build-stamp verify 核对 renderer 及 Electron 源码指纹。性能、源码门岗及单测由该目录的其他收据记录。录像来自 Playwright 驱动的 macOS Electron 桌面窗口，逐条读取系统的 ApplicationType 均为 UIElement。隔离项目使用仓库登记的 640×360 真实雨衣镜头抽帧及本机回环模型。生成键按住、移出后松开；12 条录像均读回媒体请求 0 次。每条录像从真实项目的创作面开始，经预览、生成，在画布选中镜头、读工具条和输入框，最后展开 Agent 面板。按下时检查 :active 并读取渲染宽度。短片以原速保留每次交互前后约两秒，片段间直接切换。连续未剪版保存在仓外的原始证据目录。
 
 ![真实桌面录像帧对照](window-frames.png)
 
@@ -41,8 +41,8 @@
 
 - 将相同按压和宽度判据用于基线，正常模式的文字钮和发送钮按压比例均为 1，两种文字按钮进入 loading 后分别变宽 20、22 px；当前版本通过相同判据。
 - 全部停掉反馈会违反正常模式下两种文字按钮和发送钮的 0.97 按压比例。全都缩小会违反图标工具栏及减弱动态时的静态判据。
-- 用 verify-nomi 常驻驱动复查项目画布和常驻 Agent 入口。矩阵录制另复用 core-smoke/fixture.mjs、verifyFeatures.mjs 和 _shell.mjs，以捕捉真实连续帧、持续按住并设置精确窄窗。仓外脚本和命令记录位于 `/tmp/mo1-window-evidence/`。
-- `node scripts/verify-line-meter.mjs /tmp/mo1-window-evidence --json` 读回 2 个驱动脚本、194 行、6 次常驻命令。Windows 与真实模型生成不在这条验收线的实测范围。
+- 用 verify-nomi 常驻驱动复查项目画布和常驻 Agent 入口。矩阵录制另复用 core-smoke/fixture.mjs、verifyFeatures.mjs 和 _shell.mjs，以捕捉真实连续帧、持续按住并设置精确窄窗。仓外证据目录保留了脚本和命令记录。
+- `verify-line-meter.mjs` 对仓外窗口证据读回 2 个驱动脚本、194 行、6 次常驻命令。Windows 与真实模型生成不在这条验收线的实测范围。
 
 ## 证据提交后的复核
 

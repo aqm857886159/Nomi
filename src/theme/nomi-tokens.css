@@ -86,6 +86,7 @@
   --nomi-duration-fast-exit: 100ms;
   --nomi-duration-normal-exit: 150ms;
   --nomi-duration-spatial-exit: 240ms;
+  --nomi-duration-media-loading-cycle: 1250ms;
   --nomi-ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
   --nomi-ease-in: cubic-bezier(0.3, 0, 0.8, 0.15);
   --nomi-ease-spatial: cubic-bezier(0.16, 1, 0.3, 1);

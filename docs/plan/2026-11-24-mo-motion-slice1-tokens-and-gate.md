@@ -2,6 +2,16 @@
 
 依据 #1586 的 Phase 1 普查及协调裁决 #issuecomment-7126073004。
 
+## GPT 交叉评审补充
+
+- **★1 结果**：采集后仍把素材送到目标，退出淡出按 morph 入场时长推导；CSS 每个退出变量与运行时公式逐项一致。`motion.test.ts`、`BrowserCaptureFlyouts.test.tsx` 和 `check:tokens` 验收。文字按钮等待时宽度和名字保持稳定，辅助技术有独立的本地化状态；`actions.test.tsx` 在 Chromium 核对。
+- **★2 所有者**：时长仍归 `src/design/motion.ts`；两种浏览器宿主继续共用 `BrowserCaptureFlyouts`。生产 CSS 和 JSX 的动效写法归 token 门岗；Mantine 按钮的忙态语义归 `DesignButton`。`door-map.mjs` 核对 CSS/JS 时长消费者、两条采集入口和门岗调用。
+- **★3 原因与选择**：保留现有入口并补齐共享边界。分别在两个浏览器宿主改落点动画会重复规则，去掉淡出、门岗或忙态会让对应用户结果丢失。Mantine 的加载图标属于视觉层，独立的 `status` 区在文案写入前已存在。[WAI ARIA22](https://www.w3.org/WAI/WCAG21/Techniques/aria/ARIA22) · [Motion 退出过渡](https://motion.dev/docs/react-animate-presence)
+- **★4 旧数据**：无存储迁移。保留已有动画的目标、Mantine 的 loader 定位和按钮占位。扫描只认调用处的动效对象；React Flow 手动视口命令仍由原所有者处理。
+- **★9 反例与量具**：CSS 退出值漂移、原始 shorthand、字面量或局部引用的 Motion 时长、未授权的按压缩放都应该失败；合规 token、瞬时过渡和合法按钮要通过。原 550 ms 退出、吞掉 `status`、删掉采集移动或改变按钮名和宽度均应失败。记录在根因合同，2026-12-01 复查同类问题是否再次绕过门岗或共享组件。
+
+评审改动：浏览器采集沿用 550 ms 进入，退出为公式推导的 370 ms；token 门岗逐条检查 CSS 镜像，重复声明、原始 shorthand、内联或局部引用的 Motion 对象和越权 press scale 均有反例覆盖。旧画布加载循环改用共享变量，周期保持 1250 ms。`DesignButton` 在 Mantine 隐藏的加载图标外维护本地化状态，实测标签和宽度保持稳定。复核走定向 Vitest 与指定门岗；本轮未做新构建的桌面采集或屏幕阅读器语音复验。[根因合同](../fixes/2026-11-24-motion-cross-review.root-cause.json)
+
 ## ★0 先查别人
 
 - Apple HIG 的减弱动态要求关键状态可静态辨识，确认保留忙态标签、对比度及禁用语义。[Motion](https://developer.apple.com/design/human-interface-guidelines/motion)

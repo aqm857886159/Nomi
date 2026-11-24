@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { NOMI_DURATION_MS, NOMI_EASE } from '../../design/motion'
+import { exitDurationMs, NOMI_DURATION_MS, NOMI_EASE } from '../../design/motion'
 import { cn } from '../../utils/cn'
 import type { BrowserCaptureFlyout } from './dialog/NomiBrowserDialogModel'
 
@@ -54,7 +54,7 @@ export function BrowserCaptureFlyouts({ captureFlyouts, removeCaptureFlyout, cla
             opacity: [0.78, 1, 0.08],
             scale: [0.98, 1.02, finalScale(flyout)],
           }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 0, transition: { duration: exitDurationMs(NOMI_DURATION_MS.morph) / 1000, ease: NOMI_EASE.in } }}
           transition={{ duration: NOMI_DURATION_MS.morph / 1000, times: [0, 0.18, 1], ease: NOMI_EASE.spatial }}
           onAnimationComplete={() => removeCaptureFlyout(flyout.id)}
           aria-hidden="true"

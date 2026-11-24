@@ -17,6 +17,7 @@ const durations = {
   'fast-exit': exitDurationMs(NOMI_DURATION_MS.fast),
   'normal-exit': exitDurationMs(NOMI_DURATION_MS.normal),
   'spatial-exit': exitDurationMs(NOMI_DURATION_MS.spatial),
+  'media-loading-cycle': 1250,
 }
 
 export const NOMI_EASE = {

@@ -1,6 +1,7 @@
-import { ActionIcon, Button, type ActionIconProps, type ButtonProps } from '@mantine/core'
+import { ActionIcon, Button, VisuallyHidden, type ActionIconProps, type ButtonProps } from '@mantine/core'
 import { IconChevronDown } from '@tabler/icons-react'
 import { type JSX, forwardRef, type ButtonHTMLAttributes, type ComponentPropsWithoutRef, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 import { TEXT_BUTTON_PRESS } from './motion'
 import { NomiLoadingMark } from './identity'
@@ -86,6 +87,7 @@ export const DesignButton = forwardRef<HTMLButtonElement, DesignButtonProps>(fun
   variant = 'light',
   ...props
 }, ref): JSX.Element {
+  const { t } = useTranslation()
   const rootClassName = cn(
     'inline-flex items-center justify-center gap-1.5',
     'rounded-nomi-sm font-medium',
@@ -98,20 +100,24 @@ export const DesignButton = forwardRef<HTMLButtonElement, DesignButtonProps>(fun
   const isLoading = Boolean(loading)
 
   return (
-    <Button
-      {...props}
-      ref={ref}
-      className={rootClassName}
-      disabled={disabled || isLoading}
-      leftSection={leftSection}
-      loading={isLoading}
-      loaderProps={{ children: <NomiLoadingMark size={14} />, ...props.loaderProps }}
-      radius={radius}
-      variant={variant}
-      aria-busy={isLoading || undefined}
-    >
-      {children}
-    </Button>
+    <>
+      <Button
+        {...props}
+        ref={ref}
+        className={rootClassName}
+        disabled={disabled || isLoading}
+        leftSection={leftSection}
+        loading={isLoading}
+        loaderProps={{ children: <NomiLoadingMark size={14} />, ...props.loaderProps }}
+        radius={radius}
+        variant={variant}
+        aria-busy={isLoading || undefined}
+      >
+        {children}
+      </Button>
+      {/* Keep the live region mounted outside the busy button and Mantine's hidden loader. */}
+      <VisuallyHidden role="status">{isLoading ? t('common.loading') : ''}</VisuallyHidden>
+    </>
   )
 })
 

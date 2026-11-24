@@ -21,9 +21,9 @@
 - `pnpm build` 成功，生产构建的源码树指纹为 `161d017154df16a917e8f52b1041abb1b2c8f496`。
 - `check:tokens`、`check:board-parity`、`check:boundary-owners`、`check:self-written` 及 `check:concept-owners` 通过。ESLint 拒绝普通文件和已有例外文件内新增的 `duration-200`，接受 `duration-nomi-fast-exit ease-nomi-in`。棘轮冻结八个禁改文件已有的九项命中。
 - 此版本未注册 `pnpm run lint:changed` 别名。运行仓库推送门岗使用的 `node scripts/lint-changed.mjs`，44 个改动文件，错误 0，警告数未增加。
-- `node scripts/verify-line-meter.mjs /tmp/mo1-window-evidence --json` 读到 2 个驱动脚本、194 行、6 次常驻驱动命令。
+- `verify-line-meter.mjs` 对仓外窗口证据读到 2 个驱动脚本、194 行、6 次常驻驱动命令。
 - 应用、Electron、electron-pi、浏览器夹具及测试类型五项均通过。夹具与测试类型在单独运行时完成。
 - 全量单测在 `src/design/iconTiers.test.ts` 捕获 5 个失败。图标测试原先将整个 safelist 带进单元素的 Tailwind 编译夹具，并把生成的每个 CSS 规则都解释为图标尺寸。仓内只有这一处用 raw content 编译图标测试。夹具现使用 Tailwind 的空 safelist，继续沿用生产主题、插件和全部 6 个原断言；单独复现 5 红，修后 6 绿。
 - 先前的 GPU 探针直接捕获模块依赖，序列化后会引用不存在的函数。最终实现通过独立 Chromium 页面逐一验证两种系统偏好，同时保留 WebGL 释放与监听器回收。根因合同和概念登记通过。
 - Vitest 全部 8 个分片，以 VITEST_MAX_WORKERS=2 运行。2464 个测试文件通过，2 个文件按配置跳过。36234 个用例通过，39 个预期失败，23 个跳过。修复后复跑了第 5、6 分片。Node 单测另有 747 个通过。[分片收据](unit-tests.json)
-- 正文合并档使用 `NOMI_PR_BODY_FILE=/tmp/mo1-pr-body.md node scripts/check-pr-judgement.mjs --stage=merge`。同类证据有任一条符合即可满足正文格式；对四场分别执行性能判据时，聊天滚动仍为超预算。
+- 正文合并档通过 `NOMI_PR_BODY_FILE` 读取仓外 PR 草稿，运行 `node scripts/check-pr-judgement.mjs --stage=merge`。同类证据有任一条符合即可满足正文格式；对四场分别执行性能判据时，聊天滚动仍为超预算。

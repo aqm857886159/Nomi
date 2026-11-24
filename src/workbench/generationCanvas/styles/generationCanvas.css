@@ -112,7 +112,7 @@
     color-mix(in oklab, var(--nomi-paper) 72%, transparent) 48%,
     transparent 100%
   );
-  animation: generation-canvas-v2-media-loading-sweep 1.25s var(--nomi-ease-in-out) infinite;
+  animation: generation-canvas-v2-media-loading-sweep var(--nomi-duration-media-loading-cycle) var(--nomi-ease-in-out) infinite;
   transform: translateX(-38%);
 }
 

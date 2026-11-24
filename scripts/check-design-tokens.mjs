@@ -17,7 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveMergeBase, readJsonAtRevision, readTreeTexts } from './lib/walkthroughBaselineGuard.mjs'
-import { compareMotionBaseline, isMotionSource, scanMotionTokens } from './lib/motionTokenScan.mjs'
+import { checkMotionMirror, compareMotionBaseline, isMotionSource, scanMotionTokens } from './lib/motionTokenScan.mjs'
 import { NOMI_DURATION_VARS, NOMI_EASE_VARS } from '../src/design/motion.ts'
 import { gitPaths, trackedFiles } from "./lib/gitPaths.mjs";
 
@@ -107,11 +107,7 @@ for (const rel of new Set([...motionFiles, ...Object.keys(motionBaseline)])) {
   errors.push(...compareMotionBaseline(rel, hits, motionBaseline));
 }
 const cssMirror = fs.readFileSync(path.join(ROOT, 'src/theme/nomi-tokens.css'), 'utf8');
-const mirrored = Object.fromEntries([...cssMirror.matchAll(/^\s*(--nomi-(?:duration|ease)-[\w-]+):\s*([^;]+);/gm)].map(([, key, value]) => [key, value]));
-const motionVars = { ...NOMI_DURATION_VARS, ...NOMI_EASE_VARS };
-for (const key of new Set([...Object.keys(mirrored), ...Object.keys(motionVars)])) {
-  if (mirrored[key] !== motionVars[key]) errors.push(`✗ motion mirror: ${key} expected ${motionVars[key]}, got ${mirrored[key]}`);
-}
+errors.push(...checkMotionMirror(cssMirror, { ...NOMI_DURATION_VARS, ...NOMI_EASE_VARS }));
 // AI rows are debt-free. Other production paths may only remove existing debt.
 const edgeClasses = /\b(?:ml-auto|justify-between)\b/g;
 const edgeBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/design-row-edge-baseline.json'), 'utf8'));
