@@ -1,11 +1,12 @@
 // Real Electron + native lane + loopback SSE: reasoning is never status metadata.
 import assert from 'node:assert/strict'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, THINKING_LINE, TOOL_RECEIPT, ASSISTANT_MESSAGE, V4_FLOW,
-  chooseAssistantModel, createRuntimeWalk, expandResidentPanel, hasToolResult, openCanvas, recorded, sendCanvas,
+  PROCESS, chooseAssistantModel, createRuntimeWalk, expandResidentPanel, hasToolResult, openCanvas, recorded, sendCanvas,
   waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
 // Measure painted text as well as row boxes: a fixed-height row can have disjoint boxes
@@ -24,7 +25,18 @@ export async function flowOverlaps(flow) {
         if (!text.textContent.trim() || !visible(text.parentElement)) continue
         const range = document.createRange()
         range.selectNodeContents(text)
-        rects.push(...range.getClientRects())
+        // Range rects include lines clipped by the process preview's 12-line cap.
+        const preview = text.parentElement.closest('[data-process-folded]')
+        if (preview && getComputedStyle(preview).overflowY === 'hidden') {
+          const clip = preview.getBoundingClientRect()
+          for (const rect of range.getClientRects()) {
+            const top = Math.max(rect.top, clip.top)
+            const bottom = Math.min(rect.bottom, clip.bottom)
+            rects.push(new DOMRect(rect.left, top, rect.width, Math.max(0, bottom - top)))
+          }
+        } else {
+          rects.push(...range.getClientRects())
+        }
       }
       return rects.filter((r) => r.width > 0 && r.height > 0)
     })
@@ -43,6 +55,8 @@ export async function flowOverlaps(flow) {
 const reasoning = 'I should inspect the canvas, verify the existing nodes, and only then explain the result. '.repeat(12)
 const reply = '已读取画布和时间轴，检查已经完成。\n\n画布目前没有镜头节点，可以先从文稿中整理分镜，再继续制作。'
 const locale = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
+process.env.NOMI_WALK_OUT ||= makeTempDir('nomi-thinking-overlap-shots-')
+process.env.EVIDENCE_DIR ||= process.env.NOMI_WALK_OUT
 const walk = await createRuntimeWalk('thinking-overlap')
 walk.report.locale = locale
 let failure
@@ -72,7 +86,7 @@ try {
     match: (body) => hasToolResult(body, 'overlap-project'), reply: { type: 'hold', text: reply } })
   await sendCanvas(win, '检查当前画布和时间轴，再告诉我下一步怎么做。')
   await recorded(thinking.received, 'actual thinking request')
-  await expect(panel.locator(THINKING_LINE)).toContainText('正在想')
+  await expect(panel.locator(THINKING_LINE)).toContainText(uiText(locale, 'agentPanelV4.thinkingLabel'))
   await expect.poll(() => panel.locator(THINKING_LINE).textContent()).toContain(reasoning.slice(0, 80))
   await expect(panel.locator(THINKING_LINE)).toHaveCount(1)
   await expect(panel.locator(THINKING_LINE).locator('summary')).toContainText(/[1-9]\d*s/)
@@ -111,7 +125,26 @@ try {
     await expect(detail).not.toHaveAttribute('open', '')
     await detail.locator('summary').click()
     await expect(detail.locator('[data-v4-thinking-body]')).toBeVisible()
-    assert.deepEqual(await flowOverlaps(flow), [], 'expanded reasoning must grow its row')
+    assert.deepEqual(await flowOverlaps(flow), [], 'clipped reasoning preview must not paint over the reply')
+    const preview = detail.locator('xpath=ancestor::*[@data-process-folded]')
+    await expect(preview).toHaveAttribute('data-process-folded', 'true')
+    const previewHeight = await preview.evaluate(element => element.getBoundingClientRect().height)
+    const originalOverflow = await preview.evaluate(element => {
+      const value = element.style.overflow
+      element.style.overflow = 'visible'
+      return value
+    })
+    try {
+      assert.ok((await flowOverlaps(flow)).length > 0, 'unclipped text must fail the overlap detector')
+    } finally {
+      await preview.evaluate((element, value) => { element.style.overflow = value }, originalOverflow)
+    }
+    const process = panel.locator(PROCESS)
+    await clickOrFail(process.getByRole('button', { name: uiText(locale, 'agentPanelV4.expand'), exact: true }), '展开完整过程')
+    await expect(preview).toHaveAttribute('data-process-folded', 'false')
+    await expect.poll(() => preview.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(previewHeight)
+    assert.deepEqual(await flowOverlaps(flow), [], 'full reasoning must grow its row without overlapping the reply')
+    await walk.snap('reasoning-expanded')
     await detail.locator('summary').click()
     await expect(detail.locator('[data-v4-thinking-body]')).toBeHidden()
     assert.deepEqual(await flowOverlaps(flow), [], 'collapsed reasoning must not paint outside its row')

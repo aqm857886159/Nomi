@@ -15,16 +15,13 @@ import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { dirOfMetaUrl } from '../../scripts/lib/repoPaths.mjs'
 import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, COLLAPSED_DOCK, COMPOSER_INPUT, COMPOSER_SEND, PREVIEW_PANEL, TOOL_RECEIPT, USER_BUBBLE,
-  ASSISTANT_MESSAGE, chooseAssistantModel, hasToolResult, recorded, expectComposerText, expectComposerFocused } from './agent-runtime-walk-support.mjs'
+  ASSISTANT_MESSAGE, PROCESS, chooseAssistantModel, hasToolResult, openProcess, recorded, expectComposerText, expectComposerFocused } from './agent-runtime-walk-support.mjs'
 
-const here = dirOfMetaUrl(import.meta.url)
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-form-switch-state')
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
+const shotsDir = makeTempDir('nomi-agent-form-switch-shots-')
+process.env.EVIDENCE_DIR ||= shotsDir
 
 const root = makeTempDir('nomi-agent-form-switch-')
 const userDataDir = path.join(root, 'user-data')
@@ -72,7 +69,7 @@ const fixture = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir
 const launched = await launchNomiApp({
   name: 'agent-form-switch-state', userDataDir, settingsDir, projectsDir, capabilityDir, timeout: 300_000,
   viewportSize: { width: 1440, height: 900 },
-  mainRequire: [path.join(here, '_quietWalk.cjs')],
+  mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')],
   env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' },
   args: ['--no-proxy-server'],
   initialLocalStorage: { 'nomi:locale:v1': 'zh-CN', 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
@@ -147,6 +144,7 @@ try {
   rowsProof = await proveProbe(card.locator('[data-v4-block="plan-rows"]'), '折叠前计划行确实在（判「折叠后不在」之前先证探针活着）')
   await clickOrFail(card.locator('[data-v4-control="collapse-plan"]'), '折叠计划卡')
   await expectAbsent(card.locator('[data-v4-block="plan-rows"]'), { provenBy: rowsProof, message: '计划卡没折叠' })
+  await openProcess(panel.locator(PROCESS).filter({ has: win.locator(TOOL_RECEIPT) }), '展开读取时间轴的过程回执')
   await panel.locator(COMPOSER_INPUT).fill(DRAFT)
   await win.evaluate(() => document.querySelector('#project-agent-resident')?.setAttribute('data-agent-session-marker', 'kept'))
   await expectPanelStateKept('切形态前')
