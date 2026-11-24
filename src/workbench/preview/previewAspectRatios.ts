@@ -1,6 +1,6 @@
 import type { PreviewAspectRatio } from '../workbenchTypes'
 
-export type PreviewRatioOption = {
+type PreviewRatioOption = {
   value: PreviewAspectRatio
   label: string
   css: string

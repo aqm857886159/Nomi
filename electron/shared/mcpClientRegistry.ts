@@ -40,7 +40,7 @@ export type McpClientHostEnv = { name: string; segments: readonly string[] }
 export type McpClientPath = { root: McpClientPathRoot; segments: readonly string[]; hostEnv?: McpClientHostEnv }
 export type McpClientPlatform = 'darwin' | 'win32' | 'linux'
 
-export type McpClientSpec = {
+type McpClientSpec = {
   /** 产品专名，不进 i18n。 */
   label: string
   format: 'json' | 'toml'
@@ -133,7 +133,7 @@ export function isBuiltinMcpClient(value: unknown): value is BuiltinMcpClient {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(MCP_CLIENT_REGISTRY, value)
 }
 
-export function builtinMcpClientSpec(client: BuiltinMcpClient): McpClientSpec {
+function builtinMcpClientSpec(client: BuiltinMcpClient): McpClientSpec {
   return MCP_CLIENT_REGISTRY[client]
 }
 

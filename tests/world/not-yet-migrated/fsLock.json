@@ -154,7 +154,6 @@
     "electron/workspace/workspaceSync.test.ts",
     "evals/lib/isoApp.test.mjs",
     "src/workbench/assets/assetLiveness.realStore.test.ts",
-    "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts",
     "src/workbench/generationCanvas/runner/retrievalRestartOnDisk.test.ts",
     "src/workbench/project/projectRepository.itemQuarantine.test.ts",
     "tests/relay-onboarding/contracts.test.mjs",

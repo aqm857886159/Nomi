@@ -99,7 +99,6 @@ const LAYER_HOSTS: Readonly<Record<string, 'window' | 'canvas-cell'>> = {
   'src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx': 'canvas-cell',
   'src/workbench/generationCanvas/nodes/ProvenancePanel.tsx': 'window',
   'src/workbench/onboarding/JourneyTourController.tsx': 'window',
-  'src/workbench/onboarding/SplashIntro.tsx': 'window',
   'src/workbench/promptLibrary/PromptPreviewOverlay.tsx': 'window',
   'src/workbench/timeline/TimelineShortcutsDialog.tsx': 'window',
 }
@@ -233,6 +232,7 @@ const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: strin
   'src/ui/browser/popover/useBrowserAssetActions.ts': { role: 'browser', why: '素材盒里的 Delete / Cmd+A，只在素材盒开着、有选中时生效，不碰工作区' },
   'src/ui/browser/window/useResizableFloatingWindow.ts': { role: 'browser', why: '拖动素材盒窗口边的手势' },
   'src/ui/input/heldModifierReconciler.ts': { role: 'state', why: '记修饰键按住状态，不执行命令' },
+  'src/ui/onboarding/ApimartConnectPage.tsx': { role: 'boundary', why: '连接 APIMart 整窗平级页的 Esc 返回来处（模态覆盖时让位）' },
   'src/ui/onboarding/ModelSettingsDetailDialog.tsx': { role: 'own-layer', why: '模型详情对话框自己的 Esc' },
   'src/ui/onboarding/useModelSettingsPageFocus.ts': { role: 'state', why: '记打开页面的触发元素，用来还焦点' },
   'src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx': { role: 'own-layer', why: '工作流设置页自己的 Esc' },

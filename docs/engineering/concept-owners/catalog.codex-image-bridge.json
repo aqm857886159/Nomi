@@ -1,0 +1,30 @@
+{
+  "name": "Codex CLI 本地生图产物发现与失败归因边界",
+  "subject": "catalog.codex-image-bridge",
+  "lifecycle": "catalog",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/codexCli.ts",
+    "symbol": "resolveCodexGeneratedImage"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "resolveCodexGeneratedImage"
+    },
+    {
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "describeCodexFailure"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/codexCli.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/processOperation.ts"
+  ],
+  "since": "2026-11-24",
+  "notes": "合同 docs/fixes/2026-11-24-fb-codex-image-and-upload-error.root-cause.json：Codex CLI 生图产物发现（JSONL saved_path、generated_images/<threadId> 嵌套目录、workDir 非输入图、魔数校验后的内联 base64，易失文件先持久化再删 workDir）与真实失败归因（turn.failed / error / stderr / agent_message）的唯一边界（NF-1025-0001）。"
+}

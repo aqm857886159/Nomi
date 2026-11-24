@@ -46,50 +46,6 @@
   "registered": [
     {
       "members": [
-        "accepted",
-        "discarded",
-        "failed",
-        "live",
-        "menu",
-        "result",
-        "running",
-        "selected"
-      ],
-      "reason": "实验室舞台自己的剧本场景名（选中 / 菜单 / 进行中 / 结果 / 接受 / 放弃 / 失败 / 真操作），只在这个舞台里驱动界面走到哪一步，不是任何生产状态机的词表，无处可复用。",
-      "site": "src/devlab/designLab/creationAiRewrite/CreationAiRewriteStage.tsx::type:RewriteScene/type-union"
-    },
-    {
-      "members": [
-        "failed",
-        "menu",
-        "result",
-        "running"
-      ],
-      "reason": "AI 编辑会话自己的四个状态（菜单 / 进行中 / 结果 / 失败）：会话的唯一 owner 就是这个插件状态，没有别处定义同一组状态可以复用。",
-      "site": "src/workbench/creation/aiRewrite/rewriteSession.ts::type:RewriteStatus/type-union"
-    },
-    {
-      "members": [
-        "failed",
-        "loading",
-        "ready"
-      ],
-      "reason": "画板初始原图导入事务的唯一状态 owner：loading 阻止空稿持久化，failed 允许重试或取消，ready 才发布可编辑文档；它描述画板导入事务，不耦合浏览器素材加载状态。",
-      "site": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardTypes.ts::type:WhiteboardInitialImageStatus/type-union"
-    },
-    {
-      "members": [
-        "anchors",
-        "done",
-        "idle",
-        "shots",
-        "stopped"
-      ],
-      "reason": "Storyboard batch footer phases are the design-lab-only lifecycle states for the production storyboard progress footer; they describe anchor and shot waves rather than reusing a different runtime task vocabulary.",
-      "site": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx::type:FooterPhase/type-union"
-    },
-    {
-      "members": [
         "completed",
         "prepared",
         "verified"
@@ -136,6 +92,16 @@
     },
     {
       "members": [
+        "accepted",
+        "expired",
+        "pending",
+        "rejected"
+      ],
+      "reason": "能力调用审批 challenge 的生命周期（accepted / expired / pending / rejected），是授权事实，不是任务执行状态。",
+      "site": "electron/capabilityCore/approvalReceipt.ts::type:ChallengeRecord/property:status/type-union"
+    },
+    {
+      "members": [
         "approved-unused",
         "expired",
         "pending",
@@ -145,16 +111,6 @@
       ],
       "reason": "一笔付费批准此刻对外的样子（等人 / 批了没用 / 用掉了 / 拒了 / 过期 / 不认识），是收据库按挑战状态和收据 consumedAt 投影出来的只读结论，给生成门主人判还问不问人、Run 边界拒用掉的降档收据；ChallengeRecord.status 是挑战库的内部生命周期（没有「用掉」和「不认识」），两者不同层，不合并。",
       "site": "electron/capabilityCore/approvalReceiptDecision.ts::type:ApprovalDecisionRecord/property:state/type-union"
-    },
-    {
-      "members": [
-        "accepted",
-        "expired",
-        "pending",
-        "rejected"
-      ],
-      "reason": "能力调用审批 challenge 的生命周期（accepted / expired / pending / rejected），是授权事实，不是任务执行状态。",
-      "site": "electron/capabilityCore/approvalReceipt.ts::type:ChallengeRecord/property:status/type-union"
     },
     {
       "members": [
@@ -450,6 +406,17 @@
     },
     {
       "members": [
+        "absent",
+        "closing",
+        "creating",
+        "open",
+        "quitting"
+      ],
+      "reason": "主窗口生命周期的唯一状态表：electron/mainWindowPresence.ts 是主窗口的唯一主人，这五个阶段（无窗 / 建窗中 / 在用 / 关窗中 / 退出中）只由它一处读写，所有叫回、关窗、退出入口都问它而不自己判断；仓库里没有别的窗口或应用生命周期词表可复用（CloseStart、DrainOutcome 是另外的概念）。",
+      "site": "electron/mainWindowPresence.ts::type:MainWindowPhase/type-union"
+    },
+    {
+      "members": [
         "approved",
         "not_required",
         "pending_anchors",
@@ -503,6 +470,15 @@
     },
     {
       "members": [
+        "cancelled",
+        "completed",
+        "paused"
+      ],
+      "reason": "AT_REST 是 ProductionRunStatus 的子集：Run 停在这三种状态时不再派发新镜，判断「这批是否还在动」只看它与供应商那边是否还有在飞的 job。它不是一套新状态词表，成员类型就是 ProductionRunStatus（ReadonlySet<ProductionRunStatus>）；和视口动画的结算结果（ViewportAnimationSettlementOutcome）只是碰巧同名，概念无关，不该复用。",
+      "site": "electron/productionRun/productionRunLifecycle.ts::variable:AT_REST/set"
+    },
+    {
+      "members": [
         "materialized",
         "provider_accepted",
         "sealed",
@@ -510,6 +486,14 @@
       ],
       "reason": "RuntimeEnvelopeState 是供应商提交信封的耐久恢复状态：sealed、provider_accepted、submitted_unknown、materialized 对应请求冻结、远端受理、不确定提交与产物落盘；resume 输入必须从该导出 owner 复用成员。",
       "site": "electron/productionRun/productionRunRuntimeEnvelope.ts::type:RuntimeEnvelopeState/type-union"
+    },
+    {
+      "members": [
+        "failed",
+        "pending"
+      ],
+      "reason": "GenerationPresentation.policyDecisionState records the automatic spend decision for this presentation: pending is unresolved and failed requires manual handling. ProviderPollStatusClass instead classifies an already submitted provider task, including succeeded and unknown. Reusing it would confuse pre-spend authorization with post-submission execution; this is an intentional independent owner.",
+      "site": "electron/productionRun/productionRunTypes.ts::type:GenerationPresentation/property:policyDecisionState/type-union"
     },
     {
       "members": [
@@ -602,6 +586,25 @@
     },
     {
       "members": [
+        "flagged",
+        "passed",
+        "unverified"
+      ],
+      "reason": "审片单镜三态结论（passed 已验证过检 / flagged 已验证有偏差需重跑或人工处理 / unverified 未能完成校验，严禁伪装成通过也不得自动烧钱重跑）的唯一语义 owner；用于审片运行器、能力应用桥接、制作运行账本与任务详情/画布卡片展示，现有任务/阶段状态词表不含此三态语义，复用会把「未校验」与「通过」或「失败重试」混为一谈。",
+      "site": "electron/shared/productionQaVerdict.ts::type:QaShotVerdictStatus/type-union"
+    },
+    {
+      "members": [
+        "accepted",
+        "not_sent",
+        "unknown",
+        "withdrawn"
+      ],
+      "reason": "D2 交接落定的四种结局（交到了 / 结果未知 / 确定没发出去 / 被收回）的唯一 owner：画布那一侧写回、主进程落定时的校验集合、落定记录的类型都从这一个 as const 来；它回答的是「交给画布的这一镜钱有没有在花」，和制作作业状态、画布节点状态是不同的事，没有现成词表可复用。",
+      "site": "electron/productionRun/productionRunTypes.ts::variable:GENERATION_HAND_OVER_OUTCOMES/as-const"
+    },
+    {
+      "members": [
         "authorized",
         "downloading",
         "polling",
@@ -616,6 +619,16 @@
       ],
       "reason": "单镜运行生命周期里「未到终态、仍在推进」的 ProductionJob 内部状态集（authorized/submitting/submit_intent_persisted/provider_accepted/polling/downloading/reconciling/retry_wait/submission_unknown/validating_technical/validating_content）：它判定 run 内是否还有 job 在活跃、能否收尾。取值是本地生成流水线的细粒度内部态（含 reconciling/submission_unknown/submit_intent_persisted 等 UI 层没有的态），与 productionShotPhase 的 productionJobPhase → generating（面向 UI 的粗粒度态）不同源，复用会把细粒度内部推进态漏判，故独立。",
       "site": "electron/productionRun/singleShotRunLifecycle.ts::variable:NON_TERMINAL_JOB_STATUSES/set"
+    },
+    {
+      "members": [
+        "not_dispatched",
+        "provider_rejected",
+        "result_landing_failed",
+        "unknown"
+      ],
+      "reason": "SubmissionFailureOutcome 是一次付费提交失败的封闭结局（not_dispatched 确定没发出去 / provider_rejected 供应商当场明确拒绝 / result_landing_failed 供应商答了、本机把结果落地失败 / unknown 拿不出证据的结果未知）：submissionOutbox 按它穷举落盘，信封按它决定记不记 submitted_unknown（2026-10-28）。它回答「这次提交失败在钱上意味着什么」，和 ProductionJobStatus（job 持久化状态机）、GENERATION_HAND_OVER_OUTCOMES（交接写回）、ProviderPollStatusClass（轮询状态归一）都不是同一件事；复用任何一个都会丢掉「答了没落下」与「结果未知」的区分，故独立。",
+      "site": "electron/productionRun/submissionOutbox.ts::type:SubmissionFailureOutcome/type-union"
     },
     {
       "members": [
@@ -641,6 +654,15 @@
     },
     {
       "members": [
+        "done",
+        "failed",
+        "timeout"
+      ],
+      "reason": "DrainOutcome 是退出收尾里单个 drain 步骤的结局，只用来写 quit-step 回执（tests/ux/quit-teardown-real.e2e.mjs 读它）：步骤跑完、超出时间预算、抛错三选一。它和视频深度任务的终态（TERMINAL_VIDEO_DEPTH_PHASES，含用户 cancelled、没有 timeout）不是同一个概念——收尾步骤不能被用户取消，超时却是它的核心结局；复用那份词表会把 cancelled 带进退出回执、丢掉 timeout。",
+      "site": "electron/quitTeardown.ts::type:DrainOutcome/type-union"
+    },
+    {
+      "members": [
         "capability_input_invalid",
         "capability_target_stale"
       ],
@@ -654,6 +676,29 @@
       ],
       "reason": "生成对账结果的规范单源（found / not_found），供 MCP 生成工具的 reconcile 入口 schema enum 与运行时判定共用。这是把同文件 GenerationPlanningHandlerDependencies.reconcile 的字面量 outcome 收敛成 as-const 元组的单一真相源（该 param 类型应从 (typeof GENERATION_RECONCILE_OUTCOMES)[number] derive）；语义是「拿这个 operationId 在供应商侧找到没有」的二值裁决，独立于任务生命周期态。",
       "site": "electron/shared/agentCapabilities/generationPlanSchemas.ts::variable:GENERATION_RECONCILE_OUTCOMES/as-const"
+    },
+    {
+      "members": [
+        "checked",
+        "disabled",
+        "excluded",
+        "unchecked"
+      ],
+      "reason": "生成范围共用主人给每个候选行的结论：默认勾 / 默认不勾可勾 / 灰着勾不上 / 不上卡。是意图表每一格的取值，所有生成入口只读它；和分镜行状态、任务状态都不是一回事（同一个状态的节点在不同入口落到不同格），没有现成的词表可复用。",
+      "site": "electron/shared/agentCapabilities/generationShotScope.ts::type:ScopeRow/property:state/type-union"
+    },
+    {
+      "members": [
+        "done",
+        "failed",
+        "frozen",
+        "generating",
+        "missing-required",
+        "ready",
+        "recoverable"
+      ],
+      "reason": "生成范围共用主人给候选行的原因（卡上状态词由入口按它查现有文案）。不能复用分镜行状态 SHOT_ROW_STATUSES：那张表在渲染层（electron/shared 不能反向引用 src），且是分镜行的显示状态（有 anchor-ignored、用 locked 表示定妆），这里是范围判定的原因，只多一个 frozen（定妆）、没有 anchor-ignored；两者在 storyboardRowStatus 里按原因一一映射。",
+      "site": "electron/shared/agentCapabilities/generationShotScope.ts::type:ScopeRowReason/type-union"
     },
     {
       "members": [
@@ -812,6 +857,15 @@
     },
     {
       "members": [
+        "missing",
+        "ready",
+        "source"
+      ],
+      "reason": "Canvas media preview facts on an asset receipt and a canvas result: ready = a separate bounded preview file exists, source = the source itself is within the preview bound, missing = no preview could be derived. A media-derivation fact, not a lifecycle; poseClipStatus is the 3D director pose-clip loading lifecycle and shares only two words.",
+      "site": "electron/shared/canvas/canvasMediaPreview.ts::variable:CANVAS_PREVIEW_STATES/as-const"
+    },
+    {
+      "members": [
         "error",
         "idle",
         "queued",
@@ -821,6 +875,16 @@
       ],
       "reason": "画布节点状态的唯一领域词表（idle / queued / running / success / error / recoverable）。收进 electron/shared/canvas/generationNodeStatus.ts 作 as-const 单源，generationNodeStatusSchema=z.enum(它)、GenerationNodeStatus=其 z.infer、generationNodeRunStatusSchema 也从它 exclude/or 派生；渲染层与持久化/IPC 校验共用这一份，故独立且集中。",
       "site": "electron/shared/canvas/generationNodeStatus.ts::variable:GENERATION_NODE_STATUSES/as-const"
+    },
+    {
+      "members": [
+        "error",
+        "progress",
+        "runs",
+        "status"
+      ],
+      "reason": "NODE_RUN_STATE_FIELDS 是节点上「只由运行写」的字段清单（运行记录 / 状态 / 错误 / 进度）：撤销 / 重做与外部整张写回画布时这几项都取此刻的真实值、不回退不覆盖，生成中不会被撤回或改成空闲。它不是一套状态枚举，而是 GenerationCanvasNode 字段名的子集；读者是同文件的 withLiveRunState / withLiveNodeFacts（画布写边界统一提交口 store/canvasDocumentCommit 与盘上 shared/canvas/externalCanvasWrite 共用）。",
+      "site": "electron/shared/canvas/landedNodeFields.ts::variable:NODE_RUN_STATE_FIELDS/as-const"
     },
     {
       "members": [
@@ -878,6 +942,15 @@
     },
     {
       "members": [
+        "monitor-not-running",
+        "none-this-session",
+        "recorded"
+      ],
+      "reason": "诊断包清单里卡顿时间线的三态：recorded 有记录、none-this-session 监视器在跑但本次没记到、monitor-not-running 监视器没运行。只由诊断包组包函数按监视器状态和盘上读回的行数推出，写进清单给收包的人读；没有别的状态机用这三个词，无处可复用，也不会有第二个写入方。",
+      "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsStallTimeline/property:state/type-union"
+    },
+    {
+      "members": [
         "connected",
         "disconnected"
       ],
@@ -917,6 +990,14 @@
     },
     {
       "members": [
+        "authorize",
+        "save-project"
+      ],
+      "reason": "保存结果包络记录的主进程阶段：authorize 只包含发送者校验，save-project 包含项目事务；两个阶段只由保存 handler 写入，并由 ProjectSaveFailure.stage 作为唯一词表供记录和读取使用。",
+      "site": "electron/shared/contracts/projectSaveFailure.ts::type:ProjectSaveFailure/property:stage/type-union"
+    },
+    {
+      "members": [
         "disabled",
         "starting",
         "stopped"
@@ -932,6 +1013,45 @@
       ],
       "reason": "TelemetryStatus 是本地隐私设置视图的三态投影，描述 endpoint 配置与用户同意后的展示状态；它不是任务或连接生命周期，复用已有状态词表会把设置页的可见合同与业务状态混淆。",
       "site": "electron/shared/contracts/telemetry.ts::type:TelemetryStatus/type-union"
+    },
+    {
+      "members": [
+        "fetch",
+        "land",
+        "submit",
+        "wait"
+      ],
+      "reason": "遥测 generation.completed 的 failureStage：一次画布生成失败卡在提交 / 等待 / 取回 / 落地哪一段。是出站事件的闭合值（主进程白名单校验），回答「失败在哪一段」；不能复用生成节点状态或任务状态：那两张表说的是任务现在处于什么状态，这里只说失败发生的阶段，且取回 / 落地两段在任务状态里没有对应成员。",
+      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_FAILURE_STAGES/as-const"
+    },
+    {
+      "members": [
+        "1-5s",
+        "2-10m",
+        "30-120s",
+        "5-30s",
+        "gt-10m",
+        "lt-1s",
+        "none"
+      ],
+      "reason": "遥测 generation.completed 的 submitDuration / waitDuration 分档：提交、等待两段各自的耗时区间。不能复用总耗时的 DurationBucket（<1s / 1-5s / >5s）：视频等待常在分钟级，三档分不出；且要有 none 表示「同步任务没有等待段」。",
+      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_STAGE_DURATIONS/as-const"
+    },
+    {
+      "members": [
+        "auth",
+        "client-4xx",
+        "network",
+        "not-sent",
+        "ok",
+        "rate-limit",
+        "server-5xx",
+        "task-failed",
+        "timeout",
+        "unknown"
+      ],
+      "reason": "遥测 generation.completed 的 upstreamStatus：上游怎么答的（含「没发出去」和「受理后自己报失败」）。不能复用供应商失败类别（vendorFailure 的 category）：那张表是查表得来的业务类别，没有 ok / not-sent / task-failed，且这里按 HTTP 状态码优先归类；也不能复用 errorType 失败类别码（开放的标识符形状，不是闭合集合）。",
+      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_UPSTREAM_STATUSES/as-const"
     },
     {
       "members": [
@@ -951,17 +1071,6 @@
       ],
       "reason": "3D-BOX 导演节点上挂的预演（参考视频）的生命周期：none 没有预演 / rendering 离屏录制中 / ready 可挂接 / failed 录制失败。它回答「这一镜的预演能不能当参考视频、能不能放行付费生成」，是 3D-BOX 花钱闸（directorPreviewState）的判据。收进 electron/shared/director/directorPreviewStatus.ts 作 as-const 单源，主进程合同 directorWrite、画布读取视图 canvasRead 的 z.enum、渲染端 applyDirectorWrite 的 Preview 与 directorPreviewState 的 DirectorPreviewMeta（Exclude none）都从它取，不各抄一份。不能复用现有 owner：画布节点状态 GENERATION_NODE_STATUSES 说的是一次生成任务的排队 / 成功 / 可找回，预演没有排队与可找回两格，却多一个「没有预演」；并进去会让生成状态表长出与它无关的成员。",
       "site": "electron/shared/director/directorPreviewStatus.ts::variable:DIRECTOR_PREVIEW_STATUSES/as-const"
-    },
-    {
-      "members": [
-        "empty",
-        "idle",
-        "rendering",
-        "retry",
-        "too_long"
-      ],
-      "reason": "3D-BOX 导演视图主按钮「出成片」显示哪一态：empty 没有可播放的镜头 / rendering 预演渲染中 / retry 预演失败可重试 / too_long 超长失败要改短 / idle 可以点。它是界面投影，由预演生命周期 DIRECTOR_PREVIEW_STATUSES 加「有没有镜头」推出（directorProduceButtonState 唯一推导点），只给按钮用；不能复用预演生命周期本身：按钮要区分「可重试」与「超长」两种失败，还多一个「没有镜头」，并进去会让花钱闸的判据长出与它无关的成员。",
-      "site": "src/workbench/generationCanvas/nodes/director/model/directorPreviewState.ts::type:DirectorProduceButtonState/type-union"
     },
     {
       "members": [
@@ -1058,6 +1167,50 @@
     },
     {
       "members": [
+        "inputsNotAccepted",
+        "needsInput",
+        "ok"
+      ],
+      "reason": "「这次按哪种方式发」的现算结果三态，唯一主人是 electron/shared/modelArchetypes/modeForInputs.ts：ok 是选出了能发的方式；needsInput 是选中的方式还缺必放的输入（生成钮灰、说缺什么）；inputsNotAccepted 是模型任何方式都收不下这些输入。底栏方式格、菜单置灰、参考行尾和请求体都读这一个结果，不各自判断。仓库里现有的发送可否判定（canRunGenerationNode 的原因码）回答的是「整节点能不能跑」，粒度和取值都不同，复用会把方式选择和跑不跑混成一件事。",
+      "site": "electron/shared/modelArchetypes/modeForInputs.ts::type:ModeForInputsResult/property:status/type-union"
+    },
+    {
+      "members": [
+        "active",
+        "neutral",
+        "success",
+        "warning"
+      ],
+      "reason": "模型 / 连接状态点的四种语义色（可使用 = 成功绿、配置中 = accent、待设置 = warning、已关闭 / 待接入 = 中性），是状态主人 modelStatusPresentation 输出的一部分；放在 electron/shared 是为了主进程和渲染层读同一张表。src/design/status.tsx 的 StatusBadgeTone 是渲染层设计组件的徽标色：主进程不能导入渲染层，它也没有「进行中 = accent」这一档（D-1117-delete-verification 把配置中定成和能力 / 启用态同色的 accent），复用会丢掉这一档、带进用不到的 danger / info。渲染层只在 ModelStatusMark 一处把这四档映射到设计 token。",
+      "site": "electron/shared/modelStatusPresentation.ts::type:ModelStatusTone/type-union"
+    },
+    {
+      "members": [
+        "configuring",
+        "disabled",
+        "needsSetup",
+        "notConnected",
+        "ready"
+      ],
+      "reason": "模型 / 连接「显示成什么」的唯一五档（可使用 / 配置中 / 待设置 / 已关闭 / 待接入，D-1117-delete-verification，协调 2026-11-18 Q1 Q2 Q8）。它是可用性主人 deriveModelAvailability 结论的展示投影，不是第二个可用性判断：MODEL_UNUSABLE_REASONS 回答「为什么不能用」（十几个原因码），这里回答「对创作者说哪一个词」，多个原因折成同一档。词条键、点色、i18n 动态前缀成员都从这一个 as const 派生；原来各出口各自的状态词表（ModelHomeStatus、ModelHomeConnectionState、VendorPill.status、AdapterProviderCardState、ChipModel.adapterState 等）同提交删除，收成这一份。",
+      "site": "electron/shared/modelStatusPresentation.ts::variable:MODEL_STATUS_STATES/as-const"
+    },
+    {
+      "members": [
+        "approved",
+        "handing_over",
+        "not_sent",
+        "removed",
+        "sent",
+        "taken_by_canvas",
+        "undecided",
+        "unknown"
+      ],
+      "reason": "这一次出价里一镜的样子（等决定 / 去掉 / 画布接手 / 在交 / 交到了 / 结果未知 / 没发出去 / 制作流程批过）的唯一 owner：卡、回执、画布小标、认领判定都只经 offerShots 读它；它是出价账本上的投影，不是作业状态机，也不是节点状态，无处可复用。",
+      "site": "electron/shared/productionGenerationPresentation.ts::type:OfferShotState/type-union"
+    },
+    {
+      "members": [
         "awaiting_confirmation",
         "done",
         "failed",
@@ -1148,6 +1301,28 @@
     },
     {
       "members": [
+        "check",
+        "download",
+        "install"
+      ],
+      "reason": "更新流程当前处在哪一步（检查 / 下载 / 安装）：错误事件带上它，界面的重试才知道重做哪一步；不是任务状态，也不是别的执行阶段词表。",
+      "site": "electron/shared/updateReminder.ts::type:UpdaterErrorStage/type-union"
+    },
+    {
+      "members": [
+        "available",
+        "checking",
+        "downloaded",
+        "downloading",
+        "error",
+        "idle",
+        "up-to-date"
+      ],
+      "reason": "桌面更新器生命周期（available / checking / downloaded / downloading / error / idle / up-to-date），对应下载/安装检查阶段，与创作任务正交。",
+      "site": "electron/shared/updateReminder.ts::type:UpdaterPhase/type-union"
+    },
+    {
+      "members": [
         "documented",
         "unknown",
         "unsupported"
@@ -1177,6 +1352,15 @@
       ],
       "reason": "外部任务响应解析的成功同义词集合（done / ok / succeeded / success / 完成 / 成功），是解析字典而非执行状态。",
       "site": "electron/tasks/responseParsing.ts::variable:NON_FAILURE_TEXTS/set"
+    },
+    {
+      "members": [
+        "busy",
+        "failed",
+        "started"
+      ],
+      "reason": "唯一安装入口 installIfIdleNow 的三种结果（装了 / 因有任务在跑拒绝 / 装包程序没起来）；它是更新安装这一个动作的返回值，不是任务中心按钮色调那套词表。",
+      "site": "electron/update/installGate.ts::type:InstallOutcome/type-union"
     },
     {
       "members": [
@@ -1243,6 +1427,20 @@
     },
     {
       "members": [
+        "accepted",
+        "discarded",
+        "failed",
+        "live",
+        "menu",
+        "result",
+        "running",
+        "selected"
+      ],
+      "reason": "实验室舞台自己的剧本场景名（选中 / 菜单 / 进行中 / 结果 / 接受 / 放弃 / 失败 / 真操作），只在这个舞台里驱动界面走到哪一步，不是任何生产状态机的词表，无处可复用。",
+      "site": "src/devlab/designLab/creationAiRewrite/CreationAiRewriteStage.tsx::type:RewriteScene/type-union"
+    },
+    {
+      "members": [
         "custom",
         "off",
         "on",
@@ -1250,6 +1448,88 @@
       ],
       "reason": "提醒音实验室的四种视觉夹具：开/关通过持久化 enabled 驱动，自定义通过 custom 元数据驱动，试听中通过真实 preview handler 驱动。它是验收取景的场景选择，不是通知事件类别或生产任务生命周期；生产设置无平行状态机，也不复用其他业务的同名 on/off 状态。",
       "site": "src/devlab/designLab/settingsSound/settingsSoundLabKit.tsx::function:SoundStage/parameter:0/property:state/type-union"
+    },
+    {
+      "members": [
+        "done",
+        "generating",
+        "submitting"
+      ],
+      "reason": "设计实验室付费卡那一屏自己的夹具场景（节点在提交中 / 生成中 / 已出片），只用来把实验室里的画布节点摆成那个样子（落到真节点的 status 与 progress.phase 上），不是任何生产状态机的词表，无处可复用。",
+      "site": "src/devlab/designLab/spendCard/spendCardLabKit.tsx::type:SpendLabShot/property:node/type-union"
+    },
+    {
+      "members": [
+        "anchors",
+        "done",
+        "idle",
+        "shots",
+        "stopped"
+      ],
+      "reason": "Storyboard batch footer phases are the design-lab-only lifecycle states for the production storyboard progress footer; they describe anchor and shot waves rather than reusing a different runtime task vocabulary.",
+      "site": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx::type:FooterPhase/type-union"
+    },
+    {
+      "members": [
+        "done",
+        "error",
+        "ready"
+      ],
+      "reason": "Frame-capture fixture presets map ready, output and error scenes into the shared video edit lab; these are screenshot presets rather than browser asset network status.",
+      "site": "src/devlab/designLab/videoNodeNext/FrameCaptureStage.tsx::function:FrameCaptureStage/parameter:0/property:initial/type-union"
+    },
+    {
+      "members": [
+        "image",
+        "video"
+      ],
+      "reason": "This lab output selector contrasts frame extraction with a proposed video split output; it is local presentation state and does not add a production generation kind.",
+      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::function:VideoEditStage/type-union"
+    },
+    {
+      "members": [
+        "analyzing",
+        "running"
+      ],
+      "reason": "The design-lab timer can enter only simulated analysis or processing; no real task lifecycle is represented by this animation helper.",
+      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::function:VideoEditStage/variable:run/parameter:nextPhase/type-union"
+    },
+    {
+      "members": [
+        "analyzing",
+        "capped",
+        "capture",
+        "capture-done",
+        "capture-error",
+        "done",
+        "empty",
+        "error",
+        "loading",
+        "open",
+        "partial",
+        "preview",
+        "review",
+        "running",
+        "selected",
+        "split-done",
+        "unavailable"
+      ],
+      "reason": "Video edit lab entry presets select concrete reviewable interaction scenes including capture, trimming and split proposals; they are not persisted execution states.",
+      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::type:EditInitial/type-union"
+    },
+    {
+      "members": [
+        "analyzing",
+        "empty",
+        "error",
+        "idle",
+        "partial",
+        "review",
+        "running",
+        "unavailable"
+      ],
+      "reason": "Video edit design-lab simulation phases cover review and recoverable outputs in the approved prototypes; production trimming continues to use the existing real processing lifecycle.",
+      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::type:Phase/type-union"
     },
     {
       "members": [
@@ -1263,15 +1543,23 @@
     {
       "members": [
         "available",
-        "checking",
+        "downloading",
+        "failed",
+        "mac-steps",
+        "ready"
+      ],
+      "reason": "更新弹窗身体的五个屏（有新版 / 下载中 / 下好了 / 失败 / Mac 三步），按更新阶段派生的展示视图，不是更新阶段本身，也不是别处的执行状态。",
+      "site": "src/ui/app-shell/UpdateDialog.tsx::type:UpdateDialogView/type-union"
+    },
+    {
+      "members": [
+        "available",
         "downloaded",
         "downloading",
-        "error",
-        "idle",
-        "up-to-date"
+        "error"
       ],
-      "reason": "桌面更新器生命周期（available / checking / downloaded / downloading / error / idle / up-to-date），对应下载/安装检查阶段，与创作任务正交。",
-      "site": "electron/shared/updateReminder.ts::type:UpdaterPhase/type-union"
+      "reason": "顶栏胶囊会显示的四个更新阶段（更新阶段词表 UpdaterPhase 的子集：空闲 / 检查中 / 已是最新不显示胶囊）；子集单独成型是为了让胶囊组件的入参类型穷尽。",
+      "site": "src/ui/app-shell/UpdatePill.tsx::type:UpdatePillPhase/type-union"
     },
     {
       "members": [
@@ -1445,6 +1733,14 @@
     },
     {
       "members": [
+        "generated",
+        "sent"
+      ],
+      "reason": "对话流收据那一句的两种说法（已发出 / 已生成）：从那几镜节点此刻的状态现算（都出了结果才说已生成），只在这一处挑文案，不落盘、不跨模块，不是状态机。",
+      "site": "src/workbench/ai/pointer/generationReceiptFacts.ts::type:ReceiptLine/property:phase/type-union"
+    },
+    {
+      "members": [
         "done",
         "failed",
         "idle",
@@ -1521,6 +1817,15 @@
     },
     {
       "members": [
+        "poll-terminal",
+        "submit-terminal",
+        "submit-threw"
+      ],
+      "reason": "渲染层生成统计推导的内部参数：结局是在哪扇门上看到的（提交抛错 / 提交即终态 / 轮询终态），只用来推失败阶段，不出门、不进事件。和任务状态不是一回事（同一终态可以从两扇门到达）。",
+      "site": "src/workbench/api/generationTelemetry.ts::type:GenerationOutcomeDoor/type-union"
+    },
+    {
+      "members": [
         "catalog_empty",
         "model_mapping_missing",
         "vendor_api_key_locked",
@@ -1530,6 +1835,16 @@
       ],
       "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存与缺模型映射；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。",
       "site": "src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union"
+    },
+    {
+      "members": [
+        "failed",
+        "menu",
+        "result",
+        "running"
+      ],
+      "reason": "AI 编辑会话自己的四个状态（菜单 / 进行中 / 结果 / 失败）：会话的唯一 owner 就是这个插件状态，没有别处定义同一组状态可以复用。",
+      "site": "src/workbench/creation/aiRewrite/rewriteSession.ts::type:RewriteStatus/type-union"
     },
     {
       "members": [
@@ -1659,6 +1974,17 @@
     },
     {
       "members": [
+        "empty",
+        "idle",
+        "rendering",
+        "retry",
+        "too_long"
+      ],
+      "reason": "3D-BOX 导演视图主按钮「出成片」显示哪一态：empty 没有可播放的镜头 / rendering 预演渲染中 / retry 预演失败可重试 / too_long 超长失败要改短 / idle 可以点。它是界面投影，由预演生命周期 DIRECTOR_PREVIEW_STATUSES 加「有没有镜头」推出（directorProduceButtonState 唯一推导点），只给按钮用；不能复用预演生命周期本身：按钮要区分「可重试」与「超长」两种失败，还多一个「没有镜头」，并进去会让花钱闸的判据长出与它无关的成员。",
+      "site": "src/workbench/generationCanvas/nodes/director/model/directorPreviewState.ts::type:DirectorProduceButtonState/type-union"
+    },
+    {
+      "members": [
         "loading",
         "missing",
         "ready"
@@ -1684,6 +2010,23 @@
       ],
       "reason": "CameraVisualState 是导演台 V2 场内机位模型的四态着色（idle/selected/active/preview 四色），由选中态、激活机位、预览机位三个 store 事实推导出的纯视觉枚举，只在 CameraEntity 内消费，与画布节点选中态或任务状态词表语义不同。",
       "site": "src/workbench/generationCanvas/nodes/director/scene/entities/CameraEntity.tsx::type:CameraVisualState/type-union"
+    },
+    {
+      "members": [
+        "compact",
+        "full"
+      ],
+      "reason": "空节点占位按渲染卡高收成两档（完整 / 紧凑），由 nodeEmptyStateLayout.ts 的 emptyStateTier 算出，唯一读者是 NodeEmptyState。「只留第一行」档已删：用到的节点渲染高度下限是 120（resolveNodeVisualSize 钳高），高于紧凑阈值 108，那一档进不去。没有复用 ShotTableZoomDensity（full / compact / card）：那是分镜表缩放档，轴不同。",
+      "site": "src/workbench/generationCanvas/nodes/render/nodeEmptyStateLayout.ts::type:EmptyStateTier/type-union"
+    },
+    {
+      "members": [
+        "failed",
+        "loading",
+        "ready"
+      ],
+      "reason": "画板初始原图导入事务的唯一状态 owner：loading 阻止空稿持久化，failed 允许重试或取消，ready 才发布可编辑文档；它描述画板导入事务，不耦合浏览器素材加载状态。",
+      "site": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardTypes.ts::type:WhiteboardInitialImageStatus/type-union"
     },
     {
       "members": [
@@ -1844,340 +2187,6 @@
       ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes.",
       "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const"
-    },
-    {
-      "members": [
-        "error",
-        "progress",
-        "runs",
-        "status"
-      ],
-      "reason": "NODE_RUN_STATE_FIELDS 是节点上「只由运行写」的字段清单（运行记录 / 状态 / 错误 / 进度）：撤销 / 重做与外部整张写回画布时这几项都取此刻的真实值、不回退不覆盖，生成中不会被撤回或改成空闲。它不是一套状态枚举，而是 GenerationCanvasNode 字段名的子集；读者是同文件的 withLiveRunState / withLiveNodeFacts（画布写边界统一提交口 store/canvasDocumentCommit 与盘上 shared/canvas/externalCanvasWrite 共用）。",
-      "site": "electron/shared/canvas/landedNodeFields.ts::variable:NODE_RUN_STATE_FIELDS/as-const"
-    },
-    {
-      "members": [
-        "cancelled",
-        "completed",
-        "paused"
-      ],
-      "reason": "AT_REST 是 ProductionRunStatus 的子集：Run 停在这三种状态时不再派发新镜，判断「这批是否还在动」只看它与供应商那边是否还有在飞的 job。它不是一套新状态词表，成员类型就是 ProductionRunStatus（ReadonlySet<ProductionRunStatus>）；和视口动画的结算结果（ViewportAnimationSettlementOutcome）只是碰巧同名，概念无关，不该复用。",
-      "site": "electron/productionRun/productionRunLifecycle.ts::variable:AT_REST/set"
-    },
-    {
-      "members": [
-        "done",
-        "failed",
-        "timeout"
-      ],
-      "reason": "DrainOutcome 是退出收尾里单个 drain 步骤的结局，只用来写 quit-step 回执（tests/ux/quit-teardown-real.e2e.mjs 读它）：步骤跑完、超出时间预算、抛错三选一。它和视频深度任务的终态（TERMINAL_VIDEO_DEPTH_PHASES，含用户 cancelled、没有 timeout）不是同一个概念——收尾步骤不能被用户取消，超时却是它的核心结局；复用那份词表会把 cancelled 带进退出回执、丢掉 timeout。",
-      "site": "electron/quitTeardown.ts::type:DrainOutcome/type-union"
-    },
-    {
-      "members": [
-        "failed",
-        "pending"
-      ],
-      "reason": "GenerationPresentation.policyDecisionState records the automatic spend decision for this presentation: pending is unresolved and failed requires manual handling. ProviderPollStatusClass instead classifies an already submitted provider task, including succeeded and unknown. Reusing it would confuse pre-spend authorization with post-submission execution; this is an intentional independent owner.",
-      "site": "electron/productionRun/productionRunTypes.ts::type:GenerationPresentation/property:policyDecisionState/type-union"
-    },
-    {
-      "members": [
-        "check",
-        "download",
-        "install"
-      ],
-      "reason": "更新流程当前处在哪一步（检查 / 下载 / 安装）：错误事件带上它，界面的重试才知道重做哪一步；不是任务状态，也不是别的执行阶段词表。",
-      "site": "electron/shared/updateReminder.ts::type:UpdaterErrorStage/type-union"
-    },
-    {
-      "members": [
-        "busy",
-        "failed",
-        "started"
-      ],
-      "reason": "唯一安装入口 installIfIdleNow 的三种结果（装了 / 因有任务在跑拒绝 / 装包程序没起来）；它是更新安装这一个动作的返回值，不是任务中心按钮色调那套词表。",
-      "site": "electron/update/installGate.ts::type:InstallOutcome/type-union"
-    },
-    {
-      "members": [
-        "available",
-        "downloading",
-        "failed",
-        "mac-steps",
-        "ready"
-      ],
-      "reason": "更新弹窗身体的五个屏（有新版 / 下载中 / 下好了 / 失败 / Mac 三步），按更新阶段派生的展示视图，不是更新阶段本身，也不是别处的执行状态。",
-      "site": "src/ui/app-shell/UpdateDialog.tsx::type:UpdateDialogView/type-union"
-    },
-    {
-      "members": [
-        "available",
-        "downloaded",
-        "downloading",
-        "error"
-      ],
-      "reason": "顶栏胶囊会显示的四个更新阶段（更新阶段词表 UpdaterPhase 的子集：空闲 / 检查中 / 已是最新不显示胶囊）；子集单独成型是为了让胶囊组件的入参类型穷尽。",
-      "site": "src/ui/app-shell/UpdatePill.tsx::type:UpdatePillPhase/type-union"
-    },
-    {
-      "members": [
-        "compact",
-        "full"
-      ],
-      "reason": "空节点占位按渲染卡高收成两档（完整 / 紧凑），由 nodeEmptyStateLayout.ts 的 emptyStateTier 算出，唯一读者是 NodeEmptyState。「只留第一行」档已删：用到的节点渲染高度下限是 120（resolveNodeVisualSize 钳高），高于紧凑阈值 108，那一档进不去。没有复用 ShotTableZoomDensity（full / compact / card）：那是分镜表缩放档，轴不同。",
-      "site": "src/workbench/generationCanvas/nodes/render/nodeEmptyStateLayout.ts::type:EmptyStateTier/type-union"
-    },
-    {
-      "members": [
-        "done",
-        "error",
-        "ready"
-      ],
-      "reason": "Frame-capture fixture presets map ready, output and error scenes into the shared video edit lab; these are screenshot presets rather than browser asset network status.",
-      "site": "src/devlab/designLab/videoNodeNext/FrameCaptureStage.tsx::function:FrameCaptureStage/parameter:0/property:initial/type-union"
-    },
-    {
-      "members": [
-        "image",
-        "video"
-      ],
-      "reason": "This lab output selector contrasts frame extraction with a proposed video split output; it is local presentation state and does not add a production generation kind.",
-      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::function:VideoEditStage/type-union"
-    },
-    {
-      "members": [
-        "analyzing",
-        "running"
-      ],
-      "reason": "The design-lab timer can enter only simulated analysis or processing; no real task lifecycle is represented by this animation helper.",
-      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::function:VideoEditStage/variable:run/parameter:nextPhase/type-union"
-    },
-    {
-      "members": [
-        "analyzing",
-        "capped",
-        "capture",
-        "capture-done",
-        "capture-error",
-        "done",
-        "empty",
-        "error",
-        "loading",
-        "open",
-        "partial",
-        "preview",
-        "review",
-        "running",
-        "selected",
-        "split-done",
-        "unavailable"
-      ],
-      "reason": "Video edit lab entry presets select concrete reviewable interaction scenes including capture, trimming and split proposals; they are not persisted execution states.",
-      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::type:EditInitial/type-union"
-    },
-    {
-      "members": [
-        "analyzing",
-        "empty",
-        "error",
-        "idle",
-        "partial",
-        "review",
-        "running",
-        "unavailable"
-      ],
-      "reason": "Video edit design-lab simulation phases cover review and recoverable outputs in the approved prototypes; production trimming continues to use the existing real processing lifecycle.",
-      "site": "src/devlab/designLab/videoNodeNext/VideoEditStage.tsx::type:Phase/type-union"
-    },
-    {
-      "members": [
-        "missing",
-        "ready",
-        "source"
-      ],
-      "reason": "Canvas media preview facts on an asset receipt and a canvas result: ready = a separate bounded preview file exists, source = the source itself is within the preview bound, missing = no preview could be derived. A media-derivation fact, not a lifecycle; poseClipStatus is the 3D director pose-clip loading lifecycle and shares only two words.",
-      "site": "electron/shared/canvas/canvasMediaPreview.ts::variable:CANVAS_PREVIEW_STATES/as-const"
-    },
-    {
-      "members": [
-        "accepted",
-        "not_sent",
-        "unknown",
-        "withdrawn"
-      ],
-      "reason": "D2 交接落定的四种结局（交到了 / 结果未知 / 确定没发出去 / 被收回）的唯一 owner：画布那一侧写回、主进程落定时的校验集合、落定记录的类型都从这一个 as const 来；它回答的是「交给画布的这一镜钱有没有在花」，和制作作业状态、画布节点状态是不同的事，没有现成词表可复用。",
-      "site": "electron/productionRun/productionRunTypes.ts::variable:GENERATION_HAND_OVER_OUTCOMES/as-const"
-    },
-    {
-      "members": [
-        "approved",
-        "handing_over",
-        "not_sent",
-        "removed",
-        "sent",
-        "taken_by_canvas",
-        "undecided",
-        "unknown"
-      ],
-      "reason": "这一次出价里一镜的样子（等决定 / 去掉 / 画布接手 / 在交 / 交到了 / 结果未知 / 没发出去 / 制作流程批过）的唯一 owner：卡、回执、画布小标、认领判定都只经 offerShots 读它；它是出价账本上的投影，不是作业状态机，也不是节点状态，无处可复用。",
-      "site": "electron/shared/productionGenerationPresentation.ts::type:OfferShotState/type-union"
-    },
-    {
-      "members": [
-        "done",
-        "generating",
-        "submitting"
-      ],
-      "reason": "设计实验室付费卡那一屏自己的夹具场景（节点在提交中 / 生成中 / 已出片），只用来把实验室里的画布节点摆成那个样子（落到真节点的 status 与 progress.phase 上），不是任何生产状态机的词表，无处可复用。",
-      "site": "src/devlab/designLab/spendCard/spendCardLabKit.tsx::type:SpendLabShot/property:node/type-union"
-    },
-    {
-      "members": [
-        "generated",
-        "sent"
-      ],
-      "reason": "对话流收据那一句的两种说法（已发出 / 已生成）：从那几镜节点此刻的状态现算（都出了结果才说已生成），只在这一处挑文案，不落盘、不跨模块，不是状态机。",
-      "site": "src/workbench/ai/pointer/generationReceiptFacts.ts::type:ReceiptLine/property:phase/type-union"
-    },
-    {
-      "members": [
-        "not_dispatched",
-        "provider_rejected",
-        "result_landing_failed",
-        "unknown"
-      ],
-      "reason": "SubmissionFailureOutcome 是一次付费提交失败的封闭结局（not_dispatched 确定没发出去 / provider_rejected 供应商当场明确拒绝 / result_landing_failed 供应商答了、本机把结果落地失败 / unknown 拿不出证据的结果未知）：submissionOutbox 按它穷举落盘，信封按它决定记不记 submitted_unknown（2026-10-28）。它回答「这次提交失败在钱上意味着什么」，和 ProductionJobStatus（job 持久化状态机）、GENERATION_HAND_OVER_OUTCOMES（交接写回）、ProviderPollStatusClass（轮询状态归一）都不是同一件事；复用任何一个都会丢掉「答了没落下」与「结果未知」的区分，故独立。",
-      "site": "electron/productionRun/submissionOutbox.ts::type:SubmissionFailureOutcome/type-union"
-    },
-    {
-      "members": [
-        "authorize",
-        "save-project"
-      ],
-      "reason": "保存结果包络记录的主进程阶段：authorize 只包含发送者校验，save-project 包含项目事务；两个阶段只由保存 handler 写入，并由 ProjectSaveFailure.stage 作为唯一词表供记录和读取使用。",
-      "site": "electron/shared/contracts/projectSaveFailure.ts::type:ProjectSaveFailure/property:stage/type-union"
-    },
-    {
-      "members": [
-        "monitor-not-running",
-        "none-this-session",
-        "recorded"
-      ],
-      "reason": "诊断包清单里卡顿时间线的三态：recorded 有记录、none-this-session 监视器在跑但本次没记到、monitor-not-running 监视器没运行。只由诊断包组包函数按监视器状态和盘上读回的行数推出，写进清单给收包的人读；没有别的状态机用这三个词，无处可复用，也不会有第二个写入方。",
-      "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsStallTimeline/property:state/type-union"
-    },
-    {
-      "members": [
-        "absent",
-        "closing",
-        "creating",
-        "open",
-        "quitting"
-      ],
-      "reason": "主窗口生命周期的唯一状态表：electron/mainWindowPresence.ts 是主窗口的唯一主人，这五个阶段（无窗 / 建窗中 / 在用 / 关窗中 / 退出中）只由它一处读写，所有叫回、关窗、退出入口都问它而不自己判断；仓库里没有别的窗口或应用生命周期词表可复用（CloseStart、DrainOutcome 是另外的概念）。",
-      "site": "electron/mainWindowPresence.ts::type:MainWindowPhase/type-union"
-    },
-    {
-      "members": [
-        "inputsNotAccepted",
-        "needsInput",
-        "ok"
-      ],
-      "reason": "「这次按哪种方式发」的现算结果三态，唯一主人是 electron/shared/modelArchetypes/modeForInputs.ts：ok 是选出了能发的方式；needsInput 是选中的方式还缺必放的输入（生成钮灰、说缺什么）；inputsNotAccepted 是模型任何方式都收不下这些输入。底栏方式格、菜单置灰、参考行尾和请求体都读这一个结果，不各自判断。仓库里现有的发送可否判定（canRunGenerationNode 的原因码）回答的是「整节点能不能跑」，粒度和取值都不同，复用会把方式选择和跑不跑混成一件事。",
-      "site": "electron/shared/modelArchetypes/modeForInputs.ts::type:ModeForInputsResult/property:status/type-union"
-    },
-    {
-      "members": [
-        "fetch",
-        "land",
-        "submit",
-        "wait"
-      ],
-      "reason": "遥测 generation.completed 的 failureStage：一次画布生成失败卡在提交 / 等待 / 取回 / 落地哪一段。是出站事件的闭合值（主进程白名单校验），回答「失败在哪一段」；不能复用生成节点状态或任务状态：那两张表说的是任务现在处于什么状态，这里只说失败发生的阶段，且取回 / 落地两段在任务状态里没有对应成员。",
-      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_FAILURE_STAGES/as-const"
-    },
-    {
-      "members": [
-        "1-5s",
-        "2-10m",
-        "30-120s",
-        "5-30s",
-        "gt-10m",
-        "lt-1s",
-        "none"
-      ],
-      "reason": "遥测 generation.completed 的 submitDuration / waitDuration 分档：提交、等待两段各自的耗时区间。不能复用总耗时的 DurationBucket（<1s / 1-5s / >5s）：视频等待常在分钟级，三档分不出；且要有 none 表示「同步任务没有等待段」。",
-      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_STAGE_DURATIONS/as-const"
-    },
-    {
-      "members": [
-        "auth",
-        "client-4xx",
-        "network",
-        "not-sent",
-        "ok",
-        "rate-limit",
-        "server-5xx",
-        "task-failed",
-        "timeout",
-        "unknown"
-      ],
-      "reason": "遥测 generation.completed 的 upstreamStatus：上游怎么答的（含「没发出去」和「受理后自己报失败」）。不能复用供应商失败类别（vendorFailure 的 category）：那张表是查表得来的业务类别，没有 ok / not-sent / task-failed，且这里按 HTTP 状态码优先归类；也不能复用 errorType 失败类别码（开放的标识符形状，不是闭合集合）。",
-      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_UPSTREAM_STATUSES/as-const"
-    },
-    {
-      "members": [
-        "poll-terminal",
-        "submit-terminal",
-        "submit-threw"
-      ],
-      "reason": "渲染层生成统计推导的内部参数：结局是在哪扇门上看到的（提交抛错 / 提交即终态 / 轮询终态），只用来推失败阶段，不出门、不进事件。和任务状态不是一回事（同一终态可以从两扇门到达）。",
-      "site": "src/workbench/api/generationTelemetry.ts::type:GenerationOutcomeDoor/type-union"
-    },
-    {
-      "members": [
-        "checked",
-        "disabled",
-        "excluded",
-        "unchecked"
-      ],
-      "reason": "生成范围共用主人给每个候选行的结论：默认勾 / 默认不勾可勾 / 灰着勾不上 / 不上卡。是意图表每一格的取值，所有生成入口只读它；和分镜行状态、任务状态都不是一回事（同一个状态的节点在不同入口落到不同格），没有现成的词表可复用。",
-      "site": "electron/shared/agentCapabilities/generationShotScope.ts::type:ScopeRow/property:state/type-union"
-    },
-    {
-      "members": [
-        "done",
-        "failed",
-        "frozen",
-        "generating",
-        "missing-required",
-        "ready",
-        "recoverable"
-      ],
-      "reason": "生成范围共用主人给候选行的原因（卡上状态词由入口按它查现有文案）。不能复用分镜行状态 SHOT_ROW_STATUSES：那张表在渲染层（electron/shared 不能反向引用 src），且是分镜行的显示状态（有 anchor-ignored、用 locked 表示定妆），这里是范围判定的原因，只多一个 frozen（定妆）、没有 anchor-ignored；两者在 storyboardRowStatus 里按原因一一映射。",
-      "site": "electron/shared/agentCapabilities/generationShotScope.ts::type:ScopeRowReason/type-union"
-    },
-    {
-      "members": [
-        "active",
-        "neutral",
-        "success",
-        "warning"
-      ],
-      "reason": "模型 / 连接状态点的四种语义色（可使用 = 成功绿、配置中 = accent、待设置 = warning、已关闭 / 待接入 = 中性），是状态主人 modelStatusPresentation 输出的一部分；放在 electron/shared 是为了主进程和渲染层读同一张表。src/design/status.tsx 的 StatusBadgeTone 是渲染层设计组件的徽标色：主进程不能导入渲染层，它也没有「进行中 = accent」这一档（D-1117-delete-verification 把配置中定成和能力 / 启用态同色的 accent），复用会丢掉这一档、带进用不到的 danger / info。渲染层只在 ModelStatusMark 一处把这四档映射到设计 token。",
-      "site": "electron/shared/modelStatusPresentation.ts::type:ModelStatusTone/type-union"
-    },
-    {
-      "members": [
-        "configuring",
-        "disabled",
-        "needsSetup",
-        "notConnected",
-        "ready"
-      ],
-      "reason": "模型 / 连接「显示成什么」的唯一五档（可使用 / 配置中 / 待设置 / 已关闭 / 待接入，D-1117-delete-verification，协调 2026-11-18 Q1 Q2 Q8）。它是可用性主人 deriveModelAvailability 结论的展示投影，不是第二个可用性判断：MODEL_UNUSABLE_REASONS 回答「为什么不能用」（十几个原因码），这里回答「对创作者说哪一个词」，多个原因折成同一档。词条键、点色、i18n 动态前缀成员都从这一个 as const 派生；原来各出口各自的状态词表（ModelHomeStatus、ModelHomeConnectionState、VendorPill.status、AdapterProviderCardState、ChipModel.adapterState 等）同提交删除，收成这一份。",
-      "site": "electron/shared/modelStatusPresentation.ts::variable:MODEL_STATUS_STATES/as-const"
     }
   ],
   "debt": [

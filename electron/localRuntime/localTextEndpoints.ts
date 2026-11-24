@@ -29,14 +29,14 @@ export type LocalTextRuntimeCandidate = {
  * 候选运行时清单，**做成可注入常量**（测试要用真 stub 服务器覆盖端口）。
  * Ollama 11434 / LM Studio 1234 / LocalAI 8080 是三家桌面/自托管主流的默认端口。
  */
-export const LOCAL_TEXT_RUNTIME_CANDIDATES: readonly LocalTextRuntimeCandidate[] = [
+const LOCAL_TEXT_RUNTIME_CANDIDATES: readonly LocalTextRuntimeCandidate[] = [
   { id: "ollama", label: "Ollama", port: 11434, homepage: "https://ollama.com/download" },
   { id: "lmstudio", label: "LM Studio", port: 1234, homepage: "https://lmstudio.ai" },
   { id: "localai", label: "LocalAI", port: 8080, homepage: "https://localai.io" },
 ];
 
 /** 单端口探测的返回：探到（带 baseUrl + 模型列表）或没探到（安静，不是错误——本地服务本就常没开）。 */
-export type LocalTextEndpointHit = {
+type LocalTextEndpointHit = {
   id: LocalTextRuntimeCandidate["id"];
   label: string;
   /** 建档要用的 OpenAI-兼容 baseURL（已含 /v1）。 */
@@ -45,13 +45,13 @@ export type LocalTextEndpointHit = {
   models: string[];
 };
 
-export type LocalTextProbeResult = {
+type LocalTextProbeResult = {
   /** 探到的运行时（按候选顺序）。空数组 = 一个本地端口都没开——UI 安静提示，不报错。 */
   hits: LocalTextEndpointHit[];
 };
 
 /** 探测用的注入面（测试传入自定 fetch + 候选表 + 超时；生产用默认）。 */
-export type LocalTextProbeDeps = {
+type LocalTextProbeDeps = {
   fetchImpl?: typeof globalThis.fetch;
   candidates?: readonly LocalTextRuntimeCandidate[];
   /** 单端口超时。默认 1200ms：本地要么秒回、要么根本没开，短超时避免整排卡住。 */

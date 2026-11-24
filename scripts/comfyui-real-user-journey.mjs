@@ -229,13 +229,8 @@ async function forceChinese(win) {
   await win.waitForTimeout(1500)
 }
 
-async function skipFirstRunIntro(win) {
-  const skip = win.locator('[data-splash-skip="true"]')
-  if (!(await skip.isVisible().catch(() => false))) return null
-  const started = Date.now()
-  await skip.click()
-  await skip.waitFor({ state: 'detached', timeout: 3000 })
-  return Date.now() - started
+async function skipFirstRunIntro() {
+  return null
 }
 
 async function openModelsSettings(win) {

@@ -10,8 +10,8 @@ import {
   type ProvenanceMark,
 } from "./provenance";
 
-export type PromptSectionStability = "stable" | "session" | "turn";
-export type PromptSectionTrust = "trusted" | "user" | "external";
+type PromptSectionStability = "stable" | "session" | "turn";
+type PromptSectionTrust = "trusted" | "user" | "external";
 
 export type SkillLoadEvent = Readonly<{
   name: string;
@@ -45,7 +45,7 @@ export type PromptPipeInput = Readonly<{
   budget?: Readonly<{ maxBytes?: number; maxTokens?: number }>;
 }>;
 
-export type PromptSection = Readonly<{
+type PromptSection = Readonly<{
   id: string;
   version: 1;
   stability: PromptSectionStability;
@@ -59,7 +59,7 @@ export type PromptSection = Readonly<{
   truncated: boolean;
 }>;
 
-export type PromptBudgetNotice = Readonly<{
+type PromptBudgetNotice = Readonly<{
   sectionId: string;
   action: "truncated" | "omitted";
   originalBytes: number;
@@ -67,7 +67,7 @@ export type PromptBudgetNotice = Readonly<{
   reason: "budget";
 }>;
 
-export type CompiledPrompt = Readonly<{
+type CompiledPrompt = Readonly<{
   sections: readonly PromptSection[];
   systemPrompt: string;
   /** Full seven-layer outbound representation, including the current user turn. */

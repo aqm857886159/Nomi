@@ -283,8 +283,9 @@
         "748-span-连接模型",
         "763-div-出图要先连一个APIMa"
       ],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.composer-connect"
     },
     {
       "id": "entry.persona-setup",
@@ -299,9 +300,10 @@
       "candidates": [
         "769-span-先连一个模型"
       ],
-      "status": "missing",
+      "status": "implemented",
       "owner": "S7a 入口指路（入口）",
-      "note": "落点改成顶栏 Nomi 入口（2026-11-22 NomiEntryTopbar 板起没有右下小球）；仍未做。"
+      "note": "落点改成顶栏 Nomi 入口（2026-11-22 NomiEntryTopbar 板 D1/D3/D5 起没有右下小球，且不画「先连一个模型」特例胶囊）：点击顶栏 Nomi 入口展开面板，未连模型时由面板内 entry.agent-pointer 指路卡直达连接 APIMart 大页。",
+      "assertion": "board:Onboarding/entry.persona-setup"
     },
     {
       "id": "entry.library-banner",
@@ -323,8 +325,9 @@
         "802-span-出图出视频Agent都靠",
         "803-span-连接模型"
       ],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.library-banner"
     },
     {
       "id": "entry.library-main-card",
@@ -378,8 +381,9 @@
         "560-div",
         "561-span-连接模型"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（主卡）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（主卡）",
+      "assertion": "board:Onboarding/entry.library-main-card"
     },
     {
       "id": "entry.library-other-provider",
@@ -401,8 +405,9 @@
         "562-span-用别家服务",
         "563-span-去设置"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（主卡）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（主卡）",
+      "assertion": "board:Onboarding/entry.library-other-provider"
     },
     {
       "id": "entry.library-start-cards",
@@ -477,8 +482,9 @@
         "577-span-看Nomi怎么出片",
         "578-span-60秒预览从一句话到成片"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（主卡）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（主卡）",
+      "assertion": "board:Onboarding/entry.library-start-cards"
     },
     {
       "id": "entry.old-user-nothing",
@@ -549,8 +555,9 @@
         "651-span-看Nomi怎么出片",
         "652-span-60秒预览从一句话到成片"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（老用户：主卡判定）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（老用户：主卡判定）",
+      "assertion": "board:Onboarding/entry.old-user-nothing"
     },
     {
       "id": "entry.finale-line",
@@ -574,8 +581,9 @@
         "694-span-走一遍",
         "695-span-先逛逛"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（主卡）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（主卡）",
+      "assertion": "board:Onboarding/entry.finale-line"
     },
     {
       "id": "onb.drop.splash",
@@ -587,8 +595,12 @@
       ],
       "component": "（删：SplashIntro.tsx 整个文件、NomiStudioApp 里 splashDone 状态与挂载、onboardingState 的 hasSeenSplash / markSplashSeen / SPLASH_KEY、locales splash 一组文案；windowChrome / modalInputLayerCensus 两个测试里对它的登记一起改）",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（删开屏）"
+      "status": "dropped",
+      "owner": "S7b 首屏主卡与大页（删开屏）",
+      "userDecision": {
+        "quote": "可以删掉现在的开屏展示 因为感觉也有点不匹配",
+        "date": "2026-11-07"
+      }
     },
     {
       "id": "onb.drop.splash-replay",
@@ -600,8 +612,12 @@
       ],
       "component": "（删：AboutSection 的 onReplaySplash 行与 about.replaySplash* 文案；SettingsDialog 不再传 onReplaySplash）",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（删开屏）"
+      "status": "dropped",
+      "owner": "S7b 首屏主卡与大页（删开屏）",
+      "userDecision": {
+        "quote": "可以删掉现在的开屏展示 因为感觉也有点不匹配",
+        "date": "2026-11-07"
+      }
     },
     {
       "id": "onb.drop.library-pill",
@@ -613,8 +629,12 @@
       ],
       "component": "（删：项目库不挂形象胶囊）",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（主卡）"
+      "status": "dropped",
+      "owner": "S7b 首屏主卡与大页（主卡）",
+      "userDecision": {
+        "quote": "可以，照这版做",
+        "date": "2026-11-15"
+      }
     },
     {
       "id": "entry.agent-pointer",
@@ -635,8 +655,9 @@
         "835-span-点一下打开接入页三步说明",
         "836-svg"
       ],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.agent-pointer"
     },
     {
       "id": "entry.picker-empty",
@@ -648,8 +669,9 @@
       ],
       "component": "NodeGenerationComposer（src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx） 模型下拉空态文案（useDedupedModelSelect）",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.picker-empty"
     },
     {
       "id": "entry.copy-unify",
@@ -662,8 +684,9 @@
       ],
       "component": "只改文案（i18n），无新件",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.copy-unify"
     },
     {
       "id": "entry.kept-recovery",
@@ -675,8 +698,9 @@
       ],
       "component": "现有，不动",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7a 入口指路（入口）"
+      "status": "implemented",
+      "owner": "S7a 入口指路（入口）",
+      "assertion": "board:Onboarding/entry.kept-recovery"
     },
     {
       "id": "depart.steps",
@@ -755,8 +779,9 @@
         "1100-div-官网三步已收起",
         "1101-svg"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/depart.steps"
     },
     {
       "id": "depart.cost-time",
@@ -779,8 +804,9 @@
         "172-div",
         "173-span-5大约能出470张图按公"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/depart.cost-time"
     },
     {
       "id": "depart.open-site",
@@ -812,8 +838,9 @@
         "187-svg",
         "188-span-链接带Nomi邀请码"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/depart.open-site"
     },
     {
       "id": "depart.cant-open",
@@ -833,8 +860,9 @@
         "142-span-Cantopenit",
         "189-span-打不开"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/depart.cant-open"
     },
     {
       "id": "depart.frame-height",
@@ -846,8 +874,12 @@
       ],
       "component": "（不再适用：大页不在设置弹窗里）",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "dropped",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "userDecision": {
+        "quote": "可以，照这版做",
+        "date": "2026-11-15"
+      }
     },
     {
       "id": "depart.key-input",
@@ -914,8 +946,9 @@
       ],
       "component": "新件：整窗页面（和项目库 / 画布同一层的工作区页面，不是 Modal），外壳同项目库页面（rounded-panel paper）；理由：用户要一个能放作品和理由的大页，设置弹窗 760 宽放不下左右两栏",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.page"
     },
     {
       "id": "big.back",
@@ -978,8 +1011,9 @@
         "1089-svg",
         "1090-span-连接APIMart"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.back"
     },
     {
       "id": "big.works",
@@ -1035,8 +1069,9 @@
         "1097-span-NanoBanana",
         "1098-span-Nomi真实生成角上是模"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.works"
     },
     {
       "id": "big.motion",
@@ -1050,8 +1085,9 @@
       ],
       "component": "原生 video（muted playsinline preload=metadata poster）+ IntersectionObserver + visibilitychange / blur；prefers-reduced-motion 只放 poster；暂停钮 WorkbenchIconButton（IconPlayerPause）+ Tooltip",
       "candidates": [],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.motion"
     },
     {
       "id": "big.claim",
@@ -1080,8 +1116,9 @@
         "981-span-Oneaccountim",
         "1099-span-一个账户出图视频配乐Ag"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.claim"
     },
     {
       "id": "big.reasons",
@@ -1121,8 +1158,9 @@
         "170-span-447",
         "171-span-比官方便宜"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.reasons"
     },
     {
       "id": "big.worries",
@@ -1142,8 +1180,9 @@
         "143-span-Nomonthlyfee",
         "190-span-无月费7天内可退Key只"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.worries"
     },
     {
       "id": "big.fineprint",
@@ -1186,8 +1225,9 @@
         "381-span-PerAPIMartst",
         "382-div-Countsandpri"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.fineprint"
     },
     {
       "id": "big.narrow",
@@ -1205,8 +1245,9 @@
         "162-span-NanoBanana",
         "163-span-Nomi真实生成角上是模"
       ],
-      "status": "missing",
-      "owner": "S7b 首屏主卡与大页（大页）"
+      "status": "implemented",
+      "owner": "S7b 首屏主卡与大页（大页）",
+      "assertion": "board:Onboarding/big.narrow"
     },
     {
       "id": "big.entry-routing",
@@ -1218,8 +1259,9 @@
       ],
       "component": "各入口的 onOpenModelCatalog 改成打开大页（同一个路由 / 状态），设置 › 模型的连接入口先关设置",
       "candidates": [],
-      "status": "missing",
-      "owner": "E0 把「连接模型」收成一扇门"
+      "status": "implemented",
+      "owner": "E0 把「连接模型」收成一扇门",
+      "assertion": "board:Onboarding/big.entry-routing"
     },
     {
       "id": "onb.drop.preset-count",

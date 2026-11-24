@@ -11,8 +11,7 @@ export type LaneComposerState = 'awaiting-approval' | 'running' | 'idle'
  * 一个可选动作的身份。**它不是文案**——可见文字全部走 i18n（R15），这一层只说
  * 「这个按钮是哪一个」，让主进程与渲染层对同一个身份说同一句话。
  */
-export const LANE_COMPOSER_OPTIONS = ['deny-with-reason', 'queue-steer', 'queue-follow-up', 'new-turn'] as const
-export type LaneComposerOption = (typeof LANE_COMPOSER_OPTIONS)[number]
+type LaneComposerOption = 'deny-with-reason' | 'queue-steer' | 'queue-follow-up' | 'new-turn'
 
 export interface LaneComposerChoice {
   readonly option: LaneComposerOption

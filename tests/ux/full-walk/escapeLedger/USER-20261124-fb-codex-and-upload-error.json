@@ -1,0 +1,26 @@
+{
+  "id": "USER-20261124-fb-codex-and-upload-error",
+  "since": "2026-11-24",
+  "source": "F-B 用户反馈 NF-1025-0001（Codex CLI 没产出可导入的图）与 NF-1107-0002（素材太大传不上去在制作 Run 路被覆写成未开启第三方托管）",
+  "category": "claims-and-outcomes",
+  "problem": "Codex CLI 生图只扫 generated_images/<threadId> 一层目录且在 close 时立刻删 workDir、并把 turn.failed/error/stderr/agent_message 吞成笼统未产出；制作 Run 路上传参考素材遇 HTTP 413 超限时 productionReferenceUrls 用 hostingDisabled 覆写了逐通道失败摘要与文件体积。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-24-fb-codex-image-and-upload-error.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/codexCli.test.ts"
+  },
+  "evidence": [
+    "electron/catalog/codexCli.test.ts",
+    "electron/capabilityCore/productionReferenceUrls.test.ts"
+  ],
+  "completionCommits": [
+    "973bd3dbe"
+  ],
+  "fixedInPr": 1636
+}

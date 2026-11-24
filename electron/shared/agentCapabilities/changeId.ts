@@ -2,10 +2,10 @@
  * One opaque identity for every reversible Agent write.  The prefix is part of
  * the contract: `undo` can route without reading the other surface's state.
  */
-export const CHANGE_ID_VERSION = "v1" as const
-export type ChangeKind = "canvas" | "timeline"
+const CHANGE_ID_VERSION = "v1" as const
+type ChangeKind = "canvas" | "timeline"
 
-export type ParsedChangeId = Readonly<{
+type ParsedChangeId = Readonly<{
   kind: ChangeKind
   id: string
 }>

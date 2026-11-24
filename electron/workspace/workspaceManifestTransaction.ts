@@ -1,3 +1,4 @@
+import pLimit from "p-limit";
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -235,7 +236,7 @@ export function withWorkspaceManifestTransactionSync<T>(
 }
 
 /** Wait without blocking the owner, then preserve synchronous staged validation and commit semantics. */
-const stagedTransactionTails = new Map<string, Promise<void>>();
+const stagedTransactionLimits = new Map<string, ReturnType<typeof pLimit>>();
 
 export async function withWorkspaceManifestStagedTransaction<T>(
   actualRootPath: string,
@@ -243,18 +244,15 @@ export async function withWorkspaceManifestStagedTransaction<T>(
   lockOptions: WorkspaceManifestLockOptions = {},
 ): Promise<T> {
   const canonicalRoot = fs.realpathSync(actualRootPath);
-  const previous = stagedTransactionTails.get(canonicalRoot) ?? Promise.resolve();
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => { release = resolve; });
-  const tail = previous.then(() => gate);
-  stagedTransactionTails.set(canonicalRoot, tail);
-  await previous;
+  const limit = stagedTransactionLimits.get(canonicalRoot) ?? pLimit(1);
+  stagedTransactionLimits.set(canonicalRoot, limit);
   try {
-    const lease = await acquireWorkspaceManifestLock(canonicalRoot, lockOptions);
-    return runTransactionSync(lease, callback);
+    return await limit(async () => {
+      const lease = await acquireWorkspaceManifestLock(canonicalRoot, lockOptions);
+      return runTransactionSync(lease, callback);
+    });
   } finally {
-    release();
-    if (stagedTransactionTails.get(canonicalRoot) === tail) stagedTransactionTails.delete(canonicalRoot);
+    if (stagedTransactionLimits.get(canonicalRoot) === limit && limit.activeCount === 0 && limit.pendingCount === 0) stagedTransactionLimits.delete(canonicalRoot);
   }
 }
 

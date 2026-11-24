@@ -1,6 +1,6 @@
 import { builtinVendorKeyOfKey } from '../builtinVendorIdentity'
 /** Cross-process contract for model picker provider ordering. */
-export const VENDOR_PREFERENCE_SCHEMA_VERSION = 1 as const
+const VENDOR_PREFERENCE_SCHEMA_VERSION = 1 as const
 export const VENDOR_PREFERENCE_KEY_MAX_LENGTH = 200
 export type VendorPreferenceSettings = { schemaVersion: 1; orderedVendorKeys: string[] }
 export const DEFAULT_VENDOR_PREFERENCE_SETTINGS: VendorPreferenceSettings = { schemaVersion: 1, orderedVendorKeys: [] }
@@ -68,7 +68,7 @@ export function compareVendorLanding(
 }
 
 /** 用户排过的顺序 → 名次表（键一律小写比对：设置里存的和目录里的大小写不必一致）。 */
-export function vendorPreferenceRank(orderedVendorKeys: readonly string[]): Map<string, number> {
+function vendorPreferenceRank(orderedVendorKeys: readonly string[]): Map<string, number> {
   return new Map(orderedVendorKeys.map((key, index) => [key.trim().toLowerCase(), index]))
 }
 

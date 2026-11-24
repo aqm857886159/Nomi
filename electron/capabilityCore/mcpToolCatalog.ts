@@ -33,7 +33,6 @@ const ARTIFACT_FIELDS = productionFields('read_production_artifact')
 const { playbook: _playbook, playbookVersion: _playbookVersion, ...RUN_BRIEF_FIELDS } = RUN_CREATE_FIELDS
 const { decision: _reviewDecision, ...REVIEW_FIELDS } = productionFields('review_production_artifact')
 
-
 // 画布只读投影（canvas.read capability adapter；别名由能力契约声明，M2 语义面把它改叫 nomi_canvas_read）——
 // 收进 nomi_read target=canvas 时借它的 method/canonical 投影（读侧统一，形状约束1：不另留第二个画布读名）。
 const CANVAS_READ_ALIAS = CANVAS_READ_CAPABILITY.aliases.mcp
@@ -77,8 +76,6 @@ const SEMANTIC_EDITING_TOOL_TITLES = {
   nomi_try_model: { 'zh-CN': '试跑一次（会花钱）', en: 'Try this model once (spends credit)' },
   nomi_remove_provider: { 'zh-CN': '永久删除连接或模型', en: 'Permanently delete a connection or model' },
 } as const
-/** M2 语义编辑工具名单（真相源），供测试派生完整目录范围而非手抄排除规则。 */
-export const SEMANTIC_EDITING_TOOL_NAMES = Object.freeze(SEMANTIC_EDITING_TOOLS.map((t) => t.name))
 const SEMANTIC_EDITING_TOOLS_WITH_TITLES = SEMANTIC_EDITING_TOOLS.map((tool) => {
   const titles = SEMANTIC_EDITING_TOOL_TITLES[tool.name as keyof typeof SEMANTIC_EDITING_TOOL_TITLES]
   if (!titles) throw new Error(`Missing localized MCP title for ${tool.name}`)
@@ -368,9 +365,6 @@ export function assertMcpToolTitles(tools: readonly McpToolDefinition[]): void {
     }
   }
 }
-
-// 再导出整族路由映射，供测试逐条 assert 「旧 name 的 method+params ≡ 新 name 某枚举分支的 build 输出」。
-export { READ_METHOD_BY_TARGET }
 
 const MCP_TOOL_SNAPSHOT = Object.freeze(MCP_TOOL_CATALOG.map((tool) => {
   const annotations = 'annotations' in tool && tool.annotations

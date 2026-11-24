@@ -1,0 +1,31 @@
+{
+  "name": "生产 Run 审片结论三态诚实归属（passed / flagged / unverified）",
+  "subject": "production.qa-verdict",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionQaVerdict.ts",
+    "symbol": "buildQaStageOutcome"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/productionQaVerdict.ts",
+      "symbol": "QaShotVerdictStatus"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "verifyGeneratedShots"
+    },
+    {
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "buildQaStageOutcome"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-23",
+  "notes": "合同 docs/fixes/2026-11-22-qa-verdict-honesty.root-cause.json：审片结论严格区分真核验通过（passed）、检出问题（flagged）与未配置视觉模型/未跑成（unverified），渲染层执行器与主进程 Run 阶段归并只经这三个显式契约口，不得把未核验伪装成通过。"
+}

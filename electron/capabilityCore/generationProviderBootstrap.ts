@@ -1,6 +1,6 @@
 import { apiKeyDecryptStatus, decryptApiKeyRecord } from "../catalog/secrets";
 import { readCatalog } from "../catalog/catalogStore";
-import type { CatalogState, Vendor } from "../catalog/types";
+import type { CatalogState } from "../catalog/types";
 import { builtinVendorScopeMatches, isBuiltinDirectKeyVendor } from "../catalog/builtinVendorSeeds";
 import { hasBuiltinCuratedExecution } from "../catalog/seedBuiltins";
 import { isCertificationOwnedConnection } from "../catalog/certificationOwnership";
@@ -10,7 +10,7 @@ import type { GenerationProviderReadiness, GenerationProviderReadinessMap } from
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
 
-export type GenerationProviderBootstrapOptions = {
+type GenerationProviderBootstrapOptions = {
   connectionResolver?: (vendorKey: string) => { apiKey: string; baseUrl?: string } | null;
   catalogReader?: () => CatalogState;
   fetchImpl?: typeof fetch;
@@ -155,6 +155,3 @@ export function createGenerationProviderBootstrap(
   }
   return { providers, readinessByProvider };
 }
-
-/** 只为测试可读性导出：装配期用到的 vendor 形状。 */
-export type BootstrapVendor = Vendor;

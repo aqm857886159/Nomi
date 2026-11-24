@@ -47,7 +47,6 @@ export type MaterializeShotGeneration =
   | { state: 'recoverable'; runRecordId: string; startedAt: number; message?: string }
   | { state: 'ended' }
 
-
 /** 一镜/一锚要落的占位节点（主进程从 Run 的 generationPlan.shots 投影而来）。clientId = shotId（稳定寻址）。 */
 export type MaterializeShotInput = {
   shotId: string
@@ -91,7 +90,7 @@ export type MaterializeShotsPayload = {
   shots?: MaterializeShotInput[]
 }
 
-export type MaterializeShotsResult = {
+type MaterializeShotsResult = {
   /** shotId → 真实节点 id（主进程据此 plan.bind-shot-nodes 写回 job/shot）。 */
   bindings: Array<{ shotId: string; nodeId: string; provider: string; model: string }>
   createdNodeIds: string[]
@@ -355,7 +354,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   return { bindings, createdNodeIds, groupId }
 }
 
-export type AttachShotResultPayload = {
+type AttachShotResultPayload = {
   nodeId?: string
   result?: GenerationNodeResult
   mediaDimensions?: MediaDimensions
@@ -363,7 +362,7 @@ export type AttachShotResultPayload = {
   runId?: string
 }
 
-export type AttachShotResultOutcome = { attached: true; nodeId: string } | { skipped: 'node-removed' | 'no-result' | 'already-attached' }
+type AttachShotResultOutcome = { attached: true; nodeId: string } | { skipped: 'node-removed' | 'no-result' | 'already-attached' }
 
 /**
  * 回填一镜的 result（生成完成一个填一个＝「逐个冒」的节奏载体）。

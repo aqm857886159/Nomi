@@ -194,4 +194,20 @@ describe("curated media protocol", () => {
       }
     } finally { spy.mockRestore(); }
   });
+
+  it("serves bundled onboarding-demo runtime assets with exact MIME types and blocks traversal", async () => {
+    const poster = await handleNomiLocalRequest(new Request("nomi-local://runtime/onboarding-demo/seedance-2.0-poster.jpg"));
+    expect(poster.status).toBe(200);
+    expect(poster.headers.get("Content-Type")).toBe("image/jpeg");
+    expect(Buffer.from(await poster.arrayBuffer()).byteLength).toBeGreaterThan(10_000);
+
+    for (const bad of [
+      "nomi-local://runtime/onboarding-demo/../../package.json",
+      "nomi-local://runtime/onboarding-demo/%2e%2e%2fpackage.json",
+      "nomi-local://runtime/onboarding-demo/nonexistent.mp4",
+      "nomi-local://runtime/onboarding-demo/readme.txt",
+    ]) {
+      expect((await handleNomiLocalRequest(new Request(bad))).status).toBe(404);
+    }
+  });
 });

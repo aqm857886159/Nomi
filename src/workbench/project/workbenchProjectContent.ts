@@ -70,7 +70,8 @@ export const PROJECT_SESSION_FIELD_ROLES: Readonly<Record<string, Readonly<Recor
   'useNodePromptFocusStore': { request: UI_STATE },
   'useWhiteboardSession': { nodeId: UI_STATE },
   'useShotVerifyStore': {
-    status: UI_STATE, deviations: { none: '审片偏差说明（文字 + 节点 id），不是素材引用' }, budget: UI_STATE,
+    status: UI_STATE, deviations: { none: '审片偏差说明（文字 + 节点 id），不是素材引用' },
+    unverified: { none: '审片未校验说明（原因码 + 节点 id），不是素材引用' }, budget: UI_STATE,
     projectId: UI_STATE, requestId: UI_STATE, exhausted: UI_STATE,
   },
   'useAssetImportProgressStore': { byNode: UI_STATE, settled: UI_STATE },

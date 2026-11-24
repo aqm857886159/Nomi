@@ -29,20 +29,20 @@ export const AUDIO_TRACK_BITRATE = "64k";
 /** whisper 侧硬上限 25MB；64kbps ≈ 8KB/s → 约 52 分钟。超了先说人话，别让用户等到 API 报错。 */
 export const AUDIO_TRACK_MAX_SECONDS = 3000;
 
-export type ExtractAudioTrackPayload = {
+type ExtractAudioTrackPayload = {
   videoUrl: string;
   projectId: string;
   forceRerun?: boolean;
 };
 
-export type ExtractAudioTrackResult = {
+type ExtractAudioTrackResult = {
   /** 无音轨时为空串——调用方据此跳过转写，**不是错误**。 */
   url: string;
   hasAudio: boolean;
   durationSeconds: number;
 };
 
-export class AudioTrackError extends Error {
+class AudioTrackError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AudioTrackError";

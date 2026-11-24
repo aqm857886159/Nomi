@@ -18,7 +18,7 @@ const nonBlankPromptSchema = z
 /** 画布节点上开放键名字段（`params` / `metadata`）的值：标量，不是「随便什么」。 */
 const canvasNodeMetaValueSchema = z.union([z.string(), z.number(), z.boolean()]);
 
-export const canvasNodeKindSchema = z.enum([
+const canvasNodeKindSchema = z.enum([
   "text",
   "character",
   "scene",
@@ -266,7 +266,7 @@ const arrangeStoryboardActionInputSchema = z
   })
   .strict();
 
-export const stagingReferenceActionInputSchema = z
+const stagingReferenceActionInputSchema = z
   .object({
     operation: z.literal("create_staging_reference"),
     shotClientId: canonicalIdSchema.describe("Target shot, keyframe, or video node client id.").optional(),
@@ -281,7 +281,7 @@ export const stagingReferenceActionInputSchema = z
   })
   .strict();
 
-export const cameraMoveActionInputSchema = z
+const cameraMoveActionInputSchema = z
   .object({
     operation: z.literal("create_camera_move"),
     shotClientId: canonicalIdSchema.describe("Target shot, keyframe, or video node client id.").optional(),
@@ -336,7 +336,7 @@ export function isNodeTargetedWriteOperation(operation: unknown): operation is N
  * 全量 union 由三组拼出来，**不另抄一份名单**——加一个 operation 只需要放进它属于的那一组，
  * `CANVAS_WRITE_OPERATIONS` 与模型可见工具面会同时跟上。
  */
-export const canvasNodeWriteInputUnion = z.discriminatedUnion("operation", [
+const canvasNodeWriteInputUnion = z.discriminatedUnion("operation", [
   setNodePromptInputSchema,
   setNodeTextInputSchema,
   createCanvasNodesInputSchema,
@@ -344,13 +344,13 @@ export const canvasNodeWriteInputUnion = z.discriminatedUnion("operation", [
   tidyCanvasInputSchema,
 ]);
 
-export const storyboardWriteInputUnion = z.discriminatedUnion("operation", [
+const storyboardWriteInputUnion = z.discriminatedUnion("operation", [
   storyboardPlanActionInputSchema,
   storyboardPatchShotsInputSchema,
   arrangeStoryboardActionInputSchema,
 ]);
 
-export const shotReferenceWriteInputUnion = z.discriminatedUnion("operation", [
+const shotReferenceWriteInputUnion = z.discriminatedUnion("operation", [
   stagingReferenceActionInputSchema,
   cameraMoveActionInputSchema,
 ]);
@@ -368,7 +368,7 @@ const canvasWriteSemanticInputUnion = z.discriminatedUnion("operation", [
  * `{operation:"connect_canvas_edges", edges:[]}` 一路绿到领域端口，就是这条没跟上去。
  * 一份函数三处挂，加一条约束只改这里。
  */
-export function canvasWriteCrossFieldRefine(
+function canvasWriteCrossFieldRefine(
   // 形状故意松：lane 侧重建的分组是 `as OperationBranch` 拼出来的，输出类型只剩
   // `{ operation?: unknown }`。约束按值判，不按类型判——三处挂点收到的都是已过形状校验的对象。
   value: { operation?: unknown; edges?: unknown; characters?: unknown; customBlocking?: unknown; move?: unknown; customMove?: unknown },
@@ -400,13 +400,8 @@ export function canvasWriteCrossFieldRefine(
 
 export const canvasWriteSemanticInputSchema = canvasWriteSemanticInputUnion.superRefine(canvasWriteCrossFieldRefine);
 
-/** 三个语义分组，**带**跨字段约束的版本。lane 扁平化的是这三份，不是裸 union。 */
-export const canvasNodeWriteInputSchema = canvasNodeWriteInputUnion.superRefine(canvasWriteCrossFieldRefine);
-export const storyboardWriteInputSchema = storyboardWriteInputUnion.superRefine(canvasWriteCrossFieldRefine);
-export const shotReferenceWriteInputSchema = shotReferenceWriteInputUnion.superRefine(canvasWriteCrossFieldRefine);
-
 /** Pi derives the operation from the Registry alias; callers provide only semantic arguments. */
-export const canvasWritePiInputSchema = z
+const canvasWritePiInputSchema = z
   .object({
     nodeId: canonicalIdSchema,
     prompt: nonBlankPromptSchema,
@@ -468,7 +463,7 @@ export const CANVAS_WRITE_OPERATIONS: readonly CanvasWriteOperation[] = Object.f
  *    「需要创作区」提示（dispatcher.ts）都读这张表派生的名单，不各写一份。摆位参考 / 运镜参考建出来的是导演节点
  *    （3D-BOX 是唯一的导演台，2026-10-16）。
  */
-export const CANVAS_WRITE_OPERATION_ROUTES = Object.freeze({
+const CANVAS_WRITE_OPERATION_ROUTES = Object.freeze({
   set_node_prompt: "headless",
   create_canvas_nodes: "headless",
   connect_canvas_edges: "headless",
@@ -537,7 +532,6 @@ export function canvasWritePiInputSchemaForAlias(alias: string): z.ZodTypeAny | 
       return undefined;
   }
 }
-
 
 const reconciliationSchema = z.object({ ok: z.boolean(), deviationCount: z.number().int().nonnegative() }).strict();
 const skippedEdgeSchema = z

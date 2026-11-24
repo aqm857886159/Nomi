@@ -2,7 +2,7 @@ import React from 'react'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { WorkspaceFileListResult } from '../../../electron/workspace/workspaceFileIndex'
 
-export type WorkspaceFilesState = WorkspaceFileListResult & {
+type WorkspaceFilesState = WorkspaceFileListResult & {
   loading: boolean
   error: string | null
 }

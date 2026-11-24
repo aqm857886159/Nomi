@@ -7,7 +7,6 @@ export const AUTO_CHECK_FIRST_DELAY_MS = 30_000
 /** 之后的间隔：一天最多 4 次，只拉一个 latest.yml；开着的人发版当天大概率能看到。 */
 export const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
-
 const NETWORK_CODES = new Set(['ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH', 'EPIPE'])
 
 /** 只返回枚举，不带 message / URL：错误文本可能含路径或网址，不进上报。 */
@@ -34,12 +33,12 @@ export function describeUpdateFailure(error: unknown): 'offline' | 'interrupted'
   return [...INTERRUPTED_CODES].some((marker) => text.includes(marker)) ? 'interrupted' : 'offline'
 }
 
-export type AutoCheckTimers = {
+type AutoCheckTimers = {
   setTimeout: (fn: () => void, ms: number) => unknown
   clearTimeout: (handle: unknown) => void
 }
 
-export type AutoCheckDeps = {
+type AutoCheckDeps = {
   /** 开发版 / 非正式版 / 自动化启动为 false：整个调度根本不启动。 */
   enabled: () => boolean
   /** 手动检查、下载中或已下载完时为 true：本轮跳过（不重置它们的状态）。 */

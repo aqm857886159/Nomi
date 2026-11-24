@@ -31,6 +31,19 @@ describe("single-shot generation observation", () => {
     expect(submission.materialize).not.toHaveBeenCalled();
   });
 
+  it("returns an aborted observation before reading with an already aborted signal", async () => {
+    const controller = new AbortController();
+    controller.abort(NaN);
+    const submission = { poll: vi.fn(), materialize: vi.fn() };
+
+    await expect(observeSingleShotGeneration({
+      submission,
+      input: { projectId: "project-1", operationId: "op-1" },
+      signal: controller.signal,
+    })).resolves.toMatchObject({ nextAction: "observe", aborted: true, polls: 0 });
+    expect(submission.poll).not.toHaveBeenCalled();
+  });
+
   it("does not materialize a completed poll after the lifecycle epoch is stale", async () => {
     let current = true;
     const submission = {
@@ -164,6 +177,29 @@ describe("single-shot generation observation", () => {
       input: { projectId: "project-1", operationId: "op-1" },
       pollHorizonMs: 1_000,
     })).resolves.toMatchObject({ nextAction: "attention", polls: 1 });
+    expect(submission.materialize).not.toHaveBeenCalled();
+  });
+
+  it("doubles, caps and clips the wait while still observing at the boundary", async () => {
+    let clock = 0;
+    const sleep = vi.fn(async (ms: number) => { clock += ms; });
+    const submission = {
+      poll: vi.fn(async () => ({
+        operationId: "op-1", runId: "op-1", jobId: "job-1", providerTaskId: "task-1",
+        providerStatus: "processing", nextAction: "poll" as const,
+      })),
+      materialize: vi.fn(),
+    };
+    await expect(observeSingleShotGeneration({
+      submission,
+      input: { projectId: "project-1", operationId: "op-1" },
+      now: () => clock,
+      sleep,
+      pollHorizonMs: 49,
+      initialDelayMs: 10,
+      maxDelayMs: 15,
+    })).resolves.toMatchObject({ nextAction: "observe", polls: 5 });
+    expect(sleep.mock.calls.flat()).toEqual([10, 15, 15, 9]);
     expect(submission.materialize).not.toHaveBeenCalled();
   });
 

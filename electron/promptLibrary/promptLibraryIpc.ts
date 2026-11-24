@@ -78,7 +78,7 @@ export function registerPromptLibraryIpc(): void {
       { strict: preference?.strict === true },
     );
     return resolved.status === "ok"
-      ? { ok: true, brain: resolved.brain, status: "ok" as const }
+      ? { ok: true, brain: resolved.brain, status: "ok" as const, imageInput: resolved.imageInput }
       : { ok: false, brain: null, status: resolved.status, ...(resolved.preferredUnavailable ? { preferredUnavailable: true as const } : {}) };
   });
 }

@@ -22,14 +22,11 @@ const layoutShape = z.object({
   visibility: z.object({ source: bool, inspector: bool, assistant: bool }).strict(),
   preset: z.enum(['default', 'focus', 'result', 'portrait', 'custom']),
 }).strict()
-export const layoutWriteTransportInputSchema = z.object({ operation: z.literal('write'), layout: layoutShape }).strict()
 
-export const layoutReadInputSchema = z.object({ operation: z.literal('read_layout') }).strict()
-export const layoutWriteInputSchema = z.object({ operation: z.literal('write_layout'), layout: layoutShape }).strict()
-export const layoutSemanticInputSchema = z.union([layoutReadInputSchema, layoutWriteInputSchema])
-export const layoutResultSchema = z.object({ operation: z.enum(['read_layout', 'write_layout']), ok: z.boolean(), layout: layoutShape, undoToken: z.string().optional(), receipt: z.string().optional() }).strict()
-export type LayoutSemanticInput = z.infer<typeof layoutSemanticInputSchema>
-export type LayoutResult = z.infer<typeof layoutResultSchema>
+const layoutReadInputSchema = z.object({ operation: z.literal('read_layout') }).strict()
+const layoutWriteInputSchema = z.object({ operation: z.literal('write_layout'), layout: layoutShape }).strict()
+const layoutResultSchema = z.object({ operation: z.enum(['read_layout', 'write_layout']), ok: z.boolean(), layout: layoutShape, undoToken: z.string().optional(), receipt: z.string().optional() }).strict()
+type LayoutResult = z.infer<typeof layoutResultSchema>
 
 export const LAYOUT_READ_CAPABILITY = {
   id: 'layout.read', version: 1, aliases: { mcp: 'nomi_layout_read' }, inputSchema: layoutReadInputSchema, outputSchema: layoutResultSchema,

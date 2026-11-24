@@ -123,7 +123,7 @@ export async function readSkillRecords(): Promise<SkillRecord[]> {
 // key → 技能的查找只住 `electron/shared/skillKey.ts`（渲染层的技能名也走它）；这里转出给主进程的老调用方。
 export { findSkillRecord, normalizeSkillLookupKey };
 
-export function isSkillVisibleTo(record: SkillRecord, audience: SkillAudience): boolean {
+function isSkillVisibleTo(record: SkillRecord, audience: SkillAudience): boolean {
   if (audience === "internal") return true;
   return record.origin === "builtin" && record.audience === "mcp";
 }
@@ -138,7 +138,7 @@ export function isSkillVisibleTo(record: SkillRecord, audience: SkillAudience): 
  */
 export type SkillMcpAccess = "public" | "local-authenticated";
 
-export function isSkillVisibleToMcp(record: SkillRecord, access: SkillMcpAccess = "public"): boolean {
+function isSkillVisibleToMcp(record: SkillRecord, access: SkillMcpAccess = "public"): boolean {
   return access === "local-authenticated" || isSkillVisibleTo(record, "mcp");
 }
 
@@ -167,26 +167,12 @@ export type SkillSummary = {
  * not use findSkillRecord's internal prefix fallback: a caller must name one
  * concrete Skill, otherwise similarly-prefixed resources could be confused.
  */
-export function findExactSkillRecord(key: string, records: readonly SkillRecord[]): SkillRecord | undefined {
+function findExactSkillRecord(key: string, records: readonly SkillRecord[]): SkillRecord | undefined {
   const normalized = normalizeSkillLookupKey(key);
   if (!normalized) return undefined;
   return records.find((candidate) => candidate.name === key || candidate.directoryName === key
     || normalizeSkillLookupKey(candidate.name) === normalized
     || normalizeSkillLookupKey(candidate.directoryName) === normalized);
-}
-
-export function listSkillSummaries(
-  audience: SkillAudience,
-  records: readonly SkillRecord[],
-): SkillSummary[] {
-  return records.filter((record) => isSkillVisibleTo(record, audience)).map((record) => ({
-    name: record.name,
-    directoryName: record.directoryName,
-    description: record.description,
-    origin: record.origin,
-    packageVersion: record.packageVersion,
-    contentHash: record.contentHash,
-  }));
 }
 
 /** Re-read through the canonical package reader; a changed package never answers an old identity. */

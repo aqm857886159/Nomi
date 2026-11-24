@@ -10,4 +10,7 @@ export const DREAMINA_VENDOR_SEED = {
   baseUrl: "",
   authType: "none" as const,
   authHeader: null,
+  // 2026-11-06 用户拍板 ✅1（Onboarding 板 O1a-canvas）：新装不再预置启用即梦会员，
+  // 未连任何账户时新节点如实显示「未连模型」；老装机已有 catalog 不动，新用户完成扫码登录后启用。
+  enabled: false,
 } as const;
