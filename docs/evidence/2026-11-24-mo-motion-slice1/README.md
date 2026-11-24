@@ -23,3 +23,4 @@
 - 此版本未注册 `pnpm run lint:changed` 别名。运行仓库推送门岗使用的 `node scripts/lint-changed.mjs`，41 个改动文件，错误 0，警告数未增加。
 - `node scripts/verify-line-meter.mjs /tmp/mo1-window-evidence --json` 读到 2 个驱动脚本、194 行、6 次常驻驱动命令。
 - 应用、Electron、electron-pi、浏览器夹具及测试类型五项均通过。夹具与测试类型在单独运行时完成。
+- 全量单测在 `src/design/iconTiers.test.ts` 捕获 5 个失败。图标测试原先将整个 safelist 带进单元素的 Tailwind 编译夹具，并把生成的每个 CSS 规则都解释为图标尺寸。仓内只有这一处用 raw content 编译图标测试。夹具现使用 Tailwind 的空 safelist，继续沿用生产主题、插件和全部 6 个原断言；单独复现 5 红，修后 6 绿。
