@@ -41,7 +41,7 @@
  * 门岗清单仍然逐个写在 package.json 的 `gates:contracts` 里（顺序即执行顺序），
  * 这样 `check:gates-chain` 依旧能从 package.json 一眼看全，不用去解析别的数据文件。
  */
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -141,22 +141,61 @@ function annotation(level, title, message) {
   return `::${level} title=${title}::${message.replaceAll('\n', '%0A')}`
 }
 
+function readGitSnapshot() {
+  const options = { cwd: repoRoot, encoding: 'utf8', env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', LC_ALL: 'C' } }
+  const head = spawnSync('git', ['rev-parse', 'HEAD'], options)
+  if (head.error) throw head.error
+  if (head.status !== 0) {
+    if (head.stderr.startsWith('fatal: not a git repository ')) return null
+    throw new Error(`无法读取 Contracts 工作区 HEAD：${head.stderr.trim() || head.signal || head.status}`)
+  }
+  const status = execFileSync('git', [
+    '-c', 'core.quotePath=false', 'status', '--porcelain=v1', '--untracked-files=all', '--ignore-submodules=none',
+  ], options)
+  return { head: head.stdout.trim(), status }
+}
+
+function snapshotChanges(before, after) {
+  const changes = []
+  if (before?.head !== after?.head) {
+    changes.push(`HEAD: ${before?.head ?? '无 Git 仓库'} -> ${after?.head ?? '无 Git 仓库'}`)
+  }
+  if (before?.status !== after?.status) {
+    const previous = new Set(before?.status.split('\n').filter(Boolean))
+    const current = new Set(after?.status.split('\n').filter(Boolean))
+    for (const entry of previous) if (!current.has(entry)) changes.push(`- ${entry}`)
+    for (const entry of current) if (!previous.has(entry)) changes.push(`+ ${entry}`)
+  }
+  return changes
+}
+
 /**
- * 跑完整条链并汇总。`runGate` 注入，便于测试用假门岗做阳性对照。
+ * 跑完整条链并汇总。逐步比对 Git 状态，在处理成功和 advisory 之前归责工作区变更。
  * 返回 { failures, advisoryFailures, exitCode }。
  */
-export async function runGateSuite({ gates, advisory, runGate, write = (text) => process.stdout.write(text), env = process.env }) {
+export async function runGateSuite({ gates, advisory, runGate, readWorktreeSnapshot, write = (text) => process.stdout.write(text), env = process.env }) {
   const inActions = env.GITHUB_ACTIONS === 'true'
   const failures = []
   const advisoryFailures = []
   const started = Date.now()
+  let baseline = readWorktreeSnapshot?.()
 
   for (const [index, name] of gates.entries()) {
     const label = `[${index + 1}/${gates.length}] ${name}${advisory.has(name) ? '（advisory）' : ''}`
     write(`\n▶ ${label}\n`)
     const gateStarted = Date.now()
     const { code, output } = await runGate(name)
+    const after = readWorktreeSnapshot?.()
     const seconds = ((Date.now() - gateStarted) / 1000).toFixed(1)
+    if (after?.head !== baseline?.head || after?.status !== baseline?.status) {
+      const changes = snapshotChanges(baseline, after)
+      baseline = after
+      const diagnostic = `❌ ${name} 篡改了被测仓库工作区或 HEAD（${seconds}s）`
+      write(`${diagnostic}\n`)
+      for (const line of changes) write(`  ${line}\n`)
+      failures.push({ name, code: code === 0 ? 1 : code, tail: [diagnostic, ...changes, ...tail(output)], seconds })
+      continue
+    }
     if (code === 0) {
       write(`✅ ${name} (${seconds}s)\n`)
       continue
@@ -245,7 +284,9 @@ async function main() {
   const scripts = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).scripts ?? {}
   assertGatesExist(gates, scripts)
   const startedAt = Date.now()
-  const { exitCode, failures } = await runGateSuite({ gates, advisory, runGate: spawnGate })
+  const { exitCode, failures } = await runGateSuite({
+    gates, advisory, runGate: spawnGate, readWorktreeSnapshot: readGitSnapshot,
+  })
   // 本机被拦留一条记录（CI 里不写；写不成只警告，退出码不变）。量具见 scripts/lib/blockEvents.mjs。
   if (exitCode !== 0) recordBlockEvent({ stage: 'gates', gates: failures.map((failure) => failure.name), durationMs: Date.now() - startedAt, cwd: repoRoot })
   process.exit(exitCode)
