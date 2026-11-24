@@ -1,0 +1,145 @@
+{
+  "implementation": "a0cbd550d",
+  "platform": "macOS arm64",
+  "paidCalls": 0,
+  "gestures": [
+    {
+      "locale": "zh-CN",
+      "resize": {
+        "locale": "zh-CN",
+        "id": "gen-v2-image-mwttja32-zoju",
+        "first": 340,
+        "resized": 380,
+        "afterGesture": 340,
+        "afterRedo": 380,
+        "savedSize": {
+          "width": 380,
+          "height": 365
+        },
+        "paidCalls": 0
+      },
+      "drag": {
+        "locale": "zh-CN",
+        "original": "translate(460.56px, 70px)",
+        "moved": "translate(515.56px, 89px)",
+        "afterEscape": "translate(460.56px, 70px)",
+        "afterRedo": "translate(515.56px, 89px)",
+        "paidCalls": 0
+      },
+      "optionDrag": {
+        "escapePreservedRedo": true,
+        "copyUndoSteps": 1
+      }
+    },
+    {
+      "locale": "en",
+      "resize": {
+        "locale": "en",
+        "id": "gen-v2-image-mwttjnuu-a6b0",
+        "first": 340,
+        "resized": 380,
+        "afterGesture": 340,
+        "afterRedo": 380,
+        "savedSize": {
+          "width": 380,
+          "height": 365
+        },
+        "paidCalls": 0
+      },
+      "drag": {
+        "locale": "en",
+        "original": "translate(460.56px, 70px)",
+        "moved": "translate(515.56px, 89px)",
+        "afterEscape": "translate(460.56px, 70px)",
+        "afterRedo": "translate(515.56px, 89px)",
+        "paidCalls": 0
+      },
+      "optionDrag": {
+        "escapePreservedRedo": true,
+        "copyUndoSteps": 1
+      }
+    }
+  ],
+  "projectRoundTrips": {
+    "v0.24.1": [
+      {
+        "reader": "v0.24.1",
+        "opened": "empty",
+        "saved": "old reader edit",
+        "nodeId": "gen-v2-image-mwttkase-km4u",
+        "events": 3,
+        "paidCalls": 0
+      },
+      {
+        "reader": "6C",
+        "opened": "old reader edit",
+        "saved": "canvas patch reader edit",
+        "nodeId": "gen-v2-image-mwttkase-km4u",
+        "events": 7,
+        "paidCalls": 0
+      },
+      {
+        "reader": "v0.24.1",
+        "opened": "canvas patch reader edit",
+        "saved": "canvas patch reader edit",
+        "nodeId": "gen-v2-image-mwttkase-km4u",
+        "events": 8,
+        "paidCalls": 0
+      }
+    ],
+    "6B": [
+      {
+        "reader": "6B",
+        "opened": "empty",
+        "saved": "old reader edit",
+        "nodeId": "gen-v2-image-mwttkrbt-u9f0",
+        "events": 3,
+        "paidCalls": 0
+      },
+      {
+        "reader": "6C",
+        "opened": "old reader edit",
+        "saved": "canvas patch reader edit",
+        "nodeId": "gen-v2-image-mwttkrbt-u9f0",
+        "events": 7,
+        "paidCalls": 0
+      },
+      {
+        "reader": "6B",
+        "opened": "canvas patch reader edit",
+        "saved": "canvas patch reader edit",
+        "nodeId": "gen-v2-image-mwttkrbt-u9f0",
+        "events": 8,
+        "paidCalls": 0
+      }
+    ]
+  },
+  "keyboardUndoAfterLanding": [
+    {
+      "locale": "zh-CN",
+      "keyboardUndos": 10,
+      "landedVersions": 1,
+      "runId": "paid-record",
+      "assetId": "paid-asset",
+      "settledStatus": "success",
+      "dimensions": [
+        1200,
+        800
+      ],
+      "paidCalls": 0
+    },
+    {
+      "locale": "en",
+      "keyboardUndos": 10,
+      "landedVersions": 1,
+      "runId": "paid-record",
+      "assetId": "paid-asset",
+      "settledStatus": "success",
+      "dimensions": [
+        1200,
+        800
+      ],
+      "paidCalls": 0
+    }
+  ]
+}

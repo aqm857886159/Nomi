@@ -1,3 +1,4 @@
+import { beginCanvasDragging, CANVAS_DRAGGING_OWNER, type CanvasDragLease } from '../components/canvasDraggingFlag'
 import { useWhiteboardSession } from '../nodes/whiteboard/whiteboardSession'
 import { isCardRenderKind, resolveNodeRenderKind } from '../nodes/resolveRenderKind'
 import React, { type JSX } from 'react'
@@ -22,7 +23,6 @@ import { getGenerationNodeComponentForNode } from '../nodes/renderRegistry'
 import { NodeEmptyStateProvider } from '../nodes/render/NodeEmptyStateProvider'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { CARD_FIXED_WIDTH, getNodeResizeBounds, readNodeMediaAspectRatio, resolveNodeVisualSize } from '../nodes/nodeSizing'
-import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { LightweightGenerationNode } from '../components/LightweightGenerationNode'
 import { isZoomedOutForLightweight, shouldRenderFullNodeContent } from '../components/canvasNodeLevelOfDetail'
 import { generationNodeKindOwnsZoomTiers } from '../model/generationNodeKinds'
@@ -225,13 +225,16 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   // 聚合边就挂在它们上面，没有把手 React Flow 不画这条边；没选中时源把手只是不可见、不接指针（见下）。
   const groupPort = Boolean(readGroupPort(node))
   const NodeComponent = getGenerationNodeComponentForNode(node)
-  const size = resolveNodeVisualSize(node)
+  const [resizePreview, setResizePreview] = React.useState<{ width: number; height: number } | null>(null)
+  const size = resizePreview ?? resolveNodeVisualSize(node)
   const bounds = getNodeResizeBounds(node)
   const whiteboardOpen = useWhiteboardSession(state => state.nodeId === node.id)
   const keepMediaAspect = !whiteboardOpen && Boolean(readNodeMediaAspectRatio(node)) && !isCardRenderKind(resolveNodeRenderKind(node))
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
-  const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
+  const resizeLease = React.useRef<CanvasDragLease | null>(null)
+  React.useEffect(() => () => resizeLease.current?.cancel(), [node.id, data.readOnly])
+  const resizeOrigin = React.useRef<{ x: number; y: number; width: number; height: number } | null>(null)
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const multiSelectionActive = useStore((state) => state.multiSelectionActive && data.primarySelection)
   // 细节准入（components/canvasNodeLevelOfDetail.ts）：只看看不看得清（缩放，只订一个布尔）和用户在不在对它做事；
@@ -307,26 +310,29 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
           background: 'transparent',
           boxShadow: 'none',
         }}
-        onResizeStart={() => captureHistory()}
-        onResize={(_event, params) => {
-          updateNode(node.id, {
-            position: { x: params.x, y: params.y },
-            size: { width: params.width, height: params.height },
-            meta: { ...(node.meta || {}), userResized: true, previewHeight: params.height },
-          }, { persist: false, emit: false, history: false })
+        onResizeStart={(_event, geometry) => { resizeOrigin.current = { ...geometry } }}
+        onResize={(event, geometry) => {
+          if (!resizeOrigin.current) return
+          if (!resizeLease.current) resizeLease.current = beginCanvasDragging(event.sourceEvent.target as Element | undefined, CANVAS_DRAGGING_OWNER.node, {
+            onCancel: () => { resizeOrigin.current = null; resizeLease.current = null; setResizePreview(null) },
+          })
+          setResizePreview({ width: geometry.width, height: geometry.height })
         }}
-        onResizeEnd={() => {
-          const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
-          if (latest) {
-            emitCanvasGesture([{
-              type: 'canvas.node.updated',
-              payload: {
-                nodeId: node.id,
-                patch: { position: latest.position, size: latest.size, meta: latest.meta },
-              },
-            }])
-          }
-          commitPersistedChange()
+        onResizeEnd={(_event, geometry) => {
+          resizeLease.current?.release()
+          resizeLease.current = null
+          const origin = resizeOrigin.current
+          resizeOrigin.current = null
+          setResizePreview(null)
+          if (!origin || (origin.x === geometry.x && origin.y === geometry.y && origin.width === geometry.width && origin.height === geometry.height)) return
+          const latest = useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === node.id)
+          if (!latest) return
+          captureHistory()
+          updateNode(node.id, {
+            position: { x: geometry.x, y: geometry.y },
+            size: { width: geometry.width, height: geometry.height },
+            meta: { ...latest.meta, userResized: true, previewHeight: geometry.height },
+          }, { history: false })
         }}
       />
       {!data.readOnly ? (

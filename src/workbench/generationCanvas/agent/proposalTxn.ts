@@ -20,7 +20,7 @@ import {
   getUndoJournalGeneration,
   getUndoJournalPosition,
   pushUndoSnapshot,
-} from '../events/canvasUndoJournal'
+} from '../events/canvasPatchHistory'
 import { makeChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
 import { directorWriteCompensation } from '../nodes/director/agent/directorWriteCompensation'
 import { flushEmbeddedEditors } from './embeddedEditorFlush'

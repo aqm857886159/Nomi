@@ -7,7 +7,7 @@ import { useGenerationCanvasStore } from '../../../generationCanvas/store/genera
 import { overriddenShotFields } from '../../../generationCanvas/model/storyboardOverrides'
 import { effectiveShotValue } from '../shotRow/shotRowModel'
 import { renderShotNodePrompt, stableShotId } from '../../../generationCanvas/agent/storyboardPlan'
-import { pushUndoSnapshot } from '../../../generationCanvas/events/canvasUndoJournal'
+import { pushUndoSnapshot } from '../../../generationCanvas/events/canvasPatchHistory'
 
 /** Resolve exactly one field on the bound original. Discard is one canvas undo step. */
 export function resolveStoryboardOverride(nodeId: string, field: string, action: 'adopt' | 'discard', owner?: { plan: StoryboardPlan; shot: PlanShot; change(plan: StoryboardPlan): void }): void {

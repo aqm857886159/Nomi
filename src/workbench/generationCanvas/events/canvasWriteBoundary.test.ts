@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { getHistoryFlags, pushUndoSnapshot } from './canvasUndoJournal'
+import { getHistoryFlags, pushUndoSnapshot } from './canvasPatchHistory'
 import { withCanvasGestureContext } from './canvasGestureContext'
 import { interruptPendingCanvasWrite, ownPendingCanvasWrite, runWhenCanvasWriteBoundarySettled, whenCanvasWriteBoundarySettled } from './canvasWriteBoundary'
 

@@ -1,4 +1,4 @@
-import { clearHistory } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory } from '../generationCanvas/events/canvasPatchHistory'
 import { clearClipboard } from '../generationCanvas/store/canvasClipboard'
 import { clearCommittedProposal } from '../generationCanvas/agent/proposalUndo'
 import { resetClientIdRegistry } from '../generationCanvas/agent/clientIdRegistry'

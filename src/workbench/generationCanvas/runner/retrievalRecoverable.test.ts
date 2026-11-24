@@ -12,7 +12,7 @@ import { runGenerationNodesBatch } from './generationRunController'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { resetModelHealthMemory } from './modelHealthMemory'
 import { tagNomiError } from '../../../../electron/shared/nomiErrorCodes'
 import { recoverNodeResult } from './recoverTaskActions'
@@ -51,7 +51,7 @@ describe('取回没成 = 已付费但没取回来', () => {
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
     useGenerationQueueStore.setState({ entries: [], batches: {} })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     resetModelHealthMemory()
   })
@@ -136,7 +136,7 @@ describe('取回没成之后：免费重取片可达（零额度夹具）', () =
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
     useGenerationQueueStore.setState({ entries: [], batches: {} })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     resetModelHealthMemory()
     vi.mocked(fetchWorkbenchTaskResultByVendor).mockReset()
@@ -190,7 +190,7 @@ describe('老数据：已删掉的 outbound-blocked / outbound-blocked-submit', 
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
     useGenerationQueueStore.setState({ entries: [], batches: {} })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     resetModelHealthMemory()
   })
@@ -228,7 +228,7 @@ describe('结果取回族（#1213）：带阶段码的取回失败一律可找�
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
     useGenerationQueueStore.setState({ entries: [], batches: {} })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     resetModelHealthMemory()
     vi.mocked(fetchWorkbenchTaskResultByVendor).mockReset()

@@ -1853,18 +1853,11 @@
     },
     {
       "id": "canvas-undo-journal-write-boundary",
-      "capability": "画布撤销日志（会话日志前缀重放）与写边界（动作分层、整写统一提交口、提议写入的接管）",
-      "status": "under-review",
-      "reviewBy": "2026-12-06",
-      "renewed": [
-        {
-          "on": "2026-11-07",
-          "from": "2026-11-06",
-          "reason": "镜头结果归属那次改动只在写边界的动作分层表里把删掉的 withdrawNodeRun 换成 applyRunOutcome，没碰撤销日志与整写提交口的设计；撤销栈改 Immer 反向补丁的评估（方向检查 §6 接入 B）还没有线去做，下不了结论。只能续这一次，到期前必须出结论。"
-        }
-      ],
+      "capability": "Canvas paid-result retention and document write boundary",
+      "status": "justified",
       "paths": [
-        "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+        "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+        "src/workbench/generationCanvas/events/canvasDocumentPatches.ts",
         "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
         "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
       ],
@@ -1890,8 +1883,8 @@
           "source": "docs/plan/2026-10-07-canvas-landing-direction-check.md"
         }
       ],
-      "whyNotIntegrated": "尚未下结论。领域约束只有一条：撤销「建节点」时节点因为装着付费结果要留下（协调会话 10-07 定 B），Yjs / tldraw 按来源撤销「插入」会连容器一起拿走，表达不了；其余（按来源只撤用户事务、事实层不进撤销栈）是通用能力。Immer 已是依赖、画布 store 已用 zustand/middleware/immer，撤销栈改成反向补丁是首选评估方向。",
-      "revisitWhen": "评估撤销栈改成 Immer 反向补丁（方向检查 §6 接入 B）的结论出来时；或画布写边界再收到一份根因合同时先看这一项"
+      "whyNotIntegrated": "Immer owns the reversible patches. Nomi owns paid-result container retention, run facts and the canvas write boundary.",
+      "revisitWhen": "Reassess when a library owns both landed run outcomes and the paid node container lifetime."
     },
     {
       "id": "nomi-quit-teardown-boundary",

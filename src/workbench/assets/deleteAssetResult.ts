@@ -13,7 +13,7 @@ import {
   getUndoJournalPosition,
   pushUndoSnapshot,
   readReachableUndoNodes,
-} from '../generationCanvas/events/canvasUndoJournal'
+} from '../generationCanvas/events/canvasPatchHistory'
 import { deferAssetFileDeletion, forgetDeferredAssetDeletion } from './pendingAssetDeletions'
 import { closedProjectLivenessContent, readLoadedProjectLivenessContent } from './projectLivenessContent'
 

@@ -67,10 +67,10 @@ import {
   flowViewportFromCanvas,
   canvasViewportFromFlow,
   type GenerationFlowEdge,
-  toGenerationFlowNode,
   type GenerationFlowNode,
 } from './generationCanvasReactFlowAdapter'
 import {
+  previewCanvasDragCopies,
   applyCanvasDragKernelPositionChanges,
   applyCanvasDragPositionChanges,
 } from './canvasDragDraft'
@@ -541,25 +541,19 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     const selectedNodeIds = useGenerationCanvasStore.getState().selectedNodeIds
     const originalIds = !draggingInsideSelectedGroup && selectedNodeIds.includes(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
     duplicateDragIdsRef.current = 'altKey' in event && event.altKey
-      ? useGenerationCanvasStore.getState().duplicateNodesForDrag(originalIds) : new Map()
-    if (!duplicateDragIdsRef.current.size) captureHistory()
+      ? new Map(originalIds.map(id => [id, crypto.randomUUID()])) : new Map()
     const state = useGenerationCanvasStore.getState()
-    const draggedIds = originalIds.map((id) => duplicateDragIdsRef.current.get(id) ?? id)
     if (duplicateDragIdsRef.current.size) {
-      dragDraftNodesRef.current = [
-        ...flowNodes.map((node) => node.selected ? { ...node, selected: false, data: { ...node.data, primarySelection: false } } : node),
-        ...state.nodes.filter((node) => draggedIds.includes(node.id))
-          .map((node) => toGenerationFlowNode(node, true, false, draggedIds.length === 1)),
-      ]
+      dragDraftNodesRef.current = previewCanvasDragCopies(flowNodes, duplicateDragIdsRef.current)
       flowStore.getState().setNodes(dragDraftNodesRef.current)
     }
     dragStartPositionsRef.current = new Map(
-      draggedIds.flatMap((nodeId) => {
+      originalIds.flatMap((nodeId) => {
         const node = state.nodes.find((candidate) => candidate.id === nodeId)
         return node ? [[nodeId, { ...node.position }] as const] : []
       }),
     )
-  }, [captureHistory, flowStore, readOnly, selectedGroup])
+  }, [flowStore, readOnly, selectedGroup])
 
   // 拖动中算「松手会发生什么」——进框/出框的反馈就在这里产生（只写本地预览，不碰 store）。
   const handleNodeDrag: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode, draggedNodes) => {
@@ -575,10 +569,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     }
     finishCanvasNodeDrag({
       event,
-      draggedNode: { ...draggedNode, id: duplicateDragIdsRef.current.get(draggedNode.id) ?? draggedNode.id },
-      draggedNodes: draggedNodes.map((node) => ({ ...node, id: duplicateDragIdsRef.current.get(node.id) ?? node.id })),
+      draggedNode, draggedNodes: draggedNodes.length ? draggedNodes : [draggedNode],
       readOnly, t, draggingRef, dragStartPositionsRef, dragDraftNodesRef, moveNode, commitPersistedChange,
-      dragLeaseRef, duplicateDragIdsRef, setNodeDragActive, commitFrameMembership: frameMembership.commitMembership, flowStore,
+      dragLeaseRef, duplicateDragIdsRef, setNodeDragActive, frameMembership, flowStore, restoreFlowNodes: () => flowStore.getState().setNodes(projectedFlowNodesRef.current),
     })
   }, [cancelNodeDrag, commitPersistedChange, flowStore, frameMembership, moveNode, readOnly, t])
 

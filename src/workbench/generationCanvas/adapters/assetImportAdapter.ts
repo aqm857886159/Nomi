@@ -24,7 +24,7 @@ import { readStorageCapacitySnapshot } from '../../assets/storageCapacitySnapsho
 import { ensureAssetImportProgressBridge, useAssetImportProgressStore } from '../store/assetImportProgressStore'
 import { computeMediaMetaPatch, readMediaDimensions } from '../nodes/nodeSizing'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
-import { pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { pushUndoSnapshot } from '../events/canvasPatchHistory'
 import { localProcessingError } from '../../observability/localProcessingError'
 
 const DATA_URL_FALLBACK_MAX_BYTES = 512 * 1024
