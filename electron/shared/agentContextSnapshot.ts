@@ -8,7 +8,7 @@ export const AGENT_CONTEXT_SNAPSHOT_VERSION = 1 as const
  * domain may add a kind later, but existing consumers must continue to treat
  * the handle as an opaque, traceable reference rather than inventing state.
  */
-export const AGENT_CONTEXT_KINDS = [
+const AGENT_CONTEXT_KINDS = [
   'image',
   'video',
   'audio',
@@ -18,28 +18,26 @@ export const AGENT_CONTEXT_KINDS = [
   'canvasNode',
   'timelineClip',
 ] as const
-export type AgentContextKind = typeof AGENT_CONTEXT_KINDS[number]
+type AgentContextKind = typeof AGENT_CONTEXT_KINDS[number]
 
-export const AGENT_CONTEXT_INTENT_ROLES = [
-  'subject',
-  'style',
-  'structure',
-  'motion',
-  'audio',
-  'source',
-  'target',
-] as const
-export type AgentContextIntentRole = typeof AGENT_CONTEXT_INTENT_ROLES[number]
+type AgentContextIntentRole =
+  | 'subject'
+  | 'style'
+  | 'structure'
+  | 'motion'
+  | 'audio'
+  | 'source'
+  | 'target'
 
 /** Domain locators are explicit so a target can be re-found after the UI moves on. */
-export type AgentContextLocator =
+type AgentContextLocator =
   | Readonly<{ type: 'documentAnchor'; anchor: DocumentAnchorRef }>
   | Readonly<{ type: 'canvasSelection'; nodeIds: readonly string[] }>
   | Readonly<{ type: 'timeRange'; startMs: number; endMs: number }>
   | Readonly<{ type: 'clipSelection'; clipIds: readonly string[] }>
   | Readonly<{ type: 'custom'; key: string; value: unknown }>
 
-export type AgentContextDisplay = Readonly<{
+type AgentContextDisplay = Readonly<{
   title: string
   subtitle?: string
   posterUrl?: string
@@ -177,7 +175,7 @@ type OmittedKind = Readonly<{
   count: number
 }>
 
-export type CompactContextHandle = {
+type CompactContextHandle = {
   id: string
   kind: AgentContextKind
   targetId: string

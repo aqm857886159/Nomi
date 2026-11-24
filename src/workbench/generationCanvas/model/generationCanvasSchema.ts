@@ -4,14 +4,14 @@ import { CATEGORY_IDS } from './generationCanvasTypes'
 import { GENERATION_NODE_KINDS } from './generationNodeKinds'
 import { CANVAS_PREVIEW_STATES } from '../../../../electron/shared/canvas/canvasMediaPreview'
 
-export const generationNodeKindSchema = z.enum(GENERATION_NODE_KINDS)
+const generationNodeKindSchema = z.enum(GENERATION_NODE_KINDS)
 
 export { generationNodeStatusSchema }
-export const generationNodeTaskKindSchema = z.enum(['text', 'image', 'video', 'audio', 'model3d', 'workflow', 'asset', 'unknown'])
+const generationNodeTaskKindSchema = z.enum(['text', 'image', 'video', 'audio', 'model3d', 'workflow', 'asset', 'unknown'])
 export const generationNodeRunStatusSchema = generationNodeStatusSchema.exclude(['idle']).or(z.literal('cancelled'))
-export const categoryIdSchema = z.enum(CATEGORY_IDS)
+const categoryIdSchema = z.enum(CATEGORY_IDS)
 
-export const generationNodeProgressSchema = z.object({
+const generationNodeProgressSchema = z.object({
   runId: z.string().optional(),
   taskId: z.string().optional(),
   taskKind: generationNodeTaskKindSchema.optional(),
@@ -21,7 +21,7 @@ export const generationNodeProgressSchema = z.object({
   updatedAt: z.number(),
 })
 
-export const generationProvenanceSchema = z.object({
+const generationProvenanceSchema = z.object({
   provider: z.string().optional(),
   modelKey: z.string().optional(),
   modelVersion: z.string().optional(),
@@ -39,7 +39,7 @@ export const generationProvenanceSchema = z.object({
   agentRunId: z.string().optional(),
 }).strict()
 
-export const generationNodeResultSchema = z.object({
+const generationNodeResultSchema = z.object({
   id: z.string().min(1),
   /** 「第 N 版」：节点内持久序号，1 = 最早；删了留空号（model/nodeResultLifecycle.ts）。 */
   versionNo: z.number().int().positive().optional(),

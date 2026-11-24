@@ -15,7 +15,7 @@ import type { ModelCatalogModelDto } from '../api/modelCatalogApi'
 import {
   GENERATION_DEFAULT_TASK_KINDS,
   type GenerationDefaultTaskKind,
-} from '../../../electron/settings/generationModelDefaultsContract'
+} from '../../../electron/shared/contracts/generationModelDefaultsContract'
 import type { GenerationModelDefaultMap } from '../generationCanvas/model/generationModelDefaults'
 import { buildDefaultModelOptions } from './defaultGenerationModelOptions'
 

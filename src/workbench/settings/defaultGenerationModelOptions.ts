@@ -14,7 +14,7 @@ import {
   GENERATION_DEFAULT_TASK_KINDS,
   type GenerationDefaultTaskKind,
   type GenerationModelDefault,
-} from '../../../electron/settings/generationModelDefaultsContract'
+} from '../../../electron/shared/contracts/generationModelDefaultsContract'
 
 /** 目录只按 image/video 粗分（DTO 的 kind 就这个粒度）。图片两类共用图片模型，视频两类共用视频模型。 */
 const KIND_OF_TASK: Record<GenerationDefaultTaskKind, 'image' | 'video'> = {

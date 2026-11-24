@@ -61,9 +61,9 @@ export function ActionClipInspector({ object, clip }: { object: DirectorObject; 
             />
           )}
         </div>
-        <SliderNumberField label={t('director.action.start')} value={clip.startTime} min={0} max={totalDuration} step={0.1} onChangeStart={() => store.getState().saveState()} onChange={(value) => setRange(value, clip.endTime)} />
+        <SliderNumberField label={t('director.action.start')} value={clip.startTime} min={0} max={totalDuration} step={0.1} onChangeStart={store.getState().saveState} onChange={(value) => setRange(value, clip.endTime)} />
         <div className="-mt-1 text-right font-nomi-mono text-micro text-nomi-ink-40">{t('director.action.frameReadout', { frame: secondsToFrame(clip.startTime) })}</div>
-        <SliderNumberField label={t('director.action.end')} value={clip.endTime} min={0} max={totalDuration} step={0.1} onChangeStart={() => store.getState().saveState()} onChange={(value) => setRange(clip.startTime, value)} />
+        <SliderNumberField label={t('director.action.end')} value={clip.endTime} min={0} max={totalDuration} step={0.1} onChangeStart={store.getState().saveState} onChange={(value) => setRange(clip.startTime, value)} />
         <div className="-mt-1 text-right font-nomi-mono text-micro text-nomi-ink-40">{t('director.action.frameReadout', { frame: secondsToFrame(clip.endTime) })}</div>
         <div className="flex items-center justify-between border-t border-nomi-line-soft pt-1 text-caption">
           <span className="text-nomi-ink-60">{t('director.action.duration')}</span>

@@ -9,7 +9,7 @@
 // 此时**必须回退**到自动挑选，而不是让卡片钉在一个跑不了的模型上（生成钮一直灰）。
 
 import type { ModelOption } from '../../../config/models'
-import type { GenerationDefaultTaskKind } from '../../../../electron/settings/generationModelDefaultsContract'
+import type { GenerationDefaultTaskKind } from '../../../../electron/shared/contracts/generationModelDefaultsContract'
 import type { GenerationModelDefaultMap } from '../model/generationModelDefaults'
 
 type TaskKindInput = {

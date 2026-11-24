@@ -15,13 +15,13 @@ export type {
 
 type UnknownRecord = Record<string, unknown>
 
-export type VideoModelDurationOption = {
+type VideoModelDurationOption = {
   value: number
   label: string
   priceLabel?: string
 }
 
-export type VideoModelSizeOption = {
+type VideoModelSizeOption = {
   value: string
   label: string
   orientation?: Orientation
@@ -29,31 +29,31 @@ export type VideoModelSizeOption = {
   priceLabel?: string
 }
 
-export type VideoModelOrientationOption = {
+type VideoModelOrientationOption = {
   value: Orientation
   label: string
   size?: string
   aspectRatio?: string
 }
 
-export type VideoModelResolutionOption = {
+type VideoModelResolutionOption = {
   value: string
   label: string
   priceLabel?: string
 }
 
-export type ImageModelAspectRatioOption = {
+type ImageModelAspectRatioOption = {
   value: string
   label: string
 }
 
-export type ImageModelSizeOption = {
+type ImageModelSizeOption = {
   value: string
   label: string
   priceLabel?: string
 }
 
-export type ImageModelResolutionOption = {
+type ImageModelResolutionOption = {
   value: string
   label: string
   priceLabel?: string
@@ -61,9 +61,9 @@ export type ImageModelResolutionOption = {
 
 export type ImageModelControlBinding = 'aspectRatio' | 'imageSize' | 'resolution'
 
-export type ImageModelControlOptionSource = 'aspectRatioOptions' | 'imageSizeOptions' | 'resolutionOptions'
+type ImageModelControlOptionSource = 'aspectRatioOptions' | 'imageSizeOptions' | 'resolutionOptions'
 
-export type ImageModelControlConfig = {
+type ImageModelControlConfig = {
   key: string
   label: string
   binding: ImageModelControlBinding
@@ -84,13 +84,13 @@ export type ImageModelCatalogConfig = {
 
 export type VideoModelControlBinding = 'durationSeconds' | 'size' | 'resolution' | 'orientation'
 
-export type VideoModelControlOptionSource =
+type VideoModelControlOptionSource =
   | 'durationOptions'
   | 'sizeOptions'
   | 'resolutionOptions'
   | 'orientationOptions'
 
-export type VideoModelControlConfig = {
+type VideoModelControlConfig = {
   key: string
   label: string
   binding: VideoModelControlBinding
