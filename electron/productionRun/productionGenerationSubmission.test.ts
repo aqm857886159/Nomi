@@ -16,6 +16,7 @@ import { sealAndApproveProductionGeneration } from "./productionGenerationAuthor
 import { createProductionRunRepository } from "./productionRunRepository";
 import { landedAdmission } from "./landFirstTestUtils";
 import { createProductionRunService } from "./productionRunService";
+import { productionRunPaths } from "./productionRunPaths";
 
 const roots: string[] = [];
 const registry = createModuleRegistry([{
@@ -569,6 +570,69 @@ describe("Run-owned semantic generation submission", () => {
     await expect(started).resolves.toMatchObject({ providerTaskId: "late-answer" });
     expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "provider_accepted", providerTaskId: "late-answer" });
     expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  // 另一半：POST 是「另一个进程」（例如 MCP 宿主）在交。这一进程的仓库没有它的内存记录（isSubmittingHere 为假），
+  // 只剩真锁文件上的租约能证明它还活着。租约和持有进程都用真的：持有者是真起的子进程，锁文件是真交付流程写下的。
+  describe("a different process holds the run lock while it submits", () => {
+    const children: import("node:child_process").ChildProcess[] = [];
+    afterEach(() => { for (const child of children.splice(0)) child.kill("SIGKILL"); });
+
+    async function inFlightElsewhere(holderAlive: boolean) {
+      const { spawn } = await import("node:child_process");
+      const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" });
+      children.push(child);
+      await new Promise<void>((resolve, reject) => { child.once("spawn", () => resolve()); child.once("error", reject); });
+      if (!holderAlive) {
+        const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+        child.kill("SIGKILL");
+        await exited;
+      }
+      const { root, repository } = setup();
+      let answer!: (value: { providerTaskId: string }) => void;
+      const submit = vi.fn(() => new Promise<{ providerTaskId: string }>((resolve) => { answer = resolve; }));
+      const submission = createProductionGenerationSubmission({
+        repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+        intentMacKey: "test-intent-key", now: () => "2026-08-23T00:00:00.000Z",
+        provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false }, buildRequest: (input) => input, submit },
+      });
+      const started = submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
+      await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+      // 把真锁文件上的持有者改成那个子进程，就是「别的进程在交」。本进程仓库的内存表里本来就没有它。
+      const lockFile = productionRunPaths(root, "op-1").lock;
+      const lease = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+      const rewrite = (patch: Record<string, unknown>) => fs.writeFileSync(lockFile, `${JSON.stringify({ ...lease, pid: child.pid, ...patch })}\n`);
+      // 开项目的是另一份仓库：没有 trackSubmission 记录，isSubmittingHere 恒为假。
+      const reopened = createProductionRunRepository({ projectDirResolver: (projectId) => projectId === "project-1" ? root : null, now: () => "2026-08-23T00:00:00.000Z" });
+      expect(reopened.isSubmittingHere("project-1", "op-1")).toBe(false);
+      return { root, repository, reopened, rewrite, submit, started, answer: (value: { providerTaskId: string }) => answer(value) };
+    }
+
+    it("leaves the job submitting while that process holds a live lease", async () => {
+      const world = await inFlightElsewhere(true);
+      world.rewrite({});
+      await createProductionRunService({ repository: world.reopened, projectRootResolver: () => world.root }).resumeUnfinishedRuns("project-1");
+      expect(world.reopened.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submitting" });
+      expect(world.submit).toHaveBeenCalledTimes(1);
+      world.answer({ providerTaskId: "late-answer" });
+      await world.started;
+      expect(world.repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "provider_accepted", providerTaskId: "late-answer" });
+      expect(world.submit).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["the lease has expired", true, { expiresAt: "2000-01-01T00:00:00.000Z" }],
+      ["the holding process is gone", false, {}],
+    ] as const)("calls it unknown without any POST when %s", async (_name, holderAlive, patch) => {
+      const world = await inFlightElsewhere(holderAlive);
+      world.rewrite(patch);
+      await createProductionRunService({ repository: world.reopened, projectRootResolver: () => world.root }).resumeUnfinishedRuns("project-1");
+      expect(world.reopened.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submission_unknown" });
+      expect(world.submit).toHaveBeenCalledTimes(1);
+      world.answer({ providerTaskId: "too-late" });
+      await world.started.catch(() => undefined);
+      expect(world.submit).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
