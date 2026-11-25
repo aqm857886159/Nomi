@@ -231,10 +231,10 @@ export async function enterDirectorFace(page, face) {
 }
 
 /**
- * @param {{ name: string, viewport?: { width: number, height: number }, view?: 'refine' | 'director', locale?: 'zh-CN' | 'en' }} options
+ * @param {{ name: string, viewport?: { width: number, height: number }, view?: 'refine' | 'director', locale?: 'zh-CN' | 'en', shotsDir?: string }} options
  *   view：起跑时落在哪一面。默认 'refine'——旧导演台那批旅程测的全是精修里的工具；测导演视图本身的旅程传 'director'。
  */
-export async function launchDirectorLab({ name, viewport = { width: 1440, height: 900 }, view = 'refine', locale = 'zh-CN' }) {
+export async function launchDirectorLab({ name, viewport = { width: 1440, height: 900 }, view = 'refine', locale = 'zh-CN', shotsDir = path.join(repoRoot, 'tests/ux/shots/director', name) }) {
   if (locale !== 'zh-CN' && locale !== 'en') throw new Error(`launchDirectorLab：不支持的语言 ${JSON.stringify(locale)}`)
   const server = await resolveDirectorDevServer()
   const browser = await launchDirectorBrowser()
@@ -263,7 +263,6 @@ export async function launchDirectorLab({ name, viewport = { width: 1440, height
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
   })
-  const shotsDir = path.join(repoRoot, 'tests/ux/shots/director', name)
   fs.mkdirSync(shotsDir, { recursive: true })
   /** 导演台壳起来了（画中画 + E2E 取证桥）再进旅程要的那一面。首次与每次重载都走这一个。 */
   const boot = async (face, firstBoot) => {
