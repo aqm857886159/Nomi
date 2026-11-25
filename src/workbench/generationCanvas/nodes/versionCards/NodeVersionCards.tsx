@@ -187,7 +187,7 @@ function VersionVideoMedia({ entry, active }: { entry: VersionCardEntry; active:
         className={cn(
           // nodrag / no-pan：画布内核的拖节点是挂在节点元素上的原生 mousedown，React 的 stopPropagation 截不住；
           // 不标这两个类，拖进度条会同时拖动整个节点，画布停在「拖动中」、之后的点击都被吞（10-06 真画布实测）。
-          'nodrag generation-canvas-react-flow__no-pan absolute bottom-0 left-0 right-0 z-[3] h-4 cursor-ew-resize px-1.5 pb-1 pt-2 transition-opacity duration-150',
+          'nodrag generation-canvas-react-flow__no-pan absolute bottom-0 left-0 right-0 z-[3] h-4 cursor-ew-resize px-1.5 pb-1 pt-2 transition-opacity duration-nomi-micro',
           active ? 'opacity-100' : 'pointer-events-none opacity-0',
           'focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-nomi-ink focus-visible:outline-offset-1',
         )}

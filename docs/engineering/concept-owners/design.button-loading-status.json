@@ -1,0 +1,24 @@
+{
+  "name": "设计按钮加载状态播报",
+  "subject": "design.button-loading-status",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/design/actions.tsx",
+    "symbol": "DesignButton"
+  },
+  "write_api": [
+    {
+      "path": "src/design/actions.tsx",
+      "symbol": "DesignButton"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/design/actions.test.tsx",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "DesignButton 保留按钮的可访问名称与尺寸，加载时禁用操作，并在按钮外保持独立的状态区域来播报本地化提示。"
+}

@@ -109,7 +109,7 @@ describe('buildNodeModelChangePatch', () => {
     const source: GenerationCanvasNode = {
       ...createGenerationNode({ id: 'source', kind: 'image' }),
       result: { id: 'result', type: 'image', url: 'https://example.com/source.png', createdAt: 0 },
-      meta: { aspect_ratio: '9:16' },
+      meta: { aspect_ratio: '9:16', imageWidth: 720, imageHeight: 1280 },
     }
     const video: GenerationCanvasNode = createGenerationNode({ id: 'video', kind: 'video' })
     const edge: GenerationCanvasEdge = { id: 'edge', source: source.id, target: video.id, mode: 'first_frame' }

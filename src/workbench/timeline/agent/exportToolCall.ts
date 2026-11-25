@@ -1,3 +1,4 @@
+import { selectPreviewAspectRatio } from '../../preview/previewAspectRatios'
 import type { ExportJobSnapshot, ExportJobVerification } from '../../../../electron/export/exportJobManager'
 import { EXPORT_STAGES, type ExportQuality, type ExportStage } from '../../../../electron/export/exportTypes'
 import { requireCapabilityProjectId } from '../../capability/capabilityProjectBinding'
@@ -148,7 +149,7 @@ function defaultStartExport(runtime: Omit<ExportToolRuntime, 'startExport'>, inp
 function defaultRuntime(): ExportToolRuntime {
   const base = {
     readTimeline: () => useWorkbenchStore.getState().timeline,
-    readAspectRatio: () => useWorkbenchStore.getState().previewAspectRatio,
+    readAspectRatio: () => selectPreviewAspectRatio(useWorkbenchStore.getState()),
     readGenerationNodes: () => useGenerationCanvasStore.getState().nodes,
     getJob: async (jobId: string) => {
       const bridge = getDesktopBridge()

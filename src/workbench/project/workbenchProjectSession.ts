@@ -1,5 +1,6 @@
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
+import { createTimelineHistory } from '../history/historyMiddleware'
 import { useWorkbenchStore } from '../workbenchStore'
 import { emitCanvasGesture, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -21,7 +22,8 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload,
     payload.workbenchDocuments ?? (payload.workbenchDocument ? [payload.workbenchDocument] : []),
     payload.activeDocumentId ?? null,
   )
-  useWorkbenchStore.getState().setTimeline(payload.timeline)
+  useWorkbenchStore.setState({ timelineHistory: createTimelineHistory(), detachedTimelineClips: {} })
+  useWorkbenchStore.getState().setTimeline(payload.timeline, payload.previewAspect)
   useWorkbenchStore.getState().setCategories(payload.categories)
   // P4：恢复整套分镜方案映射。用 hydrateStoryboardDesigns（非 setStoryboardPlan）载入不标脏。
   const store = useWorkbenchStore.getState()

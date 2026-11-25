@@ -27,6 +27,7 @@ export {
 } from "./customCapabilityContract";
 export type { CustomCapabilityContractV1, CustomCapabilityModeV1 } from "./customCapabilityContract";
 export {
+  archetypeFamilyIdsFor,
   archetypeIdForModel,
   archetypeParameterControls,
   builtInHeadlessDefaults,

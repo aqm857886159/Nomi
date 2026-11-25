@@ -1,48 +1,56 @@
+// 付费确认条的条体（2026-11-15 拆开）：条上只有共同参数 + 说明行，不画镜头；行数据交给对话里那一组（GenerationReceiptPointers）。
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
-vi.mock('../pointer/NodePointer', () => ({
-  NodePointer: () => null,
-}))
-vi.mock('../pointer/NodePointerGroup', () => ({
-  NodePointerGroup: ({ cellAccessory }: { cellAccessory?: (subject: unknown, index: number) => { action?: React.ReactNode } | null }) => {
-    const accessory = cellAccessory?.({}, 0)
-    return accessory?.action ?? null
-  },
+
+import { AgentPanelV4SpendCardBody, type SpendCardBodyProps } from './AgentPanelV4SpendCardBody'
+import { createSpendOfferRowsStore, SpendOfferRowsContext } from './spendCardOfferRows'
+import { createReactTestRenderer } from './testReactRenderer'
+
+const pointers = Array.from({ length: 12 }, (_, index) => ({
+  shotId: `shot-${index}`, nodeId: `node-${index}`, shotRef: `镜 ${index + 1}`, removed: false, exclusion: 'exclude' as const,
 }))
 
-import { AgentPanelV4SpendCardBody } from './AgentPanelV4SpendCardBody'
-
-const pointer = (exclusion: 'exclude' | 'restore') => ({
-  shotId: 'shot-1', nodeId: 'node-1', shotRef: '镜 01', removed: false, exclusion,
+const props = (overrides: Partial<SpendCardBodyProps> = {}): SpendCardBodyProps => ({
+  operationId: 'op-1', pointers, summary: 'Seedance 2.0 Fast · 16:9 · 480p', notices: [], busy: false,
+  onExclude: vi.fn(), onRestore: vi.fn(), ...overrides,
 })
 
-const render = (exclusion: 'exclude' | 'restore') => renderToStaticMarkup(React.createElement(AgentPanelV4SpendCardBody, {
-  pointers: [pointer(exclusion)], single: false, notices: [], busy: false,
-  onExclude: vi.fn(), onRestore: vi.fn(),
-}))
-
 describe('AgentPanelV4SpendCardBody', () => {
-  it('renders the exclusion accessory without a runtime missing-cn failure', () => {
-    expect(render('exclude')).toContain('data-spend-exclusion="exclude"')
+  it('draws the common params line and no pointer at all — the shots live in the chat', () => {
+    const html = renderToStaticMarkup(<AgentPanelV4SpendCardBody {...props()} />)
+    expect(html).toContain('data-v4-block="spend-params"')
+    expect(html).toContain('Seedance 2.0 Fast · 16:9 · 480p')
+    expect(html).not.toContain('data-node-pointer')
+    expect(html).not.toContain('data-spend-exclusion')
   })
 
-  // SpendCardQ1 板 card.pointer.exclude：缩略图角上的小 ×「和输入框里参考图的 × 同一个样子」——共用 ThumbCornerX，付费卡不再有自己的一套样式。
-  it('「不生成」 is the shared thumbnail-corner × (the reference-image one), with no pill style of its own', () => {
-    const html = render('exclude')
-    expect(html).toContain('data-thumb-corner-x="true"')
-    expect(html).toContain('aria-label="agentPanelV4.spendCard.excludeName"')
-    expect(html).not.toContain('bg-nomi-paper/85')
-    expect(html).not.toContain('inline-flex h-5')
+  it('3 shots and 12 shots draw the same markup: nothing on the bar grows with the shot count', () => {
+    const three = renderToStaticMarkup(<AgentPanelV4SpendCardBody {...props({ pointers: pointers.slice(0, 3) })} />)
+    const twelve = renderToStaticMarkup(<AgentPanelV4SpendCardBody {...props()} />)
+    expect(three).toBe(twelve)
   })
 
-  it('「恢复」 stays the small pill in the middle of the dimmed tile (its look was not part of this change)', () => {
-    const html = render('restore')
-    expect(html).toContain('data-spend-exclusion="restore"')
-    expect(html).toContain('agentPanelV4.spendCard.restore</button>')
-    expect(html).not.toContain('data-thumb-corner-x')
-    expect(html).toContain('inline-flex h-5 items-center rounded-full')
+  it('while sending (no params, no notice) it draws nothing, so the bar is one line', () => {
+    expect(renderToStaticMarkup(<AgentPanelV4SpendCardBody {...props({ summary: undefined })} />)).toBe('')
+  })
+
+  it('hands the rows to the panel store while mounted, and takes them back on unmount', () => {
+    const store = createSpendOfferRowsStore()
+    const renderer = createReactTestRenderer({})
+    renderer.render(
+      <SpendOfferRowsContext.Provider value={store}>
+        <AgentPanelV4SpendCardBody {...props()} />
+      </SpendOfferRowsContext.Provider>,
+    )
+    renderer.flushPassiveEffects()
+    expect(store.getState().offer?.operationId).toBe('op-1')
+    expect(store.getState().offer?.pointers).toHaveLength(12)
+    renderer.render(<SpendOfferRowsContext.Provider value={store}>{null}</SpendOfferRowsContext.Provider>)
+    renderer.flushPassiveEffects()
+    expect(store.getState().offer).toBeNull()
+    renderer.close()
   })
 })

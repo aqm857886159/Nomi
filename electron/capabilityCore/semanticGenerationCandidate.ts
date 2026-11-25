@@ -496,8 +496,8 @@ export function semanticCandidateFromParams(deps: SemanticGenerationCandidateDep
   }
   // 方式不从默认继承（2026-11-17 U4）：默认只答「哪个模型」，方式由归一按这个模型的档案 + 这次真放进来的参考现算
   // （`mcpGenerationVideoResolve.normalizeVideoCandidate` → `modeForInputs`）。说明白的 `modeId` / `variantId` 照收。
-  const selectedModeId = text(deps.params.modeId);
-  const selectedVariantId = text(deps.params.variantId);
+  const selectedModeId = text(deps.params.modeId) || named?.resolved?.modeId;
+  const selectedVariantId = text(deps.params.variantId) || named?.resolved?.variantId;
   const selected = {
     moduleId,
     providerId,

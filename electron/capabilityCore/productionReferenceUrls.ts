@@ -1,3 +1,4 @@
+import { providerReferenceValueValidator, type ProviderReferenceValueValidator } from './generationProviderReferenceValue';
 import { matchNomiErrorCode } from '../shared/nomiErrorCodes';
 import { readCatalog } from '../catalog/catalogStore';
 import { assetUploadChannelKind, referenceNeedsUpload, type ReferenceLinkPolicy, type IngestionResolver } from '../catalog/assetLocalization';
@@ -46,7 +47,7 @@ export async function localizeProductionReferenceUrls(
       throw error;
     });
   const values = (result.value as { urls?: unknown }).urls;
-  if (!Array.isArray(values) || values.length !== urls.length || values.some(value => typeof value !== 'string' || !/^https?:\/\//.test(value))) {
+  if (!Array.isArray(values) || values.length !== urls.length || !values.every(providerReferenceValueValidator(vendor))) {
     throw new Error('generation_reference_url_unavailable');
   }
   return values;
@@ -86,10 +87,19 @@ export async function resolveProductionReferenceUrls(input: Readonly<{
   return Object.fromEntries(input.references.map((reference, index) => [spendReferenceKey(reference), localized[index]]));
 }
 
-function linkPolicyOf(providerId: string) {
+type ReworkReferencePolicy = ReferenceLinkPolicy & {
+  channels: IngestionResolver;
+  isDeliverable: ProviderReferenceValueValidator;
+};
+
+function linkPolicyOf(providerId: string): ReworkReferencePolicy | null {
   const catalog = readCatalog();
   const vendor = catalog.vendors.find(candidate => candidate.key === providerId);
-  return vendor ? { ...referenceLinkPolicy(vendor), channels: assetIngestionResolver(vendor, catalog) } : null;
+  return vendor ? {
+    ...referenceLinkPolicy(vendor),
+    channels: assetIngestionResolver(vendor, catalog),
+    isDeliverable: providerReferenceValueValidator(vendor),
+  } : null;
 }
 
 /** Reuse the frozen receipt unless its current probe and delivery channels require replacement. */
@@ -102,7 +112,7 @@ export async function reworkReferenceUrls(
     assertCurrent: () => void;
   }>,
   deps: Readonly<{
-    policyOf: (providerId: string) => (ReferenceLinkPolicy & { channels: IngestionResolver }) | null;
+    policyOf: (providerId: string) => ReworkReferencePolicy | null;
     resolve: typeof resolveProductionReferenceUrls;
   }> = { policyOf: linkPolicyOf, resolve: resolveProductionReferenceUrls },
 ): Promise<Readonly<Record<string, string>> | undefined> {
@@ -112,6 +122,8 @@ export async function reworkReferenceUrls(
   const references = new Map(input.references.map(ref => [spendReferenceKey(ref), ref]));
   let indexed: ReturnType<SpendReferenceAssets['list']> | undefined;
   const stale = await Promise.all(Object.entries(input.frozen).map(async ([key, url]) => {
+    // Inline bytes have no link to probe. If the channel changed, re-localize the pinned asset.
+    if (/^data:/i.test(url)) return !policy.isDeliverable(url);
     const verdict = await policy.probe(url);
     return referenceNeedsUpload(verdict, () => {
       const ref = references.get(key);

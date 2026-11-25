@@ -1,0 +1,25 @@
+{
+  "name": "分镜镜头删除后的焦点归位",
+  "subject": "storyboard.shot-deletion-focus",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+    "symbol": "useStoryboardDeletionFocus"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "useStoryboardDeletionFocus"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
+  ],
+  "since": "2026-11-24",
+  "notes": "删除时记录拥有焦点的控件。焦点因控件移除或确认框关闭而丢失时，交回可见的分镜编辑器。"
+}

@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 // 生成框压住底部外框控件时，控件盒子外的投影圈也必须让位。
-// 真 Electron、隔离 profile、；只移动节点和截图，不点生成。
+// 真 Electron、隔离 profile。只移动节点和截图。
 
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { launchNomiApp, ACCEPTANCE_VIEWPORT, repoRoot } from './_launchApp.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { launchNomiApp, ACCEPTANCE_VIEWPORT } from './_launchApp.mjs'
 import { findNodeHitPoint } from './_canvasHit.mjs'
 import { addCanvasNode, canvasAddBar, newProjectEntry } from './_shell.mjs'
-import { expect } from './_assert.mjs'
+import { expect, waitForVisualQuiescence } from './_assert.mjs'
 
-const evidenceDir = path.join(repoRoot, 'docs/evidence/2026-10-24-chrome-occlusion-shadow')
-fs.rmSync(evidenceDir, { recursive: true, force: true })
-fs.mkdirSync(evidenceDir, { recursive: true })
+const evidenceDir = makeTempDir('nomi-chrome-occlusion-evidence-')
+process.env.EVIDENCE_DIR = evidenceDir
 
 const variants = [
   { id: 'zh-light', locale: 'zh-CN', scheme: 'light', description: '中文亮色：加节点条投影圈与生成框底色对照' },
@@ -70,37 +70,50 @@ for (const variant of variants) {
     const nodeId = await node.getAttribute('data-id')
     if (!nodeId) throw new Error(`${variant.id}：节点没有 data-id`)
 
-    // 真实拖动：把节点向下挪 30px，让生成框压住底部加节点条。
     const nodeSelector = `.react-flow__node[data-id="${nodeId}"]`
+    const toolbar = canvasAddBar(win)
+    const composer = node.locator('.generation-canvas-v2-node__composer')
+    const prompt = composer.locator('[data-node-composer-prompt]')
+    await expect(prompt).toBeVisible()
+    await waitForVisualQuiescence(win)
     const handle = await findNodeHitPoint(win, { nodeSelector })
-    const before = await win.locator(nodeSelector).boundingBox()
-    if (!handle || !before) throw new Error(`${variant.id}：找不到可抓的节点表面`)
+    const dockBefore = await toolbar.boundingBox()
+    const promptBefore = await prompt.boundingBox()
+    if (!handle || !dockBefore || !promptBefore) throw new Error(`${variant.id}：量不到节点抓点、加节点条或提示词区`)
+    await win.screenshot({ path: path.join(evidenceDir, `before-${variant.id}.png`) })
+
+    // 把提示词空白区移到加节点条下沿的投影带上，位移由两个真实盒子决定。
+    const shadowSampleCenter = dockBefore.y + dockBefore.height + 7.5
+    const dragY = Math.round(shadowSampleCenter - (promptBefore.y + promptBefore.height * 0.55))
     await win.mouse.move(handle.x, handle.y)
     await win.mouse.down()
-    await win.mouse.move(handle.x, handle.y + 30, { steps: 10 })
+    await win.mouse.move(handle.x, handle.y + dragY, { steps: 10 })
     await win.mouse.up()
-    await win.waitForTimeout(800)
+    await waitForVisualQuiescence(win)
+    await expect.poll(() => toolbar.evaluate((element) => getComputedStyle(element).clipPath)).toMatch(/^path\(/)
 
-    const toolbar = await canvasAddBar(win).boundingBox()
-    const composer = await win.locator('.generation-canvas-v2-node__composer').first().boundingBox()
-    const geometry = toolbar && composer ? (() => {
-      const left = Math.max(toolbar.x + 20, composer.x + 20)
-      const right = Math.min(toolbar.x + toolbar.width - 20, composer.x + composer.width - 20)
-      // 取 dock 盒子下方、仍在扩展 24px 外框内的投影带；这里正是旧实现留下的变暗影子。
-      const ringTop = toolbar.y + toolbar.height + 3
-      const ringBottom = toolbar.y + toolbar.height + 12
-      const referenceTop = toolbar.y - 34
-      const referenceBottom = toolbar.y - 25
-      return {
-        toolbar: { left: toolbar.x, top: toolbar.y, right: toolbar.x + toolbar.width, bottom: toolbar.y + toolbar.height },
-        composer: { left: composer.x, top: composer.y, right: composer.x + composer.width, bottom: composer.y + composer.height },
-        ring: { left, top: ringTop, right, bottom: ringBottom },
-        reference: { left, top: referenceTop, right, bottom: referenceBottom },
+    const dock = await toolbar.boundingBox()
+    const card = await composer.boundingBox()
+    const field = await prompt.boundingBox()
+    if (!dock || !card || !field) throw new Error(`${variant.id}：量不到拖动后的生成框、提示词区或加节点条`)
+    const top = dock.y + dock.height + 3
+    const bottom = dock.y + dock.height + 12
+    const geometry = {
+      toolbar: dock,
+      composer: card,
+      prompt: field,
+      ring: { left: dock.x + 20, right: dock.x + dock.width - 20, top, bottom },
+      // 同一高度取提示词背景，横向离开节点条的 24px 投影外扩区。
+      reference: { left: dock.x + dock.width + 28, right: dock.x + dock.width + 60, top, bottom },
+    }
+    for (const sample of [geometry.ring, geometry.reference]) {
+      for (const area of [card, field]) {
+        if (sample.right <= sample.left || sample.left < area.x || sample.right > area.x + area.width ||
+            sample.top < area.y || sample.bottom > area.y + area.height) {
+          throw new Error(`${variant.id}：投影圈或参考取样区不在生成框的提示词区内：${JSON.stringify(geometry)}`)
+        }
       }
-    })() : null
-    if (!geometry) throw new Error(`${variant.id}：量不到生成框或加节点条`)
-    if (geometry.ring.right <= geometry.ring.left || geometry.ring.bottom <= geometry.ring.top) throw new Error(`${variant.id}：投影圈取样区为空：${JSON.stringify(geometry)}`)
-    if (geometry.composer.top > geometry.ring.top || geometry.composer.bottom < geometry.ring.bottom) throw new Error(`${variant.id}：投影圈取样区不在生成框内：${JSON.stringify(geometry)}`)
+    }
 
     await win.screenshot({ path: shotPath })
     const brightness = measureBrightness(shotPath, { ring: geometry.ring, reference: geometry.reference })
@@ -114,8 +127,8 @@ for (const variant of variants) {
 }
 
 const evidenceLines = [
-  '- `before-zh-light.png`：临时还原盒子求交旧实现、同样拖动场景下的修前对照，能看到生成框底部外侧残留的空白投影框。',
+  '- `before-*.png`：拖动节点前的取景。',
   ...variants.map((variant) => `- ${'`'}${variant.id}.png${'`'}：${variant.description}。投影圈取样区与生成框内参考区的平均亮度差记录在同名 ${'`'}${variant.id}.json${'`'}。`),
 ]
 fs.writeFileSync(path.join(evidenceDir, 'README.md'), `# 2026-10-24 chrome occlusion shadow\n\n${evidenceLines.join('\n')}\n`)
-console.log('canvas-chrome-occlusion-shadow: OK')
+console.log(`canvas-chrome-occlusion-shadow: ${variants.length}/${variants.length} passed · ${evidenceDir}`)

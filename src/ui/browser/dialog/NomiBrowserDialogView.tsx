@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, motion } from 'framer-motion'
+import { BrowserCaptureFlyouts } from '../BrowserCaptureFlyouts'
 import { IconCamera } from '@tabler/icons-react'
 import {
   IconArrowLeft,
@@ -25,17 +25,14 @@ import { NomiBrowserAssetPopover } from '../popover/NomiBrowserAssetPopover'
 import { useOpenProjectId } from '../../../workbench/project/useOpenProjectId'
 import {
   BROWSER_START_SHORTCUTS,
-  CAPTURE_FLYOUT_KEYFRAME_TIMES,
   MATERIAL_SITE_SHORTCUTS,
   PromptModeOption,
   TAB_CONTEXT_MENU_ITEM_CLASS,
   TAB_CONTEXT_MENU_WIDTH,
   TAB_LIMIT,
   TOOL_BUTTON_CLASS,
-  captureFlyoutScale,
   TabFavicon,
   type BrowserBookmark,
-  type BrowserCaptureFlyout,
   type BrowserTab,
 } from './NomiBrowserDialogModel'
 
@@ -535,69 +532,7 @@ export function NomiBrowserDialogView({
             />
           </div>
         ) : null}
-        <AnimatePresence>
-          {captureFlyouts.map((flyout: BrowserCaptureFlyout) => (
-            <motion.div
-              key={flyout.id}
-              data-browser-capture-flyout=""
-              className="pointer-events-none fixed left-0 top-0 z-[570] overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-lg"
-              initial={{
-                x: flyout.sourceRect.left,
-                y: flyout.sourceRect.top,
-                width: flyout.sourceRect.width,
-                height: flyout.sourceRect.height,
-                opacity: 0.72,
-                scale: 0.98,
-              }}
-              animate={{
-                x: [
-                  flyout.sourceRect.left,
-                  flyout.sourceRect.left,
-                  flyout.targetRect.left,
-                ],
-                y: [
-                  flyout.sourceRect.top,
-                  flyout.sourceRect.top,
-                  flyout.targetRect.top,
-                ],
-                width: [
-                  flyout.sourceRect.width,
-                  flyout.sourceRect.width,
-                  flyout.targetRect.width,
-                ],
-                height: [
-                  flyout.sourceRect.height,
-                  flyout.sourceRect.height,
-                  flyout.targetRect.height,
-                ],
-                opacity: [0.78, 1, 0.08],
-                scale: [0.98, 1.02, captureFlyoutScale(flyout.sourceRect, flyout.targetRect)],
-              }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.74, times: CAPTURE_FLYOUT_KEYFRAME_TIMES, ease: [0.22, 1, 0.36, 1] }}
-              onAnimationComplete={() => removeCaptureFlyout(flyout.id)}
-              aria-hidden="true"
-            >
-              {flyout.mediaType === 'video' ? (
-                <>
-                  <video src={flyout.url} muted playsInline className="block size-full bg-nomi-ink object-contain" />
-                  <span className="absolute right-1 top-1 rounded-pill bg-nomi-accent px-1.5 py-0.5 text-micro font-semibold leading-none text-nomi-paper shadow-nomi-sm">
-                    {t('browserAssets.video')}
-                  </span>
-                </>
-              ) : (
-                <img src={flyout.url} alt="" draggable={false} className="block size-full object-contain" />
-              )}
-              <span className="absolute inset-0 rounded-nomi ring-1 ring-inset ring-nomi-paper/85" />
-              <motion.span
-                className="absolute inset-0 rounded-nomi bg-nomi-accent"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 0.28, 0] }}
-                transition={{ duration: 0.42, times: [0, 0.28, 1], ease: 'easeOut' }}
-              />
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        <BrowserCaptureFlyouts captureFlyouts={captureFlyouts} removeCaptureFlyout={removeCaptureFlyout} className="fixed z-[570]" />
         {contextMenuTab && tabContextMenu ? (
           <div
             ref={tabContextMenuRef}

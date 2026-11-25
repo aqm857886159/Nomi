@@ -8,6 +8,7 @@ import { useGenerationCanvasStore } from '../../../src/workbench/generationCanva
 import { useWorkbenchStore } from '../../../src/workbench/workbenchStore'
 import '@mantine/core/styles.css'
 import type { ModelCatalogModelDto, ModelCatalogVendorDto, ModelCatalogHealthDto } from '../../../src/workbench/api/modelCatalogApi'
+import type { StoryboardPlan } from '../../../src/workbench/generationCanvas/agent/storyboardPlan'
 const query = new URLSearchParams(location.search)
 const mediaKind = query.get('media') === 'video' ? 'video' : 'image'
 const catalogModels: ModelCatalogModelDto[] = [
@@ -33,7 +34,21 @@ const planFor = (id: string) => ({ title: `Plan ${id}`, anchors: [], ...(query.h
   // `refs`：整片 16:9（参考条在预览框下面），镜 1 挂 6 张参考（改图模式收参考图）——窄档参考条一行放不下，
   // 确定性地折出「+N」浮层（不靠字体 / 宽度碰运气）。
   ...(query.has('refs') && mediaKind === 'image' ? { modeId: 'edit', referenceBindings: { image_ref: REF_IMAGES.map((url, index) => ({ url, name: `Ref ${index + 1}` })) } } : {}) }] })
-const designs = Object.fromEntries(['a', 'b'].map(id => [id, store.addStoryboardDesign({ initiator: 'user', documentId: 'doc', source: query.has('many') ? { ...planFor(id), shots: [1, 2, 3].map((index) => ({ ...planFor(id).shots[0], index, shotId: `shot-${id}-${index}` })) } : planFor(id), identity: { id: `design-${id}`, title: `Plan ${id}` } })!]))
+function fixturePlan(id: string): StoryboardPlan {
+  const plan = planFor(id)
+  if (query.has('windowed')) {
+    const scenes = ['Arrival', 'Interlude', 'Departure'].map((title, index) => ({ id: `scene-${index + 1}`, title }))
+    const shots = Array.from({ length: 320 }, (_, i) => ({
+      ...plan.shots[0], index: i + 1, shotId: `shot-${i + 1}`, sceneId: scenes[i < 2 ? 0 : i < 4 ? 1 : 2].id,
+    }))
+    return { ...plan, scenes, shots }
+  }
+  if (query.has('many')) {
+    return { ...plan, shots: [1, 2, 3].map(index => ({ ...plan.shots[0], index, shotId: `shot-${id}-${index}` })) }
+  }
+  return plan
+}
+const designs = Object.fromEntries(['a', 'b'].map(id => [id, store.addStoryboardDesign({ initiator: 'user', documentId: 'doc', source: fixturePlan(id), identity: { id: `design-${id}`, title: `Plan ${id}` } })!]))
 store.setActiveStoryboardId(designs.a.id, 'doc')
 if (query.has('confirm')) {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ id: 'result-node', kind: 'image', title: 'Result', position: { x: 0, y: 0 }, categoryId: 'shots', status: 'success', result: { id: 'result', type: 'image', url: '/favicon.ico', createdAt: 1 }, meta: { storyboardDesignId: designs.a.id, shotId: 'shot-a' } }], edges: [], groups: [] })

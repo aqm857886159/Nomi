@@ -1,3 +1,4 @@
+import { selectPreviewAspectRatio } from '../preview/previewAspectRatios'
 import { deleteAssetResult } from '../assets/deleteAssetResult'
 import { sameProjectAgentBinding } from '../../../electron/shared/projectBinding'
 import type { SpendQuoteLine } from '../../../electron/shared/contracts/spendQuote'
@@ -659,7 +660,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       const { manifest } = createTimelineExportManifest({
         projectId: project || activeId || '',
         timeline: state.timeline,
-        aspectRatio: state.previewAspectRatio,
+        aspectRatio: selectPreviewAspectRatio(state),
         generationNodes: useGenerationCanvasStore.getState().nodes,
       })
       return { manifest }
@@ -673,12 +674,12 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       const { timeline } = createTimelineExportManifest({
         projectId: project || activeId || '',
         timeline: state.timeline,
-        aspectRatio: state.previewAspectRatio,
+        aspectRatio: selectPreviewAspectRatio(state),
         generationNodes: useGenerationCanvasStore.getState().nodes,
       })
       const webm = await exportTimelineToWebm({
         timeline,
-        aspectRatio: state.previewAspectRatio,
+        aspectRatio: selectPreviewAspectRatio(state),
         width: 1920,
         autoDownload: false,
       })

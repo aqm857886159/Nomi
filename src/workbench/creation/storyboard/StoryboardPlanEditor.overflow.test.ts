@@ -72,9 +72,10 @@ describe('分镜页脚：让位的是说明文字，不是要用户去做事的�
     expect(enFooterValues.some((value) => value.includes('Cost is confirmed'))).toBe(false)
   })
 
-  /** 页脚右组只剩主动作；左组仍是 `min-w-0` + `truncate`（摘要让位、按钮不让位）。 */
-  it('右组只剩主动作，左组仍然是会让位的那一侧', () => {
+  /** 页脚右组放操作；左组仍是 `min-w-0` + `truncate`（摘要让位、按钮不让位）。 */
+  it('右组放添加镜头和生成，左组仍然是会让位的那一侧', () => {
     const footer = editor.slice(editor.indexOf('<footer'), editor.indexOf('</footer>'))
+    expect(footer).toContain('data-storyboard-add-shot="true"')
     expect(footer).toContain('data-storyboard-batch="true"')
     expect(footer).toContain('data-storyboard-progress="true"')
     expect(footer.slice(footer.indexOf('shrink-0'))).not.toContain('text-micro text-nomi-ink-40')

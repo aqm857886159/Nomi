@@ -28,6 +28,9 @@ import { createLiveGenerationRuntime } from "../liveGenerationRuntime";
 import { readCatalog } from "../../catalog/catalogStore";
 import { compileExecutionContract } from "../executionContract";
 import { createGenerationRuntimeAdapter } from "../generationRuntimeAdapter";
+import { resolveProjectRelativePath } from "../../projects/repository";
+import { buildWorld } from "../../../tests/world";
+import { resolveProductionReferenceUrls, localizeProductionReferenceUrls } from "../productionReferenceUrls";
 import { createGenerationOutputMaterializer } from "../generationOutputMaterializer";
 
 vi.mock("electron", async (importOriginal) => {
@@ -44,6 +47,7 @@ vi.mock("electron", async (importOriginal) => {
   };
 });
 
+const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const MP4 = Buffer.from("00000018667479706d703432000000006d703432", "hex");
 const DOCS = "https://docs.example-local-adapter.test/api";
 const MODEL_KEY = "local-video-fast";
@@ -66,6 +70,14 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
       request.on("data", (chunk) => { body += chunk; });
       request.on("end", () => {
         seen.push({ method: request.method || "", url: request.url || "", auth: String(request.headers.authorization || ""), body });
+        const keyless = /^\/v1\/keyless\/(image|video)(?:\/(h3-\d+))?$/.exec(request.url || "");
+        if (keyless && !request.headers.authorization) {
+          const payload = request.method === "POST"
+            ? { task_id: `h3-${++nextTask}`, status: "queued" }
+            : { task_id: keyless[2], status: "succeeded", output_url: `${origin}/out.${keyless[1] === "image" ? "png" : "mp4"}` };
+          response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(payload));
+          return;
+        }
         if (String(request.headers.authorization || "") !== `Bearer ${API_KEY}` && request.url !== "/out.mp4") {
           response.writeHead(401, { "content-type": "application/json" }).end(JSON.stringify({ error: "missing credentials" }));
           return;
@@ -98,7 +110,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
   });
 
   afterAll(async () => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
+    vi.unstubAllEnvs();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     fs.rmSync(root, { recursive: true, force: true });
   });
@@ -209,6 +221,88 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
     expect(polled.state).toBe("succeeded");
     const outputs = await adapter.materialize({ providerId: vendorKey, providerTaskId: submitted.providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
     expect(outputs.outputs).toEqual([expect.objectContaining({ kind: "video", url: `${origin}/out.mp4` })]);
+  });
+
+  it.each([
+    { kind: "video", mode: "image_to_video", output: "video_url", extension: "mp4" },
+    { kind: "image", mode: "image_edit", output: "image_url", extension: "png" },
+  ] as const)("registers and runs a keyless inline reference for $mode", async ({ kind, mode, output, extension }) => {
+    const endpoint = `/v1/keyless/${kind}`;
+    const modelKey = `local-inline-${kind}`;
+    const registered = await mcp("nomi_model_setup", {
+      action: "submit_declaration",
+      name: `Local Inline ${kind}`,
+      declaration: JSON.stringify({
+        provider: { baseUrl: origin, authType: "none" },
+        sources: [{ url: DOCS, evidence: "Accepts an inline PNG reference and returns a task id." }],
+        assetIngestion: { strategy: "inline-base64", accepts: ["image"], sourceUrl: DOCS },
+        models: [{ modelKey, labelZh: modelKey, kind, modes: [{
+          taskKind: mode, delivery: "asynchronous",
+          referenceParam: "image_urls", referenceShape: "array",
+          create: {
+            method: "POST", path: endpoint,
+            body: { prompt: "{{request.prompt}}", image_urls: "{{request.params.image_urls}}" },
+            response_mapping: { task_id: "task_id", status: "status" },
+            provider_meta_mapping: { task_id: "task_id" },
+          },
+          query: {
+            method: "GET", path: `${endpoint}/{{providerMeta.task_id}}`,
+            response_mapping: { task_id: "task_id", status: "status", [output]: "output_url" },
+          },
+          statusMapping: { failed: ["error"] },
+          sourceUrls: [DOCS],
+        }] }],
+      }),
+    }) as { ok: boolean; vendorKey: string };
+    expect(registered.ok, JSON.stringify(registered)).toBe(true);
+    const localVendor = registered.vendorKey;
+    const runtime = createLiveGenerationRuntime().current();
+    const boot = await runtime.bootstrap;
+    expect.soft(boot.readinessByProvider[localVendor]).toMatchObject({ providerReady: true });
+
+    const world = buildWorld({
+      rootDir: root, settingsDir: root, builtinSeeds: false, projects: [{ name: `Inline ${kind}` }],
+    });
+    const project = world.projects[0] as { id: string };
+    const relativePath = "assets/reference.png";
+    const file = resolveProjectRelativePath(project.id, relativePath);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, Buffer.from(PNG_BASE64, "base64"));
+    const reference = { assetId: "pinned", contentHash: "a".repeat(64), version: 1, kind: "image" as const };
+    const referenceUrls = await resolveProductionReferenceUrls({
+      projectId: project.id, providerId: localVendor, references: [reference], assertCurrent() {},
+    }, {
+      assets: {
+        list: () => [{ id: reference.assetId, data: { url: `nomi-local://asset/${project.id}/${relativePath}`, contentType: "image/png" } }],
+        identity: () => reference,
+      },
+      localize: localizeProductionReferenceUrls,
+    });
+    const contract = compileExecutionContract({
+      candidateId: `candidate-${kind}`, revision: 1, moduleId: "generation.single-shot",
+      providerId: localVendor, modelId: modelKey, mode, prompt: "Use this reference", parameters: {}, references: [reference],
+    }, runtime.registry);
+    const adapter = createGenerationRuntimeAdapter({ providers: boot.providers });
+    const providerIdempotencyKey = `idem-${kind}`;
+    const sealed = adapter.prepareAuthorization({ contract, providerIdempotencyKey, referenceUrls });
+    const before = seen.length;
+    const submitted = await adapter.submit({
+      contract,
+      binding: {
+        immutableProjectUuid: project.id, projectGeneration: 1, runId: "inline-run", shotId: "shot-1",
+        contractHash: contract.contractHash, runtimeTaskId: "inline-task", providerNamespace: localVendor,
+        providerIdempotencyKey, requestFingerprint: "f".repeat(64),
+        runtimeEnvelopeRef: ".nomi/runs/inline-run/runtime.json", fencingEpoch: 1,
+      },
+      expectedProviderRequestHash: sealed.providerRequestHash,
+      preparedProviderRequest: sealed.providerRequest,
+    });
+    expect(seen.slice(before)).toEqual([expect.objectContaining({ method: "POST", url: endpoint, auth: "" })]);
+    expect(JSON.parse(seen[before]!.body)).toMatchObject({ image_urls: [`data:image/png;base64,${PNG_BASE64}`] });
+    const polled = await adapter.query({ providerId: localVendor, providerTaskId: submitted.providerTaskId });
+    expect(polled.state).toBe("succeeded");
+    const outputs = await adapter.materialize({ providerId: localVendor, providerTaskId: submitted.providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
+    expect(outputs.outputs).toEqual([expect.objectContaining({ kind, url: `${origin}/out.${extension}` })]);
   });
 
   it("产物落盘：这条连接自己的本机 origin 上的产物取得回来（#975 A）", async () => {

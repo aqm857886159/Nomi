@@ -11,7 +11,7 @@
  *
  * 用法（先 pnpm run build）：
  *   node tests/perf/document-switch-bench.mjs --scenario document-switch|plan-open|document-switch-unvisited [--runs 5] [--label x] [--docs 160] [--shots 320] [--diag-out <目录>]
- * 产物：tests/perf/results/document-switch-<label>.json
+ * 产物：--out <文件>，缺省为 tests/perf/results/document-switch-<label>.json
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -27,6 +27,7 @@ const argValue = (name, fallback) => { const i = args.indexOf(name); return i >=
 const scenario = argValue('--scenario', 'document-switch')
 const runs = Math.max(1, Number(argValue('--runs', 5)))
 const label = argValue('--label', 'run')
+const outFile = path.resolve(repoRoot, argValue('--out', `tests/perf/results/document-switch-${label}.json`))
 const docCount = Number(argValue('--docs', 160))
 const shotCount = Number(argValue('--shots', 320))
 const configuredModel = args.includes('--configured-model')
@@ -158,8 +159,7 @@ if (scenario === 'plan-open') {
     console.log('[bench] 切完文稿后再打开方案：' + Math.round(reveal.ms) + 'ms，320 行到位')
   } finally { await smoke.close() }
 }
-const outDir = path.join(repoRoot, 'tests/perf/results')
-fs.mkdirSync(outDir, { recursive: true })
-fs.writeFileSync(path.join(outDir, `document-switch-${label}.json`), JSON.stringify(result, null, 2))
-console.log(`[bench] 结果：tests/perf/results/document-switch-${label}.json`)
+fs.mkdirSync(path.dirname(outFile), { recursive: true })
+fs.writeFileSync(outFile, JSON.stringify(result, null, 2))
+console.log(`[bench] 结果：${path.relative(repoRoot, outFile)}`)
 process.exit(0)

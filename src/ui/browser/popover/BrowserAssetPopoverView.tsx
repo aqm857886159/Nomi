@@ -1,3 +1,4 @@
+import { NOMI_DURATION_MS, NOMI_EASE } from '../../../design/motion'
 import type { JSX } from 'react'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from 'react-i18next'
@@ -97,7 +98,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
             isWindowInteracting
               ? { duration: 0 }
               : contained
-                ? { duration: 0.16, ease: 'easeOut' }
+                ? { duration: NOMI_DURATION_MS.fast / 1000, ease: NOMI_EASE.out }
                 : { type: 'spring', stiffness: 420, damping: 30, mass: 0.8 }
           }
           role="dialog"

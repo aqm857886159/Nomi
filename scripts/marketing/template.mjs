@@ -112,12 +112,13 @@ function renderCommunity(content, shared) {
         <div class="hero-actions">
           <a class="button on-dark" href="${escapeAttr(shared.repositoryUrl)}" ${externalAttrs}>GitHub</a>
           <a class="button on-dark" href="${escapeAttr(shared.discussionUrl)}" ${externalAttrs}>${escapeText(c.discussion)}</a>
+          <a class="button on-dark" href="${escapeAttr(shared.issuesUrl)}" ${externalAttrs}>${escapeText(c.issues)}</a>
           <a class="button on-dark" href="${escapeAttr(shared.bilibiliUrl)}" ${externalAttrs}>${escapeText(c.bilibili)}</a>
         </div>
       </div>
       <div class="qr-row">
-        <figure class="qr" id="community-qr"><img src="${escapeAttr(shared.groupQr)}" alt="${escapeAttr(c.groupAlt)}" width="140" height="210" /><figcaption>${escapeText(c.groupCaption)}</figcaption></figure>
-        <figure class="qr"><img src="${escapeAttr(shared.authorQr)}" alt="${escapeAttr(c.authorAlt)}" width="140" height="140" /><figcaption>${escapeText(c.authorCaption)}</figcaption></figure>
+        <figure class="qr" id="community-qr"><img src="${escapeAttr(shared.authorQr)}" alt="${escapeAttr(c.authorAlt)}" width="140" height="178" /><figcaption>${escapeText(c.authorCaption)}</figcaption></figure>
+        <div class="qr-invite"><h3>${escapeText(c.groupInviteTitle)}</h3><p>${escapeText(c.groupInviteBody)}</p></div>
       </div>
     </div>
     <div class="teams">

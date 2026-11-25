@@ -14,7 +14,7 @@ import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { BRAIN } from './_agentVideoPaid.mjs'
 import { openPaidWalk, readProductionRuns, spendReceipt } from './_paidRun.mjs'
-import { CARD_PRIMARY, CARD_TITLE, POINTER, SPEND_CARD, cardTitle, excludeShot, pointerAway } from './_spendCardWalk.mjs'
+import { CARD_PRIMARY, POINTER, SPEND_CARD, excludeShot, offerRows, pointerAway, primaryLabel } from './_spendCardWalk.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { CANVAS_PANEL, chooseAssistantModel, openCanvas, sendCanvas, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
@@ -36,9 +36,9 @@ try {
 
   await sendCanvas(win, ASK)
   const card = win.locator(SPEND_CARD)
-  await expect(card.locator(CARD_TITLE), '卡问的是这 2 张').toContainText(cardTitle('zh-CN', 2, 'image'), { timeout: stationTimeout({ turns: 2 }) })
-  const pointers = await card.locator(POINTER).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
-  expect(pointers, '卡指着画布上的两个节点').toHaveLength(2)
+  await expect(card.locator(CARD_PRIMARY), '确认条答应的是这 2 张').toContainText(primaryLabel('zh-CN', { count: 2, kind: 'image' }), { timeout: stationTimeout({ turns: 2 }) })
+  const pointers = await offerRows(card).locator(POINTER).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
+  expect(pointers, '对话里那一组指着画布上的两个节点').toHaveLength(2)
   await pointerAway(win)
   walk.report.rows['15-card'] = await walk.snap('15-card-two')
   await excludeShot(card, pointers[1], '第 2 张「不生成 ×」')

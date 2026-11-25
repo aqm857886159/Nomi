@@ -1,3 +1,4 @@
+import { shouldReduceMotion } from '../../../design/motion'
 import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { createPortal, flushSync } from 'react-dom'
@@ -178,7 +179,7 @@ function revealInScrollParent(el: HTMLElement): void {
   const viewBottom = viewTop + scroller.clientHeight
   if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
   const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
-  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduce = shouldReduceMotion()
   scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
 }
 

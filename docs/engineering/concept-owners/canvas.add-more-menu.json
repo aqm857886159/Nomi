@@ -1,0 +1,23 @@
+{
+  "name": "画布新建节点「+ / 更多」空间菜单（底栏与空画布起步行共用，经 AnchoredPopover 脱出底栏裁切子树）",
+  "subject": "canvas.add-more-menu",
+  "lifecycle": "live-interaction",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "symbol": "CanvasMoreAddMenu"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-25",
+  "notes": "合同 docs/fixes/2026-11-25-canvas-toolbar-more-menu-occlusion.root-cause.json：CanvasToolbar 底栏「+」与 CanvasEmptyState 空态「更多」共用 CanvasMoreAddMenu，统一交由设计系统 AnchoredPopover（Portal + 外点收起 + Escape）挂载到 body，避免被 useCanvasChromeOcclusion 在底栏上打出的 nonzero clip-path 连同后代一并裁掉。"
+}

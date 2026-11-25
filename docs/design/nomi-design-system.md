@@ -716,24 +716,22 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 
 > ✅ **已自托管（2026-06-21）：Inter + Fraunces 变量字体经 `@fontsource-variable/{inter,fraunces}` 打包**，在 `main.tsx` import `wght.css`。族名是 **`"Inter Variable"` / `"Fraunces Variable"`**（变量字体的族名带 Variable 后缀，已置于字栈首位），不再依赖系统是否装了字体——品牌字标 Fraunces 在任意机器/离线都一致渲染。bare `Inter`/`Fraunces` 留作兜底。
 
-### 2.7 动效
+### 2.7 Motion Language（动效语言）
 
-**时长和缓动是两个 token，永远分开。**
+`src/design/motion.ts` 定义时长和缓动。CSS 时长用 `--nomi-duration-<档>`，Tailwind 用 `duration-nomi-<档>`。默认的 `transition-colors` 取 micro 和 `--nomi-ease-out`。
 
-| Token | 值 | Tailwind 类 | 用途 |
-|---|---|---|---|
-| `--nomi-duration-fast` | `140ms` | `duration-nomi-fast` | 所有交互过渡的默认时长 |
-| `--nomi-ease-fast` | `cubic-bezier(.2, .7, .3, 1)` | `ease-nomi-fast` | 所有交互过渡的默认缓动 |
-| `--nomi-duration-morph` | `550ms` | `duration-nomi-morph` | **形变**：只给 Agent 形象（`NomiAgentFace`）在状态之间连续变形用（2026-10-27 拍板）。别处不用 |
-| `--nomi-ease-morph` | `cubic-bezier(.16, 1, .3, 1)` | `ease-nomi-morph` | 形变的缓动：快起慢停、不回弹 |
+| 档位 | 进入 | 用途 |
+|---|---:|---|
+| instant | 0 ms | 工作面切换、键盘高亮、直接拖动 |
+| micro | 110 ms | 悬停颜色、按压反馈 |
+| fast | 150 ms | 菜单、选择器、浮层 |
+| normal | 220 ms | 抽屉、弹窗 |
+| spatial | 360 ms | 跨位置的空间承接 |
+| morph | 550 ms | 品牌形象或素材采集的形变 |
 
-形变这一档只有一个用户：Agent 形象。系统开了「减弱动效」时直接切（组件写 `motion-reduce:transition-none`）。形象自己的动作周期（跳一下 700ms、在跑转一圈 1.1s、低头扫 1.4s、约 20 秒眨一次眼）是组件常量，写在 `tailwind.config.ts` 的 `nomi-agent-*` keyframes / animation 里，**不是**全局 token，别处不要拿来当时长用。
+`exitDurationMs` 将进入时长乘 2/3，再舍入至最近的 10 ms。fast、normal、spatial 派生出对应的 `-exit` 类与变量。进场使用 out，离场用 in，空间移动用 spatial，环境呼吸使用 in-out。现有 ease-fast 和 ease-morph 分别引用 out 与 spatial。循环周期可按状态设计。
 
-**标准写法**（三段齐全：property + duration + easing）：
-
-```tsx
-className="transition-[background,color] duration-nomi-fast ease-nomi-fast"
-```
+文字按钮和生成发送钮按下时缩至 0.97，松开复位。密集图标工具栏以颜色反馈，拖动期间位置跟手。系统开启减弱动态后，CSS 时长归零，Mantine、Motion 与命令式视口分别读取该偏好。加载标保留 busy 状态、图案与明度差。仅动画所需的覆盖层随操作结束退场，业务状态由原有宿主管理。
 
 **❌ 禁止把时长和缓动打包成一个 token**（2026-09-07 修掉的真实 bug，见 §10 最后一条）：曾经只有一个
 `--nomi-transition-fast: 140ms cubic-bezier(.2,.7,.3,1)`，写法是 `duration-[var(--nomi-transition-fast)]`。

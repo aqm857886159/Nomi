@@ -59,10 +59,13 @@ const REJECTED = /Validation failed for tool|capability_input_invalid|generation
 const KIND_REFUSAL = /kind_unspecified|model_cannot_do|cannot (do|make|produce)|state (the|which) kind|taskKind/i
 
 /** 卡标题 → 种类与数量（中文界面：「生成这 N 张图片？」「生成这 N 段视频？」）。 */
-function cardKindOf(title) {
-  const match = /生成这\s*(\d+)\s*(张图片|段视频)/.exec(title)
+// 2026-11-15 拆开后确认条不画标题问话：几镜、图还是视频只在主按钮上（「生成 N 张 / 段」；单段只写「生成」，种类读不出记 null）。
+function cardKindOf(label) {
+  const text = String(label ?? '').replace('⏎', '').trim()
+  if (text === '生成') return { kind: null, count: 1 }
+  const match = /(\d+)\s*(张|段)/.exec(text)
   if (!match) return { kind: null, count: null }
-  return { kind: match[2] === '张图片' ? 'image' : 'video', count: Number(match[1]) }
+  return { kind: match[2] === '张' ? 'image' : 'video', count: Number(match[1]) }
 }
 
 /**
@@ -97,7 +100,7 @@ try {
   const seenRuns = new Set()
   const rounds = []
   for (const item of SELECTED) {
-    const record = { id: item.id, ask: item.ask, expected: { kind: item.kind, count: item.count }, cardShown: false, cardTitle: null, card: null,
+    const record = { id: item.id, ask: item.ask, expected: { kind: item.kind, count: item.count }, cardShown: false, cardButton: null, card: null,
       calls: [], rejected: [], kindStated: null, said: '', error: null }
     try {
       const nodes = win.locator('.react-flow__node')
@@ -119,8 +122,8 @@ try {
         { timeout: stationTimeout({ turns: 3 }), message: '这一轮迟迟没落地' }).toBe(true)
       record.cardShown = await card.isVisible().catch(() => false)
       if (record.cardShown) {
-        record.cardTitle = (await card.locator('[data-v4-block="slot-title"]').innerText()).trim()
-        record.card = cardKindOf(record.cardTitle)
+        record.cardButton = (await card.locator('[data-v4-control="confirm"]').innerText()).trim()
+        record.card = cardKindOf(record.cardButton)
       }
       await walk.snap(`${item.id}-card`)
       if (record.cardShown) await closeSpendCard(card, `${item.id}：到此为止，不点生成，关掉这张卡`).catch(() => undefined)
@@ -168,7 +171,7 @@ try {
     record.cardKindCorrect = record.cardShown ? Boolean(record.card && record.card.kind === item.kind) : null
     record.turnSuccess = Boolean(judged) && record.kindCorrect && !record.error
     rounds.push(record)
-    console.log(`[shot-kind ${LABEL}] ${item.id}「${item.ask}」：草稿=${record.draft ? `${record.draft.count}×${record.draft.kinds.join('/')}` : '-'} 种类对=${record.kindCorrect} 数量对=${record.countCorrect} 卡=${record.cardShown ? record.cardTitle : '-'} 被拒=${record.rejected.length}${record.error ? ' 错误=' + record.error : ''}`)
+    console.log(`[shot-kind ${LABEL}] ${item.id}「${item.ask}」：草稿=${record.draft ? `${record.draft.count}×${record.draft.kinds.join('/')}` : '-'} 种类对=${record.kindCorrect} 数量对=${record.countCorrect} 卡=${record.cardShown ? record.cardButton : '-'} 被拒=${record.rejected.length}${record.error ? ' 错误=' + record.error : ''}`)
   }
 
   const total = rounds.length

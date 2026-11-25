@@ -1,4 +1,4 @@
-import { readVideoDurationSeconds } from '../../media/videoDurationProbe'
+import { readImageAspectRatio, readVideoMetadata } from '../../media/videoDurationProbe'
 import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { TimelineClip } from './timelineTypes'
@@ -25,9 +25,13 @@ export async function buildGenerationNodeTimelineClip(
   options: BuildOptions = {},
 ): Promise<TimelineClip | null> {
   const clip = buildClipFromGenerationNode(node, options)
-  if (!clip || clip.type !== 'video' || !clip.url) return clip
+  if (!clip?.url || clip.type === 'audio') return clip
+  if (clip.type === 'image') {
+    const sourceAspectRatio = await readImageAspectRatio(clip.url)
+    return sourceAspectRatio ? { ...clip, sourceAspectRatio } : clip
+  }
 
-  const durationSeconds = await readVideoDurationSeconds(clip.url)
-  if (!durationSeconds) return clip
-  return withVideoDuration(clip, durationSeconds, options.fps || 30)
+  const metadata = await readVideoMetadata(clip.url)
+  const timed = metadata?.durationSeconds ? withVideoDuration(clip, metadata.durationSeconds, options.fps || 30) : clip
+  return metadata?.aspectRatio ? { ...timed, sourceAspectRatio: metadata.aspectRatio } : timed
 }

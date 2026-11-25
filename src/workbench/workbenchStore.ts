@@ -40,6 +40,7 @@ import type { TimelineTransition } from './timeline/timelineTypes'
 import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
 import { createTimelineHistory, type HistoryDirection } from './history/historyMiddleware'
 import { normalizeWorkbenchDocument, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
+import { matchFirstVisualAspect, reconcileAutoPreviewAspectOnTravel, type PreviewAspect } from './preview/previewAspectRatios'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import type { ProjectAgentDraftRecoveryState } from './ai/projectAgentDraftRecovery'
 import { createWorkbenchDocumentSlice, type WorkbenchDocumentSlice } from './workbenchDocumentSlice'
@@ -115,7 +116,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   canvasFitCategoryId: string | null
   timeline: TimelineState
   timelinePlaying: boolean
-  previewAspectRatio: PreviewAspectRatio
+  previewAspect: PreviewAspect | undefined
   /** 多选：选中 clip id 集合（单一真相源）。单片工具取末位为 primary。 */
   selectedTimelineClipIds: string[]
   /** 选中的文字（字幕/标题卡）clip id。与媒体 clip 选择互斥，避免 Delete 歧义。 */
@@ -171,7 +172,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   setProjectAgentAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
   setProjectAgentReferences: (references: ProjectAgentReference[] | ((references: ProjectAgentReference[]) => ProjectAgentReference[])) => void
   setProjectAgentApprovalPolicy: (policy: ProjectAgentApprovalPolicy) => void
-  setTimeline: (timeline: TimelineState) => void
+  setTimeline: (timeline: TimelineState, previewAspect?: PreviewAspect) => void
   restoreProjectWorkbenchState: (payload: { workbenchDocument: WorkbenchDocument; timeline: TimelineState }) => void
   setTimelinePlaying: (playing: boolean) => void
   setPreviewAspectRatio: (ratio: PreviewAspectRatio) => void
@@ -235,6 +236,7 @@ function travelTimeline(state: WorkbenchState, direction: HistoryDirection): Par
   const liveIds = new Set(timeline.tracks.flatMap(track => track.clips.map(clip => clip.id)))
   return {
     timeline,
+    previewAspect: reconcileAutoPreviewAspectOnTravel(timeline, state.previewAspect),
     selectedTimelineClipIds: state.selectedTimelineClipIds.filter(id => liveIds.has(id)),
     selectedTextClipId: timeline.textClips.some(clip => clip.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
     timelinePlaying: false,
@@ -335,7 +337,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setProjectAgentApprovalPolicy: (projectAgentApprovalPolicy) => set({ projectAgentApprovalPolicy: Object.freeze({ mode: projectAgentApprovalPolicy.mode }) }),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
-  previewAspectRatio: '16:9',
+  previewAspect: undefined,
   selectedTimelineClipIds: [],
   selectedTextClipId: '',
   timelineSnapGuide: null,
@@ -380,9 +382,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return { activeCategoryId: target, canvasFitCategoryId: target, canvasFitNonce: state.canvasFitNonce + 1 }
     })
   },
-  setTimeline: (timeline) => {
+  setTimeline: (timeline, previewAspect) => {
     set((state) => ({
       timeline: normalizeTimeline(timeline),
+      previewAspect,
       persistRevision: state.persistRevision + 1,
     }))
   },
@@ -396,6 +399,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       activeStoryboardId: null,
       timeline: normalizeTimeline(timeline),
       timelinePlaying: false,
+      previewAspect: undefined,
       selectedTimelineClipIds: [],
       timelineSnapGuide: null,
     })
@@ -403,8 +407,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setTimelinePlaying: (timelinePlaying) => {
     set({ timelinePlaying: Boolean(timelinePlaying) })
   },
-  setPreviewAspectRatio: (previewAspectRatio) => {
-    set({ previewAspectRatio })
+  setPreviewAspectRatio: (ratio) => {
+    set((state) => state.previewAspect?.source === 'manual' && state.previewAspect.ratio === ratio
+      ? state
+      : { previewAspect: { ratio, source: 'manual' }, persistRevision: state.persistRevision + 1 })
   },
   addTimelineClipAtFrame: (clip, trackType, startFrame) => {
     set((state) => {
@@ -414,6 +420,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       if (inserted) state.timelineHistory.record(state.timeline, nextTimeline)
       return {
         timeline: nextTimeline,
+        previewAspect: inserted ? matchFirstVisualAspect(state.timeline, nextTimeline, state.previewAspect) : state.previewAspect,
         selectedTimelineClipIds: inserted ? [clip.id] : state.selectedTimelineClipIds,
         persistRevision: inserted ? state.persistRevision + 1 : state.persistRevision,
       }

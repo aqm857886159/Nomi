@@ -140,7 +140,7 @@
     },
     {
       "id": "pointer.state.done",
-      "label": "完成：只剩结果缩略图（P2 行尾 ✓），没有「已完成」胶囊",
+      "label": "完成：只剩结果缩略图，没有「已完成」胶囊，列表行行尾也不打勾",
       "change": "new",
       "states": [
         "selected",
@@ -150,7 +150,11 @@
       "candidates": [],
       "status": "implemented",
       "assertion": "board:NodePointer/pointer.state.done",
-      "note": "生产组件 src/workbench/ai/pointer/NodePointer.tsx（canvas.node.highlight 在 reactFlow/generationCanvasReactFlowAdapter.ts#externalHighlightShellClass）；设计实验室屏 node-pointer，component-only——聊天宿主第③步接（SpendCardQ1 card.pointers）。"
+      "note": "生产组件 src/workbench/ai/pointer/NodePointer.tsx（canvas.node.highlight 在 reactFlow/generationCanvasReactFlowAdapter.ts#externalHighlightShellClass）；设计实验室屏 node-pointer，component-only——聊天宿主第③步接（SpendCardQ1 card.pointers）。 2026-11-16：原标签里「P2 行尾 ✓」被 SpendAskSplit/chat.rows 取代（用户定「去掉，照新样张」），不再当合同。",
+      "userDecision": {
+        "quote": "去掉，照新样张",
+        "date": "2026-11-16"
+      }
     },
     {
       "id": "pointer.state.failed",
@@ -294,7 +298,7 @@
     },
     {
       "id": "pointer.p2.row",
-      "label": "P2 行内形态 · 列表行：小缩略图 + 标题行 + 摘要 + 行尾状态图标（✓ / 转圈 / 钟 / ⚠ / 已删除）",
+      "label": "P2 行内形态 · 列表行：小缩略图 + 标题行 + 第二行小字（摘要，或在路上时的状态）；行尾没有状态图标",
       "change": "new",
       "states": [
         "hover",
@@ -304,8 +308,12 @@
       ],
       "candidates": [],
       "status": "implemented",
-      "note": "P2 是 P1 的窄屏 / 行内密度，同一个零件，不是第二套实现。 生产组件 src/workbench/ai/pointer/NodePointer.tsx（canvas.node.highlight 在 reactFlow/generationCanvasReactFlowAdapter.ts#externalHighlightShellClass）；设计实验室屏 node-pointer，component-only——聊天宿主第③步接（SpendCardQ1 card.pointers）。",
-      "assertion": "board:NodePointer/pointer.p2.row"
+      "note": "P2 是 P1 的窄屏 / 行内密度，同一个零件，不是第二套实现。 生产组件 src/workbench/ai/pointer/NodePointer.tsx（canvas.node.highlight 在 reactFlow/generationCanvasReactFlowAdapter.ts#externalHighlightShellClass）；设计实验室屏 node-pointer，component-only——聊天宿主第③步接（SpendCardQ1 card.pointers）。 2026-11-16 用户定「去掉，照新样张」：原标签里「行尾状态图标（✓ / 转圈 / 钟 / ⚠ / 已删除）」那一句被 SpendAskSplit/chat.rows 取代，不再当合同；状态由缩略图和标题下那行小字说（生成中 / 排队中 / 已停 / 失败原因 / 已删除），做完的行没有勾。行尾只剩点过之后的「已定位」。",
+      "assertion": "board:NodePointer/pointer.p2.row",
+      "userDecision": {
+        "quote": "去掉，照新样张",
+        "date": "2026-11-16"
+      }
     },
     {
       "id": "pointer.p2.chip",
