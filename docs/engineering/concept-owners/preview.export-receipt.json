@@ -1,0 +1,24 @@
+{
+  "name": "预览导出完成应用内回执与按原项目定位文件入口",
+  "subject": "preview.export-receipt",
+  "lifecycle": "materialized-artifact",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/previewExportFeedback.ts",
+    "symbol": "reportPreviewExportSuccess"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/previewExportFeedback.ts",
+      "symbol": "reportPreviewExportSuccess"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/preview/previewExportFeedback.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "合同 docs/fixes/2026-11-24-preview-ux3.root-cause.json：导出完成统一发应用内 Toast 并绑定发起导出的原项目 ID 与相对路径按需定位文件。"
+}

@@ -2,6 +2,7 @@ import { buildGenerationNodeTimelineClip } from '../timeline/buildGenerationNode
 import { findAppendFrame } from '../timeline/timelineMath'
 import { getTrackTypeForClipType } from '../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
+import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
 import { applyAdoption } from './adoptionApply'
 import { destinationOf, proposalKeyForNode, timelineRevisionOf } from './adoptionProposalKey'
 import {
@@ -32,34 +33,57 @@ type AdoptGenerationNodeOptions = {
   ports?: AdoptionApplyPorts
 }
 
-export async function adoptGenerationNode(
+let appendChain: Promise<void> = Promise.resolve()
+
+async function runAdoptGenerationNode(
   node: GenerationCanvasNode,
-  options: AdoptGenerationNodeOptions = {},
+  ports: AdoptionApplyPorts,
+  placement: AdoptGenerationNodePlacement,
 ): Promise<AdoptionOutcome> {
-  const ports = options.ports || createWorkbenchAdoptionPorts()
-  const placement = options.placement || { kind: 'append' }
   const result = node.result
   if (!result || !result.url) {
     return { status: 'nothing_to_adopt', skipped: [{ nodeId: node.id, reason: 'no_result' }] }
   }
 
   const timeline = ports.readTimeline()
-  // 先按 0 帧构建（拿 clip 的类型/时长），再据类型定轨、据轨定落点——
+  // 先按 0 帧确定 clip 类型，再据类型定轨、据轨定落点——
   // 落点依赖轨道，轨道依赖 clip 类型，顺序不能反。
-  const probe = await buildGenerationNodeTimelineClip(node, { fps: timeline.fps, startFrame: 0 })
+  const probe = buildClipFromGenerationNode(node, { fps: timeline.fps, startFrame: 0 })
   if (!probe) {
     return { status: 'nothing_to_adopt', skipped: [{ nodeId: node.id, reason: 'clip_unavailable' }] }
   }
   const trackType = getTrackTypeForClipType(probe.type)
-  const track = timeline.tracks.find((candidate) => candidate.type === trackType)
-  const startFrame = placement.kind === 'append'
-    ? (track ? findAppendFrame(track) : 0)
+  const initialTrack = timeline.tracks.find((candidate) => candidate.type === trackType)
+  const initialStartFrame = placement.kind === 'append'
+    ? (initialTrack ? findAppendFrame(initialTrack) : 0)
     : Math.max(0, Math.floor(placement.startFrame))
 
-  const clip = await buildGenerationNodeTimelineClip(node, { fps: timeline.fps, startFrame })
-  if (!clip) {
+  const probedClip = await buildGenerationNodeTimelineClip(node, { fps: timeline.fps, startFrame: initialStartFrame })
+  if (!probedClip) {
     return { status: 'nothing_to_adopt', skipped: [{ nodeId: node.id, reason: 'clip_unavailable' }] }
   }
+
+  const live = ports.readTimeline()
+  const liveTrack = live.tracks.find((candidate) => candidate.type === trackType)
+  const startFrame = placement.kind === 'append'
+    ? (liveTrack ? findAppendFrame(liveTrack) : 0)
+    : initialStartFrame
+  const rebased = startFrame === initialStartFrame
+    ? probedClip
+    : buildClipFromGenerationNode(node, { fps: live.fps, startFrame })
+  if (!rebased) {
+    return { status: 'nothing_to_adopt', skipped: [{ nodeId: node.id, reason: 'clip_unavailable' }] }
+  }
+  const clip = startFrame === initialStartFrame
+    ? probedClip
+    : {
+        ...rebased,
+        frameCount: probedClip.frameCount,
+        endFrame: startFrame + probedClip.frameCount,
+        offsetStartFrame: probedClip.offsetStartFrame,
+        offsetEndFrame: probedClip.offsetEndFrame,
+        ...(probedClip.sourceAspectRatio ? { sourceAspectRatio: probedClip.sourceAspectRatio } : {}),
+      }
 
   const destination = destinationOf(
     placement.kind === 'append'
@@ -67,7 +91,7 @@ export async function adoptGenerationNode(
       : { kind: 'frame', trackType, startFrame },
   )
   // 键在**构建之后**才算：baseRevision 要读的是「真正准备写的那一刻」的轴。
-  const key = proposalKeyForNode(node, result, ports.readTimeline(), destination)
+  const key = proposalKeyForNode(node, result, live, destination)
 
   // 贴尾连点两下的幂等：贴尾的落点会**随轴变长而变**，所以两次点击的 destination 天然不同，
   // 光靠全等键匹配不到。判据是「上一次采纳的成果原样还在、且轴自那以后没被动过」
@@ -75,16 +99,15 @@ export async function adoptGenerationNode(
   // 反过来，轴一旦被编辑过（用户又想要一份），它就不再 landed，于是正常落第二份，
   // 而不是把人堵在「时间轴已变化」的死胡同里。
   if (placement.kind === 'append') {
-    const live = ports.readTimeline()
     const landedReplay = findLandedProposalForSlot(key, live)
     if (landedReplay) return { status: 'applied', proposal: landedReplay, replayed: true }
   }
 
-  const lookup = lookupAdoptionProposal(key, ports.readTimeline())
+  const lookup = lookupAdoptionProposal(key, live)
   if (lookup.kind === 'replay') return { status: 'applied', proposal: lookup.proposal, replayed: true }
   if (lookup.kind === 'stale') {
     // 自己上一次 apply 造成的 revision 变化仍是幂等重放；外部编辑则诚实报 stale。
-    if (proposalIsLanded(lookup.proposal, ports.readTimeline())) {
+    if (proposalIsLanded(lookup.proposal, live)) {
       return { status: 'applied', proposal: lookup.proposal, replayed: true }
     }
     return { status: 'stale', proposal: lookup.proposal }
@@ -108,4 +131,18 @@ export async function adoptGenerationNode(
   return applied.recovered
     ? { status: 'failed', proposal, error: applied.error }
     : { status: 'needs_recovery', proposal, error: applied.error }
+}
+
+export async function adoptGenerationNode(
+  node: GenerationCanvasNode,
+  options: AdoptGenerationNodeOptions = {},
+): Promise<AdoptionOutcome> {
+  const ports = options.ports || createWorkbenchAdoptionPorts()
+  const placement = options.placement || { kind: 'append' }
+  if (placement.kind !== 'append') {
+    return runAdoptGenerationNode(node, ports, placement)
+  }
+  const task = appendChain.then(() => runAdoptGenerationNode(node, ports, placement))
+  appendChain = task.then(() => undefined, () => undefined)
+  return task
 }

@@ -1,4 +1,6 @@
 import type { ExportProgressStatus } from '../export/exportApi'
+import { computeTimelineDuration } from '../timeline/timelineMath'
+import type { TimelineState } from '../timeline/timelineTypes'
 import React from 'react'
 
 /**
@@ -15,6 +17,10 @@ import React from 'react'
  * 修法刻意是「把既有事件桥扩成双向」而不是另起一条状态通路（P1：不留并行版）。
  */
 export const PREVIEW_EXPORT_EVENT = 'nomi-preview-export'
+
+export function canExportPreviewTimeline(timeline: Pick<TimelineState, 'tracks' | 'textClips'>): boolean {
+  return computeTimelineDuration(timeline) > 0
+}
 
 /**
  * 从导出契约 derive，只并上 UI 局部的 idle/error 两个标志——

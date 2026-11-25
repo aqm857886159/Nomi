@@ -65,7 +65,7 @@ export function useLabTimeline(selectedClipId = '', selectedTextClipId = ''): Ti
       timeline: labTimeline(),
       selectedTimelineClipIds: selectedClipId ? [selectedClipId] : [],
       selectedTextClipId,
-      previewAspectRatio: '16:9',
+      previewAspect: undefined,
       exportResolution: '1080p',
       exportQuality: 'standard',
     })
