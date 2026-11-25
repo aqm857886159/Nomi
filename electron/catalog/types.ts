@@ -657,6 +657,13 @@ export function selectTaskMapping(
   if (requestedMode) {
     const exactMode = candidates.filter((m) => (m.modeId || "").trim() === requestedMode);
     if (exactMode.length === 1) return exactMode[0];
+    // A mode that this model claims in **another** task kind is that mapping's alone: the
+    // request arrived in the wrong bucket. The shared mapping here must not serve it — for the
+    // draft row that would turn "make HD from draft X" into a brand-new paid draft (i2v body +
+    // `draft: true` + the node's references). Fail closed.
+    const claimedElsewhere = mappings.some((m) => m.enabled && m.vendorKey === vendorKey && m.taskKind !== taskKind
+      && (m.modelKey || "").trim() === key && (m.modeId || "").trim() === requestedMode);
+    if (claimedElsewhere) return null;
     return exactMode.length === 0 && modeless.length === 1 ? modeless[0] : null;
   }
   if (candidates.length === 1) return candidates[0];

@@ -115,4 +115,19 @@ describe("Seedance 2.5（样片模式）出站报文", () => {
     });
     expect(record.request && "draft_task_id" in (record.request.body as Record<string, unknown>)).toBeFalsy();
   });
+
+  // 2026-11-26 探出来的：出高清请求落进图生桶（i2v 样片的节点还连着首帧图、清晰度残留 480p），
+  // 图生桶那条不带方式的样片映射会接下它——发出去的是 prompt + 图 + draft: true + 480p，一次全新的付费样片。
+  // 出高清方式只归它自己那条映射；落错桶一律拒发，带不带参考图都一样。
+  it.each([
+    ["image_to_video", "1080p"],
+    ["image_to_video", "480p"],
+  ])("反例：出高清落进 %s 桶（%s、带着节点的参考图）→ 拒发，不会变成一次新样片", async (kind, resolution) => {
+    const extras = { ...FINAL_EXTRAS, resolution, image_urls: ["https://example.com/first.png"], referenceImages: ["https://example.com/first.png"] };
+    for (const drive of [driveEngineA, driveEngineCanvasRun]) {
+      const record = await drive(capture, { vendorKey: "apimart", kind, prompt: "人物转身", extras });
+      expect(record.request, JSON.stringify(record.request?.body)).toBeFalsy();
+      expect(record.failure).toBeTruthy();
+    }
+  });
 });

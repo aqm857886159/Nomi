@@ -62,6 +62,16 @@ describe("selectTaskMapping — 不带方式的那一条服务没被认领的方
     expect(selectTaskMapping(two, "kie", "text_to_video", "m", "t2v")).toBeNull();
     expect(selectTaskMapping(two, "kie", "text_to_video", "m")).toBeNull();
   });
+  it("这个方式在别的任务种类里已被本模型认领 → 落错桶的请求不借本桶那条不带方式的（返回 null）", () => {
+    const i2vShared = mp("i2v-shared", { modelKey: "m", taskKind: "image_to_video" });
+    const all = [...mixed, i2vShared];
+    expect(selectTaskMapping(all, "kie", "image_to_video", "m", "sample-final")).toBeNull();
+    expect(selectTaskMapping(all, "kie", "image_to_video", "m", "i2v")?.id).toBe("i2v-shared");
+    expect(selectTaskMapping(all, "kie", "image_to_video", "m")?.id).toBe("i2v-shared");
+    // 别的模型认领同名方式不算：只看本模型。
+    const otherModel = [mp("final-other", { modelKey: "other", modeId: "sample-final" }), i2vShared];
+    expect(selectTaskMapping(otherModel, "kie", "image_to_video", "m", "sample-final")?.id).toBe("i2v-shared");
+  });
   it("只有带方式的映射 → 别的方式 / 不传方式都不借（老规则不变）", () => {
     const tagged = [final, mp("other", { modelKey: "m", modeId: "omni" })];
     expect(selectTaskMapping(tagged, "kie", "text_to_video", "m", "t2v")).toBeNull();
