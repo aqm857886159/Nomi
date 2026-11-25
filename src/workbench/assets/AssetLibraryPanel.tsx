@@ -23,7 +23,7 @@ import { importLocalMediaFilesToGenerationCanvas } from '../generationCanvas/ada
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { visibleInsertionPoint } from '../generationCanvas/store/canvasVisibleArea'
-import { confirmDialog, DesignEmptyState, listenOutsidePress, NomiLoadingMark, promptDialog, TooltipProvider } from '../../design'
+import { confirmDialog, DesignEmptyState, NomiLoadingMark, promptDialog, TooltipProvider, useFloatingOutsideDismiss } from '../../design'
 import { FindReferenceSection } from './FindReferenceSection'
 import type { ReferencePlatform } from '../../../electron/shared/contracts/referenceSearch'
 import { acceptAttrForSurface } from '../../../electron/shared/contracts/mediaImportPolicy'
@@ -337,18 +337,20 @@ export function AssetLibraryContent({
   const [referencePlatform, setReferencePlatform] = React.useState<ReferencePlatform>('douyin')
   const sourceEmpty = sourceFilteredAssets.length === 0
 
+  useFloatingOutsideDismiss({
+    open: filterOpen,
+    floating: filterMenuRef,
+    reference: filterButtonRef,
+    onDismiss: () => setFilterOpen(false),
+  })
+
   React.useEffect(() => {
     if (!filterOpen) return
-    const stopListeningOutside = listenOutsidePress(
-      (target) => target instanceof Node && Boolean(filterMenuRef.current?.contains(target) || filterButtonRef.current?.contains(target)),
-      () => setFilterOpen(false),
-    )
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') setFilterOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => {
-      stopListeningOutside()
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [filterOpen])
@@ -505,6 +507,22 @@ export function AssetLibraryContent({
       report(t('assetLibrary.deleteFailed'), 'error')
     }
   }, [projectId, reportDeletion, present, report, t])
+
+  const renderAssetCell = (asset: AssetRef, isCompact = false): JSX.Element => (
+    <AssetGridCell
+      key={asset.id}
+      asset={asset}
+      compact={isCompact}
+      selectable={projectSelectionEnabled}
+      selected={selectedIds.has(asset.id)}
+      dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
+      onSelect={activateAsset}
+      onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
+      onPreview={assetPreviewAction}
+      onDragStartAsset={handleAssetDragStart}
+      onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
+    />
+  )
 
   return (
     <TooltipProvider delayDuration={180} skipDelayDuration={80}>
@@ -696,21 +714,7 @@ export function AssetLibraryContent({
             />
           ) : compact ? (
             <div style={{ columnCount: 3, columnGap: '10px' }}>
-              {scopedAssets.map((asset) => (
-                <AssetGridCell
-                  key={asset.id}
-                  asset={asset}
-                  compact
-                  selectable={projectSelectionEnabled}
-                  selected={selectedIds.has(asset.id)}
-                  dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
-                  onSelect={activateAsset}
-                  onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
-                  onPreview={assetPreviewAction}
-                  onDragStartAsset={handleAssetDragStart}
-                  onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
-                />
-              ))}
+              {scopedAssets.map((asset) => renderAssetCell(asset, true))}
             </div>
           ) : (
             <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
@@ -732,20 +736,7 @@ export function AssetLibraryContent({
                       gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
                     }}
                   >
-                    {rowAssets.map((asset) => (
-                      <AssetGridCell
-                        key={asset.id}
-                        asset={asset}
-                        selectable={projectSelectionEnabled}
-                        selected={selectedIds.has(asset.id)}
-                        dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
-                        onSelect={activateAsset}
-                        onToggleSelect={projectSelectionEnabled ? toggleAssetSelection : undefined}
-                        onPreview={assetPreviewAction}
-                        onDragStartAsset={handleAssetDragStart}
-                        onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
-                      />
-                    ))}
+                    {rowAssets.map((asset) => renderAssetCell(asset))}
                   </div>
                 )
               })}

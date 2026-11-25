@@ -52,7 +52,7 @@ export function stripVendorErrorMarker(message: string): string {
   return (text.slice(0, start) + rest.slice(end + 3)).trim()
 }
 
-export type TaskFailureIds = { taskId?: string; kind?: string }
+type TaskFailureIds = { taskId?: string; kind?: string }
 
 /** 产出：`<原话或我们的兜底句> (taskId=…, kind=…)`；没有任何 id 就不带后缀。 */
 export function formatTaskFailureMessage(upstream: string, ids: TaskFailureIds, locale: FailureLocale): string {
@@ -119,7 +119,7 @@ const POLICY_CODES: ReadonlySet<string> = new Set<string>([
 
 const CODE_IN_TEXT = /(?<![A-Za-z0-9_])[A-Za-z0-9_]+(?![A-Za-z0-9_])/g
 
-export type PublicError = {
+type PublicError = {
   /** 确证过的码；没有 = null。 */
   code: string | null
   /** 码来自失败对象自带的 code 字段，且是登记过的策略码（带 nextAction / capability 透传）。 */

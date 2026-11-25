@@ -1,5 +1,5 @@
 import { readGenerationDefaultModelResolver } from '../capabilityCore/generationDefaultModelResolver'
-import { GENERATION_DEFAULT_TASK_KINDS } from '../settings/generationModelDefaultsContract'
+import { GENERATION_DEFAULT_TASK_KINDS } from '../shared/contracts/generationModelDefaultsContract'
 import type { LaneDeclaredDefaults } from './laneModelContext'
 
 /**

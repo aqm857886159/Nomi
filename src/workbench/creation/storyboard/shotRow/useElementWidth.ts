@@ -1,7 +1,7 @@
 import React from 'react'
 
 /** `padding` = clientWidth（含内边距、不含滚动条）；`content` = 再减掉左右内边距。 */
-export type ElementWidthBox = 'padding' | 'content'
+type ElementWidthBox = 'padding' | 'content'
 
 export function readElementWidth(element: HTMLElement, box: ElementWidthBox): number {
   if (box === 'padding') return element.clientWidth

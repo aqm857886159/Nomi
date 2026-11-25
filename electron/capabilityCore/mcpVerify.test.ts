@@ -50,21 +50,47 @@ function writeClaudeEntry(command: string, args: string[] = [], env = signedEnv(
   fs.writeFileSync(path.join(homeDir, '.claude.json'), JSON.stringify({ mcpServers: { nomi: { command, args, env } } }))
 }
 
-/** 造一个最小 stdio MCP server 脚本：回 initialize + tools/list。用它验「真握上手」这一路。 */
-function fakeServerScript(toolCount: number): string {
-  const file = path.join(homeDir, 'fake-server.mjs')
+/** 造一个最小合规 stdio MCP server 脚本：回 initialize（含 tools 能力）+ tools/list（含 inputSchema）。用它验「真握上手」这一路。 */
+function fakeServerScript(toolCount: number, options: { bannerNoise?: string } = {}): string {
+  const file = path.join(homeDir, options.bannerNoise ? 'fake-server-noise.mjs' : 'fake-server.mjs')
+  const noiseLine = options.bannerNoise ? `process.stdout.write(${JSON.stringify(`${options.bannerNoise}\n`)})\n` : ''
   fs.writeFileSync(
     file,
     `import readline from 'node:readline'
-const tools = Array.from({length: ${toolCount}}, (_, i) => ({ name: 'nomi_t' + i }))
+${noiseLine}const tools = Array.from({length: ${toolCount}}, (_, i) => ({ name: 'nomi_t' + i, inputSchema: { type: 'object' } }))
 readline.createInterface({ input: process.stdin }).on('line', (line) => {
   if (!line.trim()) return
   const m = JSON.parse(line)
-  if (m.method === 'initialize') process.stdout.write(JSON.stringify({ jsonrpc:'2.0', id: m.id, result: { protocolVersion: m.params.protocolVersion, capabilities: {}, serverInfo: { name: 'fake', version: '1' } } }) + '\\n')
+  if (m.method === 'initialize') process.stdout.write(JSON.stringify({ jsonrpc:'2.0', id: m.id, result: { protocolVersion: m.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'fake', version: '1' } } }) + '\\n')
   else if (m.method === 'tools/list') process.stdout.write(JSON.stringify({ jsonrpc:'2.0', id: m.id, result: { tools } }) + '\\n')
 })
 `,
   )
+  return file
+}
+
+/** 造一个回 JSON-RPC 错误的 server：锁住协议层错误必须归 handshake-failed。 */
+function rpcErrorServerScript(): string {
+  const file = path.join(homeDir, 'rpc-error-server.mjs')
+  fs.writeFileSync(
+    file,
+    `import readline from 'node:readline'
+readline.createInterface({ input: process.stdin }).on('line', (line) => {
+  if (!line.trim()) return
+  const m = JSON.parse(line)
+  if (m.method === 'initialize') {
+    process.stdout.write(JSON.stringify({ jsonrpc:'2.0', id: m.id, error: { code: -32603, message: 'boom-from-server' } }) + '\\n')
+  }
+})
+`,
+  )
+  return file
+}
+
+/** 造一个只读 stdin 永不回包的挂起 server：锁住超时必须归 timeout 并回收子进程。 */
+function hangingServerScript(): string {
+  const file = path.join(homeDir, 'hanging-server.mjs')
+  fs.writeFileSync(file, `process.stderr.write('still-booting\\n'); process.stdin.resume()\n`)
   return file
 }
 
@@ -193,5 +219,42 @@ describe('capabilityCore/mcpVerify', () => {
     const res = await verifyMcp('codex')
     expect(res.ok).toBe(true)
     expect(res.toolCount).toBe(9)
+  })
+
+  // ── 7 大替换第 7 刀表征测试：锁住 stdio 探针可达 / 不可达 / 超时三种结果 ──
+  it('表征 · 可达：stdout 夹带非 JSON 启动噪声时仍能完成握手并返回工具数与耗时', async () => {
+    writeClaudeEntry(process.execPath, [fakeServerScript(5, { bannerNoise: 'non-json boot banner' })])
+    const res = await verifyMcp('claude')
+    expect(res.ok).toBe(true)
+    expect(res.reason).toBe('ok')
+    expect(res.toolCount).toBe(5)
+    expect(res.latencyMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('表征 · 不可达（spawn-failed）：PATH 上不存在的裸命令名返回 spawn-failed', async () => {
+    writeClaudeEntry('nomi-definitely-missing-mcp-bin-xyz')
+    const res = await verifyMcp('claude')
+    expect(res.ok).toBe(false)
+    expect(res.reason).toBe('spawn-failed')
+    expect(res.latencyMs).toBeNull()
+    expect(res.toolCount).toBeNull()
+  })
+
+  it('表征 · 不可达（handshake-failed）：server 在 initialize 返回 JSON-RPC 错误时如实报 handshake-failed', async () => {
+    writeClaudeEntry(process.execPath, [rpcErrorServerScript()])
+    const res = await verifyMcp('claude')
+    expect(res.ok).toBe(false)
+    expect(res.reason).toBe('handshake-failed')
+    expect(res.detail).toContain('boom-from-server')
+  })
+
+  it('表征 · 超时（timeout）：server 挂起永不回包时按超时收口并带回 stderr 线索', async () => {
+    writeClaudeEntry(process.execPath, [hangingServerScript()])
+    const res = await verifyMcp('claude', { timeoutMs: 250 })
+    expect(res.ok).toBe(false)
+    expect(res.reason).toBe('timeout')
+    expect(res.latencyMs).toBeNull()
+    expect(res.toolCount).toBeNull()
+    expect(res.detail).toContain('still-booting')
   })
 })

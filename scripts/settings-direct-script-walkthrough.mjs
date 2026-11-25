@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { listenLocalHttpServer } from './lib/walkthroughHost.mjs'
 // Real Electron journey for the direct-script escape hatch.
 // Proves that draft creation performs no provider/docs/model/AI/verification request,
 // then performs exactly one user-triggered request during the explicit test run.
@@ -51,13 +52,7 @@ const server = createServer((request, response) => {
   })
 })
 
-await new Promise((resolve, reject) => {
-  server.once('error', reject)
-  server.listen(0, '127.0.0.1', resolve)
-})
-const address = server.address()
-if (!address || typeof address === 'string') throw new Error('mock server did not expose a TCP port')
-const baseUrl = `http://127.0.0.1:${address.port}/v1`
+const { baseUrl } = await listenLocalHttpServer(server, { label: 'mock server' })
 
 const shot = async (win, name) => {
   await win.screenshot({ path: path.join(outDir, name) })

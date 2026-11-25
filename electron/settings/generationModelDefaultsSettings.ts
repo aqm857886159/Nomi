@@ -5,7 +5,7 @@ import {
   DEFAULT_GENERATION_MODEL_DEFAULTS,
   normalizeGenerationModelDefaults,
   type GenerationModelDefaults,
-} from "./generationModelDefaultsContract";
+} from "../shared/contracts/generationModelDefaultsContract";
 import { getSettingsRoot } from "./settingsRoot";
 
 const GENERATION_MODEL_DEFAULTS_FILE = "generation-model-defaults.json";
@@ -17,7 +17,7 @@ export {
   type GenerationDefaultTaskKind,
   type GenerationModelDefault,
   type GenerationModelDefaults,
-} from "./generationModelDefaultsContract";
+} from "../shared/contracts/generationModelDefaultsContract";
 
 export function generationModelDefaultsSettingsPath(): string {
   return path.join(getSettingsRoot(), GENERATION_MODEL_DEFAULTS_FILE);

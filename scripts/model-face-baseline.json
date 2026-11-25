@@ -461,7 +461,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "generation.plan",
-      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references. New drafts do not request generation or show a spend card — call generate for that, unless the user said not to generate yet. Updating an already-presented draft retains its existing approval policy; use the returned result to determine whether that policy started generation. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed). The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
+      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references. Drafts and draft edits are saved locally. Call generate only if the user explicitly asks to generate this turn. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed). The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
       "effect": "reversible_local",
       "effectGroups": [
         "canvas-node-creation"
@@ -1269,7 +1269,7 @@
                   "type": "string"
                 },
                 "path": {
-                  "description": "By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>.\nminLength=2.\nmaxLength=240.",
+                  "description": "By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>. For one field use its exact path, e.g. /shots/intro/window or /shots/intro/move/kind.\nminLength=2.\nmaxLength=240.",
                   "type": "string"
                 },
                 "value": {
@@ -1294,6 +1294,77 @@
                         "type": "number"
                       },
                       "type": "array"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "description": "Camera movement intent.",
+                      "properties": {
+                        "amount": {
+                          "description": "Orbit/arc/pan degrees, translation meters, zoom degrees of FOV.",
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        "direction": {
+                          "description": "Move direction.",
+                          "enum": [
+                            "left",
+                            "right",
+                            "up",
+                            "down",
+                            "forward",
+                            "backward"
+                          ],
+                          "type": "string"
+                        },
+                        "easing": {
+                          "description": "Easing.\ndefault=\"linear\".",
+                          "enum": [
+                            "linear",
+                            "ease_in",
+                            "ease_out",
+                            "ease_in_out"
+                          ],
+                          "type": "string"
+                        },
+                        "kind": {
+                          "description": "Camera movement.",
+                          "enum": [
+                            "orbit_left",
+                            "orbit_right",
+                            "push_in",
+                            "pull_out",
+                            "crane_up",
+                            "crane_down",
+                            "track_left",
+                            "track_right",
+                            "arc_left",
+                            "arc_right",
+                            "zoom_in",
+                            "zoom_out",
+                            "dolly_zoom",
+                            "pan",
+                            "tilt",
+                            "whip",
+                            "rack_focus",
+                            "follow",
+                            "static"
+                          ],
+                          "type": "string"
+                        },
+                        "speed": {
+                          "description": "Speed.\ndefault=\"medium\".",
+                          "enum": [
+                            "slow",
+                            "medium",
+                            "fast"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "type": "object"
                     },
                     {
                       "additionalProperties": false,
@@ -1706,7 +1777,7 @@
                       "description": "Camera angle or actor-relative point of view."
                     }
                   ],
-                  "description": "New value for add and replace; omit for remove."
+                  "description": "Direct value at path: [start,end] for /window, a kind string for /move/kind, or the complete entity for a whole item. Omit for remove."
                 }
               },
               "required": [

@@ -50,7 +50,6 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // 用法：pnpm run build && node tests/ux/runway-vendor-honest-modes.walk.mjs
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
@@ -59,12 +58,10 @@ import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 import { modeName, modeCell, openModeMenu, closeModeMenu } from './_modeMenu.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/runway-vendor-honest-modes')
-// 每次跑清空产出：上一轮的 PNG 留在盘里会被当成这一轮的证据去对账（比 mtime 才看得出的坑）。
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
-
 const tempRoot = makeTempDir('nomi-runway-honest-')
+const shotsDir = path.join(tempRoot, 'shots')
+fs.mkdirSync(shotsDir)
+process.env.EVIDENCE_DIR ??= path.join(tempRoot, 'feel')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 const capabilityDir = path.join(tempRoot, 'capability')
@@ -72,6 +69,7 @@ fs.mkdirSync(projectsDir, { recursive: true })
 
 const launchOptions = {
   name: 'runway-vendor-honest-modes',
+  tempRoot,
   userDataDir,
   settingsDir: userDataDir,
   projectsDir,
@@ -141,14 +139,26 @@ async function readBoundIdentity() {
  * 从 NomiSelect 里挑模型。`:visible` 是硬要求——Mantine 把未展开弹层的选项也留在 DOM 里，
  * 裸选会选到画布上别的下拉（变体、每次生成几个…）的选项。
  */
-async function pickModel(match, humanLabel) {
+async function pickModel(match, humanLabel, badgeText) {
   await clickOrFail(composer.locator('[aria-label="模型"]'), '模型下拉')
   const options = win.locator('[role="option"]:visible')
   await expect(options, `模型下拉点开了却一个选项都没有（目录空了？供应商没启用？）`).not.toHaveCount(0)
-  const texts = (await options.allTextContents()).map((t) => t.trim())
+  const labels = options.locator('[data-nomi-select-option-label]')
+  let texts = (await labels.allTextContents()).map((text) => text.trim())
+  const more = win.locator('[data-nomi-select-dropdown]:visible').getByRole('button', { name: '更多', exact: true })
+  if (!texts.some(match) && await more.isVisible()) {
+    await clickOrFail(more, '展开更多模型')
+    texts = (await labels.allTextContents()).map((text) => text.trim())
+  }
   const index = texts.findIndex(match)
   if (index < 0) throw new Error(`WALK FAIL: 模型下拉里没有「${humanLabel}」。实际选项：${JSON.stringify(texts)}`)
-  await options.nth(index).click()
+  const option = options.nth(index)
+  if (badgeText) {
+    await clickOrFail(option.getByRole('button', { name: badgeText, exact: true }), `选择 ${badgeText} 渠道`)
+    await composer.locator('[aria-label="模型"]').click()
+  } else {
+    await option.click()
+  }
   await win.waitForTimeout(500)
   return texts[index]
 }
@@ -165,8 +175,8 @@ async function readModes() {
  * 用 toHaveText(数组) 而不是逐条 toBeVisible：它同时钉死「该有的都在」和「不该有的一个都没多」，
  * 正负两面在同一条断言里成立——少写一半就是那种「看起来在验、其实恒真」的空洞检查。
  */
-async function assertModeBar({ pick, humanLabel, expectVendor, expectModelKey, expected, tag }) {
-  const picked = await pickModel(pick, humanLabel)
+async function assertModeBar({ pick, humanLabel, badgeText, expectVendor, expectModelKey, expected, tag }) {
+  const picked = await pickModel(pick, humanLabel, badgeText)
 
   // ① 身份闸：先证「点了哪家就绑哪家」。它必须排在模式栏之前——绑错家时模式栏显示的是**另一家**的
   //    能力，此时再去断言模式栏，读到的红/绿都指向错误的方向。
@@ -275,16 +285,15 @@ try {
     tag: 'runway-gemini-omni-flash',
   })
 
-  // ── ④ Runway Grok Imagine 1.5：图生视频**必须留着** ───────────────────────
-  // 反向判据（防收窄过头）：Runway 的 Grok 确实支持图生视频，只是一次一张。曾经有过一条
-  // 「多图塌成单图就隐藏」的判据，它唯一命中的就是这里——等于删掉一个真能用的功能，已删除。
-  // 承载力缩水是**槽级**的事（槽如实收成 1 张），不是模式级的隐藏理由。
+  // ── ④ Grok Imagine 1.5 · Runway Dev ───────────────────────────────────────
+  // Runway 的 image_to_video mapping 吃参考图数组。方式名按槽位兼容契约显示为「全能参考」。
   observations['runway/grok_imagine_1_5'] = await assertModeBar({
-    pick: (t) => /Runway Grok Imagine 1\.5Runway/.test(t),
-    humanLabel: 'Runway Grok Imagine 1.5',
+    pick: (label) => label === 'Grok Imagine 1.5',
+    humanLabel: 'Grok Imagine 1.5 · Runway Dev',
+    badgeText: 'Runway Dev',
     expectVendor: 'runway',
     expectModelKey: 'grok_imagine_1_5',
-    expected: [M('text'), M('image')],
+    expected: [M('text'), M('reference')],
     tag: 'runway-grok-imagine-15',
   })
 
@@ -292,8 +301,7 @@ try {
   // 走 APIMart 时 reference 模式取得到自己的 mapping → 三个模式全露。
   // 与 ① 是同一个 `veo-3.1` 档案：两边一样宽 = 收窄没生效，这份走查的意义就没了。
   observations['apimart/veo3.1-fast'] = await assertModeBar({
-    // 「Veo 3.1APIMart」——不能用 startsWith('Runway')，也不能只 includes('Veo 3.1')（会串到 Runway 那两行）。
-    pick: (t) => t.startsWith('Veo 3.1') && t.includes('APIMart'),
+    pick: (label) => label === 'Veo 3.1 快速',
     humanLabel: 'APIMart Veo 3.1',
     expectVendor: 'apimart',
     expectModelKey: 'veo3.1-fast',
@@ -312,8 +320,7 @@ try {
   // 放中间的话，它之后的每一行都会因为「模型下拉不存在」而连坐报红，真正的首个失灵点被埋掉。
   // 修好后位置照旧不动：万一将来再复发，仍然只炸这一行、不连坐——顺序本身就是一道诊断装置。
   observations['runway/seedance2'] = await assertModeBar({
-    // 选项文本前会挂一个身份徽标字符（如 "DRunway Seedance 2Runway Dev"），故不能用 startsWith。
-    pick: (t) => /Runway Seedance 2Runway/.test(t),
+    pick: (label) => label === 'Runway Seedance 2',
     humanLabel: 'Runway Seedance 2',
     expectVendor: 'runway',
     expectModelKey: 'seedance2',

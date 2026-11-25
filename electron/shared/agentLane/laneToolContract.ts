@@ -29,25 +29,13 @@ import type { MediaImportRejection } from '../contracts/mediaImportPolicy';
  * 这里只保留 lane profile 自己的叫法。**不是第二份定义**——是同一份的别名：
  * 阶段 5a 之前 lane 与对外 MCP 各写各的描述符，那才是并行版（P1），现在两边 import 同一个类型。
  */
-export type {
-  VerbEffect as LaneToolEffect,
-  VerbNextAction,
-  ModelFacingToolExample as LaneToolExample,
-  ModelFacingToolSpec as LaneToolSpec,
-} from "../agentCapabilities/modelFacingTools";
+export type { VerbEffect as LaneToolEffect, VerbNextAction, ModelFacingToolSpec as LaneToolSpec } from "../agentCapabilities/modelFacingTools"
 export { verbMutates as laneToolMutates, verbBillable as laneToolBillable, approvalFacetsOf as laneToolApprovalFacets } from "../agentCapabilities/modelFacingTools";
 
 import type { ModelFacingToolExample as LaneToolExample, ModelFacingToolSpec as LaneToolSpec } from "../agentCapabilities/modelFacingTools";
 import { issuesFromZod, publicToolInputIssues, renderToolInputIssue, zodIssuesOfError, type ToolInputIssue } from "./toolInputIssues";
 import type { LaneToolPublicFailure } from "./laneToolFailureEnvelope";
 import type { GenerationProblem } from "../generationProblem";
-
-/**
- * 「一个工具最多允许跑多久」的 lane 侧叫法与预算常量。**同一份定义的别名**，理由与数字
- * 都住 `../agentCapabilities/modelFacingTools.ts`（`ModelFacingToolExecution` 头部）——
- * 预算是「这个领域动作最慢多久」，与谁在调它无关，所以它不该按 profile 各写一份。
- */
-export type { ModelFacingToolExecution as LaneToolExecution } from "../agentCapabilities/modelFacingTools";
 
 export {
   MODEL_TOOL_READ_TIMEOUT_MS as LANE_READ_TOOL_TIMEOUT_MS,

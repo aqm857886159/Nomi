@@ -55,7 +55,7 @@ export function CharacterInspector({ object }: { object: DirectorObject }): JSX.
             <ColorField
               label={t('director.inspector.color')}
               value={object.color ?? ''}
-              onChangeStart={() => store.getState().saveState()}
+              onChangeStart={store.getState().saveState}
               onChange={(color) => store.getState().updateObject(object.id, { color })}
             />
           </InspectorCard>

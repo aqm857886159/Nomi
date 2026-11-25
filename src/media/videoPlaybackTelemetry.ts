@@ -1,6 +1,6 @@
 import { getDesktopBridge } from '../desktop/bridge'
 
-export type VideoPlaybackTelemetryInput = {
+type VideoPlaybackTelemetryInput = {
   phase: 'metadata' | 'canplay' | 'error'
   rawUrl: string
   readyState: number
@@ -8,7 +8,7 @@ export type VideoPlaybackTelemetryInput = {
   mediaErrorCode?: number | null
 }
 
-export type VideoPlaybackTelemetry = {
+type VideoPlaybackTelemetry = {
   phase: VideoPlaybackTelemetryInput['phase']
   host: string
   readyState: number

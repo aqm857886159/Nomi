@@ -3,6 +3,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // 试跑打到本脚本起的 mock 中转（先 400 再 200），验证 transcript 摊开与 AI 修复入口。截图人眼判断。
 // 用法：node scripts/custom-call-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { createWalkthroughScreenshotter, readSettingsModelDialogState } from './lib/walkthroughHost.mjs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,47 +14,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const outDir = path.join(repoRoot, '.custom-call-recon')
 mkdirSync(outDir, { recursive: true })
 const settingsDir = makeTempDir('custom-call-walk-')
-const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
-
-async function modelDialogState(win, pageSelector) {
-  return win.evaluate((selector) => {
-    const visible = (element) => element instanceof HTMLElement && element.getClientRects().length > 0 && getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden'
-    const highestLayer = (start) => {
-      let current = start
-      let highest = 0
-      while (current) {
-        const value = Number.parseInt(getComputedStyle(current).zIndex || '0', 10)
-        if (Number.isFinite(value)) highest = Math.max(highest, value)
-        current = current.parentElement
-      }
-      return highest
-    }
-    const toRect = (element) => {
-      if (!(element instanceof HTMLElement)) return null
-      const rect = element.getBoundingClientRect()
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, right: rect.right, bottom: rect.bottom }
-    }
-    const settings = document.querySelector('[data-settings-dialog]')
-    const modelRoot = document.querySelector('[data-model-settings-dialog]')
-    const modelPanel = modelRoot?.closest('[role="dialog"]')
-    const page = document.querySelector(selector)
-    return {
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      visibleDialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).length,
-      settingsVisible: visible(settings),
-      modelVisible: visible(modelRoot) && visible(modelPanel),
-      pageInsideModel: page instanceof HTMLElement && Boolean(modelRoot?.contains(page)),
-      pageInsideSettings: page instanceof HTMLElement && Boolean(settings?.contains(page)),
-      focusInsideModel: document.activeElement instanceof Element && Boolean(modelRoot?.contains(document.activeElement)),
-      settingsLayer: settings ? highestLayer(settings) : 0,
-      modelLayer: modelPanel ? highestLayer(modelPanel) : 0,
-      settingsRect: toRect(settings),
-      modelRect: toRect(modelPanel),
-      horizontalOverflow: [modelPanel, page].some((element) => element instanceof HTMLElement && element.scrollWidth > element.clientWidth + 2),
-      documentOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
-    }
-  }, pageSelector)
-}
+const shot = createWalkthroughScreenshotter(outDir)
+const modelDialogState = (win, pageSelector) => readSettingsModelDialogState(win, pageSelector, { checkModelRootOverflow: false })
 
 function assertModelDialog(state, label, narrow = false) {
   if (state.visibleDialogs !== 2) throw new Error(`${label}: expected Settings plus model dialog, got ${state.visibleDialogs}`)

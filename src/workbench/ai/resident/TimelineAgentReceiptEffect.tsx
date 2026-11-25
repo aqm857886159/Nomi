@@ -3,7 +3,6 @@ import React, { type JSX } from 'react'
 import i18n from '../../../i18n'
 import { showUndoToast } from '../../../utils/showUndoToast'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { timelineAgentUndoMetadata } from '../../timeline/timelineUndoHistory'
 import { timelineContentOf, timelineRevision } from '../../timeline/kernel/timelineKernel'
 
 /**
@@ -24,10 +23,9 @@ let announcedUndoToken: string | null = null
 let receiptPrimed = false
 
 export function TimelineAgentReceiptEffect(): JSX.Element | null {
-  const undoStack = useWorkbenchStore((state) => state.timelineUndoStack)
+  const metadata = useWorkbenchStore(state => state.timelineHistory.entries.pastStates.at(-1)?.metadata)
 
   React.useEffect(() => {
-    const metadata = timelineAgentUndoMetadata(undoStack[undoStack.length - 1])
     const token = metadata?.undoToken ?? null
     // The first observation only records where the stack already was; a receipt
     // for an edit that happened before this surface existed would be a lie.
@@ -46,12 +44,12 @@ export function TimelineAgentReceiptEffect(): JSX.Element | null {
       // else's edit.
       isUndoable: () => {
         const current = useWorkbenchStore.getState()
-        const top = timelineAgentUndoMetadata(current.timelineUndoStack[current.timelineUndoStack.length - 1])
-        return top?.undoToken === token && timelineRevision(current.timeline) === metadata.afterRevision
+        const top = current.timelineHistory.entries.pastStates.at(-1)?.metadata
+        return top === metadata && timelineRevision(current.timeline) === metadata.afterRevision
       },
-      watchUndoable: (recheck) => useWorkbenchStore.subscribe((state) => ({ ...timelineContentOf(state.timeline), undoStack: state.timelineUndoStack }), recheck, { equalityFn: shallow }),
+      watchUndoable: (recheck) => useWorkbenchStore.subscribe((state) => ({ ...timelineContentOf(state.timeline), head: state.timelineHistory.entries.pastStates.at(-1) }), recheck, { equalityFn: shallow }),
     })
-  }, [undoStack])
+  }, [metadata])
 
   return null
 }

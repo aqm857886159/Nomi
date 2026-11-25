@@ -9,7 +9,7 @@ import { directorWriteSemanticInputSchema, type DirectorWriteInput } from '../..
 import { laneClient } from '../../../../ai/lane/laneClient'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { hydrateCommittedProposalReceipt, runProposalUndo, type CommittedProposalRecord } from '../../../agent/proposalUndo'
-import { __resetCanvasUndoJournalForTests } from '../../../events/canvasUndoJournal'
+import { clearHistory } from '../../../events/canvasPatchHistory'
 import { useGenerationCanvasStore } from '../../../store/generationCanvasStore'
 import { createDirectorEditorPersistence } from '../directorEditorPersistence'
 import { registerDirectorSession } from '../directorSessionRegistry'
@@ -53,7 +53,7 @@ function hydrate(record: CommittedProposalRecord): void {
 
 beforeEach(async () => {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   laneClient.connect({
     onProjection: () => () => undefined,
     send: async (command) => {

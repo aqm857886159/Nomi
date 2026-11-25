@@ -19,8 +19,8 @@ const SRC = path.resolve(__dirname, '../..')
 // 下面两张表的键集合由类型强制（多一个、少一个都编译不过，`pnpm run check:test-types` 守）：
 // 以后给 store 加一个类型里装得下地址的字段，这里先编译不过，逼着判它；判的结果再和归类表对账（上面第三条用例）。
 type AddressKey = `${string}${'url' | 'Url' | 'URL' | 'src' | 'Src' | 'path' | 'Path' | 'uri' | 'Uri' | 'href' | 'Href'}${string}`
-type Next = [never, 0, 1, 2, 3, 4, 5, 6, 7]
-type MayHoldAddress<T, D extends number = 7> =
+type Next = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+type MayHoldAddress<T, D extends number = 8> =
   [D] extends [never] ? false
     : T extends (...args: never[]) => unknown ? false
     : T extends readonly (infer U)[] ? MayHoldAddress<U, Next[D]>
@@ -37,7 +37,7 @@ type AddressVerdicts<S> = Record<AddressFields<S>, true | string>
 const WORKBENCH_ADDRESS_FIELDS: AddressVerdicts<ReturnType<typeof useWorkbenchStore.getState>> = {
   timeline: true, storyboardDesignsByDocumentId: true, projectAgentDraftIntent: true, selectedLibraryPrompt: true,
   projectAgentAttachments: true,
-  timelineUndoStack: true, timelineRedoStack: true, detachedTimelineClips: true,
+  timelineHistory: true, detachedTimelineClips: true,
   projectAgentRecoveredDrafts: true, // 窗口寿命，不在归类表里；装配口单独读它（recoveredAgentDrafts）
 }
 const CANVAS_ADDRESS_FIELDS: AddressVerdicts<ReturnType<typeof useGenerationCanvasStore.getState>> = {

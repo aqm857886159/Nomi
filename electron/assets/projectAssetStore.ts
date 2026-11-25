@@ -31,7 +31,7 @@ import {
 import { finalizeAssetMeta, type AssetSourceFact } from "./assetSourceEvidence";
 import { mediaKindFromContentType, resolveContentType } from "./mediaTypes";
 import { contentTypeFromStoredFile, effectiveContentType, storedAssetFileParts, uniqueAssetPath } from "./storedAssetFile";
-import { validateGlbStructure } from "./model3dValidation";
+import { validateGlbStructure } from "../shared/contracts/model3dValidation";
 import { isGeneratedAssetMeta, prepareVerifiedGeneratedAsset, type GeneratedAssetMeta, type NotGeneratedKind, type UserAssetMeta, type VerifiedStagedAsset } from "./generatedAssetStaging";
 import { localizedAssetTypeOf, type LocalizedAssetType } from "./localizedAsset";
 import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";

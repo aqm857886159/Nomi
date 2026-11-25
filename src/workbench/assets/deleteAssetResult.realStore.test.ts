@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import type { AssetRef } from './assetTypes'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { __resetCanvasUndoJournalForTests, getOldestReachableUndoPosition, pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory, getOldestReachableUndoPosition, pushUndoSnapshot } from '../generationCanvas/events/canvasPatchHistory'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 
 const mocks = vi.hoisted(() => ({
@@ -70,7 +70,7 @@ describe('deleteAssetResult with the real canvas store', () => {
   beforeEach(async () => {
     setCanvas(image('a', 'nomi-local://asset/project-1/assets/generated/a.png'), [])
     __resetPendingAssetDeletionsForTests()
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     mocks.deleteFiles.mockReset()
     mocks.persistNow.mockReset()
     mocks.persistNow.mockResolvedValue({ id: 'project-1' })
@@ -254,7 +254,7 @@ describe('version removal keeps the original file independently of references', 
     const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
     const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
     __resetPendingAssetDeletionsForTests()
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvas(a, [a, b])
     mocks.deleteFiles.mockReset()
     mocks.persistNow.mockReset().mockResolvedValue({ id: 'project-1' })
@@ -294,7 +294,7 @@ describe('version removal keeps the original file independently of references', 
 describe('library deletion preserves a version while undo can restore it', () => {
   beforeEach(() => {
     __resetPendingAssetDeletionsForTests()
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')
     const b = image('b', 'nomi-local://asset/project-1/assets/generated/b.png')
     setCanvas(a, [a, b])
@@ -318,6 +318,29 @@ describe('library deletion preserves a version while undo can restore it', () =>
     expect(isAssetFileAwaitingTrash(target)).toBe(false)
     await releaseLoadedProjectAssetDeletions()
     expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('rechecks surviving undo references when discarding redo (older reference %s)', async older => {
+    const a = image('a', projectAsset('a').renderUrl!)
+    const b = image('b', projectAsset('b').renderUrl!)
+    setCanvas(older ? a : b, older ? [a, b] : [b])
+    if (older) await removeAssetVersion('node-1', 'a', loaded('project-1'))
+    const store = useGenerationCanvasStore.getState()
+    store.updateNodes([{ nodeId: 'node-1', patch: { result: a, history: [a, b] } }])
+    store.undo()
+    const deletion = await deleteAssetResult(projectAsset('a'), loaded('project-1'))
+    expect(deletion.deferredFileCount).toBe(1)
+    toggleGesture()
+    await waitForEvictionWork()
+    if (older) {
+      expect(mocks.deleteFiles).not.toHaveBeenCalled()
+      store.undo()
+      store.undo()
+      expect(useGenerationCanvasStore.getState().nodes[0].result?.url).toBe(a.url)
+    } else {
+      expect(mocks.deleteFiles).toHaveBeenCalledExactlyOnceWith({ projectId: target.projectId, relativePaths: [target.relativePath] })
+      expect(listPersistedAssetDeletions()).toBeUndefined()
+    }
   })
 
   it('still immediately recycles a spare file absent from all reachable history', async () => {

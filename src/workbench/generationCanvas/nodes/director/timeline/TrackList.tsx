@@ -1,16 +1,16 @@
 /**
- * [INPUT]: 依赖 react、react-i18next、../../../../../design 的 WorkbenchIconButton、../../../../../vendor/tablerIcons、../../../../../utils/cn、
+ * [INPUT]: 依赖 react、react-i18next、../../../../../design 的 WorkbenchIconButton / WORKBENCH_MENU_TRIGGER_OPEN_CLASS、../../../../../vendor/tablerIcons、../../../../../utils/cn、
  *          ../DirectorEditorContext、../model/timelineTracks（TimelineTrack / TimelineSubTrack / familyMarkerTimes / stepToNeighbor / entitiesOutsideTimeline）、
  *          ../model/directorTypes 的 isDirectorCamera、../panels/Popover、./clipTone、./timelineRows（ROW_HEIGHT / TimelineRow）、./timelineCommands 的 seekTo
  * [OUTPUT]: 对外提供 TrackList：左栏——列头「轨道列表 (N) ｜ + 添加轨道 ▾」+ 主行（拖序把手 / 类型图标 / 名字 ｜ 追加片段菜单 / 追加路径 / 播放头切割 / 钉住 / 删除实体）
  *           + 副行（色标 / 名字 / 旁路 / 上一下一关键帧 / 清空）
- * [POS]: director/timeline 的轨道列：行序与泳道共用 buildTimelineRows；主行五键直接打命令，「追加片段」菜单与右键菜单的内容由 DirectorTimeline 决定，
- *        这里只上报「在哪一行按了菜单 / 右键」。
+ * [POS]: director/timeline 的轨道列：行序与泳道共用 buildTimelineRows；主行五键直接打命令，「追加片段」菜单与右键菜单由 DirectorTimeline 包上来
+ *        （renderAddClipMenu 包「+」按钮、renderRowMenu 包行），这里只交出真实的行 / 按钮元素，菜单开着时它们带打开态。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { WorkbenchIconButton } from '../../../../../design'
+import { WORKBENCH_MENU_TRIGGER_OPEN_CLASS, WorkbenchIconButton } from '../../../../../design'
 import {
   IconChevronDown,
   IconChevronLeft,
@@ -39,14 +39,15 @@ import { ROW_HEIGHT, type TimelineRow } from './timelineRows'
 export type TrackListProps = {
   rows: TimelineRow[]
   tracks: TimelineTrack[]
-  /** 主行「+」：追加动作 / 骨骼 / 视线 / 特写片段的菜单 */
-  onOpenAddClipMenu: (event: React.MouseEvent<HTMLElement>, track: TimelineTrack) => void
+  /** 主行「+」：把这颗按钮包成「追加动作 / 骨骼 / 视线 / 特写片段」下拉的真触发器 */
+  renderAddClipMenu: (track: TimelineTrack, trigger: React.ReactElement) => React.ReactElement
   /** 主行「追加路径片段」/「播放头切割」/「删除实体」直接打命令 */
   /** 行内「创建特写片段」（角色行 = 新机位 + 特写；机位行 = 追加特写） */
   onCreateCloseup: (track: TimelineTrack) => void
   onSplitAtPlayhead: (track: TimelineTrack) => void
   onDeleteEntity: (track: TimelineTrack) => void
-  onContextMenu: (event: React.MouseEvent<HTMLElement>, row: TimelineRow) => void
+  /** 把一行包成右键菜单的真触发器 */
+  renderRowMenu: (row: TimelineRow, trigger: React.ReactElement) => React.ReactElement
   // 双击机位主行 = 进入该机位视角（清单 §6 C1「轨道/机位选择」）
   onEnterPov: (cameraId: string) => void
 }
@@ -63,13 +64,13 @@ function SubTrackRow({
   sub,
   isLast,
   selected,
-  onContextMenu,
+  renderRowMenu,
 }: {
   track: TimelineTrack
   sub: TimelineSubTrack
   isLast: boolean
   selected: boolean
-  onContextMenu: (event: React.MouseEvent<HTMLElement>) => void
+  renderRowMenu: (trigger: React.ReactElement) => React.ReactElement
 }): JSX.Element {
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
@@ -94,18 +95,17 @@ function SubTrackRow({
     else if (sub.family === 'lookat') state.toggleLookAtTrack(track.entityId)
   }
 
-  return (
-    // 树形副行：竖线 x=20 贯穿（最后一项止于中线）、横枝 20→30；骨骼帧是二级（pl-12，从 x=30 拐到 40）
+  // 树形副行：竖线 x=20 贯穿（最后一项止于中线）、横枝 20→30；骨骼帧是二级（pl-12，从 x=30 拐到 40）
+  return renderRowMenu(
     <div
       className={cn(
         'group relative flex items-center gap-1.5 border-b border-nomi-line pr-2 text-micro text-nomi-ink-60',
         sub.family === 'bone' ? 'pl-12' : 'pl-9',
-        selected ? 'bg-nomi-ink-05' : '',
+        selected ? 'bg-nomi-ink-05' : WORKBENCH_MENU_TRIGGER_OPEN_CLASS,
         sub.enabled ? '' : 'opacity-50',
       )}
       style={{ height: ROW_HEIGHT }}
       data-testid="director-timeline-subtrack"
-      onContextMenu={onContextMenu}
     >
       <span className="pointer-events-none absolute left-5 top-0 w-px bg-nomi-ink-20" style={{ height: isLast ? '50%' : '100%' }} aria-hidden />
       {sub.family === 'bone' ? (
@@ -135,7 +135,7 @@ function SubTrackRow({
         </span>
         {sub.family !== 'trajectory' ? <WorkbenchIconButton size="sm" icon={<IconTrash size={13} stroke={1.9} />} label={t('director.timeline.menu.clearTrack')} onClick={clear} /> : null}
       </div>
-    </div>
+    </div>,
   )
 }
 
@@ -183,7 +183,7 @@ export function TrackListHeader({ trackCount }: { trackCount: number }): JSX.Ele
   )
 }
 
-export function TrackList({ rows, tracks, onOpenAddClipMenu, onCreateCloseup, onSplitAtPlayhead, onDeleteEntity, onContextMenu, onEnterPov }: TrackListProps): JSX.Element {
+export function TrackList({ rows, tracks, renderAddClipMenu, onCreateCloseup, onSplitAtPlayhead, onDeleteEntity, renderRowMenu, onEnterPov }: TrackListProps): JSX.Element {
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const [drag, setDrag] = React.useState<{ from: string; over: string | null } | null>(null)
@@ -238,23 +238,21 @@ export function TrackList({ rows, tracks, onOpenAddClipMenu, onCreateCloseup, on
         if (row.kind === 'sub') {
           const next = rows[rows.indexOf(row) + 1]
           const isLast = !next || next.kind !== 'sub' || next.track.entityId !== row.track.entityId
-          return <SubTrackRow key={row.key} track={row.track} sub={row.sub} isLast={isLast} selected={selectedEntityId === row.track.entityId} onContextMenu={(event) => onContextMenu(event, row)} />
+          return <SubTrackRow key={row.key} track={row.track} sub={row.sub} isLast={isLast} selected={selectedEntityId === row.track.entityId} renderRowMenu={(trigger) => renderRowMenu(row, trigger)} />
         }
         const { track } = row
         const isOver = drag?.over === track.entityId && drag.from !== track.entityId
-        return (
+        const rowElement = (
           <div
-            key={row.key}
             className={cn(
               'group flex items-center gap-1 border-b border-nomi-line pl-1 pr-1 text-caption font-semibold text-nomi-ink',
-              selectedEntityId === track.entityId ? 'bg-nomi-ink-05' : '',
+              selectedEntityId === track.entityId ? 'bg-nomi-ink-05' : WORKBENCH_MENU_TRIGGER_OPEN_CLASS,
               isOver ? 'shadow-[inset_0_2px_0_var(--nomi-ink)]' : '',
               drag?.from === track.entityId ? 'opacity-60' : '',
             )}
             style={{ height: ROW_HEIGHT }}
             data-testid="director-timeline-track"
             title={track.kind === 'camera' ? t('director.camera.enterPovHint') : undefined}
-            onContextMenu={(event) => onContextMenu(event, row)}
             onDoubleClick={() => {
               if (track.kind === 'camera') onEnterPov(track.entityId)
             }}
@@ -272,10 +270,11 @@ export function TrackList({ rows, tracks, onOpenAddClipMenu, onCreateCloseup, on
             <span className="min-w-0 flex-1 truncate" title={track.name}>
               {track.name}
             </span>
-            <div className="flex items-center opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-              {track.kind === 'character' ? (
-                <WorkbenchIconButton size="sm" icon={<IconPlus size={13} stroke={1.9} />} label={t('director.timeline.menu.addClip')} onClick={(event) => onOpenAddClipMenu(event, track)} />
-              ) : null}
+            {/* 「+」的下拉开着时操作组保持不透明（鼠标移进菜单不该让它变半透明）。 */}
+            <div className="flex items-center opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
+              {track.kind === 'character'
+                ? renderAddClipMenu(track, <WorkbenchIconButton size="sm" icon={<IconPlus size={13} stroke={1.9} />} label={t('director.timeline.menu.addClip')} className={WORKBENCH_MENU_TRIGGER_OPEN_CLASS} />)
+                : null}
               {track.kind !== 'object' ? (
                 <WorkbenchIconButton size="sm" icon={<IconRepeat size={13} stroke={1.9} />} label={t('director.timeline.menu.createCloseup')} onClick={() => onCreateCloseup(track)} />
               ) : null}
@@ -290,6 +289,7 @@ export function TrackList({ rows, tracks, onOpenAddClipMenu, onCreateCloseup, on
             </div>
           </div>
         )
+        return <React.Fragment key={row.key}>{renderRowMenu(row, rowElement)}</React.Fragment>
       })}
     </div>
   )

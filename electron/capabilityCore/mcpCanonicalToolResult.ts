@@ -1,9 +1,9 @@
 import type { ZodType } from "zod";
 
-export const CAPABILITY_OUTPUT_INVALID = "capability_output_invalid";
+const CAPABILITY_OUTPUT_INVALID = "capability_output_invalid";
 
 /** Public MCP boundary error: never retain the Zod issue/cause because it can contain received secrets. */
-export class CapabilityOutputInvalidError extends Error {
+class CapabilityOutputInvalidError extends Error {
   readonly code = CAPABILITY_OUTPUT_INVALID;
 
   constructor() {

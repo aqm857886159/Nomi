@@ -2,9 +2,14 @@ import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { autoUpdate } from '@floating-ui/dom'
 import { FocusScope } from '@radix-ui/react-focus-scope'
-import { NOMI_OVERLAY_Z_INDEX, hasOpenDialogAbove, hasOpenPopupAbove, isInsidePopupAbove } from './overlayLayers'
+import {
+  NOMI_OVERLAY_Z_INDEX,
+  hasOpenDialogAbove,
+  hasOpenPopupAbove,
+  isInsidePopupAbove,
+  useFloatingOutsideDismiss,
+} from './overlayLayers'
 import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign, type AnchoredPopoverSide } from './anchoredPopoverPlacement'
-import { listenOutsidePress } from './outsidePress'
 
 /**
  * 锚点浮层：Portal 到 body + fixed 贴锚点，**逃出祖先 overflow 的裁切**。
@@ -43,15 +48,18 @@ import { listenOutsidePress } from './outsidePress'
  *      行在表格的 overflow-hidden 里，最后一行的菜单被裁成一条边；
  *   ② Radix —— `src/design/tooltip.tsx`（tooltip 一族）**与 `src/design/menu.tsx`（菜单一族，
  *      2026-09-08 刀 1 起：`timeline/TimelineContextMenu.tsx`、
- *      `generationCanvas/components/NodeContextMenu.tsx`）**。刀 1 没有引进第五套定位库，
+ *      `generationCanvas/components/NodeContextMenu.tsx`；2026-11-23 T-8-R1 起收编
+ *      `creation/DocumentListSidebar.tsx`、`sidebar/CategoryTree.tsx`、
+ *      `director/timeline/{TrackList,TrackLanes}.tsx`——这三处走真触发器入口 `WorkbenchContextMenu` /
+ *      `WorkbenchMenu trigger`，原 `director/timeline/TimelineContextMenu.tsx` 点位适配层已删）**。刀 1 没有引进第五套定位库，
  *      是让已经在用的这一套多担一个用途；
  *   ③ Mantine —— `src/design/overlays.tsx` 的 `DesignModal`（Modal 自带定位与遮罩）；
- *   ④ 手写 `getBoundingClientRect()` + `createPortal` —— **8 个文件**：
+ *   ④ 手写 `getBoundingClientRect()` + `createPortal` —— **7 个文件**：
  *      `generationCanvas/nodes/{NodeGenerationComposer,InlineParameterBar,ClipNode,PanoramaViewer}.tsx`、
  *      `generationCanvas/components/{SelectionPromptSaveController,ScreenshotCropOverlay}.tsx`、
- *      `creation/DocumentListSidebar.tsx`、`assets/AssetTile.tsx`。
+ *      `assets/AssetTile.tsx`。
  *
- * **这个 8 是要被改的数，不是装饰**：④ 每收一处，就把这里的数字和名单当场改掉；
+ * **这个 7 是要被改的数，不是装饰**：④ 每收一处，就把这里的数字和名单当场改掉；
  * 数对不上就是这段注释又过期了（下一步是把名单交给 `check:` 脚本数，注释只留规则）。
  * ② 不收（Radix 的 a11y / 键盘 / 避让是它自带的，重写一遍不划算）；③ 不收（居中模态不是锚点浮层）。
  *
@@ -183,32 +191,35 @@ export function AnchoredPopover({
     return true
   }, [onClose])
 
+  // 「关掉我」这件事有两条路（Esc / 点外面），两条都必须给**我自己弹出来的那一层**让位：
+  // 下拉和菜单 Portal 到 body，DOM 上不在我里面，不让位就会出现「浮层里的选择器改不了值」
+  // 和「Esc 本想收下拉却把整个浮层关了」。点外面走 overlayLayers 的 useFloatingOutsideDismiss（@floating-ui/react useDismiss），
+  // 让位判据统一走 isInsidePopupAbove。
+  const { getFloatingProps } = useFloatingOutsideDismiss({
+    open: Boolean(onClose),
+    floating: popRef,
+    reference: anchorRef ?? fallbackAnchorRef,
+    isInside: (target) => Boolean(popRef.current && isInsidePopupAbove(popRef.current, target)),
+    onDismiss: () => {
+      if (!onClose) return
+      closedByOutsidePressRef.current = true
+      onClose()
+    },
+  })
+
   React.useEffect(() => {
     if (!onClose) return undefined
-    // 「关掉我」这件事有两条路（Esc / 点外面），两条都必须给**我自己弹出来的那一层**让位：
-    // 下拉和菜单 Portal 到 body，DOM 上不在我里面，不让位就会出现「浮层里的选择器改不了值」
-    // 和「Esc 本想收下拉却把整个浮层关了」。判据走 overlayLayers 那一份，两条路同一套。
     const onKey = (event: KeyboardEvent) => {
       // Internal controls receive Escape first, then the portal's React bubble handler.
       // External focus (e.g. the trigger) still needs capture before React Flow unselects it.
       if (event.target instanceof Node && popRef.current?.contains(event.target)) return
       dismissOnEscape(event)
     }
-    const isInside = (target: EventTarget | null) => {
-      const anchor = anchorRef?.current ?? fallbackAnchorRef.current
-      if (target instanceof Node && (popRef.current?.contains(target) || anchor?.contains(target))) return true
-      return Boolean(popRef.current && isInsidePopupAbove(popRef.current, target))
-    }
-    const stopListeningOutside = listenOutsidePress(isInside, () => {
-      closedByOutsidePressRef.current = true
-      onClose()
-    })
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      stopListeningOutside()
     }
-  }, [anchorRef, dismissOnEscape, onClose])
+  }, [dismissOnEscape, onClose])
 
   const body = (
     <div
@@ -229,17 +240,19 @@ export function AnchoredPopover({
         outline: 'none',
         ...(passThrough ? { pointerEvents: 'none' as const } : {}),
       }}
-      onPointerDown={(event) => {
-        closedByOutsidePressRef.current = false
-        event.stopPropagation()
-      }}
-      onKeyDown={(event) => {
-        closedByOutsidePressRef.current = false
-        if (!onClose || event.key !== 'Escape' || !event.currentTarget.contains(event.target as Node)) return
-        // A child may prevent dismissal without stopping propagation. Keep even that
-        // Escape inside this portal; it must not cancel the ancestor node's selection.
-        if (dismissOnEscape(event.nativeEvent)) event.stopPropagation()
-      }}
+      {...getFloatingProps({
+        onPointerDown: (event) => {
+          closedByOutsidePressRef.current = false
+          event.stopPropagation()
+        },
+        onKeyDown: (event) => {
+          closedByOutsidePressRef.current = false
+          if (!onClose || event.key !== 'Escape' || !event.currentTarget.contains(event.target as Node)) return
+          // A child may prevent dismissal without stopping propagation. Keep even that
+          // Escape inside this portal; it must not cancel the ancestor node's selection.
+          if (dismissOnEscape(event.nativeEvent)) event.stopPropagation()
+        },
+      })}
     >
       {children}
     </div>

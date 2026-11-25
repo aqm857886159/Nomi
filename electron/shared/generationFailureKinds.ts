@@ -29,7 +29,7 @@ export type GenerationErrorKind =
   | 'asset-invalid'
   // 参考图走的是服务商的临时链接，**模型那一侧**去拉时拉不到（过期 / 防盗链 / 地区限制）。请求已经发出去了；
   // 与 asset-upload-failed 分开（那条是我们这侧上传没成、服务商没被请求到），也与 input 分开（400 不是「参数不对」）。
-  // 下一步先「重试」：重试会尽量改用本机原图上传后再发（这条连接已被记下）；上传过模型还拒绝，就换个模型。判据与记账共用 electron/shared/assets/referenceFetchRefusal。
+  // 下一步先「重试」：用户可再提交一次，仍被拒可换模型。供应商的拒收事实来自 electron/shared/assets/referenceFetchRefusal。
   | 'reference-unfetchable'
   // 主进程发送前的参考守在花钱之前拒了：请求里带着参考区没在用的图（有入口绕过了唯一推导）。
   // 请求没离开本机；下一步是重新点生成，会按参考区重新组一次请求。不是服务商的事。

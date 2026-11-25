@@ -59,7 +59,7 @@ export function CameraInspector({ camera }: { camera: DirectorCamera }): JSX.Ele
           <span>{t('director.inspector.focalLength')}</span>
           <span>{t('director.inspector.verticalFov', { fov: camera.fov.toFixed(1) })}</span>
         </div>
-        <SliderNumberField label="" value={camera.focalLengthMm} min={FOCAL_MM_MIN} max={FOCAL_MM_MAX} step={1} unit="mm" onChangeStart={() => store.getState().saveState()} onChange={setFocal} />
+        <SliderNumberField label="" value={camera.focalLengthMm} min={FOCAL_MM_MIN} max={FOCAL_MM_MAX} step={1} unit="mm" onChangeStart={store.getState().saveState} onChange={setFocal} />
       </InspectorCard>
       <CameraTransformSection camera={camera} />
       <InspectorCard>

@@ -199,9 +199,10 @@
       "element": "nomi-entry"
     },
     {
-      "place": "项目库页顶栏（没有入口）",
+      "place": "项目库页与整窗连接 APIMart 平级页顶栏（没有入口）",
       "files": [
-        "src/workbench/library/ProjectLibraryPage.tsx"
+        "src/workbench/library/ProjectLibraryPage.tsx",
+        "src/ui/onboarding/ApimartConnectPage.tsx"
       ],
       "board": "NomiEntryTopbar",
       "element": "library.topbar-no-entry"

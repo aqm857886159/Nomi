@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { makeTempDir } from './_test-temp.mjs'
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 // Bash 闸门行为契约门岗（2026-09-02；2026-10-24 推送前的本机门岗戳删除后改写）。每一轴都用**实际执行 hook** 来判，
 // 不读它的源码文本：
 //   轴 B｜push 命令识别——「这条命令推不推、推的哪棵树、跳没跳过 git 钩子」必须判对，两个方向都不许错：
@@ -39,6 +39,8 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { RADARS, localDate, radarStateFile } from './daily-radar-session.mjs'
+import { fetchRuns } from './eng-metrics.mjs'
 
 const { BLOCKING, hookCommands, hookKind, referencedScript } = createRequire(import.meta.url)('./claude-hooks-registry.cjs')
 
@@ -48,8 +50,8 @@ const HOOK_REL = 'scripts/claude-hooks/pre-push-check.sh'
 /** push 闸把绕口记在被推那棵树的这个文件里，`check:push-bypass` 读同一个文件。 */
 const BYPASS_LOG_REL = path.join('.claude', 'push-bypass.log')
 
-function git(args, cwd) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+function git(args, cwd, env = process.env) {
+  return execFileSync('git', args, { cwd, env, encoding: 'utf8' }).trim()
 }
 
 /**
@@ -240,20 +242,46 @@ function checkSecretGuard(root, problems) {
  */
 const GUARD_PROBE_COMMAND = 'git -c core.hooksPath=/dev/null commit -m x'
 
-/** 一条无害载荷：九个 hook 拿到它都该原样放行（没有推送、没有绕口、不是 package.json、没有转录）。 */
+/** 登记的 hook 都应放行这条载荷（没有推送、没有绕口、不是 package.json、没有转录）。 */
 function benignPayload(cwd) {
-  return JSON.stringify({ tool_input: { command: 'git status', file_path: '/tmp/nomi-guard-probe.txt' }, cwd })
+  return JSON.stringify({ tool_input: { command: 'git status', file_path: path.join(cwd, 'guard-probe.txt') }, cwd })
 }
 
 /** 用真实的 shell 跑 settings 里那条命令串（harness 就是这么跑的），返回退出码与 stderr。 */
-function runSettingsCommand(command, { projectDir, cwd, payload }) {
+function runSettingsCommand(command, { projectDir, payload, env }) {
   const result = spawnSync('bash', ['-c', command], {
     input: payload,
-    cwd,
+    cwd: projectDir,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDir },
+    env: { ...env, CLAUDE_PROJECT_DIR: projectDir },
   })
   return { status: typeof result.status === 'number' ? result.status : 1, stderr: result.stderr ?? '' }
+}
+
+function prepareSettingsProbe(root, present, settingsPath, env) {
+  fs.mkdirSync(path.join(present, '.claude'))
+  fs.copyFileSync(settingsPath, path.join(present, '.claude/settings.json'))
+  // Node CLI entry checks compare argv[1] with import.meta.url. Copy scripts so those entry points run
+  // and so any hook writes land in the fixture.
+  for (const rel of ['scripts', 'package.json']) {
+    const source = path.join(root, rel)
+    if (fs.existsSync(source)) fs.cpSync(source, path.join(present, rel), { recursive: true, dereference: true })
+  }
+
+  // Both SessionStart reports use their normal same-day cache paths in the probe.
+  const today = localDate(new Date())
+  const radarKeys = [...RADARS.map(({ key }) => key), 'nightly']
+  const cachedReports = Object.fromEntries(radarKeys.map((key) => [key, { ok: true, at: '00:00', text: 'Hook probe' }]))
+  fs.mkdirSync(env.NOMI_INTAKE_CACHE, { recursive: true })
+  fs.writeFileSync(radarStateFile(env), JSON.stringify({ date: today, ...cachedReports }))
+  fetchRuns({ today, cacheFile: path.join(present, '.claude/eng-metrics-cache.json'), ghRun: () => '[]' })
+
+  git(['init', '-q', '-b', 'hook-probe'], present, env)
+  git(['add', '-A'], present, env)
+  git([
+    '-c', 'user.name=Hook Probe', '-c', 'user.email=probe@example.invalid',
+    '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '--no-gpg-sign', '-m', 'hook probe',
+  ], present, env)
 }
 
 function checkSettingsGuards(root, problems) {
@@ -277,7 +305,20 @@ function checkSettingsGuards(root, problems) {
 
   // 「脚本被挪走」的现场：一个存在、但里面没有 scripts/claude-hooks/ 的项目根。
   const stripped = makeTempDir('nomi-hook-missing-')
+  const present = makeTempDir('nomi-hook-present-')
   try {
+    const home = path.join(stripped, 'home')
+    fs.mkdirSync(home)
+    const env = {
+      ...process.env,
+      HOME: home,
+      USERPROFILE: home,
+      NOMI_INTAKE_CACHE: path.join(stripped, 'intake-cache'),
+      CI: 'true',
+    }
+    // Git hooks can export an index or Git directory that would override the probe's cwd.
+    for (const key of git(['rev-parse', '--local-env-vars'], stripped).split('\n')) delete env[key]
+    prepareSettingsProbe(root, present, settingsPath, env)
     for (const command of commands) {
       const script = referencedScript(command)
       if (!script) {
@@ -295,8 +336,8 @@ function checkSettingsGuards(root, problems) {
       // 阳性对照：脚本不在场。
       const missing = runSettingsCommand(command, {
         projectDir: stripped,
-        cwd: stripped,
         payload: JSON.stringify({ tool_input: { command: GUARD_PROBE_COMMAND }, cwd: stripped }),
+        env,
       })
       if (kind === BLOCKING) {
         if (missing.status !== 2) {
@@ -319,17 +360,18 @@ function checkSettingsGuards(root, problems) {
 
       // 负向对照：脚本在场 + 无害载荷 → 必须原样放行。守卫不许退化成「拦一切」，
       // 会误报的闸门用不了几次就会被人绕过（见 docs/design/page-design-process.md）。
-      const present = runSettingsCommand(command, {
-        projectDir: root,
-        cwd: root,
-        payload: benignPayload(root),
+      const benign = runSettingsCommand(command, {
+        projectDir: present,
+        payload: benignPayload(present),
+        env,
       })
-      if (present.status !== 0) {
-        problems.push(`${label} 在脚本正常在场、载荷无害时退出码是 ${present.status}，本该 0——守卫误伤了正常调用。`)
+      if (benign.status !== 0) {
+        problems.push(`${label} 在脚本正常在场、载荷无害时退出码是 ${benign.status}，本该 0——守卫误伤了正常调用。`)
       }
     }
   } finally {
-    fs.rmSync(stripped, { recursive: true, force: true })
+    cleanupTestTemp(present)
+    cleanupTestTemp(stripped)
   }
 }
 
@@ -367,7 +409,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(
       '✓ Bash 闸门行为契约通过：push 闸的命令识别矩阵（普通推送一律放行、跳过 git 钩子的推送记进被推的那棵树、' +
         '归因不了就拦）+ secret-guard 的命令识别矩阵 + 登记表每条命令在脚本被挪走时的退出码' +
-        '（拦截型必 2，提示型必有 stderr）+ push 闸推荐的脚本都在，均已实跑验证。',
+        '（拦截型必 2，提示型必有 stderr）与在场时的正常放行 + push 闸推荐的脚本都在，均已实跑验证。',
     )
     process.exit(0)
   }

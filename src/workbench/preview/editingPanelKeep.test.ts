@@ -1,3 +1,4 @@
+import { createLayoutHistory } from '../history/historyMiddleware'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useWorkbenchStore } from '../workbenchStore'
 import { createEditingPanelLayoutSlice } from './editingPanelLayoutSlice'
@@ -13,7 +14,7 @@ describe('editingPanelKeep — 放不下时留下用户刚点开的那栏', () =
   beforeEach(() => {
     useWorkbenchStore.setState({
       editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-      editingPanelUndoStack: [],
+      editingPanelHistory: createLayoutHistory(),
       editingPanelKeep: 'source',
       previewSourceTab: 'shots',
     })
@@ -29,7 +30,7 @@ describe('editingPanelKeep — 放不下时留下用户刚点开的那栏', () =
     const after = useWorkbenchStore.getState()
     expect(after.editingPanelKeep).toBe('inspector')
     expect(after.editingPanelLayout).toBe(before.editingPanelLayout)
-    expect(after.editingPanelUndoStack).toHaveLength(0)
+    expect(after.editingPanelHistory.entries.pastStates).toHaveLength(0)
     expect(after.persistRevision).toBe(before.persistRevision)
   })
 
@@ -40,7 +41,7 @@ describe('editingPanelKeep — 放不下时留下用户刚点开的那栏', () =
     const state = useWorkbenchStore.getState()
     expect(state.editingPanelLayout.visibility.source).toBe(true)
     expect(state.editingPanelKeep).toBe('source')
-    expect(state.editingPanelUndoStack).toHaveLength(2)
+    expect(state.editingPanelHistory.entries.pastStates).toHaveLength(2)
     expect(state.persistRevision).toBe(rev + 1)
   })
 
@@ -139,7 +140,7 @@ describe('打开侧栏的每个入口：打开的那栏一定看得到', () => {
   beforeEach(() => {
     useWorkbenchStore.setState({
       editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-      editingPanelUndoStack: [],
+      editingPanelHistory: createLayoutHistory(),
       editingPanelKeep: 'source',
       previewSourceTab: 'shots',
     })
@@ -211,7 +212,7 @@ describe('打开侧栏的每个入口：打开的那栏一定看得到', () => {
       { label: 'nomi', run: () => { store().setProjectAgentDockCollapsed(!store().projectAgentDockCollapsed); return null } },
     ]
     for (let sequence = 0; sequence < 400; sequence += 1) {
-      useWorkbenchStore.setState({ editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), editingPanelUndoStack: [], editingPanelKeep: 'source' })
+      useWorkbenchStore.setState({ editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), editingPanelHistory: createLayoutHistory(), editingPanelKeep: 'source' })
       const trail: string[] = []
       for (let index = 0; index < 12; index += 1) {
         const step = steps[random(steps.length)]

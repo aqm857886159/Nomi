@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../../history/historyMiddleware'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { create } from 'zustand'
 import { createAgentTurnState, type AgentTurnHandle, type AgentTurnState } from '../../ai/agentTurnLifecycle'
@@ -25,7 +26,7 @@ const useCanvasTurnStore = create<AgentTurnState>((set, get) => createAgentTurnS
 import { useWorkbenchStore } from '../../workbenchStore'
 import { createDefaultTimeline } from '../../timeline/timelineMath'
 import { resetAdoptionRegistry } from '../../adoption/adoptionProposalRegistry'
-import { __resetCanvasUndoJournalForTests, getHistoryFlags } from '../events/canvasUndoJournal'
+import { clearHistory, getHistoryFlags } from '../events/canvasPatchHistory'
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/canvasEventEmitter'
 
 // Widening a callable with an optional owner lets the pre-change implementation
@@ -40,8 +41,8 @@ beforeEach(() => {
   deps.catalog.mockResolvedValue([])
   useCanvasTurnStore.getState().abandon()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('A')], edges: [], groups: [] })
-  useWorkbenchStore.setState({ timeline: createDefaultTimeline(), timelineUndoStack: [], timelineRedoStack: [] })
-  __resetCanvasUndoJournalForTests()
+  useWorkbenchStore.setState({ timeline: createDefaultTimeline(), timelineHistory: createTimelineHistory() })
+  clearHistory()
   resetAdoptionRegistry()
   captured.length = 0
   setCanvasEventSinkForTests((events) => captured.push(...events))
@@ -338,10 +339,10 @@ describe('final asynchronous Agent mutation boundary', () => {
       useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node('B')], edges: [], groups: [] })
     }
     const before = { ...createDefaultTimeline(), playheadFrame: 48 }
-    useWorkbenchStore.setState({ timeline: before, timelineUndoStack: [] })
+    useWorkbenchStore.setState({ timeline: before, timelineHistory: createTimelineHistory() })
     release()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
     expect(useWorkbenchStore.getState().timeline).toEqual(before)
-    expect(useWorkbenchStore.getState().timelineUndoStack).toEqual([])
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates).toEqual([])
   })
 })

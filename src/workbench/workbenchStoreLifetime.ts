@@ -1,3 +1,4 @@
+import { createLayoutHistory, createTimelineHistory } from './history/historyMiddleware'
 // `useWorkbenchStore` 的 C1 寿命声明 + 项目释放（2026-09-18）。
 //
 // 为什么单独一个文件而不是写在 store 旁边：`workbenchStore.ts` 顶着 800 行硬上限（R9），
@@ -10,6 +11,18 @@ import { cloneBuiltinCategories, DEFAULT_CATEGORY_ID } from './project/projectCa
 import { createDefaultTimeline } from './timeline/timelineMath'
 import { useWorkbenchStore } from './workbenchStore'
 import { createDefaultWorkbenchDocument } from './workbenchTypes'
+
+// Clear the old instances before replacing them. An outstanding gesture or receipt
+// may still reference a released session until its owner unmounts.
+declareStoreLifetime({
+  store: 'sessionFrameStore',
+  fields: { value: 'project', metadata: 'project' },
+  releaseProject: () => {
+    const { timelineHistory, editingPanelHistory } = useWorkbenchStore.getState()
+    timelineHistory.release()
+    editingPanelHistory.release()
+  },
+})
 
 /**
  * C1 寿命声明 + 释放（原来是 `releaseWorkbenchProjectSession.ts` 里那份 21/31 的手写清单）。
@@ -69,11 +82,10 @@ export const workbenchStoreLifetime = declareStoreLifetime({
     selectedTextClipId: 'project',
     timelineSnapGuide: 'project',
     timelineSplitMode: 'project',
-    timelineUndoStack: 'project',
-    timelineRedoStack: 'project',
+    timelineHistory: 'project',
     detachedTimelineClips: 'project',
     editingPanelLayout: 'project',
-    editingPanelUndoStack: 'project',
+    editingPanelHistory: 'project',
     // 「两侧栏放不下时留哪边」：上一个项目里点开的是哪边，与新项目无关。
     editingPanelKeep: 'project',
   },
@@ -109,11 +121,10 @@ export const workbenchStoreLifetime = declareStoreLifetime({
       selectedTextClipId: '',
       timelineSnapGuide: null,
       timelineSplitMode: false,
-      timelineUndoStack: [],
-      timelineRedoStack: [],
+      timelineHistory: createTimelineHistory(),
       detachedTimelineClips: {},
       editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-      editingPanelUndoStack: [],
+      editingPanelHistory: createLayoutHistory(),
       editingPanelKeep: 'source',
     })
   },

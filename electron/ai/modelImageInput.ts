@@ -10,10 +10,10 @@ import { hardenedFetch, type HardenedFetchDependencies } from "../hardenedFetch"
 import { MEDIA_IMPORT_SURFACES } from "../shared/contracts/mediaImportPolicy";
 
 /** 上限只登记在媒体导入的唯一主人那里（MEDIA_IMPORT_SURFACES 的 model-image-input），这里只读。 */
-export const MODEL_IMAGE_MAX_BYTES = MEDIA_IMPORT_SURFACES["model-image-input"].hardCapBytes!;
-export const MODEL_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
+const MODEL_IMAGE_MAX_BYTES = MEDIA_IMPORT_SURFACES["model-image-input"].hardCapBytes!;
+const MODEL_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
 
-export type ModelImageBytes = { bytes: Uint8Array; mimeType: string };
+type ModelImageBytes = { bytes: Uint8Array; mimeType: string };
 
 export class ModelImageUnreadableError extends Error {
   constructor(message: string, readonly url: string) {
@@ -22,7 +22,7 @@ export class ModelImageUnreadableError extends Error {
   }
 }
 
-export type ReadModelImageOptions = {
+type ReadModelImageOptions = {
   signal?: AbortSignal;
   /** 收哪些类型。缺省 png / jpeg / webp / gif。 */
   types?: readonly string[];

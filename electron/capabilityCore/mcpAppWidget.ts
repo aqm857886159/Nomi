@@ -21,7 +21,7 @@ import { projectGenerationRecovery, type GenerationRecoveryProjection } from './
  * 拒的：`javascript:` / `file:` / `blob:` / `data:` 等危险或会灌爆终端的 scheme、以及畸形串。
  * ProductionRun 的服务投影通常只产出前两种形状。
  */
-export function safeWidgetImageUrl(candidate: unknown): string | undefined {
+function safeWidgetImageUrl(candidate: unknown): string | undefined {
   if (typeof candidate !== 'string') return undefined
   const url = candidate.trim()
   if (!url) return undefined
@@ -64,7 +64,7 @@ export type NomiDraftShot = {
  * B6 · 等待中的门（widget gate 卡）。direction=方向门（候选单选，卡内可批）｜sample=样片门（上方缩略图
  * 即样片，卡内可批）｜contract/export=钱与导出（卡内只读——金额确认走弹窗/对话双路，不给一键批钱）。
  */
-export type NomiDraftGate = {
+type NomiDraftGate = {
   gateId: string
   kind: 'direction' | 'sample' | 'contract' | 'export' | 'stage'
   title?: string

@@ -9,11 +9,11 @@ function normalizeModelId(value: string): string {
 
 export { normalizeModelId }
 
-export function trimModelIdentifier(value: string | null | undefined): string {
+function trimModelIdentifier(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function trimVendorIdentifier(value: string | null | undefined): string {
+function trimVendorIdentifier(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 

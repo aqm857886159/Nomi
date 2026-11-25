@@ -9,8 +9,8 @@ import type { GenerationNodeKind } from '../../generationCanvas/model/generation
 
 export const NODE_NAME_PROMPT_CHARS = 14
 
-export type NameableNode = { title?: string | null; prompt?: string | null; kind: GenerationNodeKind }
-export type NodeNameDeps = { isDefaultTitle: (title: string) => boolean; kindLabel: (kind: GenerationNodeKind) => string }
+type NameableNode = { title?: string | null; prompt?: string | null; kind: GenerationNodeKind }
+type NodeNameDeps = { isDefaultTitle: (title: string) => boolean; kindLabel: (kind: GenerationNodeKind) => string }
 
 /** 纯函数（单测钉三档兜底）：`ordinal` 是它在同批 / 同分区里同类型节点中的序号（从 1 数）。 */
 export function resolveNodeName(node: NameableNode, ordinal: number, deps: NodeNameDeps): string {

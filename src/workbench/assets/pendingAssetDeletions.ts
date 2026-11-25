@@ -4,7 +4,7 @@ import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasUndoJournal'
+import { readReachableUndoNodes, registerUndoHistoryEvictionHandler, type UndoHistoryEviction } from '../generationCanvas/events/canvasPatchHistory'
 import { collectProjectFileReferences, isProjectFileReferenced, type ProjectFileReferences, type ProjectFileTarget } from './assetResultDeletion'
 import { readLoadedProjectLivenessContent, type ProjectSessionMoment } from './projectLivenessContent'
 import type { AssetRef } from './assetTypes'
@@ -38,6 +38,7 @@ function keyOf(target: ProjectFileTarget): string {
 }
 
 function changed(): void {
+  if (!pending.size && !releasing.size) listMemo = null
   version += 1
   for (const listener of [...listeners]) listener()
 }
@@ -162,11 +163,23 @@ async function release(due: readonly PendingAssetDeletion[], requeue: boolean, m
 
 /** 撤销日志挤出了最老的几步：只放行「那一步本身已经退不回去」的待删。 */
 export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Promise<AssetDeletionRelease> {
-  return release(take((entry) => (
-    entry.journalGeneration === eviction.generation
-    && entry.journalPosition !== undefined
-    && entry.journalPosition < eviction.oldestReachablePosition
-  )), true, 'alive')
+  const discarded = new Set(eviction.discardedPositions)
+  const due = take(entry => entry.journalGeneration === eviction.generation && entry.journalPosition !== undefined
+    && (discarded.has(entry.journalPosition) || entry.journalPosition < eviction.oldestReachablePosition))
+  const expired = due.filter(entry => {
+    if (isProjectFileReferenced(entry, listReferences(entry.projectId))) return false
+    for (const frame of readReachableUndoNodes()) {
+      if (isProjectFileReferenced(entry, collectProjectFileReferences(frame.nodes, {}))) {
+        pending.set(keyOf(entry), { ...entry, journalPosition: frame.position })
+        return false
+      }
+    }
+    return true
+  })
+  if (due.length) changed()
+  // Claim expired requests synchronously. A branch-opening edit can publish new
+  // live references before recycling starts, so check the project again after it.
+  return Promise.resolve().then(() => release(expired, true, 'alive'))
 }
 
 /**
@@ -174,6 +187,7 @@ export function releaseEvictedAssetDeletions(eviction: UndoHistoryEviction): Pro
  * **之前**同步调用——引用判定读的是此刻的画布（`take` 和判定都在第一个 await 之前完成）。
  */
 export function releaseLoadedProjectAssetDeletions(): Promise<AssetDeletionRelease> {
+  listMemo = null
   // 撤销栈随后清零：会话撤销材料这一次不算「有人用」，不然文件永远删不掉。
   return release(take(() => true), false, 'ending')
 }

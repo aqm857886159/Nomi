@@ -63,6 +63,15 @@ export const APIMART_VENDOR_SEED = {
     listPath: "/api/pricing/models/all",
     modelPath: "/api/pricing/model",
   },
+  /**
+   * 账户余额只读端点与官方充值入口（带邀请码）：与公开价目完全解耦，
+   * 仅由 `electron/ai/onboarding/vendorAccountBalance.ts` 读取并在余额不足时提示「还差 N 积分 · 去充值」。
+   */
+  accountBalance: {
+    userBalancePath: "/v1/user/balance",
+    path: "/v1/balance",
+    topUpUrl: "https://apimart.ai/register?aff=t55VtP",
+  },
 } as const;
 
 /** apimart 的 status 动词 → 我们的归一态（与 kie 不同：apimart 用 pending/processing/completed/...）。 */

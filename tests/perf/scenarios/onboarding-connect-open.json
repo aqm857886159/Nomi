@@ -1,0 +1,33 @@
+{
+  "id": "onboarding-connect-open",
+  "feature": "在未接入状态触发「连接模型」统一入口打开整窗「连接 APIMart」平级页，到主按钮与 Key 输入框可见再过两帧；同一段统计媒体请求与长任务（只看）",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "E10",
+    "--scenarios",
+    "onboarding-connect-open",
+    "--warmup",
+    "1"
+  ],
+  "scale": "隔离空白目录（内置 88 个 APIMart 活跃模型、0 已连供应商），项目画布含 10 个空节点，1440×900 视口加载打包内 3 张示例作品图",
+  "metrics": [
+    "response",
+    "mediaRequests",
+    "longTasks"
+  ],
+  "budget": 150,
+  "p95Budget": 225,
+  "group": "⑫ 接入引导与模型连接",
+  "budgetStatus": "proposed",
+  "budgetBasis": "设计卡 docs/plan/2026-11-24-t5-onboarding-s7b.md ★7：点击任一「连接模型」入口到整窗「连接 APIMart」大页可交互 ≤150ms、p95 ≤225ms（全部作品素材从本机 nomi-local://runtime/onboarding-demo/ 读取，零公网请求，主线程 >50ms 长任务 ≤1）",
+  "baseline": {
+    "median": 47.4,
+    "p95": 47.9,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 16GB",
+    "date": "2026-11-23",
+    "commit": "bde4f7c4b",
+    "noisy": true
+  }
+}

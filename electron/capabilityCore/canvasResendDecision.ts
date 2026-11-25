@@ -13,9 +13,9 @@ import { deriveProductionShotState, productionJobOpenAs, productionShotIdForNode
 export type CanvasResendDecideInput = CanvasResendDecidePayload & { senderId: number };
 export type { CanvasOpenRunEntry };
 
-export type ResendDecisionScope = { projectId: string; nodeId?: string; senderId: number };
+type ResendDecisionScope = { projectId: string; nodeId?: string; senderId: number };
 
-export type ResendDecision = ResendDecisionScope & {
+type ResendDecision = ResendDecisionScope & {
   decisionId: string;
   /** 卡打开那一刻这个节点还在路上的画布 Run → 它最新那一笔作业号（换了一笔就不算同一件事）。 */
   inFlight: ReadonlyMap<string, string | undefined>;
@@ -64,7 +64,7 @@ export function createResendDecisions(now: () => number = Date.now) {
   };
 }
 
-export type ResendDecisions = ReturnType<typeof createResendDecisions>;
+type ResendDecisions = ReturnType<typeof createResendDecisions>;
 
 /**
  * 画布单镜主人（`appIntegrationCanvasShot.ts` 的 `createCanvasShotRuns`）的重发判定与提交准入，只此一处。
@@ -124,8 +124,6 @@ export function createCanvasShotResend(
     dropSender: decisions.dropSender,
   };
 }
-
-export type CanvasShotResend = ReturnType<typeof createCanvasShotResend>;
 
 /** 放行结果未知那一笔的受信入口（制作 Run 命令通道）问的就是这一处；能力核没起来时一律不放。 */
 let active: Pick<ResendDecisions, "covers"> | null = null;

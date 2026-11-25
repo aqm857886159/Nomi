@@ -1,0 +1,215 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-apimart-balance-sources",
+  "problem_type": "Balance snapshots lose the resource identity of the endpoint",
+  "symptom": "Onboarding cannot show account funds and the send balance reader returns the key limit.",
+  "direct_cause": "Both readers queried the key endpoint exclusively.",
+  "class_root": "The read boundary did not distinguish account funds from a per-key allowance.",
+  "affected_population": [
+    "APIMart onboarding and account balance readers"
+  ],
+  "scope_paths": [
+    "electron/ai/onboarding/vendorAccountBalance.ts",
+    "electron/catalog/apimartVendor.ts",
+    "electron/catalog/builtinVendorSeeds.ts",
+    "electron/shared/contracts/vendorAccountBalance.ts",
+    "src/ui/onboarding/ApimartConnectPage.tsx",
+    "src/ui/onboarding/ApimartCheckCard.tsx"
+  ],
+  "entry_points": [
+    "Credential save, foreground refresh and send-side account snapshot"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/account/token-balance",
+      "checked_at": "2026-11-24",
+      "purpose": "Identify the owner of the token-balance response"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/account/user-balance",
+      "checked_at": "2026-11-24",
+      "purpose": "Identify the owner of the user-balance response"
+    }
+  ],
+  "invariants": [
+    "Only an explicit account zero can trigger a top-up.",
+    "Onboarding never computes credits from a positive amount with an unspecified unit."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "checkVendorAccountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "readVendorAccountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "VendorReportedBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "VendorAccountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "parseReportedBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "accountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "userBalancePath"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/builtinVendorSeeds.ts",
+      "symbol": "APIMART_VENDOR_SEED"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "checkVendorAccountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload.ts",
+      "symbol": "VendorAccountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/vendorAccountBalance.ts",
+      "symbol": "VendorReportedBalance"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/onboardingBridgeTypes.ts",
+      "symbol": "VendorAccountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ApimartCheckCard.tsx",
+      "symbol": "VendorReportedBalance"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ApimartConnectPage.tsx",
+      "symbol": "accountBalance"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ApimartConnectPage.tsx",
+      "symbol": "ApimartCheckCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ApimartConnectPage.tsx",
+      "symbol": "keyQuota"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "symbol": "accountBalance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/apimartVendor.ts",
+      "symbol": "APIMART_VENDOR_SEED"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 18,
+    "why_not": "The two resources require separate named results. Seed declaration, lookup, IPC, credential mutation, preload, and presentation each retain their role."
+  },
+  "generality_proof": "Both onboarding paths receive named snapshots from the same guarded reader. The account-only IPC reads the same account resource.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "balanceReader",
+      "responsibility": "Resolve the credential once, enforce the official origin and authorize both GET paths."
+    },
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "parseReportedBalance",
+      "responsibility": "Decode each response by subject. Preserve explicit credits independently of unlabelled amounts; only a key can be unlimited."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "entry_point": "readVendorAccountBalance",
+      "disposition": "enforced",
+      "evidence": "Ordinary IPC returns account funds only."
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "entry_point": "checkVendorAccountBalance",
+      "disposition": "enforced",
+      "evidence": "The candidate check rejects only explicit key authentication refusals."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Account and key limits can diverge on every read.",
+    "same_class_scan": [
+      "door-map on both public readers identifies save, recheck and snapshot paths",
+      "rg remainCredits traces the check rows, top-up branch and Composer receipt"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/onboarding/vendorAccountBalance.ts",
+    "invariant": "Each named snapshot comes only from its declared resource.",
+    "failure_mode": "Unreadable resources remain null independently.",
+    "exception_policy": "none",
+    "strategy": "Resolve one guarded reader and bind responses by requested path.",
+    "artifacts": [
+      "electron/ai/onboarding/vendorAccountBalance.ts",
+      "electron/shared/contracts/vendorAccountBalance.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/ai/onboarding/vendorAccountBalance.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/ai/onboarding/vendorAccountBalance.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/onboarding/vendorAccountBalance.ts"
+    ],
+    "rationale": "Remove the mapping from token allowance to the account-only IPC."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The local response contract owns resource identity. Existing fetch and authorization dependencies are sufficient.",
+    "exit_criteria": []
+  },
+  "migration": "Snapshots are transient and stored credentials and projects need no migration.",
+  "residual_risks": [
+    "Loopback tests exercise official response shapes without a live funded account."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-24",
+  "invariant_owner_layer": {
+    "layer": "electron/ai/onboarding/vendorAccountBalance.ts",
+    "tests": [
+      "electron/ai/onboarding/vendorAccountBalance.test.ts"
+    ]
+  }
+}

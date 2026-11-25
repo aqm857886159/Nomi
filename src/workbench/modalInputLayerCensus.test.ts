@@ -99,7 +99,6 @@ const LAYER_HOSTS: Readonly<Record<string, 'window' | 'canvas-cell'>> = {
   'src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx': 'canvas-cell',
   'src/workbench/generationCanvas/nodes/ProvenancePanel.tsx': 'window',
   'src/workbench/onboarding/JourneyTourController.tsx': 'window',
-  'src/workbench/onboarding/SplashIntro.tsx': 'window',
   'src/workbench/promptLibrary/PromptPreviewOverlay.tsx': 'window',
   'src/workbench/timeline/TimelineShortcutsDialog.tsx': 'window',
 }
@@ -223,7 +222,6 @@ type ListenerRole =
 
 const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: string }>> = {
   'src/design/AnchoredPopover.tsx': { role: 'own-layer', why: '浮层自己的 Esc' },
-  'src/design/outsidePress.ts': { role: 'own-layer', why: '点外面收起的原语' },
   'src/design/useOverlayEscape.ts': { role: 'own-layer', why: '手写弹层的 Esc 原语，有 hasOpenDialogAbove 仲裁' },
   'src/ui/app-shell/shell/ShellAgentHost.tsx': { role: 'boundary', why: 'Mod+J / Mod+\\ 是整窗命令，整窗模态开着时不响应' },
   'src/ui/app-shell/shell/ShellRail.tsx': { role: 'own-layer', why: '抽屉自己的 Esc；抽屉是非模态，上面有弹层时按 DOM 让路（含菜单和非模态对话框，比输入层宽）' },
@@ -233,6 +231,7 @@ const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: strin
   'src/ui/browser/popover/useBrowserAssetActions.ts': { role: 'browser', why: '素材盒里的 Delete / Cmd+A，只在素材盒开着、有选中时生效，不碰工作区' },
   'src/ui/browser/window/useResizableFloatingWindow.ts': { role: 'browser', why: '拖动素材盒窗口边的手势' },
   'src/ui/input/heldModifierReconciler.ts': { role: 'state', why: '记修饰键按住状态，不执行命令' },
+  'src/ui/onboarding/ApimartConnectPage.tsx': { role: 'boundary', why: '连接 APIMart 整窗平级页的 Esc 返回来处（模态覆盖时让位）' },
   'src/ui/onboarding/ModelSettingsDetailDialog.tsx': { role: 'own-layer', why: '模型详情对话框自己的 Esc' },
   'src/ui/onboarding/useModelSettingsPageFocus.ts': { role: 'state', why: '记打开页面的触发元素，用来还焦点' },
   'src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx': { role: 'own-layer', why: '工作流设置页自己的 Esc' },
@@ -240,7 +239,6 @@ const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: strin
   'src/workbench/ai/ProjectAgentResidentShell.tsx': { role: 'own-layer', why: 'Agent 面板弹层点外面收起' },
   'src/workbench/assets/AssetLibraryPanel.tsx': { role: 'own-layer', why: '素材库筛选菜单自己的 Esc' },
   'src/workbench/assets/AssetPreviewDialog.tsx': { role: 'own-layer', why: '素材预览自己的 Esc 和翻页' },
-  'src/workbench/creation/DocumentListSidebar.tsx': { role: 'own-layer', why: '文稿右键菜单自己的 Esc / 点外面' },
   'src/workbench/generation/list/GenerationListView.tsx': { role: 'boundary', why: '列表详情的 Esc' },
   'src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx': { role: 'boundary', why: '灯箱自己的 Esc：画布宿主活动且自己在最上面才接' },
   'src/workbench/generationCanvas/components/canvasDropActiveFlag.ts': { role: 'state', why: '记拖放进行中，不执行命令' },
@@ -251,11 +249,9 @@ const GLOBAL_LISTENERS: Readonly<Record<string, { role: ListenerRole; why: strin
   'src/workbench/onboarding/HandbookPanel.tsx': { role: 'own-layer', why: '手册自己的 Esc' },
   'src/workbench/onboarding/OnboardingSpotlight.tsx': { role: 'own-layer', why: '教学聚光灯自己的 Esc / 外点' },
   'src/workbench/preview/EditingLayoutMenu.tsx': { role: 'own-layer', why: '布局菜单自己的 Esc' },
-  'src/workbench/preview/PreviewWorkspace.tsx': { role: 'boundary', why: '面板布局撤销' },
   'src/workbench/project/useProjectWindowLifecycle.ts': { role: 'window-command', why: '窗口硬刷新前先存盘，和有没有弹层无关' },
   'src/workbench/promptLibrary/PromptPreviewOverlay.tsx': { role: 'own-layer', why: '提示词预览自己的 Esc' },
   'src/workbench/settings/SettingsDialog.tsx': { role: 'own-layer', why: '设置对话框自己的 Esc' },
-  'src/workbench/sidebar/CategoryTree.tsx': { role: 'own-layer', why: '分类树右键菜单自己的 Esc / 点外面' },
   'src/workbench/taskCenter/TaskCenterPanel.tsx': { role: 'own-layer', why: '任务中心自己的 Esc' },
   'src/workbench/timeline/TimelinePanel.tsx': { role: 'boundary', why: '时间轴快捷键和帮助键' },
   'src/workbench/timeline/TimelineShortcutsDialog.tsx': { role: 'own-layer', why: '帮助框自己的 ?，自己在最上面才接' },

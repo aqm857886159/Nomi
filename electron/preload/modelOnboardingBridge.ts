@@ -25,6 +25,7 @@ export const modelOnboardingBridge = {
       const channel = "nomi:model-catalog:vendor-api-key:upsert";
       return unwrapIpcResult(await ipcRenderer.invoke(channel, vendorKey, payload), channel);
     },
+    recheckApimartBalance: () => ipcRenderer.invoke("nomi:onboarding:vendor-account-balance", { vendorKey: "apimart", source: "apimart-connect" }),
     clearVendorApiKey: (vendorKey: string) => invokeSync("nomi:model-catalog:vendor-api-key:clear", vendorKey),
     /** 「验这家的 key 要不要花钱、大概多少」——接入页按钮文案的唯一料源（T-MO-10）。 */
     upsertModel: (payload: unknown) => invokeSync("nomi:model-catalog:model:upsert", payload),

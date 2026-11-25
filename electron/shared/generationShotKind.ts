@@ -13,8 +13,8 @@
 // （`modelKindForTaskKind`，模型准入用的也是它），这里不另抄一张表。
 import type { BillingModelKind } from "../catalog/types";
 import { modelKindForTaskKind } from "./capabilityModeManifest";
-import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
-import { isGenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import type { GenerationDefaultTaskKind } from "./contracts/generationModelDefaultsContract";
+import { isGenerationDefaultTaskKind } from "./contracts/generationModelDefaultsContract";
 import { transportTaskKindForModeId } from "./videoCapabilities/registry";
 
 /** 一镜出来的是图片还是视频。 */

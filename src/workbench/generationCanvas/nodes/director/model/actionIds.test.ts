@@ -135,10 +135,10 @@ describe('认不出的动作 id：写口拒、读档原样留着', () => {
     expect(group.store.getState().applyPosePresetToGroup(group.groupId!, UNKNOWN)).toBe(0)
     expect(store.getState().addActionClip(id, { name: 'x', clipType: 'action', actionPose: UNKNOWN }, 'at_time', 0)).toBeNull()
     const clip = store.getState().addActionClip(id, { name: 'walk', clipType: 'action', actionPose: 'Walk_Loop' }, 'at_time', 0)!
-    const undoDepth = store.getState().undoStack.length
+    const undoDepth = store.temporal.getState().pastStates.length
     store.getState().updateActionClip(id, clip.id, { actionPose: UNKNOWN, name: 'renamed' })
     expect(store.getState().findObject(id)!.actionClips!.find((item) => item.id === clip.id)).toMatchObject({ actionPose: 'Walk_Loop', name: 'walk' })
-    expect(store.getState().undoStack.length).toBe(undoDepth)
+    expect(store.temporal.getState().pastStates.length).toBe(undoDepth)
   })
 
   it('读档不改写（不猜成别的动作，也不改成 T-Pose）', () => {

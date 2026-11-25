@@ -1,6 +1,6 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 后台生成 / 截图热键提交后切项目（PR 802 根因修复的真实入口验收）。
-// 用法: node tests/ux/project-switch-background-run.walk.mjs   产出: tests/ux/shots/project-switch-background-run/*.png
+// 用法: node tests/ux/project-switch-background-run.walk.mjs
 //
 // 已批准行为：已提交的后台生成属于**原项目**，切项目不取消它；结局落回原项目（原项目不在前台就写它的盘上
 // 副本），新项目零副作用。这条走查像真人一样点：项目库新建 A → 画布加图片节点、写提示词 → 批量生成确认 →
@@ -11,10 +11,10 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import http from 'node:http'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import { buildWalkCatalog } from './_world.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
@@ -24,10 +24,11 @@ import { backToLibrary, newProjectEntry, switchWorkspace } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const mode = process.env.NOMI_BACKGROUND_MODE || 'single'
 if (!['single', 'variants', 'storyboard-first-frame', 'storyboard-batch'].includes(mode)) throw new Error(`Unknown background mode: ${mode}`)
-const shotsDir = process.env.NOMI_BACKGROUND_OUT || path.join(repoRoot, `tests/ux/shots/project-switch-background-run-${mode}`)
-const expectedRequests = mode === 'variants' ? 3 : mode === 'storyboard-first-frame' ? 2 : mode === 'storyboard-batch' ? 7 : 1
-fs.rmSync(shotsDir, { recursive: true, force: true })
 const tempRoot = makeTempDir('nomi-project-switch-run-')
+const output = process.env.NOMI_BACKGROUND_OUT || process.env.EVIDENCE_DIR
+const shotsDir = output ? assertOutsideRepo(output) : path.join(tempRoot, 'evidence')
+process.env.EVIDENCE_DIR = shotsDir
+const expectedRequests = mode === 'variants' ? 3 : mode === 'storyboard-first-frame' ? 2 : mode === 'storyboard-batch' ? 7 : 1
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
@@ -131,10 +132,12 @@ async function projectRoot(win, projectId) {
   check(Boolean(root) && !path.relative(projectsDir, root).startsWith('..'), `项目 ${projectId} 落在隔离项目目录里`)
   return root
 }
+function readProjectPayload(root) {
+  return JSON.parse(fs.readFileSync(path.join(root, '.nomi', 'project.json'), 'utf8')).payload
+}
 function readCanvas(root) {
-  const file = path.join(root, '.nomi', 'project.json')
-  const canvas = JSON.parse(fs.readFileSync(file, 'utf8')).payload.generationCanvas
-  if (!canvas || !Array.isArray(canvas.nodes) || !Array.isArray(canvas.edges)) throw new Error(`Missing or invalid persisted generationCanvas: ${file}`)
+  const canvas = readProjectPayload(root).generationCanvas
+  if (!canvas || !Array.isArray(canvas.nodes) || !Array.isArray(canvas.edges)) throw new Error(`Missing or invalid persisted generationCanvas: ${root}`)
   return canvas
 }
 function canvasSha256(canvas) {
@@ -281,9 +284,18 @@ try {
   const projectB = await newBlankProject(win)
   check(projectB !== projectA, '切到的是另一个项目')
   const rootB = await projectRoot(win, projectB)
+  // 只打开 B 会停在新建时的骨架。经真实编辑等到第一次自动保存，才取完整画布指纹。
+  await switchWorkspace(win, 'creation', '切到 B 的创作区')
+  const bDraft = '项目 B 的自动保存基线'
+  await win.locator('[data-creation-editor="true"] .tiptap[contenteditable="true"]').fill(bDraft)
+  await expect.poll(() => {
+    const payload = readProjectPayload(rootB)
+    return JSON.stringify(payload.workbenchDocuments?.find((doc) => doc.id === payload.activeDocumentId)?.contentJson)
+  }, { message: 'B 的文稿已经自动保存，再放行 A 的供应商响应', timeout: stationTimeout({ operations: 2 }) }).toContain(bDraft)
+  await switchWorkspace(win, 'generation', '回到 B 的生成区')
   const bNodesProbe = await proveProbe(win.locator('.generation-canvas-v2__stage'), 'B 的画布舞台已渲染（节点缺席断言有信号）')
   const bDocument = await win.evaluate(() => window.__nomiCanvasStore.getState().readDocumentSnapshot())
-  await expect.poll(() => readCanvas(rootB), { message: 'B 初始化自动保存完成后再放行 A 的供应商响应' }).toMatchObject(bDocument)
+  await expect.poll(() => readCanvas(rootB), { message: 'B 已保存的画布与渲染层文档一致' }).toMatchObject(bDocument)
   const bCanvasBefore = readCanvas(rootB)
   report.projectB = projectB
   report.bCanvasBefore = bCanvasBefore
@@ -370,6 +382,8 @@ try {
     await snap(win, 'b-after-screenshot-in-a')
   }
 
+  const savedB = readProjectPayload(rootB)
+  check(JSON.stringify(savedB.workbenchDocuments?.find((doc) => doc.id === savedB.activeDocumentId)?.contentJson)?.includes(bDraft), 'B 的文稿仍是自己的初始编辑')
   check(wireCalls.length === expectedRequests, '返回原项目未产生新请求')
   if (mode.startsWith('storyboard-')) {
     await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '返回原分镜工作区')

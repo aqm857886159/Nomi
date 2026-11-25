@@ -1,3 +1,4 @@
+import { BoundedCache } from '../../electron/shared/boundedCache'
 import React, { type JSX } from 'react'
 import type { NotificationData } from '@mantine/notifications'
 import { notifications, notificationsStore } from '@mantine/notifications'
@@ -142,8 +143,7 @@ export function buildToastNotification(input: Toast & { onClose?: () => void }):
 // 提示的生命周期账（模块内、按 id）：谁在监视它的前提、哪一次事件已经被关掉。
 // 「关掉过的事件不再冒出来」靠的是 occurrence 而不是 id：同一张卡的下一次失败是另一个 occurrence，照常弹。
 const validityWatchers = new Map<string, () => void>()
-const closedOccurrences = new Map<string, string>()
-const CLOSED_OCCURRENCE_LIMIT = 200
+const closedOccurrences = new BoundedCache<string, string>({ maxEntries: 200, order: 'write' })
 
 function unwatch(id: string): void {
   const stop = validityWatchers.get(id)
@@ -173,12 +173,7 @@ function watch(id: string, validity: ToastValidity | undefined): void {
 function settle(id: string, occurrence: string | undefined): void {
   unwatch(id)
   if (occurrence === undefined) return
-  closedOccurrences.delete(id)
   closedOccurrences.set(id, occurrence)
-  if (closedOccurrences.size > CLOSED_OCCURRENCE_LIMIT) {
-    const oldest = closedOccurrences.keys().next().value
-    if (oldest !== undefined) closedOccurrences.delete(oldest)
-  }
 }
 
 const toastStore = {

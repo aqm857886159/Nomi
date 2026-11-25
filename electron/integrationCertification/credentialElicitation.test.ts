@@ -46,6 +46,20 @@ describe("credential elicitation ticket store", () => {
     expect(store.size()).toBe(0);
   });
 
+  it("retains 32 tickets in mint order even after resolving the oldest", () => {
+    const store = makeStore();
+    const mint = (index: number) => new URL(store.mint({ sessionId: String(index), display })!.url).searchParams.get("t")!;
+    const oldest = mint(0);
+    const next = mint(1);
+    for (let index = 2; index < 32; index += 1) mint(index);
+    expect(store.resolve(oldest)?.sessionId).toBe("0");
+    const latest = mint(32);
+    expect(store.resolve(oldest)).toBeNull();
+    expect(store.resolve(next)?.sessionId).toBe("1");
+    expect(store.resolve(latest)?.sessionId).toBe("32");
+    expect(store.size()).toBe(32);
+  });
+
   it("expires the ticket once its TTL passes", () => {
     let clock = 1_000;
     const store = makeStore({ now: () => clock, ttlMs: 5_000 });

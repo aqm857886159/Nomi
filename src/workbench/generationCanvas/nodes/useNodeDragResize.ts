@@ -27,7 +27,7 @@ import {
   type ResizeDirection,
 } from './nodeSizing'
 
-type StoreUpdate = (nodeId: string, patch: Partial<GenerationCanvasNode>, options?: { persist?: boolean }) => void
+type StoreUpdate = (nodeId: string, patch: Partial<GenerationCanvasNode>, options?: { persist?: boolean; history?: boolean }) => void
 
 type UseNodeDragResizeArgs = {
   reportFeedback: (message: string) => void
@@ -88,29 +88,12 @@ export function useNodeDragResize({
     height: number
     direction: ResizeDirection
   } | null>(null)
-  const moveFrameRef = React.useRef<number | null>(null)
-  const pendingNodePositionRef = React.useRef<{
-    x: number
-    y: number
-  } | null>(null)
-  const pendingSelectedDeltaRef = React.useRef<{
-    x: number
-    y: number
-  } | null>(null)
-
-  const flushPendingMove = React.useCallback(() => {
-    moveFrameRef.current = null
-    const selectedDelta = pendingSelectedDeltaRef.current
-    const nodePosition = pendingNodePositionRef.current
-    pendingSelectedDeltaRef.current = null
-    pendingNodePositionRef.current = null
-    if (selectedDelta && (selectedDelta.x !== 0 || selectedDelta.y !== 0)) {
-      moveSelectedNodes(selectedDelta, { persist: false, emit: false })
-    }
-    if (nodePosition) {
-      moveNode(node.id, nodePosition, { persist: false, emit: false })
-    }
-  }, [moveNode, moveSelectedNodes, node.id])
+  const [preview, setPreview] = React.useState<Pick<GenerationCanvasNode, 'position' | 'size'> | null>(null)
+  const draft = React.useRef<typeof preview>(null)
+  function previewGeometry(geometry: NonNullable<typeof preview>) {
+    draft.current = geometry
+    setPreview(geometry)
+  }
 
   const emitDragSettled = React.useCallback(
     (multi: boolean) => {
@@ -127,45 +110,14 @@ export function useNodeDragResize({
     [node.id],
   )
 
-  const requestMoveFrame = React.useCallback(() => {
-    if (moveFrameRef.current !== null) return
-    moveFrameRef.current = window.requestAnimationFrame(flushPendingMove)
-  }, [flushPendingMove])
-
-  const scheduleNodeMove = React.useCallback(
-    (position: { x: number; y: number }) => {
-      pendingNodePositionRef.current = position
-      requestMoveFrame()
-    },
-    [requestMoveFrame],
-  )
-
-  const scheduleSelectedMove = React.useCallback(
-    (delta: { x: number; y: number }) => {
-      const pending = pendingSelectedDeltaRef.current
-      pendingSelectedDeltaRef.current = pending ? { x: pending.x + delta.x, y: pending.y + delta.y } : delta
-      requestMoveFrame()
-    },
-    [requestMoveFrame],
-  )
-
-  const flushScheduledMove = React.useCallback(() => {
-    if (moveFrameRef.current !== null) {
-      window.cancelAnimationFrame(moveFrameRef.current)
-    }
-    flushPendingMove()
-  }, [flushPendingMove])
-
   const cancelGesture = React.useCallback(() => {
     leaseRef.current?.release()
     leaseRef.current = null
     gesturePointerRef.current = null
     dragStartRef.current = null
     resizeStartRef.current = null
-    if (moveFrameRef.current !== null) window.cancelAnimationFrame(moveFrameRef.current)
-    moveFrameRef.current = null
-    pendingNodePositionRef.current = null
-    pendingSelectedDeltaRef.current = null
+    draft.current = null
+    setPreview(null)
     const capture = captureRef.current
     captureRef.current = null
     try { capture?.target.releasePointerCapture(capture.pointerId) } catch { /* already lost */ }
@@ -201,7 +153,6 @@ export function useNodeDragResize({
     cancelGesture()
     gesturePointerRef.current = event.pointerId
     leaseRef.current = beginCanvasDragging(event.currentTarget, CANVAS_DRAGGING_OWNER.node, { pointerId: event.pointerId, active: false, onCancel: cancelGesture })
-    captureHistory()
     const dragSelection = selected && isMultiSelectActive && !event.shiftKey
     dragStartRef.current = {
       pointerX: event.clientX,
@@ -279,25 +230,13 @@ export function useNodeDragResize({
             ? clampNumber(resizeStart.height + deltaY, sizeBounds.minHeight, sizeBounds.maxHeight)
             : resizeStart.height
       }
-      updateNode(
-        node.id,
-        {
-          position: {
-            x: pullsWest ? resizeStart.x + resizeStart.width - nextWidth : resizeStart.x,
-            y: pullsNorth ? resizeStart.y + resizeStart.height - nextHeight : resizeStart.y,
-          },
-          size: {
-            width: nextWidth,
-            height: nextHeight,
-          },
-          meta: {
-            ...(node.meta || {}),
-            userResized: true,
-            previewHeight: nextHeight,
-          },
+      previewGeometry({
+        position: {
+          x: pullsWest ? resizeStart.x + resizeStart.width - nextWidth : resizeStart.x,
+          y: pullsNorth ? resizeStart.y + resizeStart.height - nextHeight : resizeStart.y,
         },
-        { persist: false },
-      )
+        size: { width: nextWidth, height: nextHeight },
+      })
       return
     }
     const dragStart = dragStartRef.current
@@ -325,19 +264,10 @@ export function useNodeDragResize({
     }
     event.preventDefault()
     event.stopPropagation()
-    if (dragStart.multi) {
-      scheduleSelectedMove({
-        x: deltaX - dragStart.lastDeltaX,
-        y: deltaY - dragStart.lastDeltaY,
-      })
-      dragStart.lastDeltaX = deltaX
-      dragStart.lastDeltaY = deltaY
-      return
-    }
-    scheduleNodeMove({
-      x: Math.round(dragStart.x + deltaX),
-      y: Math.round(dragStart.y + deltaY),
-    })
+    dragStart.lastDeltaX = deltaX
+    dragStart.lastDeltaY = deltaY
+    previewGeometry({ position: { x: dragStart.x + deltaX, y: dragStart.y + deltaY } })
+
   }
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -345,9 +275,8 @@ export function useNodeDragResize({
     if (readOnly) { cancelGesture(); return }
     if (gesturePointerRef.current !== event.pointerId) return
     leaseRef.current?.release()
-    flushScheduledMove()
     const dragStart = dragStartRef.current
-    const hadResize = Boolean(resizeStartRef.current)
+    const resize = resizeStartRef.current
     const droppedOverTimeline = dragStart?.dragging ? findTimelineDropTarget(event.clientX, event.clientY) : null
     const timelineDropTarget = droppedOverTimeline && node.result?.url ? droppedOverTimeline : null
     // 用户把还没生成画面的节点拖到时间轴：给反馈，别静默弹回（P0-9 / I-1）。
@@ -363,21 +292,17 @@ export function useNodeDragResize({
       // 幂等 / 新鲜度 / 原子写 / 一步撤销统一由桥负责。拖拽时用户已经在看着轴，回执不再展开面板。
       void adoptGenerationNode(liveNode, { placement: { kind: 'frame', startFrame } }).then((outcome) => {
         reportAdoptionOutcome(outcome, { revealTimeline: false })
-        if (!dragStart?.multi) {
-          moveNode(
-            node.id,
-            {
-              x: dragStart?.x ?? node.position.x,
-              y: dragStart?.y ?? node.position.y,
-            },
-            { persist: false, emit: false },
-          )
-        }
       })
-    }
-    if (dragStart?.dragging || hadResize) {
-      if (dragStart?.dragging) emitDragSettled(dragStart.multi)
+    } else if (dragStart?.dragging && (dragStart.lastDeltaX || dragStart.lastDeltaY)) {
+      captureHistory()
+      if (dragStart.multi) moveSelectedNodes({ x: dragStart.lastDeltaX, y: dragStart.lastDeltaY }, { persist: false, emit: false })
+      else if (draft.current) moveNode(node.id, draft.current.position, { persist: false, emit: false })
+      emitDragSettled(dragStart.multi)
       commitPersistedChange()
+    } else if (resize && draft.current?.size && (draft.current.size.width !== resize.width || draft.current.size.height !== resize.height)) {
+      const current = useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === node.id)
+      captureHistory()
+      updateNode(node.id, { ...draft.current, meta: { ...current?.meta, userResized: true, previewHeight: draft.current.size.height } }, { history: false })
     }
     if (dragStart && !dragStart.dragging && dragStart.collapseSelectionOnClick) {
       selectNode(node.id, false)
@@ -392,7 +317,6 @@ export function useNodeDragResize({
     if (readOnly) return
     cancelGesture()
     gesturePointerRef.current = event.pointerId
-    captureHistory()
     leaseRef.current = beginCanvasDragging(event.currentTarget, CANVAS_DRAGGING_OWNER.node, { pointerId: event.pointerId, onCancel: cancelGesture })
     captureRef.current = { target: event.currentTarget, pointerId: event.pointerId }
     resizeStartRef.current = {
@@ -408,5 +332,5 @@ export function useNodeDragResize({
       event.currentTarget.setPointerCapture(event.pointerId)
     }
   }
-  return { flowManagedDrag, handlePointerDown, handlePointerMove, handlePointerUp, handleResizePointerDown }
+  return { preview, flowManagedDrag, handlePointerDown, handlePointerMove, handlePointerUp, handleResizePointerDown }
 }

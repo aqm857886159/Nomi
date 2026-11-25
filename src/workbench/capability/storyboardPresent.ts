@@ -13,7 +13,7 @@ import { generateAnchorCard, runStoryboardBatch } from '../creation/storyboard/e
 import { mergeRunOutcomes, type GenerationRunOutcome } from '../generationCanvas/runner/generationRunOutcome'
 
 /** 他说了「不」那一支的回包：形状与成功那一支逐字相同，只有 `decision` 不一样。 */
-export type StoryboardPresentResult = {
+type StoryboardPresentResult = {
   status: 'presented'
   designId: string
   shotIds: readonly string[]

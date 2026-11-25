@@ -8,7 +8,7 @@
  */
 import { bumpPersistRevision, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasPatchHistory'
 import { buildSelectedClipboard, cloneClipboardPayload } from './canvasClipboard'
 import { assignClonedShotIndexes } from '../model/shotNumbering'
 import { createGroupId } from './canvasIds'

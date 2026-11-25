@@ -229,18 +229,18 @@ describe('健康记忆按 (vendor, modelKey) 判定 —— 「换家优先于换
 // 2026-09-06 用户拍板：没接入的供应商，它的模型不再沉底灰显，而是根本不出现。
 // 于是新装机上这个下拉会一条都不剩——空白下拉读起来像「坏了」，必须换成说得清、点得动的一行。
 describe('一家供应商都没接入 → 诚实空态，而不是空白下拉', () => {
-  it('折叠版下拉给出「还没接入供应商 · 去接入」一行', () => {
+  it('折叠版下拉给出「还没连模型 · 连接模型」一行', () => {
     const view = buildModelSelectOptions([], healthy)
     expect(view).toHaveLength(1)
     expect(view[0]).toMatchObject({
       value: CONNECT_VENDOR_OPTION_VALUE,
-      label: '还没接入供应商',
-      trailing: '去接入',
+      label: i18n.t('generationCommon.parameters.noVendorConnected'),
+      trailing: i18n.t('generationCommon.parameters.connectVendorAction'),
       trailingTone: 'accent',
     })
   })
 
-  it('点那一行 = 打开模型接入页，绝不当成选了个模型', () => {
+  it('点那一行 = 打开连接 APIMart 接入大页，绝不当成选了个模型', () => {
     const onChange = vi.fn()
     const events: string[] = []
     // 这个测试文件跑在无 DOM 环境（纯函数直测），所以只桩出这一行代码真正用到的那个口子。
@@ -253,7 +253,7 @@ describe('一家供应商都没接入 → 诚实空态，而不是空白下拉',
       }
       renderToStaticMarkup(createElement(Probe))
       view.onModelPick(CONNECT_VENDOR_OPTION_VALUE)
-      expect(events).toEqual(['nomi-open-model-catalog'])
+      expect(events).toEqual(['nomi-open-apimart-connect'])
       expect(onChange).not.toHaveBeenCalled()
     } finally {
       vi.unstubAllGlobals()

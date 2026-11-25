@@ -82,7 +82,7 @@ describe('generation canvas control structure', () => {
     const dragResize = source('../nodes/useNodeDragResize.ts')
     const flowStyles = source('../reactFlow/generationCanvasReactFlow.css')
 
-    expect(dragResize).toContain('return { flowManagedDrag, handlePointerDown')
+    expect(dragResize).toContain('return { preview, flowManagedDrag, handlePointerDown')
     expect(baseNode).toContain("flowManagedLayout ? 'relative' : 'absolute'")
     expect(baseNode).toContain('transform: flowManagedLayout ? undefined : `translate(')
     expect(baseNode).toContain('selected && !readOnly && !flowManagedLayout')

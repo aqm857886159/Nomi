@@ -16,7 +16,9 @@ import NodeInputReferenceEntry from './NodeInputReferenceEntry'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowUp, IconChevronDown } from '@tabler/icons-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchButton } from '../../../design'
 import { WorkbenchMenu, type WorkbenchMenuAnchorRect, type WorkbenchMenuNode } from '../../../design/menu'
+import { openApimartConnect } from '../../../ui/onboarding/apimartConnectRoute'
 import { cn } from '../../../utils/cn'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { findModelOptionByIdentifier, useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
@@ -186,26 +188,40 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
       options: (['append', 'rewrite', 'replace'] as const).map((value) => ({ id: value, value, label: t(MODE_LABEL_KEY[value]) })),
     },
   ]
-  const modelOptions = useGenerationModelOptionsState('text').options
+  const modelOptionsState = useGenerationModelOptionsState('text')
+  const modelOptions = modelOptionsState.options
+  const noTextModelConnected = modelOptions.length === 0 && modelOptionsState.status !== 'loading'
   const address = nodeSelectedModelAddress(meta)
   const selected = address.modelKey ? findModelOptionByIdentifier(modelOptions, address.modelKey, address.vendorKey) : null
-  const modelLabel = address.modelKey ? (selected?.label || address.modelKey) : t('generationCommon.textProcess.followAgent')
-  const modelItems: WorkbenchMenuNode[] = [
-    {
-      kind: 'radio',
-      id: 'model',
-      value: address.modelKey ? `${address.vendorKey ?? ''}::${address.modelKey}` : '',
-      onValueChange: (value) => {
-        if (!value) { setMeta({}, ['modelKey', 'modelAlias', 'modelVendor', 'vendor']); return }
-        const option = modelOptions.find((candidate) => `${candidate.vendor ?? ''}::${candidate.value}` === value)
-        if (option) setMeta({ modelKey: option.value, ...(option.vendor ? { modelVendor: option.vendor } : {}) }, ['modelAlias', 'vendor'])
-      },
-      options: [
-        { id: 'follow', value: '', label: t('generationCommon.textProcess.followAgent') },
-        ...modelOptions.map((option) => ({ id: `${option.vendor ?? ''}::${option.value}`, value: `${option.vendor ?? ''}::${option.value}`, label: option.label })),
-      ],
-    },
-  ]
+  const modelLabel = noTextModelConnected
+    ? t('onboardingProviders.entries.modelChipEmpty')
+    : address.modelKey
+      ? (selected?.label || address.modelKey)
+      : t('generationCommon.textProcess.followAgent')
+  const modelItems: WorkbenchMenuNode[] = noTextModelConnected
+    ? [
+        {
+          id: 'connect-model',
+          label: `${t('generationCommon.parameters.noVendorConnected')} · ${t('generationCommon.parameters.connectVendorAction')}`,
+          onSelect: () => openApimartConnect(),
+        },
+      ]
+    : [
+        {
+          kind: 'radio',
+          id: 'model',
+          value: address.modelKey ? `${address.vendorKey ?? ''}::${address.modelKey}` : '',
+          onValueChange: (value) => {
+            if (!value) { setMeta({}, ['modelKey', 'modelAlias', 'modelVendor', 'vendor']); return }
+            const option = modelOptions.find((candidate) => `${candidate.vendor ?? ''}::${candidate.value}` === value)
+            if (option) setMeta({ modelKey: option.value, ...(option.vendor ? { modelVendor: option.vendor } : {}) }, ['modelAlias', 'vendor'])
+          },
+          options: [
+            { id: 'follow', value: '', label: t('generationCommon.textProcess.followAgent') },
+            ...modelOptions.map((option) => ({ id: `${option.vendor ?? ''}::${option.value}`, value: `${option.vendor ?? ''}::${option.value}`, label: option.label })),
+          ],
+        },
+      ]
 
   return (
     <ComposerAnchor
@@ -295,17 +311,40 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
             disabled={readOnly || running}
             testId="model-menu"
           />
-          <button
-            type="button"
-            data-bar-segment="generate"
-            data-text-composer="send"
-            className={cn(GENERATE_BUTTON_CLASS, 'h-7 w-7')}
-            aria-label={t('generationCommon.textProcess.send')}
-            disabled={!canSend}
-            onClick={(event) => { event.stopPropagation(); runInstruction() }}
-          >
-            {running ? '···' : <IconArrowUp size={14} stroke={1.5} aria-hidden="true" />}
-          </button>
+          {noTextModelConnected && !readOnly ? (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <WorkbenchButton
+                    size="sm"
+                    variant="primary"
+                    className="shrink-0 rounded-pill px-3 font-semibold"
+                    data-bar-segment="generate"
+                    data-text-composer="connect"
+                    data-composer-connect="true"
+                    onClick={(event) => { event.stopPropagation(); openApimartConnect() }}
+                  >
+                    {t('onboardingProviders.entries.connectModel')}
+                  </WorkbenchButton>
+                </TooltipTrigger>
+                <TooltipContent side="top" data-composer-connect-tooltip="true">
+                  {t('onboardingProviders.entries.composerTooltipGeneric')}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <button
+              type="button"
+              data-bar-segment="generate"
+              data-text-composer="send"
+              className={cn(GENERATE_BUTTON_CLASS, 'h-7 w-7')}
+              aria-label={t('generationCommon.textProcess.send')}
+              disabled={!canSend}
+              onClick={(event) => { event.stopPropagation(); runInstruction() }}
+            >
+              {running ? '···' : <IconArrowUp size={14} stroke={1.5} aria-hidden="true" />}
+            </button>
+          )}
         </div>
       </div>
     </ComposerAnchor>

@@ -10,12 +10,13 @@ import { expect } from '@playwright/test'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { closeSettings, ensureAgentPanelOpen, newProjectEntry, openSettings } from './_shell.mjs'
+import { uiTextWith } from './full-walk/invariants.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
-const shotsDir = path.resolve(process.argv.find((arg) => arg.startsWith('--shots-out='))?.split('=').slice(1).join('=')
-  || 'tests/ux/shots/mcp-workbuddy-client-profile')
-fs.mkdirSync(shotsDir, { recursive: true })
 const tempRoot = makeTempDir('nomi-mcp-workbuddy-walk-')
+const shotsDir = assertOutsideRepo(makeTempDir('nomi-mcp-workbuddy-evidence-'))
+process.env.EVIDENCE_DIR = shotsDir
 const testHome = path.join(tempRoot, 'home')
 fs.mkdirSync(testHome)
 const workbuddyDir = path.join(testHome, '.workbuddy')
@@ -35,17 +36,18 @@ async function snap(win, name) {
   await screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) })
 }
 async function openMcpPanel(win) {
-  await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings', {
-    detail: { tab: 'automation', section: 'automation' },
-  })))
-  const settings = win.locator('[data-settings-overlay="true"]')
-  await expect(settings).toBeVisible()
+  const settings = await openSettings(win, { tab: 'automation' })
   await clickOrFail(settings.locator('[data-settings-action="manage-mcp-connections"]'), 'Manage MCP connections')
   const panel = settings.locator('[data-settings-section="mcp-assistant-connections"]')
   await expect(panel).toBeVisible()
-  await clickOrFail(panel.getByText('WorkBuddy', { exact: true }).last(), 'WorkBuddy client')
+  const clients = panel.getByRole('radiogroup')
+  await clickOrFail(clients.locator('label').filter({ hasText: 'WorkBuddy' }), 'WorkBuddy client')
+  await expect(clients.getByRole('radio', { name: /WorkBuddy/ })).toBeChecked()
   return panel
 }
+const clientCopy = (key) => uiTextWith('zh-CN', `onboardingProviders.assistant.${key}`, { client: 'WorkBuddy' })
+const connectButton = (panel) => panel.getByRole('button', { name: clientCopy('connect'), exact: true })
+const writtenStatus = (panel) => panel.locator('[data-assistant-status="written"]').getByText(clientCopy('box.writtenTitle'), { exact: true })
 try {
   launched = await launchNomiApp({
     name: 'mcp-workbuddy-client-profile', tempRoot,
@@ -60,13 +62,13 @@ try {
   const { win } = launched
   await win.setViewportSize({ width: 1180, height: 820 })
   await clickOrFail(newProjectEntry(win), 'New blank project')
-  await expect(win.getByText(/创作助手|Creative assistant/).first()).toBeVisible({ timeout: stationTimeout({ operations: 1 }) })
+  await ensureAgentPanelOpen(win)
   let panel = await openMcpPanel(win)
-  const connect = panel.getByRole('button', { name: /一键接入 WorkBuddy|Connect WorkBuddy/ })
+  const connect = connectButton(panel)
   await expect(connect).toBeVisible()
   await snap(win, 'zh-light-workbuddy-before-connect')
   await clickOrFail(connect, 'Connect WorkBuddy')
-  await expect(panel.getByText(/已写入 WorkBuddy 配置|已连通 WorkBuddy|Connected to WorkBuddy/)).toBeVisible({ timeout: stationTimeout({ operations: 1 }) })
+  await expect(writtenStatus(panel)).toBeVisible({ timeout: stationTimeout({ operations: 1 }) })
   const after = JSON.parse(fs.readFileSync(configPath, 'utf8'))
   const { nomi, ...others } = after.mcpServers
   assert.deepEqual(others, before.mcpServers || {}, 'existing servers were changed')
@@ -78,12 +80,13 @@ try {
   assert.deepEqual(snapshot(internalPath), beforeInternal)
   await snap(win, 'zh-light-workbuddy-after-connect')
   // 真关闭设置再打开，避免只看安装回调的临时状态。
-  await clickOrFail(win.locator('[data-settings-overlay="true"]').getByRole('button', { name: /关闭|Close/ }).last(), 'Close settings')
+  await closeSettings(win)
   panel = await openMcpPanel(win)
-  await expect(panel.getByText(/已写入 WorkBuddy 配置|已连通 WorkBuddy|Connected to WorkBuddy/)).toBeVisible({ timeout: stationTimeout({ operations: 1 }) })
+  await expect(writtenStatus(panel)).toBeVisible({ timeout: stationTimeout({ operations: 1 }) })
   await snap(win, 'zh-light-workbuddy-reopened')
-  await clickOrFail(panel.getByRole('button', { name: /撤销接入|Disconnect/ }), 'Disconnect WorkBuddy')
-  await expect(panel.getByRole('button', { name: /一键接入 WorkBuddy|Connect WorkBuddy/ })).toBeVisible()
+  await clickOrFail(panel.getByRole('button', { name: clientCopy('disconnect'), exact: true }), 'Disconnect WorkBuddy')
+  await clickOrFail(panel.locator('[data-assistant-revoke-confirm]'), 'Confirm disconnect')
+  await expect(connectButton(panel)).toBeVisible()
   assert.deepEqual(JSON.parse(fs.readFileSync(configPath, 'utf8')), before)
   console.log('MCP WORKBUDDY PROFILE WALK PASS: existing servers, snippet, signed identity, reopened state')
 } finally {

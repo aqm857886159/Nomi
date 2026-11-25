@@ -180,6 +180,28 @@ describe("workspace manifest lock", () => {
     releaseWorkspaceManifestLock(acquired);
   });
 
+  it.each(["EEXIST", "ENOTEMPTY", "EPERM"])("returns %s contention after one candidate publication attempt", (code) => {
+    const root = makeTempDir();
+    const publishedLockDir = lockDir(root);
+    const ownerPath = path.join(publishedLockDir, "owner.json");
+    const competingOwner = '{"nonce":"competing-owner"}';
+    const realRename = fs.renameSync.bind(fs);
+    const publish = vi.fn(() => {
+      fs.mkdirSync(publishedLockDir, { recursive: true });
+      fs.writeFileSync(ownerPath, competingOwner);
+      throw Object.assign(new Error("owner already published"), { code });
+    });
+    vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
+      if (to === publishedLockDir) publish();
+      realRename(from, to);
+    });
+
+    expect(() => tryAcquireWorkspaceManifestLock(root)).toThrow(WorkspaceManifestLockBusyError);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(ownerPath, "utf8")).toBe(competingOwner);
+    expect(fs.readdirSync(path.dirname(publishedLockDir))).toEqual([path.basename(publishedLockDir)]);
+  });
+
   it("re-reads the published owner before allowing the critical section", () => {
     const root = makeTempDir();
     const publishedLockDir = lockDir(root);

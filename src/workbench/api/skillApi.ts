@@ -25,7 +25,7 @@ export type SkillListItemDto = {
   contentHash: string
 }
 
-export type SkillImportResultDto = {
+type SkillImportResultDto = {
   ok: boolean
   dirName?: string
   skillName?: string
@@ -34,7 +34,7 @@ export type SkillImportResultDto = {
   error?: string
 }
 
-export type SkillDeleteResultDto = {
+type SkillDeleteResultDto = {
   ok: boolean
   dirName?: string
   error?: string

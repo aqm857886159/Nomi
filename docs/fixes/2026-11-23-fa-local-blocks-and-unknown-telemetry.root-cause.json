@@ -1,0 +1,327 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-23-fa-local-blocks-and-unknown-telemetry",
+  "problem_type": "Loss of classified generation failures and renderer retry amplification",
+  "symptom": "The release radar reports 557 unknown reasons across versions and 27 image failures on one installation. Controlled repros show classified failures becoming unknown and deterministic terminal failures executing three times.",
+  "direct_cause": "Task IPC drops the vendor category carried by an adapter cause. The Run substitutes a generic sentence for most terminal reasons. The renderer retry policy reads timeout-like prose even when structured evidence already closed the attempt.",
+  "class_root": "Generation consumers discard or override the machine-readable failure facts owned by the adapter or Run, so later consumers infer a result or retry from diagnostic prose.",
+  "affected_population": [
+    "Creators submitting image or video jobs from Workbench or Canvas, or reading a restored Run after an upstream terminal failure."
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionGenerationMaterialization.ts",
+    "electron/tasks/taskIpcGuard.ts",
+    "src/workbench/generationCanvas/runner/generationRetryPolicy.ts"
+  ],
+  "entry_points": [
+    "Workbench and canvas use task IPC and the same generation outcome reporter. Canvas and catalog jobs share the Run journal.",
+    "Single image and video intents, batch and wave runners share the renderer retry predicate."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The Step 1 invariant concerns internal IPC serialization, Run persistence and renderer retry decisions. The tests exercise application error types, persisted Run reads and telemetry with controlled provider inputs.",
+  "invariants": [
+    "On a failed poll, persist the already-classified vendor category, status and safe code for the next Run reader.",
+    "Carry the classified provider facts across task IPC, including a transparent catalog adapter wrapper. Outer dispatch evidence retains priority.",
+    "A machine-classified terminal outcome yields one renderer executor invocation per intent."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/agentError.ts",
+      "symbol": "encodeVendorErrorMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/prompt/browserPromptExtractionRun.ts",
+      "symbol": "runTaskIpcGuard"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "taskFailureMessageFromResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "taskFailureMessageFromResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "polledFailureMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotRunLifecycle.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "taskFailureMessageFromResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailureDetect.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/retrievalStageError.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcGuard.ts",
+      "symbol": "encodeVendorErrorMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "runTaskIpcGuard"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "taskFailureMessageFromResponse"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/generationTelemetry.ts",
+      "symbol": "generationFailureFacts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "trackGenerationOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/model/recoverableCopy.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "parseVendorErrorFromMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "isRetryableGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/retrievalRecovery.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "decideGenerationFailure"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureActions.ts",
+      "symbol": "decideGenerationFailure"
+    }
+  ],
+  "door_reduction": {
+    "before": 32,
+    "after": 36,
+    "why_not": "IPC handlers and the browser prompt wrapper share one guard. Agent encoding, runtime, adapter and task polling keep distinct entry points that reuse wire helpers. The Run domain and observation code share the Run submission service, which adds one call to the disk-safe projection. Workbench and Canvas share one telemetry reporter. Canvas execution and failure display retain separate consumers of machine facts. Shared wire and Nomi tag readers retain their independent projection and recovery responsibilities."
+  },
+  "generality_proof": "Workbench and Canvas share task IPC and telemetry classification. Both production generation engines use the same Run poll and disk projection. Single and batch Canvas execution share the same renderer retry predicate.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionGenerationSubmission",
+      "responsibility": "On a failed poll, persist the already-classified vendor category, status and safe code for the next Run reader."
+    },
+    {
+      "path": "electron/tasks/taskIpcGuard.ts",
+      "symbol": "runTaskIpcGuard",
+      "responsibility": "Carry the classified provider facts across task IPC, including a transparent catalog adapter wrapper. Outer dispatch evidence retains priority."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
+      "symbol": "isRetryableGenerationError",
+      "responsibility": "The renderer never infers permission to re-execute a machine-classified task from the text appended to the classification."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "polledFailureMessage",
+      "responsibility": "Preserve safe structured category and codes for a failed Run observation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "entry_point": "registerTaskIpcHandlers",
+      "disposition": "enforced",
+      "evidence": "Attaches the task failure guard to submission IPC."
+    },
+    {
+      "path": "src/workbench/api/taskApi.ts",
+      "entry_point": "submitCanvasShotRun",
+      "disposition": "enforced",
+      "evidence": "Canvas and Workbench classify submit throws, immediate failures and failed polls through the same telemetry reporter."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "createProductionGenerationSubmission",
+      "disposition": "enforced",
+      "evidence": "Canvas and catalog engine terminal poll failures reach polledFailureMessage and are read from disk with their category."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "runGenerationNode",
+      "disposition": "enforced",
+      "evidence": "Single image, single video and batch paths use the same retry predicate and stop on classified outcomes."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Independent providers, IPC entry points, Run engines and renderer inputs can reach the same machine-classified failure boundaries.",
+    "same_class_scan": [
+      "The door-map covers the IPC guard and wire helpers, Run poll and disk projection, renderer retry and telemetry classification.",
+      "Checked direct and wrapped IPC errors, both Workbench and Canvas submit and poll outcomes, both Run engines, and single and batch Canvas execution."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/tasks/taskIpcGuard.ts",
+    "invariant": "Known failure facts survive IPC and Run persistence, and a classified terminal outcome ends the renderer retry loop.",
+    "failure_mode": "Use the shared classifier for evidence provided by IPC or a persisted Run. Preserve genuine unknowns when facts are absent, and end automatic renderer retries when terminal classification is present.",
+    "exception_policy": "none",
+    "strategy": "Reuse the wire encoding in the task IPC guard, project poll facts through the disk-safe Run boundary, and make the shared renderer retry predicate consume classification before diagnostic text.",
+    "artifacts": [
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/productionRun/productionGenerationMaterialization.ts",
+      "electron/tasks/taskIpcGuard.ts",
+      "src/workbench/generationCanvas/runner/generationRetryPolicy.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts",
+    "electron/tasks/taskIpcGuard.test.ts",
+    "src/workbench/generationCanvas/runner/failedAttemptIdentity.test.ts",
+    "src/workbench/api/generationTelemetry.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts",
+    "electron/tasks/taskIpcGuard.test.ts",
+    "src/workbench/generationCanvas/runner/failedAttemptIdentity.test.ts",
+    "src/workbench/api/generationTelemetry.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/tasks/taskIpcGuard.ts",
+      "src/workbench/generationCanvas/runner/generationRetryPolicy.ts"
+    ],
+    "rationale": "Replaced top-level-only IPC classification, the lossy default Run failure projection and text-first retry for structured terminal errors."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The existing IPC serialization and Run persistence APIs already carry the required facts.",
+    "exit_criteria": []
+  },
+  "migration": "Existing events and old Run rows with erased categories cannot recover them. New failures use the existing wire and Run formats.",
+  "residual_risks": [
+    "Aggregate counts have no run identity or click provenance. Historical event-cause attribution and paid provider results are unverified.",
+    "Unclassified renderer transport failures can still repeat.",
+    "F-A Step 2 (RW-2, electron/catalog/assetLocalization.ts) awaits user hotspot signoff on #1586. electron/productionRun/referenceLinkDispatchLedger.test.ts reproduced an expired S3 presigned URL returning 403 AccessDenied (application/xml). Mapping 403 to unknown bypassed private uploadsTo and sent the expired URL to /v1/generate. Step 1 restores the baseline probe behavior. RW-2 must handle Range-only 403 when anonymousAssetHosting is deny and preserve expired-link private re-upload."
+  ],
+  "detected_by": "post-release",
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "electron/tasks",
+    "tests": [
+      "electron/tasks/taskIpcGuard.test.ts"
+    ]
+  }
+}

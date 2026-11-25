@@ -1,5 +1,8 @@
 import React from 'react'
 import type { SettingsInitialSection, SettingsTab } from './SettingsDialog'
+import { openApimartConnect } from '../../ui/onboarding/apimartConnectRoute'
+import { hasPendingCustomCallIntent } from '../../ui/onboarding/customCallIntent'
+import { useOnboardingModelAvailability } from '../../ui/onboarding/onboardingModelAvailability'
 import type { ModelPageRequest } from '../../ui/onboarding/useModelPageRequest'
 
 type SettingsOpenDetail = {
@@ -32,6 +35,9 @@ export function useSettingsDialogController() {
   const [initialTab, setInitialTab] = React.useState<SettingsTab>('file')
   const [initialSection, setInitialSection] = React.useState<SettingsInitialSection>(null)
   const [modelPageRequest, setModelPageRequest] = React.useState<ModelPageRequest>(null)
+  const { hasUsableModelConnection } = useOnboardingModelAvailability()
+  const hasUsableConnectionRef = React.useRef(hasUsableModelConnection)
+  hasUsableConnectionRef.current = hasUsableModelConnection
 
   const openSettings = React.useCallback((detail?: SettingsOpenDetail) => {
     const section = normalizeInitialSection(detail?.section)
@@ -52,8 +58,15 @@ export function useSettingsDialogController() {
       const detail = (event as CustomEvent<SettingsOpenDetail>).detail
       openSettings(detail)
     }
-    // 兼容既有几十个调用点：旧事件名继续有效，但唯一宿主已经是设置里的「模型」。
-    const handleOpenModelCatalog = () => openModelSettings()
+    // E0：无可用连接且非报错卡脚本跳转时，全仓连接入口统一进整窗「连接 APIMart」大页；
+    // 已有可用连接（如管理模型 / 类型修正）或带报错卡跳转意图时打开设置里的「模型」。
+    const handleOpenModelCatalog = () => {
+      if (!hasPendingCustomCallIntent() && !hasUsableConnectionRef.current) {
+        openApimartConnect()
+        return
+      }
+      openModelSettings()
+    }
     window.addEventListener('nomi-open-settings', handleOpenSettings)
     window.addEventListener('nomi-open-model-catalog', handleOpenModelCatalog)
     return () => {

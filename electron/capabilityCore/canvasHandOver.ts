@@ -27,8 +27,7 @@ export const HAND_OVER_RENDERER_TIMEOUT_MS = 30_000;
 /** 策略那一档等交出去的每一镜落定（交到 / 没发出去）最多等多久；过了还在交的照「在交」算。 */
 export const POLICY_SETTLEMENT_TIMEOUT_MS = 120_000;
 
-
-export type CanvasHandOverInput = Readonly<{
+type CanvasHandOverInput = Readonly<{
   projectId: string;
   runId: string;
   shotIds: readonly string[];
@@ -37,7 +36,7 @@ export type CanvasHandOverInput = Readonly<{
 }>;
 
 /** 交出去的每一镜此刻的样子（只看这一次出价）。 */
-export type CanvasHandOverOutcome = Readonly<{
+type CanvasHandOverOutcome = Readonly<{
   /** 交到了供应商手里。 */
   accepted: readonly string[];
   /** 还在交（绑上了画布、派发还没结论）。 */
@@ -46,7 +45,7 @@ export type CanvasHandOverOutcome = Readonly<{
   failed: readonly string[];
 }>;
 
-export type CanvasHandOverDeps = Readonly<{
+type CanvasHandOverDeps = Readonly<{
   runs: Readonly<{
     read(projectId: string, runId: string): ProductionRun | null;
     execute(projectId: string, runId: string, command: RunCommand): unknown;

@@ -1,0 +1,30 @@
+{
+  "id": "timeline-trim-history",
+  "feature": "预览页时间轴片段边缘连续拖修剪 2 秒并验证单步撤销与 Esc 取消，统计拖动期间帧间隔与长任务",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "M",
+    "--scenarios",
+    "timeline-trim-history",
+    "--warmup",
+    "1"
+  ],
+  "scale": "时间轴 24 个视频片段（项目里 96 节点）",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "group": "⑩ 时间轴拖动",
+  "budgetStatus": "proposed",
+  "budgetBasis": "设计卡 docs/plan/2026-11-24-unified-undo-history.md ★7：连续 trim 2 秒合成单步撤销历史、Esc 取消不污染历史，60Hz 手势 p95 帧间隔 ≤33ms、交互期间 >50ms 长任务为 0",
+  "baseline": {
+    "median": 23.2,
+    "p95": 24.2,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 16GB",
+    "date": "2026-11-23",
+    "commit": "979710b79"
+  }
+}

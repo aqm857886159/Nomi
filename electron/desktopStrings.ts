@@ -190,7 +190,6 @@ export const desktopTranslations = {
     "assetUpload.hostingDisabled": "参考素材没传上去；需要的话可以在设置里允许第三方公共临时托管。",
     "assetUpload.relay": "Nomi 中转",
     "assetUpload.noChannel": "没有可用的素材上传通道",
-    "assetUpload.channelLeaseTooShort": "{{channel}}的链接有效期不够完成生成",
     "assetUpload.channelUnavailable": "{{channel}}暂时不可用",
     "assetUpload.channelTooLarge": "文件太大，{{channel}}的上传通道收不下",
     "assetUpload.channelRejected": "{{channel}}的上传通道拒收了文件（HTTP {{status}}）",
@@ -261,6 +260,7 @@ export const desktopTranslations = {
     "network.credentialRedirectTo": "服务商地址发生了跳转（跳转到 {{target}}），为保护你的密钥已停止请求。下一步：把接口地址改成这个跳转后的地址，然后重试。",
     "customCall.previewFileTooLarge": "试跑 saveFile 收到的文件太大，不能在面板里拼 data URL；请直接保存后在真实任务里验证",
     "customCall.emptyScript": "脚本为空——先写点内容或让 AI 生成",
+    "dreamina.invokeFailed": "即梦 CLI 调用失败",
   },
   en: {
     "agent.legacySummary": "Legacy summary: ",
@@ -432,7 +432,6 @@ export const desktopTranslations = {
     "assetUpload.hostingDisabled": "Reference assets could not be uploaded; allow third-party public temporary hosting in Settings if needed.",
     "assetUpload.relay": "Nomi relay",
     "assetUpload.noChannel": "No asset upload channel is available",
-    "assetUpload.channelLeaseTooShort": "Links from {{channel}} expire too soon to finish generation",
     "assetUpload.channelUnavailable": "{{channel}} is temporarily unavailable",
     "assetUpload.channelTooLarge": "The file is too large for the {{channel}} upload channel",
     "assetUpload.channelRejected": "The {{channel}} upload channel rejected the file (HTTP {{status}})",
@@ -503,6 +502,7 @@ export const desktopTranslations = {
     "network.credentialRedirectTo": "The provider address redirected (to {{target}}), so the request was stopped to protect your key. Next: change the endpoint address to that address, then retry.",
     "customCall.previewFileTooLarge": "The test run received a file too large to preview as a data URL. Save it directly and verify it in a real task.",
     "customCall.emptyScript": "The script is empty. Write some code or ask AI to generate it first.",
+    "dreamina.invokeFailed": "Dreamina CLI invocation failed",
   },
 } as const;
 

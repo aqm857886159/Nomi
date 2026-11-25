@@ -2,7 +2,7 @@ export const NODE_DRAG_MIME = 'application/x-nomi-node-id'
 export const GROUP_DRAG_MIME = 'application/x-nomi-group-id'
 export const NODE_DRAG_EXPAND_DELAY_MS = 450
 
-export type SidebarDragKind = 'node' | 'group'
+type SidebarDragKind = 'node' | 'group'
 
 export function classifySidebarDrag(types: readonly string[]): SidebarDragKind | null {
   if (types.includes(NODE_DRAG_MIME)) return 'node'

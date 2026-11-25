@@ -1,0 +1,2518 @@
+{
+  "viewport": "1280x800",
+  "beforeRef": "origin/main",
+  "afterRef": "refactor/context-menus-workbench-menu (Route A: WorkbenchContextMenu / WorkbenchMenu trigger)",
+  "method": "Right-click an UNSELECTED row (left-click for 05), then move the pointer onto the first menu item (hover leaves the row) and measure. Screenshot = that moment. trigger.* = computed style of the right-clicked row / clicked button at each moment.",
+  "pairs": [
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-01-doc-list.zh-CN.jpg",
+      "menuId": "01-doc-list",
+      "locale": "zh-CN",
+      "triggerBefore": {
+        "x": 142,
+        "y": 108
+      },
+      "triggerAfter": {
+        "x": 142,
+        "y": 108
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-document-row=\"doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-document-row=\"doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-document-row=\"doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-document-row=\"doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-document-row=\"doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 142,
+            "top": 108,
+            "right": 318,
+            "bottom": 183,
+            "width": 176,
+            "height": 75
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "below-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": {
+          "text": "删除原稿",
+          "color": "oklab(0.68 0.00173648 0.00984808)",
+          "title": "项目至少需要保留一篇原稿"
+        },
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-document-row=\"doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-document-row=\"doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-document-row=\"doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-document-row=\"doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-document-row=\"doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 144,
+            "top": 108,
+            "right": 320,
+            "bottom": 183,
+            "width": 176,
+            "height": 75
+          },
+          "relativeToTrigger": "below-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": {
+          "text": "删除原稿",
+          "color": "oklab(0.68 0.00173648 0.00984808)",
+          "title": "项目至少需要保留一篇原稿"
+        },
+        "separator": {
+          "height": "1px",
+          "margin": "2px 0px 2px 0px",
+          "backgroundColor": "oklab(0.91 0.000694592 0.00393923)"
+        }
+      }
+    },
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-01-doc-list.en.jpg",
+      "menuId": "01-doc-list",
+      "locale": "en",
+      "triggerBefore": {
+        "x": 142,
+        "y": 108
+      },
+      "triggerAfter": {
+        "x": 142,
+        "y": 108
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-document-row=\"doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-document-row=\"doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-document-row=\"doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-document-row=\"doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-document-row=\"doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 142,
+            "top": 108,
+            "right": 318,
+            "bottom": 183,
+            "width": 176,
+            "height": 75
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "below-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": {
+          "text": "Delete draft",
+          "color": "oklab(0.68 0.00173648 0.00984808)",
+          "title": "A project must keep at least one draft"
+        },
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-document-row=\"doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-document-row=\"doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-document-row=\"doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-document-row=\"doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-document-row=\"doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 88,
+              "width": 264,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 144,
+            "top": 108,
+            "right": 320,
+            "bottom": 183,
+            "width": 176,
+            "height": 75
+          },
+          "relativeToTrigger": "below-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": {
+          "text": "Delete draft",
+          "color": "oklab(0.68 0.00173648 0.00984808)",
+          "title": "A project must keep at least one draft"
+        },
+        "separator": {
+          "height": "1px",
+          "margin": "2px 0px 2px 0px",
+          "backgroundColor": "oklab(0.91 0.000694592 0.00393923)"
+        }
+      }
+    },
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-02-storyboard-plan.zh-CN.jpg",
+      "menuId": "02-storyboard-plan",
+      "locale": "zh-CN",
+      "triggerBefore": {
+        "x": 171,
+        "y": 148
+      },
+      "triggerAfter": {
+        "x": 171,
+        "y": 148
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-storyboard-row=\"starter-doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-storyboard-row=\"starter-doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-storyboard-row=\"starter-doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-storyboard-row=\"starter-doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-storyboard-row=\"starter-doc-91b5ef22-bcb6-495e-a76a-320666df5f2b\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 171,
+            "top": 148,
+            "right": 347,
+            "bottom": 253,
+            "width": 176,
+            "height": 105
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "below-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": {
+          "text": "删除方案",
+          "color": "oklab(0.55 0.11782 0.0549404)"
+        },
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-storyboard-row=\"starter-doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-storyboard-row=\"starter-doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-storyboard-row=\"starter-doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-storyboard-row=\"starter-doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-storyboard-row=\"starter-doc-22103e70-d040-491b-b67a-64034d8aebbf\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 173,
+            "top": 148,
+            "right": 349,
+            "bottom": 253,
+            "width": 176,
+            "height": 105
+          },
+          "relativeToTrigger": "below-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": {
+          "text": "删除方案",
+          "color": "oklab(0.55 0.11782 0.0549404)"
+        },
+        "disabledItem": null,
+        "separator": {
+          "height": "1px",
+          "margin": "2px 0px 2px 0px",
+          "backgroundColor": "oklab(0.91 0.000694592 0.00393923)"
+        }
+      }
+    },
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-02-storyboard-plan.en.jpg",
+      "menuId": "02-storyboard-plan",
+      "locale": "en",
+      "triggerBefore": {
+        "x": 171,
+        "y": 148
+      },
+      "triggerAfter": {
+        "x": 171,
+        "y": 148
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-storyboard-row=\"starter-doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-storyboard-row=\"starter-doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-storyboard-row=\"starter-doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-storyboard-row=\"starter-doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-storyboard-row=\"starter-doc-ff4e6ecf-a5fc-4828-a81f-05430040881c\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 171,
+            "top": 148,
+            "right": 378.3,
+            "bottom": 253,
+            "width": 207.3,
+            "height": 105
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "below-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": {
+          "text": "Delete plan",
+          "color": "oklab(0.55 0.11782 0.0549404)"
+        },
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-storyboard-row=\"starter-doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-storyboard-row=\"starter-doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-storyboard-row=\"starter-doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-storyboard-row=\"starter-doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-storyboard-row=\"starter-doc-50e153b2-a670-47f6-a016-234d2b24df3f\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 101,
+              "top": 128,
+              "width": 235,
+              "height": 40
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 173,
+            "top": 148,
+            "right": 349,
+            "bottom": 253,
+            "width": 176,
+            "height": 105
+          },
+          "relativeToTrigger": "below-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "6px 10px 6px 10px",
+          "height": 30,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": {
+          "text": "Delete plan",
+          "color": "oklab(0.55 0.11782 0.0549404)"
+        },
+        "disabledItem": null,
+        "separator": {
+          "height": "1px",
+          "margin": "2px 0px 2px 0px",
+          "backgroundColor": "oklab(0.91 0.000694592 0.00393923)"
+        }
+      }
+    },
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-03-category-tree.zh-CN.jpg",
+      "menuId": "03-category-tree",
+      "locale": "zh-CN",
+      "triggerBefore": {
+        "x": 162,
+        "y": 179
+      },
+      "triggerAfter": {
+        "x": 162,
+        "y": 179
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442 / 0.968875)",
+            "color": "oklab(0.223112 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.22 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "closedPointerAway": null
+        },
+        "container": {
+          "rect": {
+            "left": 226,
+            "top": 223,
+            "right": 346,
+            "bottom": 259,
+            "width": 120,
+            "height": 36
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "below-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 10px 4px 10px",
+          "height": 26,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442 / 0.968725)",
+            "color": "oklab(0.223127 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.22 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 164,
+            "top": 179,
+            "right": 284,
+            "bottom": 215,
+            "width": 120,
+            "height": 36
+          },
+          "relativeToTrigger": "below-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 10px 4px 10px",
+          "height": 26,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      }
+    },
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-03-category-tree.en.jpg",
+      "menuId": "03-category-tree",
+      "locale": "en",
+      "triggerBefore": {
+        "x": 162,
+        "y": 179
+      },
+      "triggerAfter": {
+        "x": 162,
+        "y": 179
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442 / 0.970514)",
+            "color": "oklab(0.222949 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.22 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "closedPointerAway": null
+        },
+        "container": {
+          "rect": {
+            "left": 226,
+            "top": 223,
+            "right": 346,
+            "bottom": 259,
+            "width": 120,
+            "height": 36
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "below-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 10px 4px 10px",
+          "height": 26,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442 / 0.968834)",
+            "color": "oklab(0.223117 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.22 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.97 0.000520944 0.00295442)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-category-id=\"cast\"][data-active=\"false\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.32 0.00173648 0.00984808)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 72,
+              "top": 164,
+              "width": 264,
+              "height": 30
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 164,
+            "top": 179,
+            "right": 284,
+            "bottom": 215,
+            "width": 120,
+            "height": 36
+          },
+          "relativeToTrigger": "below-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 0px 4px 0px",
+          "borderRadius": "6px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.05) 0px 4px 8px 0px, oklch(0 0 0 / 0.08) 0px 20px 50px 0px",
+          "backgroundColor": "oklab(1 0 0)",
+          "borderColor": "oklab(0.91 0.000694592 0.00393923)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 10px 4px 10px",
+          "height": 26,
+          "borderRadius": "0px",
+          "color": "oklab(0.32 0.00173648 0.00984808)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      }
+    },
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-04-director-timeline.zh-CN.jpg",
+      "menuId": "04-director-timeline",
+      "locale": "zh-CN",
+      "triggerBefore": {
+        "x": 150,
+        "y": 695
+      },
+      "triggerAfter": {
+        "x": 150,
+        "y": 695
+      },
+      "before": {
+        "menuOpened": false,
+        "strayMenus": [
+          {
+            "className": "generation-canvas-v2-toolbar__node-menu absolute top-0 left-[calc(100%+8px)] grid p-[6px] gap-0.5 w-[148px] border border-workbench-border rounded-nomi bg-nomi-",
+            "rect": {
+              "x": 150,
+              "y": 418,
+              "width": 148,
+              "height": 417.5,
+              "top": 418,
+              "right": 298,
+              "bottom": 835.5,
+              "left": 150
+            }
+          }
+        ],
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 150,
+            "top": 695,
+            "right": 150,
+            "bottom": 695,
+            "width": 0,
+            "height": 0
+          },
+          "relativeToTrigger": "NOT OPENED",
+          "borderRadius": "-",
+          "padding": "-"
+        },
+        "normalItem": null,
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 152,
+            "top": 549,
+            "right": 352,
+            "bottom": 792,
+            "width": 200,
+            "height": 243
+          },
+          "relativeToTrigger": "beside-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 4px 4px 4px",
+          "borderRadius": "16px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.3) 0px 4px 10px 0px, oklch(0 0 0 / 0.4) 0px 24px 64px 0px",
+          "backgroundColor": "oklab(0.235 0.00121554 0.00689365)",
+          "borderColor": "oklab(0.36 0.00121554 0.00689365)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 8px 4px 8px",
+          "height": 26,
+          "borderRadius": "6px",
+          "color": "oklab(0.93 0.000522935 0.00597717)"
+        },
+        "dangerItem": {
+          "text": "删除实体",
+          "color": "oklab(0.72 0.11782 0.0549404)"
+        },
+        "disabledItem": null,
+        "separator": {
+          "height": "1px",
+          "margin": "4px 0px 4px 0px",
+          "backgroundColor": "oklab(0.31 0.00121554 0.00689365)"
+        }
+      }
+    },
+    {
+      "file": "docs/evidence/2026-11-23-t8-r1-context-menus/compare-04-director-timeline.en.jpg",
+      "menuId": "04-director-timeline",
+      "locale": "en",
+      "triggerBefore": {
+        "x": 150,
+        "y": 695
+      },
+      "triggerAfter": {
+        "x": 150,
+        "y": 695
+      },
+      "before": {
+        "menuOpened": false,
+        "strayMenus": [
+          {
+            "className": "generation-canvas-v2-toolbar__node-menu absolute top-0 left-[calc(100%+8px)] grid p-[6px] gap-0.5 w-[148px] border border-workbench-border rounded-nomi bg-nomi-",
+            "rect": {
+              "x": 150,
+              "y": 418,
+              "width": 148,
+              "height": 417.5,
+              "top": 418,
+              "right": 298,
+              "bottom": 835.5,
+              "left": 150
+            }
+          }
+        ],
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 150,
+            "top": 695,
+            "right": 150,
+            "bottom": 695,
+            "width": 0,
+            "height": 0
+          },
+          "relativeToTrigger": "NOT OPENED",
+          "borderRadius": "-",
+          "padding": "-"
+        },
+        "normalItem": null,
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "open",
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-testid=\"director-timeline-track\"]",
+            "dataState": "closed",
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 60,
+              "top": 681,
+              "width": 289,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 152,
+            "top": 549,
+            "right": 352,
+            "bottom": 792,
+            "width": 200,
+            "height": 243
+          },
+          "relativeToTrigger": "beside-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 4px 4px 4px",
+          "borderRadius": "16px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.3) 0px 4px 10px 0px, oklch(0 0 0 / 0.4) 0px 24px 64px 0px",
+          "backgroundColor": "oklab(0.235 0.00121554 0.00689365)",
+          "borderColor": "oklab(0.36 0.00121554 0.00689365)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 8px 4px 8px",
+          "height": 26,
+          "borderRadius": "6px",
+          "color": "oklab(0.93 0.000522935 0.00597717)"
+        },
+        "dangerItem": {
+          "text": "Delete entity",
+          "color": "oklab(0.72 0.11782 0.0549404)"
+        },
+        "disabledItem": null,
+        "separator": {
+          "height": "1px",
+          "margin": "4px 0px 4px 0px",
+          "backgroundColor": "oklab(0.31 0.00121554 0.00689365)"
+        }
+      }
+    },
+    {
+      "file": null,
+      "menuId": "05-director-plus-button",
+      "locale": "zh-CN",
+      "triggerBefore": {
+        "x": 219,
+        "y": 694
+      },
+      "triggerAfter": {
+        "x": 219,
+        "y": 694
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 1,
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(1 0 0 / 0.0513754)",
+            "color": "oklab(0.914843 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 219,
+            "top": 654,
+            "right": 419,
+            "bottom": 794,
+            "width": 200,
+            "height": 140
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 4px 4px 4px",
+          "borderRadius": "16px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.3) 0px 4px 10px 0px, oklch(0 0 0 / 0.4) 0px 24px 64px 0px",
+          "backgroundColor": "oklab(0.235 0.00121554 0.00689365)",
+          "borderColor": "oklab(0.36 0.00121554 0.00689365)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "beside-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 8px 4px 8px",
+          "height": 26,
+          "borderRadius": "6px",
+          "color": "oklab(0.93 0.000522935 0.00597717)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": "closed",
+            "ariaExpanded": "false",
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": "closed",
+            "ariaExpanded": "false",
+            "backgroundColor": "oklab(1 0 0 / 0.0513939)",
+            "color": "oklab(0.91492 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": "open",
+            "ariaExpanded": "true",
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": "open",
+            "ariaExpanded": "true",
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"添加动作 / 骨骼 / 视线片段\"]",
+            "dataState": "closed",
+            "ariaExpanded": "false",
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 205,
+            "top": 526,
+            "right": 405,
+            "bottom": 674,
+            "width": 200,
+            "height": 148
+          },
+          "relativeToTrigger": "above-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 4px 4px 4px",
+          "borderRadius": "16px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.3) 0px 4px 10px 0px, oklch(0 0 0 / 0.4) 0px 24px 64px 0px",
+          "backgroundColor": "oklab(0.235 0.00121554 0.00689365)",
+          "borderColor": "oklab(0.36 0.00121554 0.00689365)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 8px 4px 8px",
+          "height": 26,
+          "borderRadius": "6px",
+          "color": "oklab(0.93 0.000522935 0.00597717)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      }
+    },
+    {
+      "file": null,
+      "menuId": "05-director-plus-button",
+      "locale": "en",
+      "triggerBefore": {
+        "x": 219,
+        "y": 694
+      },
+      "triggerAfter": {
+        "x": 219,
+        "y": 694
+      },
+      "before": {
+        "menuOpened": true,
+        "strayMenus": 1,
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "oklab(1 0 0 / 0.0513252)",
+            "color": "oklab(0.914633 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": null,
+            "ariaExpanded": null,
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 219,
+            "top": 654,
+            "right": 419,
+            "bottom": 794,
+            "width": 200,
+            "height": 140
+          },
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 4px 4px 4px",
+          "borderRadius": "16px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.3) 0px 4px 10px 0px, oklch(0 0 0 / 0.4) 0px 24px 64px 0px",
+          "backgroundColor": "oklab(0.235 0.00121554 0.00689365)",
+          "borderColor": "oklab(0.36 0.00121554 0.00689365)",
+          "borderWidth": "1px",
+          "relativeToTrigger": "beside-trigger"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 8px 4px 8px",
+          "height": 26,
+          "borderRadius": "6px",
+          "color": "oklab(0.93 0.000522935 0.00597717)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      },
+      "after": {
+        "menuOpened": true,
+        "strayMenus": 0,
+        "trigger": {
+          "idle": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": "closed",
+            "ariaExpanded": "false",
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "hovered": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": "closed",
+            "ariaExpanded": "false",
+            "backgroundColor": "oklab(1 0 0 / 0.0513633)",
+            "color": "oklab(0.914792 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerStill": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": "open",
+            "ariaExpanded": "true",
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.93 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": true,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "openPointerInMenu": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": "open",
+            "ariaExpanded": "true",
+            "backgroundColor": "oklab(0.3 0.000522935 0.00597717)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": false,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          },
+          "closedPointerAway": {
+            "selector": "[data-testid=\"director-timeline-track\"] button[aria-label=\"Add action / bone / look-at clip\"]",
+            "dataState": "closed",
+            "ariaExpanded": "false",
+            "backgroundColor": "rgba(0, 0, 0, 0)",
+            "color": "oklab(0.7 0.000522935 0.00597717)",
+            "opacity": "1",
+            "hover": false,
+            "focusWithin": true,
+            "rect": {
+              "left": 205,
+              "top": 680,
+              "width": 28,
+              "height": 28
+            },
+            "index": 0
+          }
+        },
+        "container": {
+          "rect": {
+            "left": 205,
+            "top": 526,
+            "right": 405,
+            "bottom": 674,
+            "width": 200,
+            "height": 148
+          },
+          "relativeToTrigger": "above-trigger",
+          "inViewport": true,
+          "fontSize": "13px",
+          "padding": "4px 4px 4px 4px",
+          "borderRadius": "16px",
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.3) 0px 4px 10px 0px, oklch(0 0 0 / 0.4) 0px 24px 64px 0px",
+          "backgroundColor": "oklab(0.235 0.00121554 0.00689365)",
+          "borderColor": "oklab(0.36 0.00121554 0.00689365)",
+          "borderWidth": "1px"
+        },
+        "normalItem": {
+          "fontSize": "12px",
+          "lineHeight": "18px",
+          "padding": "4px 8px 4px 8px",
+          "height": 26,
+          "borderRadius": "6px",
+          "color": "oklab(0.93 0.000522935 0.00597717)"
+        },
+        "dangerItem": null,
+        "disabledItem": null,
+        "separator": null
+      }
+    }
+  ]
+}

@@ -18,7 +18,7 @@ import { runGenerationNodesBatch } from './generationRunController'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { resetModelHealthMemory } from './modelHealthMemory'
 import { recoverNodeResult } from './recoverTaskActions'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
@@ -60,7 +60,7 @@ beforeEach(async () => {
   projectTarget = await projectSession.open(PROJECT_ID)
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   setCanvasEventSinkForTests(() => {})
   resetModelHealthMemory()
 })
@@ -80,7 +80,6 @@ describe.skipIf(!fs.existsSync(tsxCli))('每种取回异常：真落盘、新进
   ])('%s', async (_name, code, message) => {
     const id = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '镜头 5', meta: { modelVendor: 'apimart', modelKey: 'MiniMax-H3' } }).id
     await runGenerationNodesBatch([id], { target: projectTarget,
-      retry: { maxAttempts: 1 },
       executor: async (node) => {
         useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-restart' })
         throw new Error(message)

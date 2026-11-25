@@ -32,8 +32,8 @@ export const HANDBOOK_PIPELINE: HandbookPipelineStep[] = [
 
 /** 90 秒先尝甜头：不用读完手册，先看一条片自己跑出来。 */
 export const HANDBOOK_FIRST_WIN: HandbookFirstWinStep[] = [
-  { n: 1, title: '看回放', body: '首页点「60 秒看 Nomi 怎么出片」，零额度看整条流水线跑一遍。' },
-  { n: 2, title: '接一个模型', body: '用自己的 Key，或接 Agnes 免费网关（文 / 图 / 视全解锁）。' },
+  { n: 1, title: '看回放', body: '首页点「看 Nomi 怎么出片」，60 秒看整条流水线跑一遍。' },
+  { n: 2, title: '连接模型', body: '点「连接模型」打开 APIMart 官网：注册、充值、建 Key 并复制粘贴，一个账户解锁文 / 图 / 视 / 声音。' },
   {
     n: 3,
     title: '写一句 + 拆镜',
@@ -61,10 +61,9 @@ export const HANDBOOK_INTENT_ROUTES: HandbookIntentRoute[] = [
     badge: '0.16 新',
   },
   {
-    iconKey: 'gift',
-    title: '没有 API 额度，想先白嫖试试',
-    body: '模型设置接 Agnes AI，一个 Key 解锁文本 / 图 / 视频，无限期免费。',
-    badge: '0.16 新',
+    iconKey: 'plug-connected',
+    title: '第一次用，怎么最快把模型连齐',
+    body: '点「连接模型」，在 APIMart 官网走完注册、充值、建 Key 三步，回来粘贴就能同时用文本、图片、视频和声音模型。',
   },
   {
     iconKey: 'typography',
@@ -84,7 +83,7 @@ export const HANDBOOK_GOTCHAS: HandbookGotcha[] = [
   {
     iconKey: 'plug-connected-x',
     title: '接了模型却不能生成',
-    body: '多半缺「文本大脑」。模型设置里加一个文本模型，拆镜 / 对话才转得起来。',
+    body: '多半缺「文本大脑」。在「设置 › 模型」里启用文本模型，或点「连接模型」接好 APIMart，拆镜 / 对话才转得起来。',
   },
   {
     iconKey: 'mood-confuzed',
@@ -123,8 +122,8 @@ const EN_HANDBOOK_FIRST_WIN: HandbookFirstWinStep[] = [
   },
   {
     n: 2,
-    title: 'Connect one model',
-    body: 'Use your own API key or connect the free Agnes gateway to unlock text, image, and video models.',
+    title: 'Connect a model',
+    body: 'Select “Connect” to open APIMart: sign up, top up, then create and paste one API key to unlock text, image, video, and audio models.',
   },
   {
     n: 3,
@@ -156,10 +155,9 @@ const EN_HANDBOOK_INTENT_ROUTES: HandbookIntentRoute[] = [
     badge: 'New in 0.16',
   },
   {
-    iconKey: 'gift',
-    title: 'Try it without API credits',
-    body: 'Connect Agnes AI in Model setup. One key unlocks text, image, and video models for free.',
-    badge: 'New in 0.16',
+    iconKey: 'plug-connected',
+    title: 'Connect all model types in one place',
+    body: 'Select “Connect” and complete three steps on APIMart — sign up, top up, and create a key — then paste it back into Nomi.',
   },
   {
     iconKey: 'typography',
@@ -178,7 +176,7 @@ const EN_HANDBOOK_GOTCHAS: HandbookGotcha[] = [
   {
     iconKey: 'plug-connected-x',
     title: 'Models are connected but generation does not work',
-    body: 'A text model is usually missing. Add one in Model setup so shot planning and chat can run.',
+    body: 'A text model is usually missing. Enable one in Settings › Models or select “Connect” so shot planning and chat can run.',
   },
   {
     iconKey: 'mood-confuzed',

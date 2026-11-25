@@ -32,12 +32,14 @@ export { ConfirmDialogHost } from './confirmDialog'
 export { alertDialog, confirmDialog, confirmDialogWithToggle, promptDialog } from './confirmDialogStore'
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
 export { HoverCard, HoverCardContent, HoverCardTrigger } from './hoverCard'
-export { WorkbenchMenu } from './menu'
+export { WORKBENCH_MENU_TRIGGER_OPEN_CLASS, WorkbenchContextMenu, WorkbenchMenu } from './menu'
 export type {
+  WorkbenchContextMenuProps,
   WorkbenchMenuAction,
   WorkbenchMenuCheckbox,
   WorkbenchMenuGroup,
   WorkbenchMenuIcon,
+  WorkbenchMenuItems,
   WorkbenchMenuNode,
   WorkbenchMenuProps,
   WorkbenchMenuRadioGroup,
@@ -59,8 +61,14 @@ export { AnchoredPopover } from './AnchoredPopover'
 export type { AnchoredPopoverProps } from './AnchoredPopover'
 export { resolveAnchoredPopoverPlacement } from './anchoredPopoverPlacement'
 export type { AnchoredPopoverAlign, AnchoredPopoverSide } from './anchoredPopoverPlacement'
-export { hasOpenDialogAbove, hasOpenPopupAbove, isInsidePopupAbove, NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
-export { listenOutsidePress } from './outsidePress'
+export {
+  hasOpenDialogAbove,
+  hasOpenPopupAbove,
+  isInsidePopupAbove,
+  NOMI_OVERLAY_Z_INDEX,
+  useFloatingOutsideDismiss,
+} from './overlayLayers'
+export type { FloatingOutsideDismissBinding, UseFloatingOutsideDismissOptions } from './overlayLayers'
 export { useOverlayEscape } from './useOverlayEscape'
 export { nomiDesignTokens } from './tokens'
 export { buildNomiTheme } from './theme'

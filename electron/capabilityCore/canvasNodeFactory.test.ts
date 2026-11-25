@@ -4,11 +4,11 @@ import {
   buildCanvasNode,
   buildCanvasNodes,
   type NodeFactoryDeps,
-} from './canvasNodeFactory'
+} from '../shared/canvas/canvasNodeFactory'
 import {
   layoutBatchWith,
   type NodeBox,
-} from './canvasNodeLayout'
+} from '../shared/canvas/canvasNodeLayout'
 import {
   nodeKindDefaultCategory,
   nodeKindDefaultSize,

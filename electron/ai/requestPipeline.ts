@@ -24,7 +24,7 @@ export type JsonRecord = Record<string, unknown>;
 export type AuthType = VendorAuthType;
 
 /** A single HTTP call template (matches the catalog HttpOperation shape). */
-export interface HttpOperationLike {
+interface HttpOperationLike {
   method?: string;
   path?: string;
   /** "host-root" = 路径从主机根拼（先剥掉 baseUrl 尾部的 /vN）。见 catalog/types.ts 的 HttpOperation.pathFrom。 */
@@ -294,7 +294,7 @@ const SENSITIVE_REQUEST_FIELD = /(?:^|[-_])(?:authorization|auth|api[-_]?key|acc
 const PUBLIC_REQUEST_HEADERS = new Set(["accept", "content-type", "user-agent"]);
 const publicSystemHeadersByRequest = new WeakMap<Record<string, string>, ReadonlySet<string>>();
 
-export function isSensitiveRequestField(name: string): boolean {
+function isSensitiveRequestField(name: string): boolean {
   return SENSITIVE_REQUEST_FIELD.test(name);
 }
 
@@ -350,7 +350,7 @@ export function collectRequestSecretValues(input: {
 }
 
 /** Raw and wire-encoded forms an upstream can echo after URL serialization. */
-export function requestSecretVariants(secrets: readonly string[]): string[] {
+function requestSecretVariants(secrets: readonly string[]): string[] {
   const variants = new Set<string>();
   for (const secret of secrets) {
     if (!secret) continue;
@@ -385,7 +385,7 @@ export function redactRequestSecrets(value: string, secrets: readonly string[], 
   return redacted.slice(0, maximumLength);
 }
 
-export function redactRequestValue<T>(value: T, secrets: readonly string[]): T {
+function redactRequestValue<T>(value: T, secrets: readonly string[]): T {
   if (typeof value === "string") return redactRequestSecrets(value, secrets) as T;
   if (Array.isArray(value)) return value.map((item) => redactRequestValue(item, secrets)) as T;
   if (value && typeof value === "object") {

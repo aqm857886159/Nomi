@@ -16,7 +16,7 @@ import { frameHasTimelineUnits, sendFrameToTimeline } from '../agent/sendFrameTo
 import { groupGenerateDisabledReason, runGroupGenerate } from './groupGenerate'
 import type { FrameContextMenuAction } from './FrameContextMenu'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
-import { listenOutsidePress } from '../../../design/outsidePress'
+import { useFloatingOutsideDismiss } from '../../../design'
 
 export type CanvasFrameMenuState = {
   groupId: string
@@ -148,18 +148,19 @@ export function useCanvasFrameActions({
   }, [frameMenu, runFrameAction])
 
   // 菜单开着时点别处 / 按 Esc 就收——与节点右键菜单同一套开合心智，不让用户学第二种。
+  useFloatingOutsideDismiss({
+    open: Boolean(frameMenu),
+    isInside: (target) => target instanceof Element && Boolean(target.closest('[data-frame-menu="true"]')),
+    onDismiss: () => setFrameMenu(null),
+  })
+
   React.useEffect(() => {
     if (!frameMenu) return undefined
-    const stopListeningOutside = listenOutsidePress(
-      (target) => target instanceof Element && Boolean(target.closest('[data-frame-menu="true"]')),
-      () => setFrameMenu(null),
-    )
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setFrameMenu(null)
     }
     canvasWindowInput.addEventListener('keydown', handleKeyDown)
     return () => {
-      stopListeningOutside()
       canvasWindowInput.removeEventListener('keydown', handleKeyDown)
     }
   }, [frameMenu])

@@ -1,16 +1,17 @@
 import { canvasWindowInput } from '../../../../shortcutSurface'
 /**
- * [INPUT]: 依赖 react、../../../../../utils/cn、../DirectorEditorContext 的 useDirectorStore / useDirectorStoreApi、
+ * [INPUT]: 依赖 react、../../../../../design 的 WORKBENCH_MENU_TRIGGER_OPEN_CLASS、../../../../../utils/cn、../DirectorEditorContext 的 useDirectorStore / useDirectorStoreApi、
  *          ../model/timelineTracks（TimelineClipView / TimelineMarkerView / TrackFamily）、../model/timelineSnap（collectSnapCandidates / snapTime / snapToleranceSeconds）、
  *          ../model/timeGrid（FRAME_SECONDS / quantizeToFrame）、../model/storeClipActions 的 ClipFamily、
  *          ./ClipBar、./timelineRows（ROW_HEIGHT / TimelineRow）、./timelineCommands（selectClip / selectWaypoint / clearTimelineSelection）、./useTimelineViewport
  * [OUTPUT]: 对外提供 TrackLanes：泳道（28px 行、主行片段条 + 末尾「+」追加路径、空间轨迹 / 骨骼帧副行的 10px 菱形 + 片段区间连线、吸附线）+ 拖拽（片段整体平移、拖边改时、路标 / 骨骼帧改时）
  * [POS]: director/timeline 的泳道区（清单 §5.2 片段条与路标交互）：拖拽期间只做本地预览，松手才写 store（一次撤销快照）；
- *        右键把「哪一行 / 哪个片段 / 什么时刻」上报给 DirectorTimeline 出菜单。
+ *        每条泳道行由 DirectorTimeline 包成右键菜单的真触发器（renderRowMenu），右键时先记下「哪个片段 / 什么时刻」，菜单开着时该泳道行带打开态。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { WORKBENCH_MENU_TRIGGER_OPEN_CLASS } from '../../../../../design'
 import { cn } from '../../../../../utils/cn'
 import { IconPlus } from '../../../../../vendor/tablerIcons'
 import { useDirectorStore, useDirectorStoreApi } from '../DirectorEditorContext'
@@ -59,11 +60,15 @@ type DragState = ClipDrag | MarkerDrag | RangeDrag
 
 const DRAG_SLOP_PX = 3
 
+/** 右键落点：落在哪个片段上（没有就是空泳道）、对应哪一刻。泳道在菜单打开前记下，轨道列右键时 DirectorTimeline 取播放头。 */
+export type TimelineMenuHit = { clipId?: string; time: number }
+
 export type TrackLanesProps = {
   rows: TimelineRow[]
   viewport: TimelineViewport
   totalDuration: number
-  onContextMenu: (event: React.MouseEvent<HTMLElement>, row: TimelineRow, clipId: string | undefined, time: number) => void
+  /** 把一条泳道行包成右键菜单的真触发器；`hit` 在打开时读这一下右键的落点。 */
+  renderRowMenu: (row: TimelineRow, trigger: React.ReactElement, hit: () => TimelineMenuHit) => React.ReactElement
   onReject: (reasonKey: string) => void
   /** 主行末尾「+」：在该轨道最后一段之后追加路径片段 */
   onAppendTrajectory: (row: TimelineRow) => void
@@ -73,7 +78,7 @@ export type TrackLanesProps = {
 const APPEND_GAP_SECONDS = 0.1
 const APPEND_MIN_REMAINING = 0.5
 
-export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onReject, onAppendTrajectory }: TrackLanesProps): JSX.Element {
+export function TrackLanes({ rows, viewport, totalDuration, renderRowMenu, onReject, onAppendTrajectory }: TrackLanesProps): JSX.Element {
   const { t } = useTranslation()
   const store = useDirectorStoreApi()
   const selectedClipId = useDirectorStore((state) => state.selection.clipId)
@@ -84,6 +89,8 @@ export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onRej
   const selectedBoneKeyframeId = useDirectorStore((state) => state.selection.boneKeyframeId)
   const [drag, setDrag] = React.useState<DragState | null>(null)
   const dragRef = React.useRef<DragState | null>(null)
+  // 最近一次右键的落点：行的 onContextMenu 先于 Radix 打开菜单执行（Slot 先跑子元素自己的处理），菜单项工厂打开时再读。
+  const menuHitRef = React.useRef<TimelineMenuHit>({ time: 0 })
   const { timeToPx, pxPerSecond } = viewport
 
   const applySnap = React.useCallback(
@@ -225,13 +232,12 @@ export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onRej
     setDrag(next)
   }
 
-  const laneContextMenu = (event: React.MouseEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const rowIndex = Math.floor((event.clientY - rect.top) / ROW_HEIGHT)
-    const row = rows[rowIndex]
-    if (!row) return
+  // 落在片段上 = 片段菜单，时刻取片段起点；落在空泳道 = 指针所在时刻。
+  const captureMenuHit = (event: React.MouseEvent<HTMLElement>, clips: readonly { clip: TimelineClipView }[]) => {
     const clipId = (event.target as HTMLElement).closest('[data-clip-id]')?.getAttribute('data-clip-id') ?? undefined
-    onContextMenu(event, row, clipId, Math.max(0, viewport.pxToTime(event.clientX - rect.left)))
+    const clip = clipId ? clips.find((item) => item.clip.id === clipId)?.clip : undefined
+    const rect = event.currentTarget.getBoundingClientRect()
+    menuHitRef.current = clip ? { clipId: clip.id, time: clip.startTime } : { time: Math.max(0, viewport.pxToTime(event.clientX - rect.left)) }
   }
 
   const clipGeometry = (clip: TimelineClipView) => {
@@ -254,10 +260,6 @@ export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onRej
       className="relative"
       style={{ width: viewport.laneWidth, height: rows.length * ROW_HEIGHT }}
       data-testid="director-timeline-lanes"
-      onContextMenu={(event) => {
-        event.preventDefault()
-        laneContextMenu(event)
-      }}
       onPointerDown={(event) => {
         if (event.button === 0 && event.target === event.currentTarget) clearTimelineSelection(store)
       }}
@@ -270,8 +272,8 @@ export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onRej
         const clips = row.kind === 'main' ? lanes.flatMap((sub) => sub.clips.map((clip) => ({ clip, sub }))) : [...(row.sub.family === 'trajectory' ? [] : row.sub.clips.map((clip) => ({ clip, sub: row.sub })))]
         const markers = row.kind === 'main' ? [] : row.sub.markers
         const markerSub = row.kind === 'main' ? null : row.sub
-        return (
-          <div key={row.key} className={cn('absolute inset-x-0 border-b border-nomi-line', selectedEntityId === track.entityId ? 'bg-nomi-ink-05' : '')} style={{ top, height: ROW_HEIGHT }} onPointerDown={(event) => {
+        const laneElement = (
+          <div className={cn('absolute inset-x-0 border-b border-nomi-line', selectedEntityId === track.entityId ? 'bg-nomi-ink-05' : WORKBENCH_MENU_TRIGGER_OPEN_CLASS)} style={{ top, height: ROW_HEIGHT }} onContextMenu={(event) => captureMenuHit(event, clips)} onPointerDown={(event) => {
             if (event.button !== 0 || (event.target as HTMLElement).closest('button, [data-clip-id]')) return
             event.preventDefault()
             event.stopPropagation()
@@ -294,11 +296,6 @@ export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onRej
                   active={sub.family === 'trajectory' && selectedEntityId === track.entityId && activeTrajectoryClipIds[track.entityId] === clip.id}
                   muted={!sub.enabled}
                   onPointerDown={(event, zone) => beginClipDrag(event, track.entityId, sub.family, clip, zone)}
-                  onContextMenu={(event) => {
-                    event.stopPropagation()
-                    event.preventDefault()
-                    onContextMenu(event, row, clip.id, clip.startTime)
-                  }}
                 />
               )
             })}
@@ -375,6 +372,7 @@ export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onRej
               : null}
           </div>
         )
+        return <React.Fragment key={row.key}>{renderRowMenu(row, laneElement, () => menuHitRef.current)}</React.Fragment>
       })}
       {drag?.kind === 'range' && drag.moved ? <div className="pointer-events-none absolute border border-nomi-ink bg-nomi-ink-10" style={{ top: drag.top, height: ROW_HEIGHT, left: timeToPx(Math.min(drag.origTime, drag.previewTime)), width: Math.abs(drag.previewTime - drag.origTime) * pxPerSecond }} /> : null}
       {drag?.snapped ? <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-nomi-warning" style={{ left: timeToPx(drag.snapped.time) }} /> : null}

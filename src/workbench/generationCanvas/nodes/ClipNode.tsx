@@ -96,7 +96,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
   const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null)
   const visualSize = resolveNodeVisualSize(node)
   const sizeBounds = getNodeSizeBounds(node.kind)
-  const { handlePointerDown, handlePointerMove, handlePointerUp } = useNodeDragResize({ reportFeedback,
+  const { preview, handlePointerDown, handlePointerMove, handlePointerUp } = useNodeDragResize({ reportFeedback,
     node,
     selected,
     readOnly,
@@ -498,8 +498,6 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
         splitMode: false,
       }, (action) => {
         switch (action.type) {
-          case 'undo': useGenerationCanvasStore.getState().undo(); break
-          case 'redo': useGenerationCanvasStore.getState().redo(); break
           case 'nudge-playhead': setPlayheadFrame((frame) => Math.max(0, Math.min(durationFrames, frame + action.delta))); break
           case 'remove-selection': handleRemoveClip(activeClip.id); break
           case 'split-primary': handleSplitClip(activeClip.id, playheadFrame); break
@@ -547,7 +545,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
     <article
       ref={articleRef}
       className={cn('generation-canvas-v2-node absolute block cursor-grab select-none touch-none overflow-visible', selected ? 'z-50' : '')}
-      style={{ transform: `translate(${node.position.x}px, ${node.position.y}px)`, width: visualSize.width, height: visualSize.height }}
+      style={{ transform: `translate(${preview?.position.x ?? node.position.x}px, ${preview?.position.y ?? node.position.y}px)`, width: visualSize.width, height: visualSize.height }}
       data-node-id={node.id}
       data-kind={node.kind}
       data-selected={selected ? 'true' : 'false'}

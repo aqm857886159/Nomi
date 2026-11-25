@@ -62,7 +62,7 @@ export function logBreadcrumb(scope: string, detail: string): void {
   append(`[${scope}] ${redactLogValue(detail)}`);
 }
 
-export type ProcessGoneTarget = {
+type ProcessGoneTarget = {
   on(event: string, listener: (...args: unknown[]) => void): unknown;
 };
 
@@ -86,7 +86,7 @@ type GoneDetails = {
  * 走**字段**而不是拼成一句当错误传：错误原文在落盘道只留指纹（`redactError`），拼成句子的死因会被整句抹掉——
  * 2026-10-22 独立验收 V-redact 实测过这一误伤（`[render-process-gone] Error msg#…`）。
  */
-export type ProcessGoneRecorder = (scope: string, fields: LogFields) => void;
+type ProcessGoneRecorder = (scope: string, fields: LogFields) => void;
 
 /** 字段名 `name` 在日志字段黑名单里（会被略掉），服务 / 子进程名记在 `service` 上。 */
 function goneFields(details: GoneDetails, withType: boolean): LogFields {
@@ -114,7 +114,7 @@ export function installProcessGoneHandlers(
   });
 }
 
-export type NativeCrashReporter = { start(options: { uploadToServer: boolean }): void };
+type NativeCrashReporter = { start(options: { uploadToServer: boolean }): void };
 
 /**
  * 开 Crashpad：原生层崩溃（第三方输入法 DLL、GPU、原生对话框线程）只有 minidump 能留下
@@ -129,14 +129,14 @@ export function startNativeCrashCapture(reporter: NativeCrashReporter = crashRep
   }
 }
 
-export type CrashMonitorTarget = {
+type CrashMonitorTarget = {
   on(
     event: "uncaughtExceptionMonitor",
     listener: (error: Error, origin: string) => void,
   ): unknown;
 };
 
-export type CrashRecorder = (scope: string, error: unknown) => void;
+type CrashRecorder = (scope: string, error: unknown) => void;
 
 export function installCrashHandlers(
   target: CrashMonitorTarget = process,
@@ -179,7 +179,7 @@ export function isUpstreamStreamTeardownError(error: unknown): boolean {
   return frames.every((f) => NODE_BUILTIN_FRAME.test(f));
 }
 
-export type UncaughtExceptionTarget = {
+type UncaughtExceptionTarget = {
   on(event: "uncaughtException", listener: (error: Error, origin: string) => void): unknown;
   removeListener(event: "uncaughtException", listener: (error: Error, origin: string) => void): unknown;
   emit(event: "uncaughtException", error: Error, origin: string): unknown;

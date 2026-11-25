@@ -1,0 +1,210 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-23-issue-1629-mcp-background-focus",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-23",
+  "problem_type": "background-mcp-launch-steals-desktop-window-focus",
+  "symptom": "On macOS, starting ChatGPT Desktop when Codex has Nomi's packaged local MCP stdio config enabled spawns Nomi Helper twice, logs single-instance-exit for both processes, and unminimizes/focuses the running Nomi desktop window to the foreground.",
+  "direct_cause": "When a host launches Nomi Helper with mcpNodeLauncher.js (or mcpHttpForwarder.js) without preserving ELECTRON_RUN_AS_NODE=1 and NOMI_MCP_STDIO=1, Electron enters dist-electron/main.js as an interactive desktop app, calls app.requestSingleInstanceLock(), logs single-instance-exit and quits, and emits second-instance to the running Nomi instance whose handler unconditionally calls revealMainWindow('second-instance').",
+  "class_root": "Process launch intent (MCP stdio vs background cold-start vs interactive desktop) had no single shared classifier across startup and single-instance handoff; five sites read volatile environment variables ad hoc and second-instance ignored commandLine and requestSingleInstanceLock additionalData.",
+  "affected_population": [
+    "macOS users with Codex / ChatGPT Desktop configured to use Nomi's packaged local MCP stdio entry while Nomi is minimized or hidden",
+    "Claude Desktop forwarder (mcpHttpForwarder.js) or Windows/Linux MCP hosts that strip ELECTRON_RUN_AS_NODE",
+    "Background cold-starts racing on Electron's single-instance lock while a Nomi instance is already running hidden or minimized"
+  ],
+  "scope_paths": [
+    "electron/productionRun/desktopLaunchIntent.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.ts",
+    "electron/main.ts",
+    "electron/backgroundLaunch.ts",
+    "electron/mainProcessLifecycle.ts",
+    "electron/diagnostics/stallMonitor.ts",
+    "electron/telemetry/sessionExit.ts"
+  ],
+  "entry_points": [
+    "Electron main startup (electron/main.ts) classifying process launch mode before Dock, single-instance lock, and window creation",
+    "Single-instance handoff (electron/productionRun/productionRunDesktopLifecycle.ts) deciding whether second-instance reveals the main window",
+    "Main process lifecycle diagnostics and telemetry guards (mainProcessLifecycle.ts, stallMonitor.ts, sessionExit.ts, backgroundLaunch.ts)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/app#apprequestsingleinstancelockadditionaldata",
+      "checked_at": "2026-11-23",
+      "purpose": "Verify Electron app.requestSingleInstanceLock(additionalData) and second-instance event signature (event, commandLine, workingDirectory, additionalData) for propagating background launch identity."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/app#appdockhide-macos",
+      "checked_at": "2026-11-23",
+      "purpose": "Verify early macOS Dock suppression for headless MCP stdio processes before app ready."
+    }
+  ],
+  "invariants": [
+    "Any process launched with NOMI_MCP_STDIO=1, --mcp-stdio, or Nomi MCP launcher scripts (mcpNodeLauncher.js, mcpHttpForwarder.js, mcpServerEntry.js) in argv is classified as mcp-stdio before requestSingleInstanceLock(), hides Dock on macOS, never requests the desktop single-instance lock, and enters MCP stdio/forwarder mode.",
+    "The running desktop instance's second-instance handler inspects commandLine and additionalData via classifySecondInstance and never calls revealMainWindow for MCP scripts, --mcp-stdio, --nomi-background-launch, Nomi Helper executable launches, or additionalData.launchIntent === 'background'.",
+    "Explicit interactive user launches (plain Nomi executable or nomi:// deep link) and macOS Dock activate events continue to restore and focus the main window."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun",
+    "tests": [
+      "electron/productionRun/desktopLaunchIntent.test.ts",
+      "electron/productionRun/productionRunDesktopLifecycle.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/productionRun/desktopLaunchIntent.ts",
+      "symbol": "classifyProcessLaunch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "classifyProcessLaunch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "symbol": "classifySecondInstance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/mainProcessLifecycle.ts",
+      "symbol": "isMcpStdioLaunch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/diagnostics/stallMonitor.ts",
+      "symbol": "isMcpStdioLaunch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/sessionExit.ts",
+      "symbol": "isMcpStdioLaunch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/backgroundLaunch.ts",
+      "symbol": "isBackgroundDesktopLaunch"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "Each call site owns a distinct lifecycle phase (shared classifier owner, main process boot routing, second-instance focus guard, stderr/lifecycle setup, stall monitor skip, session-exit telemetry skip, and background window options); all callers now delegate to the single pure classifier in electron/productionRun/desktopLaunchIntent.ts instead of duplicating env checks."
+  },
+  "generality_proof": "Routing every launch-mode consumer and the second-instance guard through electron/productionRun/desktopLaunchIntent.ts ensures that whether an external host strips ELECTRON_RUN_AS_NODE, strips NOMI_MCP_STDIO, invokes mcpHttpForwarder.js, runs on Windows/Linux via Nomi.exe, or triggers a background cold-start lock race, the process never steals focus from a minimized or hidden Nomi window while interactive user opens and nomi:// deep links remain unaffected.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/desktopLaunchIntent.ts",
+      "symbol": "classifyProcessLaunch",
+      "responsibility": "Single source of truth classifying env + argv into mcp-stdio, background-desktop, or interactive-desktop."
+    },
+    {
+      "path": "electron/productionRun/desktopLaunchIntent.ts",
+      "symbol": "classifySecondInstance",
+      "responsibility": "Single source of truth deciding whether a second-instance event (commandLine + additionalData) should reveal the main window."
+    },
+    {
+      "path": "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "symbol": "installProductionRunDesktopLifecycle",
+      "responsibility": "Enforces classifySecondInstance before calling revealMainWindow('second-instance')."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/main.ts",
+      "entry_point": "classifyProcessLaunch",
+      "disposition": "enforced",
+      "evidence": "Hides Dock early, skips app.requestSingleInstanceLock() for env/argv MCP stdio launches, routes http-forwarder vs stdio server, and attaches singleInstanceLockData({ launchIntent: 'background' }) for background cold starts."
+    },
+    {
+      "path": "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "entry_point": "installProductionRunDesktopLifecycle",
+      "disposition": "enforced",
+      "evidence": "Guards app.on('second-instance') with classifySecondInstance(commandLine, additionalData) so background/MCP/helper launches never call revealMainWindow."
+    },
+    {
+      "path": "electron/mainProcessLifecycle.ts",
+      "entry_point": "installMainProcessLifecycle",
+      "disposition": "enforced",
+      "evidence": "Uses isMcpStdioLaunch({ env, argv }) so argv-detected MCP stdio processes also route diagnostics to stderr and skip the desktop stall monitor."
+    },
+    {
+      "path": "electron/diagnostics/stallMonitor.ts",
+      "entry_point": "installStallMonitor",
+      "disposition": "enforced",
+      "evidence": "Uses isMcpStdioLaunch({ env, argv }) to avoid attaching the desktop stall monitor to headless MCP processes."
+    },
+    {
+      "path": "electron/telemetry/sessionExit.ts",
+      "entry_point": "startAppSessionExitTracking",
+      "disposition": "enforced",
+      "evidence": "Uses isMcpStdioLaunch() so headless MCP processes do not record desktop session exit markers."
+    },
+    {
+      "path": "electron/backgroundLaunch.ts",
+      "entry_point": "isBackgroundLaunch",
+      "disposition": "enforced",
+      "evidence": "Delegates to isBackgroundDesktopLaunch() so env and CLI background flags stay aligned."
+    },
+    {
+      "path": "electron/mainWindowPresence.ts",
+      "entry_point": "revealMainWindow",
+      "disposition": "not-affected",
+      "evidence": "Main window owner executes explicit reveal intents (activate, deep-link, second-instance); filtering background second-instance events belongs upstream at the launch-intent and second-instance boundary so Dock activate continues to restore minimized windows."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any MCP host across macOS, Windows, or Linux that sanitizes environment variables (such as ChatGPT Desktop, Codex, or Claude Desktop forwarder configs) or races two background cold starts hits the same missing launch-intent boundary.",
+    "same_class_scan": [
+      "git grep -n 'NOMI_MCP_STDIO|NOMI_LAUNCH_BACKGROUND' electron/ src/ audited all 6 process launch consumers (main.ts, backgroundLaunch.ts, mainProcessLifecycle.ts, stallMonitor.ts, sessionExit.ts, mcpNodeLauncher.ts)",
+      "node scripts/door-map.mjs revealMainWindow audited all 8 revealMainWindow callers and confirmed only second-instance reacts to external process launches",
+      "Audited electron/capabilityCore/mcpConfig.ts and electron/capabilityCore/mcpHostEntries.ts for packaged macOS/Windows/Linux stdio and forwarder argv shapes"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/desktopLaunchIntent.ts",
+    "invariant": "All startup and second-instance paths classify launch intent through desktopLaunchIntent.ts using both env and argv/additionalData before touching Dock, single-instance lock, or revealMainWindow.",
+    "failure_mode": "When an external host strips ELECTRON_RUN_AS_NODE and/or NOMI_MCP_STDIO, argv script detection still routes the process into headless MCP stdio mode without requesting the desktop lock; if any helper or background launch still emits second-instance, classifySecondInstance suppresses window reveal.",
+    "exception_policy": "none",
+    "strategy": "Centralize process launch classification and second-instance reveal filtering into electron/productionRun/desktopLaunchIntent.ts and cover both directions plus interactive/deep-link positive controls with automated regression tests.",
+    "artifacts": [
+      "electron/productionRun/desktopLaunchIntent.ts",
+      "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "electron/main.ts",
+      "electron/backgroundLaunch.ts",
+      "electron/mainProcessLifecycle.ts",
+      "electron/diagnostics/stallMonitor.ts",
+      "electron/telemetry/sessionExit.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/desktopLaunchIntent.test.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.test.ts",
+    "electron/mainProcessLifecycle.test.ts",
+    "electron/diagnostics/stallMonitor.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/desktopLaunchIntent.test.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Existing user MCP host configs (mcpNodeLauncher.js and mcpHttpForwarder.js) remain directly supported without reconfiguration or a parallel legacy branch."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Electron 43.4.1 already provides app.requestSingleInstanceLock(additionalData), second-instance commandLine/additionalData, and app.dock.hide(); the defect was missing application-level launch-intent classification.",
+    "exit_criteria": []
+  },
+  "migration": "No user config migration needed: existing Codex, Claude Code, Cursor, and Claude Desktop MCP entries continue to work as-is because mcpNodeLauncher.js and mcpHttpForwarder.js argv paths are recognized directly at startup and in second-instance.",
+  "residual_risks": [
+    "End-to-end verification against live ChatGPT Desktop 26.1111.21308 + packaged signed Nomi.app on macOS is unverified in this worktree (no packaged DMG/ChatGPT Desktop harness); unit and lifecycle tests verify the exact commandLine, stripped-env startup routing, and second-instance guard."
+  ]
+}

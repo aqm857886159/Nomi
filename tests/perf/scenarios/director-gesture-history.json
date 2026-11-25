@@ -1,0 +1,27 @@
+{
+  "id": "director-gesture-history",
+  "feature": "3D-BOX 导演台满 50 步撤销容量下连续 2 秒拖滑条与滚轮调参并各验单步撤销/重做，统计手势帧间隔 p95、长任务与整份工程 stringify 零触发",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/director-gesture-history.mjs",
+    "--"
+  ],
+  "scale": "隔离真 Electron 窗口 1280×933，先填满 50 步离散历史，每轮连续 120 帧 range 拖动 + 120 帧滚轮调参，最后排空校验 50 步容量",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "group": "⑪ 导演台手势",
+  "budgetStatus": "proposed",
+  "budgetBasis": "设计卡 docs/plan/2026-11-24-unified-undo-history.md ★7：导演台同字段 2 秒连续滑条/滚轮首尾合成一笔且不对工程逐帧 stringify/深拷贝，60Hz 手势 p95 帧间隔 ≤33ms、长任务为 0",
+  "baseline": {
+    "median": 18,
+    "p95": 18.2,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 16GB",
+    "date": "2026-11-23",
+    "commit": "5d2df1fed"
+  }
+}

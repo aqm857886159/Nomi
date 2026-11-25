@@ -24,7 +24,7 @@ export const MAIN_PROCESS_RECORDS_NOT_LIVE: Readonly<Record<string, string>> = {
   agentQueuedInputs: '助手运行中排队、还没发出的输入（主进程里）：同样按 claim 存；它在用户中止时才回到渲染层输入框，时刻由用户决定，清扫排不到它后面——已知限制：原结果被删、文件回收后，这条输入发出去时附件不可用',
 }
 
-export type ProjectLivenessContent = { nodes: readonly GenerationCanvasNode[]; rest: unknown }
+type ProjectLivenessContent = { nodes: readonly GenerationCanvasNode[]; rest: unknown }
 
 /** 会话还活着（删除当场、撤销挤出、列表）还是马上结束（关项目 / 换项目那一次释放：撤销栈随后清零）。 */
 export type ProjectSessionMoment = 'alive' | 'ending'

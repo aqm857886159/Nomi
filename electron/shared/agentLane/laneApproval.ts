@@ -45,7 +45,7 @@ export type LaneApprovalSubjectResolver = (request: Readonly<{
   grantable?: boolean;
 }> | undefined;
 
-export type LaneApprovalContext = Readonly<{
+type LaneApprovalContext = Readonly<{
   policy: ProjectAgentApprovalPolicy | undefined;
   workMode: ProjectAgentWorkMode | undefined;
   /**
@@ -60,7 +60,7 @@ export type LaneApprovalContext = Readonly<{
   sessionGrants: ReadonlySet<string>;
 }>;
 
-export type LaneApprovalPreflight =
+type LaneApprovalPreflight =
   | Readonly<{ state: "auto-granted"; grantable: false }>
   | Readonly<{ state: "awaiting-user"; grantable: boolean }>
   | Readonly<{ state: "denied-by-policy"; grantable: false; reason: string }>;

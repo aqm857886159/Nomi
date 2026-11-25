@@ -6,7 +6,7 @@
  * skill 端再按完整 message 判断单层/轨迹（见 SKILL.md「两种模式」）。
  */
 
-export type CreationIntent = 'storyboard' | 'fixation' | null
+type CreationIntent = 'storyboard' | 'fixation' | null
 
 // 高召回的拆镜头口径（治脆）：识别到意图后只是弹「动作卡」让用户确认、不静默开跑，
 // 所以可以放心放宽——残余漏判由用户换句话兜底，误判只是多一张可忽略的卡，代价低。

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const boundedText = (max = 2000) => z.string().trim().max(max);
 
-export const experienceKindSchema = z.enum([
+const experienceKindSchema = z.enum([
   "fact",
   "procedure",
   "troubleshooting",
@@ -14,13 +14,12 @@ export const experienceKindSchema = z.enum([
 ]);
 export type ExperienceKind = z.infer<typeof experienceKindSchema>;
 
-export const experienceDestinationSchema = z.enum(["memory", "skill", "runbook", "gate", "adr", "training-data", "incident"]);
-export type ExperienceDestination = z.infer<typeof experienceDestinationSchema>;
+const experienceDestinationSchema = z.enum(["memory", "skill", "runbook", "gate", "adr", "training-data", "incident"]);
 
-export const experienceScopeSchema = z.enum(["project", "global"]);
+const experienceScopeSchema = z.enum(["project", "global"]);
 export type ExperienceScope = z.infer<typeof experienceScopeSchema>;
 
-export const experienceRiskSchema = z.enum(["green", "yellow", "red"]);
+const experienceRiskSchema = z.enum(["green", "yellow", "red"]);
 export type ExperienceRisk = z.infer<typeof experienceRiskSchema>;
 
 export const experienceStatusSchema = z.enum(["quarantined", "shadow", "active", "demoted", "superseded", "expired"]);
@@ -53,9 +52,8 @@ export const learningEnvelopeSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["evidence", "eventSeqs"], message: "at least one source event is required" });
   }
 });
-export type LearningEnvelope = z.infer<typeof learningEnvelopeSchema>;
 
-export const trajectoryEventSchema = z.object({
+const trajectoryEventSchema = z.object({
   type: z.string().min(1).max(120),
   seq: z.number().int().positive().optional(),
   payload: z.record(z.string(), z.unknown()).optional(),

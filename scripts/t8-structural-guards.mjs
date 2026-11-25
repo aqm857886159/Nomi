@@ -50,9 +50,9 @@ export const genericMapEvictionSelectors = [
   },
 ]
 
-// ── 3. 第 2 类：禁止在 electron/jsonFile.ts 之外裸调 fs.renameSync / fsp.rename ─────────────────────
+// ── 3. 第 2 类：原生 rename 收口到 electron/jsonFile.ts ─────────────────────
 export const GENERIC_RAW_RENAME_MESSAGE =
-  '主进程文件原子改名只经 electron/jsonFile.ts（Windows EPERM/EBUSY 共享冲突重试唯一主人）：改调 renameSyncWithRetry / writeJsonAtomic，不要裸调 fs.renameSync / fsp.rename。'
+  '主进程文件原子改名经 electron/jsonFile.ts：用 renameWithRetry / renameSyncWithRetry / writeJsonFileAtomic；由调用方负责重验或退避时，用 renameSyncOnce。'
 export const genericRawRenameSelectors = [
   {
     selector: 'CallExpression > MemberExpression.callee[property.name=/^(rename|renameSync)$/][object.name=/^(fs|fsp|nodeFs|fsPromises)$/]',
@@ -190,7 +190,6 @@ export const t8StructuralGuardBlocks = [
       ...TEST_IGNORES,
       'electron/sharingRetry.ts',
       'electron/vendor/vendorHttp.ts',
-      'src/workbench/generationCanvas/runner/generationRetryPolicy.ts',
     ],
     plugins: { 'generic-retry-loop': syntaxPlugin() },
     rules: { 'generic-retry-loop/no-restricted-syntax': ['error', ...genericRetryLoopSelectors] },

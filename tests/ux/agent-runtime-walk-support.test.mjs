@@ -214,7 +214,8 @@ test('the resident shell keeps the surface identity anchors every walkthrough sc
   // 空态那两个挂点（data-agent-empty-state / -cta）随 v4 接线删了：v4 的空面板就是一条空对话流 +
   // composer，没有第九个「空状态」积木。这里改钉**外壳身份**——它是所有走查作用域的根据，
   // 丢一个就会让整批走查报「面板没渲染」而实际是选择器过期。
-  const source = fs.readFileSync(new URL('../../src/workbench/ai/ProjectAgentResidentShell.tsx', import.meta.url), 'utf8')
+  const shellSource = fs.readFileSync(new URL('../../src/workbench/ai/ProjectAgentResidentShell.tsx', import.meta.url), 'utf8')
+  const threadMenuSource = fs.readFileSync(new URL('../../src/workbench/ai/resident/ResidentThreadMenu.tsx', import.meta.url), 'utf8')
   // 外壳换成一棵稳定树（react-reverse-portal）后，展开 / 收起不再是两个分支、而是同一个根上互斥的两枚锚点：
   // 展开只发 data-agent-panel="true"（AGENT_PANEL），收起只发 data-agent-collapsed="true"（COLLAPSED_SHELL）。
   // 两枚同时在、或收起时还挂着面板锚点，走查的「面板开着 / 收起了」就会互相误判，所以把互斥写死在这里。
@@ -224,11 +225,12 @@ test('the resident shell keeps the surface identity anchors every walkthrough sc
     'data-agent-surface={surface}',
     "data-agent-collapsed={collapsed ? 'true' : undefined}",
     'data-agent-approval-mode={actions.permission}',
-    'data-agent-thread-menu="true"',
+    '<ResidentThreadMenu',
     'data-agent-error="true"',
   ]) {
-    expect(source, `resident shell 必须继续发出 ${anchor}`).toContain(anchor)
+    expect(shellSource, `resident shell 必须继续发出 ${anchor}`).toContain(anchor)
   }
+  expect(threadMenuSource, 'resident thread menu 必须继续发出 data-agent-thread-menu="true"').toContain('data-agent-thread-menu="true"')
 })
 
 test('every panel selector lives in the shared support module, not hand-copied into walks', async () => {

@@ -20,7 +20,6 @@ export function ClipBar({
   active = false,
   muted,
   onPointerDown,
-  onContextMenu,
 }: {
   clip: TimelineClipView
   left: number
@@ -30,7 +29,6 @@ export function ClipBar({
   active?: boolean
   muted: boolean
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>, zone: ClipDragZone) => void
-  onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void
 }): JSX.Element {
   const zoneFromEvent = (event: React.PointerEvent<HTMLDivElement>): ClipDragZone => {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -55,7 +53,6 @@ export function ClipBar({
       )}
       style={{ left, width: Math.max(1, width) }}
       onPointerDown={(event) => onPointerDown(event, zoneFromEvent(event))}
-      onContextMenu={onContextMenu}
     >
       <span className="pointer-events-none w-full select-none truncate px-2.5 text-center font-nomi-mono text-micro font-medium">{clip.label}</span>
       {selected && !muted ? (

@@ -8,7 +8,7 @@
 import { RpcError } from './rpcError'
 import { buildToolErrorOutcome } from './mcpToolErrorResults'
 
-export type RpcErrorWireDetails = Readonly<{
+type RpcErrorWireDetails = Readonly<{
   message?: string
   code?: string
   errorCode?: string
@@ -16,7 +16,7 @@ export type RpcErrorWireDetails = Readonly<{
   capability?: string
 }>
 
-export type RpcErrorWirePayload = string | RpcErrorWireDetails
+type RpcErrorWirePayload = string | RpcErrorWireDetails
 
 export class RpcTransportError extends Error {
   readonly code?: string

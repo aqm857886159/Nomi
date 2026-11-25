@@ -1,8 +1,8 @@
 import type { SkillManifest } from "./skillManifestSchema";
 import { findSkillRecord, readSkillRecords } from "./skillStore";
 
-export type LoadedSkillEvidence = { name: string; version: string };
-export type SkillExecutionEvidence = LoadedSkillEvidence & { stageId: string };
+type LoadedSkillEvidence = { name: string; version: string };
+type SkillExecutionEvidence = LoadedSkillEvidence & { stageId: string };
 
 /** Resolve the declared craft skills for a built-in playbook and prove that
  * each referenced skill was actually present on disk when the stage ran. */

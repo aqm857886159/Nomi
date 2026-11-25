@@ -1,0 +1,35 @@
+{
+  "name": "APIMart 账户资金与 Key 额度读取",
+  "subject": "catalog.vendor-account-balance",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+    "symbol": "balanceReader"
+  },
+  "write_api": [
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "balanceReader"
+    },
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "checkVendorAccountBalance"
+    },
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "readVendorAccountBalance"
+    },
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "parseReportedBalance"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "账户快照仅取 userBalancePath。接入保存与重查并读 Key 的额度，只有 Key 端点的认证拒绝可拒收。"
+}

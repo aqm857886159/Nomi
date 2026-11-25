@@ -853,13 +853,60 @@
   ],
   "entries": [
     {
+      "id": "workbench-session-history",
+      "capability": "时间轴和剪辑布局的会话历史、回执授权及快捷键归属",
+      "status": "justified",
+      "paths": [
+        "src/workbench/history/historyMiddleware.ts",
+        "src/workbench/history/timelineAndLayoutHistory.test.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "zundo temporal（记录、限额、撤销、重做）",
+          "source": "node_modules/zundo/dist/index.js"
+        },
+        {
+          "name": "immer patches（正反补丁不负责项目寿命与回执授权）",
+          "source": "node_modules/immer/src/immer.ts"
+        },
+        {
+          "name": "shortcutSurface.ts（沿用已有宿主和模态输入归属）",
+          "source": "src/workbench/shortcutSurface.ts"
+        }
+      ],
+      "whyNotIntegrated": "zundo temporal 负责两份限额历史。Nomi 在项目会话结束时更换历史实例，按时间轴顶条和 revision 授权 Agent 回执，并在同屏时间轴、布局和画布间按用户活动目标分派 ⌘Z。",
+      "revisitWhen": "项目会话、采纳补偿或 Agent 回执协议改变时，与 zundo 的新版本对照。"
+    },
+    {
+      "id": "file-lease-lock",
+      "capability": "工作区清单事务与生产运行栅栏需要的可核验文件所有权：原盘上协议、同步检查、同步盘恢复与持有者交接",
+      "status": "justified",
+      "paths": [
+        "electron/shared/fileLeaseLock.ts",
+        "electron/workspace/workspaceManifestLock.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "proper-lockfile 4.1.2",
+          "source": "https://github.com/moxystudio/node-proper-lockfile/blob/v4.1.2/README.md#compromised"
+        },
+        {
+          "name": "Node exclusive open and rename primitives",
+          "source": "https://nodejs.org/api/fs.html#file-system-flags"
+        }
+      ],
+      "whyNotIntegrated": "工作区需要与已发布桌面版本用同一份目录 owner.json 协调写入，以已验证的死 PID 及恢复隔离防止双写。生产运行需要原盘上 JSON 字段、显式 owner token 及发布时写栅栏。单用 mtime 的锁库无法执行这两个盘上协议。",
+      "revisitWhen": "支持现有记录、同步盘隔离和 fencing token 的库可通过工作区锁、租约与生产运行故障矩阵，或旧版本互操作需求结束。"
+    },
+    {
       "id": "lane-approval-gate",
-      "capability": "工具调用审批闸：在 before_tool 里停下等用户，四个动作、七种结局，关窗 / 切项目 / 按停止统一收尾",
+      "capability": "工具调用审批闸：执行当轮生成暂停，在 before_tool 里停下等用户，四个动作、七种结局，关窗 / 切项目 / 按停止统一收尾",
       "status": "justified",
       "paths": [
         "electron/agentLane/laneApprovalGate.ts",
         "electron/agentLane/laneAskUserTool.ts",
         "electron/agentLane/laneNativeApproval.ts",
+        "electron/agentLane/turnGenerationHold.ts",
         "electron/shared/agentLane/laneApproval.ts"
       ],
       "alternativesChecked": [
@@ -876,8 +923,8 @@
           "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md"
         }
       ],
-      "whyNotIntegrated": "领域约束：花钱与写画布必须由用户批准，且批准有七种结局（确认 / 拒绝 / 改口 / 停止 / 关窗 / 重启…）要给用户不同的话；pi 的确认只有 yes / no / 取消，harness 层连对话框都没有。形状（按 id 匹配、阻塞到回复、取消是一等结局）已经照 pi 的协议抄了。",
-      "revisitWhen": "pi 的 harness 层提供带结局枚举的待决确认原语时；或 0.24 B（付费卡并进投影）落地后复查是否还有第二份「等」"
+      "whyNotIntegrated": "领域约束：花钱与写画布必须由用户批准，且批准有七种结局（确认 / 拒绝 / 改口 / 停止 / 关窗 / 重启…）要给用户不同的话；pi 的确认只有 yes / no / 取消，harness 层连对话框都没有。形状（按 id 匹配、阻塞到回复、取消是一等结局）已经照 pi 的协议抄了。当前回合要求暂停生成时，Nomi 在审批前禁止单镜和批量生成，草稿编辑照常进行。pi 的 before_tool 提供执行时机，暂停生成与编辑草稿的区分由 Nomi 判定。",
+      "revisitWhen": "pi 的 harness 层提供带结局枚举的待决确认原语时；或 0.24 B（付费卡并进投影）落地后复查是否还有第二份「等」。若框架能把用户的当轮指令与卡片答复绑定到指定工具的暂停状态，复查应用侧是否只需保留生成与草稿编辑的领域判据。"
     },
     {
       "id": "lane-provider-watchdog",
@@ -1253,8 +1300,7 @@
     {
       "id": "validation-policy",
       "capability": "一个 diff 要跑哪些验证（单测 / 桌面 / 旅程 / 画布 critical·full / 性能 / 打包）的分类器",
-      "status": "under-review",
-      "reviewBy": "2026-11-15",
+      "status": "justified",
       "paths": [
         "scripts/validation-policy.mjs",
         "scripts/select-quality-gate-profile.mjs",
@@ -1262,20 +1308,24 @@
       ],
       "alternativesChecked": [
         {
-          "name": "dorny/paths-filter（按路径模式输出各 lane 是否命中）",
+          "name": "dorny/paths-filter（按事件查询 PR 文件或用 Git 找改动，可产出路径过滤结果）",
           "source": "https://github.com/dorny/paths-filter"
         },
         {
           "name": "Nx affected（按依赖图而不是路径正则决定受影响面）",
-          "source": "https://nx.dev/ci/features/affected"
+          "source": "https://nx.dev/docs/features/ci-features/affected"
         },
         {
           "name": "分类器为什么按概念表对照而不是补文件名",
           "source": "docs/audit/2026-10-01-scripts-validation-judgement-structure-review.md"
+        },
+        {
+          "name": "Git 两端 name-status diff（供给文件与增删改名状态，现已接入）",
+          "source": "https://git-scm.com/docs/git-diff"
         }
       ],
-      "whyNotIntegrated": "尚未下结论。能被替换的是「路径 → lane」的匹配本身（paths-filter 能做）；暂不能替的是三件事：删除 / 重命名 / 空 diff fail-closed、画布 critical 与 full 的分档只升不降、清单对着 concept-owners 概念表核对。评估方向：paths-filter 出路径集 + 自写的薄 fail-closed 层。",
-      "revisitWhen": "出评估结论（paths-filter 加薄层是否够用）；或分类器再收到一份根因合同时先看这一项"
+      "whyNotIntegrated": "领域约束：改动 Nomi 的付费入口时要选中对应免费回环走查，画布按已登记的概念依赖选择 critical 或 full；改名丢失来源归属时全量验证。CI、本机 gates 和合后收据必须读同一结论。paths-filter 提供 GitHub Actions 路径匹配，Nx 提供项目依赖计算，接入后仍需这份跨入口的领域规则。文件状态与路径由 Git 提供。",
+      "revisitWhen": "有现成组件能以同一份概念和走查清单在本机、CI、合后收据三处复现现有车道矩阵时重评"
     },
     {
       "id": "full-walk-monitor",
@@ -1348,7 +1398,7 @@
     },
     {
       "id": "mcp-protocol",
-      "capability": "MCP 在 Nomi 这一侧剩下的装配：方法处理器（目录 / 资源 / 提示的领域投影）、tools/call 里的审批与派发、入口拒未验证客户端、两个 stdio 启动器；协议本身（握手、路由、取消、进度帧、请求关联、stdio 分帧、参数校验引擎）已交给官方 SDK v2",
+      "capability": "MCP 接入装配（14 路径实查口径：6 个已走官方 SDK v2、7 个 Nomi 独有胶合/宿主配置、1 个暂留转发桥 mcpHttpBridge.ts；mcpVerify.ts stdio 探针亦已改用官方 SDK Client + StdioClientTransport）",
       "status": "to-replace",
       "plan": "docs/plan/2026-10-05-mcp-official-sdk.md",
       "paths": [
@@ -1369,7 +1419,7 @@
       ],
       "alternativesChecked": [
         {
-          "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0：Server、StdioServerTransport、fromJsonSchema、createMcpHandler、serveStdio）",
+          "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0、@modelcontextprotocol/client 2.3.0、@modelcontextprotocol/node 2.1.1：Server、StdioServerTransport、Client、StdioClientTransport、StreamableHTTPClientTransport、NodeStreamableHTTPServerTransport、fromJsonSchema）",
           "source": "https://ts.sdk.modelcontextprotocol.io/v2/"
         },
         {
@@ -1397,8 +1447,8 @@
           "source": "https://github.com/geelen/mcp-remote"
         }
       ],
-      "whyNotIntegrated": "第 2 段（2026-10-05）本机 HTTP 同样接 SDK：Streamable HTTP 服务端传输、Host / Origin 防重绑定用 @modelcontextprotocol/node，转发口的 HTTP 客户端传输用 @modelcontextprotocol/client；Nomi 只写「谁能连（签名身份头，与回环 RPC 同一套）、按会话分配协议实例、会话里的领域调用走回环 RPC 同一扇门」，以及转发桥里两件传输本身要的事（把协商出的协议版本告诉 HTTP 传输、Nomi 没开时给宿主回一句）。第 1 段：（2026-10-05）手写的握手 / 路由 / 取消 / 在飞账本 / stdio 分帧 / Ajv 校验器已删，协议由 SDK 承担。剩下的是领域：tools/list 投影（zod v3 契约 → 对外 schema 的扁平超集，mcpTransportSchemaFromZod.ts；SDK 只认 zod v4 且字节必变）、审批只有 tools/call 一个入口、未验证客户端的判据。两个 stdio 启动器本版不改行为（隐藏实例冷启还靠它，见 docs/plan/2026-10-09-mcp-host-migration.md），删旧启动器那一版再收口。第 3 段（2026-10-09）宿主配置迁移（mcpHostMigration.ts）与 HTTP 条目验证（mcpVerifyHttp.ts）：往别家宿主配置里写 Nomi 自己那一条、迁移前备份与恢复、按稳定地址存活判断拒绝，这是「Nomi 与外部 AI 宿主的接入」领域，没有现成库管别家的配置文件；握手验证本身用 SDK Client。宿主配置写盘门（hostConfigWrite.ts）的互斥锁复用仓库已有的租约设施 productionRun/productionRunLock（带 nonce 的所有权核验 + 续租），不接 proper-lockfile：写盘门是同步的（启动修复与 IPC 里一次完成），proper-lockfile 的续租靠异步定时器、同步写期间跑不了，也没有同步的所有权核验，满足不了「锁丢了必须在换名之前失败」；平台文件锁要原生模块（每个架构的 Electron ABI 重编）且 Linux 没有对应的独占打开。普通文件系统上对外部写者没有 compare-and-swap，提交协议（挂链接 + 事后核对 + 放回）是 Nomi 往别家文件里写这一领域自己的部分。",
-      "revisitWhen": "第 3 段（宿主配置迁移、旧启动器当转发器）完成后，mcpStdioServer.ts / mcpNodeLauncher.ts 收成一个薄转发口，本条改 justified 并只剩领域路径"
+      "whyNotIntegrated": "2026-11-23 实查校准（修正此前将 14 个文件统算成手写协议层的口径）：（1）6 个文件已直接走官方 MCP TypeScript SDK v2（f6c57c182 起）：mcpProtocol.ts（@modelcontextprotocol/server）、mcpStdioServer.ts（@modelcontextprotocol/server/stdio）、mcpNodeLauncher.ts（@modelcontextprotocol/server/stdio）、mcpHttpServer.ts（@modelcontextprotocol/node + server）、mcpHttpForwarder.ts（@modelcontextprotocol/client + server/stdio）、mcpVerifyHttp.ts（@modelcontextprotocol/client）；原名单外真正残留的手写 stdio JSON-RPC 客户端探针 mcpVerify.ts 亦已同刀换为 @modelcontextprotocol/client（Client + StdioClientTransport），删去手写 spawn/分帧/拼帧。（2）7 个文件属 Nomi 独有领域与宿主接入胶合，非 MCP 协议层：mcpTransportSchemaFromZod.ts（Zod v3 契约压平为模型兼容超集，SDK 只认 Zod v4 且字节必变）、mcpHttpDesktop.ts（桌面生命周期拉起本机 HTTP）、mcpHttpEndpoint.ts（固定回环地址与 PID 存活防凭据外泄）、mcpHttpListenState.ts（端口冲突 UI 状态）、mcpHostMigration.ts（外部宿主配置迁移与回滚）、mcpHostEntries.ts（各宿主 JSON/TOML 条目解析与所有权分类）、hostConfigWrite.ts（复用 productionRunLock 的同步原子写盘门；不接 proper-lockfile/平台锁原因见 alternativesChecked）。（3）仅剩 1 个手写传输转发桥 mcpHttpBridge.ts 暂留：它在 SDK Transport / StreamableHTTPClientTransport 之上实现协商版本透传、404 会话失效重握手、保活探活与 4 类故障文案；待社区代理 mcp-remote 实测通过或 Claude Desktop 原生支持 Streamable HTTP 后连同旧 stdio 启动器一起退役。另注：mcpAppWidget.ts（SEP-1865 UI 卡片）与 mcpElicitation.ts（2025-11-25 确认形态）不在本条目 14 路径内、本刀不动。",
+      "revisitWhen": "待 mcpHttpBridge.ts 经 mcp-remote 实测替代或随 Claude Desktop 原生 Streamable HTTP 退役，且两个旧 stdio 启动器（mcpStdioServer.ts / mcpNodeLauncher.ts）按 2026-11-16 方向检查收口后，本条改为 justified 并仅保留 Nomi 领域胶合路径"
     },
     {
       "id": "network-stack",
@@ -1433,6 +1483,54 @@
       ],
       "whyNotIntegrated": "尚未下结论。2026-11-13 生成的提交 / 取回 / 下载已不再按目的地地址判（docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md），那层「付费取片的出站策略」整层删掉；按地址判只剩 Agent 读文档、接入向导抓文档这两类「抓来的文字会进模型」的入口（hardenedFetch textEntersModelContext，去留待定）。密钥两条（只去保存时确认的 origin、遇跳转即停）在凭据绑定与 credentialRedirectPolicy，不属这一条。代理 / SOCKS 的 dispatcher 本身看起来有现成的。评估方向：代理层接现成库。",
       "revisitWhen": "出评估结论；评估前这里不得新增网络栈文件"
+    },
+    {
+      "id": "retry-policy-adapter",
+      "capability": "异步重试与有界轮询退避",
+      "status": "justified",
+      "paths": [
+        "electron/shared/retryPolicy.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "p-retry 4.6.2（CommonJS，直接驱动重试）",
+          "source": "https://raw.githubusercontent.com/sindresorhus/p-retry/v4.6.2/index.js"
+        },
+        {
+          "name": "Node.js timers（可取消、可移除事件循环引用）",
+          "source": "https://nodejs.org/api/timers.html"
+        },
+        {
+          "name": "AWS 指数退避与抖动",
+          "source": "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/"
+        }
+      ],
+      "whyNotIntegrated": "执行直接交给 p-retry。适配只桥接可控 sleep、观察剩余时间截断和跨 tick 领域调度器读取间隔，保留业务错误及其取消语义。",
+      "revisitWhen": "主进程改用 ESM，且新版 p-retry 能保持可注入的时钟、末次观察和跨 tick 调度行为时，跑完整特征测试并删除可由库存 API 承担的桥接。"
+    },
+    {
+      "id": "bounded-cache-adapter",
+      "capability": "跨端有界内存缓存与同键请求复用",
+      "status": "justified",
+      "paths": [
+        "electron/shared/boundedCache.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "lru-cache 10.4.3（直接承担容量与淘汰）",
+          "source": "https://github.com/isaacs/node-lru-cache/tree/v10.4.3"
+        },
+        {
+          "name": "SWR cache provider（React 查询作用域）",
+          "source": "https://swr.vercel.app/docs/advanced/cache"
+        },
+        {
+          "name": "SWR deduplication（同查询键去重）",
+          "source": "https://swr.vercel.app/docs/advanced/performance#deduplication"
+        }
+      ],
+      "whyNotIntegrated": "底层直接使用 lru-cache。适配仅收口 Nomi 的跨端缓存入口，保留 FIFO 更新、墙钟 TTL、从发出请求起合流及失败释放同键的行为。渲染查询已有 SWR，终态遥测上下文按任务身份存取。",
+      "revisitWhen": "跨端运行时可升级到直接覆盖 FIFO 原位更新和现有墙钟期限的库版本，或领域不再需要这些行为时，跑特征测试并删除对应桥接。"
     },
     {
       "id": "durable-json",
@@ -1759,18 +1857,11 @@
     },
     {
       "id": "canvas-undo-journal-write-boundary",
-      "capability": "画布撤销日志（会话日志前缀重放）与写边界（动作分层、整写统一提交口、提议写入的接管）",
-      "status": "under-review",
-      "reviewBy": "2026-12-06",
-      "renewed": [
-        {
-          "on": "2026-11-07",
-          "from": "2026-11-06",
-          "reason": "镜头结果归属那次改动只在写边界的动作分层表里把删掉的 withdrawNodeRun 换成 applyRunOutcome，没碰撤销日志与整写提交口的设计；撤销栈改 Immer 反向补丁的评估（方向检查 §6 接入 B）还没有线去做，下不了结论。只能续这一次，到期前必须出结论。"
-        }
-      ],
+      "capability": "Canvas paid-result retention and document write boundary",
+      "status": "justified",
       "paths": [
-        "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+        "src/workbench/generationCanvas/events/canvasPatchHistory.ts",
+        "src/workbench/generationCanvas/events/canvasDocumentPatches.ts",
         "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
         "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
       ],
@@ -1796,8 +1887,8 @@
           "source": "docs/plan/2026-10-07-canvas-landing-direction-check.md"
         }
       ],
-      "whyNotIntegrated": "尚未下结论。领域约束只有一条：撤销「建节点」时节点因为装着付费结果要留下（协调会话 10-07 定 B），Yjs / tldraw 按来源撤销「插入」会连容器一起拿走，表达不了；其余（按来源只撤用户事务、事实层不进撤销栈）是通用能力。Immer 已是依赖、画布 store 已用 zustand/middleware/immer，撤销栈改成反向补丁是首选评估方向。",
-      "revisitWhen": "评估撤销栈改成 Immer 反向补丁（方向检查 §6 接入 B）的结论出来时；或画布写边界再收到一份根因合同时先看这一项"
+      "whyNotIntegrated": "Immer owns the reversible patches. Nomi owns paid-result container retention, run facts and the canvas write boundary.",
+      "revisitWhen": "Reassess when a library owns both landed run outcomes and the paid node container lifetime."
     },
     {
       "id": "nomi-quit-teardown-boundary",
@@ -2283,31 +2374,6 @@
       "revisitWhen": "MCP SDK 提供跨传输的会话 / 调用观测钩子，或要把使用情况持久化成审计账时（审计走收据，不走这本账）"
     },
     {
-      "id": "outside-press-listener",
-      "capability": "「点外面就收起」的唯一听法：document 上 pointerdown 捕获阶段，调用方只给「算不算点在自己身上」与收起动作",
-      "status": "to-replace",
-      "plan": "docs/engineering/direction-checks/2026-10-23-outside-press-and-rich-text-controls.md",
-      "paths": [
-        "src/design/outsidePress.ts"
-      ],
-      "alternativesChecked": [
-        {
-          "name": "Floating UI useDismiss：outsidePressEvent 默认 pointerdown、capture.outsidePress 默认 true——本文件的听法就是照它的默认值写的；但它要求浮层由 useFloating 管开合并铺 getFloatingProps，我们只装了 @floating-ui/dom（AnchoredPopover 用它的 autoUpdate 定位），9 个消费者没有一个在 @floating-ui/react 的上下文里",
-          "source": "https://floating-ui.com/docs/useDismiss"
-        },
-        {
-          "name": "Radix DismissableLayer（Popover / DropdownMenu 自带 onPointerDownOutside）：只随 Radix 的浮层组件一起用，不单独暴露给自管开合的面板；我们的菜单族已经在用它（src/design/menu.tsx）",
-          "source": "https://www.radix-ui.com/primitives/docs/components/popover#content"
-        },
-        {
-          "name": "Mantine useClickOutside：默认事件 mousedown + touchstart、冒泡阶段，画布平移面（d3-zoom）在 mousedown 上 stopImmediatePropagation，正是本次 bug 的来源，删掉了它的用法",
-          "source": "https://mantine.dev/hooks/use-click-outside/"
-        }
-      ],
-      "whyNotIntegrated": "领域约束：所有浮在画布上的面板都必须在任何画布手势处理器之前听到按下（画布平移面吞 mousedown），而现有 9 个面各自管开合、焦点与 overlayLayers 让位规则，不在 Floating UI React 的上下文里；本文件只有一个十几行的注册函数，听法与 useDismiss 默认值一致，等浮层整体换到 @floating-ui/react 时整体删除。",
-      "revisitWhen": "AnchoredPopover 换到 @floating-ui/react（useFloating + useDismiss）时删除本文件，其余消费者随之迁移"
-    },
-    {
       "id": "modal-input-layer",
       "capability": "模态输入层：宿主登记「我开着、盖住哪一块」，工作区输入边界读它决定让路；一个带范围的小栈（打开、关闭、谁在最上面、某元素有没有被盖住）",
       "status": "justified",
@@ -2567,6 +2633,33 @@
       ],
       "whyNotIntegrated": "按领域裁决的重要性顺序，多控件多样子；列表溢出组件（Fluent priority-overflow、rc-overflow 等）展开到第一个放不下就停，不跳过放不下的去补放得下的，也不表达摘要整值、方式字、生成字。只自写约 10 行的清单挑法，字体排版与尺寸观察用浏览器。",
       "revisitWhen": "外框校准一个月改两次以上，或增加另一种让位形状时回到方向复盘。2026-11-24复查。"
+    },
+    {
+      "id": "apimart-onboarding-balance",
+      "capability": "接入页和画布发送侧按官方来源展示账户资金，接入页单列这把 Key 的额度并恢复创作者的草稿",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-24-t5-onboarding-s6.md",
+      "paths": [
+        "electron/ai/onboarding/vendorAccountBalance.ts",
+        "electron/shared/contracts/vendorAccountBalance.ts",
+        "src/ui/onboarding/useApimartVerification.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "APIMart 账户资金协议，直接读取官方数据",
+          "source": "https://docs.apimart.ai/en/api-reference/account/user-balance"
+        },
+        {
+          "name": "APIMart Key 额度协议，单独读取不限额标记和余额",
+          "source": "https://docs.apimart.ai/en/api-reference/account/token-balance"
+        },
+        {
+          "name": "沿用带凭据请求的官方 origin 校验及现有镜像传输",
+          "source": "electron/vendor/vendorBaseFallback.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：两份官方结果在 Nomi 中控制不同动作。只有账户确认为零才停在充值卡；Key 额度用于单行提示。保存凭据、回到原节点草稿与发送侧余额快照共享同一账户来源。",
+      "revisitWhen": "供应商账户合同或 Nomi 接入流程取消这两个独立信号时，合并或删除对应投影。"
     }
   ]
 }

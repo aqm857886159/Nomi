@@ -63,6 +63,21 @@ describe('generation.completed 上报', () => {
     expect(typeof sent()[0].props.errorType).toBe('string')
   })
 
+  it('keeps telemetry for the newest 200 accepted tasks', async () => {
+    installDesktop()
+    for (let index = 0; index <= 200; index += 1) {
+      run.mockResolvedValueOnce(task('queued', { id: `retention-${index}` }))
+      await runWorkbenchTaskByVendor('v', { kind: 'text_to_video', prompt: 'p', extras: {} }, null)
+    }
+    for (const index of [0, 1, 200, 200]) {
+      const taskId = `retention-${index}`
+      result.mockResolvedValueOnce({ vendor: 'v', result: task('succeeded', { id: taskId }) })
+      await fetchWorkbenchTaskResultByVendor({ taskId, vendor: 'v', projectId: null })
+      if (index === 0) expect(sent()).toHaveLength(0)
+    }
+    expect(sent()).toHaveLength(2)
+  })
+
   it('没提交过的任务（重启后找回）轮询到终态不重复报', async () => {
     installDesktop()
     result.mockResolvedValue({ vendor: 'v', result: task('succeeded') })

@@ -5,7 +5,7 @@ import path from "node:path";
 import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
 import { renameSyncWithRetry } from "../jsonFile";
 
-export const PROJECT_LEASE_STORE_SCHEMA_VERSION = 2;
+const PROJECT_LEASE_STORE_SCHEMA_VERSION = 2;
 
 const TOKEN_HASH_PATTERN = /^[a-f0-9]{64}$/;
 const CANDIDATE_PATTERN = /^\.candidate-(\d{13,})-([a-f0-9]{20})$/;
@@ -46,7 +46,7 @@ type SignedRecord<Kind extends "issued" | "revoked", Payload> = {
   mac: string;
 };
 
-export type ProjectLeaseStoreDeps = {
+type ProjectLeaseStoreDeps = {
   /** V2 root directory. A legacy central JSON, when present, must use legacyFilePath. */
   filePath: string;
   legacyFilePath?: string;
@@ -70,7 +70,7 @@ export class ProjectLeaseStoreIntegrityError extends Error {
   }
 }
 
-export class ProjectLeaseStoreCapacityError extends Error {
+class ProjectLeaseStoreCapacityError extends Error {
   readonly code = "project_session_unavailable";
 
   constructor() {
@@ -116,7 +116,6 @@ function equalMac(actual: string, expected: string): boolean {
   const right = Buffer.from(expected);
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
-
 
 function realDirectory(directoryPath: string): boolean {
   try {
