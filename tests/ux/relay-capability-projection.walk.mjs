@@ -9,11 +9,10 @@ import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
 import { relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject, relayModelOption } from './_relayVideoWalk.mjs'
+import { walkEvidenceDir } from './_walkEvidence.mjs'
 
 const locale = process.env.NOMI_RELAY_LOCALE || 'zh-CN'
-const evidence = process.env.NOMI_RELAY_EVIDENCE_DIR
-if (!evidence || !path.isAbsolute(evidence)) throw new Error('NOMI_RELAY_EVIDENCE_DIR must name an isolated evidence directory')
-fs.mkdirSync(evidence, { recursive: true })
+const evidence = walkEvidenceDir({ configured: process.env.NOMI_RELAY_EVIDENCE_DIR, absolute: true })
 const models = [{ id: 'opaque-dual-video', duration: 1, resolution: '360p' }, { id: 'opaque-frame-video', frameOnly: true, duration: 3, resolution: '540p' }]
 const relay = await startRelayVideoFixture({ models })
 const report = { locale, hits: relay.hits, models }

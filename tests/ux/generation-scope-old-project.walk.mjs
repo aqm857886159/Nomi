@@ -1,5 +1,6 @@
 // 回环真窗口：--phase reopen|old|mixed|single|storyboard，--repo 可指主分支分离检出。
-// old/reopen 用 --source <主分支真存盘资料> --project <id>；--broken-source 验证打不开必红。
+// 缺省跑新项目的 mixed；带 --source 时缺省跑 old。old/reopen 还需 --project <id>。
+// --broken-source 验证打不开必红。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -7,6 +8,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { stationTimeout } from './_station-budget.mjs'
+import { walkEvidenceDir } from './_walkEvidence.mjs'
 
 const nativeFetch = globalThis.fetch
 globalThis.fetch = (input, init) => {
@@ -21,20 +23,18 @@ const arg = (name, fallback) => process.argv.includes(name) ? process.argv[proce
 const ownRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const repo = path.resolve(arg('--repo', ownRoot))
 const { UI_DIR: ipc } = await import(pathToFileURL(path.join(repo, 'tests/ux/uiDir.mjs')).href)
-const out = arg('--out')
-assert(out && path.isAbsolute(out) && out !== repo && !out.startsWith(repo + path.sep), '--out must be outside the checkout')
-const phase = arg('--phase', 'old')
+const out = walkEvidenceDir({ absolute: true, checkouts: [ownRoot, repo] })
+const source = arg('--source')
+const phase = arg('--phase', source ? 'old' : 'mixed')
 assert(['reopen', 'old', 'mixed', 'single', 'storyboard'].includes(phase), 'unknown phase')
 const locale = arg('--locale', 'zh')
 assert(['zh', 'en'].includes(locale), 'locale must be zh or en')
-fs.mkdirSync(out, { recursive: true })
 const write = (name, value) => fs.writeFileSync(path.join(out, name), JSON.stringify(value, null, 2))
 const result = { phase, locale, repo, canary: true, checks: {}, screenshots: [], skipped: [] }
 const run = promisify(execFile)
 const fixture = await createAgentRuntimeFixture({ rootDir: repo, settingsDir: path.join(out, 'fixture-settings'), userDataDir: path.join(out, 'fixture-user-data'), appName: 'nomi', generationProvider: 'apimart', seedApimartKey: false })
 fixture.holdTasks(true)
 const env = { ...process.env, NOMI_TEST_NETWORK_GUARD: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_FIXTURE_BASE_URL: fixture.baseURL, NOMI_E2E_FIXTURE_API_KEY: 'agent-runtime-apimart-fixture', NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: fixture.baseURL, NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: fixture.baseURL }]) }
-const source = arg('--source')
 if (source) {
   assert(path.isAbsolute(source), '--source must be absolute')
   assert(arg('--project'), '--source needs --project')
@@ -69,7 +69,8 @@ fs.mkdtempSync = function(prefix, ...args) {
 `)
   env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ''} --import=${pathToFileURL(seed).href}`.trim()
 }
-const lock = process.env.NOMI_GATES_LOCK || path.resolve(ownRoot, '../coord-main/scripts/with-gates-lock.py')
+const lock = process.env.NOMI_GATES_LOCK || path.join(ownRoot, 'scripts/with-gates-lock.py')
+const shortcutModifier = process.platform === 'darwin' ? 'Meta' : 'Control'
 async function ui(...args) {
   const command = [path.join(repo, 'tests/ux/ui.mjs'), ...args]
   try {
@@ -88,7 +89,7 @@ const click = target => ui('click', target)
 async function shot(name) { result.screenshots.push((await ui('shot', name)).shot) }
 async function reload() {
   // Electron 重载会换窗口；共享驱动下一条命令会重新取活窗口。
-  try { await ui('press', 'Meta+r') } catch (error) {
+  try { await ui('press', `${shortcutModifier}+r`) } catch (error) {
     assert.match(error.stdout || '', /Target page, context or browser has been closed/)
   }
   await expect.poll(async () => (await ui('doctor')).doctor.ok, { timeout: stationTimeout() }).toBe(true)
@@ -179,8 +180,8 @@ async function canvasDispatch() {
   await reload()
   await ui('goto', 'canvas')
   await click('css:.react-flow__pane')
-  await ui('press', 'Meta+a')
-  await ui('press', 'Meta+g')
+  await ui('press', `${shortcutModifier}+a`)
+  await ui('press', `${shortcutModifier}+g`)
   await shot('01-before-group')
   const generateGroup = () => click(`css:[data-group-toolbar] button:has-text("${locale === 'en' ? 'Generate group' : '生成整组'}")`)
   await generateGroup()

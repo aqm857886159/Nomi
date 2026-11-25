@@ -16,6 +16,7 @@
 // 明文 key 从头到尾不落任何文件、不进报告、不回显；跑完凭据副本当场删除，原库指纹跑前跑后比对。
 import { clickOrFail, expect, expectAbsent, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
+import { seedGenerationModelDefaults } from './_generationModelDefaultsFixture.mjs'
 import { groupGenerateButton, groupSelectedNodes } from './_groupGenerate.mjs'
 import { PRICE_LINE, SPEND_DIALOG, openPaidWalk, watchSpendDialogs } from './_paidRun.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -32,6 +33,8 @@ const paid = await openPaidWalk('canvas-spend-policy.paid.mjs', 'canvas-spend-po
 const { walk } = paid
 let failure
 try {
+  // The env-key path starts from the loopback catalog. Set the isolated default before the renderer reads it.
+  seedGenerationModelDefaults(walk.settingsDir, [{ ...IMAGE, kind: 'image' }])
   const { win } = await walk.start({ first: true })
   await paid.lockToAuthorizedModels(win)
   const { projectId } = await walk.newProject()
