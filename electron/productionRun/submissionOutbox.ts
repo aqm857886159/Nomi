@@ -164,7 +164,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
   function markSubmissionUnknown(request: SubmissionOutboxRequest): ProductionRun {
     let run = requiredRun(deps.repository, request.projectId, request.runId);
     const job = requiredJob(run, request.jobId);
-    if (job.status === "submitting" || job.status === "submit_intent_persisted") run = jobCommand(request, "submission-unknown", "submission_unknown", { errorCode: "submission_outcome_unknown" });
+    if (job.status === "submitting" || job.status === "submit_intent_persisted") run = jobCommand(request, "submission-unknown", "submission_unknown");
     const reservationId = `${request.runId}:${request.jobId}:${job.attempt}`;
     const ledger = deps.repository.readBudgetLedger(request.projectId, request.runId);
     if (ledger.reservations[reservationId]?.status === "reserved") {
@@ -432,11 +432,12 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
 
   function submit(request: SubmissionOutboxRequest): Promise<SubmissionOutboxResult> {
     const key = `${request.projectId}:${request.runId}:${request.jobId}`;
-    const execute = () => deps.lockLease
+    // 交的整段（落「提交中」→ 派发 → 受理 / 未知）登记在本宿主仓库上：恢复门凭它不把同一宿主手上还在交的这一笔判成结果未知。
+    const execute = () => deps.repository.trackSubmission(request.projectId, request.runId, async () => deps.lockLease
       ? (deps.lock?.assertOwned(deps.lockLease), submitOnce(request, deps.lockLease.fencingEpoch))
       : deps.lock
         ? deps.lock.withLock((lease) => submitOnce(request, lease.fencingEpoch))
-        : submitOnce(request);
+        : submitOnce(request));
     return dedupeSubmission(inflight, key, execute, { ttlMs: 0 });
   }
 

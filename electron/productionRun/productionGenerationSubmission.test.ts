@@ -15,6 +15,7 @@ import {
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { landedAdmission } from "./landFirstTestUtils";
+import { createProductionRunService } from "./productionRunService";
 
 const roots: string[] = [];
 const registry = createModuleRegistry([{
@@ -544,6 +545,30 @@ describe("Run-owned semantic generation submission", () => {
     })).toThrow("previous generation attempt is not safely reworkable");
     expect(run.jobs).toEqual([expect.objectContaining({ status: "submission_unknown", attempt: 1 })]);
     expect(firstSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  // 服务那扇恢复门（resumeUnfinishedRuns，打开 / 切回项目时跑）：同一个进程里 POST 还在路上，不许把它判成结果未知。
+  // 判成未知之后 submission_unknown → provider_accepted 不是合法转移，供应商随后答的任务号就落不进账本。
+  it("leaves a live in-process POST submitting when the same host reopens the project", async () => {
+    const { root, repository } = setup();
+    let answer!: (value: { providerTaskId: string }) => void;
+    const submit = vi.fn(() => new Promise<{ providerTaskId: string }>((resolve) => { answer = resolve; }));
+    const submission = createProductionGenerationSubmission({
+      repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+      intentMacKey: "test-intent-key", now: () => "2026-08-23T00:00:00.000Z",
+      provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false }, buildRequest: (input) => input, submit },
+    });
+    const started = submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
+    await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submitting" });
+
+    await createProductionRunService({ repository, projectRootResolver: () => root }).resumeUnfinishedRuns("project-1");
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submitting" });
+
+    answer({ providerTaskId: "late-answer" });
+    await expect(started).resolves.toMatchObject({ providerTaskId: "late-answer" });
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "provider_accepted", providerTaskId: "late-answer" });
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 });
 

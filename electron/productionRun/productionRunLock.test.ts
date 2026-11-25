@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +10,7 @@ import {
   ProductionRunLockLostError,
   createProductionRunLock,
   inspectProductionRunLockFile,
-  runLockHasLiveWriter,
+  runLockHeldByOtherLiveProcess,
 } from "./productionRunLock";
 
 const tempDirs: string[] = [];
@@ -44,11 +45,20 @@ afterEach(() => {
 });
 
 describe("inspectProductionRunLockFile", () => {
-  it("leaves an ongoing submit with the live writer even when another window opens", async () => {
-    const { dir, first } = makeLocks();
+  // 恢复门问的「别的进程还在交吗」：只认另一个活着的进程拿着的、没到期的租约。本进程的由仓库宿主自己答
+  // （repository.isSubmittingHere，见 productionGenerationSubmission.test.ts），这里一律答否。
+  it("reports a Run lock held only by another live process", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-run-lock-"));
+    tempDirs.push(dir);
     const file = path.join(dir, "run.lock");
-    await first.withLock(() => expect(runLockHasLiveWriter(file)).toBe(true));
-    expect(runLockHasLiveWriter(file)).toBe(false);
+    const deadPid = spawnSync(process.execPath, ["-e", ""]).pid;
+    for (const [pid, held] of [[process.ppid, true], [deadPid, false], [process.pid, false]] as const) {
+      const lock = createProductionRunLock({ filePath: file, pid });
+      const lease = lock.acquire();
+      expect(runLockHeldByOtherLiveProcess(file), `lease pid ${pid}`).toBe(held);
+      lock.release(lease);
+    }
+    expect(runLockHeldByOtherLiveProcess(file)).toBe(false);
   });
   const LEASE_MS = 10_000;
   function aged(content: string, ageMs: number) {

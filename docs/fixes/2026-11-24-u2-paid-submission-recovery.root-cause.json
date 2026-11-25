@@ -26,6 +26,7 @@
     "electron/productionRun/productionGenerationHistory.ts",
     "electron/productionRun/productionGenerationSubmission.ts",
     "electron/productionRun/productionRunLock.ts",
+    "electron/productionRun/productionRunRepository.ts",
     "electron/productionRun/productionRunRuntimeEnvelope.ts",
     "electron/productionRun/productionRunService.ts",
     "electron/productionRun/productionRunState.ts",
@@ -555,7 +556,7 @@
     {
       "kind": "write",
       "path": "electron/productionRun/singleShotRunLifecycle.ts",
-      "symbol": "runLockHasLiveWriter"
+      "symbol": "runLockHeldByOtherLiveProcess"
     },
     {
       "kind": "write",
@@ -766,12 +767,32 @@
       "kind": "write",
       "path": "src/workbench/production/handOverPrecheck.ts",
       "symbol": "generationNodeLedger"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "trackSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "trackSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "isSubmittingHere"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotRunLifecycle.ts",
+      "symbol": "isSubmittingHere"
     }
   ],
   "door_reduction": {
     "before": 119,
-    "after": 140,
-    "why_not": "The baseline census includes the old renderer Run selection. The replacement routes local queues through the same Run. The additional protocol callbacks transfer the first response to that owner; none authorize or initiate a generation."
+    "after": 144,
+    "why_not": "The baseline census includes the old renderer Run selection. The replacement routes local queues through the same Run. The additional protocol callbacks transfer the first response to that owner; none authorize or initiate a generation. Restart recovery asks two liveness doors before calling an in-flight POST unknown: the repository host that is submitting right now (in memory, lost with the process) and a Run lock held by another live process."
   },
   "generality_proof": "The owner attaches to the authorized dispatch rather than a renderer button or a vendor name. Recovery consumes the same frozen receipt across synchronous and asynchronous responses.",
   "shared_boundaries": [

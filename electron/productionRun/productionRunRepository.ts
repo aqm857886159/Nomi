@@ -743,7 +743,26 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     return listRuns(projectId).map(summarize);
   }
 
-  return { create, createGenerationDraft, read, list, listRuns, execute, executeBatch, readEvents, readEventsReverse, readApprovals, readBudgetLedger, rebuild };
+  // 这一份仓库（生产里一个进程一份）手上正在交给供应商的 Run。只在内存里：进程没了它就没了，这正是「交到一半进程没了」。
+  // 打开 / 切回项目的恢复门凭它分清「同一宿主还在交」和「上一个进程交到一半没了」；别的进程拿着的看 Run 锁租约
+  // （`runLockHeldByOtherLiveProcess`）。按 Run 计数：同一个 Run 的几镜可以同时在交。
+  const submittingHere = new Map<string, number>();
+  async function trackSubmission<T>(projectId: string, runId: string, work: () => Promise<T>): Promise<T> {
+    const key = `${projectId}\u0000${runId}`;
+    submittingHere.set(key, (submittingHere.get(key) ?? 0) + 1);
+    try {
+      return await work();
+    } finally {
+      const left = (submittingHere.get(key) ?? 1) - 1;
+      if (left > 0) submittingHere.set(key, left);
+      else submittingHere.delete(key);
+    }
+  }
+  function isSubmittingHere(projectId: string, runId: string): boolean {
+    return submittingHere.has(`${projectId}\u0000${runId}`);
+  }
+
+  return { create, createGenerationDraft, read, list, listRuns, execute, executeBatch, readEvents, readEventsReverse, readApprovals, readBudgetLedger, rebuild, trackSubmission, isSubmittingHere };
 }
 
 export type ProductionRunRepository = ReturnType<typeof createProductionRunRepository>;

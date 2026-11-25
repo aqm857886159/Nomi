@@ -134,11 +134,12 @@ export function inspectProductionRunLockFile(
   }
 }
 
-const operationsInProcess = new Map<string, string>();
-
-/** A second window or worker opening the project must leave a live submission with its writer. */
-export function runLockHasLiveWriter(filePath: string): boolean {
-  if (operationsInProcess.has(path.resolve(filePath))) return true;
+/**
+ * 另一个还活着的进程（例如 MCP 宿主）正拿着这把 Run 锁：恢复门不许把它手上的提交判成结果未知。
+ * 只答「别的进程」。同一进程里谁在交由仓库那一份宿主自己答（`repository.isSubmittingHere`）——
+ * 那份表只在内存里，进程没了它就没了，正是「交到一半进程没了」的意思；放在模块级会让同进程里新建的宿主也当它还活着。
+ */
+export function runLockHeldByOtherLiveProcess(filePath: string): boolean {
   let lease: ProductionRunLockLease | null;
   try { lease = parseLease(filePath); } catch { return inspectProductionRunLockFile(filePath, "lease") === "held"; }
   if (!lease || lease.pid === process.pid || Date.parse(lease.expiresAt) <= Date.now()) return false;
@@ -267,12 +268,9 @@ export function createProductionRunLock(deps: ProductionRunLockDeps) {
 
   async function withLock<T>(callback: (lease: ProductionRunLockLease) => Promise<T> | T): Promise<T> {
     const lease = acquire();
-    const key = path.resolve(deps.filePath);
-    operationsInProcess.set(key, lease.nonce);
     try {
       return await callback(lease);
     } finally {
-      if (operationsInProcess.get(key) === lease.nonce) operationsInProcess.delete(key);
       try {
         release(lease);
       } catch {

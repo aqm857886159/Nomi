@@ -5,7 +5,7 @@ import { createProductionRunRuntimeEnvelope, type ProductionRunRuntimeEnvelope }
 import { matchNomiErrorCode, RETRIEVAL_UNAVAILABLE_MESSAGE, tagNomiError } from "../shared/nomiErrorCodes";
 import { jobAwaitsRetrieval } from "../shared/productionShotPhase";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
-import { ProductionRunLockBusyError, ProductionRunLockLostError, runLockHasLiveWriter } from "./productionRunLock";
+import { ProductionRunLockBusyError, ProductionRunLockLostError, runLockHeldByOtherLiveProcess } from "./productionRunLock";
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionJob, type ProductionRun, type RunCommand, type RunCommandResult } from "./productionRunTypes";
 
 /**
@@ -317,7 +317,7 @@ export function restoreEnvelopeAcceptance(repository: SingleShotRunLifecycleRepo
 
 /** Share the existing restart rule: an orphaned synchronous POST may already have charged. */
 export function markInterruptedSingleShotUnknown(
-  repository: SingleShotRunLifecycleRepository & Pick<import("./productionRunRepository").ProductionRunRepository, "readBudgetLedger">,
+  repository: SingleShotRunLifecycleRepository & Pick<import("./productionRunRepository").ProductionRunRepository, "readBudgetLedger" | "isSubmittingHere">,
   projectId: string,
   runId: string,
   now: () => string = defaultNow,
@@ -329,12 +329,14 @@ export function markInterruptedSingleShotUnknown(
     run = repository.read(projectId, runId)!;
     const pending = run.jobs.find(value => value.jobId === job.jobId);
     if (!pending || pending.status !== job.status || pending.providerTaskId) continue;
+    // 还有活着的写手在交（同一宿主，或别的进程拿着 Run 锁）：这一笔归它收尾，恢复门不碰——
+    // 判成未知之后 submission_unknown → provider_accepted 不是合法转移，它随后拿到的任务号就落不进账本。
+    if (repository.isSubmittingHere(projectId, runId) || (projectRoot && runLockHeldByOtherLiveProcess(productionRunPaths(projectRoot, runId).lock))) continue;
     const receipt = projectRoot && createProductionRunRuntimeEnvelope({ filePath: path.join(projectRoot, envelopeRefFor(runId, job.jobId)) }).read();
     if (receipt && receipt.providerTaskId && receipt.state === "provider_accepted") {
       run = restoreEnvelopeAcceptance(repository, run, job, receipt, now);
       continue;
     }
-    if (projectRoot && runLockHasLiveWriter(productionRunPaths(projectRoot, runId).lock)) continue;
     run = repository.execute(projectId, runId, commandFor(run, "job.status", {
       jobId: job.jobId, status: "submission_unknown", patch: { errorCode: "submission_unknown_restart", errorMessage: tagNomiError("submission-unknown", "Nomi was closed while the request was being sent") },
     }, `restart-unknown:${job.jobId}`, now)).run;
