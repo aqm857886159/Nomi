@@ -1,0 +1,746 @@
+{
+  "board": "SpendAskSplit",
+  "approvedOn": "2026-11-15",
+  "stage": "built",
+  "visualReview": "用户 2026-11-15 在 Claude Design 画布第 ⑤ ⑥ 块上定了拆开、竖排（「按竖排做没有问题」），并要求每一行点了能到那个节点；实验室截图待协调逐张看过。",
+  "sourceBoundary": "板源 = Claude Design 画布「确认卡 · 落参说明」第 ⑤ ⑥ 块（source/Split.dc.html、source/Rows.dc.html，canvas.json 为画布布局与备注）。preview/SpendAskSplit.html 是这两块按画布顺序拼成的静态页，candidates 由 board-extract 在该拼页上抽出。第 ①–④ 块（落参说明）属于后一刀，不在这张板。",
+  "designIntent": "付费确认拆成两处：这一批镜头住在对话里、挂在那一条生成记录下面，一行一个，超过 4 个折起，一组从等确认用到发完；输入框上方只留一条确认：共同参数一行 + 取消 / 生成 N 段，3 段和 12 段一样高。",
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "product": "LibTV",
+      "screenshotSha256": "26271d47dce15b016d9cf4f6af27b2830f3a159caa50e695359bb996e58561aa",
+      "seenOn": "2026-11-15",
+      "differences": [
+        {
+          "what": "它在确认条上印积分（预计消耗）",
+          "why": "我们按 11-07 模型面板那块板印积分（cost.batch-card），那条分支合入后的下一刀做；这一刀按钮行左侧留空（ask.cost）"
+        },
+        {
+          "what": "它在对话里的指向是纯文字小标签",
+          "why": "我们每行带小缩略图：生成后同一行变成结果，一组用到底，不用发完再另画一组"
+        },
+        {
+          "what": "它的「本对话自动确认」开关在确认条上",
+          "why": "我们的全自动在输入框模式菜单里，紧挨着确认条，不在两处重复放"
+        }
+      ]
+    },
+    {
+      "url": "https://docs.tapnow.ai/en/docs",
+      "takeaway": "TapNow 文档「Choose a generation mode」配图：Ask 模式下对话里一张确认卡 = 类型 + 约多少点数、提示词、一行可改参数、Act 开关、Cancel / Confirm；没有缩略图。",
+      "decisionImpact": "确认了确认上不放缩略图；不一样：它在卡上改参数，我们 10-22 定了请示不顺带改参数，要改点那一行去节点里改。"
+    },
+    {
+      "url": "https://www.assistant-ui.com/elements/approval-card",
+      "takeaway": "assistant-ui 的 Approval card / Shopping cart / Image gallery / Tool group：确认 = 标题 + 一句话 + 一块内容 + 按钮；多件东西每件一行字；很多图露 3 格 +N；很多步收成一行。",
+      "decisionImpact": "采用了「每件一行字」「多了就折」：对话里一行一个、超过 4 行折成「还有 N 个镜头」。"
+    },
+    {
+      "url": "https://elements.ai-sdk.dev/components/confirmation",
+      "takeaway": "Vercel AI Elements「Confirmation」：一句话 + Reject / Approve，别的都没有。",
+      "decisionImpact": "确认了确认条只放参数和两颗按钮；我们连那一句问话也删了（数量和种类在主按钮上已经说了）。"
+    }
+  ],
+  "boundarySheet": [
+    {
+      "where": "对话里那一组的行数（样张 Rows 第 ⑥ 块「竖排 · 12 个镜头」；实验室 12 镜折起 / 展开）",
+      "max": "一次出价最多 40 镜",
+      "source": "electron/shared/agentCapabilities/generationPlanSchemas.ts（present 的 shotIds、extend 的 shots 上限 40）",
+      "layout": "露前 4 行，下面一行「还有 N 个镜头」，点了全露、不再收回；确认条不随行数变高",
+      "board": "SpendAskSplit",
+      "element": "chat.rows.more"
+    },
+    {
+      "where": "同上，展开之后",
+      "max": "40 行",
+      "source": "同上",
+      "layout": "对话流自己滚；每行一行高（有话要说的那几行两行），不限高",
+      "board": "SpendAskSplit",
+      "element": "chat.rows"
+    },
+    {
+      "where": "确认条主按钮（实验室 12 镜，英文窄 320）",
+      "max": "「Generate 40」/「生成 40 段」",
+      "source": "同上（主按钮数 = 还要生成的镜数）",
+      "layout": "按钮行右对齐，取消 + 主按钮不折行；3 段和 12 段条一样高",
+      "board": "SpendAskSplit",
+      "element": "ask.actions"
+    },
+    {
+      "where": "确认条共同参数最长（实验室英文窄 320）",
+      "max": "英文「Seedance 2 (Nomi's pick) · 16:9 · 480p · 10s each」",
+      "source": "模型显示名 + 四项共同参数的英文文案",
+      "layout": "一行截断，悬停出全文（title）",
+      "board": "SpendAskSplit",
+      "element": "ask.params"
+    },
+    {
+      "where": "行第二行最长（失败原因 / 逐镜不同的参数）",
+      "max": "英文失败原因一句",
+      "source": "agentPanelV4.spendCard.failure.* 英文文案",
+      "layout": "第二行一行截断，全文在读屏名和悬停里；原因只写在这一行，确认条上不重复（2026-11-16）",
+      "board": "SpendAskSplit",
+      "element": "chat.rows.note"
+    }
+  ],
+  "components": [
+    "src/workbench/ai/pointer/NodePointerGroup.tsx",
+    "src/workbench/ai/pointer/GenerationReceiptPointers.tsx",
+    "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
+    "src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx"
+  ],
+  "appearsIn": [
+    {
+      "place": "Agent 面板（主窗 / 弹出窗）输入框上方的确认条",
+      "files": [
+        "src/workbench/ai/ProjectAgentResidentShell.tsx"
+      ],
+      "board": "SpendAskSplit",
+      "element": "ask.params"
+    },
+    {
+      "place": "Agent 面板对话流里生成记录下面那一组",
+      "files": [
+        "src/workbench/ai/v4/AgentPanelV4Panel.tsx"
+      ],
+      "board": "SpendAskSplit",
+      "element": "chat.rows"
+    },
+    {
+      "place": "设计实验室 · 付费确认屏",
+      "files": [
+        "src/devlab/designLab/spendCard/spendCardLabKit.tsx"
+      ],
+      "board": "SpendAskSplit",
+      "element": "ask.actions"
+    },
+    {
+      "place": "设计实验室 · 指向元素屏（列表行折起）",
+      "files": [
+        "src/devlab/designLab/nodePointer/nodePointerLabKit.tsx"
+      ],
+      "board": "SpendAskSplit",
+      "element": "chat.rows.more"
+    }
+  ],
+  "appearsInExcluded": [
+    {
+      "file": "src/workbench/ai/pointer/NodePointerReturnDock.tsx",
+      "reason": "只取「回到对话」那一颗按钮（NodePointerReturnToChat），不用列表行"
+    },
+    {
+      "file": "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+      "reason": "介入槽分发壳 V4Intervention（把所有 kind === 'spend' 转发给 V4SpendBar，本身不是独立界面处；实际出现处在 ProjectAgentResidentShell / AgentPanelV4Panel / spendCardLabKit，已在 appearsIn 列出）"
+    }
+  ],
+  "priorDecisions": [
+    {
+      "what": "聊天里只放三样（指向元素、必要请示、本来属于聊天的）；请示不顺带改参数；多个对象用一组指向",
+      "source": "用户 2026-10-22；docs/design/nomi-design-system.md §1.0",
+      "stillValid": "算数：这一刀就是把请示和指向拆回各自的家"
+    },
+    {
+      "what": "付费卡：一张卡一组指向 + 一行只读摘要 + 「取消 / 生成」",
+      "source": "付费卡板 SpendCardQ1（2026-10-23）",
+      "stillValid": "部分被本板取代：card.title、card.pointers、card.pointer.exclude、card.summary、card.done；决定栏两颗按钮、失败、刹车、读不到、逐镜价格折叠照旧"
+    },
+    {
+      "what": "逐镜价格折叠（SpendCardQ1 card.per-shot：各镜价格不同时条上一块「逐镜」，展开每镜一行印每镜价）",
+      "source": "付费卡板 SpendCardQ1（2026-10-23，已批元素）；本板样张第 ⑤⑥ 块（用户 2026-11-15 批）",
+      "stillValid": "待用户定（2026-11-16 记）：两处拍板对不上——本板样张第 ⑤⑥ 块的确认条上没画逐镜价格，旧决定和上一行写「照旧」；用户没说过它去留。实现照旧保留（各镜价格不同时出现），等用户定留不留、留的话放条上还是挪进对话里各自那一行"
+    },
+    {
+      "what": "数量只写在主按钮上",
+      "source": "2026-10-25",
+      "stillValid": "算数（确认条连问话都删了，数量只在按钮上）"
+    },
+    {
+      "what": "极简：每行都一样的事只说一次",
+      "source": "用户 2026-11-14",
+      "stillValid": "算数：共同参数只在确认条说一次，行里只写这一镜不一样的"
+    },
+    {
+      "what": "界面不谈钱（付费卡板 D5「合计行不印金额」）",
+      "source": "2026-10-08；用户 2026-11-15 原话「当时我们不谈钱，是因为我们没有深度适配 APIMart……有些东西变化的话，其实应该是去改决策的」",
+      "stillValid": "改了：前提（都走中转站、价目不知道）已不成立；不断言实扣、算不出不写 0 那一半照旧"
+    },
+    {
+      "what": "新说法「可以印预估、不断言实扣、算不出不写 0」",
+      "source": "用户 2026-11-15 批（「行，按这句改」）",
+      "stillValid": "算数；这一刀不印数，按钮行左侧留给 ask.cost"
+    },
+    {
+      "what": "镜头竖排（一行一个）",
+      "source": "用户 2026-11-15 在画布第 ⑥ 块上：「按竖排做没有问题」",
+      "stillValid": "算数"
+    }
+  ],
+  "elements": [
+    {
+      "id": "ask.title",
+      "label": "确认条不画标题问话（原卡上那一句「生成这些视频？」删掉：几段、图还是视频，主按钮已经说了）",
+      "change": "remove",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/ask.title",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "candidates": [
+        "010-div-生成这些视频",
+        "037-div-生成这些视频"
+      ]
+    },
+    {
+      "id": "ask.pointers",
+      "label": "确认条上不画镜头（原卡上那一组缩略图搬到对话里，见 chat.rows）",
+      "change": "remove",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/ask.pointers",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "candidates": [
+        "011-span-镜01",
+        "012-b-纸船出发",
+        "013-svg",
+        "014-span-镜02",
+        "015-b-越过落叶",
+        "016-svg",
+        "017-span-镜03",
+        "018-b-漂向远处",
+        "019-svg",
+        "038-span-镜01",
+        "039-b-纸船出发",
+        "040-span-镜02",
+        "041-b-越过落叶",
+        "042-span-镜03",
+        "043-b-漂向远处",
+        "044-span-镜04",
+        "045-b-撞上石阶",
+        "046-span-镜05",
+        "047-b-孩子追来",
+        "048-span-镜06",
+        "049-b-伸手去够",
+        "050-span-镜07",
+        "051-b-水面倒影",
+        "052-span-镜08",
+        "053-b-雨又落下",
+        "054-span-镜09",
+        "055-b-纸船打转",
+        "056-span-镜10",
+        "057-b-钻进涵洞",
+        "058-span-镜11",
+        "059-b-亮处出来",
+        "060-span-镜12",
+        "061-b-汇入小河"
+      ]
+    },
+    {
+      "id": "ask.params",
+      "label": "确认条第一行：这一批都一样的参数（模型（Nomi 选的）· 比例 · 清晰度 · 每段时长）；逐镜不同的那一项不写在这里，回到各行",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar + src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx#AgentPanelV4SpendCardBody",
+      "change": "changed",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/ask.params",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow",
+        "long-text"
+      ],
+      "candidates": [
+        "020-div-Seedance2Nom",
+        "062-div-Seedance2Nom",
+        "089-div-Seedance2Nom",
+        "091-b-每段10s",
+        "117-div-Seedance2Nom",
+        "119-b-每段10s",
+        "142-div-Seedance2pic",
+        "144-b-169",
+        "146-b-720p",
+        "148-b-10seach",
+        "199-div-Seedance2Nom",
+        "201-b-每段10s",
+        "227-div-Seedance2Nom",
+        "229-b-每段10s",
+        "259-div-Seedance2Nom",
+        "261-b-每段10s",
+        "295-div-Seedance2Nom"
+      ]
+    },
+    {
+      "id": "ask.params.asked",
+      "label": "共同项后面标「（原 8s）」、悬停出原因（落的和原本要的不一样）",
+      "component": "预留给 src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx（共同参数行，不新建组件）",
+      "change": "new",
+      "status": "missing",
+      "owner": "Agent 意图落参 2b",
+      "states": [
+        "zh-en",
+        "narrow"
+      ],
+      "candidates": [
+        "088-span-这个模型只有5秒和10秒",
+        "090-span-原8s",
+        "118-span-原8s",
+        "143-span-asked219",
+        "145-span-asked1080p",
+        "147-span-asked8s",
+        "200-span-原8s",
+        "228-span-原8s",
+        "260-span-原8s"
+      ],
+      "note": "这一刀不做：数据要等「Agent 只说想要什么」那张卡的宿主半"
+    },
+    {
+      "id": "ask.cost",
+      "label": "确认条·预估花费（按钮行左侧）",
+      "component": "预留给 src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar 按钮行左侧（接 ModelSurfaces cost.batch-card）",
+      "change": "new",
+      "status": "missing",
+      "owner": "模型面板 cost.batch-card（那条分支合入后的下一刀）",
+      "states": [
+        "zh-en",
+        "empty"
+      ],
+      "candidates": [],
+      "note": "单位积分、硬币图标 + 数、算不出不印数、去掉一镜跟着减；这一刀按钮行左侧留空给它"
+    },
+    {
+      "id": "ask.actions",
+      "label": "确认条第二行：右对齐「取消」+ 主按钮「生成 N 段 / 张」（数量只在按钮上）；3 段和 12 段条一样高",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar（脚部使用 src/design/actions.tsx#WorkbenchButton size=\"md\"）",
+      "change": "changed",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/ask.actions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow",
+        "disabled",
+        "max-count"
+      ],
+      "candidates": [
+        "021-div",
+        "022-button-取消",
+        "023-button-生成3段",
+        "024-span",
+        "063-div",
+        "064-button-取消",
+        "065-button-生成12段",
+        "066-span",
+        "092-div",
+        "093-button-取消",
+        "094-button-生成3段",
+        "095-span",
+        "120-div",
+        "121-button-取消",
+        "122-button-生成12段",
+        "123-span",
+        "149-div",
+        "150-button-Cancel",
+        "151-button-Generate12",
+        "152-span",
+        "202-div",
+        "203-button-取消",
+        "204-button-生成3段",
+        "205-span",
+        "230-div",
+        "231-button-取消",
+        "232-button-生成3段",
+        "233-span",
+        "262-div",
+        "263-button-取消",
+        "264-button-生成12段",
+        "265-span",
+        "296-div",
+        "297-button-取消",
+        "298-button-生成3段",
+        "299-span"
+      ]
+    },
+    {
+      "id": "ask.sending",
+      "label": "点了生成之后：确认条只剩「正在发出 k/N 段」+ 取消",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar（data.progress 分支，V4SlotShell quiet + StatusSpinner + WorkbenchButton size=\"md\"）",
+      "change": "changed",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/ask.sending",
+      "states": [
+        "zh-en",
+        "dark",
+        "loading"
+      ],
+      "candidates": [
+        "174-div",
+        "175-span-正在发出512段",
+        "176-button-取消"
+      ],
+      "note": "和样张的差别（协调 2026-11-16 定）：样张里这一条是深一档的描边，我们保持浅线安静框——点了「生成」之后它已经不是一个请示，在说进度、不在等人点，不用请示条的深描边（SpendCardQ1/card.progress 的 quiet 同一个理由）。"
+    },
+    {
+      "id": "ask.failure",
+      "label": "某镜没发出去 / 被拒：原因和「再试」都在那一行里（红框、红字、行尾「再试」），输入框上方不出红条、没有「先不发了 / 再试一次」那一条；原因只说一遍",
+      "component": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx#V4SpendBar（data.failed 分支，使用 WorkbenchButton size=\"md\"；行尾再试留待另一刀）",
+      "change": "changed",
+      "status": "missing",
+      "states": [
+        "zh-en",
+        "dark",
+        "error"
+      ],
+      "candidates": [
+        "322-span-再试"
+      ],
+      "owner": "失败挪进行里（另一刀，带设计卡）",
+      "userDecision": {
+        "quote": "照样张，只在那一行",
+        "date": "2026-11-16"
+      },
+      "note": "用户 2026-11-16 定：失败只写在那一行、行尾「再试」、输入框上不出红条；本 PR 只做到原因不重复（条上不再摆红字原因，只留标题和「先不发了 / 再试一次」，见 SpendCardQ1/card.failure），其余另一刀。没在本 PR 做的原因：这一笔出价在宿主那边还开着（not_sent / unknown 都算在等人）、Agent 还等着，条收走之后这一笔怎么收尾、收起面板时怎么知道有一镜没发出去、结果未知那一镜谁来问都要重新定。"
+    },
+    {
+      "id": "chat.rows",
+      "label": "对话里生成记录下面那一组：一行一个（小缩略图 + 镜号 + 标题），整行点了定位节点、悬停节点同亮；一次生成只有一组",
+      "component": "src/workbench/ai/pointer/GenerationReceiptPointers.tsx + src/workbench/ai/pointer/NodePointerGroup.tsx + src/workbench/ai/pointer/NodePointer.tsx（density=\"row\"，行内收紧 ShotNumberPill px-1.5 py-0、保持 rounded-nomi-sm）",
+      "change": "new",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/chat.rows",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow",
+        "hover",
+        "selected",
+        "max-count",
+        "long-text"
+      ],
+      "candidates": [
+        "218-svg",
+        "219-span-镜01",
+        "220-b-纸船出发",
+        "221-svg",
+        "222-span-镜02",
+        "223-b-越过落叶",
+        "224-svg",
+        "225-span-镜03",
+        "226-b-漂向远处",
+        "246-svg",
+        "247-span-镜01",
+        "248-b-纸船出发",
+        "249-svg",
+        "250-span-镜02",
+        "251-b-越过落叶",
+        "252-svg",
+        "253-span-镜03",
+        "254-b-漂向远处",
+        "255-svg",
+        "256-span-镜04",
+        "257-b-撞上石阶",
+        "278-svg",
+        "279-span-镜01",
+        "280-b-纸船出发",
+        "283-svg",
+        "284-span-镜02",
+        "285-b-越过落叶",
+        "286-svg",
+        "287-span-镜03",
+        "288-b-漂向远处",
+        "290-svg",
+        "291-span-镜04",
+        "292-b-撞上石阶",
+        "312-span-镜01",
+        "313-b-纸船出发",
+        "314-svg",
+        "315-span-镜02",
+        "316-b-越过落叶",
+        "318-svg",
+        "319-span-镜03",
+        "320-b-漂向远处"
+      ]
+    },
+    {
+      "id": "chat.rows.horizontal",
+      "label": "镜头横着排（一行三格大缩略图，超过 3 个写「+N」）",
+      "change": "remove",
+      "status": "dropped",
+      "userDecision": {
+        "quote": "按竖排做没有问题",
+        "date": "2026-11-15"
+      },
+      "states": [
+        "zh-en"
+      ],
+      "candidates": [
+        "079-span-镜01",
+        "080-b-纸船出发",
+        "081-svg",
+        "082-span-镜02",
+        "083-b-越过落叶",
+        "084-svg",
+        "085-span-镜03",
+        "086-b-漂向远处",
+        "087-svg",
+        "108-span-镜01",
+        "109-b-纸船出发",
+        "110-svg",
+        "111-span-镜02",
+        "112-b-越过落叶",
+        "113-svg",
+        "114-span-镜03",
+        "115-b-漂向远处",
+        "116-div-9",
+        "136-span-S01",
+        "137-svg",
+        "138-span-S02",
+        "139-svg",
+        "140-span-S03",
+        "141-div-9",
+        "165-span-镜01",
+        "166-b-纸船出发",
+        "167-div-生成中",
+        "168-span-镜02",
+        "169-b-越过落叶",
+        "170-div-生成中",
+        "171-span-镜03",
+        "172-b-漂向远处",
+        "173-div-9",
+        "190-span-镜01",
+        "191-b-纸船出发",
+        "192-svg",
+        "193-span-镜02",
+        "194-b-越过落叶",
+        "195-svg",
+        "196-span-镜03",
+        "197-b-漂向远处",
+        "198-svg"
+      ]
+    },
+    {
+      "id": "chat.rows.more",
+      "label": "超过 4 行折起：露前 4 行，下面一行文字按钮「还有 N 个镜头」，点了全露（不再收回）",
+      "component": "src/workbench/ai/pointer/NodePointerGroup.tsx（[data-node-pointer-more] 行折起按钮）",
+      "change": "new",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/chat.rows.more",
+      "states": [
+        "zh-en",
+        "dark",
+        "max-count"
+      ],
+      "candidates": [
+        "258-button-还有8个镜头"
+      ]
+    },
+    {
+      "id": "chat.rows.exclude",
+      "label": "行尾小动作：悬停 / 聚焦露 ×（ThumbCornerX，行的兄弟不套在行里）；去掉后那一行变灰、第二行「已去掉，不生成」、行尾常驻「恢复」",
+      "component": "src/workbench/ai/pointer/GenerationReceiptPointers.tsx + src/workbench/ai/pointer/NodePointerGroup.tsx 行尾槽（ThumbCornerX 与恢复文字按钮）",
+      "change": "new",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/chat.rows.exclude",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled"
+      ],
+      "candidates": [
+        "293-span-已去掉不生成",
+        "294-span-恢复"
+      ]
+    },
+    {
+      "id": "chat.rows.note",
+      "label": "行第二行只在这一镜有话要说时出现：和共同值不同的参数、状态（生成中 / 排队中）、失败原因",
+      "component": "src/workbench/ai/pointer/NodePointer.tsx（density=\"row\" 第二行 note，由 src/workbench/ai/v4/agentPanelSpendCard.ts#spendCardShotNote / outcomeOf 投影）",
+      "change": "new",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/chat.rows.note",
+      "states": [
+        "zh-en",
+        "dark",
+        "error",
+        "long-text"
+      ],
+      "candidates": [
+        "289-span-9165s",
+        "317-span-生成中",
+        "321-span-没有发出去余额不足"
+      ]
+    },
+    {
+      "id": "chat.rows.note.asked",
+      "label": "行第二行标「（原 8s）10s」（这一镜落的和原本要的不一样）",
+      "component": "预留给 src/workbench/ai/pointer/NodePointer.tsx（density=\"row\" 第二行 note，不新建组件）",
+      "change": "new",
+      "status": "missing",
+      "owner": "Agent 意图落参 2b",
+      "states": [
+        "zh-en"
+      ],
+      "candidates": [
+        "281-span-原8s",
+        "282-b-10s"
+      ]
+    },
+    {
+      "id": "chat.receipt",
+      "label": "发完：确认条收走，同一组下面一行「✓ 已发出 N 段」（都出结果后「✓ 已生成 N 段」）",
+      "component": "src/workbench/ai/pointer/GenerationReceiptPointers.tsx（[data-v4-block=\"generation-receipt-line\"]）",
+      "change": "changed",
+      "status": "implemented",
+      "assertion": "board:SpendAskSplit/chat.receipt",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "323-svg",
+        "324-span-已发出2段"
+      ]
+    }
+  ],
+  "decor": [
+    "001-h2-⑤拆开镜头在对话里一行一",
+    "002-div-一张卡里装了四样问话三个",
+    "003-b-今天3个镜头",
+    "004-i-照真窗口画的",
+    "005-span-N",
+    "006-span-Nomi",
+    "007-span-18",
+    "008-div-把文稿拆成3个镜头每个8",
+    "009-p-已在画布上起草了3个镜头",
+    "025-span",
+    "026-span-GPT56",
+    "027-span-Skill",
+    "028-span-请求批准",
+    "029-div-确认卡高约210",
+    "030-div-卡跟着镜头数长高对话被挤",
+    "031-b-今天12个镜头点开9之后",
+    "032-i-按代码推的实验室里最多只",
+    "033-span-N",
+    "034-span-Nomi",
+    "035-span-18",
+    "036-p-已在画布上起草了12个镜",
+    "067-span",
+    "068-span-GPT56",
+    "069-span-Skill",
+    "070-span-请求批准",
+    "071-div-确认卡高约500",
+    "072-div-镜头回到对话里跟着Age",
+    "073-b-拆开推荐3个镜头",
+    "074-span-N",
+    "075-span-Nomi",
+    "076-span-18",
+    "077-div-把文稿拆成3个镜头每个8",
+    "078-p-起草了3个镜头",
+    "096-span",
+    "097-span-GPT56",
+    "098-span-Skill",
+    "099-span-请求批准",
+    "100-div-确认条高约75画的是鼠标",
+    "101-div-对话里露3个第3格写9点",
+    "102-b-拆开12个镜头",
+    "103-span-N",
+    "104-span-Nomi",
+    "105-span-18",
+    "106-div-把这篇文稿拆成分镜每个8",
+    "107-p-起草了12个镜头",
+    "124-span",
+    "125-span-GPT56",
+    "126-span-Skill",
+    "127-span-请求批准",
+    "128-div-确认条高约75",
+    "129-div-三个值后面各标一处折成两",
+    "130-b-拆开最坏英文窄面板深色三",
+    "131-span-N",
+    "132-span-Nomi",
+    "133-span-18",
+    "134-div-Splititintos",
+    "135-p-Drafted12sho",
+    "153-span",
+    "154-span-GPT56",
+    "155-span-Skill",
+    "156-span-Askfirst",
+    "157-div-确认条高约93",
+    "158-div-确认条只报进度每一镜到哪",
+    "159-b-拆开点了生成之后",
+    "160-span-N",
+    "161-span-Nomi",
+    "162-span-18",
+    "163-div-把这篇文稿拆成分镜每个8",
+    "164-p-起草了12个镜头",
+    "177-span",
+    "178-span-GPT56",
+    "179-span-Skill",
+    "180-span-请求批准",
+    "181-div-确认条高约48",
+    "182-h2-⑥镜头横着排还是竖着排用",
+    "183-div-一行三格缩略图大还没生成",
+    "184-b-横排3个镜头第⑤块那样",
+    "185-span-N",
+    "186-span-Nomi",
+    "187-span-18",
+    "188-div-把文稿拆成3个镜头每个8",
+    "189-p-起草了3个镜头",
+    "206-span",
+    "207-span-GPT56",
+    "208-span-Skill",
+    "209-span-请求批准",
+    "210-div-这组镜头高约88",
+    "211-div-一行一个小缩略图镜号标题",
+    "212-b-竖排推荐3个镜头",
+    "213-span-N",
+    "214-span-Nomi",
+    "215-span-18",
+    "216-div-把文稿拆成3个镜头每个8",
+    "217-p-起草了3个镜头",
+    "234-span",
+    "235-span-GPT56",
+    "236-span-Skill",
+    "237-span-请求批准",
+    "238-div-这组镜头高约138",
+    "239-div-露前4个下面一行还有8个",
+    "240-b-竖排12个镜头",
+    "241-span-N",
+    "242-span-Nomi",
+    "243-span-18",
+    "244-div-把这篇文稿拆成分镜每个8",
+    "245-p-起草了12个镜头",
+    "266-span",
+    "267-span-GPT56",
+    "268-span-Skill",
+    "269-span-请求批准",
+    "270-div-这组镜头高约219",
+    "271-div-哪一镜有话要说就写在哪一",
+    "272-b-竖排每个镜头不一样说明变",
+    "273-span-N",
+    "274-span-Nomi",
+    "275-span-18",
+    "276-div-拆成4个镜头第1个8秒第",
+    "277-p-起草了4个镜头",
+    "300-span",
+    "301-span-GPT56",
+    "302-span-Skill",
+    "303-span-请求批准",
+    "304-div-横排做不到这一点格子里放",
+    "305-div-同一组镜头接着用出了结果",
+    "306-b-竖排生成之后",
+    "307-span-N",
+    "308-span-Nomi",
+    "309-span-18",
+    "310-div-把文稿拆成3个镜头每个8",
+    "311-p-起草了3个镜头",
+    "325-span",
+    "326-span-GPT56",
+    "327-span-Skill",
+    "328-span-请求批准",
+    "329-div-缩略图小只够认出是哪一镜"
+  ]
+}

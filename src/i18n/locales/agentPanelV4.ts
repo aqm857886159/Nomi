@@ -432,24 +432,12 @@ export const zhAgentPanelV4 = {
   slotDeviationTitle: '第 3 镜没有首帧，跳过还是先生图？',
   slotDeviationDraw: '先生图（+¥0.12）',
   slotDeviationSkip: '跳过',
-  // 付费卡（D2 第③步，SpendCardQ1 板）：指向元素 + 一句话 + 一行只读摘要 + 「生成」。卡上没有参数，想改点指向去节点里改。
-  // 标题是**一句问话**（2026-09-22 换壳，照 Recommendation Card 的形状）：卡在问「要不要做这件事」。
-  // 标题不带数量（SpendCardQ1 板 card.title）：数量只在主按钮；中英每一条标题键都不许有 `{{count}}` 或数字（agentPanelSpendCard.test.ts 逐键数着）。
-  // 复数走 i18next 的 `_one` / `_other`。zh 两条同文，键必须成对存在——key-parity 门岗要求 zh/en 键集相同。
-  spendParamsTitle_one: '生成这段视频？',
-  spendParamsTitle_other: '生成这些视频？',
-  spendParamsTitleSingle: '生成这段视频？',
-  // 同一张卡也用来确认图片生成。标题不许一律写「视频」——用户看着一张图片草稿被说成视频，正要付钱时会以为它搞错了。
-  spendParamsTitleImage_one: '生成这张图片？',
-  spendParamsTitleImage_other: '生成这些图片？',
-  spendParamsTitleImageSingle: '生成这张图片？',
-  spendParamsTitleRemainingVideo: '生成剩下的视频？',
-  spendParamsTitleRemainingImage: '生成剩下的图片？',
-  /** 标题旁小字：这几段的模型是 Nomi 替你挑的（节点里换过模型就不再这么说）。 */
+  // 付费确认（2026-11-15 拆开）：镜头在对话里一行一个，输入框上方只留一条确认（共同参数 + 「取消」/「生成 N 段」），等人决定时不画标题问话。
+  /** 模型后面那几个字：这几段的模型是 Nomi 替你挑的（节点里换过模型就不再这么说）。 */
   spendParamsModelPicked: 'Nomi 选的',
   /** 逐镜折叠口（只在各镜价格不同时出现，D5）。 */
   spendParamsPerItem: '逐镜',
-  /** 节点上已点 ↑ 之后，卡上剩下的那几段（张 / 段跟标题同一条规则）。 */
+  /** 节点上已点 ↑ 之后，确认条上剩下的那几段（有视频就说段，否则说张）。 */
   spendConfirmRemainingImage_one: '生成 {{count}} 张',
   spendConfirmRemainingImage_other: '生成 {{count}} 张',
   spendConfirmRemainingVideo_one: '生成 {{count}} 段',
@@ -460,9 +448,7 @@ export const zhAgentPanelV4 = {
    */
   spendBatchProgressImage: '正在发出 {{current}}/{{total}} 张',
   spendBatchProgressVideo: '正在发出 {{current}}/{{total}} 段',
-  spendBatchStopHint: '点「取消」停下剩下的',
   spendBatchStopping: '正在停下…',
-  spendBatchStoppingHint: '已经发出的照常生成',
   /** 停下之后那一句（卡这时已经关了）：交出去几段、没发几段，只说事实。 */
   spendBatchStoppedImage_one: '发出了 {{sent}} 张，剩下 {{count}} 张没发。',
   spendBatchStoppedImage_other: '发出了 {{sent}} 张，剩下 {{count}} 张没发。',
@@ -511,12 +497,11 @@ export const zhAgentPanelV4 = {
     receiptGeneratedVideo_other: '已生成 {{count}} 段',
     receiptGeneratedImage_one: '已生成 {{count}} 张',
     receiptGeneratedImage_other: '已生成 {{count}} 张',
-    /** 一行只读摘要里的总时长。 */
-    summarySeconds: '共 {{value}}',
-    summaryMixed: '{{prefix}} · {{groups}}',
+    /** 确认条第一行（这一批都一样的参数）里的时长：说每一段多长，不加总。 */
+    perShotSeconds: '每段 {{value}}',
+    /** 比例逐镜不同、这一镜没有写比例时那一行第二行的说法。 */
     summaryAuto: '自动',
     summaryPickedModel: '{{model}}（{{picked}}）',
-    summaryGroup: '{{value}} ×{{count}}',
     /** 指向元素状态条上那一个词（宿主给的结局）。 */
     pointerFailed: '失败',
     pointerNotSentYet: '还没发',
@@ -985,25 +970,16 @@ export const enAgentPanelV4 = {
   slotDeviationTitle: 'Shot 3 has no first frame — skip it or draw one first?',
   slotDeviationDraw: 'Draw one first (+¥0.12)',
   slotDeviationSkip: 'Skip',
-  spendParamsTitle_one: 'Generate this video?',
-  spendParamsTitle_other: 'Generate these videos?',
-  spendParamsTitleSingle: 'Generate this video?',
-  spendParamsTitleImage_one: 'Generate this image?',
-  spendParamsTitleImage_other: 'Generate these images?',
-  spendParamsTitleImageSingle: 'Generate this image?',
-  spendParamsTitleRemainingVideo: 'Generate the remaining videos?',
-  spendParamsTitleRemainingImage: 'Generate the remaining images?',
   spendParamsModelPicked: "Nomi's pick",
   spendParamsPerItem: 'Per shot',
-  spendConfirmRemainingImage_one: 'Generate {{count}} images',
-  spendConfirmRemainingImage_other: 'Generate {{count}} images',
-  spendConfirmRemainingVideo_one: 'Generate {{count}} videos',
-  spendConfirmRemainingVideo_other: 'Generate {{count}} videos',
+  // 确认条主按钮英文不带名词（SpendAskSplit 板 source/Split.dc.html：「Generate 12」）：图还是视频由那几行镜头说，按钮只说几段。中文照旧「生成 N 段 / 张」。
+  spendConfirmRemainingImage_one: 'Generate {{count}}',
+  spendConfirmRemainingImage_other: 'Generate {{count}}',
+  spendConfirmRemainingVideo_one: 'Generate {{count}}',
+  spendConfirmRemainingVideo_other: 'Generate {{count}}',
   spendBatchProgressImage: 'Sending {{current}} of {{total}} images',
   spendBatchProgressVideo: 'Sending {{current}} of {{total}} videos',
-  spendBatchStopHint: 'Cancel to stop the rest',
   spendBatchStopping: 'Stopping…',
-  spendBatchStoppingHint: 'The ones already sent keep generating',
   spendBatchStoppedImage_one: 'Sent {{sent}} of {{total}} images; the last one was not sent.',
   spendBatchStoppedImage_other: 'Sent {{sent}} of {{total}} images; the other {{count}} were not sent.',
   spendBatchStoppedVideo_one: 'Sent {{sent}} of {{total}} videos; the last one was not sent.',
@@ -1023,8 +999,9 @@ export const enAgentPanelV4 = {
   spendCard: {
     titleNothing: 'Nothing left to generate',
     generate: 'Generate',
-    generateAll: 'Generate {{count}} videos',
-    generateAllImage: 'Generate {{count}} images',
+    // 同上：英文主按钮不带名词（板上「Generate 12」）。
+    generateAll: 'Generate {{count}}',
+    generateAllImage: 'Generate {{count}}',
     retry: 'Try again',
     goEdit: 'Edit {{shot}}',
     goCheck: 'Check {{shot}}',
@@ -1041,11 +1018,9 @@ export const enAgentPanelV4 = {
     receiptGeneratedVideo_other: 'Generated {{count}} videos',
     receiptGeneratedImage_one: 'Generated {{count}} image',
     receiptGeneratedImage_other: 'Generated {{count}} images',
-    summarySeconds: '{{value}} total',
-    summaryMixed: '{{prefix}} · {{groups}}',
+    perShotSeconds: '{{value}} each',
     summaryAuto: 'Auto',
     summaryPickedModel: '{{model}} ({{picked}})',
-    summaryGroup: '{{value}} ×{{count}}',
     pointerFailed: 'Failed',
     pointerNotSentYet: 'Not sent yet',
     pointerCannotSend: 'Can\'t send',

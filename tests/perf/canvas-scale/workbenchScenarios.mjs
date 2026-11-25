@@ -44,6 +44,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'library-prompt-search',
   'pointer-hover-focus',
   'spend-card-node-edit-refresh',
+  'spend-rows-expand-hover-40',
   'chat-send-visible-10',
   'chat-send-visible',
   'chat-send-visible-50-tools',
@@ -72,8 +73,10 @@ const REWRITE_DOCUMENT_PARAGRAPHS = 2000
 const REWRITE_SELECTED_PARAGRAPHS = 180
 const STREAM_TEXT = '镜头缓缓推进，雨夜的街道上霓虹倒映在积水里，主角撑伞穿过人群。'.repeat(40)
 // D2 付费卡：最坏规模一张卡 12 个指向元素（组指向 5 个起折叠，展开后全露）。
-const SPEND_CARD_SCENARIOS = new Set(['pointer-hover-focus', 'spend-card-node-edit-refresh'])
+const SPEND_CARD_SCENARIOS = new Set(['pointer-hover-focus', 'spend-card-node-edit-refresh', 'spend-rows-expand-hover-40'])
 const SPEND_CARD_SHOTS = 12
+// 付费确认拆开（设计卡 docs/plan/2026-11-15-spend-ask-split.md ★7）：宿主一次出价的上限 40 镜（generationPlanSchemas 的 .max(40)）。
+const SPEND_ROWS_MAX_SHOTS = 40
 const SPEND_CARD_CANDIDATE = 'doubao-seedance-2.0@apimart'
 // Agent 对话（设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7）：历史条数 = 起 App 前塞进项目的旧版对话条数
 // （用户 / 回答交替；走旧版迁移那条真路径进当前对话，不另造会话格式）。mixed = 回答里混 Markdown 标题、列表、代码块。
@@ -352,6 +355,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'library-prompt-search') return librarySearch(page, ctx)
   if (scenario === 'pointer-hover-focus') return pointerHoverFocus(page, ctx)
   if (scenario === 'spend-card-node-edit-refresh') return spendCardNodeEditRefresh(page, ctx)
+  if (scenario === 'spend-rows-expand-hover-40') return spendRowsExpandHover(page, ctx)
   if (scenario.startsWith('chat-send-visible')) return chatSendVisible(page, ctx)
   if (scenario.startsWith('chat-scroll-500')) return chatScroll(page, ctx, CHAT_SCENARIOS[scenario])
   if (scenario === 'window-narrow-drag') return windowNarrowDrag(page, ctx)
@@ -1349,7 +1353,7 @@ async function ensureSpendCard(page, ctx) {
     })),
   })
   await kit.unfoldPointers(card, '性能场景')
-  const ids = await card.locator(`${kit.CARD_BODY} ${kit.POINTER}`).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
+  const ids = await kit.offerRows(card).locator(kit.POINTER).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
   await canvasFitViewButton(page).click()
   await sleep(page, 1200)
   ctx.state.spendCard = { card, ids, kit }
@@ -1494,10 +1498,10 @@ async function spendCardNodeEditRefresh(page, ctx) {
     await page.keyboard.press('Escape')
     return { skipped: `参数面板里没有可换的比例选项（面板里的控件：${controls.join('、') || '无'}）` }
   }
-  // 鼠标此刻在画布的参数面板上，不在卡上：组下方那一行是宿主给的摘要，不是悬停时那一镜自己的。
-  const summary = page.locator(`${kit.SPEND_CARD} ${kit.CARD_BODY} ${kit.GROUP_SUMMARY}`).first()
+  // 确认条那一行共同参数从节点现算：改了一镜的比例，比例不再是共同项，那一行就换字。
+  const summary = page.locator(`${kit.SPEND_CARD} ${kit.CARD_PARAMS}`).first()
   const before = ((await summary.textContent().catch(() => null)) ?? '').trim()
-  if (!before) return { skipped: '卡上组下方那一行摘要没露出来' }
+  if (!before) return { skipped: '确认条那一行共同参数没露出来' }
   await option.scrollIntoViewIfNeeded()
   await armResponse(page, { predicate: 'spendSummaryChanged', arg: { card: kit.SPEND_CARD, before }, timeoutMs: 5000 })
   await ctx.startWindow(page)
@@ -1517,6 +1521,88 @@ async function spendCardNodeEditRefresh(page, ctx) {
     storeWrites: changed.response.storeWrites,
     selected: 1,
     path: `卡上第 ${index + 1}/${spend.ids.length} 镜的节点改「${key}」→ 卡摘要「${before}」→「${after}」`,
+  }
+}
+
+/**
+ * 付费确认拆开（设计卡 docs/plan/2026-11-15-spend-ask-split.md ★7）：最坏规模 200 个有图节点 + 一次出价 40 镜。
+ * 每次采样都是一份新出价（不计时）：上一份还开着就按「取消」收掉，再让 Agent 起草 40 镜、摆上确认条——对话里新那一组是折起的
+ *   （露 4 行 +「还有 36 个镜头」）。面板收成小球时仍挂在 DOM 里，收起再打开不会让那一组回到折起，所以只能每次出新的。
+ *   「取消」不删节点（09-21 Q3），所以收掉之后把上一份那 40 个节点从画布 store 删掉，每次采样的画布都是 200 + 40 个节点
+ *   （不删的话节点越积越多，适应视图缩到远景，节点外壳不挂，悬停量不到）。
+ *   ① 点「还有 36 个镜头」→ 40 行全画出来（expandResponseMs）；
+ *   ② 鼠标停到最后一行 → 画布上那个节点外壳亮（hoverResponseMs；节点没挂在画布上就换一行往前找挂着的）。
+ * 主数取 ①② 里慢的那一下；长任务按整个窗口数。
+ */
+async function freshSpendRows(page, ctx) {
+  const kit = await import('../../ux/_spendCardWalk.mjs')
+  const prior = ctx.state.spendRows
+  if (prior) {
+    // 上一份出价还开着：按条上的「取消」收掉，等这一轮说完（Agent 拿到「没生成」的回执）。
+    await prior.card.locator('[data-v4-control="slot-dismiss"]').click()
+    await prior.turnDone.received
+    await page.locator(kit.SPEND_CARD).waitFor({ state: 'detached', timeout: 15000 })
+    await page.evaluate((ids) => {
+      const store = window.__nomiCanvasStore
+      for (const id of ids) store.getState().deleteNode(id)
+    }, prior.ids ?? [])
+  }
+  await clearSelection(page)
+  await ensureAgentPanelOpen(page)
+  const present = ctx.state.spendRowsPresent ??= kit.createPresenter('PERF_SPEND_ROWS')
+  const { card, turnDone } = await present({ fixture: ctx.extras.provider, report: {} }, page, {
+    kind: 'video',
+    shots: (tag) => Array.from({ length: SPEND_ROWS_MAX_SHOTS }, (_, index) => ({
+      title: `${tag} 镜 ${index + 1}`, prompt: `${tag} 第 ${index + 1} 镜：雨夜的站台，列车进站的灯扫过积水`, taskKind: 'text_to_video', model: SPEND_CARD_CANDIDATE,
+    })),
+  })
+  await canvasFitViewButton(page).click()
+  await sleep(page, 1200)
+  ctx.state.spendRows = { card, turnDone, kit, ids: [] }
+  return ctx.state.spendRows
+}
+
+async function spendRowsExpandHover(page, ctx) {
+  const { kit } = await freshSpendRows(page, ctx)
+  const rows = kit.offerRows(page)
+  const more = rows.locator('[data-node-pointer-more]').first()
+  if (!(await more.count())) return { skipped: '新出的 40 镜那一组没有折起（没有「还有 N 个镜头」可点）' }
+  const hidden = Number(await more.getAttribute('data-node-pointer-more'))
+  const total = (await rows.locator(kit.POINTER).count()) + hidden
+  if (total < SPEND_ROWS_MAX_SHOTS) return { skipped: `那一组只有 ${total} 镜（要 ${SPEND_ROWS_MAX_SHOTS} 镜）` }
+  await page.mouse.move(2, 2)
+  await sleep(page, 300)
+  await more.scrollIntoViewIfNeeded()
+  await ctx.startWindow(page)
+  await armResponse(page, { predicate: 'offerRowsShown', arg: total, timeoutMs: 5000 })
+  await more.click()
+  const expand = await takeOrSkip(page, ctx, `点「还有 ${hidden} 个镜头」之后 ${total} 行没全画出来`)
+  if (expand.skipped) return expand
+  const ids = await rows.locator(kit.POINTER).evaluateAll((elements) => elements.map((element) => element.getAttribute('data-node-pointer-id')))
+  ctx.state.spendRows.ids = ids
+  const mounted = await mountedShotIds(page, ids)
+  const nodeId = mounted.at(-1)
+  if (!nodeId) { await ctx.stopWindow(page); return { skipped: '40 镜的节点一个都没挂在画布上' } }
+  const row = rows.locator(kit.pointerOf(nodeId)).first()
+  await row.scrollIntoViewIfNeeded()
+  const box = await row.boundingBox()
+  if (!box) { await ctx.stopWindow(page); return { skipped: `第 ${nodeId} 那一行量不到位置` } }
+  await armResponse(page, { trigger: 'pointerover', predicate: 'pointerNodeLit', arg: nodeId, timeoutMs: 5000 })
+  await page.mouse.move(Math.round(box.x + box.width / 3), Math.round(box.y + box.height / 2))
+  const hover = await takeOrSkip(page, ctx, '悬停那一行之后画布节点没亮')
+  if (hover.skipped) return hover
+  const raw = await ctx.stopWindow(page)
+  await page.mouse.move(2, 2)
+  await sleep(page, 300)
+  const order = ids.indexOf(nodeId) + 1
+  return {
+    raw,
+    responseMs: Math.max(expand.response.ms, hover.response.ms),
+    expandResponseMs: expand.response.ms,
+    hoverResponseMs: hover.response.ms,
+    storeWrites: hover.response.storeWrites,
+    selected: 0,
+    path: `对话里那一组 ${total} 镜：点「还有 ${hidden} 个镜头」→ 全露；停在第 ${order} 行 → 节点亮（画布上挂着 ${mounted.length} 镜）`,
   }
 }
 

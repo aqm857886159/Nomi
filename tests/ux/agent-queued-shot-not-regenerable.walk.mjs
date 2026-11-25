@@ -32,7 +32,7 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } fro
 import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CARD_PRIMARY, CARD_TITLE, armCanvasBridges, canvasRunsOf, cardTitle, offerFacts, pressPrimary, primaryLabel, say, shotNodes,
+  CARD_PRIMARY, CARD_PROGRESS, armCanvasBridges, canvasRunsOf, offerFacts, pressPrimary, primaryLabel, say, shotNodes,
 } from './_spendCardWalk.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL,
@@ -222,7 +222,7 @@ try {
   await recorded(goTurn.received, 'generate request')
   const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   const cardProof = await proveProbe(card, '报价卡摆在面板里等人')
-  await expect(card.locator(CARD_TITLE), '卡问的是这两镜').toContainText(cardTitle(LOCALE.zh, 2, 'image'))
+  await expect(card.locator(CARD_PRIMARY), '确认条的按钮答应的是这两镜').toContainText(primaryLabel(LOCALE.zh, { count: 2, kind: 'image' }))
   await expect(card.locator(CARD_PRIMARY), '一张卡一颗「生成 2 张」').toContainText(primaryLabel(LOCALE.zh, { count: 2, kind: 'image' }))
   await expectAbsent(card.locator(PAGER), { provenBy: cardProof, message: '没有翻页（Q1：一张卡一颗生成）' })
   expect(perShot(walk), '按之前供应商一次请求都没收到').toEqual({ 'shot-1': 0, 'shot-2': 0 })
@@ -234,8 +234,9 @@ try {
   await expect.poll(async () => (await nodeFace(win, nodeIds['shot-2'])).placeholder, { message: '第二镜挂着「排队中」', timeout: stationTimeout({ operations: 4 }) }).toBe('queued')
   // 第一镜在供应商那边（提交中，等一会儿状态行会改说「生成中 · 已等 N 秒」）——两个字都是「已经在路上」，只要不是排队 / 空闲。
   expect((await nodeFace(win, nodeIds['shot-1'])).phase, '第一镜已经在路上（提交中 / 生成中），不是排队').toMatch(/^(submitting|generating)$/)
-  // 卡在报进度（进度数字 N/M 会随第一镜的状态行一起走，不钉它；钉「点取消停下剩下的」这句提示，它在整个批次进行中都在）。
-  await expect(card, '卡在报进度：点「取消」停下剩下的').toContainText(say(LOCALE.zh, 'agentPanelV4.spendBatchStopHint'))
+  // 确认条在报进度（进度数字 k/N 会随第一镜的状态行一起走，不钉数字；钉「正在发出」那一行和「取消」，它们在整个批次进行中都在）。
+  await expect(card.locator(CARD_PROGRESS), '确认条在报进度「正在发出 k/N 张」').toBeVisible()
+  await expect(card.locator('[data-v4-control="slot-dismiss"]'), '确认条上「取消」在').toBeVisible()
 
   // 按镜的硬证据（供应商 / 盘上）：第一镜 1 个请求、第二镜一个都还没到；制作 Run 0 个作业；出价上两笔交接都是用户点的；
   // 画布单镜 Run：第一镜 1 个作业在提交，第二镜 0 个作业（同意已开、还没轮到）。
@@ -251,7 +252,7 @@ try {
   await expectGenerateDoorsClosed(win, walk, { frame, nodeIds, locale: 'zh', label: 'zh 排队时', snap: 'queued' })
   const headerZh = await expectHeaderGenerateAllSendsNothing(win, walk, { frame, locale: 'zh', label: 'zh 排队时' })
   await switchAppLocale(win, LOCALE.en)
-  await expect(card, '英文界面：卡还在报进度（Cancel to stop the rest）').toContainText(say(LOCALE.en, 'agentPanelV4.spendBatchStopHint'))
+  await expect(card.locator(CARD_PROGRESS), '英文界面：确认条还在报进度').toContainText(say(LOCALE.en, 'agentPanelV4.spendBatchProgressImage', { current: 2, total: 2 }).split(' ')[0])
   expect((await nodeFace(win, nodeIds['shot-2'])).placeholder, '切语言没动批次：第二镜仍在排队').toBe('queued')
   await expectGenerateDoorsClosed(win, walk, { frame, nodeIds, locale: 'en', label: 'en 排队时', snap: 'queued' })
   const headerEn = await expectHeaderGenerateAllSendsNothing(win, walk, { frame, locale: 'en', label: 'en 排队时' })

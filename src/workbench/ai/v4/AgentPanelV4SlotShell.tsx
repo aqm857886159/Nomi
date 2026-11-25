@@ -23,15 +23,18 @@
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { WorkbenchIconButton } from '../../../design'
+import { WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
-import { IconChevronRight, IconX } from './AgentPanelV4Icons'
+import { PlanRows } from '../../shared/PlanRows'
+import { AgentPanelV4Markdown } from './AgentPanelV4Markdown'
+import { IconArrowUp, IconChevronRight, IconX } from './AgentPanelV4Icons'
 import { V4Row } from './AgentPanelV4Row'
-import type { V4InterventionKind, V4PagerState } from './agentPanelV4Types'
+import type { InterventionData, V4InterventionKind, V4PagerState } from './agentPanelV4Types'
 
 // 这个文件**不定义任何按钮长相**。卡上的按钮一律是现役组件：
 // 主动作 = `WorkbenchButton variant="primary" size="sm"`、次动作 = `WorkbenchButton size="sm"`、
 // 图标钮 = `WorkbenchIconButton size="sm"`（`src/design/actions.tsx`，agent 专章 §8.1 的尺寸真相源）。
+// 付费条（`V4SpendBar`）按钮一行取同一组件的 `size="md"`（SpendAskSplit 板），也不在这里另写长相。
 // 上一版这里有过三个自写的 className 常量——那正是 actions.tsx 文件头点名的病根：
 // 「各处 ad-hoc className 各覆写一套 = 明显不是一个设计风格」。
 
@@ -42,10 +45,16 @@ export function V4SlotShell({
   title,
   dismiss,
   footer,
+  footerDivider = true,
   children,
   ...rest
 }: {
   kind: V4InterventionKind
+  /**
+   * 页脚上那条分隔线画不画（默认画）。付费确认条不画（SpendAskSplit 板 ask.params / ask.actions：参数一行和按钮一行之间只隔 8px）；
+   * 不画时内容区空着（正在发出）页脚自己的上边距照留。
+   */
+  footerDivider?: boolean
   /**
    * 这张卡此刻**在等用户回答**（2026-09-22 用户拍板）。
    *
@@ -130,7 +139,8 @@ export function V4SlotShell({
       //（cn/twMerge 之外那条路，用户是看不见自己写的顺序不算数的）。
       // 动效不加：出现/消失本身已经是那一下变化，再补一段 transition 就是让一张等人答的卡自己动。
       className={cn(
-        'relative overflow-hidden rounded-nomi border bg-nomi-paper',
+        // 内容区一个字都没有时（付费确认条正在发出：只剩页脚那一行进度 +「取消」）内容区不画、页脚顶上那条线也不画。
+        'relative overflow-hidden rounded-nomi border bg-nomi-paper [&>div:empty+footer]:border-t-0',
         tone === 'danger'
           ? 'border-nomi-danger-edge'
           : waiting
@@ -157,7 +167,7 @@ export function V4SlotShell({
           className="absolute right-1.5 top-1.5 z-10"
         />
       ) : null}
-      <div className="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink">
+      <div className="peer flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink empty:hidden" data-v4-block="slot-content">
         {title ? (
           // `pr-8` 给右上那颗 × 让位——两者同一行，不让位就会压在字上。
           <h3 className="m-0 pr-8 text-body-sm font-semibold text-nomi-ink" data-v4-block="slot-title">{title}</h3>
@@ -165,7 +175,7 @@ export function V4SlotShell({
         {children}
       </div>
       {footer ? (
-        <footer className="flex flex-col gap-1.5 border-t border-nomi-line-soft px-2.5 py-2 text-caption">{footer}</footer>
+        <footer className={cn('flex flex-col gap-1.5 px-2.5 py-2 text-caption', footerDivider ? 'border-t border-nomi-line-soft' : 'pt-0 peer-empty:pt-2')}>{footer}</footer>
       ) : null}
     </aside>
   )
@@ -200,5 +210,201 @@ export function V4Pager({
         <IconChevronRight size={12} aria-hidden="true" />
       </button>
     </V4Row>
+  )
+}
+
+// ── 卡族共用的零件（2026-11-22 付费条拆成自己一个组件时从 `V4Intervention` 搬来）───────────────
+// 审批卡（`V4Intervention`）和付费条（`V4SpendBar`）的标题行、卡体、拒绝原因的渐进披露是**同一份**：
+// 两张卡只在页脚（按钮尺寸、正在发出 / 没成两态）和那条横线上不同。零件放在外壳这一层，两张卡都从这里取，不各写一份。
+
+/**
+ * 槽头那一句话 + 徽章。两样都没有就不画这一行（按数据有无，不按 kind：付费确认条等人决定 / 正在发出时没有标题，
+ * 板 2026-11-15 ask.title——按钮已经说了要做什么、几段）。`icon` = 标题前那颗图标（付费条的转圈 / 警示）。
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- 卡族零件只有这一个家（审批卡和付费条都从外壳取），拆到别的文件就成了第二个家。
+export function slotTitle(data: InterventionData, icon?: React.ReactNode): React.ReactNode {
+  if (!data.title && !data.badge) return undefined
+  return (
+    <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+      {icon}
+      <AgentPanelV4Markdown text={data.title} />
+      {data.badge ? (
+        <span className="shrink-0 text-micro font-normal text-nomi-ink-60" data-v4-block="slot-badge">{data.badge}</span>
+      ) : null}
+    </span>
+  )
+}
+
+/** 「不要」的渐进披露：先点「不要」，才摊开原因那一行和「确认不要」。没有原因占位的卡点「不要」就直接收回。 */
+export type SlotReject = Readonly<{
+  /** 原因那一行此刻摊开着（`reject-reason` 那一档一上来就摊开）。 */
+  open: boolean
+  reason: string
+  setReason: (value: string) => void
+  /** 决定栏那颗文字否定钮。 */
+  dismiss: () => void
+  /** 「取消」：收回原因那一行，卡回到等人决定。 */
+  cancel: () => void
+  /** 「确认不要」：带上那句原因（可为空）收回。 */
+  submit: () => void
+}>
+
+// eslint-disable-next-line react-refresh/only-export-components -- 卡族零件只有这一个家（审批卡和付费条都从外壳取），拆到别的文件就成了第二个家。
+export function useSlotReject(data: InterventionData, onReject?: (reason?: string) => void): SlotReject {
+  // 一上来就摆一个输入框，等于要求用户为每一次拒绝写作文。
+  const [rejecting, setRejecting] = React.useState(false)
+  const [reason, setReason] = React.useState('')
+  return {
+    open: rejecting || data.kind === 'reject-reason',
+    reason,
+    setReason,
+    dismiss: () => (data.reasonPlaceholder ? setRejecting(true) : onReject?.()),
+    cancel: () => { setRejecting(false); setReason('') },
+    submit: () => onReject?.(reason.trim() || undefined),
+  }
+}
+
+/** 渐进披露的第二下：「取消」+「确认不要」。`size` 跟着那张卡的按钮一行走（审批卡 sm、付费条 md），一张卡里按钮只有一个高度。 */
+export function SlotRejectActions({ reject, labels, size }: {
+  reject: SlotReject
+  labels: { cancel: string; confirmReject: string }
+  size: 'sm' | 'md'
+}): JSX.Element {
+  return (
+    <>
+      <span className="flex-1" />
+      <WorkbenchButton size={size} onClick={reject.cancel} data-v4-control="cancel-reject">
+        {labels.cancel}
+      </WorkbenchButton>
+      <WorkbenchButton size={size} className="text-nomi-danger" onClick={reject.submit} data-v4-control="confirm-reject">
+        {labels.confirmReject}
+      </WorkbenchButton>
+    </>
+  )
+}
+
+/**
+ * 卡体：摘要 → 卡体（`body`，给了就替掉只读参数 chip——同一张卡上同一件事不说两遍）→ `children`（付费条的逐镜价格折叠）
+ * → 计划清单 → 拒绝原因那一行 → 范围。每一样有就画、没有就不画。
+ */
+export function SlotContent({ data, body, reject, planCollapsed, onPlanToggle, children }: {
+  data: InterventionData
+  body?: React.ReactNode
+  reject: SlotReject
+  planCollapsed: boolean
+  onPlanToggle: (label: string, checked: boolean) => void
+  children?: React.ReactNode
+}): JSX.Element {
+  return (
+    <>
+      {data.summary ? <AgentPanelV4Markdown text={data.summary} /> : null}
+      {body ?? (data.params?.length ? (
+        <div className="flex flex-wrap gap-1">
+          {data.params.map((param) => (
+            <span
+              key={param}
+              className="inline-flex h-5 items-center rounded-pill bg-nomi-ink-05 px-[7px] text-micro text-nomi-ink-60"
+            >
+              {param}
+            </span>
+          ))}
+        </div>
+      ) : null)}
+      {children}
+      {data.plan?.length && !planCollapsed ? (
+        // 清单自己滚：卡壳是 `overflow-hidden`（圆角要它），所以清单不给自己一个滚动容器
+        // 就等于「第 9 行起不存在」——用户 2026-09-11 报的 8 镜计划卡正是这样，
+        // 下面几镜连同底栏一起被裁在卡外。高度上限按 6 行留（再多就该收起来读）。
+        <PlanRows
+          rows={data.plan}
+          onToggle={(row, checked) => onPlanToggle(row.label, checked)}
+          renderLabel={(row) => (
+            <>
+              <AgentPanelV4Markdown text={row.label} />
+              {row.detail ? <AgentPanelV4Markdown text={row.detail} /> : null}
+            </>
+          )}
+        />
+      ) : null}
+      {data.reasonPlaceholder && reject.open ? (
+        // 这一行不自己提交：拒绝要说的那句话由底栏的「确认不要」收尾（渐进披露的第二下）。
+        <V4SlotInput value={reject.reason} placeholder={data.reasonPlaceholder} control="reject-reason" onChange={reject.setReason} />
+      ) : null}
+      {data.scope ? <p className="m-0 text-micro text-nomi-ink-60">{data.scope}</p> : null}
+    </>
+  )
+}
+
+/**
+ * 槽里那一条输入。**一份长相，两个用处**：拒绝原因（渐进披露出来的那一行）和反问卡里
+ * 用户自己作答的最后一行。
+ *
+ * 两处各写一份的代价已经算过一次了（同一种 chip 两份 className，R14.1 横扫的东西）：
+ * 同一个槽里出现第二种输入写法，改一次圆角就得改两处，而其中一处永远会被忘掉。
+ * 所以自由作答那一行**不是新造的样式**——它就是这一件，只多了右端那颗 ↑。
+ */
+function V4SlotInput({
+  value,
+  placeholder,
+  control,
+  onChange,
+  onSubmit,
+  submitLabel,
+  autoFocus = false,
+}: {
+  value: string
+  placeholder: string
+  control: string
+  onChange: (value: string) => void
+  /** 缺席 = 这一行不自己提交（拒绝原因那一档由底栏的「确认不要」收尾）。 */
+  onSubmit?: (value: string) => void
+  /** 右端那颗 ↑ 的无障碍名。给了才画那颗钮。 */
+  submitLabel?: string
+  autoFocus?: boolean
+}): JSX.Element {
+  const inputRef = React.useRef<HTMLInputElement | null>(null)
+  // 卡一出现，光标就落在卡内这一行——这一刻在等你的东西只有它（拍板细则）。
+  // 下面的 composer 没被禁用，点一下焦点就过去，卡原样留着。
+  React.useEffect(() => {
+    if (autoFocus) inputRef.current?.focus()
+  }, [autoFocus])
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+          // **空的时候回车什么都不做**：不提交，也不把这次回车漏给别人。
+          // `preventDefault` 是那条规则的后半句——这一行住在一张卡里，卡又住在面板里，
+          // 不拦住的话这次回车会被外层当成「发出去」，于是要么发出一条空消息、
+          // 要么把上一条草稿误发（拍板细则原话）。
+          event.preventDefault()
+          if (!onSubmit) return
+          const text = value.trim()
+          if (text) onSubmit(text)
+        }}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        data-v4-control={control}
+        className="h-7 min-w-0 flex-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink placeholder:text-nomi-ink-40"
+      />
+      {onSubmit && submitLabel ? (
+        <button
+          type="button"
+          aria-label={submitLabel}
+          title={submitLabel}
+          // ↑ 和回车是**同一个动作**，不是第二个出口——所以它和回车共用同一条空值判据。
+          onClick={() => { const text = value.trim(); if (text) onSubmit(text) }}
+          data-v4-control={`${control}-submit`}
+          className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-05 disabled:opacity-40"
+          disabled={!value.trim()}
+        >
+          <IconArrowUp size={14} aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
   )
 }

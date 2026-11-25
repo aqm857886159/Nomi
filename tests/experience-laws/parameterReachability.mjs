@@ -63,7 +63,7 @@ export const REACHABILITY_ENTRIES = Object.freeze([
  * 下面这些也碰模型，但**不是**配参数的地方——写明为什么，不许悄悄漏掉。协调会话要把哪一个升格成入口，挪到上面即可。
  */
 export const NOT_PARAMETER_ENTRIES = Object.freeze([
-  Object.freeze({ owner: 'src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx', why: 'Agent 付费卡（2026-10-24 D2 起）：卡上只有指向元素和一行只读摘要，不配参数——点指向元素到节点底栏去改（node-bar 已覆盖）；聊天卡不许引节点编辑器由 depcruise chat-card-no-import-node-editor 守' }),
+  Object.freeze({ owner: 'src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx', why: 'Agent 付费确认（2026-11-15 拆开起）：输入框上方那一条只有一行只读的共同参数和按钮，镜头在对话里一行一个，都不配参数——点那一行到节点底栏去改（node-bar 已覆盖）；聊天卡不许引节点编辑器由 depcruise chat-card-no-import-node-editor 守' }),
   Object.freeze({ owner: 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx', why: '分镜选中工具条：选中几镜后交给 Agent 或删除，不配参数' }),
   Object.freeze({ owner: 'src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx', why: '图片快捷动作（改图 / 扩图 / 抠图 / 多机位）只派生一个新节点、不扣费；新节点的参数在它自己的底栏配（node-bar 已覆盖）' }),
   Object.freeze({ owner: 'src/workbench/settings/ModelBoxOrderSection.tsx', why: '设置里排模型框顺序 / 隐藏模型，不生成、不配参数' }),

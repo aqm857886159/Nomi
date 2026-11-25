@@ -134,8 +134,8 @@ export type ToolReceipt = Readonly<{
   notice?: string
   /**
    * 这一行是 `generate` 交出去的那一次出价（工具结果信封里的 `operationId`，`laneViewModel` 是唯一产地）。
-   * 卡关掉以后，收据下面挂那几镜的组指向（实时读节点，点了照样定位；SpendCardQ1 板 card.done），画在流水行外面、
-   * 不随过程行收起。卡还开着时不挂（那几镜在卡上）。
+   * 这一行下面挂这一次生成的那一组镜头（一行一个，实时读节点，点了照样定位；SpendAskSplit 板 chat.rows / chat.receipt），
+   * 画在流水行外面、不随过程行收起：出价开着时是等确认的那一批，关了以后同一组下面加一行「✓ 已发出 N 段」。
    */
   generation?: Readonly<{ operationId: string }>
 }>

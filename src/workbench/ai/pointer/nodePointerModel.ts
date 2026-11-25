@@ -41,6 +41,11 @@ export type NodePointerSubject = Readonly<{
   hostFailure?: string
   /** 宿主在当前一次出价里给这一格的状态词（例如失败态的「还没发」）。 */
   hostStatus?: string
+  /**
+   * 只对列表行、且组说「第二行只写有话要说的」（`rowDetail="status"`）时：这一镜和兄弟不一样的那一句（付费确认：
+   * 这一镜的参数和这一批的共同值不同，「9:16 · 5s」）。节点自己有状态 / 失败时让给状态。
+   */
+  note?: string
 }>
 
 export type NodePointerDensity = 'card' | 'row' | 'chip'
