@@ -18,6 +18,10 @@
  * 端点/参数改了先改文档再改这里。
  */
 
+import { require as tsxRequire } from 'tsx/cjs/api'
+
+const { exponentialBackoffMs, retryWithBackoff } = tsxRequire('../../electron/shared/retryPolicy.ts', import.meta.url)
+
 /** 缺配置（缺 key、平台名不认识）——调用方应当明报并退出非 0，不许降级成空结果。 */
 export class TikHubConfigError extends Error {
   constructor(message) {
@@ -447,7 +451,7 @@ export function isRetriableStatus(status) {
 /** 第 attempt 次失败后等多久。服务端给了 Retry-After 就听它的，否则指数退避，无抖动。 */
 export function backoffDelayMs(attempt, retryAfterMs = null) {
   if (typeof retryAfterMs === 'number' && Number.isFinite(retryAfterMs) && retryAfterMs > 0) return retryAfterMs
-  return RETRY_BASE_MS * 2 ** (attempt - 1)
+  return exponentialBackoffMs(RETRY_BASE_MS, attempt - 1)
 }
 
 function parseRetryAfter(headers) {
@@ -490,9 +494,9 @@ export async function requestJson({
   }
   const url = buildUrl(baseUrl, path, query)
   const secrets = apiKey ? [apiKey] : []
-  let lastError = null
+  if (!(maxAttempts >= 1)) throw new Error('TikHub 请求失败（原因未知）')
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+  return retryWithBackoff(async () => {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
@@ -508,38 +512,33 @@ export async function requestJson({
       })
       if (!response.ok) {
         const text = redact(await response.text().catch(() => ''), secrets).slice(0, 400)
-        const retryAfterMs = parseRetryAfter(response.headers)
-        const error = new TikHubHttpError(response.status, text, {
+        throw new TikHubHttpError(response.status, text, {
           retriable: isRetriableStatus(response.status),
-          retryAfterMs,
+          retryAfterMs: parseRetryAfter(response.headers),
         })
-        if (!error.retriable || attempt === maxAttempts) throw error
-        lastError = error
-        const delay = backoffDelayMs(attempt, retryAfterMs)
-        onRetry({ attempt, delayMs: delay, status: response.status })
-        await sleep(delay)
-        continue
       }
       return await response.json()
     } catch (error) {
-      if (error instanceof TikHubHttpError) {
-        if (!error.retriable || attempt === maxAttempts) throw error
-        lastError = error
-        continue
-      }
-      // 网络层错误（含超时 abort）：可重试，但仍受 maxAttempts 封顶。
+      if (error instanceof TikHubHttpError) throw error
+      // 包起单次请求超时，区分它与关闭整个重试的生命周期取消。
       const wrapped = new Error(redact(error?.message ?? String(error), secrets))
       wrapped.name = error?.name === 'AbortError' ? 'TikHubTimeoutError' : 'TikHubNetworkError'
-      if (attempt === maxAttempts) throw wrapped
-      lastError = wrapped
-      const delay = backoffDelayMs(attempt)
-      onRetry({ attempt, delayMs: delay, status: null })
-      await sleep(delay)
+      throw wrapped
     } finally {
       clearTimeout(timer)
     }
-  }
-  throw lastError ?? new Error('TikHub 请求失败（原因未知）')
+  }, {
+    retries: Math.floor(maxAttempts) - 1,
+    initialDelayMs: RETRY_BASE_MS,
+    sleep,
+    delayAfterFailure: (error, attempt) => {
+      const httpError = error instanceof TikHubHttpError ? error : null
+      if (httpError && !httpError.retriable) return null
+      const delayMs = backoffDelayMs(attempt, httpError?.retryAfterMs)
+      onRetry({ attempt, delayMs, status: httpError?.status ?? null })
+      return delayMs
+    },
+  })
 }
 
 // ───────────────────────── 翻页拼接 + 归一 ─────────────────────────

@@ -28,6 +28,7 @@ import { scanScopedTokenDefinitions } from "./lib/scopedTokenScan.mjs";
 import { countAccentOutlineInText, findAccentAliasedTokens } from "./lib/accentOutlineScan.mjs";
 import { countAccentWhitePrimaries, countTextWhiteInSource } from "./lib/primaryColorScan.mjs";
 import { OVERLAY_Z_FIX_HINT, isOverlayZScanned, readScaleFloor, scanOverlayZFile } from "./lib/overlayZScan.mjs";
+import { SEMANTIC_SOFT_TINT_FIX_HINT, countSemanticSoftTintInText } from "./lib/semanticSoftTintScan.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -271,6 +272,39 @@ for (const [rel, entry] of Object.entries(overlayZBaseline)) {
   if (!overlayZSeen.has(rel)) warnings.push(`↓ 手写数字层级基线 ${rel} 已无命中（请删掉这条）`);
 }
 
+// ---- 第 10 类：语义状态色直接加 /透明度 当淡底（棘轮，逐文件，只减不增；新文件零容忍）----
+//
+// 四语义状态主色（warning / danger / success / info）浅色下是 L=0.55 的深描边色；写 bg-nomi-warning/10 会经 tokenColor()
+// 向 transparent 摊薄到 c≈0.0085，奶油黄变灰泥色（#1660 O5 充值卡实锤）。设计系统早有独立 -soft / -edge / -ink 四档，
+// 存量逐文件锁在 scripts/semantic-soft-tint-baseline.json，新增或超出 → 红牌。
+const semanticTintBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, "scripts/semantic-soft-tint-baseline.json"), "utf8"));
+const semanticTintFiles = gitPaths(["ls-files", "--cached", "--others", "--exclude-standard", "src"], { cwd: ROOT })
+  .filter((f) => /\.(tsx?|css)$/.test(f))
+  .filter((f) => !/\.test\.tsx?$/.test(f))
+  .filter((f) => !f.startsWith("src/devlab/"))
+  .filter((f) => fs.existsSync(path.join(ROOT, f)));
+let semanticTintTotal = 0;
+const semanticTintSeen = new Set();
+for (const rel of semanticTintFiles) {
+  const n = countSemanticSoftTintInText(fs.readFileSync(path.join(ROOT, rel), "utf8"));
+  if (n === 0) continue;
+  semanticTintTotal += n;
+  semanticTintSeen.add(rel);
+  const limit = semanticTintBaseline[rel]?.count ?? 0;
+  if (n > limit) {
+    errors.push(`✗ 语义状态色透明摊薄淡底：${rel} ${n} 处 > 白名单 ${limit}（${SEMANTIC_SOFT_TINT_FIX_HINT}）`);
+  } else if (n < limit) {
+    warnings.push(`↓ 语义状态色透明摊薄淡底：${rel} ${n} 处 < 白名单 ${limit}（已清理，请把 scripts/semantic-soft-tint-baseline.json 下调到 ${n} 或删条目）`);
+  }
+}
+for (const [rel, entry] of Object.entries(semanticTintBaseline)) {
+  if (!entry || !Number.isInteger(entry.count) || entry.count < 1) errors.push(`✗ 语义状态色淡底白名单 ${rel} 的 count 必须是正整数`);
+  if (!entry || typeof entry.reason !== "string" || entry.reason.trim() === "") {
+    errors.push(`✗ 语义状态色淡底白名单 ${rel} 缺 reason（每条保留都要写理由）`);
+  }
+  if (!semanticTintSeen.has(rel)) warnings.push(`↓ 语义状态色淡底白名单 ${rel} 已无命中（请删掉这条）`);
+}
+
 for (const w of warnings) console.warn(w);
 
 if (errors.length > 0) {
@@ -286,5 +320,6 @@ console.log(
 ✓ 强调色描边棘轮：${accentTotal} 处（白名单 ${Object.keys(accentBaseline).length} 个文件，只减不增）；--nomi-focus / --nomi-info 不别名到强调色。` +
     `\n✓ 主按钮颜色棘轮：text-white ${textWhiteCount} 处、accent+white ${accentWhiteCount} 处（存量只减不增）。` +
     `\n✓ 手写数字层级棘轮：${overlayZTotal} 处 / ${overlayZSeen.size} 个文件（白名单 ${Object.keys(overlayZBaseline).length} 个，只减不增；地板 ${overlayZFloor}）。` +
+    `\n✓ 语义状态色淡底棘轮：${semanticTintTotal} 处 / ${semanticTintSeen.size} 个文件（白名单 ${Object.keys(semanticTintBaseline).length} 个，只减不增；新增一律用 -soft）。` +
     `\n✓ 语义 token 作用域零容忍：--nomi-*/--workbench-* 定义全部在 :root 层（portal/浮层任意挂载点都解析得到）。`,
 );

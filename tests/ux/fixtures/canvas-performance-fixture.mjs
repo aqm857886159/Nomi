@@ -22,6 +22,7 @@ export const CANVAS_PERF_SCALES = Object.freeze({
   LIMG: { imageCount: 192, videoCount: 0, edgeCount: 0, clipCount: 0 },
   XLIMG: { imageCount: 320, videoCount: 0, edgeCount: 0, clipCount: 0 },
   S: { imageCount: 24, videoCount: 24, edgeCount: 96, clipCount: 12 },
+  CLIPS200: { imageCount: 48, videoCount: 48, edgeCount: 192, clipCount: 200 },
   M: { imageCount: 48, videoCount: 48, edgeCount: 192, clipCount: 24 },
   L: { imageCount: 96, videoCount: 96, edgeCount: 384, clipCount: 48 },
   XL: { imageCount: 160, videoCount: 160, edgeCount: 640, clipCount: 80 },

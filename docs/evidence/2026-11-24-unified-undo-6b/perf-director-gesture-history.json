@@ -1,0 +1,55 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 16GB",
+  "commit": "5d2df1fed",
+  "head": "5d2df1fed8c10d3f041c5551ecea99e509513cd6",
+  "dirty": true,
+  "sourceTree": "8b4a4e7bab128889341644663eb69f9d2dd74add",
+  "date": "2026-11-23",
+  "runs": 5,
+  "results": [
+    {
+      "id": "director-gesture-history",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 18,
+          "p95": 18.2
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          18.2,
+          18,
+          17.8,
+          18.2,
+          17.9
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "budget": 33,
+      "baseline": {
+        "median": 17.7,
+        "p95": 18,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 16GB",
+        "date": "2026-11-24",
+        "commit": "82ad86cb5"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

@@ -11,7 +11,7 @@
 // mcpProtocol 的薄接线（同 mcpPlanTrust 的纯核+接线分工）。
 
 /** 一道收敛题：enum 候选 + 人话候选名（MCP elicitation 的 enum/enumNames 直接吃这两个数组）。 */
-export type IntakeQuestion = {
+type IntakeQuestion = {
   key: string
   /** 题面（人话，一行）。 */
   label: string
@@ -85,7 +85,7 @@ export function buildIntakeMessage(questions: IntakeQuestion[]): string {
   ].join('\n')
 }
 
-export type IntakeDecision = {
+type IntakeDecision = {
   /** key → 最终取值（含 fallback 填充后的）。 */
   values: Record<string, string>
   /** 用户真正表过态的题数（选了具体候选，不含 defer/留空）——用于诚实回执。 */

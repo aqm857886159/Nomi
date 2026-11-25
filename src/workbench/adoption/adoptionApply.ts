@@ -12,7 +12,7 @@ import type { AdoptionApplyPorts, AdoptionPlacement } from './adoptionTypes'
  * `applyAdoption` 只在**全部算成**之后写一次。
  */
 
-export type AdoptionApplyResult =
+type AdoptionApplyResult =
   | { ok: true; timeline: TimelineState; clipIds: string[] }
   | { ok: false; recovered: true; error: string }
   | { ok: false; recovered: false; error: string }
@@ -40,7 +40,7 @@ function insertClips(timeline: TimelineState, placements: ReadonlyArray<Adoption
   }
 }
 
-export type AdoptionExtras = {
+type AdoptionExtras = {
   textClips?: readonly TimelineTextClip[]
   transitions?: readonly TimelineTransition[]
 }

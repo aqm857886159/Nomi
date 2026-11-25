@@ -66,9 +66,7 @@ try {
 
   // 置 E2E 闸 → 画布挂载时 ProductionCanvasLandingHost 把 store 挂到 window。切到「生成」工作区让画布挂上。
   await win.evaluate(() => localStorage.setItem('__nomiE2E', '1'))
-  // 跳过开屏 + 建空白项目 + 进生成区（复用最短路：直接找「新建空白项目」→「生成」tab）。
-  const skip = win.locator('[data-splash-skip="true"]')
-  if (await skip.count().catch(() => 0)) await skip.click({ timeout: 4000 }).catch(() => {})
+  // 建空白项目 + 进生成区（Q18 删开屏后首启直达项目库）。
   await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.waitForTimeout(1200) // 项目落地（默认停在「创作」工作区）
   // 切到「生成」工作区（顶栏 stepper 的「生成」按钮，exact），画布 + landing host 才挂载。

@@ -80,7 +80,7 @@ export type NomiEditorCodec<V> = {
  * 入口只收这几样：owner 绑定 + 编解码 + 扩展与视图选项（白名单）。没有 `content`、没有 `value`、没有 `onUpdate`，
  * 也没有 `onBeforeCreate` / `onCreate` / `onTransaction` 这些能在实例出生时塞进旧值的口。
  */
-export type NomiTiptapEditorOptions<V> = {
+type NomiTiptapEditorOptions<V> = {
   owner: NomiEditorOwner<V>
   codec: NomiEditorCodec<V>
   extensions: EditorOptions['extensions']
@@ -190,9 +190,9 @@ export function useNomiTiptapEditor<V>(options: NomiTiptapEditorOptions<V>, deps
  * Each surface renders its own shell (full-height toolbar vs floating bar) but
  * shares this kernel + useRichTextActions().
  */
-export type RichTextApplyMode = 'insert' | 'replace' | 'append'
+type RichTextApplyMode = 'insert' | 'replace' | 'append'
 
-export type NomiRichTextTools = {
+type NomiRichTextTools = {
   readFullText: () => string
   readSelectionText: () => string
   /** Apply markdown at an explicit ProseMirror range captured by the caller. */
@@ -206,7 +206,7 @@ export function isEditorReady(editor: Editor | null): editor is Editor {
   return Boolean(editor && !editor.isDestroyed)
 }
 
-export function readSelectedText(editor: Editor): string {
+function readSelectedText(editor: Editor): string {
   const { from, to, empty } = editor.state.selection
   if (empty || from === to) return ''
   return editor.state.doc.textBetween(from, to, '\n').trim()

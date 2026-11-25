@@ -16,6 +16,7 @@ import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
+import { seedGenerationModelDefaults } from './_generationModelDefaultsFixture.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -173,15 +174,7 @@ export function seedRealModels({ settingsDir, userDataDir, models, profile = rea
   fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`)
   // 「新建卡片默认模型」就是被授权的那一个（用户在设置里就是这么设的；electron/settings/generationModelDefaultsContract.ts）。
   // 缺了它，新卡按「池子里第一个健康的」挑——App 首启补进来的内置同类模型也在池子里，挑中谁不由走查说了算。
-  const byTaskKind = {}
-  for (const row of seeded.values()) {
-    const identity = { vendorKey: row.vendorKey, modelKey: row.modelKey }
-    if (row.kind === 'image') Object.assign(byTaskKind, { text_to_image: identity, image_edit: identity })
-    if (row.kind === 'video') Object.assign(byTaskKind, { text_to_video: identity, image_to_video: identity })
-  }
-  if (Object.keys(byTaskKind).length) {
-    fs.writeFileSync(path.join(settingsDir, 'generation-model-defaults.json'), `${JSON.stringify({ schemaVersion: 1, byTaskKind }, null, 2)}\n`)
-  }
+  seedGenerationModelDefaults(settingsDir, seeded.values())
   seedRealCredentialStore(userDataDir, profile)
   return [...seeded.values()]
 }

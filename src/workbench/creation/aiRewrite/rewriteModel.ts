@@ -6,7 +6,7 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { buildRewritePrompt, cleanRewriteOutput } from './rewritePrompt'
 import type { RewriteRequirement } from './rewriteSession'
 
-export type RewriteModelOutcome =
+type RewriteModelOutcome =
   | { ok: true; text: string }
   | { ok: false; aborted: true }
   | { ok: false; aborted: false; reason: string }

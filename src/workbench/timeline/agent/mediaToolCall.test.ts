@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE } from '../../../../electron/shared/agentCapabilities/verbDeclaration'
 import type { DesktopAssetDto } from '../../../desktop/bridge'
 import { createDefaultTimeline } from '../timelineMath'
-import { applyMediaToolCall, type MediaToolRuntime } from './mediaToolCall'
+import { applyMediaToolCall, WAVEFORM_READ_TIMEOUT_MS, type MediaToolRuntime } from './mediaToolCall'
 
 const videoAsset: DesktopAssetDto = {
   id: 'stable-video-id',
@@ -112,7 +113,7 @@ describe('project-scoped media Agent tools', () => {
     })
     expect(deps.readWaveform).toHaveBeenCalledWith(expect.objectContaining({ id: 'stable-audio-id' }), {
       startSeconds: 0, endSeconds: 1, buckets: 32,
-    })
+    }, expect.any(AbortSignal))
   })
 
   it('requires an explicit project and rejects cross-project records', async () => {
@@ -128,4 +129,10 @@ describe('project-scoped media Agent tools', () => {
     await expect(applyMediaToolCall('get_media', { assetId: 'stable-video-id', projectId: 'project-1' }, runtime()))
       .resolves.toMatchObject({ operation: 'get_media', media: { id: 'stable-video-id' } })
   })
+})
+
+it('keeps the entire waveform deadline strictly inside the model read budget', () => {
+  expect(WAVEFORM_READ_TIMEOUT_MS).toBeGreaterThan(0)
+  expect(WAVEFORM_READ_TIMEOUT_MS).toBeLessThanOrEqual(26_000)
+  expect(WAVEFORM_READ_TIMEOUT_MS).toBeLessThan(MODEL_TOOL_READ_TIMEOUT_MS_VALUE)
 })

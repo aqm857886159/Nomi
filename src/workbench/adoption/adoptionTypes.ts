@@ -1,5 +1,5 @@
 import type { TimelineClip, TimelineState, TimelineTrackType } from '../timeline/timelineTypes'
-import type { TimelineUndoEntry } from '../timeline/timelineUndoHistory'
+import type { TimelineAgentUndoMetadata } from '../history/historyMiddleware'
 
 /**
  * P5 E1 采纳桥的合同类型（`docs/superpowers/plans/2026-08-22-nomi-unified-editor-runtime.md` §5）。
@@ -86,7 +86,7 @@ export type AdoptionOutcome =
 export type AdoptionApplyPorts = {
   readTimeline: () => TimelineState
   /** 原子写入：整批一次落定 + 压**一层**撤销栈。 */
-  commitTimeline: (next: TimelineState, base: TimelineState, undoEntry?: TimelineUndoEntry) => void
+  commitTimeline: (next: TimelineState, base: TimelineState, metadata?: TimelineAgentUndoMetadata) => void
   /** 补偿：把轴放回 base。返回 false 表示补不回去 → needs_recovery。 */
   restoreTimeline: (base: TimelineState) => boolean
 }

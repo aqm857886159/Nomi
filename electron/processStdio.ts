@@ -6,11 +6,11 @@
  * bring down the application (the parent-process watchdog still reaps an
  * orphaned dev instance).
  */
-export type ProcessStdioStream = {
+type ProcessStdioStream = {
   on(event: "error", listener: (error: unknown) => void): unknown;
 };
 
-export type ProcessStdioStreams = {
+type ProcessStdioStreams = {
   stdout: ProcessStdioStream;
   stderr: ProcessStdioStream;
 };

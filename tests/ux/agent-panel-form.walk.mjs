@@ -1,155 +1,192 @@
-import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
-import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
-import { stationTimeout } from './_station-budget.mjs'
-import { expect, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
-const root = path.resolve('.')
-const out = path.join(root, 'docs/plan/b2c-form-evidence')
-await fs.mkdir(out, { recursive: true })
-const tempRoot = await makeTempDirAsync('nomi-b2c-form-')
-const settingsDir = path.join(tempRoot, 'settings')
-await fs.mkdir(settingsDir, { recursive: true })
-const now = '2026-09-09T00:00:00.000Z'
-const models = [
-  { modelKey: 'deepseek-v4-pro', labelZh: 'DeepSeek V4 Pro', kind: 'text' },
-  { modelKey: 'gpt-image-2', labelZh: 'GPT Image 2', kind: 'image' },
-  { modelKey: 'MiniMax-H3', labelZh: 'MiniMax H3', kind: 'video' },
-].map(model => ({ ...model, vendorKey: 'b2c-catalog', enabled: true, published: true, publishedModes: [], createdAt: now, updatedAt: now }))
-await fs.writeFile(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({ version: currentCatalogVersion(), vendors: [{ key: 'b2c-catalog', name: 'Catalog', enabled: true, authType: 'none', createdAt: now, updatedAt: now }], models, mappings: [], apiKeysByVendor: {} }))
-// 自己起这条走查要的开发服务：以前得先手动在 52793 开一个，夜跑里从来没有（run 40035294026：ERR_CONNECTION_REFUSED）。
-// 直接用 node 起 vite（不经 npx 垫片：kill 只杀得到垫片，vite 成孤儿攥着端口）；进程退出 / 被信号终止时一并收掉。
-const VITE_ORIGIN = 'http://127.0.0.1:52793'
-const repoDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const viteServer = spawn(process.execPath, [path.join(repoDir, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', '52793', '--strictPort'], { cwd: repoDir, stdio: 'ignore' })
-viteServer.unref() // 不让这个子进程撑着走查进程不退（否则断言跑完照样挂到超时）；退出时由下面这行收掉它
-process.on('exit', () => viteServer.kill())
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { viteServer.kill(); process.exit(1) })
-await expect.poll(async () => { try { return (await fetch(`${VITE_ORIGIN}/`)).ok } catch { return false } }, { timeout: stationTimeout({ operations: 4 }) }).toBe(true)
-const application = await launchNomiApp({ name: 'b2c-form', tempRoot, settingsDir, settleMs: 0,
-  initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', 'nomi-color-scheme': 'light', 'nomi.assistantModel': JSON.stringify({ vendorKey: 'b2c-catalog', modelKey: 'deepseek-v4-pro' }) },
-  env: { VITE_DEV_SERVER_URL: VITE_ORIGIN, NOMI_DISABLE_AUTO_UPDATE: '1' } })
-const page = application.win
-const receipt = { modelCalls: 0, evidence: 'real Electron App with isolated catalog and deterministic host snapshots', frames: {}, screenshots: [] }
-async function shot(name) {
-  await screenshotSettled(page, { path: path.join(out, `${name}.png`) })
-  receipt.screenshots.push(name)
-  console.log('SHOT', name)
-}
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { expect } from './_assert.mjs'
+import { ensureAgentPanelOpen, switchWorkspace } from './_shell.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { uiText } from './full-walk/invariants.mjs'
+import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
+import { FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import {
+  CREATION_PANEL, DOCUMENT, ERROR_BAR, chooseAssistantModel,
+  createRuntimeWalk, hasToolResult, recorded, sendCreation, waitForV4TurnIdle,
+} from './agent-runtime-walk-support.mjs'
+
+process.env.NOMI_WALK_OUT = makeTempDir('nomi-b2c-form-evidence-')
+process.env.EVIDENCE_DIR = path.join(process.env.NOMI_WALK_OUT, 'feel')
+const walk = await createRuntimeWalk('b2c-form', { generationProvider: 'apimart' })
+const receipt = { frames: {} }
+let failure
 try {
-  page.setDefaultTimeout(stationTimeout())
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await expect(newProjectEntry(page)).toBeVisible({ timeout: stationTimeout() })
-  await newProjectEntry(page).click()
-  await expect(page.locator('[data-v4-panel]')).toBeVisible({ timeout: stationTimeout() })
-  for (const [surface, label] of [['creation','创作'], ['storyboard','分镜'], ['generation','生成'], ['preview','预览']]) {
-    if (surface === 'storyboard') await page.getByText('分镜方案', { exact: true }).first().click()
-    else await page.getByRole('button', { name: label, exact: true }).click()
-    await expect(page.locator('[data-v4-panel]')).toBeVisible()
+  // The isolated APIMart fixture supplies the two real catalog entries. Only the loopback text model is called.
+  const catalogFile = path.join(walk.settingsDir, 'model-catalog.json')
+  const catalog = JSON.parse(await fs.readFile(catalogFile, 'utf8'))
+  const defaultModelKeys = ['gpt-image-2', 'MiniMax-H3']
+  const defaults = catalog.models.filter((model) => model.vendorKey === FIXTURE_APIMART_VENDOR && defaultModelKeys.includes(model.modelKey))
+  expect(defaults).toHaveLength(2)
+  for (const model of defaults) model.enabled = true
+  await fs.writeFile(catalogFile, JSON.stringify(catalog))
+
+  const { win: page } = await walk.start({ first: true })
+  await walk.resizeWindow(1440, 1000)
+  const { projectRoot } = await walk.newProject()
+  await walk.resizeWindow(1440, 1000)
+  const panel = page.locator('[data-v4-panel]')
+  const handle = page.locator('[data-assistant-pane] [role=separator]:visible')
+  const width = () => panel.evaluate((el) => Math.round(el.getBoundingClientRect().width))
+  const shot = walk.snap
+  for (const surface of ['creation', 'storyboard', 'generation', 'preview']) {
+    if (surface === 'storyboard') await openStoryboardEditor(page)
+    else await switchWorkspace(page, surface)
+    await ensureAgentPanelOpen(page, `核验 ${surface} 的停靠面板`, { form: 'dock' })
+    await expect(panel).toBeVisible()
     await shot(`frame-${surface}`)
-    receipt.frames[surface] = await page.locator('[data-v4-panel]').evaluate(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return { x:r.x, y:r.y, width:r.width, height:r.height, radius:s.borderRadius, border:s.borderWidth } })
+    receipt.frames[surface] = await panel.evaluate((el) => {
+      const bounds = el.getBoundingClientRect()
+      const style = getComputedStyle(el)
+      return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, radius: style.borderRadius, border: style.borderWidth }
+    })
   }
-  await page.getByRole('button', { name: '创作', exact: true }).click()
-  console.log('separators', await page.getByRole('separator').evaluateAll(els => els.map(el=>({name:el.getAttribute('aria-label')}))))
-  await page.locator('[data-assistant-pane] [role=separator]:visible').focus()
+  await switchWorkspace(page, 'creation')
+  await handle.focus()
   await page.keyboard.press('End')
-  await expect.poll(() => page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(600)
+  await expect.poll(width).toBe(600)
   await shot('width-600')
-  for (const label of ['生成', '预览', '创作']) {
-    await page.getByRole('button', { name: label, exact: true }).click()
-    await expect.poll(() => page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(600)
-    if (label === '预览') await shot('width-600-preview')
+  for (const surface of ['generation', 'preview', 'creation']) {
+    await switchWorkspace(page, surface)
+    await expect.poll(width).toBe(600)
+    if (surface === 'preview') await shot('width-600-preview')
   }
   receipt.crossSurface600 = true
-  await page.locator('[data-assistant-pane] [role=separator]:visible').focus()
+  await handle.focus()
   await page.keyboard.press('Home')
-  await expect.poll(() => page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(300)
+  await expect.poll(width).toBe(300)
   await shot('width-300')
   await page.keyboard.press('ArrowLeft')
-  await expect.poll(() => page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(310)
+  await expect.poll(width).toBe(310)
   await shot('width-before-refresh')
   await page.reload()
-  await expect.poll(() => page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(310)
+  await expect.poll(width).toBe(310)
   receipt.refreshWidth = 310
-  await page.locator('[data-assistant-pane] [role=separator]:visible').focus()
-  for (let i=0;i<8;i++) await page.keyboard.press('ArrowLeft')
-  await page.locator('[data-v4-control=model]').click()
-  await expect(page.locator('[data-v4-model-row]')).toHaveCount(3)
-  for (const [slot, name] of [['图片默认', 'GPT Image 2'], ['视频默认', 'MiniMax H3']]) {
-    await page.locator('[data-v4-model-row]').filter({ hasText: slot }).getByRole('button').click()
-    await page.getByRole('option', { name: new RegExp(name) }).first().click()
+  await handle.focus()
+  // 宽度动画落定后，下一发方向键才会从当前可见宽度继续累加。
+  for (let expectedWidth = 320; expectedWidth <= 390; expectedWidth += 10) {
+    await page.keyboard.press('ArrowLeft')
+    await expect.poll(width).toBe(expectedWidth)
+  }
+  const modelTrigger = panel.locator('[data-v4-control="model"]')
+  await modelTrigger.click()
+  const modelRows = panel.locator('[data-v4-model-row]')
+  await expect(modelRows).toHaveCount(3)
+  for (const [key, name] of [['imageDefault', 'GPT Image 2'], ['videoDefault', 'MiniMax H3']]) {
+    const select = modelRows.getByRole('button', { name: uiText('zh-CN', `agentPanelV4.${key}`), exact: true })
+    await select.click()
+    await page.getByRole('option').filter({
+      has: page.locator('[data-nomi-select-option-label]').and(page.getByText(name, { exact: true })),
+    }).click()
+    await expect(select).toContainText(name)
   }
   await shot('model-electron')
-  receipt.models = await page.locator('[data-v4-model-row]').allTextContents()
-  await page.locator('[data-v4-control=model]').click()
-  const handle = page.locator('[data-assistant-pane] [role=separator]:visible')
-  await expect.poll(() => page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(390)
+  receipt.models = await modelRows.allTextContents()
+  await modelTrigger.click()
+  await expect.poll(width).toBe(390)
   const box = await handle.boundingBox()
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  await page.mouse.move(center.x, center.y)
   await page.mouse.down()
-  await page.mouse.move(box.x - 70, box.y + box.height / 2, { steps: 8 })
+  await page.mouse.move(center.x - 78, center.y, { steps: 8 })
   await page.mouse.up()
-  await expect.poll(() => page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(468)
-  receipt.dragWidth = await page.locator('[data-v4-panel]').evaluate(el => Math.round(el.getBoundingClientRect().width))
+  await expect.poll(width).toBe(468)
+  receipt.dragWidth = await width()
   expect(receipt.dragWidth).toBe(468)
   await handle.focus()
   await page.keyboard.press('Home')
-  for (let i=0;i<9;i++) await page.keyboard.press('ArrowLeft')
-  for (const state of ['running', 'done', 'failed']) {
-    await page.evaluate(async state => {
-      const fixture = await import('/src/devlab/designLab/v4/agentPanelV4LabHost.tsx')
-      const { projectAgentProjectionStore: store } = await import('/src/workbench/ai/projectAgentProjectionStore.ts')
-      const current = store.getState()
-      const snapshot = fixture.labHostState({ turnStatus: state, items: [
-        fixture.labUserItem('u-b2c', '把这篇文稿拆成 8 个分镜。'),
-        ...(state === 'done' ? [fixture.labAssistantItem('a-b2c', '已写入 8 个分镜。下一步：补齐角色参考图，再开始生成。')] : []),
-        fixture.labToolItem('read-b2c', 'document.read'),
-        fixture.labToolItem('skill-b2c', 'skill.read'),
-        { ...fixture.labToolItem('write-b2c', 'canvas.write', state), ...(state === 'failed' ? { text: '分镜未写入：参数校验未通过。' } : {}) },
-      ] })
-      const { writeResidentToolProjections, residentToolProjectionScope } = await import('/src/workbench/ai/resident/residentToolProjection.ts')
-      const { projectBindingKey } = await import('/src/workbench/ai/v4/agentPanelV4PendingTools.ts')
-      const scope = residentToolProjectionScope(projectBindingKey(current.binding ?? snapshot.binding), snapshot.activeThreadId)
-      writeResidentToolProjections(scope, new Map([
-        ['turn-lab:read-b2c', { label: '读取全文', effect: '已读取文稿', target: '', technicalDetails: '', input: '{}', output: '已读取文稿' }],
-        ['turn-lab:skill-b2c', { label: '加载分镜技能', effect: '已加载', target: '', technicalDetails: '', input: '{}', output: '已加载' }],
-        ['turn-lab:write-b2c', { label: '写入 8 镜', effect: state === 'done' ? '已写入' : '', target: '', technicalDetails: '', input: '{}', output: state === 'failed' ? '分镜未写入：参数校验未通过。' : state === 'done' ? '已写入 8 镜' : '' }],
-      ]))
-      const time = new Date(Date.now() - 8000).toISOString()
-      store.install('b2c-walkthrough', 1, { ...snapshot, binding: current.binding ?? snapshot.binding,
-        turns: snapshot.turns.map(turn => ({ ...turn, createdAt: time, updatedAt: new Date().toISOString() })) })
-    }, state)
-    await expect(page.locator('[data-v4-block=process]')).toHaveCount(1)
-    await expect(page.locator('[data-v4-block=process]')).toHaveAttribute('data-running', String(state === 'running'))
-    if (state === 'done') await expect(page.locator('[data-v4-block=assistant]')).toContainText('已写入 8 个分镜')
-    if (state === 'failed') await expect(page.locator('[data-v4-block=errorbar]')).toBeVisible()
+  await expect.poll(width).toBe(300)
+  for (let expectedWidth = 310; expectedWidth <= 390; expectedWidth += 10) {
+    await page.keyboard.press('ArrowLeft')
+    await expect.poll(width).toBe(expectedWidth)
+  }
+  await switchWorkspace(page, 'creation')
+  await expect.poll(width).toBe(390)
+  await chooseAssistantModel(page, FIXTURE_TEXT_MODEL_LABEL)
+  await page.locator(DOCUMENT).fill('清晨，女孩走进咖啡馆，把红杯放在窗前。')
+  const processRows = panel.locator('[data-v4-block="process"]')
+
+  async function captureProcess(process, state) {
+    await expect(process).toHaveAttribute('data-running', String(state === 'running'))
     await shot(`process-${state}-electron`)
-    if (!await page.locator('[data-v4-block=process]').evaluate(el => el.open)) await page.locator('[data-v4-block=process] > summary').click()
-    await expect(page.locator('[data-v4-block=process] [data-v4-block=tool]').first()).toBeVisible()
+    const summary = process.locator(':scope > summary')
+    if (await process.getAttribute('open') === null) await summary.click()
+    // 现役收据没有可展开的内容时直接渲染行，有详情时才用 summary。
+    const toolRows = process.locator('[data-v4-block="tool"]:not(details), details[data-v4-block="tool"] > summary')
+    await expect(toolRows).toHaveCount(3)
+    for (const row of await toolRows.all()) await expect(row).toBeVisible()
     await page.mouse.move(10, 990)
-    const surfaces = await page.locator('[data-v4-block=process] [data-v4-block=tool] > summary').evaluateAll(rows => rows.map(row => {
+    const styles = await toolRows.evaluateAll((rows) => rows.map((row) => {
       const css = getComputedStyle(row)
       return { background: css.backgroundColor, shadow: css.boxShadow, border: css.borderWidth }
     }))
-    expect(surfaces.length).toBeGreaterThan(0)
-    expect(surfaces.every(row => row.background === 'rgba(0, 0, 0, 0)' && row.shadow === 'none' && row.border === '0px')).toBe(true)
-    receipt[`process${state}Surfaces`] = surfaces
+    expect(styles).toEqual(Array.from({ length: 3 }, () => ({
+      background: 'rgba(0, 0, 0, 0)', shadow: 'none', border: '0px',
+    })))
+    receipt[`process-${state}`] = styles
     await shot(`process-${state}-expanded-electron`)
-    await page.locator('[data-v4-block=process] > summary').click()
+    await summary.click()
   }
+
+  for (const [index, fails] of [false, true].entries()) {
+    const prompt = `B2C_FORM_${index}：读取文稿、核对画布，然后写入 8 个分镜。`
+    const shots = Array.from({ length: 8 }, (_, shot) => ({
+      title: `咖啡馆镜头 ${shot + 1}`, prompt: `清晨咖啡馆红杯，镜头 ${shot + 1}`, taskKind: 'text_to_image',
+    }))
+    const calls = [
+      { name: 'read_script', args: { scope: 'full' } },
+      { name: 'look_at_canvas', args: {} },
+      { name: 'draft_shots', args: { shots: fails ? [] : shots } },
+    ]
+    const callIds = calls.map((_, i) => `b2c-${index}-${i}`)
+    const toolRequests = calls.map((call, i) => walk.fixture.expectText({
+      label: callIds[i],
+      match: (body) => (i === 0 ? flattenRequestText(body).includes(prompt) : hasToolResult(body, callIds[i - 1]))
+        && !hasToolResult(body, callIds[i]),
+      reply: { type: 'tool', id: callIds[i], ...call },
+    }))
+    const streamingText = fails ? '' : '已写入 8 个分镜。'
+    const finalText = fails ? '分镜未写入，请补充镜头内容。' : '下一步：补齐角色参考图。'
+    const answer = streamingText + finalText
+    const done = walk.fixture.expectText({
+      label: `b2c result ${index}`,
+      match: (body) => hasToolResult(body, callIds[2]),
+      reply: { type: 'hold', ...(streamingText ? { text: streamingText } : {}) },
+    })
+    await sendCreation(page, prompt)
+    for (const request of toolRequests) await recorded(request.received, 'real lane tool request')
+    await recorded(done.received, 'real lane tool results')
+    await expect.poll(() => readLaneTranscripts(projectRoot).flatMap(laneMessages)
+      .filter((message) => message.role === 'toolResult' && callIds.includes(message.toolCallId))
+      .map((message) => Boolean(message.isError))).toEqual([false, false, fails])
+    const process = processRows.last()
+    await expect(processRows).toHaveCount(index + 1)
+    if (!fails) await captureProcess(process, 'running')
+    done.release({ type: 'text', text: finalText })
+    const visibleAnswer = panel.locator('[data-v4-block="assistant"]').getByText(answer, { exact: true })
+    await waitForV4TurnIdle(page, { panel: CREATION_PANEL, settledBy: visibleAnswer })
+    if (fails) await expect(process.locator(ERROR_BAR)).toBeVisible()
+    else await expect(visibleAnswer).toBeVisible()
+    await captureProcess(process, fails ? 'failed' : 'done')
+  }
+  expect(walk.fixture.images).toHaveLength(0)
+  expect(walk.fixture.videos).toHaveLength(0)
+
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('DOM.enable')
   await cdp.send('CSS.enable')
   const { root: dom } = await cdp.send('DOM.getDocument')
-  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: dom.nodeId, selector: '[data-v4-panel] header [class*=font-nomi-display]' })
+  const { nodeId } = await cdp.send('DOM.querySelector', {
+    nodeId: dom.nodeId, selector: '[data-v4-panel] header [class*=font-nomi-display]',
+  })
   if (nodeId) receipt.brandFonts = await cdp.send('CSS.getPlatformFontsForNode', { nodeId })
-  await fs.writeFile(path.join(out,'electron-receipt.json'), JSON.stringify(receipt,null,2))
-} catch (error) {
-  await page.screenshot({ path: path.join(out,'failure.png') })
-  await fs.writeFile(path.join(out,'failure.txt'), String(error))
-  throw error
-} finally { await application.app.close() }
+  walk.report.form = receipt
+} catch (error) { failure = error }
+await walk.finish(failure)

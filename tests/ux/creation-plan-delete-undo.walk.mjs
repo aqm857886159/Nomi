@@ -12,17 +12,18 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
+import { railItem } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = makeTempDir('nomi-plan-delete-')
 const projectsDir = path.join(tempRoot, 'projects')
 const settingsDir = path.join(tempRoot, 'settings')
-const outDir = process.env.PLAN_DELETE_OUT || path.join(repoRoot, 'tests/ux/shots/creation-plan-delete-undo')
+const outDir = path.join(tempRoot, 'shots')
+process.env.EVIDENCE_DIR = path.join(tempRoot, 'feel')
 fs.mkdirSync(outDir, { recursive: true })
 
 const plan = (title) => ({
@@ -105,14 +106,22 @@ try {
    * 在观测上一模一样（`expectAbsent` 强制要 `provenBy` 就是为了这个）。
    *
    * 对照用的是**删原稿**那条路——它这次没改，仍然走 `confirmDialog`。
-   * 所以：同一个 `[role="dialog"]` 选择器，在原稿那条路上找得到（基线成立），
+   * 所以：同一个可见模态探针，在原稿那条路上找得到（基线成立），
    * 在方案那条路上找不到（这次的改动）。开局先把这个基线做出来再取消掉。
    */
   await win.locator('[data-document-row="doc-a"]').hover()
   await clickOrFail(win.locator('[data-document-row="doc-a"] [data-resource-action="delete"]'), '点原稿行上的删除图标（只为立阳性对照）')
-  const dialogProof = await proveProbe(win.locator('[role="dialog"]'), '删原稿仍然会弹确认对话框')
-  await clickOrFail(win.getByRole('button', { name: '取消', exact: false }).first(), '取消掉这次原稿删除——基线立完就撤，不动数据')
-  await win.waitForTimeout(400)
+  // 文稿树所在的 Mantine Drawer 已经开着，本身也是一个模态。
+  const modals = win.getByRole('dialog').and(win.locator('[aria-modal="true"]'))
+    .filter({ hasNot: win.locator('[data-creation-resource-tree="true"]') })
+  const documentConfirmation = modals.and(win.getByRole('dialog', {
+    name: uiText('zh-CN', 'creationAi.documentList.deleteTitle'), exact: true,
+  }))
+  await expectVisible(documentConfirmation.locator('[data-confirm-dialog-surface="confirm"]'), '原稿删除确认面可见')
+  const dialogProof = await proveProbe(modals, '删原稿仍然会弹确认对话框')
+  await clickOrFail(documentConfirmation.locator('[data-confirm-dialog-cancel]'), '取消原稿删除')
+  await expect(documentConfirmation).toBeHidden()
+  await expect(win.locator('[data-document-row="doc-a"]')).toBeVisible()
   measured.push({ step: '阳性对照', dialogProbe: dialogProof.label })
 
   // ───────── 腿 A：hover 露出行内图标 → 点删除图标 → 撤销 ─────────
@@ -134,7 +143,7 @@ try {
   await clickOrFail(row.locator('[data-resource-action="delete"]'), '点「方案二」行上的删除图标')
 
   // 反向基线：不许弹确认。这正是这次要拿掉的东西，所以它必须被断言，而不是「没看见」。
-  await expectAbsent(win.locator('[role="dialog"]'), { provenBy: dialogProof, message: '点了删除却弹出了确认对话框——删除该是一个手势，不是一道题' })
+  await expectAbsent(modals, { provenBy: dialogProof, message: '点了删除却弹出了确认对话框——删除该是一个手势，不是一道题' })
 
   await win.waitForTimeout(900)
   const afterDelete = await planTitles()
@@ -158,7 +167,8 @@ try {
   await snap('03-deleted-with-undo.png')
 
   await clickOrFail(undo, '点撤销')
-  await win.waitForTimeout(600)
+  await ensureCreationResourceTree(win, '撤销后重新读文稿树')
+  await expect(win.locator('[data-storyboard-row="d-2"]')).toBeVisible()
   const afterUndo = await planTitles()
   measured.push({ step: '撤销后', titles: afterUndo })
   // **顺序**要一模一样：放回队尾的写法也能让它「回来」，但用户得重新找一遍。
@@ -176,6 +186,8 @@ try {
   // 撤销条自己消失之后才算「真的提交了」。这里等的是它的存续时间（5s）+ 一点余量。
   const undoProof = await proveProbe(win.locator('[data-notification-reason="undo-operation"]'), '删完确实会出现一条撤销')
   await expectAbsent(win.locator('[data-notification-reason="undo-operation"]'), { provenBy: undoProof, message: '撤销条到点了还不走' }, stationTimeout({ operations: 2 }))
+  await clickOrFail(railItem(win, 'docs'), '收起文稿抽屉')
+  await ensureCreationResourceTree(win, '撤销到期后重开文稿抽屉')
   const afterExpire = await planTitles()
   measured.push({ step: '到时提交', titles: afterExpire })
   if (afterExpire.length !== 2) failures.push(`没点撤销、等它到时之后应剩 2 条，实际 ${afterExpire.length} 条`)
@@ -191,7 +203,7 @@ try {
   const afterKey = await planTitles()
   measured.push({ step: '键盘删', titles: afterKey })
   if (afterKey.some((title) => title.includes('方案三'))) failures.push('行聚焦时按 Delete 没删掉——键盘那条路断了')
-  await expectAbsent(win.locator('[role="dialog"]'), { provenBy: dialogProof, message: '键盘删也不许弹确认' })
+  await expectAbsent(modals, { provenBy: dialogProof, message: '键盘删也不许弹确认' })
   await snap('06-keyboard-delete.png')
 
   // ───────── 图标、右键菜单、键盘三个入口走的是同一条路（不留第二条）─────────
@@ -200,7 +212,9 @@ try {
     failures.push('键盘删之后没有撤销——图标、右键菜单、键盘三个入口必须落到同一条删除+撤销路径上')
   }
 } catch (error) {
-  failures.push(`走查中断：${error?.message || error}`)
+  const dialogs = await win.getByRole('dialog').allTextContents().catch(() => [])
+  failures.push(`走查中断：${error?.message || error}\n当前对话框：${JSON.stringify(dialogs)}`)
+  await snap('99-failure.png').catch(() => {})
 } finally {
   await closeAppHard(app)
 }

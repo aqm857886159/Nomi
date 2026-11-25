@@ -1,0 +1,28 @@
+{
+  "name": "制作 Run 参考图上传本地化与错误原样透传边界",
+  "subject": "production.reference-url-localization",
+  "lifecycle": "frozen-execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/productionReferenceUrls.ts",
+    "symbol": "localizeProductionReferenceUrls"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "localizeProductionReferenceUrls"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/productionReferenceUrls.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/prepareProductionGenerationAuthorization.ts",
+    "electron/capabilityCore/appIntegrationProductionActions.ts",
+    "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts"
+  ],
+  "since": "2026-11-24",
+  "notes": "合同 docs/fixes/2026-11-24-fb-codex-image-and-upload-error.root-cause.json：制作 Run / Agent 路径调用 localizeForSend 上传参考素材时，原样保留 asset-too-large（HTTP 413 逐通道摘要与体积）和真实通道失败信息，不再用 hostingDisabled 覆写；真正未开启第三方托管仍由 localizeForSend 抛出 AnonymousAssetConsentRequiredError 透传（NF-1107-0002）。"
+}

@@ -25,14 +25,14 @@
 /** whisper 的解码窗口，上游常量；我们的切点必须是它的整数倍。 */
 export const WINDOW_SECONDS = 30;
 /** 一段 = 10 个窗口 = 5 分钟。够长（模型不用反复热身）、够短（进度看得见、重试代价可接受）。 */
-export const CHUNK_WINDOWS = 10;
+const CHUNK_WINDOWS = 10;
 export const CHUNK_SECONDS = WINDOW_SECONDS * CHUNK_WINDOWS;
 /** 多喂一个窗口当上下文，让跨边界那句话在本段里就是完整的。 */
 export const TAIL_SECONDS = WINDOW_SECONDS;
 /** 游标每段至少前进这么多，否则强制按名义段长推进（防死循环，见文件头）。 */
 export const MIN_ADVANCE_SECONDS = 1;
 
-export type LocalSpeechChunkPlan = {
+type LocalSpeechChunkPlan = {
   /** 第几段（从 0 起），错误文案里报给用户的就是它 +1。 */
   index: number;
   /** 喂给引擎的音频起点（秒）。 */

@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../history/historyMiddleware'
 import type { NotificationData } from '@mantine/notifications'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -85,8 +86,7 @@ describe('P5 E1 采纳回执', () => {
     resetAdoptionRegistry()
     useWorkbenchStore.setState({
       timeline: createDefaultTimeline(),
-      timelineUndoStack: [],
-      timelineRedoStack: [],
+      timelineHistory: createTimelineHistory(),
     })
   })
 
@@ -138,6 +138,19 @@ describe('P5 E1 采纳回执', () => {
     expect(useWorkbenchStore.getState().timeline).toEqual(baseline)
   })
 
+  it('expires an adoption receipt when undo and redo revisit the same content with a new head', async () => {
+    const outcome = await adoptGenerationNode(imageNode('aba', 'artifact-aba'), { placement: { kind: 'append' } })
+    expect(outcome).toMatchObject({ status: 'applied', replayed: false })
+    reportAdoptionOutcome(outcome)
+    const action = lastToastAction()
+    const applied = useWorkbenchStore.getState().timeline
+    useWorkbenchStore.getState().undoTimeline()
+    useWorkbenchStore.getState().redoTimeline()
+    expect(useWorkbenchStore.getState().timeline).toBe(applied)
+    action.onAction?.()
+    expect(useWorkbenchStore.getState().timeline).toBe(applied)
+  })
+
   it('点击贴尾的回执仍然说「末尾」', async () => {
     const outcome = await adoptGenerationNode(imageNode('node-append', 'artifact-append'), {
       placement: { kind: 'append' },
@@ -159,7 +172,8 @@ describe('P5 E1 采纳回执', () => {
         ? { ...track, clips: [clip('unrelated-edit', 0)] }
         : track),
     }
-    useWorkbenchStore.setState({ timeline: unrelated, timelineUndoStack: [earlier], timelineRedoStack: [] })
+    useWorkbenchStore.setState({ timeline: unrelated, timelineHistory: createTimelineHistory() })
+    useWorkbenchStore.getState().timelineHistory.record(earlier, unrelated)
 
     const outcome = await adoptGenerationNode(imageNode('node-stale', 'artifact-stale'), {
       placement: { kind: 'frame', startFrame: 240 },
@@ -197,7 +211,8 @@ describe('P5 E1 采纳回执', () => {
         ? { ...track, clips: [clip('unrelated-edit', 0)] }
         : track),
     }
-    useWorkbenchStore.setState({ timeline: unrelated, timelineUndoStack: [earlier], timelineRedoStack: [] })
+    useWorkbenchStore.setState({ timeline: unrelated, timelineHistory: createTimelineHistory() })
+    useWorkbenchStore.getState().timelineHistory.record(earlier, unrelated)
 
     const first = await adoptGenerationNode(imageNode('node-a', 'artifact-a'), {
       placement: { kind: 'frame', startFrame: 240 }, ports: storePorts,
@@ -221,6 +236,6 @@ describe('P5 E1 采纳回执', () => {
     expect(videoClips).toEqual(['unrelated-edit'])
     // 撤销栈没被越撤越深：栈底那笔「无关编辑之前」的状态仍在，
     // 用户自己的 Cmd⁠Z 还能一步步退回去（回执撤销不该替他消费历史）。
-    expect(useWorkbenchStore.getState().timelineUndoStack[0]).toEqual(earlier)
+    expect(useWorkbenchStore.getState().timelineHistory.entries.pastStates[0]?.value).toEqual(earlier)
   })
 })

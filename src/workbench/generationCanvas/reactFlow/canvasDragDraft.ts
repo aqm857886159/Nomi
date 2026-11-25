@@ -1,5 +1,5 @@
 import { applyNodeChanges, type InternalNode, type NodeChange, type ReactFlowState } from '@xyflow/react'
-import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
+import { toGenerationFlowNode, type GenerationFlowEdge, type GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 
 // 只取 nodeLookup，**不碰 parentLookup**：Nomi 的投影从不写 `parentId`
 // （`toGenerationFlowNode` 是唯一构造点，由 generationCanvasReactFlowAdapter.test.ts
@@ -103,4 +103,14 @@ export function applyCanvasDragKernelPositionChanges(
     nodeLookup.set(change.id, nextNode)
   }
   store.setState({ nodeLookup })
+}
+
+/** Option-drag previews have only a kernel identity until release. */
+export function previewCanvasDragCopies(nodes: GenerationFlowNode[], ids: ReadonlyMap<string, string>): GenerationFlowNode[] {
+  const originals = nodes.map(node => node.selected ? { ...node, selected: false, data: { ...node.data, primarySelection: false } } : node)
+  for (const node of nodes) {
+    const id = ids.get(node.id)
+    if (id) originals.push(toGenerationFlowNode({ ...node.data.generationNode, id }, true, true, ids.size === 1))
+  }
+  return originals
 }

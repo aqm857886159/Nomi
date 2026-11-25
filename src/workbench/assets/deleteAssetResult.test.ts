@@ -33,7 +33,7 @@ vi.mock('../library/localProjectStore', () => ({
 
 import { deleteAssetResult } from './deleteAssetResult'
 import type { ProjectExecutionContext } from '../project/projectCanvasReadSurface'
-import { __resetCanvasUndoJournalForTests, getHistoryFlags } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory, getHistoryFlags } from '../generationCanvas/events/canvasPatchHistory'
 import { __resetPendingAssetDeletionsForTests, listPersistedAssetDeletions, releaseLoadedProjectAssetDeletions } from './pendingAssetDeletions'
 import { useWorkbenchStore } from '../workbenchStore'
 import { createDefaultTimeline } from '../timeline/timelineMath'
@@ -92,7 +92,7 @@ function stale(projectId: string): ProjectExecutionContext {
 describe('deleteAssetResult durability', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     __resetPendingAssetDeletionsForTests()
     useWorkbenchStore.getState().setTimeline(createDefaultTimeline())
     const a = image('a', 'nomi-local://asset/project-1/assets/generated/a.png')

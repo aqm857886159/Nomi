@@ -3,6 +3,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // 验证链：进画布 → 素材库 tab → 上传一张图 → 双击素材 → 全屏预览 lightbox 出现 → Esc 关闭。
 // 用法：node scripts/asset-preview-walkthrough.mjs（需先 pnpm build）
 import { launchNomiApp, repoRoot } from '../tests/ux/_launchApp.mjs'
+import { createWalkthroughScreenshotter, openBlankProjectCanvas, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -27,21 +28,13 @@ const { app, win } = await launchNomiApp({
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })
-const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
+const shot = createWalkthroughScreenshotter(outDir)
 const errors = []
 let failed = false
 
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1600, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-
-  await win.getByText('新建空白项目', { exact: false }).first().click()
-  await win.waitForTimeout(2200)
-  await win.keyboard.press('Escape').catch(() => {})
-  await win.getByText('生成', { exact: true }).first().click()
-  await win.waitForTimeout(1000)
+  await prepareWalkthroughWindow(app, win, { width: 1600, height: 1000 , errors })
+  await openBlankProjectCanvas(win, { projectSettleMs: 2200, pressEscape: true, canvasSettleMs: 1000 })
 
   // 素材库 tab（默认 asset-library，保险点一下「素材库」）
   const assetTab = win.getByRole('button', { name: /素材库|Asset library/ }).first()

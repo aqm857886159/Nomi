@@ -12,6 +12,7 @@ import { monitorEventLoopDelay } from "node:perf_hooks";
 import { app, powerMonitor } from "electron";
 import { z } from "zod";
 import { assertTrustedFireAndForget } from "../ipcSenderGuard";
+import { isMcpStdioLaunch } from "../productionRun/desktopLaunchIntent";
 import { PERF_FIELD_VALUES } from "../shared/contracts/perfTelemetry";
 import {
   STALL_MAX_MS,
@@ -25,10 +26,10 @@ import {
 import { createStallTimeline, createStallTimelineAppend, type StallTimeline } from "./stallTimeline";
 
 export { STALL_SAMPLE_INTERVAL_MS };
-export const STALL_READ_INTERVAL_MS = 10_000;
+const STALL_READ_INTERVAL_MS = 10_000;
 /** 估计时长到这个数才记一行；到下一个数标冻结。 */
-export const STALL_RECORD_MIN_MS = 100;
-export const STALL_FREEZE_MIN_MS = 1_000;
+const STALL_RECORD_MIN_MS = 100;
+const STALL_FREEZE_MIN_MS = 1_000;
 /** 启动后这么久内的读数丢弃（模块装载、开窗的卡顿是启动期的事，不是「用着卡」）。 */
 export const STALL_STARTUP_GRACE_MS = 20_000;
 /** 唤醒后这么久内的读数丢弃（睡眠会让一个采样间隔跨过整段睡眠）。 */
@@ -39,7 +40,7 @@ const REPORT_CLOCK_SKEW_FUTURE_MS = 60_000;
 type HistogramLike = { enable(): unknown; disable(): unknown; reset(): void; readonly max: number };
 type EventSourceLike = { on(event: string, listener: () => void): unknown };
 
-export type StallMonitorStatus = {
+type StallMonitorStatus = {
   running: boolean;
   /** 没在运行时的原因码，写进诊断包清单。 */
   reason?: "not-installed" | "install-failed";
@@ -47,7 +48,7 @@ export type StallMonitorStatus = {
   rowsThisSession: number;
 };
 
-export type StallMonitorOptions = {
+type StallMonitorOptions = {
   timeline: StallTimeline;
   createHistogram?: (resolutionMs: number) => HistogramLike;
   now?: () => number;
@@ -55,7 +56,7 @@ export type StallMonitorOptions = {
   clearInterval?: (handle: unknown) => void;
 };
 
-export type StallMonitor = {
+type StallMonitor = {
   start(): boolean;
   stop(): void;
   /** 主窗口的 `unresponsive` / `responsive`（Electron 现成事件）。 */
@@ -209,9 +210,9 @@ let installed: StallMonitor | null = null;
  * 装监视器。MCP stdio 子进程（`NOMI_MCP_STDIO=1`）不装：它没有窗口、不是用户在「用」的那个实例，
  * 装了只会往同一份时间线里掺别的进程的行。回滚 = 删 lifecycle 里调用它的那一行。
  */
-export function installStallMonitor(options: { env?: NodeJS.ProcessEnv; monitor?: StallMonitor } = {}): StallMonitor | null {
+export function installStallMonitor(options: { env?: NodeJS.ProcessEnv; argv?: readonly string[]; monitor?: StallMonitor } = {}): StallMonitor | null {
   if (installed) return installed;
-  if ((options.env ?? process.env).NOMI_MCP_STDIO === "1") return null;
+  if (isMcpStdioLaunch({ env: options.env ?? process.env, argv: options.argv })) return null;
   const monitor =
     options.monitor ?? createStallMonitor({ timeline: createStallTimeline({ append: createStallTimelineAppend(), now: Date.now }) });
   monitor.start();
@@ -245,7 +246,7 @@ export function resetStallMonitorForTests(): void {
 }
 
 // ── 渲染层 → 主进程（一条单向 IPC；形状照 `logging/rendererLog.ts`）─────────────────────────────
-export type StallReportIpcBoundary<E = unknown> = {
+type StallReportIpcBoundary<E = unknown> = {
   onMessage: (channel: string, handler: (event: E, message: unknown) => void) => void;
   assertTrusted: (event: E) => void;
 };

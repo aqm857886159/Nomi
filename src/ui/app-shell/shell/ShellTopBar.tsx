@@ -9,9 +9,10 @@
 // 外壳底色（--nomi-chrome）包住顶栏、左栏和工作面四周，层次靠底色、不靠分割线。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconBrowser, IconChevronDown, IconDownload, IconLayoutSidebarLeftExpand, IconSettings } from '@tabler/icons-react'
+import { IconArrowLeft, IconBrowser, IconChevronDown, IconChevronRight, IconDownload, IconLayoutSidebarLeftExpand, IconSettings } from '@tabler/icons-react'
 import {
   ICON_TIERS,
+  ICON_TIER_CLASSES,
   NomiLogoMark,
   NomiStepper,
   Tooltip,
@@ -262,6 +263,12 @@ type ShellTopBarProps = {
   onExpandRail?: () => void
   /** 这一页 Agent 的形态归哪一面（项目内才有）：右簇最右那颗 Nomi 入口开 / 收的就是它（NomiEntryTopbar 板 nomi-entry）。 */
   agentSurface?: AgentFormSurface
+  /** 整窗平级页（如连接 APIMart 大页）左端返回面包屑：`← <originLabel> › <currentLabel>`。 */
+  peerBreadcrumb?: {
+    originLabel: string
+    currentLabel: string
+    onBack: () => void
+  }
 }
 
 /** 右簇最右：Nomi 入口（收起的面板只从这里叫回）。悬停名字和读屏同一句。 */
@@ -289,6 +296,7 @@ export function ShellTopBar({
   railCollapsed = false,
   onExpandRail,
   agentSurface,
+  peerBreadcrumb,
 }: ShellTopBarProps): JSX.Element {
   const { t, i18n } = useTranslation()
   const platform = shellChromePlatform()
@@ -332,7 +340,7 @@ export function ShellTopBar({
       <TooltipProvider delayDuration={250} disableHoverableContent>
         <div
           ref={leftRef}
-          className={cn('flex h-full min-w-0 items-center gap-1.5 [container-type:inline-size]', leftMaxWidth === undefined && 'max-w-[calc(50%-136px)]')}
+          className={cn('flex h-full min-w-0 items-center gap-1.5 [container-type:inline-size]', hasSegment && leftMaxWidth === undefined && 'max-w-[calc(50%-136px)]')}
           style={{ paddingLeft: platform === 'mac' ? SHELL_MAC_TRAFFIC_WIDTH : 12, maxWidth: leftMaxWidth }}
           data-shell-left-cluster
         >
@@ -355,6 +363,27 @@ export function ShellTopBar({
               onNewProject={onNewProject}
               onRenameProject={onRenameProject}
             />
+          ) : peerBreadcrumb ? (
+            <>
+              <button
+                type="button"
+                onClick={peerBreadcrumb.onBack}
+                data-apimart-back
+                className={cn(
+                  'app-no-drag inline-flex h-[26px] min-w-0 max-w-[240px] cursor-pointer items-center gap-1 rounded-field border-0 bg-transparent pl-1.5 pr-2 font-inherit text-body-sm font-normal text-nomi-ink-60 transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-ink',
+                  ICON_TIER_CLASSES.corner,
+                )}
+              >
+                <IconArrowLeft className="shrink-0" aria-hidden="true" />
+                <span className="truncate">{peerBreadcrumb.originLabel}</span>
+              </button>
+              <span className="inline-flex min-w-0 items-center gap-1.5 [@container_(max-width:180px)]:hidden">
+                <IconChevronRight {...ICON_TIERS.corner} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
+                <span className="min-w-0 truncate text-body-sm font-semibold text-nomi-ink" data-shell-here>
+                  {peerBreadcrumb.currentLabel}
+                </span>
+              </span>
+            </>
           ) : (
             <span className="truncate pl-0.5 text-body-sm font-medium text-nomi-ink" data-shell-here>{t('appShell.topbar.library')}</span>
           )}

@@ -56,7 +56,7 @@ export function runIdOfNode(node: GenerationCanvasNode): string {
   return node.result?.provenance?.agentRunId || node.progress?.runId || 'local'
 }
 
-export type DestinationInput =
+type DestinationInput =
   | { kind: 'append'; trackType: string; startFrame: number }
   | { kind: 'frame'; trackType: string; startFrame: number }
   | { kind: 'batch' }

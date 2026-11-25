@@ -106,7 +106,7 @@ function createManualChunks(id: string): string | undefined {
   ) {
     return 'react-vendor'
   }
-  if (normalizedId.includes('/node_modules/zustand/') || normalizedId.includes('/node_modules/immer/')) {
+  if (normalizedId.includes('/node_modules/zustand/') || normalizedId.includes('/node_modules/immer/') || normalizedId.includes('/node_modules/zundo/')) {
     return 'state-vendor'
   }
   if (normalizedId.includes('/node_modules/clsx/') || normalizedId.includes('/node_modules/tailwind-merge/')) {
@@ -261,6 +261,7 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         '@radix-ui/react-hover-card',
         '@radix-ui/react-switch',
         '@floating-ui/dom',
+        '@floating-ui/react',
         '@fluentui/priority-overflow',
         '@mantine/core',
         '@mantine/modals',
@@ -307,6 +308,8 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         // requests the module; otherwise the raw CJS file has no DOMParser export.
         '@xmldom/xmldom',
         'zod',
+        'zundo',
+        'zustand/vanilla',
         'zustand',
         'zustand/middleware',
         'zustand/middleware/immer',

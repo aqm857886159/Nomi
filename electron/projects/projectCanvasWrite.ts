@@ -1,3 +1,4 @@
+import pLimit from "p-limit"
 import { readProject, saveProject, type ProjectRecord } from './repository'
 import { sameProjectAgentBinding, type ProjectBinding } from '../shared/projectBinding'
 
@@ -6,17 +7,16 @@ type CanvasRecord = {
   [key: string]: unknown
 }
 
-const queues = new Map<string, Promise<unknown>>()
+const limits = new Map<string, ReturnType<typeof pLimit>>()
 
-export function serializeProjectCanvasWrite<T>(projectId: string, operation: () => Promise<T>): Promise<T> {
-  const previous = queues.get(projectId) ?? Promise.resolve()
-  const result = previous.catch(() => undefined).then(operation)
-  const tail = result.then(() => undefined, () => undefined)
-  queues.set(projectId, tail)
-  void tail.finally(() => {
-    if (queues.get(projectId) === tail) queues.delete(projectId)
-  })
-  return result
+export async function serializeProjectCanvasWrite<T>(projectId: string, operation: () => Promise<T>): Promise<T> {
+  const limit = limits.get(projectId) ?? pLimit(1)
+  limits.set(projectId, limit)
+  try {
+    return await limit(operation)
+  } finally {
+    if (limits.get(projectId) === limit && limit.activeCount === 0 && limit.pendingCount === 0) limits.delete(projectId)
+  }
 }
 
 function projectBindingOf(record: ProjectRecord): ProjectBinding {

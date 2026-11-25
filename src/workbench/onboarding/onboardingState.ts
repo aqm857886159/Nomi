@@ -1,12 +1,11 @@
 /**
- * 开屏动画 + 上手清单的持久标记（跨会话）。
+ * 上手清单、示例旅程与遥测首次询问的持久标记（跨会话）。
  *
  * 走 localStorage（不进 workbenchStore——那边的持久化绑定项目存档）。
- * try/catch 守护：localStorage 不可用时 splash 退化为「已看过」
- *（避免每次都拦首启），清单退化为全 false。
+ * try/catch 守护：localStorage 不可用时清单退化为全 false。
+ * 开屏 SplashIntro 已按 Q18 删除，旧键 `nomi:splash:v1` 不再读写、留在老用户本机无害。
  */
 
-const SPLASH_KEY = 'nomi:splash:v1'
 const CHECKLIST_KEY = 'nomi:checklist:v1'
 const CHECKLIST_FIRST_SHOWN_KEY = 'nomi:checklist-first-shown:v1'
 const CHECKLIST_DISMISSED_KEY = 'nomi:checklist-dismissed:v1'
@@ -34,23 +33,6 @@ export type ChecklistStep = 'model' | 'storyboard' | 'generated' | 'exported'
 export type ChecklistState = Record<ChecklistStep, boolean>
 
 const EMPTY: ChecklistState = { model: false, storyboard: false, generated: false, exported: false }
-
-export function hasSeenSplash(): boolean {
-  try {
-    return window.localStorage.getItem(SPLASH_KEY) === 'seen'
-  } catch {
-    // localStorage 不可用：退化为「已看过」，不拦首启
-    return true
-  }
-}
-
-export function markSplashSeen(): void {
-  try {
-    window.localStorage.setItem(SPLASH_KEY, 'seen')
-  } catch {
-    /* ignore */
-  }
-}
 
 export function readChecklist(): ChecklistState {
   try {

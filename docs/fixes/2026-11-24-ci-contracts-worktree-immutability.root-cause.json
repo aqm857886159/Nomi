@@ -1,0 +1,152 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-ci-contracts-worktree-immutability",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-24",
+  "invariant_owner_layer": {
+    "layer": "scripts/run-gates-contracts.mjs",
+    "tests": ["scripts/run-gates-contracts.node-test.mjs"],
+    "why": "Both Contracts profiles enter this loop before interpreting the result of each gate."
+  },
+  "problem_type": "Contracts gate changes its own checkout after dependencies were installed",
+  "symptom": "Post-merge receipt run 45331233660 failed later checks with Cannot find module p-retry.",
+  "direct_cause": "The settings guard ran the real SessionStart handoff against the checked-out main. The handoff fetched and fast-forwarded from af64c5688 to 0250ecc5e after the install.",
+  "class_root": "The behavior probe borrowed the checkout as its hook workspace and the Contracts runner trusted child exit codes without checking that subsequent gates still had the same input.",
+  "affected_population": [
+    "Main receipt jobs and any CI or local Contracts run that uses the same checkout between steps."
+  ],
+  "scope_paths": [
+    "scripts/check-hook-behavior.mjs",
+    "scripts/main-checkout-follow.mjs",
+    "scripts/run-gates-contracts.mjs"
+  ],
+  "entry_points": [
+    "package.json gates:contracts",
+    ".claude/settings.json SessionStart",
+    "tests/system/profiles.mjs contracts and contracts-hooks"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The trigger and handoff are internal. Git supplies the state. The policy governing which checkout can change is owned by Nomi.",
+  "invariants": [
+    "Registered settings commands execute in disposable directories.",
+    "Main follow declines CI before invoking Git.",
+    "A change to HEAD or porcelain across any Contracts step blocks the run even when the step reports success or is advisory."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/check-hook-behavior.mjs",
+      "symbol": "runSettingsCommand"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-hook-behavior.mjs",
+      "symbol": "checkSettingsGuards"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-hook-behavior.mjs",
+      "symbol": "checkHookBehavior"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/main-checkout-follow.mjs",
+      "symbol": "followMainCheckout"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/run-gates-contracts.mjs",
+      "symbol": "runGateSuite"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "The settings shell runner covers both control conditions; the settings axis and its parent dispatch probe selection; SessionStart keeps the interactive fast-forward entry; the Contracts CLI keeps its separate gate runner entry. Isolation removes the live checkout argument, without removing any of these direct callers."
+  },
+  "generality_proof": "All registered settings commands receive disposable workspace and home/cache paths regardless of event name. Automated main follow exits at its single entry. Both Contracts splits route every exit verdict past the same Git-state comparison, independent of the specific command and advisory list.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-hook-behavior.mjs",
+      "symbol": "checkSettingsGuards",
+      "responsibility": "Owns the settings confirmation fixture and confines real hook execution to it."
+    },
+    {
+      "path": "scripts/main-checkout-follow.mjs",
+      "symbol": "followMainCheckout",
+      "responsibility": "Owns all automated main-follow eligibility before Git can run."
+    },
+    {
+      "path": "scripts/run-gates-contracts.mjs",
+      "symbol": "runGateSuite",
+      "responsibility": "Owns snapshot comparison and per-gate attribution before exit status or advisory handling."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/system/profiles.mjs",
+      "entry_point": "contracts and contracts-hooks",
+      "disposition": "enforced",
+      "evidence": "The two scripts select gates through the same CLI and runGateSuite loop."
+    },
+    {
+      "path": "scripts/claude-hooks/handoff-read.sh",
+      "entry_point": "SessionStart",
+      "disposition": "enforced",
+      "evidence": "The registered command invokes main-checkout-follow and the CLI delegates to followMainCheckout."
+    },
+    {
+      "path": "scripts/claude-hooks/daily-radar.sh",
+      "entry_point": "SessionStart",
+      "disposition": "enforced",
+      "evidence": "The real command receives the disposable radar cache, including nightly results, and observes the ordinary cached branch."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Future main commits can land during receipt jobs, and other gates can produce a visible Git mutation despite a zero exit code.",
+    "same_class_scan": [
+      "door-map with roots scripts,tests/system over checkHookBehavior, checkSettingsGuards, runSettingsCommand, followMainCheckout and runGateSuite",
+      "Repository search for ff-only, run-gates-contracts and check:hook-behavior, followed through the registered SessionStart commands and both Contracts profiles."
+    ]
+  },
+  "prevention": {
+    "kind": "runtime-assertion",
+    "enforcement_path": "scripts/run-gates-contracts.mjs",
+    "invariant": "Git HEAD and porcelain must match the start-of-step state.",
+    "failure_mode": "Report the first step that introduces each change as blocking, update the baseline for attribution, and return 1 after the suite.",
+    "exception_policy": "none",
+    "strategy": "Remove the live settings probe, decline main following before any Git command in CI, and compare each gate against the previous Git snapshot.",
+    "artifacts": [
+      "scripts/check-hook-behavior.mjs",
+      "scripts/main-checkout-follow.mjs",
+      "scripts/run-gates-contracts.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs",
+    "scripts/main-checkout-follow.node-test.mjs",
+    "scripts/run-gates-contracts.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs",
+    "scripts/main-checkout-follow.node-test.mjs",
+    "scripts/run-gates-contracts.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old live-root invocation is replaced inline. There is no separate entry point or compatibility path to retire."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The checkout action and p-retry surfaced the bug. Neither controls when local probes or gates may change Git state.",
+    "exit_criteria": []
+  },
+  "migration": "No persistent data changes. Existing local SessionStart continues to own interactive fast-forward.",
+  "residual_risks": [
+    "The Git comparison observes state at step boundaries and sees the tracked/untracked porcelain entries, so it cannot detect a change reverted within a step or bytes changed under an identical pre-existing porcelain entry.",
+    "The historical hosted receipt is replayed with a local bare remote and cached radar input."
+  ]
+}

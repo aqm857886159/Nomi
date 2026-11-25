@@ -15,7 +15,7 @@ import {
 import { applyProposalBatch } from './proposalTxn'
 import type { ProposalReceiptCoordinator } from './proposalUndo'
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { readGenerationCanvasSnapshot } from './generationCanvasTools'
 import { captureCanvasWriteRawEvidence } from './canvasWriteTarget'
@@ -43,7 +43,7 @@ let projectRoot = ''
 
 function resetStores(): void {
   abandonPendingCanvasWrite()
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
   useWorkbenchStore.getState().hydrateWorkbenchDocuments(
     [{ id: 'storyboard-doc', version: 1, title: '雨夜追凶', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],

@@ -100,12 +100,6 @@ export function readNomiLocalAsset(url: string, options: { maxBytes?: number } =
         originalUrl = sidecar.originalUrl;
       }
     } catch { /* sidecar 不存在或格式异常，忽略 */ }
-    // ageMs：资产落盘至今的毫秒数（mtime 推；生成素材落盘即写、之后不改 → mtime≈providerUrl 铸造时刻）。
-    // 供 assetLocalization 判 sidecar originalUrl 是否仍在新鲜窗内（服务商临时链会过期）。
-    let ageMs: number | undefined;
-    try {
-      ageMs = Math.max(0, Date.now() - fs.statSync(absolutePath).mtimeMs);
-    } catch { /* stat 失败按未知处理 */ }
     // contentType 认不出时**读文件头**，不能只信扩展名：认不出会被 mediaKindFromContentType
     // 一律当图片，视频于是走进 base64 图片通道被反代 413 顶回来（2026-08-20 用户实测，2 秒的视频
     // 也失败）。字节已在手上，嗅探零额外 IO。
@@ -115,7 +109,6 @@ export function readNomiLocalAsset(url: string, options: { maxBytes?: number } =
       contentType: resolveContentType(absolutePath, bytes),
       fileName: relativePath.split("/").pop() || "asset",
       originalUrl,
-      ...(typeof ageMs === "number" ? { ageMs } : {}),
     };
   } catch {
     return null;

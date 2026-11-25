@@ -50,7 +50,7 @@ function Vec3Sliders({
   labels: Record<Axis, string>
   unit?: string
   onReset: () => void
-  onChangeStart: () => void
+  onChangeStart: (wheelField?: string) => void
   onChange: (next: Vec3) => void
 }): JSX.Element {
   const rangeOf = (axis: Axis): AxisRange => ('min' in ranges ? (ranges as AxisRange) : (ranges as Record<Axis, AxisRange>)[axis])
@@ -110,9 +110,9 @@ export function ObjectTransformSection({ object }: { object: DirectorObject }): 
       <SectionHeader title={t('director.inspector.transform')} />
       <EditModeLine layer={layer} />
       <fieldset disabled={readonly}>
-        <Vec3Sliders title={t('director.inspector.position')} value={position} order={['x', 'y', 'z']} ranges={POSITION_RANGE} labels={axisLabels} onReset={() => reset({ position: { x: 0, y: 0, z: 0 } })} onChangeStart={() => store.getState().saveState()} onChange={(next) => write({ position: next })} />
-        <Vec3Sliders title={t('director.inspector.rotation')} value={rotation} order={ORIENTATION_ORDER} ranges={ORIENTATION_RANGE} labels={orientationLabels} onReset={() => reset({ rotation: { x: 0, y: 0, z: 0 } })} onChangeStart={() => store.getState().saveState()} onChange={(next) => write({ rotation: next })} />
-        <Vec3Sliders title={t('director.inspector.scale')} value={object.scale} order={['x', 'y', 'z']} ranges={SCALE_RANGE} labels={axisLabels} onReset={() => reset({ scale: { x: 1, y: 1, z: 1 } })} onChangeStart={() => store.getState().saveState()} onChange={(next) => write({ scale: next })} />
+        <Vec3Sliders title={t('director.inspector.position')} value={position} order={['x', 'y', 'z']} ranges={POSITION_RANGE} labels={axisLabels} onReset={() => reset({ position: { x: 0, y: 0, z: 0 } })} onChangeStart={store.getState().saveState} onChange={(next) => write({ position: next })} />
+        <Vec3Sliders title={t('director.inspector.rotation')} value={rotation} order={ORIENTATION_ORDER} ranges={ORIENTATION_RANGE} labels={orientationLabels} onReset={() => reset({ rotation: { x: 0, y: 0, z: 0 } })} onChangeStart={store.getState().saveState} onChange={(next) => write({ rotation: next })} />
+        <Vec3Sliders title={t('director.inspector.scale')} value={object.scale} order={['x', 'y', 'z']} ranges={SCALE_RANGE} labels={axisLabels} onReset={() => reset({ scale: { x: 1, y: 1, z: 1 } })} onChangeStart={store.getState().saveState} onChange={(next) => write({ scale: next })} />
       </fieldset>
     </InspectorCard>
   )
@@ -138,7 +138,7 @@ export function CameraTransformSection({ camera }: { camera: DirectorCamera }): 
       <SectionHeader title={t('director.inspector.transform')} />
       <EditModeLine layer={layer} />
       <fieldset disabled={readonly}>
-        <Vec3Sliders title={t('director.inspector.position')} value={position} order={['x', 'y', 'z']} ranges={POSITION_RANGE} labels={{ x: 'X', y: 'Y', z: 'Z' }} onReset={() => reset({ position: { ...FREE_CAMERA_HOME.position } })} onChangeStart={() => store.getState().saveState()} onChange={(next) => write({ position: next })} />
+        <Vec3Sliders title={t('director.inspector.position')} value={position} order={['x', 'y', 'z']} ranges={POSITION_RANGE} labels={{ x: 'X', y: 'Y', z: 'Z' }} onReset={() => reset({ position: { ...FREE_CAMERA_HOME.position } })} onChangeStart={store.getState().saveState} onChange={(next) => write({ position: next })} />
         <Vec3Sliders
           title={t('director.inspector.rotation')}
           value={rotation}
@@ -146,7 +146,7 @@ export function CameraTransformSection({ camera }: { camera: DirectorCamera }): 
           ranges={ORIENTATION_RANGE}
           labels={{ x: t('director.inspector.pitch'), y: t('director.inspector.yaw'), z: t('director.inspector.roll') }}
           onReset={() => reset({ rotation: { x: 0, y: 0, z: 0 } })}
-          onChangeStart={() => store.getState().saveState()}
+          onChangeStart={store.getState().saveState}
           onChange={(next) => write({ rotation: next })}
         />
       </fieldset>

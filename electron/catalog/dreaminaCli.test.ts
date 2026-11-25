@@ -100,6 +100,26 @@ describe("dreamina 子进程强制直连（buildDreaminaEnv）", () => {
 });
 
 describe("runDreaminaCli", () => {
+  it("retries with doubling delays and returns the final timeout result", async () => {
+    vi.useFakeTimers();
+    mockSpawn
+      .mockImplementationOnce(() => makeFakeChild(1, "", "request timeout: first") as never)
+      .mockImplementationOnce(() => makeFakeChild(2, "", "request timeout: second") as never)
+      .mockImplementationOnce(() => makeFakeChild(3, "", "request timeout: last") as never);
+    const pending = runDreaminaCli(["query"], { bin: "dreamina", retries: 2, retryDelayMs: 100 });
+
+    await vi.advanceTimersByTimeAsync(99);
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockSpawn).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(199);
+    expect(mockSpawn).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(mockSpawn).toHaveBeenCalledTimes(3);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toEqual({ code: 3, stdout: "", stderr: "request timeout: last" });
+  });
+
   it("spawn 时继续使用强制直连 env", async () => {
     vi.stubEnv("HTTP_PROXY", "http://127.0.0.1:7897");
     vi.stubEnv("HTTPS_PROXY", "http://127.0.0.1:7897");

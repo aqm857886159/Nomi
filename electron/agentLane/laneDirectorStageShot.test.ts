@@ -4,6 +4,8 @@
 import { describe, expect, it } from 'vitest'
 import { createCanvasLaneTools } from './laneCanvasTools'
 import type { DirectorWriteInput, DirectorWriteResult } from '../shared/agentCapabilities/directorWrite'
+import { parseDirectorPlan } from '../shared/director/directorPlanSchema'
+import { applyDirectorPlanEdits, directorPlanRevision } from '../shared/director/planPatch'
 
 const PLAN = {
   scene: { environment: 'day', template: 'room', tags: ['书房'] },
@@ -97,5 +99,131 @@ describe('stage_shot (3D-BOX) lane binding', () => {
     expect(tool.schema.safeParse({ target: { directorNodeId: 'node-d1' }, plan: PLAN }).success).toBe(false)
     expect(tool.schema.safeParse({ target: { directorNodeId: 'node-d1' }, edits: [{ op: 'remove', path: '/shots/wide' }] }).success).toBe(false)
     expect(tool.schema.safeParse({ plan: PLAN }).success).toBe(true)
+  })
+})
+
+describe('stage_shot edits schema ↔ applyDirectorPlanEdits (NF-1107-0003 / NF-1029-0001)', () => {
+  const basePlan = (() => {
+    const parsed = parseDirectorPlan(PLAN)
+    if (!parsed.success) throw new Error('test fixture PLAN must be valid')
+    return parsed.data
+  })()
+  const baseRevision = directorPlanRevision(basePlan)
+
+  async function parseAndApply(edits: ReadonlyArray<{ op: 'add' | 'remove' | 'replace'; path: string; value?: unknown }>) {
+    const { tool } = await stageShotTool(() => applied())
+    const parsedArgs = tool.schema.safeParse({
+      target: { directorNodeId: 'node-d1' },
+      baseRevision,
+      edits,
+    })
+    return { parsedArgs, tool }
+  }
+
+  it('accepts a full camera move object at /shots/<id>/move without dropping fields (NF-1029-0001)', async () => {
+    const { parsedArgs } = await parseAndApply([
+      { op: 'replace', path: '/shots/wide/move', value: { kind: 'pan', direction: 'left' } },
+    ])
+    expect(parsedArgs.success).toBe(true)
+    if (!parsedArgs.success) return
+    expect(parsedArgs.data.edits?.[0]?.value).toEqual({
+      kind: 'pan',
+      direction: 'left',
+      speed: 'medium',
+      easing: 'linear',
+    })
+    const patched = applyDirectorPlanEdits(basePlan, parsedArgs.data.edits!)
+    expect(patched.ok).toBe(true)
+    if (!patched.ok) return
+    expect(patched.plan.shots[0]?.move).toEqual({
+      kind: 'pan',
+      direction: 'left',
+      speed: 'medium',
+      easing: 'linear',
+    })
+  })
+
+  it('accepts full camera move with amount/speed/easing, field-level /window and /move/kind, and angle object', async () => {
+    const moveRes = await parseAndApply([
+      { op: 'replace', path: '/shots/wide/move', value: { kind: 'orbit_right', direction: 'right', amount: 45, speed: 'slow', easing: 'ease_in_out' } },
+    ])
+    expect(moveRes.parsedArgs.success).toBe(true)
+    if (moveRes.parsedArgs.success) {
+      const appliedMove = applyDirectorPlanEdits(basePlan, moveRes.parsedArgs.data.edits!)
+      expect(appliedMove.ok).toBe(true)
+      if (appliedMove.ok) {
+        expect(appliedMove.plan.shots[0]?.move).toEqual({
+          kind: 'orbit_right',
+          direction: 'right',
+          amount: 45,
+          speed: 'slow',
+          easing: 'ease_in_out',
+        })
+      }
+    }
+
+    const fieldRes = await parseAndApply([
+      { op: 'replace', path: '/shots/wide/window', value: [0, 8] },
+      { op: 'replace', path: '/shots/wide/move/kind', value: 'push_in' },
+      { op: 'replace', path: '/shots/wide/angle', value: { over_shoulder: 'friend' } },
+      { op: 'add', path: '/scene/setPieces/desk', value: { kind: 'desk', relation: { type: 'in_front_of', ref: 'reader' } } },
+    ])
+    expect(fieldRes.parsedArgs.success).toBe(true)
+    if (fieldRes.parsedArgs.success) {
+      const appliedFields = applyDirectorPlanEdits(basePlan, fieldRes.parsedArgs.data.edits!)
+      expect(appliedFields.ok).toBe(true)
+      if (appliedFields.ok) {
+        expect(appliedFields.plan.shots[0]?.window).toEqual([0, 8])
+        expect(appliedFields.plan.shots[0]?.move.kind).toBe('push_in')
+        expect(appliedFields.plan.shots[0]?.angle).toEqual({ over_shoulder: 'friend' })
+        expect(appliedFields.plan.scene.setPieces).toEqual([{ id: 'desk', kind: 'desk', relation: { type: 'in_front_of', ref: 'reader' } }])
+      }
+    }
+  })
+
+  it('still rejects reversed window, move missing kind, whole shot missing window, wrong object on field path, and stale revision', async () => {
+    // 1. 逆序时窗：field-level number[] 过顶层模型 schema 后，由 applyDirectorPlanEdits 的 windowSchema 精确拒掉
+    const reversedWindow = await parseAndApply([{ op: 'replace', path: '/shots/wide/window', value: [8, 2] }])
+    expect(reversedWindow.parsedArgs.success).toBe(true)
+    if (reversedWindow.parsedArgs.success) {
+      const patched = applyDirectorPlanEdits(basePlan, reversedWindow.parsedArgs.data.edits!)
+      expect(patched.ok).toBe(false)
+      if (!patched.ok) expect(patched.errors.join(' ')).toContain('window end must be greater than start')
+    }
+
+    // 2. 缺 kind 的完整 move：模型 schema 与补丁应用双拒
+    const missingKind = await parseAndApply([{ op: 'replace', path: '/shots/wide/move', value: { direction: 'left' } }])
+    expect(missingKind.parsedArgs.success).toBe(false)
+    expect(applyDirectorPlanEdits(basePlan, [{ op: 'replace', path: '/shots/wide/move', value: { direction: 'left' } }]).ok).toBe(false)
+
+    // 3. 缺 window 的完整 shot：模型 schema 与补丁应用双拒
+    const missingWindow = await parseAndApply([{ op: 'add', path: '/shots/close', value: { size: '特写' } }])
+    expect(missingWindow.parsedArgs.success).toBe(false)
+    expect(applyDirectorPlanEdits(basePlan, [{ op: 'add', path: '/shots/close', value: { size: '特写' } }]).ok).toBe(false)
+
+    // 4. 把另一分支对象送到字段路径（NF-1107-0003 报错形状）：模型 schema 与补丁应用双拒
+    const wrappedWindow = await parseAndApply([{ op: 'replace', path: '/shots/wide/window', value: { window: [0, 8] } }])
+    expect(wrappedWindow.parsedArgs.success).toBe(false)
+    expect(applyDirectorPlanEdits(basePlan, [{ op: 'replace', path: '/shots/wide/window', value: { window: [0, 8] } }]).ok).toBe(false)
+
+    // 5. 过期 revision 照旧被拒并给出最新 revision
+    const { tool } = await stageShotTool(() => ({
+      applied: false,
+      proposalId: 'prop-stale',
+      operation: 'patch_director_plan',
+      rejected: 'stale_revision',
+      messages: ['revision mismatch'],
+      currentRevision: baseRevision,
+    }))
+    const stale = await tool.execute({
+      target: { directorNodeId: 'node-d1' },
+      baseRevision: 'dplan-0000000000000000',
+      edits: [{ op: 'replace', path: '/shots/wide/window', value: [0, 8] }],
+    }, context)
+    expect(stale.ok).toBe(false)
+    if (!stale.ok) {
+      expect(stale.failure.code).toBe('capability_target_stale')
+      expect(stale.failure.message).toContain(baseRevision)
+    }
   })
 })

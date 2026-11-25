@@ -19,6 +19,7 @@
 // parse，就在这个唯一的出口——不是第二个形状验证器（ajv 刚验过形状，这里只会剩下组合错误），
 // 而是设计里本来就该有、却没人调用的那一次。
 import { formatSize, truncateHead, type AgentHarnessTool, type AgentToolResult } from '@earendil-works/pi-agent-core';
+import { logWarn } from '../logging/logger.js';
 import { LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES } from '../shared/agentLane/laneContracts.js';
 import {
   LANE_READ_TOOL_TIMEOUT_MS, laneToolBillable, laneToolModelDescription, laneToolMutates, laneToolPublicFailure, renderLaneToolFailure,
@@ -32,6 +33,7 @@ import type { LaneToolDescriptor } from './laneRuntimePort.js';
 import { toModelVisibleSchema } from './laneToolSchema.mjs';
 
 const TOOL_NAME = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
+const LANE_TOOL_DEADLOCK_GUARD_MARGIN_MS = 5_000;
 
 /**
  * 一个可行动的失败。
@@ -225,8 +227,8 @@ export function createLaneTools(
         ? { prepareArguments: descriptor.prepareArguments as (args: unknown) => never }
         : {}),
       execute: async (toolCallId, params, _onUpdate, _toolContext, _invocation, context) => {
-        const outer = context.abortSignal ?? new AbortController().signal;
-        outer.throwIfAborted();
+        const parentSignal = context.abortSignal;
+        parentSignal?.throwIfAborted();
         // 契约自己的那一次 parse（文件头部说明了为什么它必须在这里、且只在这里）。
         // 失败走入参拒收的唯一构造点（`toolArgumentsRejected`）：字段路径 + 合法值 / 近似键 + 一个对的例子。
         const bound = descriptor.schema.safeParse(params);
@@ -239,28 +241,36 @@ export function createLaneTools(
         // 计时器在**这里**才 arm。闸（`before_tool`）跑在进 execute 之前，所以用户盯着
         // 审批卡想五分钟，这条预算一秒不走——「审批等待期不计时」不是一段约定，是这行代码
         // 的位置（方案 §1.6 第五行）。
-        const budget = AbortSignal.timeout(timeoutMs);
-        const signal = AbortSignal.any([outer, budget]);
-        const outcome = await Promise.race([
-          descriptor.execute(bound.data, {
-            toolCallId,
-            signal,
-            // 回执要说「用户此刻看到什么」，就必须拿到这次调用**真的**是怎么过闸的
-            // （静态表说不准，见 `LaneToolExecutionContext.approvalDecision`）。
-            ...(() => { const decision = approvalDecision?.(toolCallId); return decision ? { approvalDecision: decision } : {}; })(),
-            ...(() => { const answer = approvalAnswer?.(toolCallId); return answer ? { approvalAnswer: answer } : {}; })(),
-          }),
-          // 领域端口**可能根本不看 signal**（第三方 SDK、同步阻塞、忘了接）。只把信号传下去
-          // 等于把预算交给被超时的那一方自己执行。这条 race 是唯一真正会到期的东西。
-          new Promise<never>((_resolve, reject) => {
-            budget.addEventListener('abort', () => {
-              if (outer.aborted) { reject(outer.reason); return; }
-              const failure = timeoutFailure(descriptor.name, timeoutMs);
-              rememberToolFailure(toolCallId, failure);
-              reject(new LaneToolFailure(renderLaneToolFailure(failure)));
-            }, { once: true });
-          }),
-        ]);
+        const startedAt = performance.now();
+        const guardTimeoutMs = timeoutMs + LANE_TOOL_DEADLOCK_GUARD_MARGIN_MS;
+        const guard = AbortSignal.timeout(guardTimeoutMs);
+        // The registry owns the declared deadline. The lane guard also covers
+        // descriptors that never reach the registry or ignore cancellation.
+        const signal = parentSignal ? AbortSignal.any([parentSignal, guard]) : guard;
+        let onAbort!: () => void;
+        const stopped = new Promise<never>((_resolve, reject) => {
+          onAbort = () => {
+            if (parentSignal?.aborted) { reject(parentSignal.reason); return; }
+            const failure = timeoutFailure(descriptor.name, guardTimeoutMs);
+            rememberToolFailure(toolCallId, failure);
+            reject(new LaneToolFailure(renderLaneToolFailure(failure)));
+            logWarn('agent', 'tool_timed_out', {
+              toolName: descriptor.name, subOperation: 'descriptor.execute',
+              elapsedMs: Math.round(performance.now() - startedAt), timeoutMs: guardTimeoutMs,
+            });
+          };
+          signal.addEventListener('abort', onAbort, { once: true });
+        });
+        const execution = async () => descriptor.execute(bound.data, {
+          toolCallId,
+          signal,
+          // 回执要说「用户此刻看到什么」，就必须拿到这次调用**真的**是怎么过闸的
+          // （静态表说不准，见 `LaneToolExecutionContext.approvalDecision`）。
+          ...(() => { const decision = approvalDecision?.(toolCallId); return decision ? { approvalDecision: decision } : {}; })(),
+          ...(() => { const answer = approvalAnswer?.(toolCallId); return answer ? { approvalAnswer: answer } : {}; })(),
+        });
+        const outcome = await Promise.race([stopped, execution()])
+          .finally(() => signal.removeEventListener('abort', onAbort));
         // **必须 throw，不能 return**（G-02）。上游文档原话：*"Returning a value never sets
         // the error flag regardless of what properties you include in the return object."*
         // return 一个「失败对象」的后果是 pi 记 `isError: false`——面板画绿收据、模型收到

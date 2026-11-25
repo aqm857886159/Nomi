@@ -32,7 +32,7 @@ import { applyBuiltinSeeds } from "../catalog/seedBuiltins";
 import { agentModelEntriesFromCatalog } from "../catalog/agentModelEntriesFromCatalog";
 import { modelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
 import { sendArchetypeMode } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
-import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 import { createGenerationDefaultModelResolver } from "./generationDefaultModelResolver";
 import type { CatalogState } from "../catalog/types";
 import { withFixedCatalog } from "./generationFixedCatalog.testkit";

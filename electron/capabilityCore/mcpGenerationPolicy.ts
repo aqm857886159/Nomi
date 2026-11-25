@@ -36,9 +36,9 @@ export const MCP_GENERATION_CAPABILITIES = Object.freeze([
 
 export type McpGenerationCapability = (typeof MCP_GENERATION_CAPABILITIES)[number]
 
-export type LegacyMcpGenerationRoute = 'generate' | 'nomi_generate' | 'production.start' | 'production.control' | 'production.decide-gate' | 'nomi_start_playbook'
+type LegacyMcpGenerationRoute = 'generate' | 'nomi_generate' | 'production.start' | 'production.control' | 'production.decide-gate' | 'nomi_start_playbook'
 
-export type McpGenerationRoute =
+type McpGenerationRoute =
   | Readonly<{ kind: 'legacy'; route: LegacyMcpGenerationRoute }>
   | Readonly<{ kind: 'semantic' }>
 

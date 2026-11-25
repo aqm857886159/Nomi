@@ -77,7 +77,11 @@ function install(owner = installOwner()) {
   owner.lifecycle.flush = installed.flushPendingProductionDeepLink;
   const handler = appHandlers.get("second-instance");
   if (!handler) throw new Error("second-instance handler was not registered");
-  return { ...owner, secondInstance: (commandLine: string[] = []) => handler(null, commandLine) };
+  return {
+    ...owner,
+    secondInstance: (commandLine: string[] = [], additionalData?: unknown) =>
+      handler(null, commandLine, "", additionalData),
+  };
 }
 
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -151,5 +155,50 @@ describe("production run desktop lifecycle · 单实例再次启动", () => {
     await settle();
     expect(built).toHaveLength(1);
     expect(built[0]!.webContents.send.mock.calls).toEqual([["nomi:production-deep-link", { projectId: "p1" }]]);
+  });
+
+  it("Issue #1629 回归：ChatGPT Desktop / Codex 以 Nomi Helper + mcpNodeLauncher.js 触发 second-instance 时，绝不恢复或聚焦已收起的主窗", async () => {
+    const owner = installOwner(() => fakeWindow({ minimized: true, visible: false }));
+    await openMainWindow();
+    const { built, secondInstance } = install(owner);
+    secondInstance([
+      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpNodeLauncher.js",
+    ]);
+    await settle();
+    expect(built[0]!.restore).not.toHaveBeenCalled();
+    expect(built[0]!.show).not.toHaveBeenCalled();
+    expect(built[0]!.focus).not.toHaveBeenCalled();
+  });
+
+  it("同类入口：mcpHttpForwarder.js / --mcp-stdio / 后台冷启锁竞争触发 second-instance 时，均不把收起主窗拉到前台", async () => {
+    const owner = installOwner(() => fakeWindow({ minimized: true, visible: false }));
+    await openMainWindow();
+    const { built, secondInstance } = install(owner);
+
+    secondInstance([
+      "/Applications/Nomi.app/Contents/Frameworks/Nomi Helper.app/Contents/MacOS/Nomi Helper",
+      "/Applications/Nomi.app/Contents/Resources/app.asar/dist-electron/capabilityCore/mcpHttpForwarder.js",
+    ]);
+    secondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi", "--mcp-stdio"]);
+    secondInstance(["C:\\Program Files\\Nomi\\Nomi.exe", "C:\\Program Files\\Nomi\\resources\\app.asar\\dist-electron\\capabilityCore\\mcpNodeLauncher.js"]);
+    secondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi", "--nomi-background-launch"]);
+    secondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi"], { launchIntent: "background" });
+    await settle();
+
+    expect(built[0]!.restore).not.toHaveBeenCalled();
+    expect(built[0]!.show).not.toHaveBeenCalled();
+    expect(built[0]!.focus).not.toHaveBeenCalled();
+  });
+
+  it("正对照：用户普通再次启动（可执行文件为 Nomi）或带 nomi:// 深链时，仍正常恢复并聚焦主窗", async () => {
+    const owner = installOwner(() => fakeWindow({ minimized: true, visible: false }));
+    await openMainWindow();
+    const { built, secondInstance } = install(owner);
+
+    secondInstance(["/Applications/Nomi.app/Contents/MacOS/Nomi"]);
+    expect(built[0]!.restore).toHaveBeenCalledTimes(1);
+    expect(built[0]!.show).toHaveBeenCalledTimes(1);
+    expect(built[0]!.focus).toHaveBeenCalledTimes(1);
   });
 });

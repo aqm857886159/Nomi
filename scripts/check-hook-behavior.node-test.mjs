@@ -8,6 +8,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // 2026-10-24 随本机门岗戳与它的读写方同一个提交删掉的用例：写戳方 / 读戳方漂移、读戳方的 sed→awk 等价改写、
 // doc-only 判据（只用来判「要不要戳」）。读 git 路径必须带 -z 这一族仍由 check:git-path-quoting 的测试守。
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
@@ -251,4 +252,44 @@ test('仓库当前的登记表：脚本挪走必拦、脚本在场必放行（�
     [],
     '守卫不许退化成「拦一切」——会误报的闸门用不了几次就会被人绕过',
   )
+})
+
+test('run 45331233660: settings probe preserves a clean main even when its origin advances', (t) => {
+  const dir = makeTempDir('nomi-hook-main-')
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const seed = path.join(dir, 'seed')
+  const origin = path.join(dir, 'origin.git')
+  const checkout = path.join(dir, 'checkout')
+  const git = (cwd, ...args) =>
+    execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  const commit = (message) =>
+    git(seed, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+      '-c', 'core.hooksPath=/dev/null', 'commit', '--no-gpg-sign', '-m', message)
+
+  git(dir, 'init', '-q', '-b', 'main', seed)
+  fs.mkdirSync(path.join(seed, '.claude'))
+  fs.copyFileSync(path.join(repoRoot, '.claude/settings.json'), path.join(seed, '.claude/settings.json'))
+  git(seed, 'add', '.claude/settings.json')
+  commit('checked out by CI')
+  git(dir, 'clone', '--bare', seed, origin)
+  git(dir, 'clone', origin, checkout)
+  const baseSha = git(checkout, 'rev-parse', 'HEAD')
+  fs.writeFileSync(path.join(checkout, '.git/info/exclude'), 'scripts/\n')
+  // Copies keep the real Node CLI entry points active, including through SessionStart.
+  fs.cpSync(path.join(repoRoot, 'scripts'), path.join(checkout, 'scripts'), { recursive: true })
+
+  fs.writeFileSync(path.join(seed, 'unexpected-new-file.ts'), 'export {}\n')
+  git(seed, 'add', 'unexpected-new-file.ts')
+  commit('merged after CI installed dependencies')
+  git(origin, 'fetch', seed, 'main:main')
+  const aheadSha = git(origin, 'rev-parse', 'main')
+  assert.notEqual(baseSha, aheadSha)
+  assert.equal(git(checkout, 'branch', '--show-current'), 'main')
+  assert.equal(git(checkout, 'rev-parse', 'origin/main'), baseSha)
+
+  const status = () => git(checkout, '-c', 'core.quotePath=false', 'status', '--porcelain=v1')
+  assert.equal(status(), '')
+  assert.deepEqual(checkHookBehavior(checkout, { only: ['settings-guard'] }), [])
+  assert.equal(git(checkout, 'rev-parse', 'HEAD'), baseSha, `must not fast-forward to ${aheadSha}`)
+  assert.equal(status(), '')
 })

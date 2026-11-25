@@ -9,7 +9,13 @@ const paid = await openPaidWalk('storyboard-agent-bulk-real.paid.mjs', 'storyboa
 })
 let failure
 try {
-  await runStoryboardAgentBulk({ walk: paid.walk, brainLabel: paid.label(BRAIN.vendorKey, BRAIN.modelKey), imageLabel: paid.label(IMAGE.vendorKey, IMAGE.modelKey) })
+  await runStoryboardAgentBulk({
+    walk: paid.walk,
+    modelLabels: () => ({
+      brainLabel: paid.label(BRAIN.vendorKey, BRAIN.modelKey),
+      imageLabel: paid.label(IMAGE.vendorKey, IMAGE.modelKey),
+    }),
+  })
   const mediaPosts = paid.readAllowedRequests().filter(row => row.method === 'POST' && /images|videos|generations|tasks/.test(row.url ?? row.path ?? ''))
   if (mediaPosts.length) throw new Error('Editing the storyboard must not submit media generation')
 } catch (error) { failure = error; process.exitCode = 1 }

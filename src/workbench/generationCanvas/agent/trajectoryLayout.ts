@@ -5,7 +5,7 @@ import {
   layoutStoryboardNodesWith,
   trajectoryOriginWith,
   type ExistingNodeLite as SharedExistingNodeLite,
-} from '../../../../electron/capabilityCore/canvasNodeLayout'
+} from '../../../../electron/shared/canvas/canvasNodeLayout'
 
 /**
  * 轨迹分层布局（T4 + 审计 A3/A5②）——**薄封装**：数学在共享层

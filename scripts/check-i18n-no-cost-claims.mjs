@@ -72,6 +72,36 @@ export const COST_LABEL_EXACT = Object.freeze({
   'generationCommon.composer.sendCostLowBalance.topUp': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
   'generationCommon.composer.sendCostLowBalance.topUpAria': Object.freeze({ 'zh-CN': '去 APIMart 充值（还差 {{value}} 积分）', en: 'Top up on APIMart (short {{value}} credits)' }),
   'generationCommon.composer.sendCostLowBalance.description': Object.freeze({ 'zh-CN': '当前余额约 {{balance}} 积分，这次约需 {{need}} 积分，还差 {{shortfall}} 积分。充值后返回即可继续生成。', en: 'Current balance is about {{balance}} credits; this run needs about {{need}} credits ({{shortfall}} short). Return after topping up to continue.' }),
+  'modelSetup.apimartVerification.credits': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
+  'modelSetup.apimartVerification.connectedBalance': Object.freeze({ 'zh-CN': ' · 余额 {{value}} 积分', en: ' · Balance {{value}} credits' }),
+  'modelSetup.apimartVerification.topup': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
+  'modelSetup.apimartVerification.topupBody': Object.freeze({ 'zh-CN': 'Key 已存好，就差充值：出图和上传素材都要余额大于 0。充好后回到 Nomi 会自动再查一次。', en: 'Key saved. Images and asset uploads need a balance above zero. Top up, then return to Nomi for an automatic check.' }),
+  'modelSetup.apimartVerification.opened': Object.freeze({ 'zh-CN': '已在浏览器打开 APIMart（{{time}}），注册、充值、建 Key 都在那边做。', en: 'Opened APIMart in your browser at {{time}}. Sign up, top up and create your key there.' }),
+  // T-5 接入引导首屏主卡与连接 APIMart 大页（板 Onboarding 2026-11-07 Q1/Q16/Q17 与 2026-11-15 r8 用户拍板原文）：每个键只认精确原句。
+  'onboardingProviders.apimartConnect.hero.cost': Object.freeze({ 'zh-CN': '$5 大约能出 470 张图（按公开价估算）', en: '$5 makes about 470 images (public-price estimate)' }),
+  'onboardingProviders.apimartConnect.reasons.savingsLabel': Object.freeze({ 'zh-CN': '比官方便宜', en: 'below official prices' }),
+  'onboardingProviders.apimartConnect.costLine': Object.freeze({ 'zh-CN': '$5 大约能出 470 张图（按公开价估算）', en: '$5 makes about 470 images (public-price estimate)' }),
+  'onboardingProviders.apimartConnect.fineprint.savingsHeading': Object.freeze({ 'zh-CN': '比官方便宜', en: 'Below official prices' }),
+  'onboardingProviders.apimartConnect.fineprint.savingsBody': Object.freeze({
+    'zh-CN': '查了 7 个官方有公开价的常用模型，6 个比官方标准价便宜，多数便宜 20%。2026-11-07 和各家官方标准实时价比，同分辨率、同时长。也有更贵的：DeepSeek V4 Flash、Claude 的缓存命中；官方批量档更便宜，但要排队等结果。',
+    en: '6 of 7 popular models with public official prices cost less, most by 20%. Compared with each vendor’s standard real-time price on 2026-11-07, same resolution and length. Some cost more: DeepSeek V4 Flash, Claude cache hits; official batch tiers are cheaper but queue your jobs.',
+  }),
+  'onboardingProviders.apimartConnect.fineprint.costBody': Object.freeze({
+    'zh-CN': '按 GPT Image 2.5 的公开价估算；同样的钱约能出 25 段 5 秒视频（Seedance 2.0 Mini）。先充值、用多少扣多少，最低充值额以官网为准。',
+    en: 'Estimated from GPT Image 2.5’s public price; the same money makes about 25 five-second videos (Seedance 2.0 Mini). Prepaid, pay as you go; APIMart sets the minimum top-up.',
+  }),
+  'onboardingProviders.apimartConnect.fineprint.refundBody': Object.freeze({
+    'zh-CN': '按 APIMart 条款第 7 条：充值后 7 天内申请，5–10 个工作日到账，用掉的不退。',
+    en: 'Per APIMart’s terms §7: ask within 7 days of topping up; refunds take 5–10 business days; used credit isn’t refunded.',
+  }),
+  'onboardingProviders.apimartConnect.fineprint.footer': Object.freeze({
+    'zh-CN': '数量和价格是 2026-11-07 查的，会变，以 APIMart 官网为准。',
+    en: 'Counts and prices checked 2026-11-07; they change — APIMart’s site is the reference.',
+  }),
+  'onboardingProviders.apimartConnect.steps.topup.label': Object.freeze({ 'zh-CN': '充值', en: 'Top up' }),
+  'onboardingProviders.apimartConnect.steps.topup.hint': Object.freeze({ 'zh-CN': '按需先充值', en: 'Top up as needed' }),
+  'onboardingProviders.apimartConnect.steps.topup.pathEnd': Object.freeze({ 'zh-CN': '充值', en: 'Top up' }),
+  'onboardingProviders.apimartConnect.worries': Object.freeze({ 'zh-CN': '无月费 · 7 天内可退 · Key 只存本机', en: 'No monthly fee · 7-day refund · Key stays on this computer' }),
 })
 
 /**

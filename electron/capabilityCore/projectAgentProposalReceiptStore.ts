@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { writeJsonFileAtomic } from "../jsonFile";
+import { renameSyncOnce, writeJsonFileAtomic } from "../jsonFile";
 import { fsyncDirectoryIfDurable } from "../durability";
 import { logInfo, logWarn } from "../logging/logger";
 import type { ProjectBinding } from "../shared/projectBinding";
@@ -25,7 +25,7 @@ type ReceiptOperation = Readonly<{
   appliedRevision: number;
 }>;
 
-export type ProjectAgentProposalReceipt = Readonly<{
+type ProjectAgentProposalReceipt = Readonly<{
   schemaVersion: 2;
   binding: ProjectBinding;
   revision: number;
@@ -50,7 +50,7 @@ export type ProjectAgentProposalReceiptService = Readonly<{
   }>;
 }>;
 
-export class ProjectAgentProposalReceiptError extends Error {
+class ProjectAgentProposalReceiptError extends Error {
   constructor(
     message: string,
     readonly code: "project_agent_receipt_invalid" | "revision_conflict" = "project_agent_receipt_invalid",
@@ -306,7 +306,7 @@ export function migrateProjectAgentProposalReceipt(value: unknown): ProjectAgent
 }
 
 /** Main-owned durable journal. All semantic mutation goes through the bound service below. */
-export function createProjectAgentProposalReceiptStore(projectRoot: string, expectedBinding?: ProjectBinding) {
+function createProjectAgentProposalReceiptStore(projectRoot: string, expectedBinding?: ProjectBinding) {
   const target = receiptPath(projectRoot);
   const quarantine = (reason: ReceiptQuarantineReason): void => {
     if (!fs.existsSync(target)) return;
@@ -315,7 +315,7 @@ export function createProjectAgentProposalReceiptStore(projectRoot: string, expe
     let suffix = 1;
     while (fs.existsSync(destination)) destination = `${target}.quarantined-${stamp}-${suffix++}`;
     try {
-      fs.renameSync(target, destination);
+      renameSyncOnce(target, destination);
       fsyncReceiptDirectory(projectRoot);
       logWarn("agent", "project-agent-receipt-quarantined", {
         reason,

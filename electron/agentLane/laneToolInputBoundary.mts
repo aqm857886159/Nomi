@@ -27,6 +27,7 @@
 // 面板那一半：立即结果没有 `details`，信封只能**按入参重推**——同一个函数、同一份入参，结论确定。
 // `failureOf` 就是给投影层（`LaneModelFacts.toolInputFailure`）的那个读口；正文首行带着码，
 // 认的是本文件自己写下的那个头，不是去正则 pi 的英文。
+import { BoundedCache } from "../shared/boundedCache.js";
 import { validateToolArguments } from '@earendil-works/pi-ai';
 import type { AgentHarnessTool } from '@earendil-works/pi-agent-core';
 import { Compile } from 'typebox/compile';
@@ -100,7 +101,7 @@ export function createLaneToolInputBoundary(options: Readonly<{
   const originals = new Map<string, BoundaryTool>();
   const specByName = new Map(options.specs.map((spec) => [spec.name, spec]));
   const exampleOf = (toolName: string): unknown => specByName.get(toolName)?.examples[0]?.arguments;
-  const settledFailures = new Map<string, LaneToolPublicFailure | undefined>();
+  const settledFailures = new BoundedCache<string, LaneToolPublicFailure | undefined>({ maxEntries: 512, order: "fifo" });
 
   function validatorOf(schema: object): ReturnType<typeof Compile> {
     const cached = validators.get(schema);
@@ -248,7 +249,6 @@ export function createLaneToolInputBoundary(options: Readonly<{
       if (input.toolCallId === undefined) return derivedFailure(input);
       if (settledFailures.has(input.toolCallId)) return settledFailures.get(input.toolCallId);
       const failure = derivedFailure(input);
-      if (settledFailures.size >= 512) settledFailures.delete(settledFailures.keys().next().value!);
       settledFailures.set(input.toolCallId, failure);
       return failure;
     },

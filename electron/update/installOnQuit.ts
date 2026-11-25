@@ -7,10 +7,10 @@
 import type { QuitDrainOptions } from "../quitTeardown";
 import type { InstallOutcome } from "./installGate";
 
-export const INSTALL_ON_QUIT_DRAIN = "update-install-on-quit";
-export const INSTALL_ON_QUIT_TIMEOUT_MS = 1500;
+const INSTALL_ON_QUIT_DRAIN = "update-install-on-quit";
+const INSTALL_ON_QUIT_TIMEOUT_MS = 1500;
 
-export type InstallOnQuitDeps = {
+type InstallOnQuitDeps = {
   registerDrain: (name: string, drain: () => void | Promise<void>, options?: QuitDrainOptions) => () => void;
   /**
    * 退出时安装：走唯一安装入口 installGate.installIfIdleNow("quit")——同步判忙、同步调用库。

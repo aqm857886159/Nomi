@@ -23,7 +23,6 @@ import {
 } from "./verifiedCapabilityInvocation";
 
 type ExecuteOptions = Readonly<{ signal?: AbortSignal }>;
-export type CanvasReadTransportMatch<T> = Readonly<{ handled: false } | { handled: true; result: T }>;
 const NOT_HANDLED = Object.freeze({ handled: false as const });
 
 export function isCanvasReadTransportMethod(method: string): boolean {
@@ -85,7 +84,7 @@ export function createInternalCanvasReadTransportAdapter(
 type PiCanvasReadDecision = Extract<RuntimeToolDecision, { ok: false }>
   | { ok: true; result: CanvasReadResult; silent: true };
 
-export type PiCanvasReadTransportAdapter = Readonly<{
+type PiCanvasReadTransportAdapter = Readonly<{
   tryExecute(call: RuntimeToolCall, signal: AbortSignal): Promise<PiCanvasReadDecision | null>;
   dispose(): void;
 }>;
@@ -94,7 +93,7 @@ export type PiCanvasReadTransportAdapter = Readonly<{
  * Narrow main-only submission capture. It closes over B3's exact owner service
  * and never exposes an authority capable of minting replacement evidence.
  */
-export type PiCanvasReadIpcCapture = Readonly<{
+type PiCanvasReadIpcCapture = Readonly<{
   capture(
     event: IpcMainInvokeEvent,
     admission: Readonly<{

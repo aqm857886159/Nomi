@@ -4,7 +4,7 @@ import { immer } from 'zustand/middleware/immer'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { removeNodes } from '../model/graphOps'
 import { bumpPersistRevision } from './canvasGuards'
-import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { bindCanvasHistoryDocument, getHistoryFlags, pushUndoSnapshot } from '../events/canvasPatchHistory'
 import {
   buildSelectedClipboard,
   cloneClipboardPayload,
@@ -22,13 +22,13 @@ import type { GenerationCanvasState } from './canvasStoreTypes'
 import { createCanvasNodeActions, removeGroupsEmptiedByNodeDeletion } from './canvasNodeActions'
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
-import { createCanvasDocumentActions, isCanvasDocumentRestore } from './canvasDocumentCommit'
+import { createCanvasDocumentActions, isCanvasDocumentRestore, settleRewind } from './canvasDocumentCommit'
 import { forgetUnfitModeChoices } from './canvasModeChoiceForget'
 import { reconcileTimelineForDeletedNodes } from './canvasTimelineBridge'
 import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
 import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
-export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
+export { clearHistory as __resetGenerationCanvasHistoryForTests } from '../events/canvasPatchHistory'
 
 /**
  * 复制类动作（拖动复制 / Cmd+D）借用剪贴板走 pasteNodes，这样复制与粘贴只有一条落地路径；
@@ -223,6 +223,9 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   ...createCanvasDocumentActions(set, get, store),
 }))))
 
+bindCanvasHistoryDocument(useGenerationCanvasStore.getState, (restore, live) =>
+  settleRewind(restore, live.nodes, useGenerationCanvasStore.getState().heldNodeOutcomes))
+
 // 输入变了之后方式偏好还算不算数（放不下就忘掉、加多换了方式记一句「已改成」）：放在 store 边界，连线、放图、
 // Agent、MCP、删节点都经过这里，不管生成框有没有挂着。装载项目、重放尾巴、撤销 / 重做写进来的是权威状态，不重算（打开老项目不改写存盘）。
 // 订阅只记下「这笔手势之前长什么样」；真正的写等这笔手势的事件进了撤销日志再做（onAfterCanvasGesture），
@@ -249,7 +252,12 @@ useGenerationCanvasStore.subscribe((state, previous) => {
   modeChoicesBefore = { nodes: previous.nodes, edges: previous.edges }
   queueMicrotask(settleModeChoices)
 })
-onAfterCanvasGesture(settleModeChoices)
+onAfterCanvasGesture(() => {
+  settleModeChoices()
+  const live = useGenerationCanvasStore.getState()
+  const flags = getHistoryFlags()
+  if (live.canUndo !== flags.canUndo || live.canRedo !== flags.canRedo) useGenerationCanvasStore.setState(flags)
+})
 
 /**
  * C1 寿命声明 + 释放（原来是 `releaseWorkbenchProjectSession.ts` 里那份 10/13 的手写清单）。

@@ -6,7 +6,7 @@ import { userVendorBaseUrl } from "../../catalog/userVendorBase";
 import { vendorAuthSpec } from "../../catalog/vendorAuthSpec";
 import { findIllegalHeader, isJsonRecord } from "../../jsonUtils";
 import { builtinVendorKeyOfKey } from "../../shared/builtinVendorIdentity";
-import type { VendorAccountBalance, VendorAccountBalanceRequest } from "../../shared/contracts/vendorAccountBalance";
+import type { VendorAccountBalance, VendorAccountBalanceRequest, VendorBalanceCheck, VendorBalanceFailure, VendorReportedBalance } from "../../shared/contracts/vendorAccountBalance";
 import { codeDeclaredFallbackOrigins, fetchVendorWithBaseFallback } from "../../vendor/vendorBaseFallback";
 import { authorizeSubmitDestination } from "../../vendor/vendorOutboundGuard";
 import { authHeaders } from "../requestPipeline";
@@ -20,51 +20,50 @@ function finiteNumber(value: unknown): number | null {
   return null;
 }
 
-/**
- * Pure parser for APIMart `GET /v1/balance` response payloads.
- * Supports both top-level `{ remain_balance, remain_credits }` and wrapped `{ data: { ... } }`.
- * Negative `-1` sentinel means unlimited quota per APIMart documentation.
- */
+type BalanceSubject = "account" | "key";
+
+function parseReportedBalance(body: unknown, subject: BalanceSubject): VendorReportedBalance | null {
+  if (!isJsonRecord(body) || body.success === false) return null;
+  const payload = isJsonRecord(body.data) ? body.data : body;
+  if (payload.success === false) return null;
+  const amount = finiteNumber(payload.remain_balance);
+  const credits = finiteNumber(payload.remain_credits);
+  if (subject === "key" && (payload.unlimited_quota === true || amount === -1 || credits === -1)) {
+    return { remainCredits: null, reportedBalance: null, unlimited: true };
+  }
+  const reportedBalance = amount !== null && amount >= 0 ? amount : null;
+  const remainCredits = credits !== null && credits >= 0 ? credits : null;
+  if (reportedBalance === null && remainCredits === null) return null;
+  // Zero is independent of the configured unit. A positive amount alone cannot prove a credit count.
+  return { remainCredits: remainCredits ?? (reportedBalance === 0 ? 0 : null), reportedBalance, unlimited: false };
+}
+
+/** Preserve the #1624 snapshot and its balance-only conversion for existing send-side callers. */
 export function parseVendorAccountBalance(
   body: unknown,
   topUpUrl: string,
   fetchedAt = Date.now(),
+  subject: BalanceSubject = "key",
 ): VendorAccountBalance | null {
-  if (!isJsonRecord(body)) return null;
-  const payload = isJsonRecord(body.data) && (
-    "remain_balance" in body.data || "remain_credits" in body.data
-  ) ? body.data : body;
-  const remainUsd = finiteNumber(payload.remain_balance);
-  const remainCreditsRaw = finiteNumber(payload.remain_credits);
-  if (remainUsd === -1 || remainCreditsRaw === -1) {
-    return { remainCredits: null, remainUsd: null, unlimited: true, topUpUrl, fetchedAt };
-  }
-  if (remainCreditsRaw !== null && remainCreditsRaw >= 0) {
-    const usd = remainUsd !== null && remainUsd >= 0 ? remainUsd : remainCreditsRaw / 10;
-    return { remainCredits: remainCreditsRaw, remainUsd: usd, unlimited: false, topUpUrl, fetchedAt };
-  }
-  if (remainUsd !== null && remainUsd >= 0) {
-    return { remainCredits: remainUsd * 10, remainUsd, unlimited: false, topUpUrl, fetchedAt };
-  }
-  return null;
+  const reading = parseReportedBalance(body, subject);
+  if (!reading) return null;
+  const { reportedBalance, unlimited } = reading;
+  const remainCredits = reading.remainCredits ?? (reportedBalance !== null ? reportedBalance * 10 : null);
+  return { remainCredits, remainUsd: reportedBalance, unlimited, topUpUrl, fetchedAt };
 }
 
-/**
- * Read-only balance check for official built-in vendors that declare `accountBalance`.
- * Decoupled from `vendorPricePreview` (public pricing is unauthenticated and cached separately).
- * Enforces `decryptApiKeyRecord`, official origin allowlist, `authorizeSubmitDestination`,
- * `redirect: "error"`, and `fetchVendorWithBaseFallback` (matching `vendorPricePreview`).
- * Any failure returns null so sending is never blocked.
- */
-export async function readVendorAccountBalance(
-  payload: VendorAccountBalanceRequest,
-  options: {
-    fetchImpl?: typeof fetch;
-    now?: () => number;
-    catalog?: CatalogState;
-    resolveApiKey?: (rec: ApiKeyRecord | undefined) => string;
-  } = {},
-): Promise<VendorAccountBalance | null> {
+type BalanceReadOptions = {
+  fetchImpl?: typeof fetch;
+  now?: () => number;
+  catalog?: CatalogState;
+  resolveApiKey?: (rec: ApiKeyRecord | undefined) => string;
+};
+
+type EndpointResult =
+  | { status: "received"; body: unknown }
+  | { status: VendorBalanceFailure };
+
+function balanceReader(payload: VendorAccountBalanceRequest, options: BalanceReadOptions & { candidateKey?: string }) {
   const vendorKey = typeof payload?.vendorKey === "string" ? payload.vendorKey.trim() : "";
   if (!vendorKey) return null;
   const builtinKey = builtinVendorKeyOfKey(vendorKey);
@@ -72,9 +71,9 @@ export async function readVendorAccountBalance(
   const config = seed?.accountBalance;
   if (!seed || !config) return null;
   const catalog = options.catalog ?? readCatalog();
-  const vendor = catalog.vendors.find((row) => row.key === vendorKey && row.enabled);
+  const vendor = catalog.vendors.find((row) => row.key === vendorKey && (options.candidateKey !== undefined || row.enabled));
   if (!vendor) return null;
-  const apiKey = (options.resolveApiKey ?? decryptApiKeyRecord)(catalog.apiKeysByVendor[vendor.key]);
+  const apiKey = options.candidateKey ?? (options.resolveApiKey ?? decryptApiKeyRecord)(catalog.apiKeysByVendor[vendor.key]);
   if (!apiKey) return null;
   const base = userVendorBaseUrl(vendor);
   if (!URL.canParse(base)) return null;
@@ -88,30 +87,58 @@ export async function readVendorAccountBalance(
   ) {
     return null;
   }
-  const target = new URL(config.path, parsedBase.origin);
   const headers = authHeaders(vendorAuthSpec(vendor), apiKey);
   if (findIllegalHeader(headers)) return null;
-  const refusal = await authorizeSubmitDestination({
-    vendor,
-    url: target.href,
-    carriesCredential: true,
-  });
-  if (refusal) return null;
   const doFetch = options.fetchImpl ?? fetchVendorWithBaseFallback;
-  try {
-    const response = await doFetch(target.href, {
-      method: "GET",
-      headers,
-      redirect: "error",
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) {
-      await response.body?.cancel();
-      return null;
+  const read = async (subject: BalanceSubject): Promise<EndpointResult> => {
+    const path = subject === "account" ? config.userBalancePath : config.path;
+    const target = new URL(path, parsedBase.origin);
+    const refusal = await authorizeSubmitDestination({ vendor, url: target.href, carriesCredential: true });
+    if (refusal) return { status: "unavailable" };
+    try {
+      const response = await doFetch(target.href, {
+        method: "GET", headers, redirect: "error", signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => {});
+        if (subject === "key" && (response.status === 401 || response.status === 403)) return { status: "invalid" };
+        return { status: "received", body: null };
+      }
+      const body = await response.json().catch(() => null);
+      return { status: "received", body };
+    } catch {
+      return { status: "offline" };
     }
-    const body = await response.json();
-    return parseVendorAccountBalance(body, config.topUpUrl, (options.now ?? Date.now)());
-  } catch {
-    return null;
-  }
+  };
+  return { read, topUpUrl: config.topUpUrl };
+}
+
+/** Account-only snapshot used beside the send button. */
+export async function readVendorAccountBalance(
+  payload: VendorAccountBalanceRequest,
+  options: BalanceReadOptions = {},
+): Promise<VendorAccountBalance | null> {
+  const reader = balanceReader(payload, options);
+  if (!reader) return null;
+  const result = await reader.read("account");
+  return result.status === "received"
+    ? parseVendorAccountBalance(result.body, reader.topUpUrl, (options.now ?? Date.now)(), "account")
+    : null;
+}
+
+export async function checkVendorAccountBalance(
+  payload: VendorAccountBalanceRequest,
+  options: BalanceReadOptions & { candidateKey?: string } = {},
+): Promise<VendorBalanceCheck> {
+  const reader = balanceReader(payload, options);
+  if (!reader) return { status: "unavailable" };
+  const [account, key] = await Promise.all([reader.read("account"), reader.read("key")]);
+  if (key.status === "invalid") return { status: "invalid" };
+  if (account.status === "unavailable" || key.status === "unavailable") return { status: "unavailable" };
+  if (account.status === "offline" && key.status === "offline") return { status: "offline" };
+  return {
+    status: "received",
+    accountBalance: account.status === "received" ? parseReportedBalance(account.body, "account") : null,
+    keyQuota: key.status === "received" ? parseReportedBalance(key.body, "key") : null,
+  };
 }

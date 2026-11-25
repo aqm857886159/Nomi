@@ -1,0 +1,24 @@
+{
+  "name": "主进程文件与目录的原子改名",
+  "subject": "persistence.atomic-rename",
+  "lifecycle": "host",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/jsonFile.ts",
+    "symbol": "renameSyncOnce"
+  },
+  "write_api": [
+    { "path": "electron/jsonFile.ts", "symbol": "renameSyncOnce" },
+    { "path": "electron/jsonFile.ts", "symbol": "renameSyncWithRetry" },
+    { "path": "electron/jsonFile.ts", "symbol": "renameWithRetry" },
+    { "path": "electron/jsonFile.ts", "symbol": "writeJsonFileAtomic" }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "parity_test": "electron/jsonFile.test.ts",
+  "since": "2026-11-24",
+  "notes": "原生 rename 收口到 jsonFile.ts，由 generic-raw-rename ESLint 规则守住。sharingRetry.ts 负责共享冲突判定与退避表。持锁事务、围栏重验和清理仍由调用方负责。单次入口保留原错误和时序。"
+}

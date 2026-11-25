@@ -5,7 +5,7 @@ export const zhRuntime = {
     confirm: '确认',
   },
   modelCatalog: {
-    desktopUnavailable: '本地模型目录不可用：请打开「设置 → 模型」并检查桌面运行时。',
+    desktopUnavailable: '本地模型目录不可用：请打开「设置 › 模型」并检查桌面运行时。',
     loadFailed: '模型目录加载失败',
     loading: '正在读取模型目录...',
     loadFailedWithMessage: '模型目录加载失败：{{message}}',
@@ -16,9 +16,9 @@ export const zhRuntime = {
     ready: '模型目录可用',
     noKind: '没有可用{{kind}}模型',
     kind: { image: '图像', video: '视频', audio: '音频', text: '文本', model3d: '3D' },
-    noImageModel: '未找到可用图片模型：请先在系统模型管理中启用 image 模型。',
+    noImageModel: '未找到可用图片模型：请先在「设置 › 模型」中启用图片模型，或点「连接模型」接入。',
     imageModelUnselected: '未选择图片模型：请在节点参数中选择一个已启用的 image 模型。',
-    imageModelUnavailable: '图片模型不可用：{{model}}。请在系统模型管理中启用该模型，或在节点参数中重新选择模型。',
+    imageModelUnavailable: '图片模型不可用：{{model}}。请在「设置 › 模型」中启用该模型，或在节点参数中重新选择模型。',
     control: {
       aspectRatio: '比例',
       frame: '画幅',
@@ -185,7 +185,7 @@ type TranslationShape<T> = {
 export const enRuntime = {
   design: { cancel: 'Cancel', gotIt: 'Got it', confirm: 'Confirm' },
   modelCatalog: {
-    desktopUnavailable: 'The local model catalog is unavailable. Open model setup and check the desktop runtime.',
+    desktopUnavailable: 'The local model catalog is unavailable. Open Settings › Models and check the desktop runtime.',
     loadFailed: 'Failed to load the model catalog',
     loading: 'Reading model catalog...',
     loadFailedWithMessage: 'Failed to load model catalog: {{message}}',
@@ -196,10 +196,10 @@ export const enRuntime = {
     ready: 'Model catalog is available',
     noKind: 'No {{kind}} models are available',
     kind: { image: 'image', video: 'video', audio: 'audio', text: 'text', model3d: '3D' },
-    noImageModel: 'No image model is available. Enable an image model in system model settings.',
+    noImageModel: 'No image model is available. Enable an image model in Settings › Models, or select Connect.',
     imageModelUnselected: 'No image model selected. Choose an enabled image model in the node parameters.',
     imageModelUnavailable:
-      'Image model {{model}} is unavailable. Enable it in system model settings or choose another model in the node parameters.',
+      'Image model {{model}} is unavailable. Enable it in Settings › Models or choose another model in the node parameters.',
     control: {
       aspectRatio: 'Aspect ratio',
       frame: 'Frame',

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // 验收线提供的回归走查：真窗 + 假服务商。图片 POST 还压在代理里时进程没了，重启后这一节点还能不能再发。
-// 用法：node i6-quit-during-post.walk.mjs sigkill|window-close   （从 PR 工作树目录运行）
+// 用法：node tests/ux/generation-lock-exit-interrupted.walk.mjs [sigkill|window-close|reload] [--out <目录>]
 // 模拟的是同步图片供应商：POST 的寿命 = 整个生成时长。代理回复压 12 秒，比退出时长长。
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
 import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
+import { walkEvidenceDir } from './_walkEvidence.mjs'
 
 const ROOT = process.cwd()
 const { expect } = await import(`${ROOT}/node_modules/@playwright/test/index.mjs`)
@@ -22,14 +23,18 @@ const { openStoryboardEditor } = await import(`${ROOT}/tests/ux/_creationResourc
 const { waitForVisualQuiescence } = await import(`${ROOT}/tests/ux/_assert.mjs`)
 const { uiText } = await import(`${ROOT}/tests/ux/full-walk/invariants.mjs`)
 
-const MODE = ['window-close', 'reload'].includes(process.argv[2]) ? process.argv[2] : 'sigkill'
+const [modeOrOut, modeOut] = process.argv.slice(2)
+const modePassed = ['sigkill', 'window-close', 'reload'].includes(modeOrOut)
+const MODE = modePassed ? modeOrOut : 'sigkill'
+const positionalOut = modePassed ? modeOut : modeOrOut
+const configuredOut = positionalOut && !positionalOut.startsWith('--') ? positionalOut : process.env.NOMI_LOCK_EXIT_OUT
 const POST_LIFE_MS = 12_000
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const locale = process.env.NOMI_LOCK_EXIT_LOCALE ?? 'zh-CN'
 const t = key => uiText(locale, key)
-const out = path.resolve(process.env.NOMI_LOCK_EXIT_OUT)
-const shots = path.resolve(process.env.NOMI_LOCK_EXIT_SHOTS)
-fs.mkdirSync(out, { recursive: true }); fs.mkdirSync(shots, { recursive: true })
+const out = walkEvidenceDir({ configured: configuredOut })
+const shots = path.resolve(process.env.NOMI_LOCK_EXIT_SHOTS || path.join(out, 'screenshots'))
+fs.mkdirSync(shots, { recursive: true })
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
 const tempRoot = registerTestTemp(fs.mkdtempSync(path.join(out, 'isolated-i6-')))
 const settingsDir = path.join(tempRoot, 'settings'), userDataDir = path.join(tempRoot, 'user-data'), projectsDir = path.join(tempRoot, 'projects')

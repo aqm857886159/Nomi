@@ -52,21 +52,17 @@ export function bindingsOf(bindings: ReferenceBindingMap | undefined, slotKey: s
   return Array.isArray(bucket) ? bucket.filter((item) => Boolean(item?.url)) : []
 }
 
-export function shotBindingsOf(shot: PlanShot, slotKey: string): PlanReferenceBinding[] {
-  return bindingsOf(shot.referenceBindings, slotKey)
-}
-
 // `shotBindingValues`（v5 给 AssetReference 的 valuesByKey）已随 v6 参考列改版删除：
 // 那是画布节点渲染器的输入形状（数组槽合并成一排 tile），与 v6 的「一个槽一个格」不是同一件事。
 // 分镜行现在直接读 `shotBindingsOf`（见 shotReferenceCells.ts）。
 
-export type BindingAppend =
+type BindingAppend =
   | { status: 'added'; next: ReferenceBindingMap }
   | { status: 'wrong-kind'; accept: 'image' | 'video' | 'audio' }
   | { status: 'duplicate' }
   | { status: 'full'; max: number }
 
-export type ShotBindingAppend =
+type ShotBindingAppend =
   | { status: 'added'; patch: Pick<PlanShot, 'referenceBindings'> }
   | { status: 'wrong-kind'; accept: 'image' | 'video' | 'audio' }
   | { status: 'duplicate' }
@@ -121,7 +117,7 @@ export function removeBinding(bindings: ReferenceBindingMap | undefined, slotKey
 }
 
 /** 同槽内重排（characterIndexed 槽的 ①②③ = 发送顺序，所以顺序是语义不是装饰）。 */
-export function reorderBinding(
+function reorderBinding(
   bindings: ReferenceBindingMap | undefined,
   slotKey: string,
   from: number,

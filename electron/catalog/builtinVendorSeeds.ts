@@ -79,7 +79,7 @@ export type VendorSeed = {
   /** 公开价目端点（不带凭据的只读 GET）；只对官方服务 origin（主域 + 代码声明的官方备用域）生效。 */
   publicPricing?: { listPath: string; modelPath: string };
   /** 账户余额只读查询端点与官方充值链接；只对官方服务 origin 生效，经 vendorHttp 带凭据绑定发送。 */
-  accountBalance?: { path: string; topUpUrl: string };
+  accountBalance?: { userBalancePath: string; path: string; topUpUrl: string };
   /**
    * 该家的 key 该拿什么当判据（**种子声明，不是按路由猜**）。
    *

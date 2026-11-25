@@ -51,6 +51,18 @@ export function DreaminaMemberCard({ status, onChanged, onOpenDetails, detailMod
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
 
+  const syncDreaminaVendorEnabled = async (enabled: boolean) => {
+    try {
+      await getDesktopBridge()?.modelCatalog?.upsertVendor?.({
+        key: 'dreamina',
+        name: t('onboardingProviders.dreamina.name'),
+        enabled,
+      })
+    } catch {
+      // 目录同步失败不阻塞登录态反馈
+    }
+  }
+
   const runPollLoop = async (deviceCode: string) => {
     cancelPoll.current = false
     setPolling(true)
@@ -58,7 +70,7 @@ export function DreaminaMemberCard({ status, onChanged, onOpenDetails, detailMod
       // checklogin 单次最多阻塞 ~60s；循环续查直到成功/出错/用户取消（设备码有效期内）。
       for (let i = 0; i < 8 && !cancelPoll.current; i += 1) {
         const r = await dreamina.loginPoll(deviceCode)
-        if (r.status === 'success') { setFlow(null); onChanged(); return }
+        if (r.status === 'success') { await syncDreaminaVendorEnabled(true); setFlow(null); onChanged(); return }
         if (r.status === 'error') { setError(r.message); return }
         // pending → 继续下一轮
       }
@@ -75,6 +87,7 @@ export function DreaminaMemberCard({ status, onChanged, onOpenDetails, detailMod
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       if (/复用.*登录态|已登录|already logged in|already authenticated/i.test(message)) {
+        await syncDreaminaVendorEnabled(true)
         onChanged()
       } else {
         setError(message)
@@ -85,7 +98,7 @@ export function DreaminaMemberCard({ status, onChanged, onOpenDetails, detailMod
   const handleLogout = async () => {
     cancelPoll.current = true
     setBusy(true); setError('')
-    try { await dreamina.logout(); setFlow(null); onChanged() }
+    try { await dreamina.logout(); await syncDreaminaVendorEnabled(false); setFlow(null); onChanged() }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
 

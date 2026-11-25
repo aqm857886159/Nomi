@@ -30,9 +30,7 @@ export type ReferencePlatform = (typeof REFERENCE_PLATFORMS)[number];
  *   · hot       ：正在放量（花费档高）——只有 TikTok 广告库有；UI 画成醒目小标
  *   · secondary ：次要指标，放第二行
  */
-export const REFERENCE_EVIDENCE_KINDS = ["scale", "perf", "hot", "secondary"] as const;
-
-export type ReferenceEvidenceKind = (typeof REFERENCE_EVIDENCE_KINDS)[number];
+export type ReferenceEvidenceKind = "scale" | "perf" | "hot" | "secondary";
 
 /**
  * 指标名的**语义 token**，不是文案。
@@ -40,9 +38,7 @@ export type ReferenceEvidenceKind = (typeof REFERENCE_EVIDENCE_KINDS)[number];
  * 所以这里绝不能出现中文：主进程不产出用户可见文字（`check:i18n` 会拦）。
  * `none` = 值自带含义、不需要前缀（如「♥ 8.4k」）。
  */
-export const REFERENCE_METRICS = ["none", "collect", "like", "ctr", "hot"] as const;
-
-export type ReferenceMetric = (typeof REFERENCE_METRICS)[number];
+export type ReferenceMetric = "none" | "collect" | "like" | "ctr" | "hot";
 
 export type ReferenceEvidence = {
   kind: ReferenceEvidenceKind;
@@ -104,7 +100,7 @@ export type ReferenceSearchResult = {
  * 实测传 30/50 都返回 422，真实上限是 20（2026-09-07 实调）。
  * 官方 SDK 文档也建议每次 ≤30（github.com/TikHub/TikHub-API-Python-SDK）。
  */
-export type ReferencePlatformFacts = {
+type ReferencePlatformFacts = {
   /** 单次请求条数（实测上限）。 */
   pageSize: number;
   /** 检索索引的语言。'zh' = 中文原生可用；'en' = 需把中文关键词转成英文再搜。 */
@@ -120,7 +116,7 @@ export const REFERENCE_PLATFORM_FACTS: Readonly<Record<ReferencePlatform, Refere
 };
 
 /** 运行时白名单：合法平台值 Set（IPC 入参校验用；类型的运行时投影，单一真相源在上方联合类型）。 */
-export const REFERENCE_PLATFORM_VALUES: ReadonlySet<string> = new Set<string>(REFERENCE_PLATFORMS);
+const REFERENCE_PLATFORM_VALUES: ReadonlySet<string> = new Set<string>(REFERENCE_PLATFORMS);
 
 export function isReferencePlatform(value: unknown): value is ReferencePlatform {
   return typeof value === "string" && REFERENCE_PLATFORM_VALUES.has(value);

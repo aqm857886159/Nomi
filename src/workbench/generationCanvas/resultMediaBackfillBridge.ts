@@ -34,11 +34,11 @@ type PreviewReceipt = { thumbnailUrl?: string; previewState?: string } | null | 
 const BACKFILL_UPDATE_OPTIONS = { history: false, emit: false } as const
 
 /** 补预览的并发：每张都要主进程起一次 ffmpeg（约一次缩放），2 路足够跟上滚动又不抢前台。 */
-export const PREVIEW_BACKFILL_CONCURRENCY = 2
+const PREVIEW_BACKFILL_CONCURRENCY = 2
 /** 项目打开后先让打开本身跑完（冷开约 2.3s）：这段时间不起任何 ffmpeg。 */
-export const PREVIEW_BACKFILL_START_DELAY_MS = 3_000
+const PREVIEW_BACKFILL_START_DELAY_MS = 3_000
 /** 画布媒体安静这么久才做下一张：打开、平移出一批新图时让路。 */
-export const PREVIEW_BACKFILL_QUIET_MS = 1_000
+const PREVIEW_BACKFILL_QUIET_MS = 1_000
 
 export function shouldRelocalizeResult(result: GenerationNodeResult | null | undefined): boolean {
   if (!result) return false
@@ -158,7 +158,7 @@ function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
 let previewRequestSeq = 0
 
 /** 浏览器内建：new Image() + decode()。解码失败（文件坏 / 读不到）→ false。 */
-export async function decodePreviewInMemory(url: string): Promise<boolean> {
+async function decodePreviewInMemory(url: string): Promise<boolean> {
   if (typeof Image === 'undefined') return false
   const image = new Image()
   image.decoding = 'async'
@@ -228,7 +228,7 @@ function nodeRect(node: GenerationCanvasNode): CanvasRect {
 }
 
 /** 节点离它所在分类可见区的距离（画布坐标）：可见区里 = 0；舞台未知 → 一律 0，按原顺序。 */
-export function distanceToVisibleArea(node: GenerationCanvasNode, view: CanvasRect | null): number {
+function distanceToVisibleArea(node: GenerationCanvasNode, view: CanvasRect | null): number {
   if (!view) return 0
   const rect = nodeRect(node)
   const dx = Math.max(view.x - (rect.x + rect.width), 0, rect.x - (view.x + view.width))

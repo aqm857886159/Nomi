@@ -6,6 +6,7 @@ import 'react-dom/client';
 import 'react-router-dom';
 import 'diff';
 import '@floating-ui/dom';
+import '@floating-ui/react';
 import '@fluentui/priority-overflow';
 import '@radix-ui/react-context-menu';
 import '@radix-ui/react-hover-card';

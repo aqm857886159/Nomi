@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { openLocalComfyuiSettings, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 // R13 真机走查：ComfyUI 导入缺件对账（缺节点/缺模型在导入面板就说清，治「一跑就炸不知道为啥」）。
 // 场景：① 贴「缺自定义节点 + 引用了本机没有的 checkpoint」的图 → 分析 → 两条红警示；
 //       ② 贴全齐的图 → 分析 → 零警示；
@@ -70,21 +71,8 @@ const { app, win } = await launchNomiApp({
 })
 const errors = []
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1440, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-
-  await win.getByRole('button', { name: '接入模型', exact: false }).first().click()
-  await win.waitForTimeout(1000)
-  await win.getByText('有本地 ComfyUI', { exact: false }).first().click()
-  await win.waitForTimeout(500)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
-  await win.waitForTimeout(400)
-  await win.getByRole('button', { name: '启用 ComfyUI', exact: false }).first().click()
-  await win.waitForTimeout(2200)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
-  await win.waitForTimeout(600)
+  await prepareWalkthroughWindow(app, win, { width: 1440, height: 1000 , errors })
+  await openLocalComfyuiSettings(win)
 
   // ── 场景①：缺节点 + 缺模型 → 两条红警示 ──
   await win.getByRole('button', { name: '导入自定义工作流', exact: false }).first().click()

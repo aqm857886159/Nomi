@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { waitForNomiLocalUrl } from './lib/walkthroughHost.mjs'
 // nomi-local 协议：高强度取消压测，专门去撞 ERR_INVALID_STATE 那条竞态。
 //
 // 和 scripts/local-protocol-seek-walkthrough.mjs 的分工：
@@ -194,19 +195,7 @@ try {
   const projectTab = win.getByText('项目素材', { exact: false }).first()
   if (await projectTab.count()) { await projectTab.click().catch(() => {}); await win.waitForTimeout(1800) }
 
-  let seedUrl = null
-  for (let i = 0; i < 20 && !seedUrl; i++) {
-    seedUrl = await win.evaluate(() => {
-      for (const el of document.querySelectorAll('*')) {
-        for (const attr of ['src', 'poster', 'data-src', 'href']) {
-          const value = el.getAttribute?.(attr)
-          if (typeof value === 'string' && value.startsWith('nomi-local://')) return value
-        }
-      }
-      return null
-    })
-    if (!seedUrl) await win.waitForTimeout(750)
-  }
+  const seedUrl = await waitForNomiLocalUrl(win)
   if (!seedUrl) throw new Error('探针没拿到 nomi-local:// 地址 —— 素材没导入成功，后面全是空转')
   console.log(`  🔎 真实地址：${seedUrl}`)
 

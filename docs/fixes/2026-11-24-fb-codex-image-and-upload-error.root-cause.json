@@ -1,0 +1,147 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-fb-codex-image-and-upload-error",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-24",
+  "problem_type": "codex-image-artifact-loss-and-upload-error-overwrite",
+  "symptom": "Two F-B user feedback paths lost actionable output/diagnostics: (1) NF-1025-0001 Codex CLI local image generation reported bare 'Codex CLI 未产生可导入的生图文件。' whenever Codex emitted saved_path/result in JSONL, wrote inside workDir/nested subdirectories before workDir cleanup, or failed with turn.failed/error/stderr/agent refusal; (2) NF-1107-0002 Production Run reference upload localization overwrote HTTP 413 asset-too-large and channel failures with desktopT('assetUpload.hostingDisabled'), hiding which channel rejected the oversized file and stripping the multi-line summary needed by generationFailure.",
+  "direct_cause": "electron/catalog/codexCli.ts only scanned a single flat directory ($CODEX_HOME/generated_images/<threadId>), deleted workDir on child close before persisting images written there, and describeCodexFailure ignored JSONL turn.failed/error/agent_message/non-zero stderr; electron/capabilityCore/productionReferenceUrls.ts caught all asset-upload-failed and asset-too-large errors from localizeForSend and replaced their message with desktopT('assetUpload.hostingDisabled').",
+  "class_root": "Producer/transport wrappers discarded structured upstream facts at boundary handoffs: Codex CLI runner ignored structured JSONL image outputs and structured turn errors, while productionReferenceUrls flattened distinct upload channel failures into a single hardcoded hosting-disabled string.",
+  "affected_population": [
+    "Users generating images via local Codex CLI whose output is reported via JSONL ImageGenerationItem saved_path/result, saved into workDir/nested directories, or rejected by Codex upstream errors/quota limits",
+    "Users running Production Run or Agent generation with oversized reference media (HTTP 413) or failing upload channels"
+  ],
+  "scope_paths": [
+    "electron/catalog/codexCli.ts",
+    "electron/capabilityCore/productionReferenceUrls.ts"
+  ],
+  "entry_points": [
+    "Codex local image generation completion & failure diagnostics (electron/catalog/codexCli.ts)",
+    "Production Run reference URL upload localization (electron/capabilityCore/productionReferenceUrls.ts)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/413",
+      "checked_at": "2026-11-24",
+      "purpose": "Confirm HTTP 413 Content Too Large semantics must be preserved as size-limit feedback rather than conflated with hosting-disabled policy."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/openai/codex",
+      "checked_at": "2026-11-24",
+      "purpose": "Confirm Codex CLI exec --json JSONL event stream structure (ImageGenerationItem saved_path/result, turn.failed, error, agent_message)."
+    }
+  ],
+  "invariants": [
+    "resolveCodexGeneratedImage discovers images across JSONL ImageGenerationItem.saved_path, nested generated_images/<threadId> directories, non-input workDir outputs, and magic-byte-verified inline base64 results, persisting volatile outputs into codexJobsDir() before workDir is removed.",
+    "describeCodexFailure preserves structured JSONL turn.failed/error/image_generation failure reasons, non-zero stderr summaries, and agent_message refusals instead of collapsing them into a bare generic error.",
+    "localizeProductionReferenceUrls passes localizeForSend errors through intact so HTTP 413 asset-too-large summaries (channel, filename, byte size, newline) and AnonymousAssetConsentRequiredError each reach the renderer verbatim."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog",
+    "tests": [
+      "electron/catalog/codexCli.test.ts",
+      "electron/capabilityCore/productionReferenceUrls.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "resolveCodexGeneratedImage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "localizeProductionReferenceUrls"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "The two files own distinct production boundaries (local Codex CLI image runner vs Production Run reference URL upload localization); each boundary now preserves structured facts without adding parallel paths."
+  },
+  "generality_proof": "Centralizing Codex image discovery (saved_path, nested generated_images, workDir, validated base64) and structured failure extraction in codexCli.ts plus removing the blanket catch-and-rewrite in productionReferenceUrls.ts ensures every Codex output shape/error and every upload channel HTTP 413/5xx failure preserves truthful outcomes without touching assetLocalization.ts.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "resolveCodexGeneratedImage",
+      "responsibility": "Single resolver discovering and staging Codex CLI generated images across JSONL saved_path, generated_images/<threadId>, workDir, and validated inline base64 before workDir cleanup."
+    },
+    {
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "describeCodexFailure",
+      "responsibility": "Single failure narrator translating Codex CLI sentinels, JSONL turn.failed/error events, non-zero stderr, and agent refusals into actionable error copy."
+    },
+    {
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "localizeProductionReferenceUrls",
+      "responsibility": "Production Run reference URL localizer delegating to localizeForSend without overwriting asset-too-large or channel failure details."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/codexCli.ts",
+      "entry_point": "resolveCodexGeneratedImage / describeCodexFailure",
+      "disposition": "enforced",
+      "evidence": "Discovers images from saved_path, nested generated_images, workDir, and validated inline base64 before rmSync(workDir), and surfaces turn.failed/error/stderr/agent_message in describeCodexFailure."
+    },
+    {
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "entry_point": "localizeProductionReferenceUrls",
+      "disposition": "enforced",
+      "evidence": "Removed blanket .catch() that overwrote asset-too-large and asset-upload-failed with hostingDisabled; AnonymousAssetConsentRequiredError still carries hostingDisabled directly from localizeForSend."
+    },
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "entry_point": "localizeAssetsForVendor",
+      "disposition": "not-affected",
+      "evidence": "Already produces structured multi-line asset-too-large and channel failure summaries and AnonymousAssetConsentRequiredError; left untouched per F-A step 2 coordination boundary."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Whenever Codex CLI updates its output layout/events or an upstream upload channel rejects oversized media with HTTP 413, lossy wrapper boundaries silently discard the real artifact or error details.",
+    "same_class_scan": [
+      "Audited all 4 F-B user feedback paths (NF-1107-0001, NF-1107-0002, NF-1031-0001, NF-1025-0001) against origin/main",
+      "git grep assetUpload.hostingDisabled across electron/ identified productionReferenceUrls.ts blanket catch-and-overwrite on asset-too-large and asset-upload-failed",
+      "Inspected local codex-cli 0.171.0 binary ImageGenerationItem contract (saved_path, result, status, turn.failed) against electron/catalog/codexCli.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/codexCli.ts",
+    "invariant": "Codex image outputs are resolved via resolveCodexGeneratedImage before temp workDir cleanup, Codex failures preserve structured JSONL/stderr causes via describeCodexFailure, and productionReferenceUrls preserves localizeForSend errors verbatim.",
+    "failure_mode": "Reintroducing a flat-only scan, deleting workDir before staging, or catching and replacing asset-too-large with hostingDisabled immediately fails the parameterized matrix tests in codexCli.test.ts and productionReferenceUrls.test.ts.",
+    "exception_policy": "none",
+    "strategy": "Enforce via parameterized matrix tests covering all four Codex output channels, four failure shapes, and three upload error preservation cases.",
+    "artifacts": [
+      "electron/catalog/codexCli.ts",
+      "electron/capabilityCore/productionReferenceUrls.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/codexCli.test.ts",
+    "electron/capabilityCore/productionReferenceUrls.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/codexCli.test.ts",
+    "electron/capabilityCore/productionReferenceUrls.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Removed the destructive inline catch-and-overwrite in productionReferenceUrls.ts in the same commit (no standalone legacy file deleted); existing flat generated_images/<threadId> behavior remains supported as part of resolveCodexGeneratedImage."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Uses existing Node fs/Buffer and repo mediaTypes magic-byte validation without adding external dependencies.",
+    "exit_criteria": []
+  },
+  "migration": "No user data migration required: existing Codex jobs and Production Run configs work transparently.",
+  "residual_risks": [
+    "Live paid Codex CLI image generation against OpenAI servers was not executed (zero paid spend); local codex-cli 0.171.0 CLI flag parsing and binary ImageGenerationItem schema were verified alongside unit matrix tests."
+  ]
+}

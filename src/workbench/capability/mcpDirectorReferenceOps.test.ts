@@ -12,7 +12,7 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import { DIRECTOR_PROJECT_META_KEY } from '../generationCanvas/nodes/director/model/directorNodeMeta'
 import { createDirectorStore } from '../generationCanvas/nodes/director/model/directorStore'
 import { abandonPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
-import { __resetCanvasUndoJournalForTests } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory } from '../generationCanvas/events/canvasPatchHistory'
 import { resetClientIdRegistry } from '../generationCanvas/agent/applyCanvasToolCall'
 import { useWorkbenchStore } from '../workbenchStore'
 
@@ -65,7 +65,7 @@ function loadsInEditor(nodeId: string): number {
 beforeEach(() => {
   abandonPendingCanvasWrite()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   resetClientIdRegistry()
   receipts.commits = []
 })

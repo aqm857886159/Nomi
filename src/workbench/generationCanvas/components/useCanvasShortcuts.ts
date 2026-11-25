@@ -1,4 +1,3 @@
-import { canvasWindowInput } from '../../shortcutSurface'
 import React from 'react'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import {
@@ -12,7 +11,7 @@ import { hasClipboardContent } from '../store/canvasClipboard'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { showUndoToast } from '../../../utils/showUndoToast'
 import i18n from '../../../i18n'
-import { installShortcutSurfaceTracker, shortcutSurfaceMayHandle } from '../../shortcutSurface'
+import { canvasWindowInput, registerHistoryShortcut, shortcutLetter, shortcutSurfaceMayHandle } from '../../shortcutSurface'
 
 type CanvasZoomShortcutInput = {
   key: string
@@ -84,17 +83,7 @@ type CanvasKeydownHandlerOptions = {
   tidyCanvas: () => void
 }
 
-/**
- * 快捷键里的字母：按 `event.key` 认（Dvorak / AZERTY 按的是键帽上的字），
- * 只有 key 不是 ASCII 字母时才回退物理位置 `event.code`——macOS 上 ⌥ 组合会把 F 变成 `Ï`、
- * 俄文 / 希腊文布局下 Z 是 `я`。与 tldraw `useKeyboardShortcuts` 同一裁决（见 docs/plan/2026-09-21-canvas-shortcut-parity.md）。
- */
-export function canvasShortcutKey(event: Pick<KeyboardEvent, 'key' | 'code'>): string {
-  const key = event.key.toLowerCase()
-  if (/^[a-z]$/.test(key)) return key
-  if (/^Key[A-Z]$/.test(event.code)) return event.code.slice(3).toLowerCase()
-  return key
-}
+export { shortcutLetter as canvasShortcutKey } from '../../shortcutSurface'
 
 const INTERACTIVE_FOCUS_SELECTOR =
   'button, a[href], input, select, textarea, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="menuitem"], [role="tab"], [role="slider"], [role="checkbox"], [role="switch"], [role="option"], [role="combobox"]'
@@ -118,6 +107,14 @@ function shouldIgnoreCanvasShortcut(target: EventTarget | null, stageRef: React.
   return false
 }
 
+export function registerCanvasHistoryShortcut({ stageRef, undo, redo }: Pick<CanvasKeydownHandlerOptions, 'stageRef' | 'undo' | 'redo'>) {
+  return registerHistoryShortcut('canvas', () => shortcutSurfaceMayHandle(stageRef.current), (direction, event) => {
+    if (shouldIgnoreCanvasShortcut(event.target, stageRef)) return false
+    if (direction === 'undo') undo()
+    else redo()
+  })
+}
+
 export function createCanvasKeydownHandler(opts: CanvasKeydownHandlerOptions): (event: KeyboardEvent) => void {
   const {
     stageRef,
@@ -136,7 +133,6 @@ export function createCanvasKeydownHandler(opts: CanvasKeydownHandlerOptions): (
     pasteNodes,
     zoomByStep,
     undo,
-    redo,
     duplicateSelectedNodes,
     connectSelectedNodes,
     openAddNodeMenu,
@@ -147,7 +143,7 @@ export function createCanvasKeydownHandler(opts: CanvasKeydownHandlerOptions): (
     // 输入法组字中（中文 / 日文候选框开着）按的任何键都属于输入法。
     if (event.isComposing) return
     if (shouldIgnoreCanvasShortcut(event.target, stageRef)) return
-    const key = canvasShortcutKey(event)
+    const key = shortcutLetter(event)
     const mod = event.metaKey || event.ctrlKey
     const hasTextSelection = !(window.getSelection()?.isCollapsed ?? true)
     if (mod && hasTextSelection && (key === 'c' || key === 'x')) return
@@ -244,20 +240,6 @@ export function createCanvasKeydownHandler(opts: CanvasKeydownHandlerOptions): (
     if (key === 'v') {
       pasteNodes()
       return
-    }
-    if (key === 'z' && event.shiftKey) {
-      event.preventDefault()
-      redo()
-      return
-    }
-    if (key === 'z') {
-      event.preventDefault()
-      undo()
-      return
-    }
-    if (key === 'y') {
-      event.preventDefault()
-      redo()
     }
   }
   return handleKeyDown
@@ -423,11 +405,12 @@ export function useCanvasShortcuts(opts: {
       if (!shortcutSurfaceMayHandle(stageRef.current)) return
       zoomByStep(direction)
     })
-    installShortcutSurfaceTracker()
+    const unregisterHistory = registerCanvasHistoryShortcut({ stageRef, undo, redo })
     canvasWindowInput.addEventListener('keydown', handleKeyDown)
     canvasWindowInput.addEventListener('paste', handlePaste)
     return () => {
       clearPasteFallback()
+      unregisterHistory()
       canvasWindowInput.removeEventListener('keydown', handleKeyDown)
       canvasWindowInput.removeEventListener('paste', handlePaste)
       offDesktopZoom?.()

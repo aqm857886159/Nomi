@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import { cleanupTestTemp, makeTempDirAsync } from '../../scripts/_test-temp.mjs'
+import { createHttpFixture, type FixtureReply } from '../../tests/agent-runtime/httpFixture.mjs'
+import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
+import { openLane } from './laneHost.mjs'
 import { createLaneExtendedDesktopPorts, type LaneExtendedDesktopPortsInput } from './laneExtendedDesktopPorts'
 import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs'
 import { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs'
@@ -9,6 +13,7 @@ import type { PreparedSkillWrite } from '../capabilityCore/skillWriteTransportAd
 import type { RuntimeToolCall } from '../shared/agentCapabilities/transportContracts'
 import type { ProjectAgentProposalReceiptView } from '../shared/projectAgentProposalReceipt'
 import { createLaneApprovalGate } from './laneApprovalGate'
+import { holdsTurnGeneration } from './turnGenerationHold'
 
 const binding = { projectId: 'project-1', immutableProjectUuid: '00000000-0000-4000-8000-000000000001', projectGeneration: 1 }
 const signal = new AbortController().signal
@@ -54,6 +59,138 @@ function setup() {
   return { input, assembly, record, records, order, execute, prepareAndApprove, card,
     setReceipt(value: ProjectAgentProposalReceiptView) { receipt = value } }
 }
+
+describe('turn generation hold through the desktop tools', () => {
+  const operationId = 'drafts6'
+  const durations = () => new Map(Array.from({ length: 6 }, (_, i) => [`shot-${i + 1}`, 5]))
+  const patches = [...durations().keys()].map(shotId => ({
+    id: `patch-${shotId}`, name: 'draft_shots', arguments: { operationId, shots: [{ shotId, durationSec: 8 }] },
+  }))
+  const generate = (shotIds?: string[], id = 'generate-shots') => ({
+    id, name: 'generate', arguments: { operationId, ...(shotIds ? { shotIds } : {}) },
+  })
+
+  async function run(prompt: string, mode: 'honor-receipt' | 'force-batch' | 'generate', shotIds?: string[],
+    options: { policy?: 'request' | 'direct'; nextPrompt?: string } = {}) {
+    const f = setup()
+    const saved = durations()
+    const context: LaneComposerContext = { approvalPolicy: { mode: options.policy ?? 'direct' } }
+    let active = context
+    f.input.context = () => active
+    const submit = vi.fn()
+    const transport = vi.fn(async (wire: RuntimeToolCall) => {
+      const args = wire.args as { operation: string; shotId?: string; patch?: { parameters: { duration: number } } }
+      if (args.operation === 'patch') saved.set(args.shotId!, args.patch!.parameters.duration)
+      if (args.operation === 'present') {
+        submit(wire.args)
+        return { ok: true as const, result: { spendDecision: { decidedBy: 'policy:full_auto' } } }
+      }
+      return { ok: true as const, result: { operation: { operationId, cardHidden: true } } }
+    })
+    vi.mocked(f.input.generation).mockReturnValue({ tryExecute: transport,
+      withdrawPresentation: vi.fn(), readPresentationOutcome: vi.fn(), dispose: vi.fn() })
+    const initialCalls = mode === 'force-batch' ? [...patches, generate(shotIds)]
+      : mode === 'generate' ? [generate(shotIds)] : patches
+    const done = { type: 'text', text: 'Done.' } as const
+    const replies: FixtureReply[] = [{ type: 'tool', calls: initialCalls }]
+    if (mode === 'honor-receipt') {
+      replies.push({ type: 'deferred', beforeReply: async () => {
+        const sent = JSON.stringify(http.requests.at(-1)?.body)
+        return /Generation is on hold for this turn|edits to existing drafts/.test(sent)
+          ? done : { type: 'tool', calls: [generate()] }
+      } })
+    }
+    replies.push(done)
+    if (options.nextPrompt) replies.push({ type: 'tool', calls: [generate(['shot-1'], 'later-generate')] }, done)
+    const http = await createHttpFixture(replies)
+    const root = await makeTempDirAsync('nomi-generation-hold-')
+    try {
+      const lane = await openLane({ projectDir: root, fetch: globalThis.fetch,
+        model: { kind: 'openai-compatible', providerId: 'fixture', modelId: 'fixture',
+          baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture' },
+        tools: f.assembly.tools, toolLifecycle: f.assembly.toolLifecycle, systemPrompt: 'Follow the user request.',
+        input: { capture: () => context, activate: value => { active = value },
+          providerContent: async message => message.content, rewritePayload: payload => payload },
+        approval: { hasUserInterface: true, policy: () => context.approvalPolicy },
+      })
+      try {
+        await lane.execute({ kind: 'prompt', text: prompt })
+        if (options.nextPrompt) await lane.execute({ kind: 'prompt', text: options.nextPrompt })
+        return { saved: [...saved.values()], submit, parts: lane.projection().parts, requests: http.requests }
+      } finally { await lane.close() }
+    } finally {
+      f.assembly.dispose()
+      await http.close()
+      cleanupTestTemp(root)
+    }
+  }
+
+  it.each(['先别生成，把每个镜头改成 8 秒', "Don't generate yet, make every shot 8 seconds", 'Make every shot 8 seconds.'])(
+    'saves six duration changes and emits zero generate calls for %s', async prompt => {
+      const result = await run(prompt, 'honor-receipt')
+      expect(result.saved).toEqual([8, 8, 8, 8, 8, 8])
+      expect(result.parts.filter(part => part.kind === 'tool-call' && part.toolName === 'generate')).toHaveLength(0)
+      expect(result.submit).not.toHaveBeenCalled()
+    },
+  )
+
+  it('keeps the system prompt byte-identical on held turns and carries the hold reminder in draft_shots tool receipts', async () => {
+    type RequestBody = { messages: Array<{ role: string; content: string }> }
+    const systemOf = (requests: Array<{ body: unknown }>) =>
+      requests.map(req => (req.body as RequestBody).messages.find(m => m.role === 'system')?.content)
+    const held = await run('先别生成，把每个镜头改成 8 秒', 'honor-receipt')
+    const unheld = await run('Make every shot 8 seconds.', 'honor-receipt')
+    const heldSystems = systemOf(held.requests)
+    const unheldSystems = systemOf(unheld.requests)
+    expect(heldSystems.length).toBeGreaterThanOrEqual(2)
+    expect(new Set([...heldSystems, ...unheldSystems]).size).toBe(1)
+    expect(heldSystems[0]).not.toContain('Generation is on hold for this turn')
+    expect(held.parts.some(part => part.kind === 'tool-result' && part.text.includes('Generation is on hold for this turn'))).toBe(true)
+    expect(unheld.parts.some(part => part.kind === 'tool-result' && part.text.includes('Generation is on hold for this turn'))).toBe(false)
+  })
+
+  it.each(['request', 'direct'] as const)('blocks a forced batch in %s mode before presentation even when a model ignores the hold', async policy => {
+    const result = await run('只改参数，把每个镜头改成 8 秒', 'force-batch', ['shot-1', 'shot-2'], { policy })
+    expect(result.saved).toEqual([8, 8, 8, 8, 8, 8])
+    expect(result.submit).not.toHaveBeenCalled()
+    expect(result.parts.find(part => part.kind === 'tool-result' && part.toolCallId === 'generate-shots'))
+      .toMatchObject({ isError: true, text: expect.stringContaining('Generation is on hold for this turn') })
+  })
+
+  it('allows the same draft to generate after a new explicit request', async () => {
+    const result = await run('先别生成，把每个镜头改成 8 秒', 'force-batch', ['shot-1', 'shot-2'], { nextPrompt: 'Generate shot 1 now' })
+    expect(result.saved).toEqual([8, 8, 8, 8, 8, 8])
+    expect(result.submit).toHaveBeenCalledExactlyOnceWith({ operation: 'present', operationId, shotIds: ['shot-1'] })
+  })
+
+  it.each([
+    ['把每个镜头改成 8 秒并直接生成', 'force-batch', ['shot-1', 'shot-2']],
+    ['Generate shot 1 now', 'generate', ['shot-1']],
+    ['生成一张不要带文字水印的海报', 'generate', undefined],
+    ['生成一张海报，不要生成文字水印。', 'generate', undefined],
+    ['Generate a poster. Do not generate text watermarks.', 'generate', undefined],
+  ] as const)('preserves explicit generation for %s', async (prompt, mode, shotIds) => {
+    const result = await run(prompt, mode, shotIds ? [...shotIds] : undefined)
+    if (mode === 'force-batch') expect(result.saved).toEqual([8, 8, 8, 8, 8, 8])
+    expect(result.submit).toHaveBeenCalledExactlyOnceWith({ operation: 'present', operationId, ...(shotIds ? { shotIds } : {}) })
+  })
+
+  it.each([
+    '先不要生成', '先别出图', '先别跑', '不要生成视频',
+    'do not generate', 'Draft only', 'Edit the shots without generating.',
+    'Please don’t generate the shots yet.',
+  ])('recognizes explicit draft-only wording %s', prompt => {
+    expect(holdsTurnGeneration(prompt)).toBe(true)
+  })
+
+  it.each([
+    '生成一张印着「先别生成」的海报', 'Generate a poster that says "do not generate."',
+    'Generate a poster without generating text watermarks.',
+    'Generate images without generating videos.',
+  ])('leaves visual prompt content alone in %s', prompt => {
+    expect(holdsTurnGeneration(prompt)).toBe(false)
+  })
+})
 
 describe('deferred desktop domain authority', () => {
   it.each(['generation', 'export'] as const)('C17: explicit %s reads and cancels only its owner even when raw IDs collide', async domain => {

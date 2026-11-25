@@ -412,7 +412,7 @@ export const zhGenerationCommon = {
       },
       referenceUnfetchable: {
         reason: '模型取不到参考图',
-        hint: '模型那边取不到这张参考图的链接，可能已过期或被拦。点「重试」时，Nomi 会尽量改用你电脑上的原图上传后再发。还是不行就换个模型；这张图本机没有原文件的话，换一张或重新生成。',
+        hint: '模型读取参考图链接时失败了。点「重试」会再提交一次。若模型仍然读不到，请换一张参考图或换个模型。',
       },
       assetInvalid: {
         reason: '参考素材本身有问题',
@@ -800,8 +800,8 @@ export const zhGenerationCommon = {
     // 设置页那条是整句（要解释「所以我没动你的开关」），下拉里只放得下这几个字——
     // 长一点就会把模型名挤没（2026-09-06 实测）。同一件事、两个长度，不是两份判据。
     unlisted: '暂未列出',
-    noVendorConnected: '还没接入供应商',
-    connectVendorAction: '去接入',
+    noVendorConnected: '还没连模型',
+    connectVendorAction: '连接模型',
     // 模型框底部脚注：列表变短了要说出来，否则「我藏的」和「坏了」在屏幕上长得一样。
     // 模型框最后一行「隐藏模型 N」：点它去设置里的模型顺序页（N = 眼下被收起的行数）。
     hiddenModels: '隐藏模型 {{count}}',
@@ -1396,6 +1396,24 @@ export const zhGenerationCommon = {
     nodeChange: '{{expected}} → {{actual}}',
     approvedActual: '批准「{{expected}}」· 实际「{{actual}}」',
     contentCaption: '这条分镜的画面校验完了——下面这几镜跟设定/描述对不上，其它镜都正常。',
+    contentPartialCaption: '画面审片部分完成——下面标红的镜头跟设定/描述对不上，另有镜头没审成（不代表已通过）。',
+    unverifiedOnlyCaption_one: '{{count}} 镜没审成，不代表已通过',
+    unverifiedOnlyCaption_other: '{{count}} 镜没审成，不代表已通过',
+    unverifiedLabel: '未校验',
+    unverifiedShotStatus: '这一镜没审成',
+    showReasons: '查看原因',
+    hideReasons: '收起原因',
+    recheckShort: '重审',
+    acceptShort: '照用',
+    recheckAll: '全部重审',
+    acceptAll: '照用这 {{count}} 镜',
+    unverifiedReasons: {
+      vision_unavailable: '当前模型不支持看图审片',
+      missing_frame_source: '还没拿到这一镜的画面',
+      frame_extract_failed: '从视频里取画面没成功',
+      judge_failed: '这次审片请求没跑通',
+      invalid_verdict_json: '审片模型的回答读不出来',
+    },
     structuralCaption: '你批准的计划里，下面这些没按计划生效；其它节点都已正常应用。',
     aria: '执行与批准的出入',
     exhausted: '已尽力修过了——剩下这些请手动调整这几镜。',
@@ -1529,6 +1547,21 @@ export const zhGenerationCommon = {
       noSkills: '未记录技能证据',
       updatedAt: '最近更新',
       stageStatus: { pending: '待开始', running: '进行中', awaiting_gate: '等待确认', completed: '已完成', needs_attention: '需要处理', cancelled: '已取消' },
+    },
+    qa: {
+      partialStatus: '部分校验',
+      allPassed_one: '审片完成：{{count}} 镜全部过检',
+      allPassed_other: '审片完成：{{count}} 镜全部过检',
+      allUnverified_one: '这一镜没审成，不代表已通过',
+      allUnverified_other: '{{count}} 镜没审成，不代表已通过',
+      partialUnverified_one: '{{total}} 镜里 {{count}} 镜没审成，不代表已通过',
+      partialUnverified_other: '{{total}} 镜里 {{count}} 镜没审成，不代表已通过',
+      flaggedOnly: '审片完成：{{passed}}/{{total}} 镜过检，{{flagged}} 镜红标（{{dims}}）',
+      flaggedAndUnverified: '{{total}} 镜里 {{flagged}} 镜与设定不符（{{dims}}），另有 {{unverified}} 镜没审成',
+      skipped: '这次没跑画面审片，不代表已通过',
+      fallbackReason: '没能完成这一镜的画面检查',
+      fallbackDimension: '画面偏差',
+      listSeparator: '、',
     },
     artifactKind: {
       brief: '制作摘要', direction: '创意方向', script: '脚本', storyboard: '分镜', image: '图片', video: '视频', audio: '声音', timeline: '时间轴', export: '成片',
@@ -2196,7 +2229,7 @@ export const enGenerationCommon = {
       },
       referenceUnfetchable: {
         reason: 'The model could not fetch a reference image',
-        hint: "The model could not fetch this reference image's link. It may have expired or been blocked. When you retry, Nomi tries to upload the original file from your computer and send that instead. If it still fails, switch models. If the image has no local file, replace it or generate it again.",
+        hint: "The model could not open the reference image link. Select Retry to submit again. If the model still cannot open it, choose another reference image or switch models.",
       },
       assetInvalid: {
         reason: 'The reference asset itself is invalid',
@@ -2560,7 +2593,7 @@ export const enGenerationCommon = {
     provider: 'Provider',
     // EN 串长 1.5–2 倍：'not listed now' 在这个下拉里实测被截成「not listed…」（zh/en 双轨真截图）。
     unlisted: 'unlisted',
-    noVendorConnected: 'No provider connected yet',
+    noVendorConnected: 'No model connected yet',
     connectVendorAction: 'Connect',
     hiddenModels: 'Hidden models {{count}}',
     modelLine: {
@@ -3144,6 +3177,25 @@ export const enGenerationCommon = {
     approvedActual: 'Approved “{{expected}}” · actual “{{actual}}”',
     contentCaption:
       'Visual verification is complete. The shots below do not match their established details or descriptions; the others look normal.',
+    contentPartialCaption:
+      'Visual check finished partially. The flagged shots below do not match the brief, and the remaining listed shots were not checked.',
+    unverifiedOnlyCaption_one: '{{count}} shot not checked, not confirmed as passing',
+    unverifiedOnlyCaption_other: '{{count}} shots not checked, not confirmed as passing',
+    unverifiedLabel: 'Not checked',
+    unverifiedShotStatus: 'This shot wasn’t checked',
+    showReasons: 'Why',
+    hideReasons: 'Hide',
+    recheckShort: 'Re-check',
+    acceptShort: 'Use',
+    recheckAll: 'Re-check all',
+    acceptAll: 'Use all {{count}}',
+    unverifiedReasons: {
+      vision_unavailable: 'Current model cannot inspect images',
+      missing_frame_source: 'No frame available for this shot',
+      frame_extract_failed: 'Could not extract a video frame',
+      judge_failed: 'The check request did not complete',
+      invalid_verdict_json: 'Could not read the check model’s reply',
+    },
     structuralCaption: 'The items below did not apply as approved; all other nodes were applied normally.',
     aria: 'Differences between execution and approval',
     exhausted: 'AI has done all it can. Please adjust the remaining shots manually.',
@@ -3275,6 +3327,21 @@ export const enGenerationCommon = {
       noSkills: 'No skill evidence recorded',
       updatedAt: 'Last updated',
       stageStatus: { pending: 'Pending', running: 'Running', awaiting_gate: 'Approval needed', completed: 'Complete', needs_attention: 'Needs attention', cancelled: 'Cancelled' },
+    },
+    qa: {
+      partialStatus: 'Partially checked',
+      allPassed_one: 'QA complete: 1 shot passed',
+      allPassed_other: 'QA complete: all {{count}} shots passed',
+      allUnverified_one: 'This shot wasn’t checked, not confirmed as passing',
+      allUnverified_other: '{{count}} shots weren’t checked, not confirmed as passing',
+      partialUnverified_one: '{{count}} of {{total}} shots wasn’t checked, not confirmed as passing',
+      partialUnverified_other: '{{count}} of {{total}} shots weren’t checked, not confirmed as passing',
+      flaggedOnly: 'QA complete: {{passed}}/{{total}} shots passed, {{flagged}} flagged ({{dims}})',
+      flaggedAndUnverified: '{{flagged}} of {{total}} shots flagged ({{dims}}); {{unverified}} not checked',
+      skipped: 'Visual check skipped, not confirmed as passing',
+      fallbackReason: 'Could not complete the visual check',
+      fallbackDimension: 'Visual mismatch',
+      listSeparator: ', ',
     },
     artifactKind: {
       brief: 'Production brief', direction: 'Direction', script: 'Script', storyboard: 'Storyboard', image: 'Image', video: 'Video', audio: 'Audio', timeline: 'Timeline', export: 'Final video',

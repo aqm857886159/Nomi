@@ -2,7 +2,7 @@ import type { GenerationCanvasNode } from '../generationCanvas/model/generationC
 import type { DesktopProductionRunBridge } from '../../desktop/productionRunBridgeTypes'
 import { executeProductionRunCommand } from './productionRunCommands'
 
-export type ReattachReportApi = Pick<DesktopProductionRunBridge, 'read' | 'command'>
+type ReattachReportApi = Pick<DesktopProductionRunBridge, 'read' | 'command'>
 
 function shotIdOf(node: GenerationCanvasNode): string | null {
   const meta = node.meta as Record<string, unknown> | undefined

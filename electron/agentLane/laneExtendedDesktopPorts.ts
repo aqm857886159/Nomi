@@ -25,6 +25,7 @@ import type { GenerationInvocationContext } from '../shared/agentCapabilities/ge
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
 import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels'
 import type { DraftShotModelDefaults } from '../shared/agentCapabilities/verbs/draftShotsProjection'
+import { recordTurnGenerationHold, TURN_GENERATION_HOLD_MESSAGE, TURN_GENERATION_HOLD_NEXT } from './turnGenerationHold'
 
 type Prepared =
   | { kind: 'timeline'; value: PreparedTimelineWrite }
@@ -189,6 +190,9 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       if (!spec) return
       if (disposed || signal.aborted) rejectPreparation('capability_cancelled')
       if (pending.has(wire.toolCallId)) rejectPreparation('capability_authority_invalid')
+      if (wire.toolName === 'generate' && input.context?.()?.generationHeld) throw new LaneDomainFailure({
+        code: 'generation_held_by_user', message: TURN_GENERATION_HOLD_MESSAGE, nextAction: TURN_GENERATION_HOLD_NEXT,
+      })
       // 契约 parse 失败抛的是裸 `ZodError`：由 lane 宿主的 before_tool 边界（`laneToolInputBoundary`）
       // 换成和 pi 校验同一份「哪个字段 · 该填什么」正文并记进熔断——这里不再各自包一层。
       const call = { ...wire, args: spec.schema.parse(wire.args) }
@@ -296,6 +300,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       }
       // 另外两种结局（用户打了字 / 回合被停下）同样不是「不要这份草稿」：收回的只是这一次出价（没决定的镜不生成），计划留着。
       if (outcome.kind === 'redirected') {
+        recordTurnGenerationHold(input.context?.(), outcome.text)
         await generation.withdrawPresentation(operationId, 'user_wrote')
         const shots = await generation.readPresentationOutcome(operationId)
         return decided({ outcome: 'redirected', userSaid: outcome.text, ...(shots ? { shots } : {}) })
@@ -376,7 +381,7 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
     return result
   }
 
-  return { tools: createExtendedLaneTools({ execute }), toolLifecycle, groups: LANE_DEFERRED_TOOL_GROUPS,
+  return { tools: createExtendedLaneTools({ execute, isGenerationHeld: () => Boolean(input.context?.()?.generationHeld) }), toolLifecycle, groups: LANE_DEFERRED_TOOL_GROUPS,
     dispose() { disposed = true; pending.clear() },
   }
 }

@@ -18,3 +18,21 @@ export type VendorAccountBalance = {
   /** Epoch ms when main process fetched this snapshot. */
   fetchedAt: number;
 };
+
+/** Values reported at one endpoint. A nonzero balance amount alone has no known unit. */
+export type VendorReportedBalance = {
+  remainCredits: number | null;
+  reportedBalance: number | null;
+  unlimited: boolean;
+};
+
+export type VendorBalanceFailure = "offline" | "invalid" | "unavailable";
+
+export type VendorBalanceCheck =
+  | { status: "received"; keyQuota: VendorReportedBalance | null; accountBalance: VendorReportedBalance | null }
+  | { status: VendorBalanceFailure };
+
+/** Local shape check shared by the APIMart input and its main-process write boundary. */
+export function isApimartKeyCandidate(key: string): boolean {
+  return /^sk-\S+$/.test(key);
+}

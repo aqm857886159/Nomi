@@ -1,3 +1,4 @@
+import { ApimartConnectedHint } from '../../../ui/onboarding/ApimartConnectedHint'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -482,6 +483,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           参数区是**摘要 pill**（同日 02:10 的逐参数 chip 于 04:30 被用户收回）。
           `flex-nowrap`：排不下不靠换行解决，靠别往这一排里塞第四件。
           `data-node-composer-footer` / `data-bar-segment` 是走查锚点，好断言「单行 + 段序没漂」。 */}
+      {!readOnly && <ApimartConnectedHint />}
       {!readOnly && (
         <NodeParameterControls
           node={node}
@@ -534,6 +536,11 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
               disabled: !canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null,
               onClick: handleGenerate,
             },
+            connectTooltip: nodeExecutionKind === 'image'
+              ? t('onboardingProviders.entries.composerTooltipImage')
+              : nodeExecutionKind === 'video'
+                ? t('onboardingProviders.entries.composerTooltipVideo')
+                : t('onboardingProviders.entries.composerTooltipGeneric'),
           }}
         />
       )}
