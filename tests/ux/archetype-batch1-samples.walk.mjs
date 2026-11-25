@@ -9,11 +9,12 @@
 //      主进程在付费闸之前拒，拒收原话按槽名说清缺什么；夹具一笔都没收到。
 // 开跑前先核产物（构建戳 = 现在的源码、产物里有本修复的字面量），不在旧构建上白跑。
 // 夹具对每一笔视频提交回 400（受理那一步就拒），请求体照样记下、节点马上回到可发状态，不必等出片。
-// 截图：NOMI_SHOTS_OUT（绝对路径）给了就把每幕的截图另抄一份过去（证据目录用），不给只留在走查自己的产物目录。
+// 截图和报告落在本次走查的隔离目录。
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { clickOrFail, expect, expectHidden, expectVisible, screenshotSettled } from './_assert.mjs'
 import { SPEND_DIALOG, assertPaidBuildReady } from './_paidRun.mjs'
@@ -23,7 +24,7 @@ import { bringButtonIntoReach } from './_generateReach.mjs'
 import { backToLibrary, collapseAgentPanel } from './_shell.mjs'
 import { pickModeByName, readModeCell } from './_modeMenu.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
-import { uiText } from './full-walk/invariants.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // 主进程产物（dist-electron）不压缩：拒收机读码和判定函数名原样留在产物里；修前的构建里都没有。
@@ -31,8 +32,9 @@ const BUILD_MARKERS = ['mode_input_missing', 'validateModeConstraints']
 // 主进程文案按键取（不抄词典原文）；档案槽名的中文就是 desktopT 里的 slotKind 中文。
 const { desktopT } = tsxRequire('../../electron/desktopStrings.ts', import.meta.url)
 const DESKTOP_LOCALE = { zh: 'zh-CN', en: 'en' }
-const OUT = process.env.NOMI_SHOTS_OUT && path.isAbsolute(process.env.NOMI_SHOTS_OUT) ? process.env.NOMI_SHOTS_OUT : null
-if (OUT) fs.mkdirSync(OUT, { recursive: true })
+const evidenceDir = makeTempDir('nomi-archetype-batch1-evidence-')
+process.env.NOMI_WALK_OUT = evidenceDir
+process.env.EVIDENCE_DIR = evidenceDir
 const H3MAX = { modelKey: 'MiniMax-H3-Max', modelVendor: 'apimart', vendor: 'apimart', archetype: { id: 'minimax-h3-max', modeId: 'ref' } }
 const KLING = { modelKey: 'kling-v4-flash', modelVendor: 'apimart', vendor: 'apimart', archetype: { id: 'kling-v4-flash', modeId: 'ref' }, audio_setting: 'origin', duration: 5 }
 const ORIGIN_LABEL = { zh: '保留原声', en: 'Keep original audio' }
@@ -60,8 +62,14 @@ async function select(id) {
 async function shot(round, name) {
   const file = path.join(walk.outputDir, `${round}-${name}.png`)
   await screenshotSettled(win, { path: file })
-  if (OUT) fs.copyFileSync(file, path.join(OUT, `${round}-${name}.png`))
   return file
+}
+
+async function readSendTooltip(button) {
+  await button.hover()
+  const tooltip = win.locator('[data-send-cost-hover]:visible')
+  await expectVisible(tooltip, '发送按钮悬停说明', stationTimeout({ operations: 1 }))
+  return tooltip.innerText()
 }
 
 /** 开参数面板，截一张、读面板文字，收起。 */
@@ -80,7 +88,7 @@ async function panelText(id, round, name) {
 async function send(id, label) {
   const before = walk.fixture.videos.length
   const button = generateOf(id)
-  if (await button.isDisabled()) return { sent: false, reason: await button.locator('xpath=..').getAttribute('title').catch(() => null) }
+  if (await button.isDisabled()) return { sent: false, reason: await readSendTooltip(button) }
   await bringButtonIntoReach(win, button, `${label} 的 ↑`)
   await clickOrFail(button, `${label} 的 ↑`, { noWaitAfter: true })
   const dialog = win.locator(SPEND_DIALOG)
@@ -167,13 +175,18 @@ async function runRound({ locale, lang, scheme }) {
     const before = walk.fixture.videos.length
     const button = generateOf(h3)
     const disabled = await button.isDisabled()
-    const title = await button.locator('xpath=..').getAttribute('title').catch(() => null)
+    const tooltip = await readSendTooltip(button)
+    const companionLabels = ['referenceImage', 'referenceVideo'].map((key) => uiText(locale, `assetLibrary.${key}`))
+    const disabledReason = uiTextWith(locale, 'generationCommon.composer.referenceCompanionRequired', {
+      slot: uiText(locale, 'assetLibrary.referenceAudio'),
+      companions: companionLabels.join(uiText(locale, 'generationCommon.composer.companionOr')),
+    })
     const file = await shot(round, '01-h3max-audio-only')
     const problems = []
     if (!disabled) problems.push('只连声音时 ↑ 没有置灰')
-    if (!title) problems.push('置灰的 ↑ 上没有说明')
+    if (!tooltip.includes(disabledReason)) problems.push('置灰的 ↑ 没有说明参考音频需要搭配图或视频')
     if (walk.fixture.videos.length !== before) problems.push('夹具收到了提交')
-    record(round, '01-h3max-audio-only', { disabled, title, file }, problems)
+    record(round, '01-h3max-audio-only', { disabled, tooltip, file }, problems)
   }
   await connect(image, h3)
   await select(h3)

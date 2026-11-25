@@ -6,7 +6,7 @@
 // audio 是一种可参考资产类型，不管目标模型声明了什么。
 //
 // 这个走查验的是**真实画布连线 → composer 判定 → 请求体字段**这条完整链路，不是单测里的纯函数：
-// ① 先证明零参考时按钮确实是灰的（探针基线）；
+// ① 先证明零参考不能选全能参考，发送按钮走文生方式（探针基线）；
 // ② 只连音频参考边 → 仍是灰的，但原因必须是「Seedance 2.0 的音频不能单独用，需要搭配图/视频」
 //    （供应商文档明写的跨槽依赖），不能是「根本连不上」——两者体感完全不同，前者是诚实的产品
 //    约束，后者是本次修的 bug；
@@ -16,156 +16,165 @@
 //    不是识别对了、真发的时候又在半路被丢（字段名不 hardcode——不同 archetype 给 audio_ref
 //    槽声明的 inputKey 不同，如 dreamina 是 mm_audios，见④步内的说明）。
 //
-// 走查不挑死具体是哪个供应商/模型：新建视频节点后端目录给的默认模型是什么就用什么，只要它像
-// 用户报的现场一样声明了「全能参考」模式 + audio_ref 槽——验的是共享门岗，不是某个特定供应商。
+// 目录夹具用 Seedance 2.0 的档案复现音频槽的跨槽约束。请求字段仍从实际选择的档案读取。
 //
 // 用法：node tests/ux/audio-reference-connect.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, clickOrFail, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
-import { spawn } from 'node:child_process'
 import fs from 'node:fs'
-import http from 'node:http'
 import path from 'node:path'
-import { newProjectEntry } from './_shell.mjs'
+import { require as tsxRequire } from 'tsx/cjs/api'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { newProjectEntry, switchWorkspace } from './_shell.mjs'
+import { bringButtonIntoReach } from './_generateReach.mjs'
+import { closeModeMenu, modeCell, modeName, openModeMenu, pickMode } from './_modeMenu.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-const repoRoot = process.cwd()
-const port = 5292
-const baseUrl = `http://127.0.0.1:${port}`
-const tempRoot = path.join(repoRoot, '.tmp', 'nomi-audio-reference-connect')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/audio-reference-connect')
-for (const dir of [tempRoot, shotsDir]) {
-  fs.rmSync(dir, { recursive: true, force: true })
-  fs.mkdirSync(dir, { recursive: true })
-}
-
-const waitForUrl = (url, timeoutMs = 60_000) => new Promise((resolve, reject) => {
-  const deadline = Date.now() + timeoutMs
-  const poll = () => {
-    const request = http.get(url, (response) => { response.destroy(); resolve(true) })
-    request.on('error', () => (Date.now() > deadline ? reject(new Error('Vite 未就绪')) : setTimeout(poll, 300)))
-    request.setTimeout(1200, () => request.destroy())
-  }
-  poll()
+const shotsDir = makeTempDir('nomi-audio-reference-evidence-')
+process.env.EVIDENCE_DIR = shotsDir
+const locale = 'zh-CN'
+const { buildWorld } = tsxRequire('../world/index.ts', import.meta.url)
+const { SEEDANCE_2_MODEL_SEED, SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING, SEEDANCE_2_TEXT_TO_VIDEO_MAPPING } =
+  tsxRequire('../../electron/catalog/kieSeedance.ts', import.meta.url)
+const modelLabel = 'Seedance Reference Fixture'
+const vendor = 'reference-fixture'
+const world = buildWorld({
+  projects: [],
+  catalog: {
+    vendors: [{ key: vendor, name: 'Local Fixture', enabled: true, authType: 'none', providerKind: 'openai-compatible', baseUrlHint: 'http://127.0.0.1:1' }],
+    models: [{
+      ...SEEDANCE_2_MODEL_SEED, vendorKey: vendor, labelZh: modelLabel, enabled: true, meta: { archetypeId: 'seedance-2' },
+    }],
+    mappings: [SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING, SEEDANCE_2_TEXT_TO_VIDEO_MAPPING].map((mapping) => ({
+      ...mapping, id: `${vendor}-${mapping.taskKind}`, vendorKey: vendor, modelKey: SEEDANCE_2_MODEL_SEED.modelKey, enabled: true,
+    })),
+  },
 })
 
-const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port)], {
-  cwd: repoRoot,
-  env: { ...process.env },
-  stdio: 'ignore',
+const { app, win: library } = await launchNomiApp({
+  name: 'audio-reference-connect',
+  world,
+  initialLocalStorage: {
+    __nomiE2E: '1',
+    'nomi:locale:v1': locale,
+    'nomi-color-scheme': 'dark',
+    'nomi:splash:v1': 'seen',
+    'nomi:journey-tour:v1': 'seen',
+    'nomi:canvas-gesture-hint:v1': 'seen',
+  },
 })
-
-let app
+let win
 let failed = null
 try {
-  await waitForUrl(baseUrl)
-  let win
-  // 单次冷启动：onboarding/splash/tour 三个 localStorage 开关用 initialLocalStorage 在**首次
-  // 文档创建前**注入（tests/ux/_launchApp.mjs 的 preload script 机制），不需要「起一次→手写
-  // localStorage→关掉→再起一次」的旧写法（那条路径在本机重负载下会撞见 Electron 关闭
-  // 未完全释放时二次起进程的已知不稳定，见 2026-09-11 环境记录）。语义等价：跳过的是同样三个
-  // 开关，只是注入时机从「运行时写入」提前到「预加载脚本」，结果一致、少一次进程生灭。
-  ;({ app, win } = await launchNomiApp({
-    name: 'audio-reference-connect',
-    userDataDir: path.join(tempRoot, 'user-data'),
-    settingsDir: path.join(tempRoot, 'settings'),
-    projectsDir: path.join(tempRoot, 'projects'),
-    env: { NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: baseUrl },
-    initialLocalStorage: {
-      __nomiE2E: '1',
-      'nomi-color-scheme': 'dark',
-      'nomi:splash:v1': 'seen',
-      'nomi:journey-tour:v1': 'seen',
-      'nomi:canvas-gesture-hint:v1': 'seen',
-    },
-    settleMs: 1800,
-  }))
+  await clickOrFail(newProjectEntry(library), '新建空白项目', { noWaitAfter: true })
+  const projectWindow = () => app.windows().find((page) => /[?&]projectId=/.test(page.url()))
+  await expect.poll(() => Boolean(projectWindow())).toBe(true)
+  win = projectWindow()
+  await switchWorkspace(win, 'generation')
+  await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   const snap = async (name) => { await screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) }) }
 
-  for (let i = 0; i < 4; i += 1) { await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(160) }
-  await clickOrFail(newProjectEntry(win), '新建空白项目', { noWaitAfter: true })
-  await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
-  await clickOrFail(win.locator('[data-mode="generation"]'), '生成 tab')
-  await win.waitForTimeout(1200)
+  const projectId = (/[?&]projectId=([^&#]+)/.exec(win.url()))[1]
+  const projects = await win.evaluate(() => window.nomiDesktop.projects.listAsync())
+  const project = projects.find((entry) => entry.id === projectId)
+  if (!project?.rootPath || path.relative(world.projectsDir, project.rootPath).startsWith('..')) {
+    throw new Error('走查没有找到新建项目的隔离目录')
+  }
+  const assets = path.join(project.rootPath, 'assets', 'imported')
+  fs.mkdirSync(assets, { recursive: true })
+  const audioFile = 'real-narration.mp3'
+  const imageFile = 'test-upload.png'
+  for (const file of [audioFile, imageFile]) {
+    fs.copyFileSync(new URL(`./fixtures/${file}`, import.meta.url), path.join(assets, file))
+  }
+  const audioUrl = `nomi-local://asset/${projectId}/assets/imported/${audioFile}`
+  const imageUrl = `nomi-local://asset/${projectId}/assets/imported/${imageFile}`
 
   // 注入用户现场：一个视频镜头节点 + 一个「声音」节点（用户报的原话就是"声音节点"，不是泛义的
-  // 导入音频素材）+ 一张本机图片素材。不挑具体模型/vendor——新建的视频节点会拿到目录里某个默认
-  // 模型（隔离测试 profile 下实测是即梦 Seedance，但这条走查不依赖具体是哪一个：只要它和用户报的
-  // bug 现场一样声明了「全能参考」模式 + audio_ref 槽即可，验的是共享门岗（anchorPolicy.ts +
-  // referenceEdgeCapability.ts），不是某个特定供应商——挑死一个 vendor 反而是特例化断言（P4）。
-  // 不直接往 meta 塞 archetype：那个字段这条渲染链路根本不读（真相源是
-  // resolveArchetypeForOption(selectedModelOption)，只认「模型下拉真选中的那个 ModelOption」）。
-  const ids = await win.evaluate(async () => {
-    const m = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
-    const store = m.useGenerationCanvasStore.getState()
+  // 导入音频素材）+ 一张本机图片素材。模型经生成框下拉选择，解析和门岗走真实生产链路。
+  const ids = await win.evaluate(({ audioUrl, imageUrl }) => {
+    const store = window.__nomiCanvasStore.getState()
     const shot = store.addNode({ kind: 'video', title: '镜头 1', position: { x: 620, y: 260 } })
-    store.updateNode(shot.id, { prompt: '生成一段有趣的视频' })
     const voice = store.addNode({ kind: 'audio', title: '声音 1', position: { x: 160, y: 160 } })
-    store.updateNode(voice.id, { result: { type: 'audio', url: 'nomi-local://asset/proj/voice.mp3' } })
-    const face = store.addNode({ kind: 'asset', title: '本机图片', position: { x: 160, y: 360 } })
-    store.updateNode(face.id, { result: { type: 'image', url: 'nomi-local://asset/proj/face.png' } })
+    const voiceResult = { id: `${voice.id}-result`, type: 'audio', url: audioUrl, createdAt: 1 }
+    store.updateNode(voice.id, { status: 'success', result: voiceResult, history: [voiceResult] })
+    const face = store.addNode({ kind: 'asset', title: '本机图片', position: { x: 160, y: 360 }, meta: { source: 'asset-upload' } })
+    const faceResult = { id: `${face.id}-result`, type: 'image', url: imageUrl, createdAt: 1 }
+    store.updateNode(face.id, { status: 'success', result: faceResult, history: [faceResult] })
     store.selectNode(shot.id)
     return { shot: shot.id, voice: voice.id, face: face.id }
-  })
-  await win.waitForTimeout(1200)
+  }, { audioUrl, imageUrl })
 
-  // 真进「全能参考」模式（同 omni-video-reference-gate.walk.mjs 的教训：注入的 modeId 会被档案
-  // 解析归一，必须点真实 tab 再断言选中，不能信注入值）。「全能参考」是 vendorTerm，多个视频档案
-  // （seedance-2 / dreamina-seedance-2 / seedance-2-apimart…）各自独立声明这同一个人话标签，
-  // 不是同一个 archetype id——tab 按文字找，不 hardcode 具体是哪个 archetype。
-  const omniTab = win.locator('button[aria-pressed]', { hasText: uiText('zh-CN', 'generationCommon.modeMenu.name.reference') }).first()
-  await clickOrFail(omniTab, '全能参考 模式 tab')
-  await expect(omniTab, '点了「全能参考」但它没被选中——后面的断言就不是这个模式的现场了')
-    .toHaveAttribute('aria-pressed', 'true', { timeout: DEFAULT_TIMEOUT_MS })
+  const composer = win.locator(`[data-node-id="${ids.shot}"] .generation-canvas-v2-node__composer`)
+  const model = composer.getByRole('button', { name: uiText(locale, 'generationCommon.parameters.model'), exact: true })
+  await expect(model).toBeVisible()
+  await bringButtonIntoReach(win, model, '选择声明音频伴随约束的夹具模型')
+  await model.click()
+  const standardModel = win.locator('[data-nomi-select-option-label]', { hasText: new RegExp(`^${modelLabel}$`) })
+  await win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: standardModel }).click()
+  await expect(model).toContainText(modelLabel)
+  await expect(modeCell(composer, locale)).toBeVisible()
+  const assertReferenceMode = async () => {
+    const rows = await openModeMenu(win, composer, locale)
+    expect(rows.filter((row) => row.checked).map((row) => row.name), '视频节点当前方式是全能参考')
+      .toEqual([modeName(locale, 'reference')])
+    await closeModeMenu(win)
+  }
+  const generateButton = composer.locator('button[data-bar-segment="generate"]')
+  const readSendExplanation = async () => {
+    const parent = generateButton.locator('xpath=..')
+    if ((await parent.getAttribute('data-send-cost-trigger')) === null) return (await parent.getAttribute('title')) ?? ''
+    await generateButton.hover()
+    const tooltip = win.locator('[data-send-cost-hover]:visible')
+    await expect(tooltip).toBeVisible()
+    return tooltip.innerText()
+  }
 
-  const generateButton = win.getByRole('button', { name: /生成素材|重新生成/ }).first()
-
-  // ① 基线：零参考时确实是灰的。
-  await expect(generateButton, '全能参考零参考时，↑ 应当是禁用的（探针基线）').toBeDisabled({ timeout: DEFAULT_TIMEOUT_MS })
-  await snap('01-no-reference-disabled')
+  // ① 零参考时，参考发送在方式菜单就被拦住。已填的提示词可以按当前文生方式发送。
+  await composer.locator('[data-node-composer-prompt] [contenteditable="true"]').fill('生成一段有趣的视频')
+  const emptyModes = await openModeMenu(win, composer, locale)
+  expect(emptyModes.find((row) => row.name === modeName(locale, 'reference'))).toMatchObject({ disabled: true, checked: false })
+  expect(emptyModes.filter((row) => row.checked).map((row) => row.name)).toEqual([modeName(locale, 'text')])
+  await snap('01-reference-mode-unavailable')
+  await closeModeMenu(win)
+  await expect(generateButton, '有文字提示词后文生方式可发').toBeEnabled()
 
   // ② 只连声音节点（画布边）：用户报的第一个 bug——这条连线过去直接被画布拒绝，
   // 修复前这一步就会失败（connectNodes 静默不建边，下面的边计数断言会先红）。
-  const beforeEdgeCount = await win.evaluate(async () => {
-    const m = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
-    return m.useGenerationCanvasStore.getState().edges.length
-  })
-  await win.evaluate(async ({ shot, voice }) => {
-    const m = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
-    m.useGenerationCanvasStore.getState().connectNodes(voice, shot, 'reference')
+  const readEdgeCount = () => win.evaluate(() => window.__nomiCanvasStore.getState().edges.length)
+  const beforeEdgeCount = await readEdgeCount()
+  await win.evaluate(({ shot, voice }) => {
+    window.__nomiCanvasStore.getState().connectNodes(voice, shot, 'reference')
   }, ids)
-  await win.waitForTimeout(1200)
-  const afterVoiceEdgeCount = await win.evaluate(async () => {
-    const m = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
-    return m.useGenerationCanvasStore.getState().edges.length
-  })
+  const afterVoiceEdgeCount = await readEdgeCount()
   expect(afterVoiceEdgeCount, `声音节点 → 视频节点的参考边没能建上（before=${beforeEdgeCount} after=${afterVoiceEdgeCount}）——这正是用户报的「声音节点连不了视频节点」`)
     .toBe(beforeEdgeCount + 1)
+  await pickMode(win, composer, locale, 'reference')
+  await assertReferenceMode()
   await snap('02-voice-connected-still-disabled')
 
   // 只连音频这一刻，按钮该继续灰着——但灰的原因必须是「音频不能单独用」这个诚实的产品约束，
-  // 不是「连不上」。tooltip 挂在按钮外层容器上（同 omni-video-reference-gate 的读法）。
+  // 不是「连不上」。
   await expect(generateButton, '只连音频参考时 ↑ 应仍禁用（音频参考不能单独用，需搭配图/视频）').toBeDisabled({ timeout: DEFAULT_TIMEOUT_MS })
-  const voiceOnlyTitle = await generateButton.locator('xpath=..').getAttribute('title')
+  const voiceOnlyTitle = await readSendExplanation()
   expect(voiceOnlyTitle, `只连音频时 tooltip 应提示"参考音频"需要搭配图/视频，实际：${voiceOnlyTitle}`)
     .toMatch(/参考音频/)
   expect(voiceOnlyTitle, `只连音频时 tooltip 应说"不能单独使用"，实际：${voiceOnlyTitle}`)
     .toMatch(/不能单独使用/)
+  await snap('02b-voice-only-explanation')
+  await win.mouse.move(0, 0)
 
   // ③ 再连一张图片参考——这就是用户报的第二种形态「我有固定参考声音怎么办」的组合现场：
   // 音频 + 图片一起送，按钮必须能点。
-  await win.evaluate(async ({ shot, face }) => {
-    const m = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
-    m.useGenerationCanvasStore.getState().connectNodes(face, shot, 'reference')
+  await win.evaluate(({ shot, face }) => {
+    window.__nomiCanvasStore.getState().connectNodes(face, shot, 'reference')
   }, ids)
-  await win.waitForTimeout(1200)
-  await expect(omniTab, '断言时已经不在「全能参考」了（模式被什么东西改回去了）')
-    .toHaveAttribute('aria-pressed', 'true')
+  await assertReferenceMode()
   await expect(
     generateButton,
     '音频 + 图片参考都连上后 ↑ 仍被禁用——音频参考没有真正接入判定/发送链路。',
   ).toBeEnabled({ timeout: DEFAULT_TIMEOUT_MS })
-  const pairedTitle = await generateButton.locator('xpath=..').getAttribute('title')
+  const pairedTitle = await readSendExplanation()
   expect(pairedTitle, `配上图片参考后 tooltip 不该再提"不能单独使用"，实际：${pairedTitle}`).not.toMatch(/不能单独使用/)
   await snap('03-voice-plus-image-enabled')
 
@@ -175,35 +184,35 @@ try {
   // reference_audio_urls——archetype 可以给 audio_ref 槽声明自己的 inputKey（如 dreamina 的
   // mm_audios，见 electron/shared/videoCapabilities/dreaminaSeedance.ts），按 mode.slots 里
   // 那个 audio_ref 槽实际的 inputKey（缺省回落 reference_audio_urls）去参数对象里找。
-  const dryRunParams = await win.evaluate(async ({ shot }) => {
-    const canvasStore = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
-    const state = canvasStore.useGenerationCanvasStore.getState()
-    const node = state.nodes.find((n) => n.id === shot)
-    const { resolveGenerationReferences } = await import('/src/workbench/generationCanvas/runner/generationReferenceResolver.ts')
-    const { resolveModelArchetype, variantRecordedInMeta } = await import('/electron/shared/modelArchetypes/index.ts')
-    const { buildArchetypeInputParams, sendArchetypeMode } = await import('/src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts')
-    const references = resolveGenerationReferences(node, { nodes: state.nodes, edges: state.edges })
-    // 不 hardcode 具体是哪个 archetype——真机上新建视频节点默认拿到哪个模型由目录决定（隔离测试
-    // profile 下实测是即梦 Seedance，但这条走查不该跟着某个具体默认值绑死），按节点真实 meta 解析。
+  const { nodes, edges } = await win.evaluate(() => {
+    const state = window.__nomiCanvasStore.getState()
+    return { nodes: state.nodes, edges: state.edges }
+  })
+  const restoreWorld = world.activate()
+  try {
+    const { resolveGenerationReferences } = tsxRequire('../../src/workbench/generationCanvas/runner/generationReferenceResolver.ts', import.meta.url)
+    const { resolveModelArchetype, variantRecordedInMeta } = tsxRequire('../../electron/shared/modelArchetypes/index.ts', import.meta.url)
+    const { buildArchetypeInputParams, sendArchetypeMode } = tsxRequire('../../src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts', import.meta.url)
+    const node = nodes.find((candidate) => candidate.id === ids.shot)
+    const references = resolveGenerationReferences(node, { nodes, edges })
     const meta = node.meta || {}
     const archetype = resolveModelArchetype({ modelKey: meta.modelKey, modelAlias: meta.modelAlias, vendorKey: meta.modelVendor || meta.vendor, meta }, { variant: variantRecordedInMeta(meta, meta.modelKey) })
-    // 这次按哪种方式发：和发送路径同一个 owner（画布解析参考时现算过的那份）。
+    expect(archetype?.id, '干跑时解析不出 archetype——点「全能参考」时选的模型没能落进 node.meta').toBeTruthy()
     const mode = sendArchetypeMode(archetype, node, references)
     const params = buildArchetypeInputParams(meta, mode, references)
-    const audioSlot = mode.slots.find((s) => s.kind === 'audio_ref')
+    const audioSlot = mode.slots.find((slot) => slot.kind === 'audio_ref')
     const audioParamKey = audioSlot?.inputKey || 'reference_audio_urls'
-    return { archetypeId: archetype?.id, modeId: mode.id, params, audioParamKey, referenceAudios: references.referenceAudios }
-  }, ids)
-  expect(dryRunParams.archetypeId, '干跑时解析不出 archetype——点「全能参考」时选的模型没能落进 node.meta').toBeTruthy()
-  expect(dryRunParams.referenceAudios, '判定/显示侧的 referenceAudios 里没有这段声音节点的 URL').toContain('nomi-local://asset/proj/voice.mp3')
-  expect(dryRunParams.params[dryRunParams.audioParamKey], `请求参数 ${dryRunParams.audioParamKey} 应包含音频 URL，实际参数（archetype=${dryRunParams.archetypeId} mode=${dryRunParams.modeId}）：${JSON.stringify(dryRunParams.params)}`)
-    .toContain('nomi-local://asset/proj/voice.mp3')
-
-  console.log(`✅ 声音节点可连视频节点参考边、跨槽依赖提示正确、请求体${dryRunParams.audioParamKey}字段带音频 URL（archetype=${dryRunParams.archetypeId}）；截图见 tests/ux/shots/audio-reference-connect/`)
+    expect(references.referenceAudios, '判定/显示侧的 referenceAudios 里没有这段声音节点的 URL').toContain(audioUrl)
+    expect(params[audioParamKey], `请求参数 ${audioParamKey} 应包含音频 URL，实际参数（archetype=${archetype.id} mode=${mode.id}）：${JSON.stringify(params)}`)
+      .toContain(audioUrl)
+    console.log(`✅ 声音节点可连视频节点参考边、跨槽依赖提示正确、请求体${audioParamKey}字段带音频 URL（archetype=${archetype.id}）；截图：${shotsDir}`)
+  } finally {
+    restoreWorld()
+  }
 } catch (error) {
   failed = error
+  if (win) await win.screenshot({ path: path.join(shotsDir, 'FAIL.png') }).catch(() => {})
 } finally {
-  await app?.close().catch(() => {})
-  vite.kill('SIGTERM')
+  await app.close().catch(() => {})
 }
-if (failed) { console.error(`❌ ${failed.message}`); process.exit(1) }
+if (failed) { console.error(`❌ ${failed.stack || failed}`); process.exit(1) }

@@ -1,6 +1,6 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 画布框工具（Frame）第一档的真实用户任务串。
-// 用法: node tests/ux/canvas-frame.walk.mjs   产出: tests/ux/shots/canvas-frame/*.png
+// 用法: node tests/ux/canvas-frame.walk.mjs   截图落在仓库外的隔离证据目录。
 //
 // 走的是一件**用户真会做的事**，不是功能点巡检：
 //   按 F 画一个框 → 把 3 个镜头拖进去 → 给这段戏起个名 → 又把 1 个挪出去 →
@@ -18,22 +18,22 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
-import { findCanvasBlankPoint, findCanvasBlankRect, findNodeHitPoint } from './_canvasHit.mjs'
-import { expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
-import { canvasAddBar, canvasFitViewButton, canvasFrameToolButton, canvasFrameToolPressed, closeCanvasViewOptions, newProjectEntry, switchWorkspace } from './_shell.mjs'
+import { findCanvasBlankPoint, findCanvasBlankRect, findNodeHitPoint, panCanvasUntilInside } from './_canvasHit.mjs'
+import { expect, expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { canvasAddBar, canvasFitView, canvasFrameToolButton, canvasFrameToolPressed, closeCanvasViewOptions, newProjectEntry, switchWorkspace } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickFrameToolbarAction, frameBlankPosition, selectFrameByBlankClick } from './_groupFrame.mjs'
 import { GROUP_TOOLBAR } from './_groupGenerate.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-frame')
-fs.rmSync(shotsDir, { recursive: true, force: true })
+const shotsDir = makeTempDir('nomi-canvas-frame-evidence-')
+process.env.EVIDENCE_DIR = shotsDir
 const tempRoot = makeTempDir('nomi-canvas-frame-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
-for (const dir of [shotsDir, userDataDir, settingsDir, projectsDir]) fs.mkdirSync(dir, { recursive: true })
+for (const dir of [userDataDir, settingsDir, projectsDir]) fs.mkdirSync(dir, { recursive: true })
 
 const NOW = '2026-09-06T00:00:00.000Z'
 const VENDOR = 'frame-mock'
@@ -136,7 +136,7 @@ const frameLocator = (win) => win.locator('.generation-canvas-v2__group-box[data
  * 后面每一条「节点上有没有片子」「框还在不在」都会读到 0，看着像功能坏了。
  */
 async function fitView(win) {
-  await canvasFitViewButton(win).click()
+  await canvasFitView(win)
   await win.waitForTimeout(1200)
 }
 
@@ -284,6 +284,23 @@ try {
   check(nodeIds.length === 3, '三个视频镜头都建出来了', nodeIds.join(', '))
   // 适配视图：连建三张，后面的卡会被避让推出可见区（画布不再自己挪过去，只出边缘提示）。用户想看全三张
   // 也是先点一下「适应视图」把东西找回来——这一步既是真实动作，也是后面拖拽的前提。
+  // 整组生成沿用每个节点的模型。逐个经现行生成框选中本机夹具。
+  for (const id of nodeIds) {
+    await fitView(win)
+    const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${id}"]` })
+    if (!hit) throw new Error(`${id} 没有可选中的节点表面`)
+    await win.mouse.click(hit.x, hit.y)
+    const bulkModel = win.locator(`[data-node-id="${id}"] [data-node-composer-footer]`)
+      .getByRole('button', { name: uiText('zh-CN', 'generationCommon.parameters.model'), exact: true })
+    await expect(bulkModel).toBeVisible()
+    const pan = await panCanvasUntilInside(win, bulkModel)
+    if (!pan.ok) throw new Error(`模型选择入口移不到视口内：${JSON.stringify(pan)}`)
+    await bulkModel.click({ timeout: 6000 })
+    const mockOption = win.locator('[data-nomi-select-dropdown]:visible').getByRole('option', { name: /框走查视频/ })
+    await mockOption.waitFor({ timeout: 8000 })
+    await mockOption.click()
+    await expect(bulkModel).toContainText('框走查视频')
+  }
   await fitView(win)
   await snap(win, 'before-frame')
 
@@ -565,24 +582,10 @@ try {
   await expectCount(win.locator('.generation-canvas-v2__group-box[data-group-id]'), 1, '展开回框')
   await snap(win, 'expanded')
 
-  // ── ⑦ 把框里的镜头统一到 loopback 模型 ──
-  // 新建节点默认挂的是内置目录里的真供应商（没 key 会当场失败）。用户要用哪家模型本来
-  // 就得自己选一次；这里走的是浮条上「统一模型」那条现役路径，不走后门写 store。
-  // 用 ⌘A 全选当前分类（现役快捷键）而不是点框体：卡比框宽，两张一叠就把框面盖满了，
-  // 「点框空白处选中全组」在这一屏根本没有可点的空处——那是既有交互的边界，不是本轨要改的事。
-  await win.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a')
-  await win.waitForTimeout(700)
-  const bulkModel = win.locator('.generation-canvas-v2__selection-toolbar button[aria-label^="视频 ×"]').first()
-  await expectVisible(bulkModel, '全选后浮条上出现「统一模型」')
-  await bulkModel.click({ timeout: 6000 })
-  const mockOption = win.getByRole('option').filter({ hasText: '框走查视频' }).first()
-  await mockOption.waitFor({ timeout: 8000 })
-  await mockOption.click()
-  await win.waitForTimeout(900)
   await win.mouse.click(clearPoint.x, clearPoint.y)
   await win.waitForTimeout(500)
 
-  // ── ⑧ 工具条「生成整组」：整框生成（loopback 真出片）。框头「生成全部」与它是同一执行口 ──
+  // ── ⑦ 工具条「生成整组」：整框生成（loopback 真出片）。框头「生成全部」与它是同一执行口 ──
   await frameLocator(win).first().click({ position: await frameBlankPosition(frameLocator(win).first()) })
   await win.waitForTimeout(500)
   await expectVisible(win.locator(GROUP_TOOLBAR), '选中框后工具条出现')
@@ -597,15 +600,25 @@ try {
   check(true, '整框生成走的是浮条那一条批量确认卡（一份实现两个入口）')
   await snap(win, 'frame-generate-confirm')
   await spendDialog.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: 8000 })
-  // 等的是**真信号**（轨道上出现成片的节点），不是「睡够 2.5 秒应该好了」——
-  // 出片耗时随机器负载变，睡不够就读到空、还报绿（check:walkthroughs 拦的正是这一族）。
+  // 浏览态只挂封面。先摆全貌，等框里的两张出片，再单选第一张、悬停第二张打开两个播放器。
+  await fitView(win)
+  const memberSelectors = nodeIds.slice(0, 2).map((id) => `.react-flow__node[data-id="${id}"]`)
+  for (const selector of memberSelectors) {
+    await expect(win.locator(selector).locator('[data-status]')).toHaveAttribute('data-status', 'success', {
+      timeout: stationTimeout({ operations: 4 }),
+    })
+  }
+  const firstHit = await findNodeHitPoint(win, { nodeSelector: memberSelectors[0] })
+  if (!firstHit) throw new Error('第一张成片没有可选中的节点表面')
+  await win.mouse.click(firstHit.x, firstHit.y)
+  const secondHit = await findNodeHitPoint(win, { nodeSelector: memberSelectors[1] })
+  if (!secondHit) throw new Error('第二张成片没有可悬停的节点表面')
+  await win.mouse.move(secondHit.x, secondHit.y)
   await win.waitForFunction(
     () => Array.from(document.querySelectorAll('.react-flow__node video')).length >= 2,
     undefined,
     { timeout: 120_000 },
-  ).catch(() => {})
-  // 生成期间用户（和上面的拖拽）可能已把视口挪开，而 onlyRenderVisibleElements 让视口外的节点连 DOM 都没有。
-  await fitView(win)
+  )
   if (process.env.FRAME_DEBUG) {
     console.log('    debug nodes', JSON.stringify(await win.evaluate(() =>
       Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((node) => ({
@@ -614,12 +627,15 @@ try {
         text: (node.textContent || '').replace(/\s+/g, ' ').slice(0, 160),
       })))))
   }
-  const generated = await win.evaluate(() =>
-    Array.from(document.querySelectorAll('.react-flow__node video')).length)
-  check(generated >= 1, '整框生成真的出了片（loopback 供应商 → 落盘 → 节点上放得出来）', `videos=${generated}`)
+  const previews = memberSelectors.map((selector) => win.locator(`${selector} video[data-node-preview-video="true"]`))
+  for (const preview of previews) {
+    await expect.poll(() => preview.evaluate((video) => video.videoWidth)).toBeGreaterThan(0)
+  }
+  check(true, '框里两张都出了片（loopback 供应商 → 落盘 → 节点播放器读到视频尺寸）')
   await snap(win, 'frame-generated')
 
-  // ── ⑨ 工具条「进时间轴」：整框进时间轴 ──
+  // ── ⑧ 工具条「进时间轴」：整框进时间轴 ──
+  await selectFrameByBlankClick(frameLocator(win).first())
   const timelineItem = win.locator(GROUP_TOOLBAR).getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.toolbarTimeline') }).first()
   check(await timelineItem.isDisabled() === false, '出片之后「进时间轴」可用了')
   await timelineItem.click({ timeout: 6000 })
@@ -636,9 +652,14 @@ try {
   check(clipCount === 2, '框里那 2 个镜头按框内顺序排进了时间轴（第三个已经挪出框，不该进来）', `clips=${clipCount}`)
   await snap(win, 'frame-to-timeline')
 
-  // ── ⑩ 工具条：解散（节点和连线都留着） ──
-  const edgesBefore = await win.evaluate(() => document.querySelectorAll('.react-flow__edge').length)
-  const nodesBefore = await win.evaluate(() => document.querySelectorAll('.react-flow__node[data-id]').length)
+  // ── ⑨ 工具条：解散（节点和连线都留着） ──
+  // React Flow 把框也算作节点 DOM。用画布图里的真实 ID 核对解散前后的成员和边。
+  const graphIds = () => win.evaluate(() => {
+    const { nodes, edges } = window.__nomiCanvasStore.getState()
+    return { nodes: nodes.map((node) => node.id).sort(), edges: edges.map((edge) => edge.id).sort() }
+  })
+  const beforeDissolve = await graphIds()
+  expect(beforeDissolve.nodes).toEqual([...nodeIds].sort())
   await selectFrameByBlankClick(frameLocator(win).first())
   await win.waitForTimeout(500)
   await win.locator(GROUP_TOOLBAR).getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.toolbarDissolve') }).first().click()
@@ -647,10 +668,9 @@ try {
     provenBy: frameProof,
     message: '解散之后画布上不该再有框',
   })
-  const nodesAfter = await win.evaluate(() => document.querySelectorAll('.react-flow__node[data-id]').length)
-  const edgesAfter = await win.evaluate(() => document.querySelectorAll('.react-flow__edge').length)
-  check(nodesAfter === nodesBefore, '解散不删节点', `${nodesBefore} → ${nodesAfter}`)
-  check(edgesAfter === edgesBefore, '解散不撤边（解散的是组织方式，不是节点关系）', `${edgesBefore} → ${edgesAfter}`)
+  const afterDissolve = await graphIds()
+  check(JSON.stringify(afterDissolve.nodes) === JSON.stringify(beforeDissolve.nodes), '解散不删节点', afterDissolve.nodes.join(', '))
+  check(JSON.stringify(afterDissolve.edges) === JSON.stringify(beforeDissolve.edges), '解散不撤边（解散的是组织方式，不是节点关系）')
   await snap(win, 'dissolved')
 
 } finally {
