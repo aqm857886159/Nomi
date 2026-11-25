@@ -23,7 +23,7 @@ import PanoramaNodeToolbar from './render/PanoramaNodeToolbar'
 import { useNodeImageEditing } from './useNodeImageEditing'
 import { isLocalImageOpPending, isRemoveBackgroundPending, isRemoveBackgroundResult } from './localImageOpPhase'
 import { useNodeDragResize } from './useNodeDragResize'
-import { useHasFrameSourceEdge, useShotIdentity, useMountedCards } from '../hooks/useNodeRelationships'
+import { useWaitingForFrameSource, useShotIdentity, useMountedCards } from '../hooks/useNodeRelationships'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 import { PendingGenerationPlaceholder, LocalImageOpPendingStatus, RemoveBackgroundPendingPlaceholder } from './render/CardCommon'
 import { previewBackgroundClass } from './render/previewBackground'
@@ -170,7 +170,7 @@ function BaseGenerationNodeImpl({
   const shotIdentity = useShotIdentity(node.id)
   // 切片2：镜头「挂了哪些设定卡」——不选中也能一眼看出挂了林夏/咖啡馆（可审计，免数连线）。
   const mountedCards = useMountedCards(node.id)
-  const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === 'video') // A15：已连上游边时占位不再喊「拖图」
+  const waitingUpstream = useWaitingForFrameSource(node.id, nodeExecutionKind === 'video')
   const { handlePanoramaFileChange, handlePanoramaScreenshot } = useNodePanoramaHandlers(node, visualSize, reportFeedback)
   const artifactSlots = useArtifactNodeSlots(node, { reportFeedback, selected, isMultiSelectActive, readOnly }) // 手艺产物的正文/浮条归 artifact 目录
 
@@ -374,7 +374,7 @@ function BaseGenerationNodeImpl({
           // 卡片 / 文本卡的空态在它们自己的 body 里（上面），这块预览是隐藏的，不再重复挂一份空态。
           <PendingGenerationPlaceholder
             node={node}
-            waitingUpstream={hasFrameSourceEdge} derivedReady={isDerivedPromptReady(node)}
+            waitingUpstream={waitingUpstream} derivedReady={isDerivedPromptReady(node)}
           />
         )}
         {imageEditing.editGrid !== null &&
