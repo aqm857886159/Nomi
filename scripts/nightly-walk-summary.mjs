@@ -139,7 +139,7 @@ export function summarizeRows(rows, readLog = () => null, options = {}) {
     '', '| 批次 | Job 结果 | 应跑 | 实收 |', '|---|---|---:|---:|',
     ...batchResults.map((b) => `| ${b.batch} | ${b.result} | ${b.expected} | ${batches.find((x) => x.batch === b.batch).walks.filter((w) => observed.has(w)).length} |`),
     ...Object.keys(titles).flatMap((kind) => ['', `### ${titles[kind]}（${columns[kind].length}）`, '| Walkthrough | Exit | Seconds | 判定 / 日志 |', '|---|---:|---:|---|', ...columns[kind].map(({ row: r, reason }) => `| ${cell(r.walk)} | ${r.status} | ${r.seconds} | ${reason}；[${cell(path.basename(r.log || 'unknown'))}][nightly-logs] |`)]),
-    ...(skipped.length ? ['', `### 跳过（${skipped.length}）`, ...skipped.map((r) => `- ${cell(r.walk)} | skipped`)] : []),
+    ...(skipped.length ? ['', `### 跳过（${skipped.length}）`, ...skipped.map((r) => `- ${cell(r.walk)} | ${cell(readLog(r)?.split('\n')[0] || 'skipped')}`)] : []),
     ...(missing.length ? ['', `### 缺失（${missing.length}）`, ...missing.map((w) => `- ${cell(w)}`)] : []),
     '', '通过的不逐行列出；逐条日志见本次 run 的 nightly-walks-* artifacts。', `[nightly-logs]: ${receipt.url}#artifacts`,
   ].join('\n') + '\n'

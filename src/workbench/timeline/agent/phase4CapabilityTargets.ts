@@ -29,6 +29,7 @@ export async function executeAssetReadTarget(request: Readonly<{
   projectId: string
   input: unknown
   target: unknown
+  signal?: AbortSignal
 }>): Promise<AssetReadResult> {
   const parsed = assetReadSemanticInputSchema.safeParse(request.input)
   if (!parsed.success) throw new SurfacePortWireError('capability_input_invalid')
@@ -37,7 +38,7 @@ export async function executeAssetReadTarget(request: Readonly<{
     kind: 'asset',
     assetIds: 'assetId' in input ? [input.assetId] : [],
   })
-  return applyMediaToolCall(input.operation, { ...input, projectId: request.projectId }) as Promise<AssetReadResult>
+  return applyMediaToolCall(input.operation, { ...input, projectId: request.projectId }, undefined, request.signal) as Promise<AssetReadResult>
 }
 
 export async function executeExportReadTarget(request: Readonly<{

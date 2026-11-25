@@ -75,6 +75,7 @@ import {
   type VerifiedCapabilityInvocation,
 } from "./verifiedCapabilityInvocation";
 import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE, MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE } from "../shared/agentCapabilities/verbDeclaration";
+import { logWarn } from "../logging/logger";
 
 type CapabilityExecutionErrorCode =
   | "capability_input_invalid"
@@ -260,6 +261,7 @@ function positiveTimeout(value: number | undefined): number | undefined {
 
 async function bounded<T>(
   timeoutMs: number,
+  operation: Readonly<{ toolName: string; subOperation: string }>,
   externalSignal: AbortSignal | undefined,
   execute: (signal: AbortSignal) => Promise<T>,
   options: CapabilityExecuteOptions = {},
@@ -268,37 +270,28 @@ async function bounded<T>(
   if (externalSignal?.aborted) throw new CapabilityExecutionError("capability_cancelled");
 
   const controller = new AbortController();
-  let timedOut = false;
-  let cancelled = false;
-  const onAbort = () => {
-    cancelled = true;
+  const startedAt = performance.now();
+  let rejectStopped!: (error: CapabilityExecutionError) => void;
+  const stopped = new Promise<never>((_resolve, reject) => {
+    rejectStopped = reject;
+  });
+  const stop = (code: "capability_timeout" | "capability_cancelled") => {
+    // Settle the registry's outcome before an abort-aware port settles its own promise.
+    rejectStopped(new CapabilityExecutionError(writeStarted() ? "capability_receipt_unresolved" : code));
     controller.abort();
   };
+  const onAbort = () => stop("capability_cancelled");
   externalSignal?.addEventListener("abort", onAbort, { once: true });
   const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
+    stop("capability_timeout");
+    logWarn("capability", "capability_timeout", {
+      ...operation, elapsedMs: Math.round(performance.now() - startedAt), timeoutMs,
+    });
   }, timeoutMs);
   executionOptionsBySignal.set(controller.signal, options);
 
   try {
-    return await Promise.race([
-      execute(controller.signal),
-      new Promise<never>((_resolve, reject) => {
-        controller.signal.addEventListener(
-          "abort",
-          () => {
-            reject(
-              new CapabilityExecutionError(
-                writeStarted() ? "capability_receipt_unresolved"
-                  : timedOut ? "capability_timeout" : cancelled ? "capability_cancelled" : "capability_cancelled",
-              ),
-            );
-          },
-          { once: true },
-        );
-      }),
-    ]);
+    return await Promise.race([stopped, execute(controller.signal)]);
   } finally {
     executionOptionsBySignal.delete(controller.signal);
     clearTimeout(timer);
@@ -333,7 +326,7 @@ async function revalidate(invocation: AnyVerifiedInvocation): Promise<void> {
   }
 }
 
-function parseInput(invocation: AnyVerifiedInvocation): void {
+function parseInput(invocation: AnyVerifiedInvocation) {
   const schema =
     invocation.capability.id === ASSET_READ_CAPABILITY.id
       ? assetReadSemanticInputSchema
@@ -356,9 +349,11 @@ function parseInput(invocation: AnyVerifiedInvocation): void {
             : invocation.capability.id === TIMELINE_WRITE_CAPABILITY.id
               ? timelineWriteSemanticInputSchema
               : CANVAS_READ_CAPABILITY.inputSchema;
-  if (!schema.safeParse(invocation.input).success) {
+  const result = schema.safeParse(invocation.input);
+  if (!result.success) {
     throw new CapabilityExecutionError("capability_input_invalid");
   }
+  return result.data;
 }
 
 function projectOutput(
@@ -602,12 +597,18 @@ export class CapabilityExecutorRegistry {
     if (!isAssetRead && !isCanvasRead && !isDocumentRead && !isDocumentWrite && !isCanvasDelete && !isCanvasWrite && !isDirectorWrite && !isExportRead && !isExportWrite && !isTimelineRead && !isTimelineWrite) {
       throw new CapabilityExecutionError("capability_unsupported");
     }
-    parseInput(invocation);
+    const parsed = parseInput(invocation);
+    const operation = {
+      toolName: invocation.capability.id,
+      subOperation: "operation" in parsed && typeof parsed.operation === "string" ? parsed.operation
+        : "scope" in parsed && typeof parsed.scope === "string" ? parsed.scope : "execute",
+    };
     const mutating = isDocumentWrite || isCanvasWrite || isDirectorWrite || isCanvasDelete || isTimelineWrite || isExportWrite;
     let writeStarted = false;
 
     return bounded(
       this.#timeoutMs ?? declaredTimeout(mutating),
+      operation,
       options.signal,
       async (signal) => {
         await revalidate(invocation);
