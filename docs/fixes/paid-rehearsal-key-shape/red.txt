@@ -1,0 +1,4 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/ux/_paidRun.test.mjs > rehearsal fake key · same shape check as the product > passes the APIMart connect page key-shape check
+AssertionError: expected false to be true // Object.is equality
+      Tests  1 failed | 57 passed (58)
