@@ -2590,6 +2590,33 @@
       "revisitWhen": "既有请求构造器直接提供同形的只读报价投影，或公开价读取迁入统一的模型连接领域 owner 时，合并这些适配并删掉重复入口；任何时候都不得用估价结果替代生成授权。"
     },
     {
+      "id": "send-cost-account-balance",
+      "capability": "发送键旁余额不足提醒的主进程余额读取：从内置供应商档案声明读取官方 /v1/balance（仅官方域名、Bearer 凭据走既有解密与出站目的地授权、失败与无限额度 -1 均退回不拦截发送），与公开价目预览彻底解耦",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-17-cost-step1-estimate.md",
+      "paths": [
+        "electron/ai/onboarding/vendorAccountBalance.ts",
+        "src/workbench/generationCanvas/spend/useVendorBalance.ts",
+        "src/workbench/generationCanvas/spend/useSendCostLowBalance.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "复用既有出站授权与备用域名回落：直接调用 authorizeSubmitDestination、findIllegalHeader、fetchVendorWithBaseFallback 与 decryptApiKeyRecord，不另写 HTTP 传输或凭据读写",
+          "source": "electron/vendor/vendorHttp.ts"
+        },
+        {
+          "name": "不合进公开价目读取 vendorPricePreview：公开价必须零凭据 GET；账户余额必须带 Bearer 且仅发往官方域名，架构测试明确禁止公开价链出现账户/余额依赖",
+          "source": "electron/ai/onboarding/vendorPricePreview.ts:1"
+        },
+        {
+          "name": "供应商档案声明驱动：端点路径与充值链接声明在 builtinVendorSeeds / apimartVendor，未声明余额能力的供应商直接返回 null，不在调用处硬编码 URL",
+          "source": "electron/catalog/apimartVendor.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：把主进程保存的 APIMart 凭据、官方域名白名单与 Nomi 按镜约价对比，输出「还差 N 积分 + 去充值」状态，且余额未知/过期/无限(-1)必须退回正常发送键；传输、重试、凭据解密和目的地授权全部复用既有模块。",
+      "revisitWhen": "未来若建立统一的供应商账户中心（覆盖额度、账单与余额订阅），将此只读查询并入该唯一 owner 并删掉独立文件。"
+    },
+    {
       "id": "param-value-door-eslint-rule",
       "capability": "ESLint 小规则 param-value-door/no-reparse：画布、分镜、助手与发送这几块目录里，不许再对参数袋里的时长或控件档位值自己写一份 typeof / Number / parseFloat / 一元 + / 字符串化比较，规整只走 electron/shared/videoCapabilities/paramValue.ts 的门",
       "status": "justified",

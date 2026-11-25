@@ -2,17 +2,38 @@ import { useTranslation } from 'react-i18next'
 import type { VendorPricePreview } from '../../../../electron/shared/contracts/vendorPricePreview'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ComposerGraph } from '../nodes/composerGraphSnapshot'
-import { sendCostDescription, sendCostPillText } from './sendCostFormat'
+import {
+  sendCostDescription,
+  sendCostPillText,
+  sendCostUnitMenuAria,
+  sendCostUnitMenuHeading,
+  sendCostUnitOptions,
+  sendCostUnitSwitchAria,
+  type SendCostUnitOption,
+} from './sendCostFormat'
+import { useSendCostUnit, type SendCostUnit } from './sendCostUnitStore'
 import { useNodePricePreview } from './useNodePricePreview'
 
-/** 发送键那一格要说的：键上的积分数、悬停那一句、估价从哪来。 */
+/** 发送键那一格要说的：键上的约数、当前单位与切换菜单数据、悬停那一句、估价从哪来。 */
 export type SendCost = {
-  /** 键上的积分数（交给共用发送钮的 `cost`）；算不出 / 忙着 / 新价没回来 = undefined（钮上只剩 ↑，不印数、不印 0）。 */
+  /** 键上印的约数（积分恢复纯数字、货币用紧凑 ≈）；算不出 / 忙着 / 新价没回来 = undefined（钮上只剩 ↑）。 */
   credits?: string
+  /** 当前展示单位（积分 / 人民币 / 美元）。 */
+  unit?: SendCostUnit
+  /** 单位切换菜单三项与分组标题（「预计 / Estimated」）。 */
+  unitOptions?: readonly SendCostUnitOption[]
+  unitMenuHeading?: string
+  unitMenuAriaLabel?: string
+  unitSwitchAriaLabel?: string
+  onUnitChange?: (unit: SendCostUnit) => void
   /** 悬停 / 读屏那一句；不走公开价的那家、忙着、新价没回来又没有旧数可留 = undefined。 */
   description?: string
   /** 估价从哪来（走查锚点）。 */
   source?: string
+  /** 已就绪的公开估价原值（仅在有价时提供，供下游独立模块只读消费）。 */
+  quote?: VendorPricePreview
+  /** 这次请求走的是有公开价目的那家时才有。 */
+  vendorKey?: string
 }
 
 /**
@@ -21,14 +42,28 @@ export type SendCost = {
  */
 export function useSendCost(node: GenerationCanvasNode, graph: ComposerGraph, { idle }: { idle: boolean }): SendCost {
   const { t, i18n } = useTranslation()
+  const [unit, setUnit] = useSendCostUnit()
   const preview = useNodePricePreview(node, graph)
   const state = sendCostState(preview, { idle })
-  if (state.kind === 'none') return {}
-  if (state.kind === 'unknown') return { description: sendCostDescription(null, t, i18n.language) }
+  if (state.kind === 'none') return { vendorKey: preview.vendorKey }
+  if (state.kind === 'unknown') {
+    return {
+      vendorKey: preview.vendorKey,
+      description: sendCostDescription(null, t, i18n.language, unit),
+    }
+  }
   return {
-    credits: sendCostPillText(state.quote, i18n.language),
-    description: sendCostDescription(state.quote, t, i18n.language),
+    credits: sendCostPillText(state.quote, i18n.language, unit, t),
+    unit,
+    unitOptions: sendCostUnitOptions(state.quote, t, i18n.language),
+    unitMenuHeading: sendCostUnitMenuHeading(t),
+    unitMenuAriaLabel: sendCostUnitMenuAria(t),
+    unitSwitchAriaLabel: sendCostUnitSwitchAria(state.quote, t, i18n.language, unit),
+    onUnitChange: setUnit,
+    description: sendCostDescription(state.quote, t, i18n.language, unit),
     source: state.quote.source,
+    quote: state.quote,
+    vendorKey: preview.vendorKey,
   }
 }
 
@@ -36,7 +71,7 @@ export function useSendCost(node: GenerationCanvasNode, graph: ComposerGraph, { 
  * 发送键那一格该是哪一态（纯函数，单测钉住）：
  * - `none`：不走公开价的那家 / 忙着 / 要先备齐参考 / 新价没回来又没旧数可留 —— 钮原样，不多说一句；
  * - `unknown`：这家走公开价、但这次估不出（价目里没有、读不到、为 0）—— 钮上只剩 ↑，悬停「暂时估不出这次用量」；
- * - `credits`：硬币 + 积分数。
+ * - `credits`：有公开约价，按当前单位展示并允许在发送键旁切换。
  */
 export function sendCostState(
   preview: { vendorKey?: string; quote: VendorPricePreview | null; pending: boolean },

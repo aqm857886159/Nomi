@@ -96,6 +96,25 @@ const cascadeItems = [
   { id: 'disabled', label: '禁用项', disabled: true, onSelect: nop },
   { id: 'disabled-danger', label: '禁用危险项', danger: true, disabled: true, onSelect: nop },
 ];
+const indicatorItems = [
+  { id: 'align-action', label: '动作项', onSelect: nop },
+  { kind: 'checkbox', id: 'align-check-on', label: '属性', checked: true, onCheckedChange: nop },
+  { kind: 'checkbox', id: 'align-check-off', label: '时间轴', checked: false, onCheckedChange: nop },
+  { kind: 'checkbox', id: 'align-check-disabled-on', label: '禁用勾选', checked: true, disabled: true, onCheckedChange: nop },
+  { kind: 'separator', id: 'align-sep' },
+  {
+    kind: 'radio',
+    id: 'align-unit',
+    label: '预计',
+    value: 'credits',
+    onValueChange: nop,
+    options: [
+      { id: 'align-radio-on', value: 'credits', label: '积分', trailing: '1.95' },
+      { id: 'align-radio-off-1', value: 'cny', label: '人民币', trailing: '¥1.31' },
+      { id: 'align-radio-off-2', value: 'usd', label: '美元', trailing: '$0.195', disabled: true },
+    ],
+  },
+];
 
 const dummyFlow = { getViewport: () => ({ x: 0, y: 0, zoom: 1 }), setViewport: async () => true };
 
@@ -178,8 +197,14 @@ function Host() {
     <span id="probe-danger" className="text-workbench-danger">probe</span>
     <span id="probe-disabled" className="text-nomi-ink-40">probe</span>
     <span id="probe-skin" className={SKIN}>probe</span>
+    <span id="probe-accent" className="text-nomi-accent">probe</span>
+    <span id="probe-ink" className="text-nomi-ink">probe</span>
+    <span id="probe-workbench-ink" className="text-workbench-ink">probe</span>
+    <span id="probe-ink-30" className="text-nomi-ink-30">probe</span>
     {ContextMenu ? <ContextMenu items={cascadeItems} itemClassName={SKIN} ariaLabel="cascade-context"><div id="cascade-row" style={{ width: 160, height: 28 }}>cascade row</div></ContextMenu> : null}
     <menu.WorkbenchMenu open={pointOpen} onOpenChange={setPointOpen} point={{ x: 600, y: 40 }} ariaLabel="cascade-point" itemClassName={SKIN} items={cascadeItems} />
+    <menu.WorkbenchMenu trigger={<button id="indicator-trigger" type="button">indicator dropdown</button>} ariaLabel="indicator-dropdown" items={indicatorItems} />
+    {ContextMenu ? <ContextMenu items={indicatorItems} ariaLabel="indicator-context"><div id="indicator-context-row" style={{ width: 140, height: 28 }}>indicator context</div></ContextMenu> : null}
   </section>
   <PortalStageProbe />
   <div id="neutral" style={{ height: 40 }} />
@@ -361,6 +386,95 @@ describe('④ 页内全屏层（GenerationPageLayer createPortal）不被底下�
     expect(await page.$eval('#canvas-stage-probe', (el) => el.getAttribute('data-canvas-blank-menu'))).toBe('closed')
     await closeByOutsideClick(page)
     expect(await state(page, '#portal-layer-row')).toBe('closed')
+    expect(errors).toEqual([])
+    await page.close()
+  }, 60_000)
+})
+
+describe('⑤ radio / checkbox 右侧蓝勾、trailing 次级附注与无图标文字左缘逐像素对齐（对齐 NomiSelect）', () => {
+  const measureIndicators = (page: Page) => page.evaluate(() => {
+    const colorOf = (sel: string) => { const el = document.querySelector(sel); return el ? getComputedStyle(el).color : null }
+    const rowData = (id: string) => {
+      const row = document.querySelector(`[role="menu"] [data-menu-item="${id}"]`)!
+      const label = row.querySelector('[data-menu-label-text]')!
+      const trailing = row.querySelector('[data-menu-trailing]')
+      const svg = row.querySelector('svg')
+      const lr = label.getBoundingClientRect()
+      const tr = trailing ? trailing.getBoundingClientRect() : null
+      const sr = svg ? svg.getBoundingClientRect() : null
+      return {
+        labelLeft: lr.left,
+        labelRight: lr.right,
+        labelColor: getComputedStyle(label).color,
+        labelWeight: Number(getComputedStyle(label).fontWeight),
+        trailingText: trailing ? trailing.textContent : null,
+        trailingLeft: tr ? tr.left : null,
+        trailingRight: tr ? tr.right : null,
+        trailingWeight: trailing ? Number(getComputedStyle(trailing).fontWeight) : null,
+        svgLeft: sr ? sr.left : null,
+        svgWidth: sr ? sr.width : null,
+        svgHeight: sr ? sr.height : null,
+        svgColor: svg ? getComputedStyle(svg).color : null,
+        svgStrokeWidth: svg ? getComputedStyle(svg).strokeWidth : null,
+      }
+    }
+    return {
+      accent: colorOf('#probe-accent'),
+      ink: colorOf('#probe-ink'),
+      workbenchInk: colorOf('#probe-workbench-ink'),
+      ink30: colorOf('#probe-ink-30'),
+      action: rowData('align-action'),
+      checkOn: rowData('align-check-on'),
+      checkOff: rowData('align-check-off'),
+      checkDisabledOn: rowData('align-check-disabled-on'),
+      radioOn: rowData('align-radio-on'),
+      radioOff1: rowData('align-radio-off-1'),
+    }
+  })
+
+  const assertIndicatorContract = (m: Awaited<ReturnType<typeof measureIndicators>>) => {
+    // 1) 无图标时：普通动作行、选中/未选中 checkbox、选中/未选中 radio 的主文案左边缘差 <= 0.5px（零左侧 16px 死白）。
+    for (const row of [m.checkOn, m.checkOff, m.checkDisabledOn, m.radioOn, m.radioOff1]) {
+      expect(Math.abs(row.labelLeft - m.action.labelLeft)).toBeLessThanOrEqual(0.5)
+    }
+    // 2) trailing 与主文案分离且位于右侧；勾选行与未勾选行右侧保留 w-3.5 槽位，trailing 右边缘整齐对齐。
+    expect(m.radioOn.trailingText).toBe('1.95')
+    expect(m.radioOff1.trailingText).toBe('¥1.31')
+    expect(m.radioOn.trailingLeft!).toBeGreaterThanOrEqual(m.radioOn.labelRight - 0.5)
+    expect(Math.abs(m.radioOn.trailingRight! - m.radioOff1.trailingRight!)).toBeLessThanOrEqual(0.5)
+    expect(m.radioOn.trailingWeight!).toBeLessThan(600)
+    // 3) 对勾 SVG 在最右侧（>= labelRect.right；有 trailing 时 >= trailingRect.right），尺寸 14×14、stroke 1.6、颜色等于 --nomi-accent；禁用态退回 text-nomi-ink-30。
+    expect(m.checkOn.svgLeft!).toBeGreaterThanOrEqual(m.checkOn.labelRight - 0.5)
+    expect(m.radioOn.svgLeft!).toBeGreaterThanOrEqual(m.radioOn.trailingRight! - 0.5)
+    for (const checked of [m.checkOn, m.radioOn]) {
+      expect(Math.abs(checked.svgWidth! - 14)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(checked.svgHeight! - 14)).toBeLessThanOrEqual(0.5)
+      expect(checked.svgStrokeWidth).toBe('1.6px')
+      expect(checked.svgColor).toBe(m.accent)
+    }
+    expect(m.checkDisabledOn.svgColor).toBe(m.ink30)
+    // 4) 选中态主文案 font-semibold + text-nomi-ink，未选中态常规字重 + text-workbench-ink。
+    expect(m.radioOn.labelWeight).toBeGreaterThanOrEqual(600)
+    expect(m.radioOn.labelColor).toBe(m.ink)
+    expect(m.radioOff1.labelWeight).toBeLessThan(600)
+    expect(m.radioOff1.labelColor).toBe(m.workbenchInk)
+  }
+
+  it('按钮下拉入口（WorkbenchMenu trigger）', async () => {
+    const page = await open()
+    await page.click('#indicator-trigger')
+    await page.waitForSelector('[role="menu"][aria-label="indicator-dropdown"]')
+    await parkMouse(page)
+    assertIndicatorContract(await measureIndicators(page))
+    expect(errors).toEqual([])
+    await page.close()
+  }, 60_000)
+
+  it('右键入口（WorkbenchContextMenu）', async () => {
+    const page = await open()
+    await rightClick(page, '#indicator-context-row')
+    expect(await page.locator('[role="menu"][aria-label="indicator-context"]').count()).toBe(1)
+    assertIndicatorContract(await measureIndicators(page))
     expect(errors).toEqual([])
     await page.close()
   }, 60_000)

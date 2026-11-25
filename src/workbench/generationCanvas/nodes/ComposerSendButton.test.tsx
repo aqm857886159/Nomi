@@ -98,6 +98,78 @@ describe('ComposerSendButton 约价（板 ModelSurfaces：cost.send-pill / cost.
       expect(render(<ComposerSendButton {...props} busy cost={priced} />, yieldIcon)).toBe(render(<ComposerSendButton {...props} busy />, yieldIcon))
     }
   })
+
+  it('带单位切换：左侧为独立真触发器按钮（积分含硬币、人民币/美元不含硬币、带 data-[state=open]:bg-nomi-ink-20 且不覆盖全局焦点环），右侧为独立 ↑ 发送钮', () => {
+    const unitOptions = [
+      { unit: 'credits' as const, label: '积分', formatted: '19.5' },
+      { unit: 'cny' as const, label: '人民币', formatted: '¥13.09' },
+      { unit: 'usd' as const, label: '美元', formatted: '$1.95' },
+    ]
+    const creditsHtml = render(
+      <ComposerSendButton
+        {...round}
+        cost={{
+          credits: '19.5',
+          unit: 'credits',
+          unitOptions,
+          unitMenuHeading: '预计',
+          unitSwitchAriaLabel: '当前约价 19.5 积分，点击切换显示单位',
+          onUnitChange: () => undefined,
+          description: priced.description,
+        }}
+      />,
+    )
+    expect(creditsHtml.match(/<button/g)).toHaveLength(2)
+    expect(creditsHtml).toContain('data-send-cost-group=""')
+    expect(creditsHtml).toContain('data-send-cost-unit="credits"')
+    expect(creditsHtml).toContain('aria-haspopup="menu"')
+    expect(creditsHtml).toContain('data-[state=open]:bg-nomi-ink-20')
+    expect(creditsHtml).not.toContain('focus:outline-none')
+    expect(visibleText(creditsHtml)).toBe('19.5')
+    expect(svgClasses(creditsHtml)[0]).toMatch(/\btabler-icon-coin\b/)
+    expect(svgClasses(creditsHtml)[1]).toMatch(/\btabler-icon-arrow-up\b/)
+
+    const cnyHtml = render(
+      <ComposerSendButton
+        {...round}
+        cost={{
+          credits: '≈¥13.09',
+          unit: 'cny',
+          unitOptions,
+          unitMenuHeading: '预计',
+          onUnitChange: () => undefined,
+          description: '这次约 ¥13.09（19.5 积分）。',
+        }}
+      />,
+    )
+    expect(cnyHtml).toContain('data-send-cost-unit="cny"')
+    expect(visibleText(cnyHtml)).toBe('≈¥13.09')
+    expect(svgClasses(cnyHtml)).toHaveLength(1)
+    expect(svgClasses(cnyHtml)[0]).toMatch(/\btabler-icon-arrow-up\b/)
+  })
+
+  it('余额不足（板 ModelSurfaces cost.low-balance）：同一行换成「还差 N 积分 · 去充值 ↗」，缺额用 text-nomi-warning-ink 保证对比度，忙着时仍走忙态', () => {
+    const lowBalance = {
+      shortfallText: '还差 7.6 积分',
+      topUpLabel: '去充值',
+      topUpAriaLabel: '去 APIMart 充值（还差 7.6 积分）',
+      description: '当前余额约 2.4 积分，这次约需 10 积分，还差 7.6 积分。充值后返回即可继续生成。',
+      onTopUp: () => undefined,
+    }
+    const html = render(<ComposerSendButton {...round} cost={priced} lowBalance={lowBalance} />)
+    expect(html).toContain('data-send-cost-low-balance=""')
+    expect(html).toContain('data-send-cost="shortfall"')
+    expect(html).toContain('text-nomi-warning-ink')
+    expect(html).not.toMatch(/text-nomi-warning(?!-ink)/)
+    expect(html).toContain('data-send-cost-action="top-up"')
+    expect(html).toContain('data-bar-segment="generate"')
+    expect(visibleText(html)).toBe('还差 7.6 积分去充值')
+    expect(svgClasses(html)).toHaveLength(1)
+    expect(svgClasses(html)[0]).toMatch(/\btabler-icon-external-link\b/)
+    // 忙着时不替换成去充值；带字钮（分镜行）不接 lowBalance。
+    expect(render(<ComposerSendButton {...round} busy cost={priced} lowBalance={lowBalance} />)).toBe(render(<ComposerSendButton {...round} busy />))
+    expect(render(<ComposerSendButton {...props} lowBalance={lowBalance} />)).toBe(render(<ComposerSendButton {...props} />))
+  })
 })
 
 /**

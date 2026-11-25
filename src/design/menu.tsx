@@ -59,6 +59,8 @@ type WorkbenchMenuItemBase = {
   label: string
   /** 可选：多数画布菜单有图标，时间轴/侧栏/原稿列表现役就是没有（清单 C9）。 */
   icon?: WorkbenchMenuIcon
+  /** 位于主文案右侧、勾选槽或快捷键左侧的次级附注值（价格、数量等），与键盘快捷键 `shortcut` 分离。 */
+  trailing?: string
   /** 右对齐的快捷键提示。文案由调用方给——平台适配各家写法不同（清单 C10）。 */
   shortcut?: string
   /** 项内第二行灰字说明（现役唯一消费者是框菜单的「解散」）。 */
@@ -234,7 +236,7 @@ export type WorkbenchContextMenuProps = WorkbenchMenuSkinProps & {
 const CONTENT_CLASS =
   'grid gap-0.5 p-[6px] border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop max-h-[var(--radix-popper-available-height,100vh)] overflow-y-auto'
 const ITEM_CLASS = cn(
-  'inline-flex items-center justify-between gap-2 w-full min-h-8 px-2 rounded-nomi',
+  'group/menu-item inline-flex items-center justify-between gap-2 w-full min-h-8 px-2 rounded-nomi',
   'font-[inherit] text-caption text-workbench-ink outline-none select-none cursor-pointer',
   'data-[highlighted]:bg-nomi-ink-05',
   'data-[disabled]:text-nomi-ink-40 data-[disabled]:cursor-not-allowed data-[disabled]:bg-transparent',
@@ -281,9 +283,9 @@ const CONTEXT_PRIMITIVES: MenuPrimitives = {
 }
 
 /**
- * 一项的内容（[勾选槽 +] 图标 + 文案 [+ 第二行灰字]，右侧快捷键）。三种项形态共用，免得画三遍。
- * `withIndicator` 只在 checkbox / radio 项上为真：勾不勾都占住那 16px，否则同一组里
- * 勾上的那行会比没勾的往右挪一格。
+ * 一项的内容（左区：[可选图标 +] 文案列 [+ 第二行灰字]；右区：[trailing 次级附注] + [快捷键] + [右侧 14px 勾选槽]）。
+ * 对齐 `NomiSelect`：`withIndicator` 只在 checkbox / radio 项上为真，最右固定占 `w-3.5`（14px）槽位，
+ * 无图标时选中行、未选中行与普通动作行的文字左缘逐像素对齐，同组未勾选行也保留 `w-3.5` 空位使 `trailing` 右缘整齐对齐。
  */
 function MenuItemBody({
   item,
@@ -299,24 +301,43 @@ function MenuItemBody({
   const Icon = item.icon
   return (
     <>
-      <span className="inline-flex min-w-0 items-center gap-1.5">
-        {withIndicator ? (
-          <span className="inline-flex size-4 shrink-0 items-center justify-center">
-            <primitives.ItemIndicator>
-              <IconCheck />
-            </primitives.ItemIndicator>
-          </span>
-        ) : null}
+      <span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
         {Icon ? <Icon /> : null}
-        <span className="inline-flex min-w-0 flex-col items-start">
-          <span data-menu-label-text className="truncate">{item.label}</span>
+        <span className="inline-flex min-w-0 flex-1 flex-col items-start">
+          <span
+            data-menu-label-text
+            className={cn(
+              'max-w-full truncate',
+              !item.disabled && 'group-data-[state=checked]/menu-item:font-semibold group-data-[state=checked]/menu-item:text-nomi-ink',
+              item.disabled && 'group-data-[state=checked]/menu-item:font-semibold',
+            )}
+          >
+            {item.label}
+          </span>
           {item.description ? (
             <span data-menu-description className="text-micro text-nomi-ink-40">{item.description}</span>
           ) : null}
         </span>
       </span>
+      {item.trailing ? (
+        <span data-menu-trailing className="shrink-0 text-caption font-normal tabular-nums text-nomi-ink-40">
+          {item.trailing}
+        </span>
+      ) : null}
       {item.shortcut ? (
-        <span data-menu-shortcut className={cn(SHORTCUT_CLASS, shortcutClassName)}>{item.shortcut}</span>
+        <span data-menu-shortcut className={cn('shrink-0', SHORTCUT_CLASS, shortcutClassName)}>{item.shortcut}</span>
+      ) : null}
+      {withIndicator ? (
+        <span className="inline-flex w-3.5 shrink-0 items-center justify-center">
+          <primitives.ItemIndicator>
+            <IconCheck
+              size={14}
+              stroke={1.6}
+              className={cn('!size-3.5 !stroke-[1.6]', item.disabled ? '!text-nomi-ink-30' : '!text-nomi-accent')}
+              aria-hidden
+            />
+          </primitives.ItemIndicator>
+        </span>
       ) : null}
     </>
   )
@@ -498,7 +519,7 @@ export function WorkbenchContextMenu({
   )
 }
 
-/** 按钮下拉（真触发器入口）：Radix 量真按钮、写 `data-state` / `aria-expanded`、关后焦点回按钮。 */
+/** 按钮下拉（真触发器入口）：Radix 量真按钮、写 `data-state` / `aria-expanded`；键盘开关回按钮，鼠标选一项不强拉程序焦点（免出伪 focus-visible 框）。 */
 function TriggerDropdownMenu({
   trigger,
   onOpenChange,
@@ -509,6 +530,15 @@ function TriggerDropdownMenu({
 }: WorkbenchMenuPlacement & WorkbenchMenuSkinProps & { trigger: React.ReactElement; onOpenChange?: (open: boolean) => void }): JSX.Element {
   const [open, setOpen] = React.useState(false)
   const contentRef = React.useRef<HTMLDivElement | null>(null)
+  const openedByKeyboardRef = React.useRef(false)
+  const keyboardCloseRef = React.useRef(false)
+  React.useLayoutEffect(() => {
+    if (!open) return
+    const active = document.activeElement
+    openedByKeyboardRef.current = active instanceof HTMLElement && active.matches(':focus-visible')
+    keyboardCloseRef.current = false
+  }, [open])
+  const keepMoved = keepFocusMovedByItem(contentRef)
   return (
     <DropdownMenuPrimitive.Root
       open={open}
@@ -527,8 +557,23 @@ function TriggerDropdownMenu({
           sideOffset={gap}
           alignOffset={0}
           {...surfaceProps(skin)}
-          onEscapeKeyDown={consumeEscape}
-          onCloseAutoFocus={keepFocusMovedByItem(contentRef)}
+          onKeyDownCapture={() => { keyboardCloseRef.current = true }}
+          onEscapeKeyDown={(event) => {
+            keyboardCloseRef.current = true
+            consumeEscape(event)
+          }}
+          onPointerDownCapture={() => { keyboardCloseRef.current = false }}
+          onPointerDownOutside={() => { keyboardCloseRef.current = false }}
+          onCloseAutoFocus={(event) => {
+            const byKeyboard = openedByKeyboardRef.current && keyboardCloseRef.current
+            openedByKeyboardRef.current = false
+            keyboardCloseRef.current = false
+            if (!byKeyboard) {
+              event.preventDefault()
+              return
+            }
+            keepMoved(event)
+          }}
         >
           {open ? renderNodes(resolveItems(skin.items), { ...skin, primitives: DROPDOWN_PRIMITIVES }) : null}
         </DropdownMenuPrimitive.Content>

@@ -44,6 +44,7 @@ import { ConnectedTextChips } from './ConnectedTextChips'
 import TextNodeComposer from './TextNodeComposer'
 import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconRefresh } from '@tabler/icons-react'
 import { useSendCost } from '../spend/useSendCost'
+import { useSendCostLowBalance } from '../spend/useSendCostLowBalance'
 import { ReferenceNamesContext, resolveReferenceInfos } from '../../assets/referenceNames'
 import { mentionUrlsInOrder } from '../../assets/promptMentions'
 import { peekAllProjectAssets } from '../../assets/useAllProjectAssets'
@@ -187,6 +188,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const hasPendingRefs = pendingRefKey.length > 0
   // 发送键上的约价：忙着 / 要先备齐参考时不印数（那时钮的意思不是「花这么多发出去」）。
   const sendCost = useSendCost(node, graph, { idle: !isGenerating && !hasPendingRefs })
+  const sendCostLowBalance = useSendCostLowBalance(sendCost.vendorKey, sendCost.quote, { idle: !isGenerating && !hasPendingRefs })
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
   const canGenerateNow = canGenerate || hasPendingRefs
   const productionBinding = productionMetaOf(node)
@@ -519,7 +521,17 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
               title: generateTitle,
               busy: isGenerating,
               ariaLabel: hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset'),
-              cost: sendCost.description ? { credits: sendCost.credits, description: sendCost.description } : undefined,
+              cost: sendCost.description ? {
+                credits: sendCost.credits,
+                description: sendCost.description,
+                unit: sendCost.unit,
+                unitOptions: sendCost.unitOptions,
+                unitMenuHeading: sendCost.unitMenuHeading,
+                unitMenuAriaLabel: sendCost.unitMenuAriaLabel,
+                unitSwitchAriaLabel: sendCost.unitSwitchAriaLabel,
+                onUnitChange: sendCost.onUnitChange,
+              } : undefined,
+              lowBalance: sendCostLowBalance,
               attrs: sendCost.source ? { 'data-price-source': sendCost.source } : undefined,
               disabled: !canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null,
               onClick: handleGenerate,
