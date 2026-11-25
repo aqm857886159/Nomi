@@ -28,3 +28,7 @@ Script -> Generate -> Edit -> Preview -> Export
 - Line: `--nomi-line`
 - Accent: `--nomi-accent`
 - Radius: `--nomi-radius-sm`, `--nomi-radius`, `--nomi-radius-lg`
+
+## Motion
+
+Use `src/design/motion.ts` for the six duration tiers. Bare Tailwind transitions use micro (110 ms) and ease-out. Fast, normal and spatial exits take two thirds of the enter duration, rounded to the nearest 10 ms. Text buttons and ComposerSendButton scale to 0.97 while pressed. Dense icon tools use color feedback. System reduced motion keeps loading and completion legible in a static frame. [Motion Language, §2.7](docs/design/nomi-design-system.md#27-motion-language动效语言)

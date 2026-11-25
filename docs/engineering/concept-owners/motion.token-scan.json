@@ -1,0 +1,24 @@
+{
+  "name": "生产动效令牌扫描",
+  "subject": "motion.token-scan",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/lib/motionTokenScan.mjs",
+    "symbol": "scanMotionTokens"
+  },
+  "write_api": [
+    {
+      "path": "scripts/lib/motionTokenScan.mjs",
+      "symbol": "scanMotionTokens"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/motionTokenScan.test.mjs",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "设计令牌门岗通过同一入口识别生产 CSS 与渲染层中的裸动效时长、曲线和按压缩放，并用扫描结果与存量基线逐条比较。"
+}

@@ -99,6 +99,7 @@ if (hasArg('--help') || hasArg('-h')) {
   --profile    对每个场景另抓一次 CDP CPU profile（JS 自时间前 25 名）
   --out        指定原始 JSON 文件路径
   --label      产物文件名后缀（默认 run）
+  --out        原始采样 JSON 的完整输出路径
   --onscreen   窗口放在屏幕上（默认挂屏幕外、不抢焦点）`)
   process.exit(0)
 }
