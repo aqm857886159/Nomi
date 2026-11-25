@@ -218,7 +218,7 @@ const APIMART_CURATED_MAPPINGS: CuratedMapping[] = [
   ),
   ...APIMART_VIDEO_MODELS.flatMap((m) =>
     m.mappings.map((mp) => ({
-      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
+      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, ...(mp.modeId ? { modeId: mp.modeId } : {}), name: mp.name,
       create: mp.create, query: APIMART_VIDEO_QUERY, statusMapping: APIMART_VIDEO_STATUS,
     })),
   ),

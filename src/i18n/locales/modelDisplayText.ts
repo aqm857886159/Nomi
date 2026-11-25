@@ -118,6 +118,7 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   // 目录里其余带中文的模型展示名(labelZh)。译法沿用本文件既有约定:文生图=text-to-image、
   // 改图=image editing、图生视频=image-to-video、（会员）=(membership)、（免费）=(free)。
   'GPT Image 2 · 文生图': 'GPT Image 2 · Text-to-image',
+  'Seedance 2.5（样片模式）': 'Seedance 2.5 (Draft mode)',
   'GPT Image 2 · 图生图': 'GPT Image 2 · Image-to-image',
   'MiniMax H3 · Context-IR 提示词增强': 'MiniMax H3 · Context-IR prompt enhancement',
   'Qwen-Image 改图': 'Qwen-Image editing',

@@ -25,6 +25,7 @@ import { declarationForMode } from "../shared/generationLowering/declarationForM
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
 import { modeInputRefusal } from "./modeInputRefusal";
 import { encodeParamsForWire } from "../shared/videoCapabilities/paramValue";
+import { findArchetypeMode } from "../shared/videoCapabilities/sampleMode";
 export { ModeInputMissingError } from "./modeInputRefusal";
 import { carriedReferenceUrlsByFamily, firstReferenceImage, referenceUrlsByFamily } from "./taskParamsReferences";
 
@@ -146,7 +147,7 @@ export function applyHeadlessParamDefaults(
   }, { variant }) : null;
   // 方式：请求里记着的为准；没有记录的只在目录行自己声明了档案时按主方式补（自建中转按模型名认出的档案不在这里补，老报文被升级测试钉住）。
   const mode = archetype
-    ? (selected.modeId ? archetype.modes.find((candidate) => candidate.id === selected.modeId) : undefined)
+    ? findArchetypeMode(archetype, selected.modeId)
       ?? (archetypeId ? modeWhenUnrecorded(archetype, taskKind, vendorKey) : undefined)
     : undefined;
   const modeSelection = archetype && mode
@@ -281,7 +282,7 @@ function assertModeAcceptsInputs(
 ): void {
   // selection.archetype 是入口按 selection.variantId 那一档收窄好的，不再收一遍。
   const { archetype } = selection;
-  const mode = archetype.modes.find((candidate) => candidate.id === selection.modeId);
+  const mode = findArchetypeMode(archetype, selection.modeId);
   if (!mode) return;
   const evidence = modeInputEvidence(mode, values, createBody, selected, route);
   const violation = validateModeConstraints(mode, values, evidence);

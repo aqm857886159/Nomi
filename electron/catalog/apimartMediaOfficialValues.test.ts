@@ -96,6 +96,8 @@ export const OFFICIAL_VALUES: Record<string, Official> = {
   "minimax-h3-max": { resolution: ["480p", "768p", "1080p"], duration: { min: 5, max: 15 }, aspect_ratio: ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16", "adaptive"] },
   // Seedance 2.5（videos/seedance-2-5/generation）：「only 480p/720p/1080p」，输出容器 mp4 / mov。
   "seedance-2.5-apimart": { size: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"], resolution: ["480p", "720p", "1080p"], duration: { min: 4, max: 30 }, output_format: ["mp4", "mov"] },
+  // Seedance 2.5 样片（同一页 Draft mode）：「resolution must be 480p, also used when omitted; any other resolution, including 4k, returns HTTP 400」。
+  "seedance-2.5-apimart-sample": { size: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"], resolution: ["480p"], duration: { min: 4, max: 30 }, output_format: ["mp4", "mov"] },
   "grok-imagine-video-1.5-official": { aspect_ratio: VIDEO_RATIOS_AUTO, resolution: ["480p", "720p", "1080p"], duration: { min: 1, max: 15 } },
   "pixverse-v6": {
     size: ["16:9", "4:3", "1:1", "3:4", "9:16", "2:3", "3:2", "21:9"],

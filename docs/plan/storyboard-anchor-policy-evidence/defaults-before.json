@@ -295,6 +295,22 @@
       "modeId": "first"
     }
   },
+  "seedance-2.5-apimart-sample/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "doubao-seedance-2.5-sample",
+      "modelVendor": "kie",
+      "modeId": "first"
+    }
+  },
+  "seedance-2.5-apimart-sample/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "doubao-seedance-2.5-sample",
+      "modelVendor": "apimart",
+      "modeId": "first"
+    }
+  },
   "seedance-2.5-runway/kie": {
     "image": {},
     "video": {

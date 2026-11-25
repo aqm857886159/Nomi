@@ -24,9 +24,11 @@ export { RUNNINGHUB_SEEDANCE_ARCHETYPE } from "./runninghubSeedance";
 export { RUNNINGHUB_VIDEO_ARCHETYPES } from "./runninghubVideoArchetypes";
 export { RUNWAY_GEN45_ARCHETYPE } from "./runwayGen45";
 export { RUNWAY_GEN4_TURBO_ARCHETYPE } from "./runwayGen4Turbo";
+export { SAMPLE_FINAL_MODE_ID, deriveSampleArchetype, findArchetypeMode, sampleBillingRequest } from "./sampleMode";
 export { SEEDANCE_2_ARCHETYPE } from "./seedance";
 export { SEEDANCE_2_5_ARCHETYPE } from "./seedance25";
 export { SEEDANCE_2_5_APIMART_ARCHETYPE } from "./seedance25Apimart";
+export { SEEDANCE_2_5_APIMART_SAMPLE_ARCHETYPE } from "./seedance25ApimartSample";
 export { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
 export { SEEDANCE_VOLCENGINE_ARCHETYPE } from "./seedanceVolcengine";
 export { SEEDANCE_VOLCENGINE_2_5_ARCHETYPE } from "./seedanceVolcengine25";
@@ -51,6 +53,8 @@ export type {
   ArchetypeMode,
   ArchetypeReferenceSlot,
   ArchetypeReferenceSlotKind,
+  ArchetypeSampleOf,
+  ArchetypeSampleSpec,
   ArchetypeSource,
   ModelArchetype,
   ModelArchetypeVariant,

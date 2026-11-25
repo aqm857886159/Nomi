@@ -75,6 +75,17 @@ const refUrl = (i: number) => `${REF}img-${i}.png`;
 const capture = installFetchCapture();
 const catalog = await seedParityCatalog(["apimart"]);
 afterAll(() => capture.restore());
+
+// 样片档案（sampleOf）由父档案推出、同一张官方页：样片行的标尺就是父行的官方夹具（不另抄一份）。
+// 只认档案上的 sampleOf.parentId → 父档案的目录行，没有手写名单。
+for (const row of catalog.models.filter((m) => m.vendorKey === "apimart")) {
+  const own = getArchetypeById(videoArchetypeIdFromMeta(row.meta));
+  const parentId = own?.sampleOf?.parentId;
+  if (!parentId || fixtures.has(row.modelKey)) continue;
+  const parentRow = catalog.models.find((m) => m.vendorKey === "apimart" && videoArchetypeIdFromMeta(m.meta) === parentId);
+  const parentFixture = parentRow ? fixtures.get(parentRow.modelKey) : undefined;
+  if (parentFixture) fixtures.set(row.modelKey, { ...parentFixture, modelKey: row.modelKey });
+}
 type Archetype = ReturnType<typeof specializeArchetypeForVendor>;
 type Mode = Archetype["modes"][number];
 
@@ -240,6 +251,8 @@ export function bodyDrift(cell: string, path: "canvas" | "run", wire: Wire, snap
 // 这几格以前照发（编辑 / 续写没源视频；首尾帧只给首帧，协调 11-14 拍板照拒），现在必须是 mode_input_missing，零请求。
 const REFUSED_MISSING_INPUT_ON_RUN = [
   "doubao-seedance-2.5|edit|n=1", "doubao-seedance-2.5|edit|n=30", "doubao-seedance-2.5|extend|n=1", "doubao-seedance-2.5|extend|n=30",
+  // 样片行的方式由 2.5 推出，缺源视频照样不发。
+  "doubao-seedance-2.5-sample|edit|n=1", "doubao-seedance-2.5-sample|edit|n=30", "doubao-seedance-2.5-sample|extend|n=1", "doubao-seedance-2.5-sample|extend|n=30",
   "kling-v4-flash|edit|n=1", "kling-v4-flash|edit|n=10",
   "MiniMax-H3|firstlast|n=1", "pixverse-v6|firstlast|n=1", "gemini-omni-1.2-flash|firstlast|n=1", "gemini-omni-1.2-flash-ext|firstlast|n=1",
 ];
