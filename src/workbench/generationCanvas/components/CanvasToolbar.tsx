@@ -1,8 +1,8 @@
-import { canvasDocumentInput } from '../../shortcutSurface'
 import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 import { useCanvasChromeOcclusion } from './useCanvasChromeOcclusion'
 import { CanvasAddPreferenceActions } from './CanvasAddPreferenceActions'
 import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
+import { useGenerationPageLayerActive } from '../../generation/pageLayerContext'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
@@ -10,7 +10,7 @@ import { IconPlus, IconRoute } from '../../../vendor/tablerIcons'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design'
+import { AnchoredPopover, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design'
 import { intentActionLabel, intentIcon, intentLabel, nodeKindLabel, useCanvasAddIntentAction, useLocalFilePicker } from './canvasAddIntentActions'
 import {
   canvasFullAddSections,
@@ -84,46 +84,38 @@ function CanvasAddSectionList({
 /**
  * 「+」点开的菜单 = 「空间」一组（导演台 / 3D 模型 / 全景 / 白板，canvasMoreAddSections 同一份数据）。
  * 底部加节点条最后的「+」和空画布起步行的「更多」**同一个**菜单组件（Claude Design 拍板稿 EmptyStates），不另写一份。
- * 点开 / Esc / 点外面收起；位置由调用方的 className 定。
+ * 点开 / Esc / 点外面收起；定位与关闭交互由 AnchoredPopover 负责。
  */
-export function CanvasMoreAddMenu({ onPick, onClose, className }: {
+export function CanvasMoreAddMenu({ anchorRef, anchorRect, onPick, onClose }: {
+  anchorRef: React.RefObject<HTMLButtonElement | null>
+  anchorRect?: () => DOMRect
   onPick: (intent: CanvasAddIntent) => void
   onClose: () => void
-  className?: string
-}): JSX.Element {
+}): JSX.Element | null {
   const { t } = useTranslation()
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
-  const ref = React.useRef<HTMLDivElement>(null)
+  const canvasActive = useGenerationPageLayerActive()
+  const menuRef = React.useRef<HTMLDivElement>(null)
+  React.useLayoutEffect(() => {
+    if (canvasActive) menuRef.current?.focus({ preventScroll: true })
+  }, [canvasActive])
   React.useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Element | null
-      // 点在触发它的「+」/「更多」上由那颗按钮自己切换，这里只管点到别处。
-      if (ref.current?.contains(target) || target?.closest?.('[data-canvas-add-more]')) return
-      onClose()
-    }
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    canvasDocumentInput.addEventListener('pointerdown', onPointerDown, true)
-    canvasDocumentInput.addEventListener('keydown', onKeyDown)
-    return () => {
-      canvasDocumentInput.removeEventListener('pointerdown', onPointerDown, true)
-      canvasDocumentInput.removeEventListener('keydown', onKeyDown)
-    }
-  }, [onClose])
+    if (!canvasActive) onClose()
+  }, [canvasActive, onClose])
+  if (!canvasActive) return null
   return (
-    <div
-      ref={ref}
-      className={cn(
-        'generation-canvas-v2-toolbar__more-menu',
-        // 提到节点浮条（z-[12]）之上，免得被 composer / 浮条盖住点不到。
-        'z-[13] grid gap-0.5 w-[176px] p-[6px]',
-        'border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop',
-        className,
-      )}
-      role="menu"
-      aria-label={t('canvas.moreMenu')}
-    >
-      <CanvasAddSectionList sections={canvasMoreAddSections(preference)} onPick={onPick} />
-    </div>
+    <AnchoredPopover anchorRef={anchorRef} anchorRect={anchorRect} align="end" side="top" gap={12} onClose={onClose}>
+      <div
+        ref={menuRef}
+        tabIndex={-1}
+        style={{ outline: 'none' }}
+        className="generation-canvas-v2-toolbar__more-menu grid w-[176px] gap-0.5 rounded-nomi border border-workbench-border bg-nomi-paper p-[6px] shadow-workbench-pop"
+        role="menu"
+        aria-label={t('canvas.moreMenu')}
+      >
+        <CanvasAddSectionList sections={canvasMoreAddSections(preference)} onPick={onPick} />
+      </div>
+    </AnchoredPopover>
   )
 }
 
@@ -216,6 +208,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId, stageW
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
   React.useEffect(() => { void useCanvasMenuPreferenceStore.getState().load().catch(() => {}) }, [])
   const [moreOpen, setMoreOpen] = React.useState(false)
+  const moreAnchorRef = React.useRef<HTMLButtonElement>(null)
   const closeMore = React.useCallback(() => setMoreOpen(false), [])
 
   const addIntent = useCanvasAddIntentAction({ getInsertionPosition, categoryId })
@@ -276,25 +269,34 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId, stageW
           )
         })}
         {/* 最后一颗「+」：和常驻项同色同尺寸，点开 = 「空间」一组（Claude Design 拍板稿；以前是悬停才出的「更多」）。 */}
-        <div className="relative">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                data-canvas-add-more="true"
-                aria-haspopup="menu"
-                aria-expanded={moreOpen}
-                aria-label={t('canvas.moreMenu')}
-                className={cn(TOOLBAR_BUTTON_CLASS, moreOpen && 'bg-nomi-ink-10 text-nomi-ink')}
-                onClick={() => setMoreOpen((open) => !open)}
-              >
-                <IconPlus size={18} stroke={1.5} />
-              </button>
-            </TooltipTrigger>
-            {moreOpen ? null : <TooltipContent side="top">{t('canvas.moreMenu')}</TooltipContent>}
-          </Tooltip>
-          {moreOpen ? <CanvasMoreAddMenu className="absolute bottom-[calc(100%+12px)] right-[-4px]" onPick={handlePick} onClose={closeMore} /> : null}
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              ref={moreAnchorRef}
+              data-canvas-add-more="true"
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              aria-label={t('canvas.moreMenu')}
+              className={cn(TOOLBAR_BUTTON_CLASS, moreOpen && 'bg-nomi-ink-10 text-nomi-ink')}
+              onClick={() => setMoreOpen((open) => !open)}
+            >
+              <IconPlus size={18} stroke={1.5} />
+            </button>
+          </TooltipTrigger>
+          {moreOpen ? null : <TooltipContent side="top">{t('canvas.moreMenu')}</TooltipContent>}
+        </Tooltip>
+        {moreOpen ? (
+          <CanvasMoreAddMenu
+            anchorRef={moreAnchorRef}
+            anchorRect={() => {
+              const r = moreAnchorRef.current!.getBoundingClientRect()
+              return new DOMRect(r.left, r.top, r.width + 4, r.height)
+            }}
+            onPick={handlePick}
+            onClose={closeMore}
+          />
+        ) : null}
         {workflowTemplates.length ? (
           <>
             <span className="mx-1 h-[18px] w-px shrink-0 bg-nomi-line" aria-hidden="true" />

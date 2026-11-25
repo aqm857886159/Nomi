@@ -31,6 +31,7 @@ export function CanvasEmptyState({ activeCategoryId, getInsertionPosition }: Can
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
   const addIntent = useCanvasAddIntentAction({ getInsertionPosition, categoryId: activeCategoryId })
   const [moreOpen, setMoreOpen] = React.useState(false)
+  const moreAnchorRef = React.useRef<HTMLButtonElement>(null)
   const closeMore = React.useCallback(() => setMoreOpen(false), [])
   const supportedCategories = new Set(['shots', 'cast', 'scene', 'prop', 'audio'])
   const categoryKey = supportedCategories.has(activeCategoryId) ? activeCategoryId : 'fallback'
@@ -63,26 +64,25 @@ export function CanvasEmptyState({ activeCategoryId, getInsertionPosition }: Can
             </button>
           )
         })}
-        <div className="relative">
-          <button
-            type="button"
-            data-canvas-add-more="true"
-            aria-haspopup="menu"
-            aria-expanded={moreOpen}
-            className={cn(TILE_CLASS, moreOpen && 'bg-nomi-ink-05')}
-            onClick={() => setMoreOpen((open) => !open)}
-          >
-            <IconPlus size={20} stroke={1.5} />
-            <span>{t('canvas.addSections.more')}</span>
-          </button>
-          {moreOpen ? (
-            <CanvasMoreAddMenu
-              className="absolute top-0 left-[calc(100%+8px)]"
-              onClose={closeMore}
-              onPick={(intent) => { setMoreOpen(false); addIntent.run(intent) }}
-            />
-          ) : null}
-        </div>
+        <button
+          type="button"
+          ref={moreAnchorRef}
+          data-canvas-add-more="true"
+          aria-haspopup="menu"
+          aria-expanded={moreOpen}
+          className={cn(TILE_CLASS, moreOpen && 'bg-nomi-ink-05')}
+          onClick={() => setMoreOpen((open) => !open)}
+        >
+          <IconPlus size={20} stroke={1.5} />
+          <span>{t('canvas.addSections.more')}</span>
+        </button>
+        {moreOpen ? (
+          <CanvasMoreAddMenu
+            anchorRef={moreAnchorRef}
+            onClose={closeMore}
+            onPick={(intent) => { setMoreOpen(false); addIntent.run(intent) }}
+          />
+        ) : null}
       </div>
       <span className="mt-3 text-caption text-nomi-ink-40">{t('generationCommon.canvas.empty.dropHint')}</span>
     </div>
