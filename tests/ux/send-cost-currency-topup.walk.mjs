@@ -59,7 +59,9 @@ const server = http.createServer((req, res) => {
     return
   }
   res.setHeader('Content-Type', 'application/json')
-  if (target.pathname === '/v1/balance') {
+  // 发送键旁读的是账户余额（main 上 vendorAccountBalance.readVendorAccountBalance → APIMART accountBalance.userBalancePath）；
+  // Key 额度 /v1/balance 只给接入页「再查一次」用，这条走查不走那条。
+  if (target.pathname === '/v1/user/balance') {
     res.end(JSON.stringify({
       success: true,
       remain_credits: currentBalanceCredits,
