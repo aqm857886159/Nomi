@@ -1,0 +1,323 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-storyboard-add-action-identity-and-focus",
+  "problem_type": "Local storyboard actions lose a subject identity or its keyboard destination.",
+  "symptom": "Appending after deletion can reveal a surviving row. Appending can lose prompt focus, scene folds and selection. Adding or removing a reference can strand keyboard focus, and a replacement card can adopt stale bindings.",
+  "direct_cause": "Footer append derived an ID from its display number and chose navigation from DOM presence. Reference disclosure exposed stored expansion at zero cards, had no edit focus handoff, and deletion kept an active provenance link.",
+  "class_root": "Subject creation and deletion lacked a shared identity rule for surviving references, while UI edit completion bypassed the view that owns target presence and focus. The append repair bypassed the numeric policy through the allocator’s caller-supplied ID input.",
+  "affected_population": [
+    "Storyboard editors using numbered shots, long tables, folded scenes or row multi-selection",
+    "Storyboard editors adding a reference card, deleting the last one or reopening a plan with stale binding provenance"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+    "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+    "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+    "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+    "src/workbench/creation/storyboard/storyboardMountPlan.ts"
+  ],
+  "entry_points": [
+    "Footer add shot",
+    "Empty, expanded and collapsed reference Add reference",
+    "Anchor row menu delete",
+    "External reference import"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The existing virtualizer owns offset reconciliation. Subject identity, focus and selection are local application contracts.",
+  "invariants": [
+    "Fresh shots receive shot-1 and shot-2 in order. Further appends start above the highest surviving numeric shot ID and skip occupied or undo-reserved IDs. The written identity remains independent of display order.",
+    "Footer append opens only the destination scene and focuses the new prompt without changing selection.",
+    "The empty reference zone reports collapsed and Add reference gets focus upon removal of the last card.",
+    "Deleting a card detaches its shot-slot provenance and leaves the attached asset. An ID reserved by historical provenance or auto-reference history cannot be assigned to a new card."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "revealRow"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "captureDeletedFocus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/storyboardMountPlan.ts",
+      "symbol": "revealRow"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "renumberStoryboardShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "nextStoryboardSubjectIds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "appendStoryboardSubjects"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "nextStoryboardSubjectIds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "renumberStoryboardShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "symbol": "appendStoryboardSubjects"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "renumberStoryboardShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "restoredStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "useStoryboardDeletionFocus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "addShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "removeAnchor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "addAnchor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "deleteStoryboardRows"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "captureDeletedFocus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "useStoryboardRowFocus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "revealShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "insertShotAt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "duplicateShotAt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "nextStoryboardSubjectIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "renumberStoryboardShots"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
+      "symbol": "StoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "symbol": "setExpanded"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "onRemove"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "symbol": "onRemove"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "symbol": "onRemoveAnchor"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 28,
+    "why_not": "Manual append, insert and duplicate and Agent drafts have distinct user entry points and share numbered allocation. Draft normalization and edit-time reordering share renumbering. The editor captures deletion focus and the table resolves row focus against the mounted virtual items. The follow-up door scan also counts row insert, duplicate, delete and undo, and the extracted focus hook calls."
+  },
+  "generality_proof": "Allocation examines persisted subject and binding IDs before either a manual or imported card can obtain an ID. The table reveals from the committed item list regardless of whether the row is mounted. Empty and populated reference actions share one focus handoff. Manual and Agent append use the same numeric allocator, including on plans that mix numbered, legacy index-derived and previously written UUID IDs.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "symbol": "nextStoryboardSubjectIds",
+      "responsibility": "Issue numbered shot IDs above the surviving sequence, skip occupied IDs and preserve explicit IDs."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "removeAnchor",
+      "responsibility": "Detach deleted card provenance at the write boundary."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/storyboardMountPlan.ts",
+      "symbol": "revealRow",
+      "responsibility": "Resolve the focus request with the virtualizer and complete it against the mounted row."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "symbol": "StoryboardAnchorZone",
+      "responsibility": "Derive expansion and transfer focus after card edits."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "useStoryboardDeletionFocus",
+      "responsibility": "Capture focus at deletion and restore it when the departing control loses focus."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "restoredStoryboardPlan",
+      "responsibility": "Restore deleted shots by stable ID without overwriting survivors or newly created rows."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "entry_point": "addExternalReferenceAnchor",
+      "disposition": "enforced",
+      "evidence": "Both reference creation paths call makeAnchorId. The new test exercises import on a legacy plan with dangling provenance."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "entry_point": "appendStoryboardSubjects",
+      "disposition": "enforced",
+      "evidence": "Bulk Agent writes already use nextStoryboardSubjectIds. The same allocator owns manual footer append."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "entry_point": "StoryboardAnchorStrip",
+      "disposition": "enforced",
+      "evidence": "The collapsed Add reference action invokes the same handler as the empty and expanded zone."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "entry_point": "focusAdjacentShot",
+      "disposition": "not-affected",
+      "evidence": "Keyboard navigation targets an existing row and keeps its native scroll semantics."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "entry_point": "deleteStoryboardRows",
+      "disposition": "enforced",
+      "evidence": "Uses the shared renumber operation so legacy row IDs survive deletion and restoration."
+    }
+  ],
+  "recurrence_of": "2026-10-05-storyboard-plan-single-owner",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any plan can append after editing its order or delete and recreate a reference. Viewport and stored fold state vary across edits.",
+    "same_class_scan": [
+      "door-map addShot addAnchor removeAnchor revealShot nextStoryboardSubjectIds",
+      "Checked the subject identity concept and the stored referenceBindings consumers in shotRowModel, shotReferenceSlots and storyboardAnchorPolicy.",
+      "Checked the populated-state expansion probes in the generation-lock and shot-result walkthroughs.",
+      "Compared the bilingual hand-made editor and Agent draft/append loopbacks with the 51-shot delete/append regression. Footer append passed an explicit UUID, bypassing the shared numeric allocator and the addressing invariant."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+    "invariant": "Creation assigns stable identity at the domain write boundary, with numbered shot IDs for newly authored rows. Presentation resolves the committed subject through its own view and transfers focus.",
+    "failure_mode": "The allocator advances past surviving numeric shot IDs and skips occupied and undo-reserved IDs. Focus changes only after the edit supplies a subject or removes the last card.",
+    "exception_policy": "none",
+    "strategy": "Replace the DOM-dependent footer branches, reuse the installed virtualizer and keep allocation with the subject ID owner.",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "electron/shared/storyboard/storyboardSubjectIdentity.ts",
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "src/workbench/creation/storyboard/storyboardMountPlan.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.test.ts",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.actions.test.ts",
+    "electron/shared/storyboard/storyboardSubjectIdentity.test.ts",
+    "src/workbench/creation/storyboard/storyboardPlanSingleOwner.loopback.test.ts",
+    "src/workbench/creation/storyboard/storyboardDInteractions.test.ts",
+    "src/workbench/creation/storyboard/storyboardDeleteUndo.test.ts",
+    "src/workbench/creation/storyboard/StoryboardShotTable.windowing.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.test.ts",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.actions.test.ts",
+    "electron/shared/storyboard/storyboardSubjectIdentity.test.ts",
+    "src/workbench/creation/storyboard/storyboardPlanSingleOwner.loopback.test.ts",
+    "src/workbench/creation/storyboard/storyboardDInteractions.test.ts",
+    "src/workbench/creation/storyboard/storyboardDeleteUndo.test.ts",
+    "src/workbench/creation/storyboard/StoryboardShotTable.windowing.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "src/workbench/creation/storyboard/storyboardDeleteUndo.ts"
+    ],
+    "rationale": "The footer stops routing appends through external selection or DOM scroll. All reference Add reference buttons share one handoff. Manual writes use the numbered allocator instead of UUIDs or IDs derived from the insertion position. Undo replaces content matching of legacy rows with stable identity."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The changes use the existing app-owned action lifecycle and the installed virtualizer API without changing dependency requirements.",
+    "exit_criteria": []
+  },
+  "migration": "Previously written UUID and explicit shot IDs stay readable. Legacy index-derived identity is carried forward when edit operations reindex a row. Existing reference provenance and auto-reference history remain reserved during allocation. The inert anchorIds field retains its existing semantics.",
+  "residual_risks": [
+    "The browser fixtures run the production editor and store with synthetic numbered plans and no configured production project or generation."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard",
+    "tests": [
+      "src/workbench/generationCanvas/agent/storyboardPlanEdits.test.ts",
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.actions.test.ts"
+    ]
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-01"
+}

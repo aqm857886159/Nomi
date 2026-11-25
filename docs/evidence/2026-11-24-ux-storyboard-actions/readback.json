@@ -1,0 +1,219 @@
+[
+  {
+    "track": "1280x800.zh-CN.light",
+    "uiElementSamples": 22,
+    "foregroundGrabs": 0,
+    "loopbackCatalogRequests": 2,
+    "loopbackPaths": [
+      "/models",
+      "/v1/models"
+    ],
+    "externalRequests": 0,
+    "initial": {
+      "width": 1280,
+      "height": 800,
+      "lang": "zh-CN",
+      "scrollTop": 0,
+      "shots": 2,
+      "toggle": false,
+      "anchorHit": true,
+      "shotHit": true,
+      "progress": "已生成 0/2 镜",
+      "backHit": true,
+      "generateHit": true,
+      "addLabel": "添加镜头"
+    },
+    "newShotFullyVisibleAfterClick": true,
+    "readAfterReopen": {
+      "shots": 3,
+      "name": "Mara",
+      "prompt": "Mara opens the studio door."
+    }
+  },
+  {
+    "track": "1440x900.zh-CN.light",
+    "uiElementSamples": 25,
+    "foregroundGrabs": 0,
+    "loopbackCatalogRequests": 2,
+    "loopbackPaths": [
+      "/models",
+      "/v1/models"
+    ],
+    "externalRequests": 0,
+    "initial": {
+      "width": 1440,
+      "height": 900,
+      "lang": "zh-CN",
+      "scrollTop": 0,
+      "shots": 2,
+      "toggle": false,
+      "anchorHit": true,
+      "shotHit": true,
+      "progress": "已生成 0/2 镜",
+      "backHit": true,
+      "generateHit": true,
+      "addLabel": "添加镜头"
+    },
+    "newShotFullyVisibleAfterClick": true,
+    "readAfterReopen": {
+      "shots": 3,
+      "name": "Mara",
+      "prompt": "Mara opens the studio door."
+    }
+  },
+  {
+    "track": "1440x900.zh-CN.dark",
+    "uiElementSamples": 33,
+    "foregroundGrabs": 0,
+    "loopbackCatalogRequests": 2,
+    "loopbackPaths": [
+      "/models",
+      "/v1/models"
+    ],
+    "externalRequests": 0,
+    "initial": {
+      "width": 1440,
+      "height": 900,
+      "lang": "zh-CN",
+      "scrollTop": 0,
+      "shots": 2,
+      "toggle": false,
+      "anchorHit": true,
+      "shotHit": true,
+      "progress": "已生成 0/2 镜",
+      "backHit": true,
+      "generateHit": true,
+      "addLabel": "添加镜头"
+    },
+    "newShotFullyVisibleAfterClick": true,
+    "readAfterReopen": {
+      "shots": 3,
+      "name": "Mara",
+      "prompt": "Mara opens the studio door."
+    }
+  },
+  {
+    "track": "1440x900.en.light",
+    "uiElementSamples": 27,
+    "foregroundGrabs": 0,
+    "loopbackCatalogRequests": 2,
+    "loopbackPaths": [
+      "/models",
+      "/v1/models"
+    ],
+    "externalRequests": 0,
+    "initial": {
+      "width": 1440,
+      "height": 900,
+      "lang": "en",
+      "scrollTop": 0,
+      "shots": 2,
+      "toggle": false,
+      "anchorHit": true,
+      "shotHit": true,
+      "progress": "0/2 shots generated",
+      "backHit": true,
+      "generateHit": true,
+      "addLabel": "Add shot"
+    },
+    "newShotFullyVisibleAfterClick": true,
+    "readAfterReopen": {
+      "shots": 3,
+      "name": "Mara",
+      "prompt": "Mara opens the studio door."
+    }
+  },
+  {
+    "track": "1440x900.en.dark",
+    "uiElementSamples": 37,
+    "foregroundGrabs": 0,
+    "loopbackCatalogRequests": 2,
+    "loopbackPaths": [
+      "/models",
+      "/v1/models"
+    ],
+    "externalRequests": 0,
+    "initial": {
+      "width": 1440,
+      "height": 900,
+      "lang": "en",
+      "scrollTop": 0,
+      "shots": 2,
+      "toggle": false,
+      "anchorHit": true,
+      "shotHit": true,
+      "progress": "0/2 shots generated",
+      "backHit": true,
+      "generateHit": true,
+      "addLabel": "Add shot"
+    },
+    "newShotFullyVisibleAfterClick": true,
+    "readAfterReopen": {
+      "shots": 3,
+      "name": "Mara",
+      "prompt": "Mara opens the studio door."
+    }
+  },
+  {
+    "track": "1100x690.zh-CN.light",
+    "uiElementSamples": 32,
+    "foregroundGrabs": 0,
+    "loopbackCatalogRequests": 2,
+    "loopbackPaths": [
+      "/models",
+      "/v1/models"
+    ],
+    "externalRequests": 0,
+    "initial": {
+      "width": 1100,
+      "height": 690,
+      "lang": "zh-CN",
+      "scrollTop": 0,
+      "shots": 2,
+      "toggle": false,
+      "anchorHit": true,
+      "shotHit": true,
+      "progress": "已生成 0/2 镜",
+      "backHit": true,
+      "generateHit": true,
+      "addLabel": "添加镜头"
+    },
+    "newShotFullyVisibleAfterClick": true,
+    "readAfterReopen": {
+      "shots": 3,
+      "name": "Mara",
+      "prompt": "Mara opens the studio door."
+    }
+  },
+  {
+    "track": "1100x690.en.dark",
+    "uiElementSamples": 29,
+    "foregroundGrabs": 0,
+    "loopbackCatalogRequests": 2,
+    "loopbackPaths": [
+      "/models",
+      "/v1/models"
+    ],
+    "externalRequests": 0,
+    "initial": {
+      "width": 1100,
+      "height": 690,
+      "lang": "en",
+      "scrollTop": 0,
+      "shots": 2,
+      "toggle": false,
+      "anchorHit": true,
+      "shotHit": true,
+      "progress": "0/2 shots generated",
+      "backHit": true,
+      "generateHit": true,
+      "addLabel": "Add shot"
+    },
+    "newShotFullyVisibleAfterClick": true,
+    "readAfterReopen": {
+      "shots": 3,
+      "name": "Mara",
+      "prompt": "Mara opens the studio door."
+    }
+  }
+]

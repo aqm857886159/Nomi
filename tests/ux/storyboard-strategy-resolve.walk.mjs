@@ -19,29 +19,25 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // 用法：node tests/ux/storyboard-strategy-resolve.walk.mjs
 //   STRATEGY_RESOLVE_SCHEME=dark  暗色取证（默认 light）
-//   STRATEGY_RESOLVE_OUT=<dir>    截图输出目录
 import crypto from 'node:crypto'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { launchNomiApp } from './_launchApp.mjs'
-import { applyColorSchemeForShot, clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { applyColorSchemeForShot, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = makeTempDir('nomi-strategy-resolve-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'strategy-resolve-walk'
 const projectRoot = path.join(projectsDir, projectId)
 const scheme = process.env.STRATEGY_RESOLVE_SCHEME === 'dark' ? 'dark' : 'light'
-const outDir = process.env.STRATEGY_RESOLVE_OUT || path.join(repoRoot, 'tests/ux/shots/storyboard-strategy-resolve')
+const outDir = makeTempDir('nomi-strategy-resolve-shots-')
+process.env.EVIDENCE_DIR ||= outDir
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(path.join(projectRoot, 'assets', 'generated'), { recursive: true })
 fs.mkdirSync(settingsDir, { recursive: true })
-fs.mkdirSync(outDir, { recursive: true })
 
 // ── 候选模型：一条绑 minimax-h3 档案（duration 4–15s）的视频模型。种在 catalog 里，
 //    能力核启动时 buildVideoModelCandidates 从这里读——与真机同一条路，没有测试专用旁路。
@@ -118,7 +114,10 @@ for (const target of [path.join(projectRoot, 'project.json'), path.join(projectR
   fs.writeFileSync(target, JSON.stringify(project, null, 2))
 }
 
-const { app, win } = await launchNomiApp({ name: 'storyboard-strategy-resolve', tempRoot, settingsDir, projectsDir, settleMs: 1200 })
+const { app, win } = await launchNomiApp({
+  name: 'storyboard-strategy-resolve', tempRoot, settingsDir, projectsDir, settleMs: 1200,
+  mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')],
+})
 const shots = []
 /** 整屏取证。局部证据用 snapOf(locator, name)——裁到那块本身也让「这一步真的发生了」有字节级证据。 */
 const snap = async (name) => snapOf(win, name)
@@ -131,7 +130,10 @@ const snapOf = async (target, name) => {
 const strategyRoot = () => win.locator('[data-storyboard-strategy-root="true"]').first()
 const panel = () => win.locator('[data-storyboard-strategy-panel="true"]').first()
 const proposals = () => panel().locator('[data-storyboard-strategy-proposal="true"]')
-const rowWarnings = () => win.locator('[data-storyboard-row-duration-warning]')
+const row = (index) => win.locator(`[data-storyboard-row="${index}"]`)
+const rowWarning = (index) => row(index).locator('[data-storyboard-row-duration-warning]')
+const scroller = win.locator('[data-storyboard-scroll="true"]')
+const revealLastShot = () => scroller.evaluate((element) => { element.scrollTop = element.scrollHeight })
 // 闸的提示是**行内**反馈（notificationPolicy `level:'inline'`，4a5f52130 起不再走 Mantine toast）：
 // StoryboardPlanEditor 把 reportFailure 渲染成页脚那行 `<p role="status" data-storyboard-action-feedback>`。
 const gateFeedback = () => win.locator('[data-storyboard-action-feedback]').first()
@@ -165,11 +167,12 @@ try {
   await snapOf(panel(), '02-strategy-panel-ready')
 
   // ── 行内警示（D1）：超限/低于下限在**行上**就看得见，不必点开面板。
-  await expect(rowWarnings(), '分镜行上没有出现时长警示（shot-1 超上限、shot-4 低于下限各一条）')
-    .toHaveCount(2, { timeout: 10_000 })
-  await expect(rowWarnings().first(), 'shot-1 的行内警示不是「超上限」语义')
-    .toHaveAttribute('data-storyboard-row-duration-warning', 'overflow')
-  await snapOf(win.locator('[data-storyboard-row="1"]'), '03-row-inline-warning')
+  await expect(rowWarning(1), 'shot-1 的行内警示是「超上限」').toHaveAttribute('data-storyboard-row-duration-warning', 'overflow')
+  const overflowProof = await proveProbe(rowWarning(1), '拆条前第一镜确实有超限警示')
+  await snapOf(row(1), '03-row-inline-warning')
+  await revealLastShot()
+  await expect(rowWarning(4), 'shot-4 的行内警示是「低于下限」').toHaveAttribute('data-storyboard-row-duration-warning', 'underflow')
+  await scroller.evaluate((element) => { element.scrollTop = 0 })
 
   // ── 闸：真点一次整批生成，必须被拦（toast 带机器理由），而且不落画布。
   const batchButton = win.locator('[data-storyboard-batch="true"]')
@@ -188,8 +191,14 @@ try {
   const adopt = proposals().filter({ hasText: '拆条' }).locator('[data-storyboard-strategy-adopt="true"]').first()
   await clickOrFail(adopt, '采纳拆条建议')
   await expect(proposals(), '采纳后面板没有重查：拆条建议应当消失，只剩必需合并那一条').toHaveCount(1, { timeout: 15_000 })
-  await expect(rowWarnings(), '拆条采纳后 shot-1 的超限警示应当消失，只剩 shot-4 的低于下限').toHaveCount(1, { timeout: 10_000 })
+  await expect(win.locator('[data-storyboard-rows]'), '采纳后原镜拆成三镜，另外三镜保留').toHaveAttribute('data-storyboard-row-count', '6')
+  await expect(row(1), '第一段实际渲染').toBeVisible()
+  await expectAbsent(rowWarning(1), { provenBy: overflowProof, message: '拆条采纳后第一段的超限警示消失' })
   await snap('05-after-adopt-recheck')
+  // 表格按视口挂载，原 shot-4 现在排在第六行。先滚到底再核对警示。
+  await revealLastShot()
+  await expect(rowWarning(6), '原 shot-4 依然低于下限').toHaveAttribute('data-storyboard-row-duration-warning', 'underflow')
+  await snapOf(row(6), '06-remaining-underflow')
 
   // ── 截图必须彼此不同：字节相同 = 中间那些步骤根本没发生。
   const digests = shots.map((file) => [path.basename(file), crypto.createHash('md5').update(fs.readFileSync(file)).digest('hex')])

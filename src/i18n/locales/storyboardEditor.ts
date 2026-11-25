@@ -463,7 +463,7 @@ export const enStoryboardEditor = {
   shotCount: '{{count}} shots',
   consistencyTitle: 'Keep consistent across shots',
   noAnchors: 'No reference cards yet. Add one or write the shots directly.',
-  addAnchor: 'Add Reference',
+  addAnchor: 'Add reference',
   addAnchorHint: 'Character / scene reference / prop reference / style',
   aspectScope: {
     film: 'Film aspect',

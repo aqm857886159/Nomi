@@ -1,0 +1,153 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-storyboard-actions",
+  "problem_type": "A plan edit action available to the user is outside the current visible view or behind an irrelevant disclosure.",
+  "symptom": "A zero-card storyboard advertised Add reference behind Expand all, and Add shot fell below the fixed footer.",
+  "direct_cause": "Both controls were subordinate to data presentation: the first depended on expanded rows and the second was the last scrolling child.",
+  "class_root": "The editor did not give its persistent and empty-state edit actions a visible entry independent of whether their target rows were visible.",
+  "affected_population": [
+    "Creators editing a zero-card plan",
+    "Creators editing a storyboard whose shots extend below the visible viewport"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
+  ],
+  "entry_points": [
+    "Empty and populated anchor zones",
+    "Manual append from the production plan editor footer"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview",
+      "checked_at": "2026-11-24",
+      "purpose": "Scroll an existing row to the closest visible position."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://tanstack.com/virtual/latest/docs/api/virtualizer",
+      "checked_at": "2026-11-24",
+      "purpose": "Keep virtualization with the existing table owner."
+    }
+  ],
+  "invariants": [
+    "The editable zero-card state offers one Add reference button and no expand/collapse control. Adding creates an editable row.",
+    "The production editor offers one Add shot button outside its scrolling content, using the existing plan mutator. A new shot is revealed through its row or the existing virtual row navigation."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx",
+      "symbol": "StoryboardPlanEditorFooter"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "StoryboardPlanEditorFooter"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "addAnchor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "addShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "symbol": "setSelfExpanded"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "The production editor owns plan writes. Lab callers exercise the same existing presentation at independently signed states. The two plan mutators create different domain records."
+  },
+  "generality_proof": "The zero-card rule depends on card count for every render configuration. The add-shot control sits outside the scroll container regardless of its height, while navigation remains with the existing virtualized table when the row has not mounted.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "symbol": "StoryboardAnchorZone",
+      "responsibility": "Own the empty/populated split and the first add action."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "StoryboardPlanEditor",
+      "responsibility": "Route footer append to the active plan and reveal its new row."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "entry_point": "Empty reference section",
+      "disposition": "enforced",
+      "evidence": "The interaction regression checks immediate editing and the transition to normal disclosure."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "Persistent storyboard footer",
+      "disposition": "enforced",
+      "evidence": "The interaction regression opens a plan larger than its viewport, appends from the footer and reads the resulting viewport and shot."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every newly opened zero-reference plan or sufficiently tall shot table can reach the same UI conditions.",
+    "same_class_scan": [
+      "door-map results in the design card for zone, footer, addAnchor and addShot",
+      "Exact accessible-name consumers in original-storyboard-editor.test.mjs, _storyboardAgentBulkSteps.mjs and storyboard-windowing.walk.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "invariant": "An available local edit has a visible entry from its initial state, and adding a row uses the existing plan owner.",
+    "failure_mode": "An empty zone offers no disclosure. Plans still pass the existing store write rules.",
+    "exception_policy": "none",
+    "strategy": "Place the one append action in the persistent footer and bind the empty-zone action to the explicit create event.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.structure.test.ts",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.actions.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.structure.test.ts",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.actions.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx"
+    ],
+    "rationale": "Replace the dashed end-of-scroll append and remove the zero-card disclosure state."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Presentation is owned by Nomi. Existing browser and virtualizer APIs already supply the required navigation.",
+    "exit_criteria": []
+  },
+  "migration": "Existing projects, plans and accessible names require no migration.",
+  "residual_risks": [
+    "Existing walk entry points that rely on a paid provider were not used for this zero-spend UI flow.",
+    "The existing draft-save walkthrough setup requires the old disclosure on its zero-card fixture. The test file is outside the requested scope."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard",
+    "tests": [
+      "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.structure.test.ts",
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.actions.test.ts"
+    ]
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-01"
+}

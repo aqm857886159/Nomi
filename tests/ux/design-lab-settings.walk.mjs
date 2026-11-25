@@ -1,4 +1,4 @@
-// 设计实验室 · 设置「隐私与诊断」走查（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
+// 设计实验室 · 设置「隐私与诊断」和「用 AI 帮我接入」走查。纯本地渲染。
 //
 // 流程住 `design-lab/walkScreen.mjs`（与其它屏共用一份）；这里声明这一屏的取景参数，
 // 外加**一条只有这一屏才成立的断言**。
@@ -9,27 +9,36 @@
 // 长得极像（同一块面板，只差按钮下面那一行小字），人眼扫接触表根本挑不出来，
 // 和真绿一模一样。所以逐格验：组件自陈的 `data-diagnostics-state` 必须就是这一格许诺的那个。
 //
-// 产出：`tests/ux/shots/design-lab-settings/<state>.png` + `_contact-sheet.png`（拍板用）。
+// 证据默认写入临时目录；用 NOMI_WALK_OUT 指定仓外目录可保留截图。
 //
 // 用法：node tests/ux/design-lab-settings.walk.mjs   （ONLY=privacy-03-saved 只跑一个）
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 
-/** 每一格许诺自己停在哪个状态。id → 组件自陈的 `data-diagnostics-state`。 */
+/** 每一格许诺自己停在哪个状态。 */
 const EXPECTED_STATE = {
   'privacy-01-idle': 'idle',
   'privacy-02-exporting': 'exporting',
   'privacy-03-saved': 'saved',
   'privacy-04-failed': 'failed',
   'privacy-05-scope-reask-en-dark': 'idle',
+  'assisted-01-idle': 'idle',
+  'assisted-02-not-connected': 'not-connected',
+  'assisted-03-progress': 'running',
+  'assisted-04-failed': 'failed',
+  'assisted-05-idle-dark': 'idle',
+  'assisted-06-failed-dark': 'failed',
 }
 
 await walkDesignLabScreen({
   screen: 'settings',
-  title: '设置 · 隐私与诊断 ',
+  title: '设置 · 隐私与诊断 / AI 辅助接入 ',
+  outDir: process.env.NOMI_WALK_OUT ?? makeTempDir('design-lab-settings'),
   // 端口按 worktree + 角色派生（design-lab/labServer.mjs）：写死端口在这台常年 20+ worktree
   // 的机器上一定会撞，撞了截回来的是别人分支的 UI。
   role: 'walk-settings',
-  // 舞台 516 宽（settingsLabKit.SETTINGS_CELL_WIDTH）；两列一屏看完四格。
+  // 舞台 516 宽（settingsLabKit.SETTINGS_CELL_WIDTH）。
   cellWidth: 516,
   columns: 2,
   assertState: async (page, state, record) => {
@@ -37,6 +46,25 @@ await walkDesignLabScreen({
     // 新加了一格却没在上面认领 → 当场说出来，而不是安静地放它过去（那就又多一格没人验的图）。
     if (!expected) {
       record(`${state.id} 没有在 EXPECTED_STATE 里认领自己停在哪个状态——补上它，别让这一格无人验证`)
+      return
+    }
+    if (state.id.startsWith('assisted-')) {
+      const card = page.locator('[data-model-home-assisted-onboarding]')
+      await expect(card).toBeVisible()
+      const progress = card.locator('[data-assisted-onboarding-progress]')
+      if (expected === 'idle' || expected === 'not-connected') {
+        const copy = card.locator('[data-assisted-onboarding-copy="idle"]')
+        await expect(copy).toBeEnabled()
+        const idleProof = await proveProbe(copy, `${state.id} 显示复制接入说明的主动作`)
+        await expectAbsent(progress, { provenBy: idleProof })
+        const connect = card.locator('[data-assisted-onboarding-connect]')
+        if (expected === 'not-connected') await expect(connect).toBeVisible()
+        else await expectAbsent(connect, { provenBy: idleProof })
+      } else {
+        await expect(progress).toHaveAttribute('data-assisted-onboarding-progress', expected)
+        await expect(progress.locator('[data-assisted-progress-step="certifying"][data-assisted-progress-state="active"]')).toBeVisible()
+        if (expected === 'failed') await expect(progress).toContainText('402 insufficient_balance')
+      }
       return
     }
     // 告知范围升级后的那一格：必须真的出现「确认新范围」那一块，否则这一格没证明任何事。

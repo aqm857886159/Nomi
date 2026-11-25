@@ -2,8 +2,6 @@ import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import React, { type JSX } from 'react'
 import {
   ReactFlowProvider,
-  getNodesBounds,
-  getViewportForBounds,
   useStoreApi,
   useReactFlow,
   type OnNodeDrag,
@@ -26,7 +24,6 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useStableCategoryNodes } from './useStableCategoryNodes'
 import { getCanvasGroupBoxes } from '../components/generationCanvasGeometry'
-import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, unionCanvasFitBounds } from '../model/canvasFitBounds'
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
 import { useCanvasGroupActions } from '../components/useCanvasGroupActions'
@@ -46,7 +43,8 @@ import { useCanvasScreenshotCapture } from '../components/useCanvasScreenshotCap
 import { useCanvasFitSignal } from '../components/useCanvasFitSignal'
 import { useTidyCanvas } from '../components/useTidyCanvas'
 import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
-import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
+import { useCanvasEditingFit, useSelectionComposerPan } from './useSelectionComposerPan'
+import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM } from '../model/canvasFitBounds'
 import { useCanvasArrivalHint } from './useCanvasArrivalHint'
 import { visibleInsertionPoint } from '../store/canvasVisibleArea'
 import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
@@ -232,10 +230,12 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   offsetRef.current = { x: liveViewport.x, y: liveViewport.y }
 
   // 定位动画走完时记一次视口（动画中间帧 onMoveEnd 不写，见 GenerationCanvasReactFlowViewport）。
-  const { animateViewportTo, cancelViewportAnimation, isViewportAnimating, healViewport } = useReactFlowViewportAnimation({
+  const { animateViewportTo, cancelViewportAnimation: cancelAnimation, isViewportAnimating, healViewport } = useReactFlowViewportAnimation({
     flow, zoomRef, offsetRef,
     onAnimationSettled: (settled) => { setLiveViewport(settled); rememberCategoryViewport(activeCategoryId, canvasViewportFromFlow(settled)) },
   })
+
+  const cancelViewportAnimation = useSelectionComposerPan(hostRef, projectedFlowNodesRef, draggingRef, flow.getViewport, animateViewportTo, cancelAnimation, readOnly)
 
   // 下面这段同步把 store 的视口推给 React Flow；React Flow 随后回一次**没有来源事件**的 onMoveEnd。那是回声：
   // 值本来就出自 store——或者 store 里没有这个分类的记忆时，出自上一行的 1:1 兜底。回声不许再被记成「用户留下的视角」：
@@ -334,34 +334,17 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
 
   // 截图 / 浏览器素材 / 模板落点：与 addNode 默认落点同一个 owner（store/canvasVisibleArea）；新建节点由 addNode 造出节点后自行算落点。
   const getInsertionPosition = React.useCallback(() => visibleInsertionPoint(activeCategoryId) ?? { x: 240, y: 240 }, [activeCategoryId])
-  // 「适应视图」框住的是**节点 ∪ 框**，不只是节点：框的标签带比成员外接盒高 52px，
-  // 只按节点 fit 会把用户刚起的框名切在舞台外（裁决与理由见 model/canvasFitBounds.ts）。
-  // 缩放上下限（0.2 / 3）与留白（0.12）逐字沿用 flow.fitView 那一版，这次只换了外接盒。
-  const fitView = React.useCallback((animate = false) => {
-    if (!nodes.length) return
-    const stage = hostRef.current?.getBoundingClientRect()
-    if (!stage || stage.width <= 0 || stage.height <= 0) return
-    const bounds = unionCanvasFitBounds([
-      getNodesBounds(flow.getNodes(), { nodeLookup: flowStore.getState().nodeLookup }),
-      ...groupBoxes.map((box) => ({ x: box.left, y: box.top, width: box.width, height: box.height })),
-    ])
-    if (!bounds) return
-    const next = getViewportForBounds(bounds, stage.width, stage.height, CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, 0.12)
-    if (![next.x, next.y, next.zoom].every((value) => Number.isFinite(value))) return
-    if (animate) {
-      animateViewportTo(next.zoom, { x: next.x, y: next.y }, 200)
-      return
-    }
-    // 零时长这条得先把在飞的自动让位停掉，否则下一帧它会把 fit 的结果盖回去（#503 同款）。
-    cancelViewportAnimation()
-    void flow.setViewport(next, { duration: 0 })
-  }, [animateViewportTo, cancelViewportAnimation, flow, flowStore, groupBoxes, hostRef, nodes.length])
+  const fitView = useCanvasEditingFit({ hostRef, nodes, nodeById, groupBoxes, activeCategoryId,
+    hasRememberedViewport: Boolean(categoryViewports[activeCategoryId]), zoomRange: [CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM],
+    ready: isReady, readOnly, draggingRef, zoomRef, offsetRef, animateViewportTo, cancelViewportAnimation })
   const zoomTo = React.useCallback((nextZoom: number) => {
+    cancelViewportAnimation()
     void flow.zoomTo(nextZoom, { duration: 0 })
-  }, [flow])
+  }, [flow, cancelViewportAnimation])
   const handleMinimapJump = React.useCallback((point: { x: number; y: number }) => {
+    cancelViewportAnimation()
     void flow.setCenter(point.x, point.y, { zoom: zoomRef.current, duration: 0 })
-  }, [flow, zoomRef])
+  }, [flow, zoomRef, cancelViewportAnimation])
   const getCanvasPointFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
     return flow.screenToFlowPosition({ x: clientX, y: clientY })
   }, [flow])
@@ -414,17 +397,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onFrameToolPointerDown: frameTool.handlePointerDown,
   })
 
-  useAutoFitOnLoad({
-    ready: isReady,
-    nodes,
-    activeCategoryId,
-    categoryViewports,
-    fitView,
-    stageRef: hostRef,
-    zoomRef,
-    offsetRef,
-    hasFlowNode: (id) => flowStore.getState().nodeLookup.has(id),
-  })
   useCanvasFitSignal(fitView)
   // 新东西落在屏外 / 别的分类：边缘提示，点了才过去（程序不再为「露出」主动挪画布，2026-09-25）。
   const arrival = useCanvasArrivalHint({ ready: isReady, allNodes, activeCategoryId, liveViewport, stageSize, animateViewportTo })
@@ -527,6 +499,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
 
   const handleNodeDragStart: OnNodeDrag<GenerationFlowNode> = React.useCallback((event, draggedNode) => {
     if (readOnly) return
+    cancelViewportAnimation()
     draggingRef.current = true
     setNodeDragActive(true) // #5：冻结 minimap（纯渲染门，不碰写入路径）
     const flowNodes = projectedFlowNodesRef.current
@@ -553,7 +526,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         return node ? [[nodeId, { ...node.position }] as const] : []
       }),
     )
-  }, [flowStore, readOnly, selectedGroup])
+  }, [cancelViewportAnimation, flowStore, readOnly, selectedGroup])
 
   // 拖动中算「松手会发生什么」——进框/出框的反馈就在这里产生（只写本地预览，不碰 store）。
   const handleNodeDrag: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode, draggedNodes) => {

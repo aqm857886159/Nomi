@@ -29,6 +29,11 @@ describe('发号：锚和镜头各数各的', () => {
     expect(() => nextStoryboardSubjectIds(plan([], []), [{ shotId: 'anchor-2' }])).toThrow(/reference cards/)
     expect(() => nextStoryboardSubjectIds(plan([], []), [{ shotId: 'dup' }, { shotId: 'dup' }])).toThrow(/镜头 id 重复/)
   })
+
+  it('allocates above surviving numeric shot IDs while skipping reserved IDs', () => {
+    const existing = plan([anchor('shot-8')], [shot(1, 'shot-2'), shot(2, 'shot-7'), shot(3, 'shot-legacy-uuid')])
+    expect(nextStoryboardSubjectIds(existing, [{}, {}], ['shot-10'])).toEqual(['shot-9', 'shot-11'])
+  })
 })
 
 describe('接行：镜号 = 在镜头里的位置，锚不占号', () => {

@@ -1,0 +1,185 @@
+{
+  "head": "1730b7ea3db4adb513e0166c0376cce113f3f018",
+  "sourceTree": "6deda80d4e13242aefc6b5c019fb8cc575c4965f",
+  "results": [
+    {
+      "id": "canvas-drag-20-nodes",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 25.6,
+          "p95": 26.5
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 1
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          26.7,
+          25.6,
+          25.1,
+          25.3,
+          25.7
+        ],
+        "longTasks": [
+          0,
+          1,
+          1,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "verdict": {
+        "status": "regression",
+        "note": "中位数 25.6 比基线 9.3 差 175%"
+      },
+      "raw": "raw-before-canvas-drag-20-nodes.json"
+    },
+    {
+      "id": "chat-scroll-500",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 17.6,
+          "p95": 17.7
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          17.7,
+          17.6,
+          17.6,
+          17.5,
+          17.5
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 16.7,
+      "verdict": {
+        "status": "over-budget",
+        "note": "中位数 17.6 > 预算 16.7"
+      },
+      "raw": "raw-before-chat-scroll-500.json"
+    },
+    {
+      "id": "timeline-scrub",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 32.8,
+          "p95": 35.5
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0.8
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          27.4,
+          32.9,
+          36.2,
+          32.8,
+          30.8
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "verdict": {
+        "status": "regression",
+        "note": "中位数 32.8 比基线 18.3 差 79%"
+      },
+      "raw": "raw-before-timeline-scrub.json"
+    },
+    {
+      "id": "window-narrow-drag",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 18.9,
+          "p95": 19.1
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          18.9,
+          19.1,
+          18.7,
+          18.8,
+          19.1
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "verdict": {
+        "status": "regression",
+        "note": "中位数 18.9 比基线 10.4 差 82%"
+      },
+      "raw": "raw-before-window-narrow-drag.json"
+    }
+  ],
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 10,
+    "cpuModel": "Apple M5",
+    "memoryGb": 16,
+    "node": "v22.23.5",
+    "build": "dist (pnpm build) + dev Electron binary",
+    "viewport": {
+      "width": 1600,
+      "height": 1000
+    },
+    "gpuMemMb": null,
+    "dpr": null
+  }
+}

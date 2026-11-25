@@ -8,7 +8,28 @@ import { computeSitemapEntries } from './marketing/pages.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const output = path.join(root, 'marketing/sitemap.xml')
+const robotsOutput = path.join(root, 'marketing/robots.txt')
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
+
+export const ALLOWED_CRAWLER_AGENTS = Object.freeze([
+  'Googlebot',
+  'Bingbot',
+  'GPTBot',
+  'OAI-SearchBot',
+  'ChatGPT-User',
+  'PerplexityBot',
+  'ClaudeBot',
+  'Google-Extended',
+])
+
+export function renderRobotsTxt(siteUrl) {
+  const baseUrl = String(siteUrl).replace(/\/$/, '')
+  const blocks = [
+    ...ALLOWED_CRAWLER_AGENTS.map((agent) => `User-agent: ${agent}\nAllow: /`),
+    'User-agent: *\nAllow: /',
+  ]
+  return `${blocks.join('\n\n')}\n\nSitemap: ${baseUrl}/sitemap.xml\n`
+}
 
 const escapeXml = (value) => String(value)
   .replaceAll('&', '&amp;')
@@ -54,14 +75,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
   const previousDates = loadPageDates()
   const { dates, entries } = computeSitemapEntries({ siteData, runtimeFacts, previousDates, today })
   const sitemapXml = renderSitemap(shared.siteUrl, entries)
+  const robotsTxt = renderRobotsTxt(shared.siteUrl)
   const datesJson = formatPageDates(dates)
 
   if (checkOnly) {
     const stale = []
     if (!fs.existsSync(output) || fs.readFileSync(output, 'utf8') !== sitemapXml) stale.push(path.relative(root, output))
+    if (!fs.existsSync(robotsOutput) || fs.readFileSync(robotsOutput, 'utf8') !== robotsTxt) stale.push(path.relative(root, robotsOutput))
     if (!fs.existsSync(PAGE_DATES_FILE) || fs.readFileSync(PAGE_DATES_FILE, 'utf8') !== datesJson) stale.push(path.relative(root, PAGE_DATES_FILE))
     if (stale.length) {
-      console.error(`Marketing sitemap is stale:\n${stale.map((item) => `- ${item}`).join('\n')}`)
+      console.error(`Marketing sitemap/robots is stale:\n${stale.map((item) => `- ${item}`).join('\n')}`)
       process.exitCode = 1
     } else {
       console.log('MARKETING SITEMAP CHECK PASS')
@@ -70,8 +93,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
     const temporary = `${output}.${process.pid}.tmp`
     fs.writeFileSync(temporary, sitemapXml)
     fs.renameSync(temporary, output)
+    const robotsTmp = `${robotsOutput}.${process.pid}.tmp`
+    fs.writeFileSync(robotsTmp, robotsTxt)
+    fs.renameSync(robotsTmp, robotsOutput)
     fs.mkdirSync(path.dirname(PAGE_DATES_FILE), { recursive: true })
     fs.writeFileSync(PAGE_DATES_FILE, datesJson)
-    console.log(`Generated ${path.relative(root, output)} (${entries.length} URLs) and ${path.relative(root, PAGE_DATES_FILE)}`)
+    console.log(`Generated ${path.relative(root, output)} (${entries.length} URLs), ${path.relative(root, robotsOutput)}, and ${path.relative(root, PAGE_DATES_FILE)}`)
   }
 }

@@ -68,8 +68,32 @@ describe('videoAspectSeedPatch：视频编辑方式默认跟随原视频（auto�
       controls: [editControl], meta: {}, mode: { intent: 'character' }, respectExplicit: true,
     })).toEqual({ aspect_ratio: '16:9' })
     expect(videoAspectSeedPatch({
-      nodeId: 'shot', nodes: [portrait, shot({})], edges,
+      nodeId: 'shot', nodes: [portrait, shot({})], edges: edges.map(edge => ({ ...edge, mode: 'reference' })),
       controls: [editControl], meta: {}, mode: { intent: 'character' }, respectExplicit: true,
     })).toEqual({ aspect_ratio: '9:16' })
   })
+})
+
+describe('first-frame handoff', () => {
+  it.each([
+    ['1:1', ['16:9', '1:1'], '1:1'],
+    ['9:16', ['16:9', '9:16'], '9:16'],
+    ['1:1', ['adaptive', '1:1'], '1:1'],
+    ['9:16', ['auto', '9:16'], '9:16'],
+    ['3:4', ['auto', '9:16'], '9:16'],
+    ['1:1', ['adaptive', '16:9'], 'adaptive'],
+    [undefined, ['auto', '9:16'], 'auto'],
+  ] as const)('matches %s to supported options %j', (aspect, values, expected) => {
+    const source = { ...portrait, meta: { aspect_ratio: aspect } }
+    const input = { nodeId: 'shot', nodes: [source, shot({})], edges, controls: [ratioControl([...values])], respectExplicit: true }
+    expect(videoAspectSeedPatch({ ...input, meta: {} }).aspect_ratio).toBe(expected)
+    expect(videoAspectSeedPatch({ ...input, meta: { aspect_ratio: '16:9', [ASPECT_EXPLICIT_META_KEY]: true } })).toEqual({})
+  })
+})
+
+it('matches the decoded first frame when source controls have since changed', () => {
+  const source = { ...portrait, meta: { imageWidth: 1024, imageHeight: 1024, aspect_ratio: '9:16' },
+    result: { id: 'r', type: 'image' as const, url: 'nomi-local://still.png', createdAt: 1 } }
+  const input = { nodeId: 'shot', nodes: [source, shot({})], edges, controls: [ratioControl(['adaptive', '1:1', '9:16'])], respectExplicit: true }
+  expect(videoAspectSeedPatch({ ...input, meta: {} }).aspect_ratio).toBe('1:1')
 })

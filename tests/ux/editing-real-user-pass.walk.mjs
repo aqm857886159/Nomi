@@ -26,14 +26,16 @@ import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectVisible, expectHittable, expectOverlayReachable, proveProbe, expectAbsent, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import { COMPOSER, PREVIEW_PANEL } from './agent-runtime-walk-support.mjs'
+import { assertOutsideRepo, defaultEvidenceDir } from './uiDriverOptions.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
 const ffprobePath = require('@ffprobe-installer/ffprobe').path
 
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/editing-real-user-pass')
-fs.rmSync(shotsDir, { recursive: true, force: true })
+const shotsDir = assertOutsideRepo(path.join(defaultEvidenceDir(), 'editing-real-user-pass'))
 fs.mkdirSync(shotsDir, { recursive: true })
+process.env.EVIDENCE_DIR = shotsDir
 
 const root = makeTempDir('nomi-editing-real-user-')
 const userDataDir = path.join(root, 'user-data')
@@ -243,8 +245,15 @@ try {
   note('第一眼', '时间轴是空的，四条轨都在，空轨收成窄条不占地方——但要不要「先干什么」全靠自己猜，没有一句引导。')
 
   // ══ 第 2 步：空音频轨时，整片属性里的「配乐音量」必须是禁用+说明，而不是拖得动却没用 ══
-  const inspector = win.locator('[aria-label="属性面板"]')
-  await expectVisible(inspector, '属性面板没出现')
+  const inspectorPanel = win.getByTestId('editing-surface-inspector')
+  await expectVisible(inspectorPanel, '预览没有挂载属性栏')
+  const expandInspector = inspectorPanel.getByRole('button', { name: uiText('zh-CN', 'timelinePreview.previewInspector.expand'), exact: true })
+  const inspector = inspectorPanel.getByRole('complementary')
+  const showInspector = async () => {
+    if (await expandInspector.isVisible()) await clickOrFail(expandInspector, '打开预览属性栏')
+    await expectVisible(inspector, '属性面板没出现')
+  }
+  await showInspector()
   const musicSlider = inspector.locator('[data-inspector-music-volume="true"]')
   await expectVisible(musicSlider, '整片态没有「配乐音量」')
   check('空音频轨时「配乐音量」禁用并说明为什么（不再是拖得动却不生效的死滑杆）',
@@ -500,6 +509,8 @@ try {
   await clickOrFail(musicTrack.getByRole('button', { name: '取消轨道静音' }).first(), '取消配乐轨静音')
 
   await win.keyboard.press('Escape')
+  // 窄窗打开素材栏后，布局可以收起属性栏。先把它展开，再验证取消选择手势。
+  await showInspector()
   // 点轨道区空白处取消选中，回到整片属性。选中过之后回不到整片属性，就等于画幅 / 导出分辨率
   // / 配乐音量这三样再也改不了——这条手势是它们唯一的回头路。
   await clickTimelineBlank(win)

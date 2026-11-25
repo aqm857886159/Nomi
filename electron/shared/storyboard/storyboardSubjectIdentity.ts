@@ -12,7 +12,7 @@ import type { PlanAnchor, PlanShot, StoryboardPlan } from './storyboardPlan'
  * 自然写 `shot-1`，改到的是角色参考卡。三处各自「顺手」编号，没有一处说了算。
  *
  * 现在：主进程首建、渲染层补镜头 / 改一镜，全部调这里的同一组函数。
- *   · `nextStoryboardSubjectIds`：发号。锚 `anchor-N`（N 只数锚），镜头 `shot-N`（N 只数镜头），跳过已占用的。
+ *   · `nextStoryboardSubjectIds`：发号。锚 `anchor-N`（N 只数锚），镜头 `shot-N` 从已有最大镜头号接续，跳过已占用的。
  *     调用方自带的 id 照收，但不许跨号段：锚不许叫 `shot-N`，镜头不许叫 `anchor-N`。
  *   · `appendStoryboardSubjects`：把一批主体接到方案后面，镜号 = 已有镜头数 + 序号。
  *   · `storyboardSubjectAt`：按 id 找主体。镜号段的 id（`shot-N`）只在镜头里找，永远不会落到锚上。
@@ -57,7 +57,17 @@ export function stableShotId(shot: Pick<PlanShot, 'shotId' | 'index'>): string {
 type PlanSubjects = Pick<StoryboardPlan, 'anchors' | 'shots'>
 
 function takenIds(plan: PlanSubjects): Set<string> {
-  return new Set([...plan.anchors.map(anchor => anchor.id), ...plan.shots.map(stableShotId)])
+  const taken = new Set([...plan.anchors.map(anchor => anchor.id), ...plan.shots.map(stableShotId)])
+  // Older plans can keep provenance for a deleted card. That ID still names the old source.
+  for (const subject of [...plan.anchors, ...plan.shots]) {
+    for (const slot of Object.values(subject.referenceBindings ?? {})) {
+      for (const binding of slot) if (binding.anchorId) taken.add(binding.anchorId)
+    }
+  }
+  for (const shot of plan.shots) {
+    for (const id of shot.autoReferenced ?? []) taken.add(id)
+  }
+  return taken
 }
 
 function assertInRange(role: StoryboardSubjectRole, id: string): void {
@@ -76,8 +86,10 @@ function assertInRange(role: StoryboardSubjectRole, id: string): void {
  * 调用方自带的 id（外部宿主、夹具）照收：只核号段与重复，不改写。
  */
 export function nextStoryboardSubjectIds(plan: PlanSubjects,
-  incoming: ReadonlyArray<Readonly<{ role?: StoryboardSubjectRole; shotId?: string }>>): string[] {
+  incoming: ReadonlyArray<Readonly<{ role?: StoryboardSubjectRole; shotId?: string }>>,
+  reservedIds: readonly string[] = []): string[] {
   const taken = takenIds(plan)
+  for (const id of reservedIds) taken.add(id)
   const explicit = incoming.map(subject => subject.shotId?.trim() || undefined)
   for (const [position, id] of explicit.entries()) {
     if (!id) continue
@@ -86,7 +98,13 @@ export function nextStoryboardSubjectIds(plan: PlanSubjects,
     taken.add(id)
   }
   let anchorNumber = plan.anchors.length
-  let shotNumber = plan.shots.length
+  let shotNumber = BigInt(plan.shots.length)
+  for (const shot of plan.shots) {
+    const id = stableShotId(shot)
+    if (!SHOT_NUMBERED.test(id)) continue
+    const number = BigInt(id.slice('shot-'.length))
+    if (number > shotNumber) shotNumber = number
+  }
   return incoming.map((subject, position) => {
     const given = explicit[position]
     if (given) return given
@@ -100,9 +118,13 @@ export function nextStoryboardSubjectIds(plan: PlanSubjects,
   })
 }
 
-/** 镜号重排成连续 1..N（手建方案删 / 拖 / 插之后、Agent 方案补镜头之后都过这一处）。 */
-export function renumberStoryboardShots<TShot extends Pick<PlanShot, 'index'>>(shots: readonly TShot[]): TShot[] {
-  return shots.map((shot, position) => (shot.index === position + 1 ? shot : { ...shot, index: position + 1 }))
+/** 镜号重排成连续 1..N。旧镜头换位置前把派生的身份写到行上。 */
+export function renumberStoryboardShots<TShot extends Pick<PlanShot, 'index' | 'shotId'>>(shots: readonly TShot[]): TShot[] {
+  return shots.map((shot, position) => {
+    const index = position + 1
+    if (shot.index === index) return shot
+    return { ...shot, shotId: shot.shotId ?? stableShotId(shot), index }
+  })
 }
 
 function isAnchor(subject: PlanAnchor | PlanShot): subject is PlanAnchor {

@@ -153,7 +153,7 @@
   border-radius: 999px;
   background: var(--workbench-muted-soft);
   box-shadow: 0 4px 12px rgba(18, 24, 38, 0.14);
-  transition: transform 150ms ease, background 150ms ease, opacity 150ms ease;
+  transition: transform var(--nomi-duration-micro) var(--nomi-ease-out), background var(--nomi-duration-micro) var(--nomi-ease-out), opacity var(--nomi-duration-micro) var(--nomi-ease-out);
 }
 
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--dot:hover .generation-canvas-react-flow__handle-icon,
@@ -206,7 +206,7 @@
   opacity: 0.82;
   pointer-events: none;
   /* 2026-09-25 画布跟手（用户拍板）：位置直接跟光标，不缓动——180ms 追光标就是「鼠标到了反馈才来」。颜色 / 透明度保留缓动。 */
-  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity var(--nomi-duration-fast) var(--nomi-ease-out), border-color var(--nomi-duration-fast) var(--nomi-ease-out), color var(--nomi-duration-fast) var(--nomi-ease-out);
 }
 
 /* Movement previews translate the visual node shell while React Flow keeps its

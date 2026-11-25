@@ -1,0 +1,382 @@
+{
+  "before": {
+    "no-preference": {
+      "workbench": {
+        "idle": {
+          "width": 126.390625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 126.390625,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 146.390625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "spin",
+            "opacity": "1",
+            "label": "Loading",
+            "ariaBusy": null
+          },
+          "heldWidth": 146.390625
+        }
+      },
+      "design": {
+        "idle": {
+          "width": 128.890625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 128.890625,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 150.890625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "spin",
+            "opacity": "1",
+            "label": "Loading",
+            "ariaBusy": null
+          },
+          "heldWidth": 150.890625
+        }
+      },
+      "workbenchIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      },
+      "actionIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      }
+    },
+    "reduce": {
+      "workbench": {
+        "idle": {
+          "width": 126.390625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 126.390625,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 146.390625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "none",
+            "opacity": "1",
+            "label": "Loading",
+            "ariaBusy": null
+          },
+          "heldWidth": 146.390625
+        }
+      },
+      "design": {
+        "idle": {
+          "width": 128.890625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 128.890625,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 150.890625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "none",
+            "opacity": "1",
+            "label": "Loading",
+            "ariaBusy": null
+          },
+          "heldWidth": 150.890625
+        }
+      },
+      "workbenchIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      },
+      "actionIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      }
+    }
+  },
+  "after": {
+    "no-preference": {
+      "workbench": {
+        "idle": {
+          "width": 126.390625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 122.59890747070312,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 126.390625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "spin",
+            "opacity": "1",
+            "label": "Loading",
+            "ariaBusy": "true"
+          },
+          "heldWidth": 126.390625
+        }
+      },
+      "design": {
+        "idle": {
+          "width": 128.890625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 125.02392578125,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 128.890625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "spin",
+            "opacity": "1",
+            "label": "Loading",
+            "ariaBusy": "true"
+          },
+          "heldWidth": 128.890625
+        }
+      },
+      "workbenchIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      },
+      "actionIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      }
+    },
+    "reduce": {
+      "workbench": {
+        "idle": {
+          "width": 126.390625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 126.390625,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 126.390625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "none",
+            "opacity": "0.65",
+            "label": "Loading",
+            "ariaBusy": "true"
+          },
+          "heldWidth": 126.390625
+        }
+      },
+      "design": {
+        "idle": {
+          "width": 128.890625,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 128.890625,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": {
+          "width": 128.890625,
+          "pointerHeld": false,
+          "ariaBusy": "true",
+          "disabled": true,
+          "loader": {
+            "animation": "none",
+            "opacity": "0.65",
+            "label": "Loading",
+            "ariaBusy": "true"
+          },
+          "heldWidth": 128.890625
+        }
+      },
+      "workbenchIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      },
+      "actionIcon": {
+        "idle": {
+          "width": 32,
+          "pointerHeld": false,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "held": {
+          "width": 32,
+          "pointerHeld": true,
+          "ariaBusy": null,
+          "disabled": false,
+          "loader": null
+        },
+        "busy": null
+      }
+    }
+  }
+}

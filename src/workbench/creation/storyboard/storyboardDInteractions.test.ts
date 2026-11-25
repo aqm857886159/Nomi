@@ -77,9 +77,9 @@ describe('storyboard D interaction pure functions', () => {
   it('inserts a blank shot with the previous shot generation settings and duplicates content with a new identity', () => {
     const inserted = insertShotAt(plan, 1)
     expect(inserted.shots[1]).toMatchObject({ shotKind: 'image', durationSec: DEFAULT_IMAGE_SECONDS, sceneId: 'scene-1', prompt: '' })
-    expect(inserted.shots).toHaveLength(4)
+    expect(inserted.shots.map(shot => shot.shotId)).toEqual(['shot-1', 'shot-4', 'shot-2', 'shot-3'])
     const duplicated = duplicateShotAt(plan, 0)
     expect(duplicated.shots[1]).toMatchObject({ prompt: 'one', anchorIds: ['hero'] })
-    expect(duplicated.shots[1].shotId).toBeUndefined()
+    expect(duplicated.shots.map(shot => shot.shotId)).toEqual(['shot-1', 'shot-4', 'shot-2', 'shot-3'])
   })
 })

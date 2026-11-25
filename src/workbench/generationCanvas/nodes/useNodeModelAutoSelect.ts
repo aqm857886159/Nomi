@@ -36,6 +36,7 @@ import {
   nodeHasImageReference,
   resolveDefaultModelOption,
 } from './defaultNodeModelSelection'
+import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 import { readCandidateNodeIdentity } from '../agent/candidateNodeMeta'
 import { applyVideoAspectSeed, videoAspectSeedPatch } from './videoAspectSeed'
 import {
@@ -175,7 +176,8 @@ export function useNodeModelAutoSelect({
     const firstOption = preferred ?? chooseDefaultModelOption(modelOptions, isImageLike, isVideoLike)
     if (!firstOption?.value) return
     const firstControls = buildModelControls(firstOption.meta, isImageLike, isVideoLike)
-    const defaultPatch = defaultPatchForControls(firstControls)
+    const explicitAspect = isVideoLike && latestMeta[ASPECT_EXPLICIT_META_KEY] === true
+    const defaultPatch = defaultPatchForControls(explicitAspect ? firstControls.filter(control => !isAspectRatioControl(control)) : firstControls)
     // 视频比例的产品默认（首选 16:9、已连输入全竖 9:16）与模型默认值同一笔写进去——只问唯一出处。
     // 以前它要等生成框挂载 effect 再「纠正」一次：多一笔写，而且那个 effect 连 Agent 写的比例也改。
     const canvas = useGenerationCanvasStore.getState()
@@ -196,7 +198,7 @@ export function useNodeModelAutoSelect({
     if (firstArchetype) {
       defaultMeta = initializedArchetypeMeta(defaultMeta, firstArchetype) || defaultMeta
     }
-    if (isVideoLike) {
+    if (isVideoLike && !explicitAspect) {
       const nextNode = { ...latestNode, meta: defaultMeta }
       const nextGraph = { nodes: canvas.nodes.map((item) => (item.id === node.id ? nextNode : item)), edges: canvas.edges }
       const firstMode = firstArchetype ? resolveRenderedMode(firstOption, defaultMeta, true, { node: nextNode, graph: nextGraph }) : null

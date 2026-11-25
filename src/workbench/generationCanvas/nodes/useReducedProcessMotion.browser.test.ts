@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module'
 import { chromium } from 'playwright'
 import { expect, it } from 'vitest'
+import { readProcessMotionCapability } from './processMotionCapability'
 
 // Retained from the deleted shader walkthrough: the hook still serves GenerationStatusBar.
 it('shares one released capability probe and cleans up live reduced-motion listeners in StrictMode', async () => {
@@ -45,5 +46,12 @@ it('shares one released capability probe and cleans up live reduced-motion liste
     await page.getByRole('button', { name: 'Toggle' }).click()
     await visible('false')
     expect(await stats()).toEqual({ probes: 1, released: 1, listeners: 8 })
+    // Playwright serializes the function into an isolated page without its imports.
+    const standalone = await browser.newPage()
+    for (const preference of ['reduce', 'no-preference'] as const) {
+      await standalone.emulateMedia({ reducedMotion: preference })
+      const result = await standalone.evaluate(readProcessMotionCapability)
+      expect(result.prefersReducedMotion).toBe(preference === 'reduce')
+    }
   } finally { await browser.close() }
 })

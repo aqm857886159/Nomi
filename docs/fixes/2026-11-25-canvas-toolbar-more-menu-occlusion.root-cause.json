@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-25-canvas-toolbar-more-menu-occlusion",
+  "problem_type": "Anchored menu clipped by its trigger's ancestor",
+  "symptom": "Clicking 3D Model or Whiteboard reaches the canvas instead of adding a node when the composer overlaps the dock.",
+  "direct_cause": "The absolutely positioned menu is a child of the toolbar whose clip-path masks its descendants.",
+  "class_root": "The expanded surface shares the clipped trigger's DOM ancestry. Independent tests of hole geometry and menu data miss the intersection.",
+  "affected_population": [
+    "Creators adding space nodes while a selected node's composer overlaps the toolbar",
+    "RunningHub onboarding walks that add a model3d node"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+    "src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx",
+    "tests/ux/runninghub-onboarding.walk.mjs"
+  ],
+  "entry_points": [
+    "CanvasToolbar and CanvasEmptyState open CanvasMoreAddMenu",
+    "CanvasNavigationStack opens CanvasViewOptionsPopover"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The dock, pointer routing and anchored overlay contract are defined in this repository.",
+  "invariants": [
+    "Occlude the dock where it meets a composer while the expanded menu remains reachable.",
+    "A pick adds exactly one node of the requested kind and closes the menu."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx",
+      "symbol": "useCanvasChromeOcclusion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "useCanvasChromeOcclusion"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "The creation dock and navigation stack measure their own boxes. The editing dock and the empty-state starter both open the same creation menu."
+  },
+  "generality_proof": "Mounting the shared menu in AnchoredPopover takes every configured item at either entry out of the clipping subtree.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "CanvasMoreAddMenu",
+      "responsibility": "Hand the trigger and dismiss callback to the design system for portal placement, outside presses and focus."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "entry_point": "CanvasToolbar",
+      "disposition": "enforced",
+      "evidence": "The add button opens CanvasMoreAddMenu outside its clipped dock."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx",
+      "entry_point": "CanvasNavigationStack",
+      "disposition": "not-affected",
+      "evidence": "Its CanvasViewOptionsPopover already mounts through AnchoredPopover."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "entry_point": "CanvasEmptyState",
+      "disposition": "enforced",
+      "evidence": "The starter uses the same menu anchored to its own button."
+    }
+  ],
+  "recurrence_of": "2026-09-06-overlay-clipped-by-ancestor-overflow",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every overlapping composer can clip any menu item outside the dock. Ancestor clipping previously hid timeline transition choices.",
+    "same_class_scan": [
+      "door-map useCanvasChromeOcclusion identified the navigation stack and toolbar; door-map CanvasMoreAddMenu identified the toolbar and empty starter.",
+      "door-map CanvasToolbar identified React Flow and the design lab. The walk finds the menu from the page, and the gesture and context menu guards match role=menu or menuitem."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "invariant": "Every more-menu item is mounted through the shared design system portal.",
+    "failure_mode": "The clipped dock retains its hit mask. The menu receives picks and passes the chosen intent to the canvas store.",
+    "exception_policy": "none",
+    "strategy": "Remove inline placement and document listeners, including trigger exclusions, from the shared menu.",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "src/workbench/generationCanvas/components/CanvasEmptyState.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx",
+    "tests/ux/runninghub-onboarding.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "src/workbench/generationCanvas/components/CanvasEmptyState.tsx"
+    ],
+    "rationale": "Deleted inline placements and the menu-owned document listeners at the shared creation menu."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "AnchoredPopover already owns the required behavior in the installed design system.",
+    "exit_criteria": []
+  },
+  "migration": "Only transient DOM placement changes. Node storage, preferences, click actions and semantic selectors retain their existing contracts.",
+  "residual_risks": [
+    "The onboarding walk exercises catalog browsing. Provider inference is outside the creation and selection path.",
+    "At baseline, tests/ux/canvas-control-clarity.walk.mjs scopes proveProbe and expectAbsent to the toolbar for portaled items. That walk is owned by an in-flight change and needs the page-scoped canvasAddMoreMenu locator."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-02",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/components/CanvasToolbar.moreMenu.test.tsx"
+    ]
+  }
+}
