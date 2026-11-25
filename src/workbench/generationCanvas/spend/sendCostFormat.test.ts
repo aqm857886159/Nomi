@@ -114,9 +114,11 @@ describe('约价链：一个读取处、一处格式化、链上不发生成也�
     expect(users(/\.vendorAccountBalance\b|vendorAccountBalance\s*\(/)).toEqual([
       'src/workbench/generationCanvas/spend/useVendorBalance.ts',
     ])
+    // 同一条余额 IPC 另有接入页「再查一次」入口（main 上 S6 接入页，带 source: 'apimart-connect' 分流到 checkVendorAccountBalance）。
     expect(users(/vendor-account-balance/)).toEqual([
       'electron/ai/onboarding/onboardingIpc.ts',
       'electron/preload.ts',
+      'electron/preload/modelOnboardingBridge.ts',
     ])
     expect(users(/\bpublicPricing\b/)).toEqual([
       'electron/ai/onboarding/vendorPricePreview.ts',
