@@ -6,7 +6,7 @@ import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { planOfWaves } from './generationScopeTestPlans'
 
@@ -33,7 +33,7 @@ describe('background recovery owns the originating project and task', () => {
     notifications.clean()
     useGenerationQueueStore.setState({ entries: [], batches: {} })
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-    __resetCanvasUndoJournalForTests()
+    clearHistory()
     setCanvasEventSinkForTests(() => {})
     useSpendConfirmStore.setState({ requestConfirm: async () => true })
   })

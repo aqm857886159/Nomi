@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
-import { writeJsonFileAtomic } from "../jsonFile";
+import { renameSyncOnce, writeJsonFileAtomic } from "../jsonFile";
 
 export const PRODUCTION_RUN_LOCK_SCHEMA_VERSION = 1;
 export const PRODUCTION_RUN_LOCK_DEFAULT_LEASE_MS = 30_000;
@@ -181,8 +181,8 @@ export function createProductionRunLock(deps: ProductionRunLockDeps) {
   function quarantine(): void {
     const quarantinePath = `${deps.filePath}.stale.${randomId()}`;
     try {
-      // rename is atomic: only one racing worker can quarantine this expired owner.
-      fs.renameSync(deps.filePath, quarantinePath);
+      // One atomic attempt per stale-owner check. A later attempt must read the lease again.
+      renameSyncOnce(deps.filePath, quarantinePath);
       fs.rmSync(quarantinePath, { force: true });
       fsyncDirectory(deps.filePath);
     } catch (error) {

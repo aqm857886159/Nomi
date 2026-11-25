@@ -38,7 +38,7 @@ function textMatches(label: string, query: string): boolean {
   return label.toLowerCase().includes(q)
 }
 
-export type ShotMentionCallbacks = {
+type ShotMentionCallbacks = {
   /** 按 query 返回候选列表（传给 PromptEditor.mentionSearch）。 */
   mentionSearch: (query: string) => MentionSuggestionItem[]
   /** 选中候选后的动作；返回 chip index（1-based）；返回 null = 拒绝插入。 */

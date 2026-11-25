@@ -21,10 +21,11 @@ import { specsForCapability } from '../shared/agentCapabilities/modelFacingToolR
 import { LaneDomainFailure, bindLaneTool, type LaneToolDescriptor } from './laneRuntimePort'
 
 /** 用户在提问卡上答完之后，模型读到的那条**成功**结果的正文就是他的原话。 */
-export function createAskUserLaneTools(): LaneToolDescriptor[] {
+export function createAskUserLaneTools(onAnswer?: (answer: string) => void): LaneToolDescriptor[] {
   return specsForCapability(AGENT_ASK_CAPABILITY.id).map(spec => bindLaneTool(spec, async (_args, context) => {
     const answer = context.approvalAnswer?.trim()
     if (answer) {
+      onAnswer?.(answer)
       // **只有他那句话**，没有第二行。宿主会把 `nextAction.userSees` 拼成一行
       // `User sees: …` 附在正文后面（`laneTools.mts`），而这里多说一句的代价是：
       // 模型读到的不再是「用户说了什么」，是「用户说了什么 + Nomi 的旁白」。

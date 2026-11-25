@@ -1,3 +1,4 @@
+import { createLayoutHistory } from '../history/historyMiddleware'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -16,7 +17,7 @@ describe('Nomi 栏开合：显示态不让项目落盘', () => {
   beforeEach(() => {
     useWorkbenchStore.setState({
       editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-      editingPanelUndoStack: [],
+      editingPanelHistory: createLayoutHistory(),
       projectAgentDockCollapsed: false,
     })
   })
@@ -100,7 +101,7 @@ describe('任意动作序列之后，项目里的 Nomi 栏开合 = 打开时读�
   for (const opened of [true, false, 'new-project'] as const) {
     it(`打开时 = ${String(opened)}：200 串 × 30 步动作后，落盘物里的开合不变`, () => {
       for (let run = 0; run < 200; run += 1) {
-        useWorkbenchStore.setState({ editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), editingPanelUndoStack: [], projectAgentDockCollapsed: false })
+        useWorkbenchStore.setState({ editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), editingPanelHistory: createLayoutHistory(), projectAgentDockCollapsed: false })
         const expected = opened === 'new-project' ? EDITING_PANEL_DEFAULTS.visibility.assistant : opened
         if (opened !== 'new-project') {
           useWorkbenchStore.getState().setEditingPanelLayout({ ...cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS), visibility: { source: true, inspector: true, assistant: opened } }, false)
@@ -125,7 +126,7 @@ describe('叫回 Nomi 的计数（别在重开项目时自己弹开）', () => {
   beforeEach(() => {
     useWorkbenchStore.setState({
       editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-      editingPanelUndoStack: [],
+      editingPanelHistory: createLayoutHistory(),
       projectAgentDockCollapsed: false,
       agentRecallNonce: 0,
     })

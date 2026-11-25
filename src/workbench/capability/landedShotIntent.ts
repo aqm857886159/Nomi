@@ -23,7 +23,7 @@ import { ASPECT_EXPLICIT_META_KEY } from '../generationCanvas/nodes/aspectExplic
 import { stableHash } from '../adoption/adoptionProposalKey'
 
 /** 一镜从起草写进节点的那一份意图：候选（模型身份 / 方式 / 变体 / 参数 / 参考）+ 提示词 + 标题。 */
-export type LandedShotIntent = Readonly<{ candidate?: LandedShotCandidate; prompt?: string; title?: string }>
+type LandedShotIntent = Readonly<{ candidate?: LandedShotCandidate; prompt?: string; title?: string }>
 
 /** 节点上记着的指纹：字段 → 摘要；参考另存地址（删一张要知道是哪张）。 */
 type IntentStamp = Readonly<{ fields: Readonly<Record<string, string>>; references: readonly string[] }>
@@ -39,7 +39,7 @@ function referenceKey(reference: CandidateReferenceInput): string {
 }
 
 /** 这一份意图的指纹（起草没写的字段不进来：没写 = 档案默认，不是 Agent 的选择）。 */
-export function intentStampOf(intent: LandedShotIntent): IntentStamp {
+function intentStampOf(intent: LandedShotIntent): IntentStamp {
   const fields: Record<string, string> = {}
   const candidate = intent.candidate
   if (candidate?.modelKey) fields.model = fingerprint([candidate.vendor ?? '', candidate.modelKey])
@@ -58,7 +58,7 @@ export function intentStampMeta(intent: LandedShotIntent): Record<string, string
 }
 
 /** 节点上记着的指纹；没有（这一版之前落的节点）→ null。 */
-export function readIntentStamp(meta: Record<string, unknown> | undefined): IntentStamp | null {
+function readIntentStamp(meta: Record<string, unknown> | undefined): IntentStamp | null {
   const raw = meta?.[CANDIDATE_META_KEYS.candidateIntent]
   if (typeof raw !== 'string' || !raw) return null
   try {
@@ -90,7 +90,7 @@ function legacyStampOf(meta: Record<string, unknown>): IntentStamp {
 }
 
 /** Agent 这一次改了哪几样：新指纹里与旧指纹不同的字段，加上旧指纹里有、新的没有的（Agent 删掉了那个参数）。 */
-export function changedIntentFields(previous: IntentStamp | null, next: IntentStamp, meta: Record<string, unknown> = {}): Set<string> {
+function changedIntentFields(previous: IntentStamp | null, next: IntentStamp, meta: Record<string, unknown> = {}): Set<string> {
   if (!previous) {
     const legacy = legacyStampOf(meta)
     const identity = ['model', 'modeId', 'variantId'].filter((key) => key in next.fields && legacy.fields[key] !== next.fields[key])

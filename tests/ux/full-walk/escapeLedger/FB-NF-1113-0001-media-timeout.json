@@ -1,0 +1,31 @@
+{
+  "id": "FB-NF-1113-0001-media-timeout",
+  "since": "2026-11-24",
+  "source": "F-C 用户反馈 NF-1113-0001（这一步等太久被停掉了 —— look_at_media 波形预算倒挂与双层超时竞态）",
+  "category": "claims-and-outcomes",
+  "problem": "look_at_media 波形读取分段超时之和（35s+）倒挂读能力 30s 上限且取消信号未跨 preload 桥传播关闭 AudioContext，同时 laneTools 与 capabilityExecutorRegistry 使用相同毫秒定时器竞争报码。",
+  "existingInvariants": [],
+  "ironLaws": ["⑫"],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-24-fc-media-and-lane-timeout-hierarchy.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/timeline/agent/phase4CapabilityTargets.test.ts"
+  },
+  "evidence": [
+    "docs/plan/2026-11-24-fc-media-and-lane-timeout-hierarchy.md",
+    "electron/agentLane/laneTools.test.ts",
+    "electron/capabilityCore/capabilityExecutorRegistry.test.ts",
+    "electron/surfacePortPreloadBridge.test.ts",
+    "src/workbench/project/projectCanvasReadSurface.test.ts",
+    "src/workbench/timeline/agent/mediaToolCall.test.ts",
+    "src/workbench/timeline/agent/phase4CapabilityTargets.test.ts"
+  ],
+  "completionCommits": [
+    "b6aa835b4"
+  ],
+  "fixedInPr": 1673
+}

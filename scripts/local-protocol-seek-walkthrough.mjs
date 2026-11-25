@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { waitForNomiLocalUrl } from './lib/walkthroughHost.mjs'
 // R13 真机走查：nomi-local 视频连续拖动进度条，主进程不得抛 ERR_INVALID_STATE。
 //
 // 闭合 docs/plan/2026-08-24-local-protocol-stream-ownership.md §1.6 那一环——
@@ -98,19 +99,7 @@ try {
   await shot('01-seed-imported.png')
 
   // 探针：让 app 自己吐出真实地址，别自己拼（拼错了会「404 也不崩」= 假绿）。轮询而非死等。
-  let seedUrl = null
-  for (let i = 0; i < 20 && !seedUrl; i++) {
-    seedUrl = await win.evaluate(() => {
-      for (const el of document.querySelectorAll('*')) {
-        for (const attr of ['src', 'poster', 'data-src', 'href']) {
-          const value = el.getAttribute?.(attr)
-          if (typeof value === 'string' && value.startsWith('nomi-local://')) return value
-        }
-      }
-      return null
-    })
-    if (!seedUrl) await win.waitForTimeout(750)
-  }
+  const seedUrl = await waitForNomiLocalUrl(win)
   if (!seedUrl) throw new Error('探针没拿到 nomi-local:// 地址——素材没导入成功，后面全是空转')
   console.log(`  🔎 真实地址：${seedUrl}`)
 

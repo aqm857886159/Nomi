@@ -384,3 +384,48 @@ it.each([
     requestId: 'request', binding, error: { code: 'surface_port_unavailable' },
   }))
 })
+
+it('delivers an asset read cancellation only to the matching renderer request', async () => {
+  const receivers = new Map<string, (payload: unknown) => void>()
+  const send = vi.fn()
+  const bridge = createCanvasReadSurfacePreloadBridge(vi.fn(), {
+    subscribe(name, callback) { receivers.set(name, callback); return () => receivers.delete(name) },
+    send,
+  })
+  const binding = {
+    version: 1, bindingId: 'binding-a',
+    binding: { projectId: 'project-a', immutableProjectUuid: '00000000-0000-4000-8000-000000000001', projectGeneration: 1 },
+    webContentsId: 1, processId: 2, frameRoutingId: 3, origin: 'file://',
+    surfaceInstanceId: 'surface-a', portRevision: 4, nonce: 'nonce-a',
+  }
+  const controller = new AbortController()
+  const readWasCancelled = vi.fn()
+  controller.signal.addEventListener('abort', readWasCancelled, { once: true })
+  let finish!: () => void
+  bridge.onAssetRead(wireHandler(async (request: { onCancel: (cancel: () => void) => () => void }) => {
+    const unsubscribe = request.onCancel(() => controller.abort())
+    try {
+      await new Promise<void>((resolve) => { finish = resolve })
+      return { operation: 'get_media' }
+    } finally {
+      unsubscribe()
+    }
+  }))
+  receivers.get('nomi:surface:assetRead:request')?.({
+    requestId: 'asset-read-a', binding, input: { operation: 'get_media', assetId: 'asset-a' },
+    target: {}, preconditions: {},
+  })
+  const cancelChannel = 'nomi:surface:request:cancel'
+  const cancel = receivers.get(cancelChannel)!
+  cancel({ requestId: 'other', binding })
+  expect(readWasCancelled).not.toHaveBeenCalled()
+  cancel({ requestId: 'asset-read-a', binding: { ...binding, bindingId: 'other' } })
+  expect(readWasCancelled).not.toHaveBeenCalled()
+  cancel({ requestId: 'asset-read-a', binding })
+  expect(readWasCancelled).toHaveBeenCalledOnce()
+  finish()
+  await vi.waitFor(() => expect(send).toHaveBeenCalledWith('nomi:surface:assetRead:reply', {
+    requestId: 'asset-read-a', binding, error: { code: 'capability_cancelled' },
+  }))
+  expect(receivers.has(cancelChannel)).toBe(false)
+})

@@ -10,7 +10,7 @@ import {
   proposalIsLanded,
   registerAdoptionProposal,
 } from './adoptionProposalRegistry'
-import { workbenchAdoptionPorts } from './adoptionStorePorts'
+import { createWorkbenchAdoptionPorts } from './adoptionStorePorts'
 import type { AdoptionApplyPorts, AdoptionOutcome } from './adoptionTypes'
 
 /**
@@ -23,11 +23,11 @@ import type { AdoptionApplyPorts, AdoptionOutcome } from './adoptionTypes'
  * 变的是它们背后从「直接写轴」变成「提案 → 查四道闸 → 原子写 → 回执带撤销」。
  */
 
-export type AdoptGenerationNodePlacement =
+type AdoptGenerationNodePlacement =
   | { kind: 'append' }
   | { kind: 'frame'; startFrame: number }
 
-export type AdoptGenerationNodeOptions = {
+type AdoptGenerationNodeOptions = {
   placement?: AdoptGenerationNodePlacement
   ports?: AdoptionApplyPorts
 }
@@ -36,7 +36,7 @@ export async function adoptGenerationNode(
   node: GenerationCanvasNode,
   options: AdoptGenerationNodeOptions = {},
 ): Promise<AdoptionOutcome> {
-  const ports = options.ports || workbenchAdoptionPorts
+  const ports = options.ports || createWorkbenchAdoptionPorts()
   const placement = options.placement || { kind: 'append' }
   const result = node.result
   if (!result || !result.url) {

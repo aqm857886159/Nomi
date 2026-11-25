@@ -84,14 +84,14 @@ export function LookAtClipInspector({ object, clip }: { object: DirectorObject; 
               onChange={(value) => patch({ targetBodyPart: value as LookAtBodyPart })}
             />
           </Row>
-          <SliderNumberField label={t('director.lookAtClip.heightOffset')} value={clip.targetHeightOffset} min={-1} max={1} step={0.05} unit="m" digits={2} onChangeStart={() => store.getState().saveState()} onChange={(targetHeightOffset) => store.getState().updateLookAtClip(object.id, clip.id, { targetHeightOffset })} />
+          <SliderNumberField label={t('director.lookAtClip.heightOffset')} value={clip.targetHeightOffset} min={-1} max={1} step={0.05} unit="m" digits={2} onChangeStart={store.getState().saveState} onChange={(targetHeightOffset) => store.getState().updateLookAtClip(object.id, clip.id, { targetHeightOffset })} />
         </>
       ) : null}
       <ToggleField label={t('director.lookAtClip.enablePitch')} checked={clip.enablePitch} onChange={(enablePitch) => patch({ enablePitch })} />
-      <SliderNumberField label={t('director.lookAtClip.blendIn')} value={clip.blendInDuration} min={0} max={2} step={0.05} unit="s" digits={2} onChangeStart={() => store.getState().saveState()} onChange={(blendInDuration) => store.getState().updateLookAtClip(object.id, clip.id, { blendInDuration })} />
-      <SliderNumberField label={t('director.lookAtClip.blendOut')} value={clip.blendOutDuration} min={0} max={2} step={0.05} unit="s" digits={2} onChangeStart={() => store.getState().saveState()} onChange={(blendOutDuration) => store.getState().updateLookAtClip(object.id, clip.id, { blendOutDuration })} />
-      <SliderNumberField label={t('director.lookAtClip.clamping')} value={clip.clampingAngle} min={0} max={120} step={1} unit="°" onChangeStart={() => store.getState().saveState()} onChange={(clampingAngle) => store.getState().updateLookAtClip(object.id, clip.id, { clampingAngle })} />
-      <SliderNumberField label={t('director.lookAtClip.weight')} value={clip.weight} min={0} max={1} step={0.05} digits={2} onChangeStart={() => store.getState().saveState()} onChange={(weight) => store.getState().updateLookAtClip(object.id, clip.id, { weight })} />
+      <SliderNumberField label={t('director.lookAtClip.blendIn')} value={clip.blendInDuration} min={0} max={2} step={0.05} unit="s" digits={2} onChangeStart={store.getState().saveState} onChange={(blendInDuration) => store.getState().updateLookAtClip(object.id, clip.id, { blendInDuration })} />
+      <SliderNumberField label={t('director.lookAtClip.blendOut')} value={clip.blendOutDuration} min={0} max={2} step={0.05} unit="s" digits={2} onChangeStart={store.getState().saveState} onChange={(blendOutDuration) => store.getState().updateLookAtClip(object.id, clip.id, { blendOutDuration })} />
+      <SliderNumberField label={t('director.lookAtClip.clamping')} value={clip.clampingAngle} min={0} max={120} step={1} unit="°" onChangeStart={store.getState().saveState} onChange={(clampingAngle) => store.getState().updateLookAtClip(object.id, clip.id, { clampingAngle })} />
+      <SliderNumberField label={t('director.lookAtClip.weight')} value={clip.weight} min={0} max={1} step={0.05} digits={2} onChangeStart={store.getState().saveState} onChange={(weight) => store.getState().updateLookAtClip(object.id, clip.id, { weight })} />
       <div className="mt-2 flex flex-wrap gap-1">
         <WorkbenchButton size="sm" onClick={() => run(cutSelectedClip(store, 'left'))}>
           {t('director.timelineInspector.trimLeft')} {formatHotkey(DIRECTOR_HOTKEYS.cutLeft)}

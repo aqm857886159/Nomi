@@ -1,27 +1,7 @@
 {
-  "electron/agentLane/laneApprovalGate.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/agentLane/laneProviderGuard.mts": {
     "vendor-failure-one-home/no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "electron/agentLane/laneToolInputBoundary.mts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/agentLane/laneTrace.mts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/ai/onboarding/vendorPricePreview.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/assets/assetBytes.ts": {
@@ -35,11 +15,8 @@
     }
   },
   "electron/assets/assetPreview.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 15
+      "count": 13
     }
   },
   "electron/assets/assetReferenceIdentity.ts": {
@@ -103,11 +80,8 @@
     }
   },
   "electron/assets/uploadContentStore.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 12
+      "count": 11
     }
   },
   "electron/assets/videoImportNormalize.ts": {
@@ -115,46 +89,18 @@
       "count": 3
     }
   },
-  "electron/browser/media/browserViewMedia.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "electron/capabilityCore/apimartGenerationProvider.ts": {
     "generic-map-eviction/no-restricted-syntax": {
       "count": 5
     }
   },
-  "electron/capabilityCore/generationDocumentPlan.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/capabilityCore/hostConfigWrite.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    },
     "main-sync-wait/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/capabilityCore/mcpDetectedClients.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
       "count": 1
     }
   },
   "electron/capabilityCore/mcpProfiles.ts": {
     "generic-fs-watch/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/capabilityCore/projectAgentProposalReceiptStore.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/capabilityCore/projectLease.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -169,9 +115,6 @@
     }
   },
   "electron/catalog/dreaminaCli.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
-      "count": 1
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 1
     }
@@ -189,11 +132,6 @@
   "electron/configFileStore.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 8
-    }
-  },
-  "electron/downloads/verifiedAssetCache.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/durability.ts": {
@@ -237,21 +175,13 @@
     }
   },
   "electron/export/ffmpegRunner.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 16
+      "count": 12
     }
   },
   "electron/export/mediaProbe.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 6
-    }
-  },
-  "electron/integrationCertification/credentialElicitation.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
     }
   },
   "electron/integrationCertification/operationLedger.ts": {
@@ -269,16 +199,6 @@
       "count": 8
     },
     "main-sync-wait/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/localSpeech/localSpeechInstall.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/logging/logFiles.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -308,11 +228,8 @@
     }
   },
   "electron/productionRun/artifactProjection.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 11
+      "count": 10
     }
   },
   "electron/productionRun/canvasShotRunIndex.ts": {
@@ -341,11 +258,8 @@
     }
   },
   "electron/productionRun/productionRunLock.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 15
+      "count": 14
     }
   },
   "electron/productionRun/productionRunRepository.ts": {
@@ -365,11 +279,6 @@
   },
   "electron/productionRun/productionRunStoryboardHashRecovery.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/productionRun/singleShotGenerationObserver.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -393,38 +302,13 @@
       "count": 5
     }
   },
-  "electron/providerAdapter/certificationCleanup.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/providerAdapter/store.ts": {
     "main-sync-wait/no-restricted-syntax": {
       "count": 1
     }
   },
-  "electron/settings/attentionSoundIpc.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "electron/shared/generationFailureDetect.ts": {
     "vendor-failure-one-home/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/skills/skillManifestMigration.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 2
-    }
-  },
-  "electron/tasks/taskCache.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "electron/telemetry/intakeQueue.ts": {
-    "generic-retry-loop/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -459,11 +343,8 @@
     }
   },
   "electron/workspace/workspaceManifestLock.ts": {
-    "generic-raw-rename/no-restricted-syntax": {
-      "count": 3
-    },
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 21
+      "count": 3
     }
   },
   "electron/workspace/workspaceManifestTransaction.ts": {
@@ -1375,33 +1256,8 @@
       "count": 1
     }
   },
-  "src/ui/toast.tsx": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/adoption/adoptionProposalRegistry.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "src/workbench/ai/resident/residentToolText.ts": {
     "vendor-failure-one-home/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/api/taskApi.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "src/workbench/observability/perfCollector.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
       "count": 1
     }
   },
@@ -1693,11 +1549,6 @@
       "count": 1
     }
   },
-  "tests/ux/asset-library-native-import.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/asset-tab-overlap-and-nomi-entry.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -1900,16 +1751,8 @@
     }
   },
   "tests/ux/composer-long-prompt.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    },
     "no-empty": {
       "count": 2
-    }
-  },
-  "tests/ux/control-hierarchy-u2.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
     }
   },
   "tests/ux/core-a-blank-storyboard.e2e.mjs": {
@@ -2231,11 +2074,6 @@
       "count": 1
     }
   },
-  "tests/ux/layout-timeline-panel-span.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/library-cover-imported-video.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2445,11 +2283,6 @@
       "count": 1
     }
   },
-  "tests/ux/preview-control-scope.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/preview-export-busy.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2489,9 +2322,6 @@
     }
   },
   "tests/ux/project-switch-background-run.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-useless-assignment": {
       "count": 1
     }
@@ -2558,16 +2388,6 @@
   "tests/ux/rich-editor-p1.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2
-    }
-  },
-  "tests/ux/runway-vendor-honest-modes.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/screenshot-hotkey.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
     }
   },
   "tests/ux/settings-relocation.walk.mjs": {
@@ -2681,11 +2501,6 @@
     }
   },
   "tests/ux/timeline-context-menu.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/timeline-toolbar-row.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

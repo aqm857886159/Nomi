@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconSparkles } from '@tabler/icons-react'
+import { openApimartConnect } from '../../../ui/onboarding/apimartConnectRoute'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import {
   applyMergeSuggestion,
@@ -58,7 +59,7 @@ export default function StoryboardPlanStrategyPanel({ plan, state, onChange }: S
         </div>
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent('nomi-open-model-catalog'))}
+          onClick={openApimartConnect}
           data-storyboard-strategy-settings="true"
           className="shrink-0 rounded-pill bg-nomi-accent px-2 py-0.5 text-micro font-medium text-white hover:opacity-90"
         >

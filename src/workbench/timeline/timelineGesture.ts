@@ -118,7 +118,7 @@ export function usePointerSession(): (input: PointerSessionInput) => PointerSess
  * 被打断时撤销栈顶就是按下之前的那一帧，弹回去 = 回到拖之前，不留半截拖动（也不留 redo）。
  * `captured` 为 false（还没真动过）时什么都不能弹——否则会撤掉用户上一个无关的编辑。
  */
-export function revertCapturedTimelineEdit(captured: boolean): void {
+export function revertCapturedTimelineEdit(captured: symbol | undefined): void {
   if (!captured) return
-  useWorkbenchStore.getState().cancelTimelineGesture()
+  useWorkbenchStore.getState().cancelTimelineGesture(captured)
 }

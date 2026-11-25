@@ -1,3 +1,4 @@
+import { BoundedCache } from '../../../electron/shared/boundedCache'
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import { TELEMETRY_ERROR_TYPE_PATTERN, type CapabilitySlot, type GenerationMode, type TelemetryResult } from '../../../electron/shared/contracts/telemetry'
 import { generationModeOf, generationTrackPayload, type GenerationOutcomeDoor } from './generationTelemetry'
@@ -191,14 +192,11 @@ function trackGenerationOutcome(desktop: DesktopBridge, context: GenerationTelem
 }
 
 /** 已提交、还没到终态的异步生成：任务 id → 提交时记下的事实。到终态报一次就删；上限防泄漏。 */
-const inFlightGenerations = new Map<string, GenerationTelemetryContext>()
-const IN_FLIGHT_LIMIT = 200
+const inFlightGenerations = new BoundedCache<string, GenerationTelemetryContext>({
+  maxEntries: 200, order: 'fifo', evictBeforeSet: true,
+})
 function rememberInFlightGeneration(taskId: string, context: GenerationTelemetryContext): void {
   if (!taskId) return
-  if (inFlightGenerations.size >= IN_FLIGHT_LIMIT) {
-    const oldest = inFlightGenerations.keys().next().value
-    if (oldest !== undefined) inFlightGenerations.delete(oldest)
-  }
   inFlightGenerations.set(taskId, { ...context, acceptedAt: nowMs() })
 }
 

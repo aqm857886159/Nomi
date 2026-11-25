@@ -1,0 +1,29 @@
+{
+  "id": "canvas-undo-landed-200",
+  "feature": "Canvas Undo and Redo after asynchronous generation lands",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/canvas-undo-landed-200.mjs",
+    "--"
+  ],
+  "scale": "Isolated Electron project with 200 nodes, 200 group moves of 20 nodes, a settled run and 80 measurements in each direction",
+  "metrics": [
+    "response",
+    "projectionMs",
+    "longTasks",
+    "heapUsedMiB"
+  ],
+  "budget": 100,
+  "p95Budget": 150,
+  "budgetStatus": "proposed",
+  "budgetBasis": "Unified undo design card ★7 sets 150 ms p95 for command-to-visible feedback. Each sample reports its p95 and validates the edited positions, run, result and patch-byte ceilings.",
+  "baseline": {
+    "median": 17.7,
+    "p95": 18.2,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 16GB",
+    "date": "2026-11-23",
+    "commit": "a0cbd550d"
+  }
+}

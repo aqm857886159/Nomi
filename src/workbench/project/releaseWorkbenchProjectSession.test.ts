@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../history/historyMiddleware'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
@@ -52,8 +53,9 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
       activeStoryboardId: 'storyboard-a',
       timeline: { ...createDefaultTimeline(), playheadFrame: 24 },
       selectedTimelineClipIds: ['clip1'],
-      timelineUndoStack: [createDefaultTimeline()],
+      timelineHistory: createTimelineHistory(),
     })
+    useWorkbenchStore.getState().captureTimelineUndo()
     const verifyRequest = useShotVerifyStore.getState().beginVerify('project-A')
     useShotVerifyStore.getState().setDeviations([{
       where: '镜头 1',
@@ -79,7 +81,7 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(workbench.activeStoryboardId).toBeNull()
     expect(workbench.timeline).toEqual(createDefaultTimeline())
     expect(workbench.selectedTimelineClipIds).toEqual([])
-    expect(workbench.timelineUndoStack).toEqual([])
+    expect(workbench.timelineHistory.entries.pastStates).toEqual([])
 
     const verify = useShotVerifyStore.getState()
     expect(verify.projectId).toBeNull()

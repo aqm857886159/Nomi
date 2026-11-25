@@ -1,6 +1,7 @@
 import { dialog, ipcMain } from 'electron'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { renameWithRetry } from '../jsonFile'
 import { assertTrustedSender } from '../ipcSenderGuard'
 import { logCrash } from '../crashLog'
 import { MEDIA_DECODER_PROTOCOL_WHITELIST, probeMediaMetadata, runBoundedProcess } from '../export/mediaProbe'
@@ -40,7 +41,7 @@ export async function importAttentionSound(file: string): Promise<AttentionSound
     stopAttentionSound()
     const backup = path.join(temp, 'previous.wav')
     const hadPrevious = await fs.copyFile(target, backup).then(() => true, () => false)
-    await fs.rename(output, target)
+    await renameWithRetry(output, target)
     try {
       const settings = writeAttentionSoundSettings({ ...readAttentionSoundSettings(), custom: { name: path.basename(file), durationSeconds: normalized.durationSeconds } })
       return { ok: true, settings }

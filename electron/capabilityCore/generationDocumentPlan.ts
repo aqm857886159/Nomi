@@ -10,6 +10,7 @@
 //   · 补镜头（`extend`，或上一条的自动补）：主体由渲染层按方案此刻的样子发号，回包带回发出的 id 与行号。
 //
 // 记忆随进程活：重启后 requestId 本来就变了（下一条消息是新请求），不会误合并。
+import { BoundedCache } from '../shared/boundedCache';
 import type { GenerationInvocationContext } from '../shared/agentCapabilities/generationInvocationContext';
 import type { PlanCandidate } from './executionContract';
 import {
@@ -32,7 +33,7 @@ const REMEMBERED_REQUESTS = 64;
 
 export function createDocumentPlanAuthoring(deps: { requestRenderer?: RequestRenderer; resolveStoryboardReferenceUrl?: ResolveUrl }) {
   /** `${projectId}\u0000${requestId}` → 这一请求起草出的方案 id（最近那一份）。 */
-  const planOfRequest = new Map<string, string>();
+  const planOfRequest = new BoundedCache<string, string>({ maxEntries: REMEMBERED_REQUESTS, order: 'write' });
   const requestKey = (projectId: string, target: GenerationInvocationContext['storyboardTarget']): string | undefined =>
     target?.requestId ? `${projectId}\u0000${target.requestId}` : undefined;
 
@@ -68,11 +69,7 @@ export function createDocumentPlanAuthoring(deps: { requestRenderer?: RequestRen
       const initiator = target?.openResult ? 'user' : 'agent';
       await upsertStoryboardDesign(request, { projectId, documentId: source.documentId, designId, plan, initiator });
       const key = requestKey(projectId, target);
-      if (key) {
-        planOfRequest.delete(key);
-        planOfRequest.set(key, designId);
-        if (planOfRequest.size > REMEMBERED_REQUESTS) planOfRequest.delete(planOfRequest.keys().next().value!);
-      }
+      if (key) planOfRequest.set(key, designId);
       return storyboardSavedFact(designId, plan, initiator === 'user');
     },
 

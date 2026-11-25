@@ -73,6 +73,37 @@ describe('反馈的落盘队列', () => {
     expect(queue.readIntakeQueue('feedback')).toHaveLength(3)
   })
 
+  it('重发间隔翻倍并封顶，所有后台定时器都不留住进程，成功后复位', async () => {
+    const queue = await load()
+    const client = await import('./intakeClient')
+    const post = vi.spyOn(client, 'postIntake').mockRejectedValue(new Error('offline'))
+    vi.useFakeTimers()
+    const scheduled = vi.spyOn(globalThis, 'setTimeout')
+    try {
+      queue.enqueueIntake('feedback', { summary: 'a' })
+      await queue.flushIntakeQueue('feedback')
+
+      const waits = [60_000, 120_000, 240_000, 480_000, 960_000, 1_920_000, 3_600_000, 3_600_000]
+      for (const [index, ms] of waits.entries()) {
+        expect(scheduled.mock.lastCall?.[1]).toBe(ms)
+        expect(scheduled.mock.results.at(-1)?.value.hasRef()).toBe(false)
+        if (index === waits.length - 1) post.mockResolvedValueOnce({ id: 'NF-0915-0001' })
+        await vi.advanceTimersByTimeAsync(ms)
+        expect(post).toHaveBeenCalledTimes(index + 2)
+      }
+
+      expect(queue.readIntakeQueue('feedback')).toHaveLength(0)
+      scheduled.mockClear()
+      queue.enqueueIntake('feedback', { summary: 'b' })
+      await queue.flushIntakeQueue('feedback')
+      expect(scheduled).toHaveBeenCalledWith(expect.any(Function), 60_000)
+    } finally {
+      queue.resetIntakeQueueTimers()
+      scheduled.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('端点没配就不发（也不清队列）—— 等打好包配上再发', async () => {
     vi.stubEnv("NOMI_INTAKE_ENDPOINT", undefined)
     const queue = await load()
@@ -133,8 +164,14 @@ describe('用户交来的货：先落盘再发', () => {
     const client = await import('./intakeClient')
     const answers: ((value: { id: string }) => void)[] = []
     const post = vi.spyOn(client, 'postIntake').mockImplementation(() => new Promise((resolve) => { answers.push(resolve) }))
-    const submitted = queue.submitIntake('feedback', { summary: 'a' }, { waitMs: 5 })
-    await expect(submitted).resolves.toEqual({ status: 'pending' })
+    vi.useFakeTimers()
+    try {
+      const submitted = queue.submitIntake('feedback', { summary: 'a' }, { waitMs: 5 })
+      await vi.advanceTimersByTimeAsync(5)
+      await expect(submitted).resolves.toEqual({ status: 'pending' })
+    } finally {
+      vi.useRealTimers()
+    }
     const flushed = queue.flushIntakeQueue('feedback')
     await Promise.resolve()
     expect(post).toHaveBeenCalledTimes(1)

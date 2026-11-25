@@ -10,7 +10,7 @@
  * 所以名字和要给人看的参数都写进信息里：照 ProjectTrashFailedError[原因]: 的写法。零依赖：主进程、渲染层都引它。
  */
 
-export const PROJECT_LOCATION_REJECTED_ERROR_NAME = "ProjectLocationRejectedError";
+const PROJECT_LOCATION_REJECTED_ERROR_NAME = "ProjectLocationRejectedError";
 /** install = 安装目录（含 resources）；app-data = 应用数据 / 设置根；temp = 系统临时目录。 */
 export const APP_OWNED_LOCATION_KINDS = ["install", "app-data", "temp"] as const;
 export type AppOwnedLocationKind = (typeof APP_OWNED_LOCATION_KINDS)[number];
@@ -32,8 +32,8 @@ export function projectLocationRejection(error: unknown): AppOwnedLocationKind |
   return cause !== undefined && cause !== error ? projectLocationRejection(cause) : null;
 }
 
-export const WORKSPACE_FOLDER_COPY_ERROR_NAME = "WorkspaceFolderCopyError";
-export type WorkspaceFolderCopy = { projectName: string; originalRootPath: string };
+const WORKSPACE_FOLDER_COPY_ERROR_NAME = "WorkspaceFolderCopyError";
+type WorkspaceFolderCopy = { projectName: string; originalRootPath: string };
 
 export function workspaceFolderCopyError(copy: WorkspaceFolderCopy): Error {
   const error = new Error(`${WORKSPACE_FOLDER_COPY_ERROR_NAME}: ${JSON.stringify({ projectName: copy.projectName, originalRootPath: copy.originalRootPath })}`);

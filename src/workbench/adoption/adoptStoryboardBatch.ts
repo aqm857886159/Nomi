@@ -6,7 +6,7 @@ import type { StoryboardTimelineUnit } from '../generationCanvas/agent/storyboar
 import { applyAdoption } from './adoptionApply'
 import { contractHashOfResult, proposalKeyForBatch, runIdOfNode, timelineRevisionOf } from './adoptionProposalKey'
 import { lookupAdoptionProposal, proposalIsLanded, registerAdoptionProposal } from './adoptionProposalRegistry'
-import { workbenchAdoptionPorts } from './adoptionStorePorts'
+import { createWorkbenchAdoptionPorts } from './adoptionStorePorts'
 import type { AdoptionApplyPorts, AdoptionOutcome, AdoptionPlacement } from './adoptionTypes'
 
 /**
@@ -22,7 +22,7 @@ import type { AdoptionApplyPorts, AdoptionOutcome, AdoptionPlacement } from './a
  * 采纳桥管的是「怎么落」，不是「谁先谁后」。
  */
 
-export type AdoptStoryboardBatchOptions = {
+type AdoptStoryboardBatchOptions = {
   /** 已按镜序排好的单位（来自 planStoryboardTimeline）。 */
   units: readonly StoryboardTimelineUnit[]
   /** 规划阶段就跳过的单位（没生成画面等），原样透传进回执。 */
@@ -47,7 +47,7 @@ export function timelineEndFrame(timeline: TimelineState): number {
 }
 
 /** 轴上已落 clip 的 sourceNodeId 集合。 */
-export function timelineSourceNodeIds(timeline: TimelineState): Set<string> {
+function timelineSourceNodeIds(timeline: TimelineState): Set<string> {
   const ids = new Set<string>()
   for (const track of timeline.tracks) {
     for (const clip of track.clips) {
@@ -117,7 +117,7 @@ export type BatchAdoptionResult = AdoptionOutcome & {
 
 export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions): Promise<BatchAdoptionResult> {
   options.assertCanApply?.()
-  const ports = options.ports || workbenchAdoptionPorts
+  const ports = options.ports || createWorkbenchAdoptionPorts()
   const readNodes = options.readNodes
   const total = options.units.length
   const planSkipped = [...(options.skipped || [])]

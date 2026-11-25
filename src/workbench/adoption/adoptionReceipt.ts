@@ -17,7 +17,7 @@ import type { AdoptProposal, AdoptionOutcome } from './adoptionTypes'
  *  · 补偿失败 → 「没能加进去，时间轴保持原样」（而不是留半落的轴）
  */
 
-export type AdoptionReceiptOptions = {
+type AdoptionReceiptOptions = {
   /** 成功时是否展开时间轴让结果立刻可见。节点点击/拼片=是；轴内拖放=已经在看着轴了。 */
   revealTimeline?: boolean
   /** 成功文案 key 覆写（批量用「已排 N 个镜头」）。 */
@@ -65,6 +65,7 @@ export function reportAdoptionOutcome(
         report(i18n.t('timelineEditor.adoption.alreadyOnTimeline'), 'info')
         return
       }
+      const head = useWorkbenchStore.getState().timelineHistory.entries.pastStates.at(-1)
       showUndoToast({
         message: options.successMessage || successMessageFor(outcome.proposal),
         // 撤销**绑定到这一次采纳**，不是无条件弹一层撤销栈。
@@ -77,11 +78,14 @@ export function reportAdoptionOutcome(
         // 判据复用 `proposalIsLanded`（与幂等重放同一个概念，不另造一套）：
         // 成果原样都在、且轴自采纳后一动没动，才说明「现在撤」撤的就是这一笔。
         // 这和上面重放分支不给撤销是同一条道理——撤掉别人的成果就是误导。
-        isUndoable: () => proposalIsLanded(outcome.proposal, useWorkbenchStore.getState().timeline),
+        isUndoable: () => {
+          const state = useWorkbenchStore.getState()
+          return Boolean(head && state.timelineHistory.entries.pastStates.at(-1) === head && proposalIsLanded(outcome.proposal, state.timeline))
+        },
         // 光在点击那一刻拦还不够：一个**点了没反应**的按钮仍然摆在那儿，
         // 用户会以为撤销坏了。轴一旦不再 landed 就把这张回执收掉，
         // 让失效的动作**从眼前消失**，而不是留个哑巴按钮。
-        watchUndoable: (recheck) => useWorkbenchStore.subscribe((state) => timelineContentOf(state.timeline), recheck, { equalityFn: shallow }),
+        watchUndoable: (recheck) => useWorkbenchStore.subscribe((state) => ({ ...timelineContentOf(state.timeline), head: state.timelineHistory.entries.pastStates.at(-1) }), recheck, { equalityFn: shallow }),
         onUndo: () => useWorkbenchStore.getState().undoTimeline(),
       })
       return

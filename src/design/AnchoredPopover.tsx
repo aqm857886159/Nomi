@@ -2,9 +2,14 @@ import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { autoUpdate } from '@floating-ui/dom'
 import { FocusScope } from '@radix-ui/react-focus-scope'
-import { NOMI_OVERLAY_Z_INDEX, hasOpenDialogAbove, hasOpenPopupAbove, isInsidePopupAbove } from './overlayLayers'
+import {
+  NOMI_OVERLAY_Z_INDEX,
+  hasOpenDialogAbove,
+  hasOpenPopupAbove,
+  isInsidePopupAbove,
+  useFloatingOutsideDismiss,
+} from './overlayLayers'
 import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign, type AnchoredPopoverSide } from './anchoredPopoverPlacement'
-import { listenOutsidePress } from './outsidePress'
 
 /**
  * 锚点浮层：Portal 到 body + fixed 贴锚点，**逃出祖先 overflow 的裁切**。
@@ -186,32 +191,35 @@ export function AnchoredPopover({
     return true
   }, [onClose])
 
+  // 「关掉我」这件事有两条路（Esc / 点外面），两条都必须给**我自己弹出来的那一层**让位：
+  // 下拉和菜单 Portal 到 body，DOM 上不在我里面，不让位就会出现「浮层里的选择器改不了值」
+  // 和「Esc 本想收下拉却把整个浮层关了」。点外面走 overlayLayers 的 useFloatingOutsideDismiss（@floating-ui/react useDismiss），
+  // 让位判据统一走 isInsidePopupAbove。
+  const { getFloatingProps } = useFloatingOutsideDismiss({
+    open: Boolean(onClose),
+    floating: popRef,
+    reference: anchorRef ?? fallbackAnchorRef,
+    isInside: (target) => Boolean(popRef.current && isInsidePopupAbove(popRef.current, target)),
+    onDismiss: () => {
+      if (!onClose) return
+      closedByOutsidePressRef.current = true
+      onClose()
+    },
+  })
+
   React.useEffect(() => {
     if (!onClose) return undefined
-    // 「关掉我」这件事有两条路（Esc / 点外面），两条都必须给**我自己弹出来的那一层**让位：
-    // 下拉和菜单 Portal 到 body，DOM 上不在我里面，不让位就会出现「浮层里的选择器改不了值」
-    // 和「Esc 本想收下拉却把整个浮层关了」。判据走 overlayLayers 那一份，两条路同一套。
     const onKey = (event: KeyboardEvent) => {
       // Internal controls receive Escape first, then the portal's React bubble handler.
       // External focus (e.g. the trigger) still needs capture before React Flow unselects it.
       if (event.target instanceof Node && popRef.current?.contains(event.target)) return
       dismissOnEscape(event)
     }
-    const isInside = (target: EventTarget | null) => {
-      const anchor = anchorRef?.current ?? fallbackAnchorRef.current
-      if (target instanceof Node && (popRef.current?.contains(target) || anchor?.contains(target))) return true
-      return Boolean(popRef.current && isInsidePopupAbove(popRef.current, target))
-    }
-    const stopListeningOutside = listenOutsidePress(isInside, () => {
-      closedByOutsidePressRef.current = true
-      onClose()
-    })
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      stopListeningOutside()
     }
-  }, [anchorRef, dismissOnEscape, onClose])
+  }, [dismissOnEscape, onClose])
 
   const body = (
     <div
@@ -232,17 +240,19 @@ export function AnchoredPopover({
         outline: 'none',
         ...(passThrough ? { pointerEvents: 'none' as const } : {}),
       }}
-      onPointerDown={(event) => {
-        closedByOutsidePressRef.current = false
-        event.stopPropagation()
-      }}
-      onKeyDown={(event) => {
-        closedByOutsidePressRef.current = false
-        if (!onClose || event.key !== 'Escape' || !event.currentTarget.contains(event.target as Node)) return
-        // A child may prevent dismissal without stopping propagation. Keep even that
-        // Escape inside this portal; it must not cancel the ancestor node's selection.
-        if (dismissOnEscape(event.nativeEvent)) event.stopPropagation()
-      }}
+      {...getFloatingProps({
+        onPointerDown: (event) => {
+          closedByOutsidePressRef.current = false
+          event.stopPropagation()
+        },
+        onKeyDown: (event) => {
+          closedByOutsidePressRef.current = false
+          if (!onClose || event.key !== 'Escape' || !event.currentTarget.contains(event.target as Node)) return
+          // A child may prevent dismissal without stopping propagation. Keep even that
+          // Escape inside this portal; it must not cancel the ancestor node's selection.
+          if (dismissOnEscape(event.nativeEvent)) event.stopPropagation()
+        },
+      })}
     >
       {children}
     </div>

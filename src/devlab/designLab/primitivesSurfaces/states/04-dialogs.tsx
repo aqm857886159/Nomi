@@ -38,7 +38,6 @@ import { AssetPreviewDialog } from '../../../../workbench/assets/AssetPreviewDia
 import { ComfyuiWorkflowSettingsPage } from '../../../../ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage'
 import { ScreenshotCropOverlay } from '../../../../workbench/generationCanvas/components/ScreenshotCropOverlay'
 import NodeShotCutPanel from '../../../../workbench/generationCanvas/nodes/NodeShotCutPanel'
-import { SplashIntro } from '../../../../workbench/onboarding/SplashIntro'
 import { JourneyTourController } from '../../../../workbench/onboarding/JourneyTourController'
 import { useJourneyTourStore } from '../../../../workbench/onboarding/journeyTourStore'
 import { NomiBrowserDialogView } from '../../../../ui/browser/dialog/NomiBrowserDialogView'
@@ -164,7 +163,6 @@ function DialogStage({ kind }: { kind: string }): JSX.Element {
   if (kind === 'media' || kind === 'crop' || kind === 'shotcut') return <><span data-dialog-census-workspace="[role=dialog] button, [role=dialog] input" /><CanvasWorkspace kind={kind} /></>
   if (kind === 'asset') return <><span data-dialog-census-workspace="[role=dialog] button" /><AssetPreviewDialog asset={{ id: 'census', kind: 'image', name: 'Census', renderUrl: selectionNode.result!.url!, source: 'canvas', origin: { source: 'canvas', nodeId: 'census' } }} onClose={noop} /></>
   if (kind === 'comfy') return <><span data-dialog-census-workspace="[data-comfyui-workflow-page] button, [data-comfyui-workflow-page] input, [data-comfyui-workflow-page] textarea, [data-comfyui-workflow-page] select" /><ComfyWorkspace /></>
-  if (kind === 'splash') return <><span data-dialog-census-workspace="[data-splash-skip]" /><SplashIntro onDone={noop} /></>
   if (kind === 'journey') return <><span data-dialog-census-workspace="[data-journey-tour=finale] button" /><JourneyWorkspace /></>
   if (kind === 'browser') return <><span data-dialog-census-workspace=".nomi-browser-dialog-root button, .nomi-browser-dialog-root input" /><BrowserWorkspace /></>
   if (kind === 'handbook') return <HandbookPanel opened onClose={noop} />
@@ -193,7 +191,7 @@ const EXTRA_CONTROLS: Readonly<Record<string, string>> = {
 function LocalizedDialog({ kind }: { kind: string }): JSX.Element {
   const locale = (new URLSearchParams(window.location.search).get('locale') || (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_DIALOG_CENSUS_LOCALE) === 'en' ? 'en' : 'zh-CN'
   return <LabLocaleGate locale={locale}>
-    <span data-dialog-census-expects={kind === 'prompt' ? '[data-prompt-preview]' : kind === 'splash' ? '[data-splash-skip]' : '[role="dialog"]'} />
+    <span data-dialog-census-expects={kind === 'prompt' ? '[data-prompt-preview]' : '[role="dialog"]'} />
     {EXTRA_CONTROLS[kind] ? <span data-dialog-census-actions={EXTRA_CONTROLS[kind]} /> : null}
     <DialogStage kind={kind} />
   </LabLocaleGate>
@@ -380,13 +378,6 @@ export const DIALOG_STATES: readonly LabState[] = [
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
     mirrors: ['src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx:168'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="shotcut" />,
-  },
-  {
-    id: 'ps-45-splash-dialog',
-    name: 'splash · 最小窗口普查',
-    source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/onboarding/SplashIntro.tsx:155'], coverage: 'shell', capture: 'viewport',
-    render: () => <LocalizedDialog kind="splash" />,
   },
   {
     id: 'ps-46-journey-dialog',

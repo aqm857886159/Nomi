@@ -6,6 +6,7 @@ import { currentAnchorCheckpointGate, buildAnchorCheckpointGate } from "./anchor
 import { logInfo, logWarn } from "../logging/logger";
 import { latestSpendAuthorizationDigest } from "../shared/productionSpendAuthority";
 import { DispatchConsentLapsedError } from "../shared/productionDispatchConsent";
+import { exponentialBackoffMs } from "../shared/retryPolicy";
 import { admitShotsForDispatch, recordLandingFailure, type LandedShotAdmission, type LandShotsOnCanvas } from "./shotLandingAdmission";
 import { ProductionRunLockBusyError } from "./productionRunLock";
 
@@ -471,7 +472,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
           // polling, so any re-kick (timer / project reopen / restart) resumes via `observe`.
           return { progress: result.progress, checkpoint: result.checkpoint, quiescent: false };
         }
-        const delayMs = Math.min(POLL_DELAY_START_MS * 2 ** backoffStep, POLL_DELAY_CAP_MS, pollHorizonMs - sleptMs);
+        const delayMs = exponentialBackoffMs(POLL_DELAY_START_MS, backoffStep, Math.min(POLL_DELAY_CAP_MS, pollHorizonMs - sleptMs));
         backoffStep += 1;
         sleptMs += delayMs;
         await restUnlessKicked(delayMs);

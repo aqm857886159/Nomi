@@ -1,3 +1,4 @@
+import { createTimelineHistory } from '../history/historyMiddleware'
 // 素材文件存活判定（整份项目内容扫描）的性质与边界：地址的各种写法、读不全一律保留、撤销材料何时算、
 // 列表记忆随 store 失效、旧版本存下的待删清单按新判定重判、真实落地的结果删掉后照旧回收。
 import fs from 'node:fs'
@@ -21,7 +22,7 @@ import {
 } from './pendingAssetDeletions'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { __resetCanvasUndoJournalForTests } from '../generationCanvas/events/canvasUndoJournal'
+import { clearHistory } from '../generationCanvas/events/canvasPatchHistory'
 import { restoreWorkbenchProjectPayload } from '../project/workbenchProjectSession'
 import * as projectContent from '../project/workbenchProjectContent'
 import { createDefaultTimeline } from '../timeline/timelineMath'
@@ -75,8 +76,8 @@ function spellings(projectId: string, relativePath: string, root: string): Array
 beforeEach(() => {
   mocks.deleteFiles.mockReset()
   mocks.deleteFiles.mockImplementation(async ({ relativePaths }: { relativePaths: string[] }) => ({ deletedPaths: relativePaths, failed: [] }))
-  __resetPendingAssetDeletionsForTests(); __resetCanvasUndoJournalForTests()
-  useWorkbenchStore.setState({ storyboardDesignsByDocumentId: {}, workbenchDocuments: [], projectAgentAttachments: [], projectAgentReferences: [], projectAgentRecoveredDrafts: [], timelineUndoStack: [], timelineRedoStack: [], detachedTimelineClips: {} } as never)
+  __resetPendingAssetDeletionsForTests(); clearHistory()
+  useWorkbenchStore.setState({ storyboardDesignsByDocumentId: {}, workbenchDocuments: [], projectAgentAttachments: [], projectAgentReferences: [], projectAgentRecoveredDrafts: [], timelineHistory: createTimelineHistory(), detachedTimelineClips: {} } as never)
   useGenerationCanvasStore.setState({ generationAiDraft: '' } as never)
   useWorkbenchStore.getState().setTimeline(createDefaultTimeline())
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] }, P)
@@ -216,7 +217,8 @@ describe('读不全一律保留', () => {
 
 describe('会话撤销材料：会话活着算，关项目那一刻不算', () => {
   it('时间轴撤销栈里的片段', async () => {
-    useWorkbenchStore.setState({ timelineUndoStack: [{ tracks: [{ clips: [{ url: 'nomi-local://asset/project-1/assets/generated/a.png' }] }] }] as never })
+    const { timeline, timelineHistory } = useWorkbenchStore.getState()
+    timelineHistory.record({ tracks: [{ clips: [{ url: 'nomi-local://asset/project-1/assets/generated/a.png' }] }] } as never, timeline)
     const alive = readLoadedProjectLivenessContent(P, 'alive')!
     const ending = readLoadedProjectLivenessContent(P, 'ending')!
     expect(isProjectFileReferenced(target, collectProjectFileReferences(alive.nodes, alive.rest))).toBe(true)

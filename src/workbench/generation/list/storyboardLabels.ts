@@ -64,7 +64,7 @@ function defaultShotTextPatterns(): RegExp[] {
 }
 
 /** 持久化在时间轴片段 / 节点里的老文字是不是「镜头 N」这种全局号——是就不能给人看。 */
-export function isPersistedGlobalShotText(value: string | undefined): boolean {
+function isPersistedGlobalShotText(value: string | undefined): boolean {
   const text = (value || '').trim()
   return Boolean(text) && defaultShotTextPatterns().some((pattern) => pattern.test(text))
 }

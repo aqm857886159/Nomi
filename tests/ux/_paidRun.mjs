@@ -100,6 +100,7 @@ export const REHEARSAL_ENDPOINTS = Object.freeze({
   'creation-ai-rewrite-real.paid.mjs': { endsAt: 'brain', why: '写作区 AI 编辑：一次文字模型调用' },
   'deconstruct-real.paid.mjs': { endsAt: 'brain', why: '拆解：读图模型的对话请求就是它花钱的那条' },
   'look-at-canvas-selection-real.paid.mjs': { endsAt: 'brain', why: '只看工具写对率、回合成功率：只花文字模型的钱' },
+  'storyboard-agent-bulk-real.paid.mjs': { endsAt: 'brain', why: '只让 Agent 编辑当前分镜，不提交媒体生成' },
   'text-tasks-pi-ai-real.paid.mjs': { endsAt: 'brain', why: '文本任务单次调用：只花文字模型的钱' },
   'tool-schema-real.paid.mjs': { endsAt: 'brain', why: '一回合文字模型的工具调用，不生成媒体' },
 })

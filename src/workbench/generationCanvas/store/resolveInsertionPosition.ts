@@ -6,7 +6,7 @@ import {
   resolveInsertionPositionWith,
   resolveGroupInsertionDeltaWith,
   type NodeBox as SharedNodeBox,
-} from '../../../../electron/capabilityCore/canvasNodeLayout'
+} from '../../../../electron/shared/canvas/canvasNodeLayout'
 
 /**
  * 新建节点落点真碰撞避让（审计 A4 根治）——**薄封装**：数学在共享层

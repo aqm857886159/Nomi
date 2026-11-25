@@ -1,3 +1,6 @@
+import { isApimartKeyCandidate } from '../shared/contracts/vendorAccountBalance'
+import { builtinVendorKeyOfKey } from '../shared/builtinVendorIdentity'
+import { checkVendorAccountBalance } from '../ai/onboarding/vendorAccountBalance'
 import { importModelCatalogPackage, mutateCatalog, readCatalog, upsertModelCatalogMapping, upsertModelCatalogModel, upsertModelCatalogVendor, upsertModelCatalogVendorApiKey } from './catalogStore'
 import type { CatalogState, Model } from './types'
 import { derivePublishedExecution, modelHasPublishedExecution } from '../shared/modelPublication'
@@ -143,11 +146,17 @@ export async function upsertRendererCatalogVendorApiKey(vendorKey: string, paylo
   const vendor = readCatalog().vendors.find((item) => item.key === vendorKey)
   if (!vendor) throw new Error(desktopT('credential.validationUnavailable'))
   const snapshot = candidateCredentialSnapshot(vendorKey)
-  await validateCandidateCredential(vendor, String(candidate.apiKey || '').trim())
+  const key = String(candidate.apiKey || '').trim()
+  const checkOnConnect = builtinVendorKeyOfKey(vendorKey) === 'apimart' && record(payload).source === 'apimart-connect'
+  if (checkOnConnect && !isApimartKeyCandidate(key)) throw new Error('apimart-key-format')
+  const check = checkOnConnect ? await checkVendorAccountBalance({ vendorKey }, { candidateKey: key }) : null
+  if (check?.status === 'invalid') throw new Error('apimart-key-invalid')
+  if (check?.status === 'unavailable') throw new Error(desktopT('credential.validationUnavailable'))
+  if (!check) await validateCandidateCredential(vendor, key)
   if (snapshot !== candidateCredentialSnapshot(vendorKey)) throw new Error(desktopT('credential.changed'))
   const result = upsertModelCatalogVendorApiKey(vendorKey, { ...candidate, enabled: true })
   publishConfiguredVendor(vendorKey)
-  return result
+  return check ?? result
 }
 
 export function sanitizeRendererVendorApiKeyMutation(payload: unknown): Json {

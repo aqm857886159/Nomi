@@ -10,7 +10,7 @@ import { rpcErrorFromPayload } from './mcpRpcError'
 import { outboundRequestWasNeverWritten } from '../outboundDispatchEvidence'
 
 // 传输兜底超时：须 ≥ 服务端最长合法耗时（core.ts 视频轮询 300s）才不误杀真生成；默认 360s，可经 env 调。
-export function mcpRpcTimeoutMs(): number {
+function mcpRpcTimeoutMs(): number {
   const raw = Number(process.env.NOMI_RPC_TIMEOUT_MS)
   return Number.isFinite(raw) && raw > 0 ? raw : 360_000
 }
@@ -28,7 +28,7 @@ export function mcpRequestMayHaveRunMessage(detail: string): string {
   return `Nomi 在收到请求后连接中断了（${detail}）——请求可能已被 Nomi 执行，请先用 nomi_read 查看结果，再决定要不要重试。 / The connection to Nomi dropped after the request was delivered (${detail}) — the request may already have been executed by Nomi. Check the result with nomi_read before deciding whether to retry.`
 }
 
-export type McpLoopbackRpcCallInput = Readonly<{
+type McpLoopbackRpcCallInput = Readonly<{
   instance: { port: number; token: string }
   fetchImpl: typeof fetch
   clientProof: string

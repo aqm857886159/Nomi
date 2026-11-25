@@ -24,7 +24,7 @@ export interface ToolInputIssue extends LaneToolPublicIssue {
 }
 
 /** 一次拒收最多列几条。`anyOf` 每个分支各报一条，不封顶会刷屏。 */
-export const TOOL_INPUT_ISSUE_LIMIT = 8;
+const TOOL_INPUT_ISSUE_LIMIT = 8;
 /** 「这一层可填的字段」最多列几个。 */
 const ALLOWED_FIELD_LIMIT = 24;
 const RECEIVED_TEXT_LIMIT = 32;
@@ -128,7 +128,7 @@ function schemaBranches(node: JsonSchemaNode): JsonSchemaNode[] {
 }
 
 /** 沿实例路径走模型可见的 JSON Schema，拿到那一层的对象 schema。 */
-export function schemaNodeAt(schema: unknown, segments: readonly (string | number)[]): JsonSchemaNode | undefined {
+function schemaNodeAt(schema: unknown, segments: readonly (string | number)[]): JsonSchemaNode | undefined {
   let node = schema as JsonSchemaNode | undefined;
   for (const raw of segments) {
     if (!node) return undefined;
@@ -145,7 +145,7 @@ export function schemaNodeAt(schema: unknown, segments: readonly (string | numbe
 }
 
 /** 那一层能填的字段名（声明顺序）。 */
-export function fieldsAt(schema: unknown, segments: readonly (string | number)[]): string[] {
+function fieldsAt(schema: unknown, segments: readonly (string | number)[]): string[] {
   const node = schemaNodeAt(schema, segments);
   if (!node) return [];
   const names = new Set<string>();
@@ -326,7 +326,7 @@ export function issuesFromTypeBox(errors: readonly TypeBoxLikeError[], args: unk
 // ── 来源三：准入层（模型档案的参数事实） ─────────────────────────────────
 
 /** `executionContract.ParameterRejection` 的结构子集（不 import 主进程那一层）。 */
-export type ParameterRejectionLike = Readonly<{
+type ParameterRejectionLike = Readonly<{
   code: string;
   path: string;
   allowedKeys?: readonly string[];
@@ -411,9 +411,4 @@ export function renderToolInputIssue(issue: ToolInputIssue): string {
 /** 公开那一份：去掉收到的值和只给模型的原话（面板 / 对外 MCP / 转录信封都只拿这一份）。 */
 export function publicToolInputIssues(issues: readonly ToolInputIssue[]): LaneToolPublicIssue[] {
   return issues.map(({ received: _received, note: _note, ...rest }) => rest);
-}
-
-/** 墙用的字段路径（熔断按「工具 + 码 + 字段」认墙）。 */
-export function issuePaths(issues: readonly { readonly path: string }[]): string[] {
-  return issues.map((issue) => issue.path);
 }

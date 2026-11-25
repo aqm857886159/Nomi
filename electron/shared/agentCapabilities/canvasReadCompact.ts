@@ -51,7 +51,7 @@ function boundedJoin<T>(
 /**
  * 给模型看的选区的账：总数 = 节点行里标了「选中」的行数 + 没列出的行数，永远写在文本里。
  */
-export type CanvasSelectionAccount = Readonly<{ total: number; listed: number; omitted: number }>;
+type CanvasSelectionAccount = Readonly<{ total: number; listed: number; omitted: number }>;
 
 function selectionLine(account: CanvasSelectionAccount): string {
   if (account.total === 0) return "当前选中: 无";
@@ -90,7 +90,7 @@ function createPromptWriter(maxCharacters: number) {
 }
 
 /** 紧凑文本，加上它对选区做的账（让调用方 / 测试读事实，而不是反过来解析排版）。 */
-export type CanvasAgentProjection = Readonly<{ text: string; selection: CanvasSelectionAccount }>;
+type CanvasAgentProjection = Readonly<{ text: string; selection: CanvasSelectionAccount }>;
 
 const EMPTY_SELECTION: CanvasSelectionAccount = Object.freeze({ total: 0, listed: 0, omitted: 0 });
 

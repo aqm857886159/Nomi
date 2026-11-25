@@ -1,5 +1,5 @@
 // R13 走查 —— 按镜头拆（SHUO backlog 第 3 项）。
-// 用法: node tests/ux/shot-cuts.walk.mjs   产出: tests/ux/shots/shot-cuts/*.png
+// 用法: node tests/ux/shot-cuts.walk.mjs
 //
 // 用一段**真的有硬切**的视频（现造：4 段不同画面拼接 → 3 个切点），走完整条链：
 // 传视频 → 点「按镜头拆」→ 真 ffmpeg 检测 → 面板出缩略图 → 拖灵敏度看数量变 → 勾选 → 落画布 → 自动成一组。
@@ -7,7 +7,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import { createRequire } from 'node:module'
 import { screenshotSettled } from './_assert.mjs'
 import { canvasFitViewButton } from './_shell.mjs'
@@ -15,15 +16,10 @@ import { GROUP_FRAME_HEADER_SELECTOR } from './_groupFrame.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/shot-cuts')
-fs.rmSync(shotsDir, { recursive: true, force: true })
+const tmpDir = makeTempDir('nomi-shot-cuts-')
+const shotsDir = process.env.EVIDENCE_DIR ? assertOutsideRepo(process.env.EVIDENCE_DIR) : path.join(tmpDir, 'evidence')
 fs.mkdirSync(shotsDir, { recursive: true })
-const tmpDir = path.join(repoRoot, '.tmp')
-fs.mkdirSync(tmpDir, { recursive: true })
-const userData = path.join(tmpDir, 'nomi-shotcuts-userdata')
-fs.rmSync(userData, { recursive: true, force: true })
-fs.mkdirSync(userData, { recursive: true })
+process.env.EVIDENCE_DIR = shotsDir
 
 let n = 0
 const fail = []
@@ -55,12 +51,12 @@ await new Promise((resolve, reject) => {
 })
 console.log('  → 夹具视频:', FIXTURE, fs.statSync(FIXTURE).size, 'bytes（预期 3 个切点：2s/4s/6s）')
 
-const { app, win } = await launchNomiApp({
+const { close, win } = await launchNomiApp({
   name: 'shot-cuts',
-  userDataDir: userData,
   args: ['--no-proxy-server'],
   settleMs: 0,
 })
+try {
 await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
@@ -99,7 +95,7 @@ const nodeId = await win.evaluate(() => document.querySelector('[data-node-id]')
 console.log('  → 视频节点:', nodeId)
 const hasVideo = await win.evaluate(() => Boolean(document.querySelector('[data-node-id] video')))
 check('视频真的进画布了', Boolean(nodeId) && hasVideo, `node=${nodeId} video=${hasVideo}`)
-if (!nodeId || !hasVideo) { await app.close(); process.exit(1) }
+if (!nodeId || !hasVideo) throw new Error('视频没有进入画布')
 
 // 点「按镜头拆」
 await win.locator(`[data-node-id="${nodeId}"]`).first().click({ timeout: 4000 })
@@ -184,19 +180,26 @@ await win.locator('[data-shot-cut]').first().click({ timeout: 4000 })
 await win.waitForTimeout(400)
 
 // 落画布
-const nodesBefore = await win.evaluate(() => document.querySelectorAll('[data-node-id]').length)
+// React Flow 只渲染视口内节点，画布文档才持有全部节点和组成员。
+const idsBefore = await win.evaluate(() => window.__nomiCanvasStore.getState().readDocumentSnapshot().nodes.map((node) => node.id))
 await win.locator('[data-shot-cut-commit]').first().click({ timeout: 5000 })
 await win.waitForTimeout(9000)
 await snap(win, 'after-commit')
-const after = await win.evaluate(([headerSelector]) => ({
-  nodes: document.querySelectorAll('[data-node-id]').length,
-  groups: document.querySelectorAll('[data-group-id]').length,
-  groupLabel: document.querySelector(headerSelector)?.textContent?.trim() ?? null,
-  panelOpen: Boolean(document.querySelector('[role="dialog"][aria-label="按镜头拆"]')),
-}), [GROUP_FRAME_HEADER_SELECTOR])
-console.log(`  → 落画布后:`, JSON.stringify(after), `(之前 ${nodesBefore} 个节点)`)
-check('落了 3 个新节点', after.nodes - nodesBefore === 3, `实得 ${after.nodes - nodesBefore}`)
-check('自动成一组（拍板：拆出来直接能整组运行）', after.groups === 1, String(after.groups))
+const after = await win.evaluate(({ headerSelector, idsBefore }) => {
+  const { nodes, groups } = window.__nomiCanvasStore.getState().readDocumentSnapshot()
+  const created = nodes.filter((node) => !idsBefore.includes(node.id))
+  return {
+    createdIds: created.map((node) => node.id).sort(),
+    usableImages: created.filter((node) => node.kind === 'image' && node.result?.type === 'image' && node.result.url).length,
+    groups: groups.length,
+    groupNodeIds: [...(groups[0]?.nodeIds ?? [])].sort(),
+    groupLabel: document.querySelector(headerSelector)?.textContent?.trim() ?? null,
+    panelOpen: Boolean(document.querySelector('[role="dialog"][aria-label="按镜头拆"]')),
+  }
+}, { headerSelector: GROUP_FRAME_HEADER_SELECTOR, idsBefore })
+console.log('  → 落画布后:', JSON.stringify(after))
+check('落了 3 个带图片结果的新节点', after.createdIds.length === 3 && after.usableImages === 3, String(after.usableImages))
+check('3 个新节点自动成一组', after.groups === 1 && JSON.stringify(after.groupNodeIds) === JSON.stringify(after.createdIds), String(after.groups))
 check('组名说清来自哪段视频', /拆自/.test(after.groupLabel || ''), String(after.groupLabel))
 check('落完面板自动关掉', !after.panelOpen)
 
@@ -208,6 +211,8 @@ await snap(win, 'canvas-final')
   if (gb) await snap(win, 'group-final-zoom', { x: Math.max(0, gb.x - 12), y: Math.max(0, gb.y - 12), width: Math.min(900, gb.width + 24), height: Math.min(500, gb.height + 24) })
 }
 
-await app.close()
+} finally {
+  await close()
+}
 console.log(fail.length ? `\n❌ ${fail.length} 条不达标:\n - ${fail.join('\n - ')}` : '\n✅ 全部达标')
 process.exit(fail.length ? 1 : 0)

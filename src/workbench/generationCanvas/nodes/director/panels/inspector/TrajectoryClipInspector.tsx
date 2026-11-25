@@ -42,8 +42,8 @@ export function TrajectoryClipInspector({ entity, clip }: { entity: TimelineEnti
         <span className="truncate">{t('director.timelineInspector.clipEntity')}</span>
         <span className="truncate text-nomi-ink">{entity.name}</span>
       </div>
-      <SliderNumberField label={t('director.timelineInspector.clipStart')} value={clip.startTime} min={0} max={totalDuration} step={FRAME_SECONDS} unit="s" digits={2} onChangeStart={() => store.getState().saveState()} onChange={(start) => setRange(start, clip.endTime)} />
-      <SliderNumberField label={t('director.timelineInspector.clipEnd')} value={clip.endTime} min={0} max={totalDuration} step={FRAME_SECONDS} unit="s" digits={2} onChangeStart={() => store.getState().saveState()} onChange={(end) => setRange(clip.startTime, end)} />
+      <SliderNumberField label={t('director.timelineInspector.clipStart')} value={clip.startTime} min={0} max={totalDuration} step={FRAME_SECONDS} unit="s" digits={2} onChangeStart={store.getState().saveState} onChange={(start) => setRange(start, clip.endTime)} />
+      <SliderNumberField label={t('director.timelineInspector.clipEnd')} value={clip.endTime} min={0} max={totalDuration} step={FRAME_SECONDS} unit="s" digits={2} onChangeStart={store.getState().saveState} onChange={(end) => setRange(clip.startTime, end)} />
       <div className="grid grid-cols-[72px_1fr] items-center gap-2 py-1 text-caption text-nomi-ink-80">
         <span className="truncate">{t('director.timelineInspector.clipDuration')}</span>
         <span className="font-nomi-mono text-nomi-ink">{t('director.timelineInspector.secondsWithFrames', { seconds: (clip.endTime - clip.startTime).toFixed(2), frame: clip.endFrame - clip.startFrame })}</span>

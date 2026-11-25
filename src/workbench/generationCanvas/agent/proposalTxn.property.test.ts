@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import fc from 'fast-check'
 import { applyProposalBatch } from './proposalTxn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 
 beforeEach(() => {
@@ -52,7 +52,7 @@ describe('S6-3 property:任意批准重放 → reconciliation 必 ok', () => {
     await fc.assert(
       fc.asyncProperty(planArb, async (plan) => {
         useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-        __resetCanvasUndoJournalForTests()
+        clearHistory()
         const steps = [
           {
             toolCallId: 'tc-create',

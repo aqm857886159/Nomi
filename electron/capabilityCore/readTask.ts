@@ -9,7 +9,7 @@
  * 只查一次、不循环：它是一次 MCP 工具调用，外部宿主有工具超时（例如 Codex 默认 60 秒）。
  */
 import type { FetchTaskResultFn } from "./core";
-import { TtlLruCache } from "../tasks/taskCache";
+import { BoundedCache } from "../shared/boundedCache";
 import { isLocalQueryBlockedRaw } from "../tasks/taskAdmission";
 import { isTerminalTaskStatus } from "../shared/taskStatus";
 import { redactAdapterSecrets, sanitizedAdapterJson } from "../providerAdapter/redaction";
@@ -36,7 +36,7 @@ export type ReadTaskResult = {
  * 于是 AI 第二次再问同一个号会被说成「Nomi 不再跟踪」——对一个已经查到结果的任务那是假话。
  * 这里只记「刚查到的终态」，让重复查询一致；不是第二套任务状态（不提交、不轮询）。
  */
-const terminalMemo = new TtlLruCache<ReadTaskResult>({ maxEntries: 100, ttlMs: 60 * 60 * 1000 });
+const terminalMemo = new BoundedCache<string, ReadTaskResult>({ maxEntries: 100, ttlMs: 60 * 60 * 1000 });
 
 const withTimeout = <T>(work: Promise<T>, ms: number): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;

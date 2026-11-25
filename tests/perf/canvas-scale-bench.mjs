@@ -330,14 +330,14 @@ async function fitView(page, { expectZoomBelow = 0.9 } = {}) {
 }
 
 /** 不在画布上量的工作台场景：每次采样前不做「适应视图」（那颗钮在创作 / 预览页上不存在）。 */
-const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-toolbar-resize', 'creation-ai-rewrite-result', 'timeline-play', 'timeline-scrub', 'library-skill-open', 'library-prompt-open', 'library-prompt-scroll', 'library-prompt-search', 'chat-send-visible', 'chat-send-visible-10', 'chat-send-visible-50-tools', 'chat-send-visible-1000', 'chat-scroll-500', 'chat-scroll-500-cpu4x', 'window-narrow-drag', 'topbar-yield-resize'])
+const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-toolbar-resize', 'creation-ai-rewrite-result', 'timeline-play', 'timeline-scrub', 'timeline-trim-history', 'library-skill-open', 'library-prompt-open', 'library-prompt-scroll', 'library-prompt-search', 'chat-send-visible', 'chat-send-visible-10', 'chat-send-visible-50-tools', 'chat-send-visible-1000', 'chat-scroll-500', 'chat-scroll-500-cpu4x', 'window-narrow-drag', 'topbar-yield-resize', 'onboarding-connect-open'])
 /**
  * 在「工作缩放」（约 100%）下量的场景：点卡出生成框是在正常干活的缩放下发生的，不是缩到全图。
  * 适应视图之后在舞台中间滚轮放大到 ≥0.95：10 / 100 / 200 三档的视口里都是同样大小的卡，差别只剩画布上一共有多少个节点。
  */
 const WORKING_ZOOM_SCENARIOS = new Set(['select-composer'])
 /** 工作台场景带进样本的数（主数 responseMs / mainRoundTripMaxMs，其余只看）。 */
-const WORKBENCH_SAMPLE_KEYS = ['idleDraws', 'idleSaveIPC30', 'idleSnapshotWrites', 'idleQueries', 'supplierQueries', 'idleSeconds', 'waiting', 'spinners', 'animations', 'responseMs', 'firstFeedbackMs', 'coldResponseMs', 'storeWrites', 'mainRoundTripMaxMs', 'mainRoundTripP95Ms', 'keyMaxMs', 'toCreation', 'toPreview', 'toGeneration', 'toList', 'toCanvas', 'generating', 'streamedCharsDuringPan', 'keys', 'paragraphs', 'created', 'playheadTravelPx', 'panMovedPx', 'openMs', 'drawMs', 'selectedChars', 'mediaRequests', 'remoteMediaRequests', 'mountedMedia', 'mountedCards', 'visibleCards', 'matchedCards', 'queueSettled', 'listCards', 'scrolledPx', 'hoverResponseMs', 'clickResponseMs', 'focusSettledMs', 'yieldFlips']
+const WORKBENCH_SAMPLE_KEYS = ['idleDraws', 'idleSaveIPC30', 'idleSnapshotWrites', 'idleQueries', 'supplierQueries', 'idleSeconds', 'waiting', 'spinners', 'animations', 'responseMs', 'firstFeedbackMs', 'coldResponseMs', 'storeWrites', 'mainRoundTripMaxMs', 'mainRoundTripP95Ms', 'keyMaxMs', 'toCreation', 'toPreview', 'toGeneration', 'toList', 'toCanvas', 'generating', 'streamedCharsDuringPan', 'keys', 'paragraphs', 'created', 'playheadTravelPx', 'trimEndFrame', 'clipCount', 'panMovedPx', 'openMs', 'drawMs', 'selectedChars', 'mediaRequests', 'remoteMediaRequests', 'mountedMedia', 'mountedCards', 'visibleCards', 'matchedCards', 'queueSettled', 'listCards', 'scrolledPx', 'hoverResponseMs', 'clickResponseMs', 'focusSettledMs', 'yieldFlips']
 /** 场景结果里带进样本的数：工作台场景的 + 远看密集的缺块率（farDense.mjs）。 */
 const SCENARIO_SAMPLE_KEYS = [...WORKBENCH_SAMPLE_KEYS, ...FAR_DENSE_SAMPLE_KEYS]
 

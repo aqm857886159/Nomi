@@ -1,21 +1,25 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // 2026-10-23 用户实测：画布左下「⋯」浮层点开后，点画布中间不收、一直挡着；左栏抽屉、任务中心同因。
 // 直接原因：「点外面就收」听的是 document / window 上冒泡的 mousedown，而画布空白处的 d3-zoom 在 mousedown 上
 // stopImmediatePropagation——画布上每一次按下都到不了 document。
-// 类根因：「点外面」各写各的听法，听在了下面的东西能吃掉的阶段 / 事件上。
-// 合同：「点外面」只有一种听法——src/design/outsidePress.ts 的 listenOutsidePress（document 上 pointerdown 捕获阶段）。
-//   ① 不许在 document / window 上听 mousedown / touchstart（d3 必吃）；
-//   ② 不许用 Mantine 的 useClickOutside（它听的就是 document 冒泡的 mousedown + touchstart）；
-//   ③ document / window 上冒泡阶段的 pointerdown / click 只许减不许增：下面四处没有「点在自己身上」的判据，
-//      靠菜单自己 stopPropagation 撑着不被关，换成捕获会让菜单项点不动，要先补判据才能迁。
-// 这是普查：遍历 src 全部非测试源码，对每一处按下监听判一次；存量例外只认下面登记的清单（BUBBLE_PRESS_BASELINE）。
-// 识别不看处理器怎么写（具名 / 内联箭头 / function），收件方认 document、window、ownerDocument，Mantine 的 useWindowEvent 同样算
-// （独立验收 L-acc-sonnet-20261023 发现 3：只认具名处理器时，这几种写法都能溜过去）。
+// 2026-11-24 第⑤刀：9 个消费者全部迁到 @floating-ui/react（useFloating + useDismiss，经 src/design/overlayLayers.ts 的
+// useFloatingOutsideDismiss 收口），同提交删除手写 src/design/outsidePress.ts。
+//   ① 手写 src/design/outsidePress.ts 已删除，全仓零 listenOutsidePress 残留；
+//   ② src/design/overlayLayers.ts 的 useFloatingOutsideDismiss 固定走 @floating-ui/react 的 useDismiss（pointerdown + capture:true）；
+//   ③ 不许在 document / window / ownerDocument 上听 mousedown / touchstart（d3 必吃），且 src/design/ 内零手写按下监听；
+//   ④ 不许用 Mantine 的 useClickOutside（它听的就是 document 冒泡的 mousedown + touchstart）；
+//   ⑤ document / window 上冒泡阶段的 pointerdown / click 只许减不许增（存量冻结在 BUBBLE_PRESS_BASELINE）。
+// 这是普查：遍历 src 全部非测试源码与概念登记清单，对每一处按下监听与登记消费者判一次；存量例外只认下面登记的清单（BUBBLE_PRESS_BASELINE）。
 const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-const OWNER = 'src/design/outsidePress.ts'
+const DELETED_LEGACY_OWNER = 'src/design/outsidePress.ts'
+const OWNER = 'src/design/overlayLayers.ts'
+const CONCEPT_REGISTRY_FILE = 'docs/engineering/concept-owners/ui.outside-press-dismiss.json'
+const registeredConsumers = (
+  JSON.parse(readFileSync(resolve(process.cwd(), CONCEPT_REGISTRY_FILE), 'utf8')) as { allowed_consumers: string[] }
+).allowed_consumers
 const BUBBLE_PRESS_BASELINE: Record<string, number> = {
   'src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts': 1,
   'src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts': 1,
@@ -30,7 +34,10 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-const sources = walk(resolve(process.cwd(), 'src')).map((file) => ({ file: relative(process.cwd(), file).split('\\').join('/'), code: stripComments(readFileSync(file, 'utf8')) }))
+const sources = walk(resolve(process.cwd(), 'src')).map((file) => ({
+  file: relative(process.cwd(), file).split('\\').join('/'),
+  code: stripComments(readFileSync(file, 'utf8')),
+}))
 
 type PressListener = { file: string, event: string, capture: boolean }
 const PRESS_EVENTS = 'mousedown|touchstart|pointerdown|click'
@@ -96,6 +103,12 @@ describe('「点外面就收」只有一种听法', () => {
     ])
   })
 
+  it('手写 outsidePress.ts 已删除且全仓无 listenOutsidePress 残留', () => {
+    expect(existsSync(resolve(process.cwd(), DELETED_LEGACY_OWNER))).toBe(false)
+    expect(sources.filter(({ code }) => /\blistenOutsidePress\b/.test(code)).map(({ file }) => file)).toEqual([])
+    expect(listeners.filter(({ file }) => file.startsWith('src/design/'))).toEqual([])
+  })
+
   it('document / window 上没有 mousedown / touchstart 监听', () => {
     expect(listeners.filter(({ event }) => event === 'mousedown' || event === 'touchstart').map(({ file, event }) => `${file} ${event}`)).toEqual([])
   })
@@ -113,11 +126,16 @@ describe('「点外面就收」只有一种听法', () => {
     for (const [file, count] of Object.entries(counts)) expect({ file, count }).toEqual({ file, count: Math.min(count, BUBBLE_PRESS_BASELINE[file] ?? 0) })
   })
 
-  it('owner 听的是 document 上捕获阶段的 pointerdown', () => {
-    const owner = listeners.filter(({ file }) => file === OWNER)
-    expect(owner).toEqual([{ file: OWNER, event: 'pointerdown', capture: true }])
-    // 解绑也必须按捕获阶段，漏写 true 会解不掉、监听越积越多（复核建议 c）。
-    expect(sources.find(({ file }) => file === OWNER)?.code).toMatch(/document\.removeEventListener\('pointerdown',\s*\w+,\s*true\)/)
+  it('owner 经 @floating-ui/react 的 useDismiss 在捕获阶段听 pointerdown', () => {
+    const ownerCode = sources.find(({ file }) => file === OWNER)?.code ?? ''
+    expect(ownerCode).toMatch(/import\s*\{[^}]*\buseDismiss\b[^}]*\buseFloating\b[^}]*\}\s*from\s*['"]@floating-ui\/react['"]/)
+    expect(ownerCode).toMatch(/outsidePressEvent:\s*['"]pointerdown['"]/)
+    expect(ownerCode).toMatch(/capture:\s*\{\s*outsidePress:\s*true\s*\}/)
+  })
+
+  it.each(registeredConsumers)('登记消费者 %s 走 useFloatingOutsideDismiss', (consumerFile) => {
+    const code = sources.find(({ file }) => file === consumerFile)?.code ?? ''
+    expect(code).toMatch(/\buseFloatingOutsideDismiss\b/)
   })
 })
 

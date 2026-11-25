@@ -213,4 +213,6 @@ export type DesktopOnboardingBridge = {
   }>
   /** 发送键上的约价：交最终请求，回公开价估出的数（只读、不带凭据）；算不出 = null。 */
   vendorPricePreview: (payload: import("../../electron/shared/contracts/vendorPricePreview").VendorPriceRequest) => Promise<import("../../electron/shared/contracts/vendorPricePreview").VendorPricePreview | null>
+  /** 官方供应商账户余额只读查询（与公开约价解耦）；读不到或非官方源 = null。 */
+  vendorAccountBalance?: (payload: import("../../electron/shared/contracts/vendorAccountBalance").VendorAccountBalanceRequest) => Promise<import("../../electron/shared/contracts/vendorAccountBalance").VendorAccountBalance | null>
 }

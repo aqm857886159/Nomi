@@ -19,7 +19,7 @@ import path from 'node:path'
 
 import { app } from 'electron'
 
-import { renameSyncWithRetry, retryOnSharingViolation } from '../jsonFile'
+import { renameSyncOnce, renameSyncWithRetry, retryOnSharingViolation } from '../jsonFile'
 import {
   ProductionRunLockBusyError,
   ProductionRunLockLostError,
@@ -378,7 +378,7 @@ function commit(target: string, tmp: string, original: Buffer | null, content: B
         linkOrChanged(target, prev, target)
         state.aside = prev
       }
-      fs.renameSync(tmp, target)
+      renameSyncOnce(tmp, target)
       state.landed = true
       hooks.onCommitWindow?.(process.hrtime.bigint() - windowStart)
     })

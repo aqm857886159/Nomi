@@ -1,5 +1,6 @@
 import path from "node:path";
-import { lstat, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
+import { lstat, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { renameWithRetry } from "../jsonFile";
 
 const MANIFEST = ".cleanup-manifest.json";
 const DEFAULT_ACTIVE_LEASE_STALE_MS = 5 * 60_000;
@@ -46,7 +47,7 @@ async function writeManifest(root: string, manifest: CleanupManifest): Promise<v
   const temporary = path.join(root, `.cleanup-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.tmp`);
   try {
     await writeFile(temporary, JSON.stringify(manifest), { flag: "wx", mode: 0o600 });
-    await rename(temporary, manifestPath(root));
+    await renameWithRetry(temporary, manifestPath(root));
   } finally { await unlink(temporary).catch(() => undefined); }
 }
 

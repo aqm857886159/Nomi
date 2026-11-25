@@ -1,32 +1,30 @@
 import type { AgentContextScope } from './context/contextBinding';
-interface LegacyAgentBubble { role?: string; content?: string }
-import type { RuntimeActivityEvent, RuntimeFinishReason, RuntimeToolCallRecord, RuntimeToolDecision, RuntimeUsage } from '../shared/agentCapabilities/transportContracts';
+import type { RuntimeFinishReason, RuntimeToolCallRecord, RuntimeToolDecision, RuntimeUsage } from '../shared/agentCapabilities/transportContracts';
 import type { PromptCacheTelemetry } from './context/promptPipe';
 import type { ProvenanceProjection } from './context/provenance';
 import type { SkillLedgerItem } from './context/promptPipe';
-import type {
-  CapturedCanvasReadSnapshotHandleWire,
-  SurfacePortBindingWire,
-} from '../shared/surfacePortBinding';
 import type { AgentContextSnapshot } from '../shared/agentContextSnapshot';
 import type { ProjectAgentWorkMode } from '../shared/agentCapabilities/capabilityApprovalPolicy';
 import type { AgentToolProfile } from '../shared/agentCapabilities/transportContracts';
 export { AGENT_TOOL_PROFILES, type AgentToolProfile } from '../shared/agentCapabilities/transportContracts';
 
 /** One SDK-free wire contract shared by main, preload and renderer. */
-export const AGENT_CHAT_CAPABILITIES = [
-  'creation-editor', 'creation-chat', 'canvas-agent', 'canvas-chat', 'canvas-refine', 'storyboard', 'single-shot',
-] as const;
-export type AgentChatCapability = typeof AGENT_CHAT_CAPABILITIES[number];
+type AgentChatCapability =
+  | 'creation-editor'
+  | 'creation-chat'
+  | 'canvas-agent'
+  | 'canvas-chat'
+  | 'canvas-refine'
+  | 'storyboard'
+  | 'single-shot';
 /**
  * A bounded projection of the canonical capability catalog. The Host may only
  * move this value forward within a Thread; it is never an authorization input.
  */
-export type AgentChatHistory = AgentContextScope;
+type AgentChatHistory = AgentContextScope;
 export type AgentChatToolDecision = RuntimeToolDecision;
 export type AgentChatUsage = RuntimeUsage;
 export type AgentChatStatus = 'finished' | 'cancelled' | 'error';
-export type AgentChatErrorCode = 'text_model_credential_locked';
 export interface AgentChatAttachment { url: string; contentType: string; fileName: string; kind: 'image' | 'file' }
 
 export interface AgentChatRequest {
@@ -76,18 +74,3 @@ export interface AgentChatResponse {
   taintedSourceRefs?: readonly string[];
 }
 
-export type AgentChatActivity = RuntimeActivityEvent | { type: 'error'; message: string; code?: AgentChatErrorCode };
-export type AgentChatWireEvent = AgentChatActivity
-  | { type: 'tool-call-pending'; toolCallId: string; toolName: string; args: unknown }
-  | { type: 'result'; result: AgentChatResponse }
-  | { type: 'done'; reason: AgentChatStatus };
-export type AgentChatCanvasReadAdmission =
-  | Readonly<{ surfaceBinding: SurfacePortBindingWire; capturedCanvasReadSnapshot?: never }>
-  | Readonly<{ capturedCanvasReadSnapshot: CapturedCanvasReadSnapshotHandleWire; surfaceBinding?: never }>
-  | Readonly<{ surfaceBinding?: never; capturedCanvasReadSnapshot?: never }>;
-
-export type AgentChatStartRequest = Readonly<{
-  requestId: string
-  request: AgentChatRequest
-}> & AgentChatCanvasReadAdmission;
-export interface AgentChatHistoryRequest { history: AgentChatHistory; messages?: readonly LegacyAgentBubble[] }

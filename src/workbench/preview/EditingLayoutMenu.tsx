@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconLayoutDashboard } from '@tabler/icons-react'
-import { WorkbenchButton, listenOutsidePress } from '../../design'
+import { WorkbenchButton, useFloatingOutsideDismiss } from '../../design'
 import { cn } from '../../utils/cn'
 import type { EditingPanelPreset, EditingPanelVisibility } from './panelLayout'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -34,22 +34,28 @@ export default function EditingLayoutMenu(): JSX.Element {
   const reset = useWorkbenchStore((state) => state.resetEditingPanelLayout)
   const [open, setOpen] = React.useState(false)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
+  const menuRef = React.useRef<HTMLDivElement | null>(null)
+  const { getFloatingProps } = useFloatingOutsideDismiss({
+    open,
+    floating: menuRef,
+    reference: rootRef,
+    onDismiss: () => setOpen(false),
+  })
 
   React.useEffect(() => {
     if (!open) return undefined
-    const stopListeningOutside = listenOutsidePress((target) => target instanceof Node && Boolean(rootRef.current?.contains(target)), () => setOpen(false))
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', onKeyDown)
     return () => {
-      stopListeningOutside()
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [open])
 
+  const targetLayout = () => useWorkbenchStore.getState().editingPanelHistory.activate()
   const panels = Object.keys(PANEL_KEYS) as Array<keyof EditingPanelVisibility>
 
   return (
-    <div className="relative" ref={rootRef}>
+    <div className="relative" ref={rootRef} onFocusCapture={targetLayout} onPointerDownCapture={targetLayout}>
       <WorkbenchButton
         className={cn(
           'app-no-drag',
@@ -71,6 +77,8 @@ export default function EditingLayoutMenu(): JSX.Element {
       </WorkbenchButton>
       {open ? (
         <div
+          ref={menuRef}
+          {...getFloatingProps()}
           className={cn(
             'absolute right-0 top-full z-[130] mt-1 w-56 p-2',
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)]',

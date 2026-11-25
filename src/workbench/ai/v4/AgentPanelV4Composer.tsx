@@ -417,7 +417,15 @@ export type V4ModelRow = Readonly<{
  * 音频没有任何一个「默认模型」的家（`GENERATION_DEFAULT_TASK_KINDS` 只有图/视频四个 taskKind），
  * 画一个存不下去的下拉比少画一行更糟。
  */
-export function V4ModelPopover({ rows, onOpenLibrary }: { rows: readonly V4ModelRow[]; onOpenLibrary?: () => void }): JSX.Element {
+export function V4ModelPopover({
+  rows,
+  onOpenLibrary,
+  onOpenAssisted,
+}: {
+  rows: readonly V4ModelRow[]
+  onOpenLibrary?: () => void
+  onOpenAssisted?: () => void
+}): JSX.Element {
   const { t } = useTranslation()
   return (
     <aside
@@ -447,15 +455,26 @@ export function V4ModelPopover({ rows, onOpenLibrary }: { rows: readonly V4Model
           {row.cost ? <span className="shrink-0 text-micro text-nomi-ink-40">{row.cost}</span> : null}
         </V4Row>
       ))}
-      <V4Row as="button"
-        type="button"
-        onClick={onOpenLibrary}
-        className="w-full border-t border-nomi-line-soft px-2.5 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05"
-      >
-        <span>{t('agentPanelV4.modelLibrary')}</span>
-
-        <IconChevronRight size={12} />
-      </V4Row>
+      <div className="flex items-center gap-3 border-t border-nomi-line-soft px-2.5 py-2 text-caption">
+        <button
+          type="button"
+          onClick={onOpenLibrary}
+          data-v4-model-connect="true"
+          className="inline-flex min-w-0 flex-1 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-left font-medium text-nomi-ink-80 hover:text-nomi-ink"
+        >
+          <span>{t('agentPanelV4.modelLibrary')}</span>
+          <IconChevronRight size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={onOpenAssisted ?? onOpenLibrary}
+          data-v4-model-assisted="true"
+          title={t('onboardingProviders.assistedOnboarding.title')}
+          className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-nomi-ink-60 hover:text-nomi-ink"
+        >
+          {t('agentPanelV4.modelAssisted')}
+        </button>
+      </div>
     </aside>
   )
 }

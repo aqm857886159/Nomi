@@ -23,7 +23,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-focus-composer-visib
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const SUBMIT = 'button[aria-label="生成素材"],button[aria-label="重新生成"],button[aria-label="Generate asset"],button[aria-label="Regenerate"]'
+const SUBMIT = 'button[aria-label="生成素材"],button[aria-label="重新生成"],button[aria-label="Generate asset"],button[aria-label="Regenerate"],button[data-composer-connect="true"]'
 const STAGE = '.generation-canvas-v2__stage'
 
 const { app, win } = await launchNomiApp({

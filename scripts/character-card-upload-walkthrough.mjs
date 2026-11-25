@@ -6,8 +6,9 @@
 //   ② 短按 label → filechooser 必须弹 → 喂测试图 → 卡片必须出图。
 // 用法：pnpm build 后 node scripts/character-card-upload-walkthrough.mjs
 import { launchNomiApp, repoRoot } from '../tests/ux/_launchApp.mjs'
+import { findSeededProjectFile } from './lib/walkthroughHost.mjs'
 import path from 'node:path'
-import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 
 const outDir = path.join(repoRoot, '.charcard-upload-walk')
@@ -69,12 +70,7 @@ const fail = (msg) => {
 }
 
 // ── 改盘：把图片节点改成空角色卡 ──────────────────────────────────────────
-const projectDirs = readdirSync(isolatedProjects, { withFileTypes: true })
-  .filter((e) => e.isDirectory())
-  .map((e) => path.join(isolatedProjects, e.name))
-const projectFile = projectDirs
-  .flatMap((dir) => [path.join(dir, '.nomi', 'project.json'), path.join(dir, 'project.json')])
-  .find((p) => existsSync(p))
+const { projectFile, projectDirs } = findSeededProjectFile(isolatedProjects)
 if (!projectFile) {
   console.log('✗ 没找到 project.json，seed 失败；候选目录：' + projectDirs.join(', '))
   process.exit(1)

@@ -5,9 +5,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { makeTempDir, cleanupTestTemp } from './_test-temp.mjs'
+import { followMainCheckout } from './main-checkout-follow.mjs'
 
 const script =
   process.env.NOMI_MAIN_FOLLOW_SCRIPT || fileURLToPath(new URL('./main-checkout-follow.mjs', import.meta.url))
+const localSessionEnv = { ...process.env }
+delete localSessionEnv.CI
+delete localSessionEnv.GITHUB_ACTIONS
 const git = (cwd, ...args) =>
   execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 function fixture(t) {
@@ -26,21 +30,21 @@ function fixture(t) {
   git(seed, 'push', 'origin', 'main')
   git(dir, 'clone', origin, main)
   const before = git(main, 'rev-parse', 'HEAD')
-  function advance(file = 'remote.txt') {
+  function advance(file = 'remote.txt', { fetch = true } = {}) {
     writeFileSync(path.join(seed, file), 'new upstream\n')
     git(seed, 'add', file)
     git(seed, 'commit', '-m', 'advance')
     git(seed, 'push', 'origin', 'main')
-    git(main, 'fetch', 'origin', 'main')
+    if (fetch) git(main, 'fetch', 'origin', 'main')
     return git(seed, 'rev-parse', 'HEAD')
   }
   return { dir, origin, seed, main, before, advance }
 }
-function run(root, scriptPath = script) {
-  return spawnSync(process.execPath, [scriptPath], {
+function run(root) {
+  return spawnSync(process.execPath, [script], {
     cwd: root,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+    env: { ...localSessionEnv, CLAUDE_PROJECT_DIR: root },
     timeout: 20000,
   })
 }
@@ -55,6 +59,17 @@ test('clean behind main follows the remote', (t) => {
   assert.equal(git(f.main, 'rev-parse', 'HEAD'), after)
   assert.match(output(r), /已跟上/)
 })
+
+for (const env of [{ CI: 'true' }, { CI: '1' }, { GITHUB_ACTIONS: 'true' }]) {
+  test(`automation leaves HEAD and the remote-tracking branch unchanged (${JSON.stringify(env)})`, (t) => {
+    const f = fixture(t)
+    const after = f.advance('remote.txt', { fetch: false })
+    assert.notEqual(after, f.before)
+    assert.equal(followMainCheckout(f.main, { env }), '')
+    assert.equal(git(f.main, 'rev-parse', 'origin/main'), f.before)
+    assert.equal(git(f.main, 'rev-parse', 'HEAD'), f.before)
+  })
+}
 test('dirty tracked checkout stays untouched with filenames', (t) => {
   const f = fixture(t)
   f.advance()
@@ -172,7 +187,7 @@ test('SessionStart registered command reaches the follow boundary', (t) => {
     cwd: f.main,
     input: '{}',
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: f.main },
+    env: { ...localSessionEnv, CLAUDE_PROJECT_DIR: f.main },
     timeout: 20000,
   })
   assert.equal(r.status, 0, output(r))

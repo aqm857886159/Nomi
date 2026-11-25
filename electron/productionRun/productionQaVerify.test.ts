@@ -136,6 +136,39 @@ describe('production qa 审片接线（W1.5 · 路径②）', () => {
     expect(qaStage?.status).toBe('completed')
     expect((qaStage as { qaSummary?: string })?.qaSummary).toContain('审片跳过')
   })
+
+  it('全部镜头返回 unverified（如模型不支持看图 / 请求失败）→ 绝不写「全部过检」也不触发花钱重滚', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qa-unverified-'))
+    const seen: string[] = []
+    const service = makeTwoShotService(root, (ids) => ({
+      reviewedShotIds: ids,
+      verdicts: ids.map((shotNodeId, index) => ({
+        shotNodeId,
+        status: 'unverified' as const,
+        passed: false,
+        shotTitle: `镜 ${index + 1}`,
+        unverifiedReason: 'vision_unavailable' as const,
+      })),
+    }), seen)
+    const runId = 'run-qa-unverified'
+    await driveToRoughCut(service, runId)
+    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
+
+    const events = await service.readEvents('project-1', runId, 0, 0)
+    const verdictEvents = events.events.filter((e) => (e as { type?: string }).type === 'qa.verdict')
+    expect(verdictEvents).toHaveLength(2)
+    for (const ev of verdictEvents) {
+      const msg = (ev as { message: string }).message
+      expect(msg).toContain('未校验')
+      expect(msg).not.toContain('审片通过')
+    }
+    const projection = service.readProjection('project-1', runId)
+    const qaStage = projection.stages.find((s) => s.stageId === 'qa') as { qaSummary?: string; qaReport?: Record<string, unknown> } | undefined
+    expect(qaStage?.qaSummary).toContain('未校验')
+    expect(qaStage?.qaSummary).not.toContain('全部过检')
+    expect(qaStage?.qaReport).toMatchObject({ total: 2, passedCount: 0, flaggedCount: 0, unverifiedCount: 2 })
+    expect(projection.jobs.some((job) => (job.retryCount ?? 0) > 0)).toBe(false)
+  })
 })
 
 describe('buildQaStageOutcome / adoptedGenerationShotNodeIds（纯逻辑）', () => {
@@ -145,22 +178,48 @@ describe('buildQaStageOutcome / adoptedGenerationShotNodeIds（纯逻辑）', ()
     expect(buildQaStageOutcome({ reviewedShotIds: [], verdicts: [] }).events).toHaveLength(1)
   })
 
-  it('全部过检 / 有红标 → 每镜一条事件 + 总览摘要', () => {
+  it('反例 D：全部真过检 / 有红标 → 每镜一条事件 + 总览摘要', () => {
     const allPass = buildQaStageOutcome({ reviewedShotIds: ['a', 'b'], verdicts: [
-      { shotNodeId: 'a', passed: true }, { shotNodeId: 'b', passed: true },
+      { shotNodeId: 'a', status: 'passed', passed: true }, { shotNodeId: 'b', status: 'passed', passed: true },
     ] })
     expect(allPass.events).toHaveLength(2)
-    expect(allPass.stageSummary).toContain('全部过检')
+    expect(allPass.stageSummary).toBe('审片完成：2 镜全部过检')
 
     const withFlag = buildQaStageOutcome({ reviewedShotIds: ['a', 'b'], verdicts: [
-      { shotNodeId: 'a', passed: true, shotTitle: '开场' },
-      { shotNodeId: 'b', passed: false, shotTitle: '结尾', flagged: [{ dimensionName: '构图', score: 1, reason: '机位错' }] },
+      { shotNodeId: 'a', status: 'passed', passed: true, shotTitle: '开场' },
+      { shotNodeId: 'b', status: 'flagged', passed: false, shotTitle: '结尾', flagged: [{ dimensionName: '构图', score: 1, reason: '机位错' }] },
     ] })
     expect(withFlag.events.map((e) => e.summary)).toEqual([
       expect.stringContaining('开场：审片通过'),
       expect.stringMatching(/结尾：审片红标.*构图.*机位错/),
     ])
     expect(withFlag.stageSummary).toMatch(/1\/2 镜过检.*1 镜红标.*构图/)
+  })
+
+  it('三态诚实回报：全未校验 / 部分未校验 / 红标+未校验，绝不冒充全部过检', () => {
+    const allUnverified = buildQaStageOutcome({
+      reviewedShotIds: ['a', 'b'],
+      verdicts: [
+        { shotNodeId: 'a', status: 'unverified', passed: false, shotTitle: '开场', unverifiedReason: 'vision_unavailable' },
+        { shotNodeId: 'b', status: 'unverified', passed: false, shotTitle: '结尾', unverifiedReason: 'judge_failed' },
+      ],
+    })
+    expect(allUnverified.stageSummary).toContain('审片未完成：2 镜未校验')
+    expect(allUnverified.stageSummary).not.toContain('全部过检')
+    expect(allUnverified.events.map((e) => e.summary)).toEqual([
+      '开场：未校验（当前模型不支持看图）',
+      '结尾：未校验（审片请求失败）',
+    ])
+
+    const partial = buildQaStageOutcome({
+      reviewedShotIds: ['a', 'b'],
+      verdicts: [
+        { shotNodeId: 'a', status: 'passed', passed: true, shotTitle: '开场' },
+        { shotNodeId: 'b', status: 'unverified', passed: false, shotTitle: '结尾', unverifiedReason: 'frame_extract_failed' },
+      ],
+    })
+    expect(partial.stageSummary).toContain('审片部分完成：1/2 镜过检，1 镜未校验（视频抽帧失败）')
+    expect(partial.stageSummary).not.toContain('全部过检')
   })
 
   it('只收 adopted 的 generate 镜头、去重保序、丢空 nodeId', () => {

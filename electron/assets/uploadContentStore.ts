@@ -7,7 +7,7 @@ import { localAssetUrl, stableAssetId } from './assetPaths'
 import { broadcastAssetsUpdated } from './assetEvents'
 import { captureAssetWriteContext, type AssetWriteContext } from './assetWriteContext'
 import { copyFileWithProgress, type AssetCopyProgress } from './assetImportProgress'
-import { retryOnSharingViolation } from '../jsonFile'
+import { renameSyncOnce, renameWithRetry, retryOnSharingViolation } from '../jsonFile'
 import { createUploadStagingDirSync, reapAbandonedUploadStaging, removeScratchAfterUse } from './scratchCleanup'
 import { reconcileReuse } from './assetSourceEvidence'
 
@@ -85,7 +85,7 @@ async function findStoredUpload(context: AssetWriteContext, size: number, hash: 
         const temporaryMeta = `${absolutePath}.${crypto.randomUUID()}.meta`
         try {
           fs.writeFileSync(temporaryMeta, JSON.stringify({ ...meta, contentHash: candidateHash, contentHashSize: stat.size, contentHashMtime: stat.mtimeMs, contentHashCtime: stat.ctimeMs }))
-          fs.renameSync(temporaryMeta, `${absolutePath}.meta`)
+          renameSyncOnce(temporaryMeta, `${absolutePath}.meta`)
         } catch {
           // A hash cache is optional; a read-only/low-space sidecar must not
           // reject valid media. Identity/cancellation checks stay outside.
@@ -118,7 +118,7 @@ async function fillSource(absolutePath: string, meta: JsonRecord, sourceEvidence
   const temporaryMeta = `${absolutePath}.${crypto.randomUUID()}.meta`
   try {
     await fs.promises.writeFile(temporaryMeta, JSON.stringify(next))
-    await fs.promises.rename(temporaryMeta, `${absolutePath}.meta`)
+    await renameWithRetry(temporaryMeta, `${absolutePath}.meta`)
     return next
   } catch {
     // 补来源是附加事实：只读 / 空间不足时不能因此拒掉一次合法导入，旧记录照旧复用。

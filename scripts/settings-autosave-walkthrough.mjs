@@ -4,6 +4,7 @@ import { makeTempDir } from './_test-temp.mjs'
 // download-prefs.json 落 autoSaveEnabled=true → 切「通用」tab（占位）→ Esc 关闭。
 // 用法：node scripts/settings-autosave-walkthrough.mjs（需先 pnpm build）
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { createWalkthroughScreenshotter, prepareWalkthroughWindow } from './lib/walkthroughHost.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -25,16 +26,12 @@ const { app, win } = await launchNomiApp({
   projectsDir,
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
 })
-const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
+const shot = createWalkthroughScreenshotter(outDir)
 const errors = []
 let failed = false
 
 try {
-  const bw = await app.browserWindow(win)
-  await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1600, height: 1000 })).catch(() => {})
-  win.on('pageerror', (e) => errors.push(String(e)))
-  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-  await win.waitForTimeout(1800)
+  await prepareWalkthroughWindow(app, win, { width: 1600, height: 1000, settleMs: 1800 , errors })
 
   // 项目库顶栏齿轮
   const gear = win.getByRole('button', { name: '设置', exact: true }).first()

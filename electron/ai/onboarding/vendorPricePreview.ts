@@ -1,3 +1,4 @@
+import { createSingleFlightCache } from "../../shared/boundedCache";
 import { readCatalog } from "../../catalog/catalogStore";
 import { userVendorBaseUrl } from "../../catalog/userVendorBase";
 import { isJsonRecord } from "../../jsonUtils";
@@ -7,7 +8,10 @@ import { builtinVendorSeed } from "../../catalog/builtinVendorSeeds";
 import { codeDeclaredFallbackOrigins, fetchVendorWithBaseFallback, rewriteVendorUrl } from "../../vendor/vendorBaseFallback";
 
 const MAX_AGE = 5 * 60_000;
-const cache = new Map<string, { expires: number; reading: Promise<unknown> }>();
+const cache = createSingleFlightCache<string, unknown>({
+  maxEntries: 128, ttlMs: MAX_AGE, order: "fifo", evictBeforeSet: true,
+  cacheResult: (body) => body !== null,
+});
 
 /**
  * 和生成 / 轮询 / 上传同一个出站函数：主域连不上、自愈梯子换到官方备用域后，价目请求跟着换。
@@ -15,14 +19,10 @@ const cache = new Map<string, { expires: number; reading: Promise<unknown> }>();
  */
 async function publicPrices(url: string): Promise<unknown> {
   const key = rewriteVendorUrl(url);
-  const hit = cache.get(key);
-  if (hit && Date.now() < hit.expires) return hit.reading;
-  if (cache.size >= 128) cache.delete(cache.keys().next().value!);
-  const reading = fetchVendorWithBaseFallback(url, { method: "GET", redirect: "error", signal: AbortSignal.timeout(8000) })
-    .then(async (r) => { if (r.ok) return r.json(); await r.body?.cancel(); return null; }).catch(() => null)
-    .then((body) => { if (body === null && cache.get(key)?.reading === reading) cache.delete(key); return body; });
-  cache.set(key, { expires: Date.now() + MAX_AGE, reading });
-  return reading;
+  return cache.getOrLoad(key, () =>
+    fetchVendorWithBaseFallback(url, { method: "GET", redirect: "error", signal: AbortSignal.timeout(8000) })
+      .then(async (r) => { if (r.ok) return r.json(); await r.body?.cancel(); return null; }).catch(() => null),
+  );
 }
 
 export function publicPriceFor(query: VendorPriceQuery, detail: unknown, imageList: unknown, source: string): VendorPricePreview | null {

@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict'
+import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { builtinModules } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { load } from 'js-yaml'
 
+import { makeTempDir } from './_test-temp.mjs'
+import { gitNameStatus } from './lib/gitPaths.mjs'
+import { DEFAULT_ATTEMPTS, DEFAULT_BASE_DELAY_MS, isTransientGitFetchError } from './lib/transientRetry.mjs'
 import { CI_E2E_CHAIN } from './run-ci-e2e-chain.mjs'
 import { assertPartition, E2E_UNITS, listShardItems, planShards } from './lib/e2eShardPlan.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_CHECK_NAMES, CORE_SMOKE_FIXTURES, coreSmokeCheckName } from './validation-policy.mjs'
@@ -64,7 +68,7 @@ test('quality gate runs for pull requests and real main before/after pushes', ()
   // pull-requests: read 是正文侧门岗现取 PR 正文所需（2026-09-18，C 件）。
   assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'read', contents: 'read', 'pull-requests': 'read' })
 
-  const scopeEnvironment = workflow.jobs.scope.steps.find((step) => step.id === 'profile').env
+  const scopeEnvironment = workflow.jobs.scope.env
   assert.equal(scopeEnvironment.NOMI_BASE_SHA, "${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || '' }}")
   assert.equal(scopeEnvironment.NOMI_HEAD_SHA, '${{ github.sha }}')
 })
@@ -88,12 +92,140 @@ test('scope exposes every independent validation surface from the shared classif
   assert.match(runCommands(workflow.jobs.scope).join('\n'), /select-quality-gate-profile\.mjs/)
 })
 
+test('scope bootstraps before classification with the shared Git failure policy and a step-local token', () => {
+  const [checkout, profile] = workflow.jobs.scope.steps
+  assert.equal(workflow.jobs.scope.steps.length, 2)
+  assert.equal(checkout.id, 'checkout')
+  assert.equal(checkout.uses, undefined)
+  assert.equal(checkout.if, undefined)
+  assert.equal(checkout['continue-on-error'], undefined)
+  assert.equal(checkout.shell, 'bash')
+  assert.deepEqual(checkout.env, { GITHUB_TOKEN: '${{ github.token }}' })
+  assert.equal(profile.id, 'profile')
+  assert.equal(profile.if, undefined)
+  assert.equal(profile.env.GITHUB_TOKEN, undefined)
+  assert.equal(workflow.jobs.scope.env.GITHUB_TOKEN, undefined)
+  assert.ok(checkout.run.includes(isTransientGitFetchError.toString()), 'update the bootstrap with the shared Git failure classifier')
+  assert.ok(checkout.run.split('\n').includes(`const DEFAULT_ATTEMPTS = ${DEFAULT_ATTEMPTS}`))
+  assert.ok(checkout.run.split('\n').includes(`const DEFAULT_BASE_DELAY_MS = ${DEFAULT_BASE_DELAY_MS}`))
+})
+
+function prepareScopeCheckout(t, failures, diagnostic, { noBase, event = 'push' } = {}) {
+  const checkout = workflow.jobs.scope.steps.find((step) => step.id === 'checkout')
+  assert.equal(typeof checkout?.run, 'string', 'scope must bootstrap from an empty workspace')
+  const root = makeTempDir('scope-checkout')
+  t.after(() => fs.rmSync(root, { force: true, recursive: true }))
+  const remote = path.join(root, 'remote')
+  const work = path.join(root, 'work')
+  for (const dir of [remote, work]) fs.mkdirSync(dir)
+  const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+  const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim()
+  git(remote, 'init', '-q')
+  for (const file of ['scripts/select-quality-gate-profile.mjs', 'scripts/validation-policy.mjs',
+    'scripts/lib/gitPaths.mjs', 'docs/engineering/test-routing.json']) {
+    fs.mkdirSync(path.join(remote, path.dirname(file)), { recursive: true })
+    fs.copyFileSync(path.join(repoRoot, file), path.join(remote, file))
+  }
+  const contents = Array.from({ length: 10 }, (_, index) => `line ${index}\n`).join('')
+  fs.writeFileSync(path.join(remote, '原始.md'), contents)
+  git(remote, 'add', '.')
+  git(remote, '-c', 'user.name=Scope Test', '-c', 'user.email=scope@example.invalid', 'commit', '-qm', 'base')
+  const base = git(remote, 'rev-parse', 'HEAD')
+  git(remote, 'mv', '原始.md', '新文件.md')
+  fs.writeFileSync(path.join(remote, '新文件.md'), contents.replace('line 0', 'line X'))
+  git(remote, '-c', 'user.name=Scope Test', '-c', 'user.email=scope@example.invalid', 'commit', '-qam', 'head')
+  const head = git(remote, 'rev-parse', 'HEAD')
+
+  // Only the fetch transport is replaced. A successful attempt runs real Git against file://.
+  fs.writeFileSync(path.join(root, 'git'), `#!/usr/bin/env node
+const fs = require('node:fs')
+const { execFileSync } = require('node:child_process')
+const args = process.argv.slice(2)
+if (args.includes('fetch')) {
+  const countFile = ${JSON.stringify(path.join(root, 'count'))}
+  const attempt = fs.existsSync(countFile) ? Number(fs.readFileSync(countFile)) + 1 : 1
+  fs.writeFileSync(countFile, String(attempt))
+  if (attempt <= ${failures}) {
+    console.error(${JSON.stringify(diagnostic)}, process.env.GIT_CONFIG_VALUE_0)
+    process.exit(128)
+  }
+  args[args.indexOf('https://github.com/owner/repo.git')] = ${JSON.stringify(pathToFileURL(remote).href)}
+}
+execFileSync(${JSON.stringify(realGit)}, args, { stdio: 'inherit' })
+`, { mode: 0o755 })
+  const token = 'scope-checkout-fixture-token'
+  const env = {
+    ...process.env, PATH: `${root}${path.delimiter}${process.env.PATH}`,
+    GITHUB_TOKEN: token, GITHUB_SERVER_URL: 'https://github.com', GITHUB_REPOSITORY: 'owner/repo',
+    GITHUB_EVENT_NAME: event, NOMI_VALIDATION_MODE: '', NOMI_BASE_SHA: noBase ?? base, NOMI_HEAD_SHA: head,
+    GITHUB_OUTPUT: path.join(root, 'output'),
+  }
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', checkout.run], { cwd: work, env, encoding: 'utf8' })
+  assert.ifError(result.error)
+  const log = result.stdout + result.stderr
+  assert.ok(!log.includes(token) && !log.includes(Buffer.from(`x-access-token:${token}`).toString('base64')), 'fetch logged credentials')
+  const attempts = Number(fs.readFileSync(path.join(root, 'count'), 'utf8'))
+  return { attempts, result, log, base, head, work, git, env }
+}
+
+const scopeConnectionFailure = "fatal: unable to access 'https://github.com/owner/repo.git/': Failed to connect to github.com port 443 after 133476 ms: Couldn't connect to server"
+const scopeFixtureOptions = { skip: process.platform === 'win32' }
+
+test('scope checkout recovers a GitHub connection failure without an annotation and classifies the exact offline rename', scopeFixtureOptions, (t) => {
+  const { attempts, result, log, work, git, base, head, env } = prepareScopeCheckout(t, 1, scopeConnectionFailure)
+  assert.equal(result.status, 0, log)
+  assert.equal(attempts, 2)
+  assert.doesNotMatch(log, /::error(?:[ :]|$)|##\[error\]|fatal:/m)
+  assert.equal(git(work, 'rev-parse', 'HEAD'), head)
+  assert.equal(git(work, 'rev-parse', '--is-shallow-repository'), 'true')
+  assert.doesNotMatch(git(work, 'config', '--local', '--list'), /extraheader|credential/)
+  assert.deepEqual(gitNameStatus(['diff', '--name-status', '--find-renames', base, head, '--'], { cwd: work }),
+    [{ status: 'R090', path: '新文件.md' }])
+  const classify = (profileEnv) => spawnSync(process.execPath, ['scripts/select-quality-gate-profile.mjs'], { cwd: work, env: profileEnv, encoding: 'utf8' })
+  const profile = classify(env)
+  assert.equal(profile.status, 0, profile.stderr)
+  assert.match(fs.readFileSync(env.GITHUB_OUTPUT, 'utf8'), /reason=deletion_or_rename_fail_closed\nchanged_count=1/)
+  fs.rmSync(env.GITHUB_OUTPUT)
+  assert.notEqual(classify({ ...env, NOMI_BASE_SHA: 'f'.repeat(40) }).status, 0)
+  assert.equal(fs.existsSync(env.GITHUB_OUTPUT), false)
+})
+
+test('scope checkout fails red after three connection failures', scopeFixtureOptions, (t) => {
+  const { attempts, result, log } = prepareScopeCheckout(t, 3, scopeConnectionFailure)
+  assert.notEqual(result.status, 0, log)
+  assert.equal(attempts, 3)
+  assert.match(log, /尝试 3 次后仍失败/u)
+})
+
+test('scope checkout refuses HTTP 403 and invalid refs immediately without leaking credentials', scopeFixtureOptions, (t) => {
+  for (const diagnostic of [
+    "error: RPC failed; HTTP 403 curl 22 The requested URL returned error: 403",
+    "fatal: couldn't find remote ref deadbeef",
+  ]) {
+    const { attempts, result, log } = prepareScopeCheckout(t, 3, diagnostic)
+    assert.notEqual(result.status, 0, log)
+    assert.equal(attempts, 1)
+  }
+})
+
+test('scope checkout handles empty and all-zero bases with the existing full validation', scopeFixtureOptions, (t) => {
+  for (const [noBase, event, release] of [['', 'workflow_dispatch', true], ['0'.repeat(40), 'push', true], ['', 'push', false]]) {
+    const { result, log, attempts, work, git, base, env } = prepareScopeCheckout(t, 0, '', { noBase, event })
+    assert.equal(result.status, 0, log)
+    assert.equal(attempts, 1)
+    assert.throws(() => git(work, 'cat-file', '-e', base))
+    const profile = spawnSync(process.execPath, ['scripts/select-quality-gate-profile.mjs'], { cwd: work, env, encoding: 'utf8' })
+    assert.equal(profile.status, 0, profile.stderr)
+    assert.match(fs.readFileSync(env.GITHUB_OUTPUT, 'utf8'), new RegExp(`release=${release}\\nfail_closed=true\\n.*\\nchanged_count=0`))
+  }
+})
+
 test('quality gate uses Node 24-native actions without a forced runtime shim', () => {
   const actionUses = Object.values(workflow.jobs).flatMap(
     (job) => job.steps?.flatMap((step) => (typeof step.uses === 'string' ? [step.uses] : [])) ?? [],
   )
 
-  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 11)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 10)
   assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 9)
   assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 10)
   assert.ok(actionUses.includes('actions/upload-artifact@v7'))
@@ -670,7 +802,10 @@ test('every workflow job that runs a repository script checks out the repository
         const hasCheckout = steps.slice(0, index).some(
           (prior) => typeof prior.uses === 'string' && /^actions\/checkout@/.test(prior.uses),
         )
-        if (!hasCheckout) offenders.push(`${file}:${jobName}:${index}`)
+        // The scope-only bootstrap runs from an empty worktree in the checkout regression above.
+        const hasScopeBootstrap = file === 'quality-gate.yml' && jobName === 'scope'
+          && step.id === 'profile' && index === 1 && steps[0].id === 'checkout'
+        if (!hasCheckout && !hasScopeBootstrap) offenders.push(`${file}:${jobName}:${index}`)
       }
     }
   }

@@ -14,7 +14,7 @@
 // 与「抽象动作→视觉元素」两张表——**那份 SKILL 是人读的方法论，这里是机器执行的同一套规则**。
 
 /** 镜头内变化幅度。ViMax `variation_type`：决定生成策略与审片侧重的路由键。 */
-export type VariationType = 'large' | 'medium' | 'small'
+type VariationType = 'large' | 'medium' | 'small'
 
 /** 各档的判定说明（给规划师 prompt 与人读，措辞对齐 ViMax 原文语义）。 */
 export const VARIATION_TYPE_GUIDE: Record<VariationType, string> = {
@@ -40,7 +40,7 @@ export function verifyFocusForVariation(type: VariationType): Array<'identity' |
 }
 
 /** 一条污染词规则：命中什么、为什么坏、改成什么。 */
-export type PollutionRule = {
+type PollutionRule = {
   /** 命中词（简体中文原词；匹配用「包含」，中文无词边界）。 */
   words: string[]
   /** 模型会脑补出的坑（给人看的理由——不解释为什么，用户只会觉得我们在挑刺）。 */
@@ -83,7 +83,7 @@ export const POLLUTION_RULES: readonly PollutionRule[] = [
   },
 ]
 
-export type PollutionHit = { word: string; trap: string; fix: string }
+type PollutionHit = { word: string; trap: string; fix: string }
 
 /** 查一段运动/动作描述里的污染词。纯函数——只报告不改写（改写权归模型与用户，我们只负责「别让它静默毁片」）。 */
 export function findPollutionWords(text: string): PollutionHit[] {
@@ -110,7 +110,7 @@ export function findCharacterNamesInMotion(motionText: string, characterNames: s
     .filter((n) => n.length > 0 && s.includes(n))
 }
 
-export type ShotLanguageIssue = { kind: 'pollution' | 'character-name-in-motion'; detail: string; fix: string }
+type ShotLanguageIssue = { kind: 'pollution' | 'character-name-in-motion'; detail: string; fix: string }
 
 /**
  * 一镜的镜头语言体检（供规划师产出后自检 / 优化器改写后回归 / 交付前提示）。

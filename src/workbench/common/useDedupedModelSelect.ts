@@ -20,6 +20,7 @@ import { providerIdentityIcon } from '../../config/modelProviderIdentity'
 import { modelArchetypeOf, modelBrandIcon } from '../../config/modelFamilyIcons'
 import { modelCapabilityLine } from '../../config/modelCapabilityLine'
 import { applyModelBoxDefaults } from '../../config/modelBoxDefaults'
+import { openApimartConnect } from '../../ui/onboarding/apimartConnectRoute'
 import { EVERY_VARIANT } from '../../../electron/shared/modelArchetypes'
 
 import type { ModelProviderRef } from '../../config/modelIdentity'
@@ -107,8 +108,8 @@ function isModelAiling(model: DedupedModel, isAiling: AilingProbe): boolean {
  *
  * 为什么不能就让它空着：空白下拉的意思是「没有匹配项」，而这里的真相是「你还没接入任何供应商」——
  * 两件事差得远，用户读到空白只会以为是加载失败或程序坏了（D4 诚实交付：缺口明着标）。
- * 这一行既说清现状，也自带出路：点它 = 打开设置里的模型接入页
- * （与全仓其它「去接入」共用同一条 `nomi-open-model-catalog`，不另起第二条路）。
+ * 这一行既说清现状，也自带出路：点它 = 打开整窗「连接 APIMart」接入大页
+ * （与全仓其它「连接模型」入口共用同一条 `nomi-open-apimart-connect` 路由，不另起第二条路）。
  */
 export const CONNECT_VENDOR_OPTION_VALUE = '\u0000nomi-connect-vendor'
 
@@ -133,12 +134,18 @@ export function modelVisibilityFooterAction(
     // 以前「已隐藏 N 个 · 在设置里找回」是另一行脚注——同一件事两行字，并成这一行。
     label: hiddenCount > 0 ? i18n.t('generationCommon.parameters.hiddenModels', { count: hiddenCount }) : i18n.t('onboardingProviders.modelControls.manageVisibility'),
     icon: React.createElement(IconEyeOff, { size: 13, stroke: 1.8, 'aria-hidden': true }),
-    onSelect: openModelCatalog,
+    onSelect: openModelVisibilitySettings,
+  }
+}
+
+function openModelVisibilitySettings(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } }))
   }
 }
 
 export function openModelCatalog(): void {
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
+  openApimartConnect()
 }
 
 function connectVendorOption(): NomiSelectOption {
@@ -193,16 +200,16 @@ type MenuVariant = Readonly<{
 }>
 
 /** 菜单里的一行 = 一个模型，或一个模型的一个变体。`key` 是行的寻址（= NomiSelect 的 option.value）。 */
-export type ModelMenuRow = Readonly<{ key: string; model: DedupedModel; variant?: MenuVariant }>
+type ModelMenuRow = Readonly<{ key: string; model: DedupedModel; variant?: MenuVariant }>
 
-export type ModelMenu = Readonly<{
+type ModelMenu = Readonly<{
   options: NomiSelectOption[]
   rows: ReadonlyMap<string, ModelMenuRow>
   /** 创作者自己藏起来的行数（底部「隐藏模型 N」的 N）。 */
   hiddenCount: number
 }>
 
-export function menuRowKey(canonicalId: string, variantId?: string): string {
+function menuRowKey(canonicalId: string, variantId?: string): string {
   return variantId ? `${canonicalId}#${variantId}` : canonicalId
 }
 
@@ -363,7 +370,7 @@ export function pickHealthiestProvider(
 // 裸值会让两项撞值——选哪家都分不清、当前锁定哪家也显示不出。用 vendor+value 复合串寻址。
 const PROVIDER_ADDRESS_SEP = '\u0000'
 
-export function providerAddress(p: ModelProviderRef): string {
+function providerAddress(p: ModelProviderRef): string {
   return `${p.vendor || ''}${PROVIDER_ADDRESS_SEP}${p.option.value}`
 }
 

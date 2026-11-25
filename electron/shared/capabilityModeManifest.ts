@@ -3,7 +3,7 @@ import { parseCustomCapabilityContract } from "./customCapabilityContract";
 import { modeTransportFor } from "./videoCapabilities/modeTransport";
 import type { BillingModelKind, ProfileKind } from "../catalog/types";
 
-export type CapabilityModeModel = {
+type CapabilityModeModel = {
   modelKey?: string;
   modelAlias?: string | null;
   kind?: string;
@@ -16,7 +16,7 @@ export type CapabilityModeManifest = {
   modes: Record<string, ProfileKind>;
 };
 
-export type CapabilityModeResolution =
+type CapabilityModeResolution =
   | { state: "resolved"; source: "explicit" | "built-in"; manifest: CapabilityModeManifest }
   | { state: "absent" }
   | { state: "invalid-explicit" };
@@ -122,9 +122,4 @@ export function resolveCapabilityModeEvidence(model: CapabilityModeModel): Capab
   return manifest
     ? { state: "resolved", source: "built-in", manifest }
     : { state: "absent" };
-}
-
-export function resolveCapabilityModeManifest(model: CapabilityModeModel): CapabilityModeManifest | null {
-  const resolution = resolveCapabilityModeEvidence(model);
-  return resolution.state === "resolved" ? resolution.manifest : null;
 }

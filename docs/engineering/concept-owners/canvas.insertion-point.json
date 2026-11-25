@@ -28,7 +28,7 @@
       "symbol": "occupiedSize"
     },
     {
-      "path": "electron/capabilityCore/canvasNodeLayout.ts",
+      "path": "electron/shared/canvas/canvasNodeLayout.ts",
       "symbol": "resolveInsertionPositionWith"
     },
     {

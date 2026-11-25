@@ -67,7 +67,7 @@ export type HumanApprovalChallengeV1 = Omit<HumanApprovalChallengeInput, "ttlMs"
   mac: string;
 };
 
-export type MainProcessGestureAttestationV1 = {
+type MainProcessGestureAttestationV1 = {
   kind: "main_process_gesture";
   issuer: "nomi-main";
   keyId: string;
@@ -93,7 +93,7 @@ export type MainProcessGestureAttestationV1 = {
  * is computed by the main process using its own macKey — the client never sees the
  * key, so this is not a client-self-issued attestation.
  */
-export type ClientElicitationAttestationV1 = {
+type ClientElicitationAttestationV1 = {
   kind: "client_elicitation";
   issuer: "nomi-main";
   keyId: string;
@@ -118,7 +118,7 @@ export type ClientElicitationAttestationV1 = {
  * `policyMode` 只能是 `project`：别的档位下这种 attestation 铸不出来（`verifyGesture` fail-closed），
  * 所以「把某个档位偷偷提成全自动」不会在这一层悄悄发生。
  */
-export type PolicyDecisionAttestationV1 = {
+type PolicyDecisionAttestationV1 = {
   kind: "policy_decision";
   issuer: "nomi-main";
   keyId: string;
@@ -156,7 +156,7 @@ export type MainProcessDecision =
 export const APPROVAL_DECIDED_BY = ["human:gesture", "human:elicitation", "policy:full_auto"] as const;
 export type ApprovalDecidedBy = (typeof APPROVAL_DECIDED_BY)[number];
 
-export function approvalDecidedByOf(attestation: GestureAttestationV1): ApprovalDecidedBy {
+function approvalDecidedByOf(attestation: GestureAttestationV1): ApprovalDecidedBy {
   if (attestation.kind === "client_elicitation") return "human:elicitation";
   if (attestation.kind === "policy_decision") return "policy:full_auto";
   return "human:gesture";
@@ -216,7 +216,7 @@ export type ApprovalReceiptState = {
   mac: string;
 };
 
-export type ApprovalReceiptAuthorityDeps = {
+type ApprovalReceiptAuthorityDeps = {
   filePath: string;
   macKey: string | NodeJS.TypedArray;
   storeMacKey?: string | NodeJS.TypedArray;

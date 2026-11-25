@@ -6,7 +6,7 @@ import { confirmAndRunNode } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { describeGenerationCost, useSpendConfirmStore, withGenerationEtaStats } from '../spend/spendConfirm'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 import { resetModelHealthMemory } from './modelHealthMemory'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
@@ -36,7 +36,7 @@ beforeEach(async () => {
   projectIndex += 1
   await projectSession.open(`eta-async-project-${projectIndex}`)
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   setCanvasEventSinkForTests(() => {})
   resetModelHealthMemory()
   etaBridge.generationEtaStats.mockReset()

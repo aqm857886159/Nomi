@@ -3,9 +3,9 @@
  * structural avoids coupling the readiness projection to a concrete provider
  * implementation (and makes the rule easy to exercise without Electron).
  */
-export type GenerationProviderIdentity = Readonly<{ providerId: string }>
+type GenerationProviderIdentity = Readonly<{ providerId: string }>
 
-export type GenerationOperationProviderRequirements = Readonly<{
+type GenerationOperationProviderRequirements = Readonly<{
   /** Providers required by every included generation unit in submission order. */
   providerIds: readonly string[]
   /** Included units that have no sealed/candidate provider identity. */

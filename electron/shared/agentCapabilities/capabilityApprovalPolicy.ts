@@ -27,9 +27,9 @@ export const PROJECT_AGENT_WORK_MODES = ["ask", "editSelection", "agent"] as con
 export type ProjectAgentWorkMode = (typeof PROJECT_AGENT_WORK_MODES)[number];
 
 /** Safe default for legacy turns that predate the resident work-mode picker. */
-export const DEFAULT_PROJECT_AGENT_WORK_MODE: ProjectAgentWorkMode = "agent";
+const DEFAULT_PROJECT_AGENT_WORK_MODE: ProjectAgentWorkMode = "agent";
 
-export function projectAgentWorkModeOf(value: ProjectAgentWorkMode | undefined): ProjectAgentWorkMode {
+function projectAgentWorkModeOf(value: ProjectAgentWorkMode | undefined): ProjectAgentWorkMode {
   return value ?? DEFAULT_PROJECT_AGENT_WORK_MODE;
 }
 
@@ -112,7 +112,7 @@ export type CapabilityApprovalSubject = Readonly<{
   hostMustConfirm?: boolean;
 }>;
 
-export type CapabilityWorkModeDecision = Readonly<{ allowed: boolean; reason?: string }>;
+type CapabilityWorkModeDecision = Readonly<{ allowed: boolean; reason?: string }>;
 
 /**
  * 谁都不能自动批的那一族（方案 §1.1「硬清单独立于档位」）。

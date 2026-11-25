@@ -1,13 +1,13 @@
 import { deepFreeze } from "../jsonUtils";
 
-export type GenerationContextAsset = {
+type GenerationContextAsset = {
   assetId: string;
   contentHash: string;
   version: number;
   kind: string;
 };
 
-export type GenerationContextProviderProfile = {
+type GenerationContextProviderProfile = {
   providerId: string;
   modelIds: string[];
 };

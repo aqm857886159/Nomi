@@ -1,0 +1,234 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-t8-raw-rename-to-jsonfile",
+  "problem_type": "Main-process file publication bypasses the shared rename boundary",
+  "symptom": "The raw-rename lint rule had 24 frozen findings in 17 caller files. Two export calls already applied the shared policy locally.",
+  "direct_cause": "Callers invoked native rename directly through member calls and named imports.",
+  "class_root": "The rename owner served atomic JSON and synchronous retry. Async publication and single attempts inside checked transactions lacked an owner API.",
+  "affected_population": [
+    "Electron file and directory publication across trace, assets, export, install, configuration and locks"
+  ],
+  "scope_paths": [
+    "electron/jsonFile.ts",
+    "scripts/t8-structural-guards.mjs",
+    "electron/agentLane/laneTrace.mts",
+    "electron/assets/assetPreview.ts",
+    "electron/assets/uploadContentStore.ts",
+    "electron/browser/media/browserViewMedia.ts",
+    "electron/capabilityCore/hostConfigWrite.ts",
+    "electron/capabilityCore/mcpDetectedClients.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "electron/downloads/verifiedAssetCache.ts",
+    "electron/export/ffmpegRunner.ts",
+    "electron/localSpeech/localSpeechInstall.ts",
+    "electron/logging/logFiles.ts",
+    "electron/productionRun/artifactProjection.ts",
+    "electron/productionRun/productionRunLock.ts",
+    "electron/providerAdapter/certificationCleanup.ts",
+    "electron/settings/attentionSoundIpc.ts",
+    "electron/skills/skillManifestMigration.ts",
+    "electron/workspace/workspaceManifestLock.ts"
+  ],
+  "entry_points": [
+    "Atomic JSON, synchronous staged publication, asynchronous staged publication",
+    "Single-attempt rename in checked transactions and best-effort synchronous operations"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/fs.html#fsrenamesyncoldpath-newpath",
+      "checked_at": "2026-11-24",
+      "purpose": "Native rename contract and promise counterpart"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/npm/write-file-atomic/blob/main/lib/index.js",
+      "checked_at": "2026-11-24",
+      "purpose": "Distinguish whole-file writes from staged publication"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/isaacs/node-graceful-fs/blob/main/polyfills.js",
+      "checked_at": "2026-11-24",
+      "purpose": "Check existing-target behavior before reusing timer-based backoff"
+    }
+  ],
+  "invariants": [
+    "Native rename is performed in jsonFile.ts. Non-sharing errors retain their identity. Lock decisions and host config fences stay in the enclosing transaction."
+  ],
+  "doors": [
+    {"kind": "write", "path": "electron/agentLane/laneLegacyFiles.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/agentLane/laneTrace.mts", "symbol": "renameWithRetry"},
+    {"kind": "write", "path": "electron/agentLane/laneWorkspaceSelection.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/ai/antigravityEvidenceStore.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/assets/assetPreview.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/assets/assetPreview.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/assets/projectAssetStore.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/assets/uploadContentStore.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/assets/uploadContentStore.ts", "symbol": "renameWithRetry"},
+    {"kind": "write", "path": "electron/browser/media/browserViewMedia.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/browser/media/browserViewMedia.ts", "symbol": "renameWithRetry"},
+    {"kind": "write", "path": "electron/browser/settings/browserPromptExtractionSettings.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/capabilityCore/approvalReceipt.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/capabilityCore/hostConfigWrite.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/capabilityCore/hostConfigWrite.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/capabilityCore/mcpConfig.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/capabilityCore/mcpDetectedClients.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/capabilityCore/projectLeaseStore.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/configFileStore.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/configFileStore.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/downloads/verifiedAssetCache.ts", "symbol": "renameWithRetry"},
+    {"kind": "write", "path": "electron/export/ffmpegRunner.ts", "symbol": "renameWithRetry"},
+    {"kind": "write", "path": "electron/integrationCertification/certificationPersistence.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/jsonFile.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/jsonFile.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/localSpeech/localSpeechInstall.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/logging/logFiles.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/productionRun/artifactProjection.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/productionRun/productionRunLock.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/productionRun/productionRunLock.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/productionRun/productionRunRepository.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/productionRun/productionRunRuntimeEnvelope.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/productionRun/submissionIntent.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/productionRun/submissionIntent.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/projects/projectQuarantine.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/projects/repository.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/promptLibrary/promptLibraryStore.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/providerAdapter/certificationCleanup.ts", "symbol": "renameWithRetry"},
+    {"kind": "write", "path": "electron/providerAdapter/liveHarness.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/providerAdapter/store.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/settings/attentionSoundIpc.ts", "symbol": "renameWithRetry"},
+    {"kind": "write", "path": "electron/skills/skillManifestMigration.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/telemetry/intakeQueue.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/telemetry/intakeQueue.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/telemetry/sessionExit.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/telemetry/telemetryOutbox.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/telemetry/telemetrySettings.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/workspace/workspaceManifestLock.ts", "symbol": "renameSyncOnce"},
+    {"kind": "write", "path": "electron/workspace/workspaceManifestLock.ts", "symbol": "renameSyncWithRetry"},
+    {"kind": "write", "path": "electron/workspace/workspaceManifestLock.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/workspace/workspaceManifestTransaction.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/workspace/workspaceRegistry.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/workspace/workspaceSync.ts", "symbol": "writeJsonFileAtomic"},
+    {"kind": "write", "path": "electron/workspace/workspaceSyncBaseline.ts", "symbol": "writeJsonFileAtomic"}
+  ],
+  "door_reduction": {
+    "before": 52,
+    "after": 56,
+    "why_not": "Each caller owns its paths, framing, validation and cleanup. Their distinct entries delegate to one native owner."
+  },
+  "generality_proof": "The same native owner handles JSON, staged files and directories without taking over caller checks. Async paths share the timer policy. Checked transactions decide when to repeat validation.",
+  "shared_boundaries": [
+    {
+      "path": "electron/jsonFile.ts",
+      "symbol": "renameSyncWithRetry",
+      "responsibility": "Publish with bounded synchronous sharing retry"
+    },
+    {
+      "path": "electron/jsonFile.ts",
+      "symbol": "renameWithRetry",
+      "responsibility": "Publish through the existing asynchronous sharing policy"
+    },
+    {
+      "path": "electron/jsonFile.ts",
+      "symbol": "renameSyncOnce",
+      "responsibility": "Perform one native attempt so the caller can validate before retrying"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/export/ffmpegRunner.ts",
+      "entry_point": "Both MP4 publication paths",
+      "disposition": "enforced",
+      "evidence": "Keep staged-file verification and the existing long async retry budget"
+    },
+    {
+      "path": "electron/workspace/workspaceManifestLock.ts",
+      "entry_point": "Candidate publication and owner recovery",
+      "disposition": "enforced",
+      "evidence": "Workspace owns contention, reacquisition and orphan timer decisions"
+    },
+    {
+      "path": "electron/capabilityCore/hostConfigWrite.ts",
+      "entry_point": "commit",
+      "disposition": "enforced",
+      "evidence": "Every retry checks the fence and expected bytes"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Independent producers can add the same native bypass for each storage workflow.",
+    "same_class_scan": [
+      "ESLint freeze enumerated 24 violations in 17 files, including two export calls and three workspace lock calls.",
+      "door-map found 9 synchronous retry caller files, 26 atomic JSON caller files and no async rename wrapper on the baseline."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/jsonFile.ts",
+    "invariant": "Each covered native rename routes through one file.",
+    "failure_mode": "Native errors reach existing caller handling. Lint rejects raw calls in other production Electron files.",
+    "exception_policy": "none",
+    "strategy": "Move all frozen operations to the owner and remove their matching suppression entries in the same change.",
+    "artifacts": [
+      "electron/jsonFile.ts",
+      "scripts/t8-structural-guards.mjs",
+      "eslint-suppressions.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/jsonFile.test.ts",
+    "electron/workspace/workspaceManifestLock.test.ts",
+    "scripts/t8-structural-guards.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/jsonFile.test.ts",
+    "electron/workspace/workspaceManifestLock.test.ts",
+    "scripts/t8-structural-guards.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneTrace.mts",
+      "electron/assets/assetPreview.ts",
+      "electron/assets/uploadContentStore.ts",
+      "electron/browser/media/browserViewMedia.ts",
+      "electron/capabilityCore/hostConfigWrite.ts",
+      "electron/capabilityCore/mcpDetectedClients.ts",
+      "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "electron/downloads/verifiedAssetCache.ts",
+      "electron/export/ffmpegRunner.ts",
+      "electron/localSpeech/localSpeechInstall.ts",
+      "electron/logging/logFiles.ts",
+      "electron/productionRun/artifactProjection.ts",
+      "electron/productionRun/productionRunLock.ts",
+      "electron/providerAdapter/certificationCleanup.ts",
+      "electron/settings/attentionSoundIpc.ts",
+      "electron/skills/skillManifestMigration.ts",
+      "electron/workspace/workspaceManifestLock.ts"
+    ],
+    "rationale": "Remove the original native call sites and their lint suppressions."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The shared operation uses the existing Node standard library. The atomic-write dependency review continues under durable-json.",
+    "exit_criteria": []
+  },
+  "migration": "Existing files, lock schemas, paths and permissions remain readable. Detected MCP profiles gain the trailing newline already emitted by the manual-profile writer.",
+  "residual_risks": [
+    "Windows real sharing-handle replay and end-to-end desktop workflows are unverified locally."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "electron/jsonFile.ts",
+    "tests": [
+      "electron/jsonFile.test.ts",
+      "electron/workspace/workspaceManifestLock.test.ts",
+      "scripts/t8-structural-guards.node-test.mjs"
+    ]
+  }
+}

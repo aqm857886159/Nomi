@@ -84,11 +84,12 @@ test('A2 real 11-08 replay: 380 expected, 190 received, 190 missing', () => {
 
 test('A3 exit125 is skipped, never green or recovery', () => {
   const rows = [row('a.walk.mjs', 0), row('b.walk.mjs', 125), row('c.walk.mjs', 124)]
-  const result = summarize(rows)
+  const result = summarizeRows(rows, (r) => r.status === 125 ? 'Skipped: NOMI_REAL_MEDIA_DIR is unset\n' : null, evidence(rows))
   assert.equal(result.passed.length, 1)
   assert.equal(result.skipped.length, 1)
   assert.equal(result.total, 2)
   assert.match(result.markdown, /1\/3 passed; 1 failed; 1 skipped/)
+  assert.match(result.markdown, /b\.walk\.mjs \| Skipped: NOMI_REAL_MEDIA_DIR is unset/)
   const gh = publish([row('skip.walk.mjs', 125)])
   assert.doesNotMatch(gh.body + gh.comments.join(''), /已恢复/)
 })

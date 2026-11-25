@@ -1,4 +1,5 @@
 import { makeTempDir } from './_test-temp.mjs'
+import { listenLocalHttpServer, streamDelayedOpenAiChatCompletion } from './lib/walkthroughHost.mjs'
 // R16 real journey: append models to a saved connection without asking for its key again.
 // Also proves that an unavailable /models endpoint does not block manual model IDs.
 // Usage: pnpm build && node scripts/settings-existing-connection-add-walkthrough.mjs
@@ -40,48 +41,7 @@ async function requestBody(request) {
 }
 
 function chatCompletion(response, model, delayMs) {
-  const send = () => {
-    if (response.destroyed) return
-    response.writeHead(200, {
-      'content-type': 'text/event-stream; charset=utf-8',
-      'cache-control': 'no-cache',
-      connection: 'keep-alive',
-    })
-    response.write(`data: ${JSON.stringify({
-      id: 'chatcmpl-nomi-e2e',
-      object: 'chat.completion.chunk',
-      created: Math.floor(Date.now() / 1000),
-      model,
-      choices: [{ index: 0, delta: { role: 'assistant', content: 'ready' }, finish_reason: null }],
-    })}\n\n`)
-    response.write(`data: ${JSON.stringify({
-      id: 'chatcmpl-nomi-e2e',
-      object: 'chat.completion.chunk',
-      created: Math.floor(Date.now() / 1000),
-      model,
-      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-    })}\n\n`)
-    response.end('data: [DONE]\n\n')
-  }
-  if (delayMs <= 0) {
-    send()
-    return
-  }
-  let timer
-  const clearDelay = () => {
-    if (!timer) return
-    clearTimeout(timer)
-    delayedResponses.delete(timer)
-    timer = undefined
-  }
-  timer = setTimeout(() => {
-    const completedTimer = timer
-    timer = undefined
-    if (completedTimer) delayedResponses.delete(completedTimer)
-    send()
-  }, delayMs)
-  delayedResponses.add(timer)
-  response.once('close', clearDelay)
+  streamDelayedOpenAiChatCompletion(response, { id: 'chatcmpl-nomi-e2e', model, delayMs, delayedResponses })
 }
 
 const server = createServer((request, response) => {
@@ -145,13 +105,7 @@ const server = createServer((request, response) => {
   })
 })
 
-await new Promise((resolve, reject) => {
-  server.once('error', reject)
-  server.listen(0, '127.0.0.1', resolve)
-})
-const address = server.address()
-if (!address || typeof address === 'string') throw new Error('Local mock did not expose a TCP port')
-const baseUrl = `http://127.0.0.1:${address.port}/v1`
+const { baseUrl } = await listenLocalHttpServer(server, { label: 'Local mock' })
 
 const shot = async (win, name) => {
   await win.screenshot({ path: path.join(outDir, name) })

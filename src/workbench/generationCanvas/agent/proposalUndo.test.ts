@@ -26,7 +26,7 @@ import {
 } from './proposalUndo'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/canvasEventEmitter'
-import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
+import { clearHistory } from '../events/canvasPatchHistory'
 
 function projection() {
   const state = useGenerationCanvasStore.getState()
@@ -37,7 +37,7 @@ let captured: CanvasShadowEvent[] = []
 
 beforeEach(async () => {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
-  __resetCanvasUndoJournalForTests()
+  clearHistory()
   captured = []
   setCanvasEventSinkForTests((events) => captured.push(...events))
   receiptDeps.read.mockReset().mockResolvedValue(null)

@@ -17,7 +17,7 @@ import { jobAwaitsRetrieval } from "../shared/productionShotPhase";
 import type { CanvasShotSettledNotice } from "../shared/canvas/canvasShotSettled";
 import { logWarn } from "../logging/logger";
 
-export type CanvasShotSettledBellDeps = {
+type CanvasShotSettledBellDeps = {
   identity: (projectId: string) => { lease: GenerationAuthorizationProjectIdentity; projectRoot: string };
   notify: (notice: CanvasShotSettledNotice) => Promise<unknown>;
 };
@@ -80,5 +80,3 @@ export function createCanvasShotSettledBell(deps: CanvasShotSettledBellDeps) {
     },
   };
 }
-
-export type CanvasShotSettledBell = ReturnType<typeof createCanvasShotSettledBell>;
