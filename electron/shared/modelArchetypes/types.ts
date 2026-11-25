@@ -173,4 +173,6 @@ export type ModelArchetype = {
    * 使旧项目仍解析到本档案；具体落到哪个 variantId 由各 variant 的 identifierPatterns 决定（迁移层）。
    */
   identifierPatterns: string[];
+  /** Shared model names for handle suggestions across profiles with distinct wire contracts. */
+  familyIdentifierPatterns?: readonly string[];
 };

@@ -17,7 +17,12 @@
 // 模型 id 有 36 个含 `/`，`@` 和 `:` 两边都没出现过。`供应商/模型` 会写出 `kie/bytedance/seedance-2`。
 //
 // 名字只是模型面的东西：落盘的候选 `{providerId, modelId}`、节点的 `modelKey/modelVendor` 一个字段都不变。
-import { archetypeIdForModel } from "../modelArchetypes";
+import {
+  archetypeBaseModelKey,
+  archetypeFamilyIdsFor,
+  archetypeIdForModel,
+  resolveModelArchetype,
+} from "../modelArchetypes";
 import { closestKey, foldKey } from "../agentLane/toolInputIssues";
 
 /** 查表需要的最少事实。`AgentModelEntry` 天然满足。 */
@@ -37,13 +42,15 @@ export function modelHandleOf(row: Pick<ModelHandleRow, "vendor" | "modelId">): 
   return row.vendor ? `${row.modelId}${SEPARATOR}${row.vendor}` : row.modelId;
 }
 
+type ModelWireSelection = Readonly<{ modeId?: string; variantId?: string }>;
+
 type ModelHandleLookup<T extends ModelHandleRow> =
   /**
    * `via`：`handle` = 写的就是完整名字；`model_id` = 只写了模型 id（或别名、近似写法），目录里只有一家——回执要告诉 Agent 落成了谁；
    * `user_default` = 写的对得上好几家，其中恰好一家是用户给「这一种任务」设的默认，落到了它（`among` 是同名的全部几家）——
    * 回执必须写明「同名有 N 家，按你的默认用了哪家」（`userDefaultNote`），助手和后面的花钱确认都要看得到落在哪家。
    */
-  | Readonly<{ ok: true; row: T; handle: string; via: "handle" | "model_id" | "user_default"; among?: readonly string[] }>
+  | Readonly<ModelWireSelection & { ok: true; row: T; handle: string; via: "handle" | "model_id" | "user_default"; among?: readonly string[] }>
   /** 写的东西对得上好几行（只写了 id 而多家都有，或近似写法认出了同一族的好几个）。`handles` 就是那几个完整名字，`rows` 是那几行。 */
   | Readonly<{ ok: false; reason: "ambiguous"; handles: readonly string[]; rows: readonly T[] }>
   /** 一行都对不上。`nearest` ≤3 个最像的完整名字；空 = 没有够得上「像」的。 */
@@ -74,6 +81,32 @@ function onlyMatchOf<T extends ModelHandleRow>(rows: readonly T[], via: "handle"
   return { ok: false, reason: "ambiguous", handles, rows };
 }
 
+function wireSelectionFor(row: ModelHandleRow, wanted: string): ModelWireSelection | undefined {
+  const profile = resolveModelArchetype({
+    modelKey: row.modelId,
+    modelAlias: row.modelAlias,
+    vendorKey: row.vendor,
+    meta: { archetypeId: row.archetypeId },
+  }, { variant: (every) => ({ variantId: every.defaultVariantId, modelId: undefined }) });
+  if (!profile) return undefined;
+  const lower = wanted.toLowerCase();
+  const suffix = row.vendor ? SEPARATOR + row.vendor.toLowerCase() : "";
+  const written = suffix && lower.endsWith(suffix) ? lower.slice(0, -suffix.length) : lower;
+  const folded = foldKey(written);
+  const matches = (key?: string) => key !== undefined && foldKey(key) === folded;
+
+  // Two catalog rows may share a profile while representing different paid tiers.
+  // Only the profile's base row can resolve a sibling's dedicated variant key.
+  const baseKey = archetypeBaseModelKey(profile);
+  const variants = baseKey && foldKey(baseKey) === foldKey(row.modelId)
+    ? profile.variants?.filter(variant => matches(variant.modelKey) || variant.identifierPatterns?.some(matches)) ?? []
+    : [];
+  const modes = profile.modes.filter(mode => matches(mode.modelEnum));
+  if (variants.length === 1 && modes.length === 0) return { variantId: variants[0]!.id };
+  if (modes.length === 1 && variants.length === 0) return { modeId: modes[0]!.id };
+  return undefined;
+}
+
 /** 落到默认那家时回执里的那句话（lane 回执与宿主回执同一句，不各写一份）。 */
 function userDefaultNote(lookup: Readonly<{ handle: string; among?: readonly string[] }>): string {
   return `${lookup.among?.length ?? 0} providers carry this model (${(lookup.among ?? []).join(", ")}); used ${lookup.handle} because it is the user's default for this kind of task.`;
@@ -86,7 +119,8 @@ function userDefaultNote(lookup: Readonly<{ handle: string; among?: readonly str
  *  ② 只写了模型 id / 别名（大小写不敏感）：一家 → 放行（`via:"model_id"`）；多家 → 歧义；
  *  ③ 近似写法：模型 id 按全仓唯一的近似键折法（`foldKey`：大小写、`-` `_` `.` 空白）相等；
  *     光秃秃没带前缀时也认末段（`seedance-2` ↔ `bytedance/seedance-2`）：一行 → 放行；多行 → 歧义；
- *  ④ 都不是：给最像的 ≤3 个。档案身份识别（`archetypeIdForModel`，背后是 `catalogFacts.identityPatternsOf`）
+ *  ④ 唯一目录行拥有的变体或模式线上名：带回明确的选择。
+ *  ⑤ 都不是：给最像的 ≤3 个。档案身份识别（`archetypeIdForModel`，背后是 `catalogFacts.identityPatternsOf`）
  *     认出同一个档案的排前面——`seedance-2-turbo` 认得出是 Seedance 2 一族，但那是另一个价钱，只进「最像的」不放行。
  */
 export function resolveModelHandle<T extends ModelHandleRow>(rows: readonly T[], written: string, options: ModelHandleOptions = {}): ModelHandleLookup<T> {
@@ -104,12 +138,18 @@ export function resolveModelHandle<T extends ModelHandleRow>(rows: readonly T[],
   const near = onlyMatchOf(rows.filter((row) => foldKey(row.modelId) === foldKey(wanted)
     || (bare && foldKey(lastSegment(row.modelId)) === foldKey(wanted))), "model_id", options);
   if (near) return near;
+  const wireMatches = rows.flatMap(row => {
+    const selection = wireSelectionFor(row, wanted);
+    return selection ? [{ row, selection }] : [];
+  });
+  const wire = onlyMatchOf(wireMatches.map(match => match.row), "model_id", {});
+  if (wire) return wire.ok ? { ...wire, ...wireMatches[0]!.selection } : wire;
   return unknownHandle(rows, wanted);
 }
 
 function unknownHandle<T extends ModelHandleRow>(rows: readonly T[], wanted: string): ModelHandleLookup<T> {
-  const family = archetypeIdForModel(wanted);
-  const sameFamily = family ? rows.filter((row) => (row.archetypeId ?? archetypeIdForModel(row.modelId, row.modelAlias)) === family) : [];
+  const family = archetypeFamilyIdsFor(wanted, foldKey);
+  const sameFamily = rows.filter(row => family.has(row.archetypeId ?? archetypeIdForModel(row.modelId, row.modelAlias) ?? ""));
   return { ok: false, reason: "unknown", nearest: nearestModelHandles(rows, wanted, sameFamily) };
 }
 
@@ -153,7 +193,7 @@ export function resolveModelForTask<T extends ModelHandleRow, K extends string>(
 }
 
 /** 写的不是一字不差的完整名字、宿主替它认出来了：回执里告诉它落成了谁（按默认平局落的还带 `note`）。 */
-export type ResolvedModelName = Readonly<{ written: string; model: string; note?: string }>;
+export type ResolvedModelName = Readonly<ModelWireSelection & { written: string; model: string; note?: string }>;
 
 /**
  * 这次认名字要不要写进回执（lane 的 `draft_shots` 与宿主的 create 同一个判据）。一字不差的不写；
@@ -168,7 +208,12 @@ export function resolvedModelNameOf<T extends ModelHandleRow>(
     : hit.via !== "user_default" && hit.row.modelId === written.modelId && Boolean(written.vendor) && hit.row.vendor === written.vendor;
   if (exact) return undefined;
   const shown = typeof written === "string" ? written : written.vendor ? `${written.vendor}/${written.modelId}` : written.modelId;
-  return { written: shown, model: hit.handle, ...(hit.via === "user_default" ? { note: userDefaultNote(hit) } : {}) };
+  return {
+    written: shown, model: hit.handle,
+    ...(hit.modeId ? { modeId: hit.modeId } : {}),
+    ...(hit.variantId ? { variantId: hit.variantId } : {}),
+    ...(hit.via === "user_default" ? { note: userDefaultNote(hit) } : {}),
+  };
 }
 
 /**

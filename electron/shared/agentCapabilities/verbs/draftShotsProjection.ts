@@ -58,7 +58,7 @@ export type DraftShot = z.infer<typeof draftShotSchema>;
 /** 模型面的顶层（`draft_shots` 自己的 schema 推出来的，不在这里重列）。 */
 export type DraftShotsArgs = { operationId?: string; newPlan?: boolean; taskKind?: DraftShot["taskKind"]; shots: DraftShot[] };
 /** 查表之后的身份：宿主那两件。 */
-export type DraftShotModelIdentity = Readonly<{ providerId: string; modelId: string }>;
+export type DraftShotModelIdentity = Readonly<{ providerId: string; modelId: string; modeId?: string; variantId?: string }>;
 /** 一镜查到的身份：镜头自己的（`model`）与独立关键帧的（`storyboard.keyframe.model`）。缺 = 没点名 = 用户默认。 */
 export type DraftShotModels = Readonly<{ shot?: DraftShotModelIdentity; keyframe?: DraftShotModelIdentity }>;
 /** Agent 写的不是完整名字、宿主替它认出来了：回执里告诉它落成了谁，下次照抄完整名字（形状与判据住名字主人）。 */
@@ -88,7 +88,7 @@ const REFUSE_ON_FLAT = "单镜 create 把这一镜摊成顶层参数，顶层没
  */
 function semanticsOf(shot: DraftShot, models: DraftShotModels): CandidatePatch {
   const {
-    storyboard, prompt, taskKind, modeId, model: _resolvedIntoModels, variantId, parameters, durationSec, aspectRatio, references,
+    storyboard, prompt, taskKind, modeId = models.shot?.modeId, model: _resolvedIntoModels, variantId = models.shot?.variantId, parameters, durationSec, aspectRatio, references,
     // 信封那三件不属于「语义」，由各自的调用点按这条路有没有位置处置。
     shotId: _envelopeShotId, role: _envelopeRole, title: _envelopeTitle,
     ...unhandled
@@ -170,7 +170,11 @@ export function resolveDraftShotModels(
     if (hit.ok) {
       const name = resolvedModelNameOf(written, hit);
       if (name) resolved.push(name);
-      return { providerId: hit.row.vendor ?? "", modelId: hit.row.modelId };
+      return {
+        providerId: hit.row.vendor ?? "", modelId: hit.row.modelId,
+        ...(hit.modeId ? { modeId: hit.modeId } : {}),
+        ...(hit.variantId ? { variantId: hit.variantId } : {}),
+      };
     }
     const allowed = hit.reason === "ambiguous" ? hit.handles : hit.nearest;
     if (hit.reason !== "ambiguous" && !unknown) unknown = { path, written, ...(allowed[0] ? { nearest: allowed[0] } : {}) };
