@@ -16,7 +16,7 @@
 
 ## ★2 状态主人
 
-门表由 door-map 对 runTask、executeProfileOperation、runCustomCallTask、fetchTaskResult、两种 provider 工厂和 Run 提交出口生成，初扫 63 扇门；随后补查渲染层账本选择、费用判据、锁、状态转移、受理与取回；按同组符号复扫，基线 119 扇，修后 144 扇。完整输出在同名根因合同。画布单镜、批量、分镜、Agent 和 MCP 通过各自适配器进入 Run。出网步骤提供原始答复，Run 记录受理时间、任务和执行身份，观察者负责到终态。
+门表由 door-map 对 runTask、executeProfileOperation、runCustomCallTask、fetchTaskResult、两种 provider 工厂和 Run 提交出口生成，初扫 63 扇门；随后补查渲染层账本选择、费用判据、锁、状态转移、受理与取回；按同组符号复扫，基线 119 扇，修后 145 扇。完整输出在同名根因合同。画布单镜、批量、分镜、Agent 和 MCP 通过各自适配器进入 Run。出网步骤提供原始答复，Run 记录受理时间、任务和执行身份，观察者负责到终态。
 
 ## ★3 路线选择
 
