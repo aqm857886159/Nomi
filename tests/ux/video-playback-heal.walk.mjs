@@ -17,7 +17,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { canvasFitView, switchGenerationView, switchWorkspace } from './_shell.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -26,9 +29,9 @@ const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'video-playback-heal-walk'
 const projectRoot = path.join(projectsDir, `video-heal-${projectId}`)
-const outDir = path.join(repoRoot, '.video-playback-heal-lab')
+const outDir = assertOutsideRepo(makeTempDir('nomi-video-playback-heal-evidence-'))
+process.env.EVIDENCE_DIR = outDir
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
-fs.mkdirSync(outDir, { recursive: true })
 
 let passed = 0
 function assert(cond, label) {
@@ -49,12 +52,18 @@ const encode = spawnSync(
   { timeout: 120_000 },
 )
 if (encode.status !== 0) throw new Error(`AVI 夹具编码失败: ${encode.stderr?.toString().slice(-400)}`)
+fs.copyFileSync(path.join(repoRoot, 'resources/onboarding-demo/shot-4.jpg'), path.join(importedDir, 'poster.jpg'))
 const VIDEO_URL = `nomi-local://asset/${encodeURIComponent(projectId)}/assets/imported/stale-import.avi`
 
 const nodes = [{
   id: 'video-heal-node', kind: 'video', categoryId: 'shots', title: '存量导入片段',
   position: { x: 160, y: 160 }, exactPosition: true, size: { width: 480, height: 300 }, status: 'success',
-  result: { id: 'video-heal-result', type: 'video', url: VIDEO_URL, createdAt: 1 },
+  meta: { videoWidth: 320, videoHeight: 240 },
+  result: {
+    id: 'video-heal-result', type: 'video', url: VIDEO_URL,
+    thumbnailUrl: `nomi-local://asset/${encodeURIComponent(projectId)}/assets/imported/poster.jpg`,
+    createdAt: 1,
+  },
 }]
 const payload = {
   workbenchDocument: null,
@@ -72,16 +81,21 @@ const project = {
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project, null, 2))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project, null, 2))
 
-const { app, win } = await launchNomiApp({
+const run = await launchNomiApp({
   name: 'video-playback-heal',
   userDataDir: settingsDir,
   settingsDir,
   projectsDir,
-  settleMs: 2000,
+  initialLocalStorage: {
+    'nomi:locale:v1': 'zh-CN',
+    'nomi:splash:v1': 'seen',
+    'nomi:journey-tour:v1': 'seen',
+    'nomi:canvas-gesture-hint:v1': 'seen',
+  },
 })
 
+const { win } = run
 try {
-
   // 先钉住前提：这段 AVI 在本 Electron 里确实解不了——否则本走查什么也没证明。
   const baseline = await win.evaluate(async (src) => await new Promise((resolve) => {
     const v = document.createElement('video')
@@ -92,13 +106,25 @@ try {
     setTimeout(() => resolve('timeout'), 6000)
     v.src = src
   }), VIDEO_URL)
-  assert(baseline !== 'decoded', `前提成立：原始 AVI 在 Electron 里播不了（${baseline}）`)
+  assert(baseline.startsWith('error:'), `前提成立：原始 AVI 在 Electron 里播不了（${baseline}）`)
 
-  await win.getByText('视频播放自愈回归').first().click()
-  await win.waitForTimeout(2500)
+  await win.locator(`[data-project-card][data-project-id="${projectId}"]`).click()
+  await switchWorkspace(win, 'generation')
+  await switchGenerationView(win, 'canvas')
+  await canvasFitView(win)
 
-  // ① 画布节点：等自愈完成 → <video> 真的解出画面
-  const nodeVideo = win.locator('[data-node-preview-video="true"]').first()
+  // 有封面和已知尺寸时，浏览态等用户交互才挂播放器。
+  const node = win.locator('[data-node-id="video-heal-node"]')
+  const nodeVideo = node.locator('video[data-node-preview-video="true"]')
+  const poster = node.locator('[data-node-video-poster="true"]')
+  await expect(poster).toBeVisible()
+  await expect(node).toHaveAttribute('data-selected', 'false')
+  await expectAbsent(nodeVideo, { provenBy: await proveProbe(poster, '视频节点已显示浏览态封面') })
+  await screenshotSettled(win, { path: path.join(outDir, '0-idle-cover.png') })
+  await node.click({ position: { x: 12, y: 12 } })
+  await expect(node).toHaveAttribute('data-selected', 'true')
+
+  // ① 画布节点：等自愈完成 → <video> 真的解出画面。
   await nodeVideo.waitFor({ state: 'attached', timeout: 20000 })
   await win.waitForFunction(() => {
     const v = document.querySelector('[data-node-preview-video="true"]')
@@ -111,14 +137,12 @@ try {
 
   // ② 全屏预览：此前这个 <video> 连 onError 都没有，播不了就是纯黑 + 零提示。
   // 选中节点 → 浮出结果工具栏 → 点「全屏预览视频」。
-  await nodeVideo.click({ force: true })
-  await win.waitForTimeout(1200)
-  const fullscreenButton = win.getByRole('button', { name: '全屏预览视频' }).first()
+  const fullscreenButton = node.getByRole('button', { name: uiText('zh-CN', 'generationCommon.videoToolbar.fullscreenAria'), exact: true })
   await fullscreenButton.waitFor({ state: 'visible', timeout: 15000 })
   await fullscreenButton.click()
-  await win.waitForTimeout(2000)
-
-  const dialogVideo = win.locator('video[aria-label]').last()
+  const dialog = win.getByRole('dialog', { name: /存量导入片段/ })
+  const dialogVideo = dialog.locator('video')
+  await expect(dialog).toBeVisible()
   await dialogVideo.waitFor({ state: 'attached', timeout: 15000 })
   await win.waitForFunction(() => {
     const list = Array.from(document.querySelectorAll('video[aria-label]'))
@@ -130,5 +154,5 @@ try {
 
   console.log(`\n✅ 视频播放自愈走查通过（${passed} 项断言）\n   截图：${outDir}`)
 } finally {
-  await app.close().catch(() => {})
+  await run.close()
 }
