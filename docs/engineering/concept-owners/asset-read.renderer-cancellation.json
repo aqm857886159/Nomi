@@ -1,0 +1,23 @@
+{
+  "name": "素材端口的 renderer 原生取消信号",
+  "subject": "asset-read.renderer-cancellation",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/project/projectCanvasReadSurface.ts",
+    "symbol": "registerAssetReadSource"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/project/projectCanvasReadSurface.ts",
+      "symbol": "registerAssetReadSource"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "将 preload 取消转为 renderer 原生信号交给已绑定的素材端口。"
+}
