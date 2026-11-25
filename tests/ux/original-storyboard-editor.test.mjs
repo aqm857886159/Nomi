@@ -24,7 +24,8 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
     await expect(editor).toBeVisible()
     const expand = editor.getByRole('button', { name: en ? 'Expand all' : '全部展开', exact: true })
     if (await expand.isVisible()) await expand.click()
-    await editor.getByRole('button', { name: en ? 'Add reference' : '添加参考', exact: true }).click()
+    // 参考行里的「+」小图也叫 Add reference（assetLibrary.addReference），所以按分镜参考区自己的钩子取，再核文案。
+    await editor.locator('[data-storyboard-add-anchor]').filter({ hasText: en ? 'Add reference' : '添加参考' }).click()
     await expect(editor.locator('[data-storyboard-anchor-row]')).toHaveCount(1)
     // A-1 restores this editor budget by collapsing the existing resource sidebar.
     // Full-shell preference/toggle behavior is covered by the Electron journey.
