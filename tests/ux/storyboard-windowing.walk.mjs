@@ -7,7 +7,7 @@
 //   ④ 键盘上下移到视口外的镜：列表滚过去、焦点落在那一镜上；焦点行被钉住、视口滚远时按 ↓，没挂的下一镜按下标滚回来；
 //   ⑤ 跨屏多选：点第 1 镜、滚到第 40 镜 Shift+点 → 选中 40 镜；
 //   ⑥ 拖拽排序仍然换得动位置；
-//   ⑦ 加一镜后总数 +1、滚到底够得着它；删掉它再 Ctrl+Z 回来；
+//   ⑦ 从第 1 镜用页脚加一镜，滚到第 321 镜并聚焦提示词；删掉它再 Ctrl+Z 回来；
 //   ⑧ 滚到中间、滚到底，末镜挂得上；
 //   ⑨ 英文 + 暗色 + 最小窗口宽（electron/shared/mainWindowSize.json）× 690：行走窄档、同样只挂首屏；
 //   ⑪ 快速滚动：滚过的行先挂轻量占位、滚动中不建编辑器，停下后换成完整行（记长任务数）；
@@ -265,15 +265,17 @@ async function passZhLight() {
     const fifthAfter = await promptOf(5).catch(() => '')
     check(fifthAfter.trim() === thirdBefore.trim(), '⑥ 拖拽排序：第 3 镜的内容到了第 5 位', fifthAfter.slice(0, 20))
 
-    // ⑦ 加一镜 → 总数 +1、够得着；删掉再 Ctrl+Z
-    await scrollTo(win, 'bottom')
-    await editor(win).getByRole('button', { name: uiText('zh-CN', 'storyboardEditor.addShot') }).click()
-    for (let i = 0; i < 4; i += 1) await frames(win)
+    // ⑦ 从表首用固定页脚加镜，末镜还未挂载。由表滚过去并聚焦，走查不代替用户滚到末尾。
+    await scrollTo(win, 'top')
+    await expect(win.locator(promptBox(1))).toBeInViewport({ timeout: stationTimeout() })
+    await expect(win.locator(rowSel(SHOTS))).toHaveCount(0)
+    await editor(win).locator('[data-storyboard-plan-footer]').getByRole('button', { name: uiText('zh-CN', 'storyboardEditor.addShot'), exact: true }).click()
+    const appendedPrompt = win.locator(promptBox(SHOTS + 1))
+    await expect(appendedPrompt).toBeInViewport({ timeout: stationTimeout() })
+    await expect(appendedPrompt).toBeFocused({ timeout: stationTimeout() })
     const added = await mounted(win)
     check(added.total === SHOTS + 1, '⑦ 加一镜后逻辑总数 +1', `${added.total}`)
-    await scrollTo(win, 'bottom')
-    const lastReach = await scrollUntilRow(win, SHOTS + 1)
-    check(lastReach, '⑦ 新加的末镜滚到底够得着')
+    check(true, '⑦ 从首镜加镜，末镜滚入视口且提示词已聚焦')
     await win.locator(`[data-storyboard-row-menu-trigger="${SHOTS + 1}"]`).click()
     await win.locator(`[data-storyboard-row-menu="${SHOTS + 1}"]`).getByRole('button', { name: uiText('zh-CN', 'storyboardEditor.rowMenu.deleteUndoable'), exact: true }).click()
     for (let i = 0; i < 4; i += 1) await frames(win)

@@ -16,6 +16,10 @@
       "symbol": "planItemMounts"
     },
     {
+      "path": "src/workbench/creation/storyboard/storyboardMountPlan.ts",
+      "symbol": "revealRow"
+    },
+    {
       "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
       "symbol": "StoryboardShotTable"
     }
@@ -23,5 +27,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-16",
-  "notes": "打开大方案只挂视口 + 缓冲（@tanstack/react-virtual），滚动中新进来的行先挂占位、停下每帧升级一行，焦点 / 拖拽 / 等着聚焦的行钉住完整。根因合同 docs/fixes/2026-10-16-storyboard-plan-windowing.root-cause.json。"
+  "notes": "打开大方案只挂视口 + 缓冲（@tanstack/react-virtual），滚动中新进来的行先挂占位、停下每帧升级一行，焦点 / 拖拽 / 等着聚焦的行钉住完整。revealRow 负责定位目标行并在完整行挂载后交付焦点。根因合同 docs/fixes/2026-10-16-storyboard-plan-windowing.root-cause.json。"
 }

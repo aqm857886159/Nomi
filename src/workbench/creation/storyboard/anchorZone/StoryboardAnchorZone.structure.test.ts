@@ -40,7 +40,13 @@ describe('参考卡区：与镜头行同一套网格与同一套交互', () => {
     const strip = stripComments(read('src/workbench/creation/storyboard/anchorZone/StoryboardAnchorStrip.tsx'))
     expect(strip).toContain('data-storyboard-anchor-strip')
     expect(row).toContain('data-storyboard-anchor-row')
-    expect(zone).toContain('data-storyboard-anchors-toggle')
+    expect(zone.match(/data-storyboard-anchors-toggle/g)).toHaveLength(1)
+  })
+
+  it('空参考区复用小号工作区按钮并保留空态提示', () => {
+    expect(zone).toMatch(/<WorkbenchButton\b[^>]*\bsize="sm"[^>]*\bdata-storyboard-add-anchor=/s)
+    expect(zone).toContain("t('storyboardEditor.noAnchors')")
+    expect(zone).toContain("t('storyboardEditor.addAnchor')")
   })
 
   it('区头不再挂一句说明（「生成参考图=锁长相…」随第二套控件一起删）', () => {

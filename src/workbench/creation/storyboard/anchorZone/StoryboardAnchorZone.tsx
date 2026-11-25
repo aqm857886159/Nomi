@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconChevronUp, IconPlus } from '../../../../vendor/tablerIcons'
+import { WorkbenchButton } from '../../../../design'
 import type { ModelOption } from '../../../../config/models'
 import type { PlanAnchorKind } from '../../../generationCanvas/agent/storyboardPlan'
 import type { AnchorCardRuntime } from '../exec/storyboardRowStatus'
@@ -40,7 +41,7 @@ type Props = {
   onToggleFrozenAnchor: (runtime: AnchorCardRuntime) => void
   onOpenPreviewAnchor?: ((runtime: AnchorCardRuntime) => void) | undefined
   onFilterByAnchor?: ((anchorId: string) => void) | undefined
-  onAddAnchor?: (() => void) | undefined
+  onAddAnchor?: (() => string | void) | undefined
 }
 
 export default function StoryboardAnchorZone(props: Props): JSX.Element {
@@ -52,6 +53,34 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
     if (props.onToggleExpanded) props.onToggleExpanded(next)
     else setSelfExpanded(next)
   }
+  const hasCards = cards.length > 0
+  const zoneRef = React.useRef<HTMLElement>(null)
+  const addButtonRef = React.useRef<HTMLButtonElement>(null)
+  const [focusTarget, setFocusTarget] = React.useState<{ anchorId: string } | 'add' | null>(null)
+  React.useLayoutEffect(() => {
+    if (focusTarget === null) return
+    if (focusTarget === 'add') {
+      if (!hasCards) addButtonRef.current?.focus()
+    } else {
+      zoneRef.current?.querySelector<HTMLInputElement>(
+        `[data-storyboard-anchor-row="${CSS.escape(focusTarget.anchorId)}"] [data-storyboard-anchor-name]`,
+      )?.focus()
+    }
+    setFocusTarget(null)
+  }, [focusTarget, hasCards])
+
+  const onAddAnchor = props.onAddAnchor ? () => {
+    const anchorId = props.onAddAnchor?.()
+    if (!anchorId) return
+    setFocusTarget({ anchorId })
+    if (!expanded) setExpanded(true)
+  } : undefined
+  const addButton = props.onAddAnchor ? (
+    <WorkbenchButton ref={addButtonRef} size="sm" data-storyboard-add-anchor="true" onClick={onAddAnchor}>
+      <IconPlus />
+      {t('storyboardEditor.addAnchor')}
+    </WorkbenchButton>
+  ) : null
 
   // 区头小结与卡面同一份 derive（F2 禁静态快照）。
   const visual = cards.filter((card) => card.visual)
@@ -60,7 +89,7 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
   const pending = visual.length - ready - generating
 
   return (
-    <section data-storyboard-anchors="true" data-storyboard-anchors-expanded={expanded ? 'true' : 'false'}>
+    <section ref={zoneRef} data-storyboard-anchors="true" data-storyboard-anchors-expanded={String(hasCards && expanded)}>
       <div className="mb-2 flex items-baseline gap-2">
         <span className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.consistencyTitle')}</span>
         {visual.length > 0 ? (
@@ -70,20 +99,25 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
             {pending > 0 ? <span>{t('storyboardEditor.anchor.headPending', { count: pending })}</span> : null}
           </span>
         ) : null}
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          aria-expanded={expanded}
-          data-storyboard-anchors-toggle="true"
-          className={`${visual.length > 0 ? '' : 'ml-auto '}inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-nomi-line px-2 text-micro text-nomi-ink-60 hover:border-nomi-ink-30 hover:text-nomi-accent`}
-        >
-          {expanded ? <IconChevronUp size={12} stroke={1.8} /> : <IconChevronDown size={12} stroke={1.8} />}
-          {expanded ? t('storyboardEditor.anchor.collapseAll') : t('storyboardEditor.anchor.expandAll')}
-        </button>
+        {hasCards ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
+            data-storyboard-anchors-toggle="true"
+            className={`${visual.length > 0 ? '' : 'ml-auto '}inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-nomi-line px-2 text-micro text-nomi-ink-60 hover:border-nomi-ink-30 hover:text-nomi-accent`}
+          >
+            {expanded ? <IconChevronUp size={12} stroke={1.8} /> : <IconChevronDown size={12} stroke={1.8} />}
+            {expanded ? t('storyboardEditor.anchor.collapseAll') : t('storyboardEditor.anchor.expandAll')}
+          </button>
+        ) : null}
       </div>
 
-      {cards.length === 0 ? (
-        <div className="py-2 text-caption text-nomi-ink-40">{t('storyboardEditor.noAnchors')}</div>
+      {!hasCards ? (
+        <div className="flex flex-wrap items-center gap-2 py-1 text-caption text-nomi-ink-40">
+          <span>{t('storyboardEditor.noAnchors')}</span>
+          {addButton}
+        </div>
       ) : expanded ? (
         <StoryboardRowsBox className="overflow-hidden rounded-nomi border border-nomi-line">
           {cards.map((runtime) => (
@@ -96,7 +130,10 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
               nameInvalid={noNameAnchorIds?.has(runtime.anchor.id)}
               onUpdate={(patch) => props.onUpdateAnchor(runtime.anchor.id, patch)}
               onChangeKind={(kind) => props.onChangeKind(runtime.anchor.id, kind)}
-              onRemove={() => props.onRemoveAnchor(runtime.anchor.id)}
+              onRemove={() => {
+                props.onRemoveAnchor(runtime.anchor.id)
+                if (cards.length === 1) setFocusTarget('add')
+              }}
               onGenerate={() => props.onGenerateAnchor(runtime)}
               onRegenerate={() => props.onRegenerateAnchor(runtime)}
               onRecover={props.onRecoverAnchor ? () => props.onRecoverAnchor?.(runtime) : undefined}
@@ -111,20 +148,11 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
           cards={cards}
           filterAnchorId={filterAnchorId}
           onFilterByAnchor={props.onFilterByAnchor}
-          onAddAnchor={props.onAddAnchor}
+          onAddAnchor={onAddAnchor}
         />
       )}
 
-      {expanded && props.onAddAnchor ? (
-        <button
-          type="button"
-          onClick={props.onAddAnchor}
-          className="mt-2 inline-flex h-6 items-center gap-1 rounded-full border border-dashed border-nomi-ink-20 px-2.5 text-caption text-nomi-ink-60 hover:text-nomi-ink-80"
-        >
-          <IconPlus size={13} stroke={1.8} />
-          {t('storyboardEditor.addAnchor')}
-        </button>
-      ) : null}
+      {hasCards && expanded && addButton ? <div className="mt-2">{addButton}</div> : null}
     </section>
   )
 }

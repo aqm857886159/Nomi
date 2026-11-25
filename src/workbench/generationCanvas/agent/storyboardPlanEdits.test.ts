@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { StoryboardPlan } from './storyboardPlan'
+import { stableShotId, type StoryboardPlan } from './storyboardPlan'
 import {
   addAnchor,
   addExternalReferenceAnchor,
@@ -61,6 +61,32 @@ describe('storyboardPlanEdits — 锚', () => {
     expect(p.shots[0].anchorIds).toContain('anchor-1')
     expect(validatePlan(p)).toEqual([])
   })
+
+  it('keeps the shot asset without attaching it to a replacement card', () => {
+    const plan = base()
+    const [shot, untouched] = plan.shots
+    const asset = { url: 'hero.png', name: 'Hero' }
+    shot.referenceBindings = { image_ref: [{ ...asset, anchorId: 'anchor-2' }, { url: 'other.png', anchorId: 'anchor-1' }] }
+
+    const deleted = removeAnchor(plan, 'anchor-2')
+    expect(deleted.anchors.map(anchor => anchor.id)).toEqual(['anchor-1'])
+    expect(deleted.shots[0].referenceBindings?.image_ref).toEqual([asset, { url: 'other.png', anchorId: 'anchor-1' }])
+    expect(deleted.shots[1]).toBe(untouched)
+    expect(addAnchor(deleted).anchors).toHaveLength(2)
+  })
+
+  it('reserves stale binding IDs in older plans for both new cards and imported references', () => {
+    const plan = base()
+    plan.anchors.pop()
+    plan.shots[0].referenceBindings = { image_ref: [{ url: 'old.png', anchorId: 'anchor-2' }] }
+    plan.shots[1].autoReferenced = ['anchor-3']
+
+    const edited = addAnchor(plan)
+    const imported = addExternalReferenceAnchor(plan, { id: 'upload', name: 'New', url: 'new.png', kind: 'image' })
+    expect(edited.anchors.map(anchor => anchor.id)).toEqual(['anchor-1', 'anchor-4'])
+    expect(imported.anchorId).toBe('anchor-4')
+    expect(edited.shots).toBe(plan.shots)
+  })
 })
 
 describe('storyboardPlanEdits — 镜头', () => {
@@ -83,7 +109,34 @@ describe('storyboardPlanEdits — 镜头', () => {
   it('addShot 追加并续号（时长继承上一镜，v5）', () => {
     const p = addShot(base())
     expect(p.shots.map((s) => s.index)).toEqual([1, 2, 3])
-    expect(p.shots.at(-1)).toMatchObject({ index: 3, durationSec: 8, anchorIds: [], prompt: '' })
+    expect(p.shots.at(-1)).toMatchObject({ index: 3, shotId: 'shot-3', durationSec: 8, anchorIds: [], prompt: '' })
+  })
+
+  it('allocates a new identity when the next display number is held by a surviving shot', () => {
+    const plan = {
+      ...base(),
+      shots: Array.from({ length: 51 }, (_, i) => ({ index: i + 1, shotId: `shot-${i + 1}`, durationSec: 5, anchorIds: [], prompt: `Shot ${i + 1}` })),
+    }
+    const removed = removeShotAt(plan, 1)
+    const added = addShot(removed)
+    const appended = added.shots.at(-1)!
+
+    expect(added.shots).toHaveLength(51)
+    expect(appended).toMatchObject({ index: 51, shotId: 'shot-52', prompt: '' })
+    expect(added.shots.find(shot => stableShotId(shot) === stableShotId(appended))).toBe(appended)
+    expect(added.shots.slice(0, -1).map(stableShotId)).toEqual(removed.shots.map(stableShotId))
+  })
+
+  it('keeps the appended identity separate from legacy display numbers and IDs reserved for undo', () => {
+    const legacy = base()
+    const added = addShot(legacy)
+    const appendedId = stableShotId(added.shots.at(-1)!)
+    const moved = moveShot(added, 2, 0)
+    expect(moved.shots.map(stableShotId)).toEqual([appendedId, 'shot-1', 'shot-2'])
+
+    const removed = removeShotAt(added, 2)
+    const replacement = addShot(removed, [appendedId]).shots.at(-1)!
+    expect(stableShotId(replacement)).toBe('shot-4')
   })
 
   it('addShot 继承图片+视频模式', () => {
