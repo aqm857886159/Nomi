@@ -27,10 +27,10 @@ export const zhCreationAi = {
     keepOneDocument: '项目至少需要保留一篇原稿',
   },
   editor: {
-    placeholder: '写下故事、脚本或镜头想法。选中一段可拆成镜头，或创建图片、视频节点。要拆整篇，点右上「拆成分镜」。',
+    placeholder: '写下故事、脚本或镜头想法。选中一段可拆成镜头，或创建图片、视频节点。要拆整篇，点右上「拆成镜头」。',
     toolbarAria: '文本工具栏',
     moreTools: '更多格式',
-    splitDocument: '拆成分镜',
+    splitDocument: '拆成镜头',
     documentAria: '创作文档编辑区',
   },
   selection: {
