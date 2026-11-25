@@ -9,16 +9,13 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 用法: pnpm run build && node tests/ux/control-hierarchy-u2.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { closeSettings, newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
+import { walkEvidenceDir } from './_walkEvidence.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-u2-after')
-fs.mkdirSync(outDir, { recursive: true })
+const outDir = walkEvidenceDir()
 
 const WIN_W = 1680
 const WIN_H = 1050

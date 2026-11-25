@@ -9,11 +9,10 @@ import { expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { prepareWaitingFx, sampleWaitingFx, cleanupWaitingFx } from './canvas-perf/waitingFxScenario.mjs'
+import { walkEvidenceDir } from './_walkEvidence.mjs'
 
 const repoRoot = process.cwd()
-const out = process.env.GENERATION_IDLE_OUT
-if (!out) throw new Error('GENERATION_IDLE_OUT must point to this run’s isolated evidence directory')
-fs.mkdirSync(out, { recursive: true })
+const out = walkEvidenceDir({ configured: process.env.GENERATION_IDLE_OUT })
 const locale = process.argv.includes('--en') ? 'en' : 'zh-CN'
 const tempRoot = fs.mkdtempSync(path.join(out, `${locale}-profile-`))
 const projectsDir = path.join(tempRoot, 'projects')

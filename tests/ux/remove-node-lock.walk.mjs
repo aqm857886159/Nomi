@@ -10,6 +10,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { stationTimeout } from './_station-budget.mjs'
+import { walkEvidenceDir } from './_walkEvidence.mjs'
 
 const originalFetch = globalThis.fetch
 globalThis.fetch = (input, init) => {
@@ -24,19 +25,16 @@ const text = key => uiText('zh-CN', key)
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const arg = (name, fallback) => process.argv[process.argv.indexOf(name) + 1] && process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : fallback
-assert(arg('--out') && path.isAbsolute(arg('--out')), '--out must name an absolute evidence directory')
-const out = path.resolve(arg('--out'))
+const out = walkEvidenceDir({ absolute: true, checkouts: [root] })
 const backupPath = arg('--backup', process.env.NOMI_LOCK_LEGACY_BACKUP)
-assert(out !== root && !out.startsWith(root + path.sep), 'Evidence must stay outside the checkout')
-fs.mkdirSync(out, { recursive: true })
 process.chdir(out)
-const phase = arg('--phase')
+const phase = arg('--phase', 'toolbar')
 const locale = arg('--locale', 'zh')
 const size = arg('--size', '1280x800')
 const result = { phase, locale, size, canary: true, checks: {}, screenshots: [], skipped: [] }
 const write = (name, value) => fs.writeFileSync(path.join(out, name), JSON.stringify(value, null, 2))
 const run = promisify(execFile)
-const lock = process.env.NOMI_GATES_LOCK
+const lock = process.env.NOMI_GATES_LOCK || path.join(root, 'scripts/with-gates-lock.py')
 async function ui(...args) {
   if (args[0] === 'up') assert(lock && path.isAbsolute(lock), 'Set NOMI_GATES_LOCK to with-gates-lock.py')
   const command = [path.join(root, 'tests/ux/ui.mjs'), ...args]

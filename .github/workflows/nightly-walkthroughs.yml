@@ -43,6 +43,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Chromium
         run: bash scripts/ci-install-chromium.sh
+      - name: Set up the Linux command sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
       - name: Build desktop surfaces
         run: pnpm run build
       - name: Build self-check (same verify as every walkthrough launch)
@@ -57,26 +62,32 @@ jobs:
           mkdir -p nightly-walks
           : > "nightly-walks/results-${BATCH}.tsv"
           # 先落文件再读：选择脚本出错时这一步当场失败，不会拿到空清单当成「这一批没有走查」。
-          node scripts/nightly-walk-selection.mjs tests/ux --batch "$BATCH" > "$RUNNER_TEMP/nightly-walks-${BATCH}.txt"
+          node scripts/nightly-walk-selection.mjs tests/ux --batch "$BATCH" --include-skips > "$RUNNER_TEMP/nightly-walks-${BATCH}.txt"
           mapfile -t walks < "$RUNNER_TEMP/nightly-walks-${BATCH}.txt"
           failed=0
-          for walk in "${walks[@]}"; do
+          for entry in "${walks[@]}"; do
+            IFS=$'\t' read -r walk skip_reason <<< "$entry"
             name=$(basename "$walk")
             log="nightly-walks/${name}.log"
             started=$(date +%s)
-            set +e
-            timeout 600 xvfb-run -a node "$walk" >"$log" 2>&1
-            status=$?
-            # 走查改了构建输入（源码树）：这一条判红（96）并点名写了什么，按它之前的树还原，后面的照常跑。
-            # 不核的话，后面每条都被构建戳拒跑、日志里找不到真凶（run 40035294026 b3 连坐 23 条）。
-            node scripts/nightly-walk-tree-guard.mjs --walk "$walk" --state "nightly-walks/tree-guard-${BATCH}.state" --restore >>"$log" 2>&1
-            guard=$?
-            set -e
-            if [ "$guard" -ne 0 ]; then status=$guard; fi
+            if [ -n "$skip_reason" ]; then
+              printf 'Skipped: %s\n' "$skip_reason" | tee "$log"
+              status=125
+            else
+              set +e
+              timeout 600 xvfb-run -a node "$walk" >"$log" 2>&1
+              status=$?
+              # 走查改了构建输入（源码树）：这一条判红（96）并点名写了什么，按它之前的树还原，后面的照常跑。
+              # 不核的话，后面每条都被构建戳拒跑、日志里找不到真凶（run 40035294026 b3 连坐 23 条）。
+              node scripts/nightly-walk-tree-guard.mjs --walk "$walk" --state "nightly-walks/tree-guard-${BATCH}.state" --restore >>"$log" 2>&1
+              guard=$?
+              set -e
+              if [ "$guard" -ne 0 ]; then status=$guard; fi
+              if [ "$status" -ne 0 ]; then failed=1; fi
+            fi
             ended=$(date +%s)
             duration=$((ended - started))
             printf '%s\t%s\t%s\t%s\n' "$walk" "$status" "$duration" "$log" >> "nightly-walks/results-${BATCH}.tsv"
-            if [ "$status" -ne 0 ]; then failed=1; fi
           done
           exit "$failed"
       # 付费走查的免费演练（不要 Key：放行名单为空、供应商与中转改道到本机替身，结构上花不了钱）。只在第 0 批跑一次；
