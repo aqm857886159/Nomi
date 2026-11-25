@@ -15,6 +15,10 @@
 
 ## ★0 先查别人（纯修复，只答出口）
 
+- https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation.md · 计费段「Billed by seconds × resolution tier」，nsfw_check 审核不计费，output_format / return_last_frame 不在计费因素里 · **确认了**：这三个键对 2.5 不改价，可按模型放行。
+- https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation.md · 按实际总像素计费，对 nsfw_check 的审核费说不清 · **改了**：不把三键放进全局名单，只登记在 seedance-2.5 名下。
+- electron/catalog/referenceKeyProjectionCensus.test.ts:1 · 仓库里已有的「遍历目录、每个键必须归类」普查写法 · **确认了**：用普查而不是再写一份手写名单来防目录新键。
+
 出口：不涉及：不新增、扩大或挪动任何挡人的保护；只是让已有的约价在一个模型上亮起来，算不出时仍不印数。
 
 ## ★1 用户怎么用

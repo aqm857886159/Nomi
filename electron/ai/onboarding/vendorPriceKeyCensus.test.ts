@@ -4,9 +4,9 @@ import { normalizeApimartCanonicalModelId } from '../../catalog/apimartModelIds'
 import { classifyPriceKey } from './vendorPriceRequest'
 
 // 线上模型名：和约价运行时一样，带规范化变换的映射先过 normalizeApimartCanonicalModelId。
-const wireModel = (m: { modelKey: string; create?: { request_transform?: string } }) =>
-  m.create?.request_transform === 'apimart-canonical-model-id'
-    ? String((normalizeApimartCanonicalModelId({ model: m.modelKey }) as { model: string }).model) : m.modelKey
+const wireModel = (m: { modelKey?: string; create?: unknown }) =>
+  (m.create as { request_transform?: string } | undefined)?.request_transform === 'apimart-canonical-model-id'
+    ? String((normalizeApimartCanonicalModelId({ model: m.modelKey }) as { model: string }).model) : String(m.modelKey)
 
 // 普查：内置目录里 APIMart 每个文生图 / 文生视频映射的请求体模板键，每个都必须被约价登记过。
 // 用模板键（create.body 的键）而不是按默认参数渲染：渲染会丢掉没填的可选键，覆盖不全（渲染出的键是模板键的子集）。
