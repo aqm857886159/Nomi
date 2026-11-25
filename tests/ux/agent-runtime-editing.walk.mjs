@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 // R1-F: real editor/Agent/tool-host/IPC/SDK/disk path, also runnable against Nomi.app.
 // No adapter call, renderer module import, seeded project or production fixture.
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  ASSISTANT_MESSAGE, CANVAS_PANEL, COMPOSER, COMPOSER_SEND, CREATION_PANEL, DOCUMENT, TOOL_RECEIPT,
+  ASSISTANT_MESSAGE, CANVAS_PANEL, COMPOSER, COMPOSER_SEND, CREATION_PANEL, DOCUMENT, PROCESS, TOOL_RECEIPT,
   USER_BUBBLE, chooseAssistantModel, createRuntimeWalk, hasToolResult,
-  newConversation, openCanvas, readProject, readProjectAgentProposalReceipt,
+  newConversation, openCanvas, openProcess, readProject, readProjectAgentProposalReceipt,
   recorded, requireCurrentPersistedWorkbenchDocument,
   selectConversation, sendCanvas, sendCreation, toolNames, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
@@ -57,6 +58,8 @@ function assertCommittedWrite(projectRoot, toolCallId) {
 const conversationEntries = (session) => session.entries.filter((entry) => entry.type === 'message'
   && (entry.message.role === 'nomi.input' || entry.message.role === 'assistant' && laneMessageText(entry.message)))
 
+process.env.NOMI_WALK_OUT ||= makeTempDir('nomi-agent-runtime-editing-shots-')
+process.env.EVIDENCE_DIR ||= process.env.NOMI_WALK_OUT
 const walk = await createRuntimeWalk('editing')
 let failure
 try {
@@ -73,7 +76,7 @@ try {
   const appendRequest = walk.fixture.expectText({
     label: 'creation-editor proposes a real append',
     match: (body) => flattenRequestText(body).includes(A_PROMPT) && !hasToolResult(body, DOC_TOOL),
-    reply: { type: 'tool', id: DOC_TOOL, name: 'append_to_end', args: { content: APPEND } },
+    reply: { type: 'tool', id: DOC_TOOL, name: 'write_script', args: { where: 'end', content: APPEND } },
   })
   const appendFollowup = walk.fixture.expectText({
     label: 'document execution result returns to the model',
@@ -142,6 +145,7 @@ try {
   await proveProbe(receipt, 'A committed canvas proposal has an Undo receipt')
   await waitForV4TurnIdle(win, { panel: CANVAS_PANEL,
     settledBy: win.locator(CANVAS_PANEL).getByText('F_CANVAS_DONE：备注已落画布。', { exact: true }) })
+  await openProcess(win.locator(`${CANVAS_PANEL} ${PROCESS}`).last(), '展开画布写入回执')
   const canvasEvidence = assertCommittedWrite(projectRoot, CANVAS_TOOL)
   expect(canvasEvidence.session.sessionId).toBe(creationA.sessionId)
   const proposalId = canvasEvidence.receipt.proposalId
@@ -194,7 +198,7 @@ try {
   await expect(stoppedAssistant, 'A stopped assistant item remains visible with its terminal status').toBeVisible()
   await expect(stoppedAssistant.getByRole('button', { name: '继续', exact: true }),
     'The retained stopped turn has an explicit user-facing marker').toBeVisible()
-  stoppedRequest.release({ type: 'tool', id: 'f-late-write', name: 'append_to_end', args: { content: 'F_FORBIDDEN_LATE_WRITE' } })
+  stoppedRequest.release({ type: 'tool', id: 'f-late-write', name: 'write_script', args: { where: 'end', content: 'F_FORBIDDEN_LATE_WRITE' } })
   // 「晚到的写入不许落」这条以前是靠「审批卡没冒出来」来证的。safe-auto 档下可逆写本来就
   // 不弹卡，那条缺席断言于是恒真——换成直接查**文稿本身**：晚到的写入真落了，这段文字就会
   // 出现在编辑器和盘上，这是个有值的判据，不是空话。
@@ -284,6 +288,7 @@ try {
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '冷重启后生成工作区')
   await expect(win.locator(CANVAS_PANEL)).toBeVisible()
   const coldCanvasReceipt = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
+  await openProcess(win.locator(`${CANVAS_PANEL} ${PROCESS}`).last(), '重开后展开画布写入回执')
   await expect(coldCanvasReceipt, 'Cold start keeps the undone audit receipt').toHaveCount(1)
   await expectAbsent(coldCanvasReceipt.getByRole('button', { name: '撤销', exact: true }),
     { provenBy: undoButtonProof, message: 'Cold start must not restore an undone action' })
