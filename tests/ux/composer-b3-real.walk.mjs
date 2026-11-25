@@ -5,7 +5,7 @@
 //   画布节点生成框（选中 → 参考行小图 / 悬停小提示 / 悬停大图 / 提示词里的「小图 + 名字」）
 //   → 底栏方式格（2026-11-12 起方式按输入现算：放不下全部输入的方式置灰并说原因）→ 首尾帧对调 → 参数面板改比例
 //   → 加参考（「+」→ 选择器 → 真上传一张图）
-//   → 切模型（模型菜单只列模型）
+//   → 切模型（菜单分别显示模型名与能力说明）
 //   → 四个复用宿主：节点错误报告 / 列表详情 / Agent 输入框的参考钮 / 分镜表镜头行。
 // 中文 + 浅色一遍、英文 + 暗色一遍；截图进 docs/evidence/2026-10-19-b1a/real/。
 //
@@ -25,8 +25,11 @@ import { closeModeMenu, modeName, openModeMenu, pickMode as pickModeRow } from '
 import { MIN_WINDOW } from './_minWindow.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const evidenceDir = path.join(repoRoot, 'docs/evidence/2026-10-19-b1a/real')
+const evidenceDir = process.env.NOMI_WALK_OUT || makeTempDir('nomi-composer-b3-evidence-')
 fs.mkdirSync(evidenceDir, { recursive: true })
+process.env.EVIDENCE_DIR ||= evidenceDir
+const optionLabel = '[data-nomi-select-option-label]'
+const optionDescription = '[data-nomi-select-option-description]'
 
 const failures = []
 const passed = []
@@ -333,12 +336,18 @@ async function runPass({ locale, scheme }) {
       await selectNode('target-video')
       const c = composer()
       await c.locator('[data-bar-segment="model-params"] button').first().click()
-      const options = win.locator('[role="option"]')
+      const menu = win.locator('[data-nomi-select-dropdown]:visible')
+      const options = menu.getByRole('option')
       await expectVisible(options.first(), '模型菜单')
-      const rows = await options.allTextContents()
-      check(`[${tag}] 模型菜单只列模型（没有说明小字），底部有隐藏模型`, rows.length >= 3 && rows.every((r) => r.length < 64) && /隐藏模型|Hide/.test((await win.locator('body').innerText())), rows.join('|'))
+      const rows = await options.locator(optionLabel).allTextContents()
+      const wan = options.filter({ has: win.locator(optionLabel, { hasText: 'Wan 2.7' }) }).first()
+      const subtitle = await wan.locator(optionDescription).textContent()
+      const visibility = menu.getByRole('button', { name: uiText(locale, 'onboardingProviders.modelControls.manageVisibility'), exact: true })
+      const hasModelLabels = rows.length >= 3 && rows.every((name) => name.trim().length > 0)
+      check(`[${tag}] 模型菜单分开显示模型名与能力说明，底部有隐藏模型`,
+        hasModelLabels && Boolean(subtitle?.trim()) && await visibility.isVisible(), JSON.stringify({ rows, subtitle }))
       await snap('08-model-menu')
-      await options.filter({ hasText: 'Wan 2.7' }).first().click()
+      await wan.click()
       await win.waitForFunction(() => /Wan 2\.7/.test(document.querySelector('.generation-canvas-v2-node__composer [data-bar-segment="model-params"]')?.textContent ?? ''), null, { timeout: stationTimeout() })
       check(`[${tag}] 换到 Wan 2.7：底栏换了模型，生成框仍在`, await c.locator('[data-reference-row], [data-reference-entry]').first().waitFor({ state: 'visible' }).then(() => true, () => false))
       await snap('09-after-model-switch')
@@ -487,7 +496,7 @@ async function runPass({ locale, scheme }) {
           return { sectionTop: Math.round(s.top), sectionBottom: Math.round(s.bottom), visibleTop: Math.round(Math.max(0, c.top)), visibleBottom: Math.round(Math.min(window.innerHeight, c.bottom)), hasScroller: Boolean(node) }
         })
         check(`[${tag}] board:ComposerParams/advanced.section · 最小窗 ${MIN_WINDOW.width}×${MIN_WINDOW.height} 列表详情：高级设置展开后滚回可视区`, facts.sectionBottom <= facts.visibleBottom + 1 && facts.sectionTop >= facts.visibleTop - 1, JSON.stringify({ ...facts, parked }))
-        await screenshotSettled(win, { path: path.join(repoRoot, 'docs/evidence/2026-11-14-composer-params', `advanced-reveal-real-list-detail-${MIN_WINDOW.width}x${MIN_WINDOW.height}-${tag}.png`) })
+        await screenshotSettled(win, { path: path.join(evidenceDir, `advanced-reveal-real-list-detail-${MIN_WINDOW.width}x${MIN_WINDOW.height}-${tag}.png`) })
         // 只记事实、不判（不是这次带来的）：鼠标停在提示词框上滚轮，外层详情滚不滚。
         const prompt = win.locator('[data-composer-host="inline"] [data-prompt-box]').first()
         const promptBox = await prompt.boundingBox()
@@ -525,13 +534,21 @@ async function runPass({ locale, scheme }) {
     await section('host-storyboard-row', async () => {
       await clickOrFail(win.getByRole('button', { name: T('创作', 'Create'), exact: true }), '切到创作页')
       await openStoryboardEditor(win, profile.designId, '打开分镜')
-      await clickOrFail(win.getByRole('button', { name: /打开分镜|再次编辑|Open storyboard|Edit again/ }).first(), '打开分镜页').catch(() => {})
       const row = win.locator('[data-storyboard-editor="true"] [data-storyboard-row="1"]').first()
       await expectVisible(row, '分镜表第 1 行')
       const chips = await row.locator('[data-storyboard-mention-chip]').evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))
       check(`[${tag}] 分镜行提示词里写名字`, chips.join() === '女主肖像,海边小镇', chips.join())
       check(`[${tag}] 分镜行参考小图`, (await row.locator('[data-storyboard-ref-thumb] [data-asset-tile]').count()) === 2)
       await snap('13-storyboard-row')
+      await clickOrFail(row.getByRole('button', { name: uiText(locale, 'generationCommon.parameters.model'), exact: true }), '打开分镜行模型菜单')
+      const options = win.locator('[data-nomi-select-dropdown]:visible').getByRole('option')
+      const labels = win.locator(optionLabel)
+      const inherited = options.filter({ has: labels.and(win.getByText(uiText(locale, 'storyboardEditor.defaultModel'), { exact: true })) })
+      const seedance = options.filter({ has: labels.and(win.getByText('Seedance 2.5', { exact: true })) })
+      await expectVisible(inherited.locator(optionDescription), '分镜可跟随默认模型，并显示继承说明')
+      await expectVisible(seedance.locator(optionDescription), '分镜目录模型有独立能力说明')
+      await expectVisible(seedance.locator('[data-identity-icon]'), '分镜目录模型有品牌图标')
+      await snap('13-storyboard-model-menu')
     })
   } finally {
     if (errors.length) failures.push(`[${tag}] 页面抛错 ${errors.length} 条：${errors.slice(0, 2).join(' | ')}`)

@@ -1,7 +1,7 @@
 // 任务中心 R13 走查 —— Playwright _electron 驱动真 app（隔离 userData 绕开单实例锁）。
 // 用法: node tests/ux/task-center.walk.mjs
 // 想在矮窗口跑：NOMI_WALK_SIZE=1280x800（缺省用默认窗口）。
-// 产出: tests/ux/shots/task-center/*.png —— 顶栏按钮三态 + 面板四种队列状态 + 画布「排队中」角标，
+// 产出: NOMI_WALK_OUT 或仓外临时目录 —— 顶栏按钮三态 + 面板四种队列状态 + 画布「排队中」角标，
 //        人眼判断有无溢出/挤压/文案截断/对比度塌陷。
 //
 // 队列状态经 window.__nomiQueueStore（仅 localStorage.__nomiE2E==='1' 暴露）用**真 store 的真 action**摆出来，
@@ -9,17 +9,13 @@
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { screenshotSettled } from './_assert.mjs'
 import { addCanvasNode, canvasFitView } from './_shell.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/task-center')
-fs.rmSync(shotsDir, { recursive: true, force: true })
+const shotsDir = process.env.NOMI_WALK_OUT || makeTempDir('nomi-task-center-evidence-')
 fs.mkdirSync(shotsDir, { recursive: true })
-
-const userData = path.join(repoRoot, '.tmp', 'nomi-taskcenter-userdata')
-fs.mkdirSync(userData, { recursive: true })
+process.env.EVIDENCE_DIR ||= shotsDir
 
 let n = 0
 async function snap(win, name) {
@@ -37,9 +33,8 @@ async function snap(win, name) {
   }
 }
 
-const { app, win } = await launchNomiApp({
+const { win, close } = await launchNomiApp({
   name: 'task-center',
-  userDataDir: userData,
   args: ['--no-proxy-server'],
   settleMs: 0,
   ...(process.env.NOMI_WALK_SIZE ? { viewportSize: { width: Number(process.env.NOMI_WALK_SIZE.split('x')[0]), height: Number(process.env.NOMI_WALK_SIZE.split('x')[1]) } } : {}),
@@ -71,7 +66,7 @@ const hasBridge = await win.evaluate(() => Boolean(window.__nomiQueueStore))
 console.log('  → queue bridge:', hasBridge)
 if (!hasBridge) {
   console.error('❌ 队列桥没挂上（顶栏 TaskCenterButton 没渲染？）——后续截图无意义，停。')
-  await app.close()
+  await close()
   process.exit(1)
 }
 
@@ -82,30 +77,28 @@ if (await genTab.count()) await genTab.click({ timeout: 5000 }).catch(() => {})
 await win.waitForTimeout(2500)
 await snap(win, 'generation-area-empty-canvas')
 
-// 用真 UI 加 8 个图片节点（画布底部加节点条「图片」）。不走 store 后门——画布 store 的 E2E 桥
-// 只在运镜捕获时才挂，且真点按钮本来就更忠实。像创作者那样加：新节点选中后它的底栏会盖住加节点条，
+// 用真 UI 加 8 个图片节点（画布底部加节点条「图片」）。像创作者那样加：新节点选中后它的底栏会盖住加节点条，
 // 每加一个先点一下画布空白处取消选中（addCanvasNode 里的 revealCanvasDock 就是这么做的）。
 for (let i = 0; i < 8; i += 1) {
   await addCanvasNode(win, 'image')
   await win.waitForTimeout(260)
 }
 await win.waitForTimeout(900)
-// 8 张图片节点一屏摆不下，画布只渲染看得见的那几张：像创作者那样点「适应视图」把它们都收进来，后面才读得到 8 个 id。
-await canvasFitView(win)
-await win.waitForTimeout(900)
 
-// 节点 id 从 DOM 上读（真实渲染出来的那些），不依赖任何 store 后门。
-const nodeIds = await win.evaluate(() =>
-  Array.from(document.querySelectorAll('[data-node-id]'))
-    .map((el) => el.getAttribute('data-node-id'))
-    .filter(Boolean),
-)
-console.log('  → nodes:', nodeIds.length)
-if (nodeIds.length < 8) {
+// React Flow 只挂视口内的节点。读取真实项目里的图片节点，随后用这些 id 验证两波任务。
+const { nodeIds, mountedNodes } = await win.evaluate(() => ({
+  nodeIds: window.__nomiCanvasStore.getState().nodes.filter((node) => node.kind === 'image').map((node) => node.id),
+  mountedNodes: document.querySelectorAll('[data-node-id]').length,
+}))
+console.log(`  → nodes: ${nodeIds.length} (DOM: ${mountedNodes})`)
+if (new Set(nodeIds).size !== 8) {
   console.error('❌ 节点没加够（读到', nodeIds.length, '个）——后续状态摆不出来，停。')
-  await app.close()
+  await close()
   process.exit(1)
 }
+// 适应视图用于截图，真实节点清单已经读回。
+await canvasFitView(win)
+await win.waitForTimeout(900)
 await snap(win, 'canvas-with-nodes')
 
 // ① 批量跑到一半：前 2 个跑着、中间 2 个成/败、剩下排队（含第 2 波）。
@@ -257,5 +250,5 @@ const geometry = await win.evaluate(() => {
 })
 console.log('  → 面板几何:', JSON.stringify(geometry))
 
-await app.close()
+await close()
 console.log(`\n✅ 走查截图已出：${shotsDir}（下一步必须自己 Read 每张图人眼判断）`)
