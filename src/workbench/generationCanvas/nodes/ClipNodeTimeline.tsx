@@ -1,3 +1,4 @@
+import { pulseSnap } from '../../timeline/pulseSnap'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPlus } from '@tabler/icons-react'
@@ -159,16 +160,6 @@ function ClipItem({
   const lastSnapKeyRef = React.useRef<string | null>(null)
   const { t } = useTranslation()
 
-  const pulseSnap = React.useCallback(() => {
-    const node = ref.current
-    if (!node || typeof node.animate !== 'function') return
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
-    node.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.015)' }, { transform: 'scale(1)' }], {
-      duration: 130,
-      easing: 'cubic-bezier(.2,.7,.3,1)',
-    })
-  }, [])
-
   const startSession = usePointerSession()
 
   const beginDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -203,7 +194,7 @@ function ClipItem({
       if (!resolved) return
       lastTarget = resolved
       const snapKey = resolved.snap ? `${resolved.snap.frame}:${resolved.snap.point.type}` : null
-      if (snapKey && snapKey !== lastSnapKeyRef.current) pulseSnap()
+      if (snapKey && snapKey !== lastSnapKeyRef.current) pulseSnap(ref.current)
       lastSnapKeyRef.current = snapKey
       onDragPreview({ clipId: clip.id, ...resolved })
     }
@@ -272,7 +263,7 @@ function ClipItem({
       lastTarget = resolved
       setResizingEdge(edge)
       const snapKey = resolved.snap ? `${resolved.snap.frame}:${resolved.snap.point.type}` : null
-      if (snapKey && snapKey !== lastSnapKeyRef.current) pulseSnap()
+      if (snapKey && snapKey !== lastSnapKeyRef.current) pulseSnap(ref.current)
       lastSnapKeyRef.current = snapKey
       onResizePreview({ clipId: clip.id, edge, ...resolved })
     }

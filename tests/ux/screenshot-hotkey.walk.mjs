@@ -1,5 +1,5 @@
 // R13 走查 —— 全局截图热键（SHUO backlog 第 7 项）。
-// 用法: node tests/ux/screenshot-hotkey.walk.mjs   产出: tests/ux/shots/screenshot-hotkey/*.png
+// 用法: node tests/ux/screenshot-hotkey.walk.mjs
 //
 // ⚠️ 诚实边界：**全局热键本身没法在这里按**（Playwright 只能往窗口里发键，发不出 OS 级全局按键）。
 // 所以这条走查分两段各自验真：
@@ -9,16 +9,14 @@
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { clickOrFail, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/screenshot-hotkey')
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
-const userData = path.join(repoRoot, '.tmp', 'nomi-screenshot-userdata')
-fs.rmSync(userData, { recursive: true, force: true })
-fs.mkdirSync(userData, { recursive: true })
+const tempRoot = makeTempDir('nomi-screenshot-hotkey-')
+const shotsDir = path.join(tempRoot, 'shots')
+fs.mkdirSync(shotsDir)
+process.env.EVIDENCE_DIR ??= path.join(tempRoot, 'feel')
 
 let n = 0
 const fail = []
@@ -34,8 +32,9 @@ async function snap(win, name, clip) {
 
 const { app, win } = await launchNomiApp({
   name: 'screenshot-hotkey',
-  userDataDir: userData,
-  settingsDir: userData,
+  tempRoot,
+  settingsDir: path.join(tempRoot, 'settings'),
+  projectsDir: path.join(tempRoot, 'projects'),
   args: ['--no-proxy-server'],
   settleMs: 0,
 })
@@ -48,14 +47,8 @@ await win.evaluate(() => {
 await win.reload()
 await win.waitForLoadState('domcontentloaded')
 await win.waitForTimeout(2200)
-for (const label of ['新建空白项目', '开始一个项目']) {
-  const el = win.locator('button', { hasText: label }).first()
-  if (await el.count()) { await el.click({ timeout: 4000 }).catch(() => {}); break }
-}
-await win.waitForTimeout(2500)
-const genTab = win.locator('button', { hasText: /^生成$/ }).first()
-if (await genTab.count()) await genTab.click({ timeout: 5000 }).catch(() => {})
-await win.waitForTimeout(2000)
+await clickOrFail(newProjectEntry(win), '新建截图验收项目')
+await switchWorkspace(win, 'generation', '打开截图要落地的生成画布')
 
 // ── ① 默认必须是关的（拍板：不默认抢用户的全局键、不默认弹权限框）
 const bootStatus = await app.evaluate(async ({ globalShortcut }) => ({
@@ -65,14 +58,7 @@ console.log('  → 启动后主进程:', JSON.stringify(bootStatus))
 check('默认没注册任何全局键（默认关）', bootStatus.anyRegistered === false, JSON.stringify(bootStatus))
 
 // 打开设置 → 通用
-await win.locator('[aria-label="设置"], [title="设置"]').first().click({ timeout: 6000 }).catch(async () => {
-  await win.locator('button:has(svg)').filter({ hasText: '' }).nth(0).click().catch(() => {})
-})
-await win.waitForTimeout(1200)
-const dialog = win.locator('[role="dialog"][aria-label="设置"]').first()
-check('设置面板打开了', await dialog.waitFor({ state: 'visible' }).then(() => true, () => false))
-await dialog.locator('button', { hasText: '通用' }).first().click({ timeout: 5000 })
-await win.waitForTimeout(900)
+const dialog = await openSettings(win, { tab: 'general', label: '打开截图热键设置' })
 await snap(win, 'settings-general-off')
 {
   const box = await dialog.boundingBox().catch(() => null)
@@ -83,9 +69,8 @@ check('通用页有「全局截图热键」这一节', /全局截图热键/.test
 check('说清了默认关 + macOS 要屏幕录制权限', /默认关/.test(sectionText || '') && /屏幕录制/.test(sectionText || ''))
 
 // ── ② 打开开关 → 主进程必须真的注册上
-// Mantine 的 Switch 真 input 是视觉隐藏的（点不到）→ 点它的 track。
-const toggle = dialog.locator('.mantine-Switch-track').first()
-await toggle.click({ timeout: 5000 })
+const toggle = dialog.getByRole('switch', { name: '全局截图热键', exact: true })
+await toggle.press('Space')
 await win.waitForTimeout(2000)
 const afterOn = await app.evaluate(async ({ globalShortcut }) => ({
   q: globalShortcut.isRegistered('Alt+Shift+Q'),
@@ -123,7 +108,7 @@ check('换键后新键注册上了', afterSwitch.s === true, JSON.stringify(afte
 check('换键后**旧键撤掉了**（不撤会一直占着用户的键）', afterSwitch.q === false, JSON.stringify(afterSwitch))
 
 // ── ④ 关掉 → 必须真撤
-await toggle.click({ timeout: 5000 })
+await toggle.press('Space')
 await win.waitForTimeout(2000)
 const afterOff = await app.evaluate(async ({ globalShortcut }) => ({
   q: globalShortcut.isRegistered('Alt+Shift+Q'),

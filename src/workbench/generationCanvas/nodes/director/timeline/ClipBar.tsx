@@ -58,10 +58,10 @@ export function ClipBar({
       {selected && !muted ? (
         <>
           <span className="group/handle absolute inset-y-0 left-0 z-20 w-2.5 max-w-[50%] cursor-col-resize" aria-hidden>
-            <span className="absolute inset-y-0 left-0 w-1 rounded-l-[2px] bg-nomi-clip-selected/75 transition-all group-hover/handle:w-[5px] group-hover/handle:bg-nomi-clip-selected/90" />
+            <span className="absolute inset-y-0 left-0 w-1 rounded-l-[2px] bg-nomi-clip-selected/75 transition-colors group-hover/handle:w-[5px] group-hover/handle:bg-nomi-clip-selected/90" />
           </span>
           <span className="group/handle absolute inset-y-0 right-0 z-20 w-2.5 max-w-[50%] cursor-col-resize" aria-hidden>
-            <span className="absolute inset-y-0 right-0 w-1 rounded-r-[2px] bg-nomi-clip-selected/75 transition-all group-hover/handle:w-[5px] group-hover/handle:bg-nomi-clip-selected/90" />
+            <span className="absolute inset-y-0 right-0 w-1 rounded-r-[2px] bg-nomi-clip-selected/75 transition-colors group-hover/handle:w-[5px] group-hover/handle:bg-nomi-clip-selected/90" />
           </span>
         </>
       ) : null}

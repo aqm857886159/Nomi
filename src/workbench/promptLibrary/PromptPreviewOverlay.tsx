@@ -1,3 +1,4 @@
+import { shouldReduceMotion, NOMI_DURATION_MS, exitDurationMs } from '../../design/motion'
 import { NomiMarkdown } from '../common/NomiMarkdown'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -24,8 +25,7 @@ type Props = {
   onDelete?: (prompt: LibraryPrompt) => void
 }
 
-const EASE = 'cubic-bezier(.2, .7, .3, 1)'
-const ANIM_MS = 260
+const EXIT_MS = exitDurationMs(NOMI_DURATION_MS.spatial)
 
 /**
  * 提示词详情（PromptDetail 板）：从被点卡片的位置 FLIP 放大浮到屏幕中央（transform-origin 0 0，先映射回原位再过渡到正位）。
@@ -63,12 +63,12 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onAddToCanva
   // 进场：挂载即贴回原卡位置 → 下一帧过渡到正位。
   React.useLayoutEffect(() => {
     const box = boxRef.current
-    if (!box) return
+    if (!box || shouldReduceMotion()) return
     box.style.transformOrigin = '0 0'
     box.style.transform = mapToOrigin(box)
     box.style.opacity = '0.4'
     const id = requestAnimationFrame(() => {
-      box.style.transition = `transform ${ANIM_MS}ms ${EASE}, opacity ${ANIM_MS}ms ${EASE}`
+      box.style.transition = `transform var(--nomi-duration-spatial) var(--nomi-ease-spatial), opacity var(--nomi-duration-spatial) var(--nomi-ease-out)`
       box.style.transform = 'translate(0, 0) scale(1)'
       box.style.opacity = '1'
     })
@@ -77,15 +77,15 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onAddToCanva
 
   const close = React.useCallback(() => {
     const box = boxRef.current
-    if (!box || closing) {
+    if (!box || closing || shouldReduceMotion()) {
       onClose()
       return
     }
     setClosing(true)
-    box.style.transition = `transform ${ANIM_MS}ms ${EASE}, opacity ${ANIM_MS}ms ${EASE}`
+    box.style.transition = `transform var(--nomi-duration-spatial-exit) var(--nomi-ease-in), opacity var(--nomi-duration-spatial-exit) var(--nomi-ease-in)`
     box.style.transform = mapToOrigin(box)
     box.style.opacity = '0'
-    window.setTimeout(onClose, ANIM_MS)
+    window.setTimeout(onClose, EXIT_MS)
   }, [closing, mapToOrigin, onClose])
 
   React.useEffect(() => {
@@ -111,8 +111,8 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onAddToCanva
       <div
         role="dialog"
         aria-label={displayTitle}
-        className={cn('fixed inset-0 grid place-items-center p-6')}
-        style={{ zIndex: 4200, background: 'var(--nomi-scrim)', animation: `nomi-fade ${ANIM_MS}ms ${EASE}` }}
+        className={cn('fixed inset-0 grid place-items-center p-6 motion-safe:animate-nomi-fade')}
+        style={{ zIndex: 4200, background: 'var(--nomi-scrim)' }}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) close()
         }}
@@ -191,7 +191,6 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onAddToCanva
             </LibraryDetailPrimary>
           </LibraryDetailFooter>
         </div>
-        <style>{`@keyframes nomi-fade { from { opacity: 0 } to { opacity: 1 } }`}</style>
       </div>
     </Portal>
   )

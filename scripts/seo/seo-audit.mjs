@@ -105,18 +105,54 @@ export function auditSitemap(xml, manifest = marketingPages, baseUrl = DEFAULT_B
   return { checked: manifest.length, entries, failures }
 }
 
+const REQUIRED_CRAWLERS = ['Googlebot', 'Bingbot', 'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'ClaudeBot', 'Google-Extended']
+
+function parseRobotGroups(normalized) {
+  const groups = []
+  let current = null
+  for (const rawLine of normalized.split('\n')) {
+    const line = rawLine.replace(/#.*$/, '').trim()
+    if (!line) {
+      current = null
+      continue
+    }
+    const colon = line.indexOf(':')
+    if (colon < 0) continue
+    const field = line.slice(0, colon).trim().toLowerCase()
+    const value = line.slice(colon + 1).trim()
+    if (field === 'user-agent') {
+      if (!current || current.rules.length > 0) {
+        current = { agents: [], rules: [] }
+        groups.push(current)
+      }
+      current.agents.push(value.toLowerCase())
+    } else if (current && (field === 'allow' || field === 'disallow')) {
+      current.rules.push({ field, value })
+    }
+  }
+  return groups
+}
+
 export function auditRobots(text, baseUrl = DEFAULT_BASE_URL) {
   const failures = []
   const normalized = text.replaceAll('\r', '')
-  if (/^Disallow:\s*\/\s*$/im.test(normalized) && !/^Allow:\s*\/\s*$/im.test(normalized)) {
+  const groups = parseRobotGroups(normalized)
+  const wildcardGroup = groups.find((group) => group.agents.includes('*'))
+  if (wildcardGroup && wildcardGroup.rules.some((r) => r.field === 'disallow' && r.value === '/') && !wildcardGroup.rules.some((r) => r.field === 'allow' && r.value === '/')) {
     failures.push(failure('ROBOTS-DISALLOW-ALL', 'robots.txt blocks the entire site', 'Disallow: /', 'Allow public marketing pages to be crawled.'))
+  }
+  for (const agent of REQUIRED_CRAWLERS) {
+    const group = groups.find((item) => item.agents.includes(agent.toLowerCase()))
+    if (group && group.rules.some((r) => r.field === 'disallow' && r.value === '/') && !group.rules.some((r) => r.field === 'allow' && r.value === '/')) {
+      failures.push(failure('ROBOTS-CRAWLER-DISALLOW', `robots.txt blocks ${agent}`, `User-agent: ${agent} Disallow: /`, `Allow ${agent} to crawl public marketing pages.`))
+    }
   }
   const sitemapUrl = `${baseUrl.replace(/\/$/, '')}/sitemap.xml`
   const escapedUrl = sitemapUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   if (!new RegExp(`^Sitemap:\\s*${escapedUrl}\\s*$`, 'im').test(normalized)) {
     failures.push(failure('ROBOTS-SITEMAP', 'robots.txt does not point to the canonical sitemap', sitemapUrl, 'Add a Sitemap directive with the public sitemap URL.'))
   }
-  return { checked: 2, failures }
+  return { checked: 3, failures }
 }
 
 const header = (response, name) => response.headers?.get?.(name) || response.headers?.get?.(name.toLowerCase()) || response.headers?.[name] || ''

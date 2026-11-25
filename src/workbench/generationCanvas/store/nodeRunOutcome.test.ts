@@ -96,3 +96,12 @@ describe('nodeRunOutcomePatch keeps the reason a node landed recoverable (#1213)
     expect(patch.error).toBeUndefined()
   })
 })
+
+it('keeps main frame dimensions when a superseded image arrives for history', () => {
+  const current = { ...node(), result: imageResult, meta: { imageWidth: 100, imageHeight: 100 },
+    runs: [{ id: 'new', status: 'success' as const }, { id: 'old', status: 'running' as const }].map(run => ({ ...run, startedAt: 1, updatedAt: 2 })) }
+  const patch = nodeRunOutcomePatch(current, { kind: 'result', runId: 'old',
+    result: { ...imageResult, id: 'old-image' }, mediaDimensions: { width: 90, height: 160 } })
+  expect(patch.history?.[0].id).toBe('old-image')
+  expect({ ...current, ...patch }).toMatchObject({ result: imageResult, meta: current.meta })
+})

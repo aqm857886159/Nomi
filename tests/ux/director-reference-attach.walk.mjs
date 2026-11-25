@@ -7,7 +7,7 @@
 // 静态 import .ts 会在 Node 自带的类型剥离里栽在无扩展名的相对 import 上，2026-10-24 夜跑红过）。
 //
 // 走的是真实用户路径：隔离资料目录（不碰用户真实资料 / 项目）→ 新建项目 → 生成页 → 画布上的导演台节点 →
-// 常驻 Host 离屏渲染整段预演 → 进导演台点「出成片」→ 回画布选中视频节点 → 点节点 ↑ →「开始生成」确认。
+// 常驻 Host 离屏渲染整段预演 → 进导演台点「出成片」→ 回画布选中视频节点 → 点节点 ↑ 发出单笔请求。
 // 上游是本机假服务（127.0.0.1）：它**只录请求体、不建任务**（422 当场拒绝 = 没受理、没扣钱）；
 // 视频走本机假上传口，所以请求体里的参考视频是假服务发回的网址，按上传顺序能对回「哪一条是预演」。
 // 请求体的形状取自真实的 Kie Seedance 2 mapping（SEEDANCE_2_CREATE_OP，只去掉鉴权头），不手抄。
@@ -16,16 +16,16 @@
 //   A 无参考视频槽的模型备好预演 → 换成有槽的模型 → 出成片 → 请求带预演、提示词引用 @video1
 //   B 已挂好的预演参考被手动删掉 → 生成按文生放行 → 换模型不挂回 → 出成片重新挂上
 //   C 视频节点已有一条用户自己的参考视频 → 出成片 → 请求两条、提示词引用 @video2（指向预演那一条）
-// 证据落 tests/ux/shots/director-reference-attach/<语言>/：每个场景一张截图 + wire-requests.json（抓到的请求体）。
+// 截图和 wire-requests.json 默认写入临时目录；用 NOMI_WALK_OUT 指定仓外目录可保留。
 import fs from 'node:fs'
 import http from 'node:http'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { expect } from '@playwright/test'
 import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
 import { createBlankProject } from '../../evals/lib/isoApp.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 import { bringButtonIntoReach } from './_generateReach.mjs'
@@ -34,16 +34,14 @@ const { compileDirectorPlan } = tsxRequire('../../src/workbench/generationCanvas
 const { SEEDANCE_2_CREATE_OP, SEEDANCE_2_QUERY_OP } = tsxRequire('../../electron/catalog/kieSeedance.ts', import.meta.url)
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-// NOMI_WALK_PAID_LIKE=1：照付费脚本的样子走——Agent 面板开着、点 ↑ 只用真鼠标（不退到 DOM 点击），并量「点击 → 确认框可见」的毫秒数与按钮被谁盖着（协调 10-22 查付费样本点 ↑ 没反应）。
+// NOMI_WALK_PAID_LIKE=1：保持 Agent 面板开着，记录真实鼠标的命中情况和从点击到回环请求的时间。
 const PAID_LIKE = process.env.NOMI_WALK_PAID_LIKE === '1'
 const lang = process.env.NOMI_WALK_LANG === 'en' ? 'en' : 'zh-CN'
 const langDir = lang === 'en' ? 'en' : 'zh'
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/director-reference-attach', langDir)
-fs.rmSync(shotsDir, { recursive: true, force: true })
+const tempRoot = makeTempDir(`director-reference-attach-${langDir}`)
+const shotsDir = process.env.NOMI_WALK_OUT ?? path.join(tempRoot, 'shots')
+process.env.EVIDENCE_DIR ??= path.join(shotsDir, 'feel')
 fs.mkdirSync(shotsDir, { recursive: true })
-// 隔离资料放系统临时目录（不能落回仓库根：macOS / Linux 没有 TEMP，旧写法会在工作树根建 nomi-ref-attach-*）
-const tempRoot = path.join(process.env.TEMP || os.tmpdir(), `nomi-ref-attach-${langDir}`)
-fs.rmSync(tempRoot, { recursive: true, force: true })
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
@@ -124,7 +122,7 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   apiKeysByVendor: {},
 }, null, 2))
 
-const report = { lang, startedAt: new Date().toISOString(), checks: [], scenarios: {}, deletionPaths: [] }
+const report = { lang, startedAt: new Date().toISOString(), paidCalls: 0, checks: [], scenarios: {}, deletionPaths: [] }
 const check = (name, ok, detail = '') => {
   report.checks.push({ name, ok: Boolean(ok), detail })
   console.log(`${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
@@ -137,11 +135,11 @@ const { app, win } = await launchNomiApp({
   settleMs: 0,
   args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'],
   initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1', 'nomi:locale:v1': lang },
-  env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist/index.html')}`, NOMI_DISABLE_AUTO_UPDATE: '1' },
+  env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist/index.html')}`, NOMI_DISABLE_AUTO_UPDATE: '1', NOMI_TEST_NETWORK_GUARD: '1' },
 })
 const pageErrors = []
 win.on('pageerror', (error) => pageErrors.push(String(error)))
-const shot = async (name) => { const file = path.join(shotsDir, `${name}.png`); await win.screenshot({ path: file }); console.log(`  screenshot: ${path.relative(repoRoot, file)}`); return file }
+const shot = async (name) => { const file = path.join(shotsDir, `${name}.png`); await win.screenshot({ path: file }); console.log(`  screenshot: ${file}`); return file }
 const store = (fn, arg) => win.evaluate(fn, arg)
 const nodeById = (id) => store((nodeId) => window.__nomiCanvasStore.getState().nodes.find((n) => n.id === nodeId) ?? null, id)
 const waitFor = async (label, predicate, timeout = 60_000) => {
@@ -210,9 +208,9 @@ try {
     const openButton = win.locator('[data-testid="director-node-open"]').first()
     await openButton.waitFor({ state: 'attached', timeout: stationTimeout({ operations: 2 }) })
     await openButton.evaluate((element) => element.click())
-    await win.locator('[data-testid="director-editor"]').waitFor({ timeout: stationTimeout({ operations: 4 }) })
-    await waitFor(`${label}：出成片按钮可点`, () => win.locator('[data-testid="director-produce-main"]').isEnabled().catch(() => false), 60_000)
-    await clickOrDom(win.locator('[data-testid="director-produce-main"]'))
+    const produceButton = win.getByTestId('director-editor').getByTestId('director-view-topbar').getByTestId('director-produce-main')
+    await expect(produceButton, `${label}：导演视图的出成片按钮可点`).toBeEnabled({ timeout: stationTimeout({ operations: 4 }) })
+    await produceButton.click()
     await waitFor(`${label}：回到画布并选中视频节点`, () => store((id) => {
       const state = window.__nomiCanvasStore.getState()
       return !document.querySelector('[data-testid="director-editor"]') && state.selectedNodeIds.includes(id)
@@ -224,7 +222,7 @@ try {
     const node = state.nodes.find((item) => item.id === director)
     state.updateNode(director, { meta: { ...node.meta, directorPreview: { ...node.meta.directorPreview, targetNodeId: target, updatedAt: Date.now() } } })
   }, { director: ids.director, target: targetId })
-  const spendAndCapture = async (nodeId, label) => {
+  const submitAndCapture = async (nodeId, label) => {
     const before = wire.length
     const generateButton = win.locator(`[data-node-id="${nodeId}"] button[data-bar-segment="generate"]`).first()
     let clickedAt = Date.now()
@@ -234,13 +232,10 @@ try {
       clickedAt = Date.now()
       await generateButton.click({ timeout: stationTimeout({ operations: 2 }), noWaitAfter: true }) // 只用真鼠标：点不到就红
     } else await clickOrDom(generateButton)
-    const dialog = win.locator('[data-spend-confirm-dialog]').filter({ hasText: lang === 'en' ? /Start generating|Generate/ : /开始生成/ }).last()
-    await dialog.waitFor({ timeout: PAID_LIKE ? stationTimeout({ turns: 1 }) : stationTimeout({ operations: 1 }) })
-    if (PAID_LIKE) { report.latency[label].dialogMs = Date.now() - clickedAt; console.log(`  · ${label}：点击 → 确认框可见 ${report.latency[label].dialogMs} ms`) }
-    await shot(`${label}-spend-confirm`)
-    await dialog.getByRole('button', { name: lang === 'en' ? /^Generate$/ : /^生成$/ }).click()
     await waitFor(`${label}：假上游收到请求`, () => wire.length > before, 60_000)
-    return wire[wire.length - 1]
+    if (PAID_LIKE) report.latency[label].requestMs = Date.now() - clickedAt
+    await shot(`${label}-request-sent`)
+    return wire[before]
   }
   const refsOf = (call) => {
     const input = call.body?.input ?? {}
@@ -254,7 +249,7 @@ try {
   const nodeA1 = await nodeById(ids.a)
   check('A：换成有槽模型后出成片 → 预演作为参考视频重新挂上', (nodeA1.meta.referenceVideoUrls ?? []).includes(previewUrl), JSON.stringify(nodeA1.meta.referenceVideoUrls))
   await shot('A-node-after-produce')
-  const callA = await spendAndCapture(ids.a, 'A')
+  const callA = await submitAndCapture(ids.a, 'A')
   const a = refsOf(callA)
   report.scenarios.A = { videos: a.videos, prompt: a.prompt }
   check('A：请求里带着预演参考（一条，且是假上传口发回的预演网址）', Array.isArray(a.videos) && a.videos.length === 1 && uploads.some((u) => u.url === a.videos[0]), JSON.stringify({ videos: a.videos, uploads: uploads.map((u) => ({ id: u.id, filename: u.filename, bytes: u.bytes })) }))
@@ -296,14 +291,14 @@ try {
   const bSlotAfterSwitch = await nodeById(ids.b)
   const bSlotButton = win.locator(`[data-node-id="${ids.b}"] button[data-bar-segment="generate"]`).first()
   check('B：再换回有槽模型仍不挂回、生成钮可点', !(bSlotAfterSwitch.meta.referenceVideoUrls ?? []).length && !/3D-BOX 预演运镜：/.test(bSlotAfterSwitch.prompt ?? '') && await bSlotButton.isEnabled(), JSON.stringify({ refs: bSlotAfterSwitch.meta.referenceVideoUrls, prompt: bSlotAfterSwitch.prompt }))
-  const callBDelete = await spendAndCapture(ids.b, 'B-delete')
+  const callBDelete = await submitAndCapture(ids.b, 'B-delete')
   const bDeleteRequest = refsOf(callBDelete)
   check('B：删除后的 ↑ 确认请求没有参考视频和运镜句', !bDeleteRequest.videos?.length && !/跟随这段参考视频的运镜/.test(bDeleteRequest.prompt) && !/3D-BOX 预演运镜：/.test(bDeleteRequest.prompt), JSON.stringify(bDeleteRequest))
   await produce(ids.b, 'B2')
   const nodeB2 = await nodeById(ids.b)
   check('B：再出成片 → 预演参考重新挂上', (nodeB2.meta.referenceVideoUrls ?? []).includes(previewUrl), JSON.stringify(nodeB2.meta.referenceVideoUrls))
   await shot('B-node-after-reattach')
-  const callB = await spendAndCapture(ids.b, 'B')
+  const callB = await submitAndCapture(ids.b, 'B')
   const b = refsOf(callB)
   report.scenarios.B = { deletedRequest: bDeleteRequest, videos: b.videos, prompt: b.prompt }
   check('B：请求里带着预演参考', Array.isArray(b.videos) && b.videos.length === 1 && uploads.some((u) => u.url === b.videos[0]), JSON.stringify(b.videos))
@@ -312,7 +307,7 @@ try {
   await retarget(ids.c)
   await produce(ids.c, 'C')
   await shot('C-node-after-produce')
-  const callC = await spendAndCapture(ids.c, 'C')
+  const callC = await submitAndCapture(ids.c, 'C')
   const c = refsOf(callC)
   report.scenarios.C = { videos: c.videos, prompt: c.prompt }
   check('C：请求里两条参考视频，用户自己的在前、预演在后', Array.isArray(c.videos) && c.videos.length === 2 && c.videos[0] === USER_CLIP && uploads.some((u) => u.url === c.videos[1]), JSON.stringify(c.videos))
@@ -328,17 +323,18 @@ try {
   await waitFor('D：换模型后挂接对账器自动重挂预演参考', async () => ((await nodeById(ids.d)).meta.referenceVideoUrls ?? []).includes(previewUrl), 30_000)
   await store((id) => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId: id, select: true } })), ids.d)
   await shot('D-node-after-model-switch')
-  const callD = await spendAndCapture(ids.d, 'D')
+  const callD = await submitAndCapture(ids.d, 'D')
   const dd = refsOf(callD)
   report.scenarios.D = { videos: dd.videos, prompt: dd.prompt }
   check('D：换模型后直接点 ↑，请求里带着预演参考', Array.isArray(dd.videos) && dd.videos.length === 1 && uploads.some((u) => u.url === dd.videos[0]), JSON.stringify(dd.videos))
   check('D：请求提示词里的引用是 @video1', /@video1 /.test(dd.prompt), dd.prompt)
 
   check('渲染端没有抛错', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '))
+  check('五次点击各发一笔回环请求', wire.length === 5, String(wire.length))
   report.uploads = uploads
   report.wire = wire
   fs.writeFileSync(path.join(shotsDir, 'wire-requests.json'), JSON.stringify(report, null, 2))
-  console.log(`✓ director-reference-attach (${lang}) 通过，证据在 ${path.relative(repoRoot, shotsDir)}`)
+  console.log(`✓ director-reference-attach (${lang}) 通过，0 付费请求，证据在 ${shotsDir}`)
 } catch (error) {
   await win.screenshot({ path: path.join(shotsDir, 'failure.png') }).catch(() => {})
   report.error = String(error?.message ?? error)

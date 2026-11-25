@@ -11,13 +11,18 @@
 //   · 每一行都必须看得见模型名（宽度 > 0）——这正是 2026-09-06 用户返工时的那个 bug；
 //   · 浮层整个落在舞台里（溢出的部分按元素截图会被无声裁掉）。
 //
-// 产出：`tests/ux/shots/design-lab-vendor-order/<state>.png` + `_contact-sheet.png`（拍板用）。
+// 证据默认写入临时目录；用 NOMI_WALK_OUT 指定仓外目录可保留截图。
 // 真机那份证据在 `tests/ux/shots/vendor-order/journey-*.png`（vendor-preference-order.walk.mjs）——
 // 实验室这份是喂固定夹具的现役组件，真机那份走完整条 IPC + catalog，两边摆一起才答得了
 // 「实验室里对，真机里也对吗」。
 //
 // 用法：node tests/ux/design-lab-vendor-order.walk.mjs   （ONLY=vo-01-picker-preferred 只跑一个）
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { uiText } from './full-walk/invariants.mjs'
+
+// 模型框浮层实测到 365px，留出末行下方的边距，宽度仍可容纳整块浮层。
+const PICKER_CAPTURE_HEIGHT = 384
 
 await walkDesignLabScreen({
   screen: 'vendor-order',
@@ -25,9 +30,16 @@ await walkDesignLabScreen({
   // 端口按 worktree + 角色派生（design-lab/labServer.mjs）：写死端口在这台机器上是全局单例，
   // 撞了就会连上别人那棵树的实验室，截回一份别人分支的 UI。
   role: 'walk-vendor-order',
+  outDir: process.env.NOMI_WALK_OUT ?? makeTempDir('design-lab-vendor-order'),
   // 舞台 460 宽（vendorOrderLabKit.STAGE_WIDTH）；三列一屏看完七格。
   cellWidth: 460,
   columns: 3,
+  beforeCapture: async (page, state) => {
+    if (!state.id.includes('picker')) return
+    await page.locator('[data-design-lab-stage="picker"]').evaluate((stage, height) => {
+      stage.style.minHeight = `${height}px`
+    }, PICKER_CAPTURE_HEIGHT)
+  },
   assertState: async (page, state, record) => {
     if (!state.id.includes('picker')) return
     const dropdown = page.locator('[data-nomi-select-dropdown]')
@@ -43,8 +55,10 @@ await walkDesignLabScreen({
     if (state.id.includes('empty')) {
       // 空态这一格的承诺很硬：**恰好一行**，而且那一行要说清现状 + 给出路。
       // 只断「有内容」的话，一个真空白下拉也能混过去——那正是这一格要防的形态。
-      if (count !== 1 || !labels.join(' ').includes('还没接入供应商')) {
-        record(`${state.id} 应当只有一行「还没接入供应商」空态，实际 ${count} 行：${labels.join(' | ')}`)
+      const status = uiText('zh-CN', 'generationCommon.parameters.noVendorConnected')
+      const action = uiText('zh-CN', 'generationCommon.parameters.connectVendorAction')
+      if (count !== 1 || !labels[0]?.includes(status) || !labels[0]?.includes(action)) {
+        record(`${state.id} 应当只有一行「${status}」与「${action}」，实际 ${count} 行：${labels.join(' | ')}`)
         return
       }
     } else if (count < 2) {
@@ -73,10 +87,10 @@ await walkDesignLabScreen({
       if (!stage || !panel) return null
       const a = stage.getBoundingClientRect()
       const b = panel.getBoundingClientRect()
-      return { bottom: Math.round(b.bottom - a.bottom), right: Math.round(b.right - a.right) }
+      return { top: Math.round(a.top - b.top), bottom: Math.round(b.bottom - a.bottom), left: Math.round(a.left - b.left), right: Math.round(b.right - a.right) }
     }, state.id)
-    if (overflow && (overflow.bottom > 0 || overflow.right > 0)) {
-      record(`${state.id} 的下拉溢出舞台（下 ${overflow.bottom}px / 右 ${overflow.right}px），截图会被裁掉；调大 STAGE_HEIGHT/STAGE_WIDTH`)
+    if (!overflow || Object.values(overflow).some((edge) => edge > 0)) {
+      record(`${state.id} 的下拉未完整落入截图舞台：${JSON.stringify(overflow)}`)
     }
   },
 })

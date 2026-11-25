@@ -13,17 +13,14 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { walkEvidenceDir } from './_walkEvidence.mjs'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-03-scope-after')
-fs.mkdirSync(outDir, { recursive: true })
+const outDir = walkEvidenceDir()
 
 const root = makeTempDir('nomi-scope-walk-')
 const settingsDir = path.join(root, 'settings')

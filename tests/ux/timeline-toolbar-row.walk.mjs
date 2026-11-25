@@ -9,18 +9,16 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/timeline-toolbar-row')
-fs.mkdirSync(shotsDir, { recursive: true })
+const root = makeTempDir('nomi-timeline-toolbar-')
+const shotsDir = path.join(root, 'shots')
+fs.mkdirSync(shotsDir)
+process.env.EVIDENCE_DIR ??= path.join(root, 'feel')
 
 /** 生产侧的下限真相源是 workbenchStore.TIMELINE_PANEL_MIN；这里写死同一个数当**独立**对账。 */
 const EXPECTED_MIN_HEIGHT = 86
 
-const root = makeTempDir('nomi-timeline-toolbar-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
@@ -309,7 +307,10 @@ try {
     const before = { height: row.getBoundingClientRect().height, overflowX: style.overflowX, flexWrap: style.flexWrap }
     const shrinkResistant = Array.from(row.querySelectorAll('[data-control-scope]'))
       .every((group) => getComputedStyle(group).flexShrink === '0')
-    row.style.width = '320px'
+    // 工具条是 flex-1，width 不会压缩它的实际分配宽度。
+    const previousMaxWidth = row.style.maxWidth
+    row.style.maxWidth = '320px'
+    const squeezedWidth = row.getBoundingClientRect().width
     const squeezedHeight = row.getBoundingClientRect().height
     const scrollable = row.scrollWidth > row.clientWidth
     row.scrollLeft = row.scrollWidth
@@ -318,13 +319,14 @@ try {
     const last = groups[groups.length - 1].getBoundingClientRect()
     const lastReachable = last.left >= rowRect.left - 0.5 && last.right <= rowRect.right + 0.5
     const scrollLeft = row.scrollLeft
-    row.style.width = ''
-    return { before, shrinkResistant, squeezedHeight, scrollable, lastReachable, scrollLeft, groupCount: groups.length }
+    row.style.maxWidth = previousMaxWidth
+    return { before, shrinkResistant, squeezedWidth, squeezedHeight, scrollable, lastReachable, scrollLeft, groupCount: groups.length }
   }, PREVIEW_TIMELINE)
   expect(safetyNet.before.overflowX, '工具条行没开横向滚动').toBe('auto')
   expect(safetyNet.before.flexWrap, '工具条行允许换行了（簇会被拆到第二行）').toBe('nowrap')
   expect(safetyNet.shrinkResistant, '有簇会被压扁（flex-shrink 不是 0）').toBe(true)
   expect(safetyNet.groupCount, '三簇 legend 分组必须原样保留').toBe(3)
+  expect(safetyNet.squeezedWidth, '工具条实际没有被量具压到 320px').toBe(320)
   expect(safetyNet.scrollable, '压到 320px 后没有产生横向滚动（说明被裁掉或换行了）').toBe(true)
   expect(safetyNet.squeezedHeight, '压窄后行高被撑高 = 换行了').toBeLessThanOrEqual(safetyNet.before.height + 1)
   expect(safetyNet.scrollLeft, '横向滚动没生效').toBeGreaterThan(0)

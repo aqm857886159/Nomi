@@ -4,11 +4,14 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectOverlayReachable, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { canvasAddBar, canvasAddMoreMenu, closeRailDrawer, newProjectEntry, openRailDrawer } from './_shell.mjs'
+import { addCanvasNode, canvasZoomStep, closeRailDrawer, collapseAgentPanel, ensureAgentPanelOpen, newProjectEntry, openRailDrawer, openSettings } from './_shell.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
 const before = process.argv.includes('--before')
-const output = path.resolve('tests/ux/shots/node-prompt-presets')
-fs.mkdirSync(output, { recursive: true })
+const output = assertOutsideRepo(makeTempDir('nomi-node-prompt-presets-evidence-'))
+process.env.EVIDENCE_DIR = output
 const run = await launchNomiApp({ name: 'node-prompt-presets', settleMs: 0,
   initialLocalStorage: { 'nomi:locale:v1': 'zh-CN', 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
 })
@@ -16,23 +19,34 @@ const page = run.win
 page.setDefaultTimeout(stationTimeout({ operations: 2 }))
 const picker = () => page.getByTestId('node-prompt-presets')
 const search = () => picker().locator('[data-library-search]')
-const editor = () => page.locator('.generation-canvas-v2-node__composer [contenteditable="true"]').last()
+const nodes = page.locator('.generation-canvas-v2-node[data-node-id]')
+let selectedNode
+const composer = () => selectedNode.locator('.generation-canvas-v2-node__composer')
+const editor = () => composer().locator('[data-node-composer-prompt] [data-prompt-box] [contenteditable="true"]')
+const presetTrigger = () => composer().locator('[data-prompt-tool="effects"]')
+
 async function addNode(kind) {
-  const count = await page.locator('[data-node-id]').count()
-  const toolbar = canvasAddBar(page)
-  await expect(toolbar).toBeVisible()
-  const trigger = toolbar.locator(`[data-node-kind="${kind}"]`).first()
-  if (await trigger.isVisible()) await trigger.click()
-  else {
-    await toolbar.locator('[data-canvas-add-more="true"]').click()
-    await canvasAddMoreMenu(page).locator(`[data-node-kind="${kind}"]`).click()
-  }
-  await expect.poll(() => page.locator('[data-node-id]').count()).toBeGreaterThan(count)
-  await page.locator('[data-node-id]').last().click()
+  const readIds = () => nodes.evaluateAll(elements => elements.map(el => el.getAttribute('data-node-id')))
+  const previousIds = await readIds()
+  await addCanvasNode(page, kind)
+  await expect(nodes).toHaveCount(previousIds.length + 1)
+  const [id] = (await readIds()).filter(id => !previousIds.includes(id))
+  selectedNode = nodes.and(page.locator(`[data-node-id="${id}"]`))
+  await expect(selectedNode).toHaveAttribute('data-selected', 'true')
   await expect(editor()).toBeVisible()
 }
 async function openPicker() {
-  await page.locator('[data-effect-more]').last().click()
+  // 点画布空白和切换抽屉都可能结束节点选择。重新选中同一个节点再开预设。
+  if (await selectedNode.getAttribute('data-selected') !== 'true') {
+    await selectedNode.click({ position: { x: 8, y: 8 } })
+  }
+  const trigger = presetTrigger()
+  await expect(trigger).toBeVisible()
+  for (let step = 0; step < 6; step += 1) {
+    if (await trigger.click({ trial: true, timeout: 650 }).then(() => true, () => false)) break
+    await canvasZoomStep(page, 'out', '缩小画布露出节点底栏')
+  }
+  await trigger.click()
   await expect(picker()).toBeVisible()
 }
 async function verifySupplemental() {
@@ -61,7 +75,7 @@ async function verifySupplemental() {
     promptFallback: Boolean(el.querySelector('[data-skill-media="placeholder"] svg.tabler-icon-file-text')),
   }))
   await page.screenshot({ path: path.join(output, 'after-effect-media-preview.png') })
-  await page.locator('[data-effect-more]').last().click()
+  await presetTrigger().click()
   fs.writeFileSync(path.join(output, 'supplemental.json'), JSON.stringify({ passed: true, publicPromptApplied: true, media, faultInjection: 'not performed; IPC ok:false behavior covered by API unit tests', paidCalls: 0 }, null, 2))
   await openPicker()
 
@@ -83,7 +97,7 @@ try {
   await newProjectEntry(page).click()
   await page.getByRole('button', { name: '生成', exact: true }).first().click()
   await addNode('image')
-  await page.locator('[data-effect-more]').last().click()
+  await openPicker()
   if (before) {
     await expect(page.getByTestId('node-effect-menu')).toBeVisible()
     await page.screenshot({ path: path.join(output, 'before-zh-light.png') })
@@ -111,7 +125,9 @@ try {
       await page.getByRole('button', { name: '撤销', exact: true }).last().click()
       await expect(editor()).toHaveText('保留原来的主体描述')
       await openPicker()
-      await page.mouse.click(1150, 220)
+      const blank = await findCanvasBlankPoint(page)
+      expect(blank, '预设之外有可点击的画布空白').toBeTruthy()
+      await page.mouse.click(blank.x, blank.y)
       await expect(picker()).toBeHidden()
       // Mount/cache the picker before using the separate real library editor.
       await createPersonalPrompt('image', '预设回归图片', '晨光中的红色玻璃杯，柔和阴影。')
@@ -136,6 +152,7 @@ try {
       await search().fill('预设回归图片')
       await expectAbsent(picker().locator('[data-library-option]'), { provenBy: optionProof, message: '查询或媒介不匹配时不显示预设' })
       await page.keyboard.press('Escape')
+      await ensureAgentPanelOpen(page, '打开 Agent 面板')
       await page.locator('[data-v4-control="skill"]').first().click()
       const agentPicker = page.locator('[data-v4-popover="skill"]').first()
       await agentPicker.locator('[data-v4-control="skill-search"]').fill('多视图')
@@ -145,10 +162,10 @@ try {
       await page.screenshot({ path: path.join(output, 'after-agent-skill-shared-picker.png') })
       await agentPicker.locator('[data-v4-command="skill:curated-multi-view"]').click()
       await expect(page.locator('[data-v4-chip="skill"]').first()).toContainText('多视图')
+      await collapseAgentPanel(page, '完成 Agent 预设检查后收起面板')
       // Change appearance through the same Settings controls a user uses, without reloading the project.
       for (const [locale, theme] of [['zh-CN', 'dark'], ['en', 'light'], ['en', 'dark']]) {
-        await page.getByRole('button', { name: /^(设置|Settings)$/ }).click()
-        await page.locator('[data-settings-tab-id="general"]').click()
+        await openSettings(page, { tab: 'general' })
         await page.locator(`[data-settings-locale="${locale}"]`).click()
         const currentTheme = await page.locator('html').getAttribute('data-mantine-color-scheme')
         if (currentTheme !== theme) await page.getByRole('button', { name: /切换到.*模式|Switch to .* mode/ }).click()
@@ -161,8 +178,9 @@ try {
         await page.screenshot({ path: path.join(output, `after-${locale}-${theme}.png`) })
         await page.keyboard.press('Escape')
       }
-      fs.writeFileSync(path.join(output, 'journey.json'), JSON.stringify({ passed: true, paidCalls: 0,
-        tasks: ['ordinary public presets', 'search and empty results', 'append and undo', 'real personal image/video creation', 'refresh existing picker', 'image/video filtering', 'Escape and outside click', 'zh/en light/dark', 'Agent shared picker search/preview/selection'] }, null, 2))
+      const tasks = ['ordinary public presets', 'search and empty results', 'append and undo', 'real personal image/video creation', 'refresh existing picker', 'image/video filtering', 'Escape and outside click', 'zh/en light/dark', 'Agent shared picker search/preview/selection']
+      fs.writeFileSync(path.join(output, 'journey.json'), JSON.stringify({ passed: true, paidCalls: 0, tasks }, null, 2))
+      console.log(`PASS ${tasks.length}/${tasks.length} prompt preset scenarios`)
     }
   }
 } catch (error) {

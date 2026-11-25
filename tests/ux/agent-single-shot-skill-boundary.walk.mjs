@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 // Public IPC negative control, separate from the production user journey.
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import { expect } from './_assert.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { laneDiskSnapshot, readLaneTranscripts } from './agent-lane-observer.mjs'
 
+const output = process.env.NOMI_WALK_OUT || process.env.EVIDENCE_DIR
+process.env.NOMI_WALK_OUT = output ? assertOutsideRepo(output) : makeTempDir('agent-single-shot-skill-boundary-')
+process.env.EVIDENCE_DIR = process.env.NOMI_WALK_OUT
 const walk = await createRuntimeWalk('single-shot-skill-boundary')
 let failure
 try {
@@ -16,7 +21,7 @@ try {
     featureKey: 'fixture-negative-control', prompt: 'No provider request is allowed.',
     context: { approvalPolicy: { mode: 'request' }, skillKey: 'fixture.nonexistent-installed-skill' },
   }), projectId)
-  expect(result).toMatchObject({ ok: false, message: 'agent_skill_unavailable' })
+  expect(result).toMatchObject({ ok: false, code: 'agent_skill_unavailable', diagnostic: 'agent_skill_unavailable' })
   expect(walk.fixture.requests).toHaveLength(0)
   expect(laneDiskSnapshot(projectRoot)).toEqual(before)
   walk.fixture.assertClean()

@@ -1,30 +1,38 @@
 #!/usr/bin/env node
 // Delete real native tool history, including the default lane, then cold-open.
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import { clickOrFail, expect } from './_assert.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
-import { CREATION_PANEL, DOCUMENT, HISTORY_BUTTON, THREAD_MENU, chooseAssistantModel,
+import { CREATION_PANEL, DOCUMENT, HISTORY_BUTTON, THREAD_ROW, chooseAssistantModel,
   createRuntimeWalk, hasToolResult, newConversation, recorded, sendCreation, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 import { laneDiskSnapshot, laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 
+const STORY = '旧故事中的红色杯子。'
 const OLD = 'DELETE_OLD_HISTORY：读一遍文稿并记住这个旧对话标记。'
 const SECOND = 'DELETE_SECOND_HISTORY：这也是稍后会删除的独立对话。'
 const FRESH = 'DELETE_FRESH：现在开始一个全新的任务。'
+const output = process.env.NOMI_WALK_OUT || process.env.EVIDENCE_DIR
+process.env.NOMI_WALK_OUT = output ? assertOutsideRepo(output) : makeTempDir('agent-lane-deletion-')
+process.env.EVIDENCE_DIR = process.env.NOMI_WALK_OUT
 const walk = await createRuntimeWalk('lane-deletion')
 let failure
 try {
   let { win } = await walk.start({ first: true })
   const { projectId, projectRoot, name } = await walk.newProject()
-  await win.locator(DOCUMENT).fill('旧故事中的红色杯子。')
+  await win.locator(DOCUMENT).fill(STORY)
+  await expect(win.locator(DOCUMENT)).toHaveText(STORY)
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
   const read = walk.fixture.expectText({ label: 'default lane executes a real document read',
     match: (body) => flattenRequestText(body).includes(OLD) && !hasToolResult(body, 'delete-old-read'),
-    reply: { type: 'tool', id: 'delete-old-read', name: 'read_full_text', args: {} } })
+    reply: { type: 'tool', id: 'delete-old-read', name: 'read_script', args: { scope: 'full' } } })
   const readDone = walk.fixture.expectText({ label: 'default lane receives its actual tool result',
     match: (body) => hasToolResult(body, 'delete-old-read'), reply: { type: 'text', text: '旧对话已经读到红色杯子。' } })
   await sendCreation(win, OLD)
   await recorded(read.received, 'default lane request')
-  await recorded(readDone.received, 'default lane tool result')
+  const resultWire = await recorded(readDone.received, 'default lane tool result')
+  expect(flattenRequestText(resultWire.body)).toContain(STORY)
   await waitForV4TurnIdle(win, { panel: CREATION_PANEL,
     settledBy: win.locator(CREATION_PANEL).getByText('旧对话已经读到红色杯子。', { exact: true }) })
   const original = readLaneTranscripts(projectRoot)[0]
@@ -42,15 +50,17 @@ try {
     settledBy: win.locator(CREATION_PANEL).getByText('第二条独立对话。', { exact: true }) })
   const lanes = () => readLaneTranscripts(projectRoot)
   expect(lanes()).toHaveLength(2)
-  const secondId = lanes().find((session) => session.sessionId !== original.sessionId).sessionId
+  const secondLane = lanes().find((session) => session.sessionId !== original.sessionId)
   await clickOrFail(win.locator(`${CREATION_PANEL} ${HISTORY_BUTTON}`), '打开对话列表')
-  const rows = win.locator(`${THREAD_MENU} > div`)
+  const rows = win.locator(THREAD_ROW)
+  await expect(rows).toHaveCount(2)
   const oldRow = rows.filter({ has: win.getByRole('button', { name: '未命名对话', exact: true }) })
   await clickOrFail(oldRow.getByRole('button', { name: '删除对话' }), '删除含真实工具历史的默认对话')
-  await expect.poll(() => lanes().map((session) => session.sessionId)).toEqual([secondId])
-  await expect(rows).toHaveCount(2)
-  await clickOrFail(rows.nth(1).getByRole('button', { name: '删除对话' }), '删除当前独立对话')
-  await expect.poll(() => ({ count: lanes().length, original: lanes().some((session) => [original.sessionId, secondId].includes(session.sessionId)) }))
+  await expect.poll(() => lanes().map((session) => session.sessionId)).toEqual([secondLane.sessionId])
+  await expect(rows).toHaveCount(1)
+  const secondRow = rows.filter({ has: win.getByRole('button', { name: secondLane.laneName, exact: true }) })
+  await clickOrFail(secondRow.getByRole('button', { name: '删除对话' }), '删除当前独立对话')
+  await expect.poll(() => ({ count: lanes().length, original: lanes().some((session) => [original.sessionId, secondLane.sessionId].includes(session.sessionId)) }))
     .toEqual({ count: 1, original: false })
   const surviving = lanes()[0]
   expect(surviving.laneName).not.toBe('main')

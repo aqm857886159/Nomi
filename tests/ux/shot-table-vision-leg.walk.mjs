@@ -7,10 +7,10 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //   ② 没读出的那几行，状态列也写着原话；读出来的那行没有；
 //   ③ 选中表后下方拆解栏有「读图模型」选择，默认「自动选择」（换模型的入口；2026-10-18 从表内底栏挪出）。
 // 用法：node tests/ux/shot-table-vision-leg.walk.mjs [--locale en] [--scheme dark]
-// 截图：docs/evidence/2026-10-11-canvas-ux-8/s1-shot-table-vision-<zh|en>[-dark].png
+// 截图落在仓库外的隔离证据目录。
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { require as tsxRequire } from 'tsx/cjs/api'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
@@ -18,19 +18,25 @@ import { canvasFitView } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
 const locale = argValue('--locale', 'zh-CN')
 const scheme = argValue('--scheme', 'light')
 const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}`
 const zhOrEn = (zh, en) => (locale === 'en' ? en : zh)
-const evidence = path.join(repoRoot, 'docs/evidence/2026-10-11-canvas-ux-8')
-fs.mkdirSync(evidence, { recursive: true })
-
-const temp = makeTempDir('nomi-shot-table-vision-')
-const projectsDir = path.join(temp, 'projects')
+const evidence = makeTempDir('nomi-shot-table-vision-evidence-')
+process.env.EVIDENCE_DIR = evidence
+const { buildWorld } = tsxRequire('../world/index.ts', import.meta.url)
+const visionModel = 'Vision Fixture'
+// 无可用模型时拆解栏提示接入；预置一个本机夹具选项来验证有模型时的默认和切换。
+const world = buildWorld({
+  projects: [],
+  catalog: {
+    vendors: [{ key: 'vision-fixture', name: 'Local Fixture', enabled: true, authType: 'none', providerKind: 'openai-compatible', baseUrlHint: 'http://127.0.0.1:1' }],
+    models: [{ vendorKey: 'vision-fixture', modelKey: 'vision-fixture', label: visionModel, labelZh: visionModel, labelEn: visionModel, kind: 'text', enabled: true, meta: { supportsImageInput: true }, selectable: true }],
+  },
+})
 const projectId = 'shot-table-vision'
-const projectRoot = path.join(projectsDir, projectId)
+const projectRoot = path.join(world.projectsDir, projectId)
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 
 const REASON = "You've reached the API rate limit for free users"
@@ -61,7 +67,7 @@ for (const name of ['project.json', '.nomi/project.json']) fs.writeFileSync(path
 
 const results = []
 const run = await launchNomiApp({
-  name: 'shot-table-vision-leg', projectsDir, settleMs: 0, viewportSize: { width: 1680, height: 1050 },
+  name: 'shot-table-vision-leg', world, settleMs: 0, viewportSize: { width: 1680, height: 1050 },
   initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
 })
 const { app } = run
@@ -70,7 +76,7 @@ win.setDefaultTimeout(stationTimeout({ operations: 2 }))
 async function task(name, body) {
   try { await body(); results.push({ name, pass: true }) } catch (error) {
     results.push({ name, pass: false, error: String(error?.message ?? error).split('\n').filter(Boolean).slice(0, 6).join(' | ') })
-    await win.screenshot({ path: path.join(repoRoot, '.tmp', `FAIL-shot-table-vision-${name}-${tag}.png`) }).catch(() => {})
+    await win.screenshot({ path: path.join(evidence, `FAIL-shot-table-vision-${name}-${tag}.png`) }).catch(() => {})
   }
   console.log(JSON.stringify(results.at(-1)))
 }
@@ -105,14 +111,22 @@ try {
   await task('03-deconstruct-bar-has-vision-model-picker-default-auto', async () => {
     // 2026-10-18 拆解前选模型：读图模型从表内底栏挪到选中表后出现的下方拆解栏（和表是同一个 React Flow 节点里的兄弟，不在表卡里）。
     await node.locator('header').click({ position: { x: 300, y: 20 } })
-    const bar = win.locator('.react-flow__node:has([data-testid="shot-table-node"]) [data-shot-table-composer]').first()
+    const bar = win.locator('.react-flow__node[data-id="table"] [data-shot-table-composer="deconstruct"]')
     await expect(bar).toBeVisible()
     const label = uiText(locale, 'shotTable.visionModel')
-    const picker = bar.getByRole('button', { name: label }).or(bar.getByRole('combobox', { name: label })).first()
+    const picker = bar.getByRole('button', { name: label, exact: true })
+    const auto = uiText(locale, 'shotTable.visionAuto')
     await expect(picker).toBeVisible()
-    await expect(picker).toContainText(uiText(locale, 'shotTable.visionAuto'))
+    await expect(picker).toContainText(auto)
     await waitForVisualQuiescence(win)
     await screenshotSettled(win, { path: path.join(evidence, `s1-shot-table-vision-${tag}.png`) })
+    const options = win.locator('[data-nomi-select-dropdown]:visible').getByRole('option')
+    await picker.click()
+    await options.filter({ hasText: visionModel }).click()
+    await expect(picker).toContainText(visionModel)
+    await picker.click()
+    await options.filter({ hasText: auto }).click()
+    await expect(picker).toContainText(auto)
   })
 } finally {
   await app.close().catch(() => {})

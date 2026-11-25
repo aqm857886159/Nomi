@@ -11,7 +11,7 @@ describe('React Flow owns the complete canvas zoom range', () => {
   })
   it('slider and explicit fit consume the same range without a second manual clamp', () => {
     const canvas = read('src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx')
-    expect(canvas).toContain('CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM')
+    expect(canvas).toContain('zoomRange: [CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM]')
     expect(canvas).not.toContain('flow.zoomTo(Math.min')
     // 滑块在「⋯」浮层里；−/＋ 在簇上，两处都吃同一对常量。
     const options = read('src/workbench/generationCanvas/components/CanvasViewOptionsPopover.tsx')

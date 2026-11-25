@@ -47,7 +47,7 @@ export function CardStackPeeks({
           data-card-stack-rear={index + 1}
           className={cn(
             'absolute inset-0 origin-left rounded-nomi-lg border',
-            'transition-transform duration-200 ease-out motion-reduce:transition-none',
+            'transition-transform duration-nomi-fast ease-nomi-out motion-reduce:transition-none',
             GROUP_VISUAL_CLASS.stackRear,
           )}
           style={{ transform: fanned ? FANNED_TRANSFORMS[index] : RESTING_TRANSFORMS[index] }}
@@ -62,7 +62,7 @@ export function CardStackPeeks({
           tone === 'group' ? 'top-0' : 'top-4',
           'border text-micro font-semibold tabular-nums',
           GROUP_VISUAL_CLASS.stackTrigger,
-          'transition-[transform,background-color,border-color] duration-150 motion-reduce:transition-none',
+          'transition-[transform,background-color,border-color] duration-nomi-micro motion-reduce:transition-none',
           'hover:-translate-y-0.5 hover:border-nomi-ink-20 hover:bg-nomi-ink-05',
           disabled && 'cursor-not-allowed opacity-50',
         )}

@@ -1,0 +1,98 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-nightly-walk-prerequisites",
+  "problem_type": "Nightly walkthrough startup relies on local output configuration or private media",
+  "symptom": "In nightly run 45179348727, five walkthroughs failed to initialize their output, two wrote screenshots into the checkout and were marked red by the tree guard, and two failed before launch because the private media directory was unavailable.",
+  "direct_cause": "Walkthroughs chose required local paths or tracked defaults at startup. The batch selected media-dependent walkthroughs without checking the runner's media directory.",
+  "class_root": "Evidence allocation and runner prerequisites had no matching startup contract for an argument-free nightly invocation.",
+  "affected_population": ["Nightly Linux batches and local users running the same walkthroughs without output configuration"],
+  "scope_paths": [
+    ".github/workflows/nightly-walkthroughs.yml",
+    "scripts/_test-temp.mjs",
+    "scripts/nightly-walk-selection.mjs",
+    "scripts/nightly-walk-summary.mjs",
+    "tests/ux/_walkEvidence.mjs",
+    "tests/ux/control-hierarchy-u2.walk.mjs",
+    "tests/ux/generation-idle.walk.mjs",
+    "tests/ux/generation-lock-exit-interrupted.walk.mjs",
+    "tests/ux/generation-scope-old-project.walk.mjs",
+    "tests/ux/preview-control-scope.walk.mjs",
+    "tests/ux/relay-capability-projection.walk.mjs",
+    "tests/ux/remove-node-lock.walk.mjs"
+  ],
+  "entry_points": ["Direct walkthrough startup", "Nightly batch selection and summary"],
+  "external_sources": [
+    { "kind": "official-doc", "url": "https://nodejs.org/api/fs.html#fsmkdtempsyncprefix-options", "checked_at": "2026-11-24", "purpose": "Confirm unique directory creation using a prefix under os.tmpdir()." }
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-01",
+  "invariants": [
+    "The seven migrated walkthroughs allocate fresh external evidence on argument-free startup and honor explicit destination options. Existing checkout guards still reject a checkout path.",
+    "An unavailable real-media directory is a named skip at the runner. The summary receives the same batch membership and records a skipped result. A present directory permits selection and the walkthrough still requires its registered assets."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/nightly-walk-selection.mjs",
+    "tests": ["scripts/nightly-walk-selection.node-test.mjs", "scripts/nightly-walk-summary.node-test.mjs"],
+    "why": "The nightly harness owns launch prerequisites. The selector determines media availability and the walkthrough evidence allocator handles output paths at each affected launch. The tests exercise both prerequisites and the summary's use of the recorded result."
+  },
+  "doors": [
+    { "kind": "write", "path": "scripts/nightly-walk-selection.node-test.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "tests/ux/control-hierarchy-u2.walk.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "tests/ux/generation-idle.walk.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "tests/ux/generation-lock-exit-interrupted.walk.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "tests/ux/generation-scope-old-project.walk.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "tests/ux/preview-control-scope.walk.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "tests/ux/relay-capability-projection.walk.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "tests/ux/remove-node-lock.walk.mjs", "symbol": "walkEvidenceDir" },
+    { "kind": "write", "path": "scripts/nightly-walk-selection.mjs", "symbol": "nightlyWalkInventory" },
+    { "kind": "write", "path": "scripts/nightly-walk-selection.node-test.mjs", "symbol": "nightlyWalkInventory" },
+    { "kind": "write", "path": "scripts/nightly-walk-summary.mjs", "symbol": "nightlyWalkInventory" }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 11,
+    "why_not": "The seven scripts remain independent journeys. The batch needs the shared membership for execution, and the report needs it to reconcile the recorded results. The Node test calls both boundaries to check their contracts directly."
+  },
+  "generality_proof": "All seven writers delegate default allocation to the same function. The selector adds availability to the inventory entry before launch without renumbering the batch or requiring the report job to repeat the runner's filesystem probe.",
+  "shared_boundaries": [
+    { "path": "tests/ux/_walkEvidence.mjs", "symbol": "walkEvidenceDir", "responsibility": "Resolve explicit evidence paths and allocate unique retained temporary defaults." },
+    { "path": "scripts/nightly-walk-selection.mjs", "symbol": "realMediaSkipReason", "responsibility": "Decide whether the nightly runner has the real-media directory before launching either dependent walk." }
+  ],
+  "same_class_entry_points": [
+    { "path": "tests/ux/preview-control-scope.walk.mjs", "entry_point": "walkEvidenceDir", "disposition": "enforced", "evidence": "The former tracked screenshot default delegates to the shared allocator." },
+    { "path": "tests/ux/generation-lock-exit-interrupted.walk.mjs", "entry_point": "walkEvidenceDir", "disposition": "enforced", "evidence": "Omitting receipt and screenshot paths now resolves both destinations under one fresh directory." },
+    { "path": "tests/ux/real-media-import.walk.mjs", "entry_point": "requireRealMediaAssets", "disposition": "not-affected", "evidence": "Direct execution still checks the registered assets. Nightly selection owns the missing-directory skip." }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Each nightly launch can hit the same local configuration assumptions. The post-run tree guard described in 2026-10-24-nightly-walk-writes-source-tree detects checkout writes after they occur and still serves as the backstop.",
+    "same_class_scan": [
+      "door-map.mjs walkEvidenceDir and nightlyWalkInventory with scripts and tests/ux roots and tests included found the callers above.",
+      "Searched NOMI_REAL_MEDIA_DIR and requireRealMediaAssets across nightly selection, the B-exclusion registry and tests/ux. Existing always-excluded walks use the static registry. The two selected private-media walks in this incident can run when their directory is available."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/_walkEvidence.mjs",
+    "invariant": "Allocate output without host-specific arguments and decide runner prerequisites before executing the walkthrough.",
+    "failure_mode": "Guarded explicit invalid paths fail before writing. Unavailable media yields status 125 with a reason, distinct from a successful assertion or absent result.",
+    "exception_policy": "none",
+    "strategy": "Move output allocation from the seven call sites into the shared allocator and let the runner record selector decisions through its existing results format.",
+    "artifacts": ["tests/ux/_walkEvidence.mjs", "scripts/nightly-walk-selection.mjs", ".github/workflows/nightly-walkthroughs.yml"]
+  },
+  "regression_tests": ["scripts/nightly-walk-selection.node-test.mjs", "scripts/nightly-walk-summary.node-test.mjs"],
+  "class_regression_tests": ["scripts/nightly-walk-selection.node-test.mjs", "scripts/nightly-walk-summary.node-test.mjs"],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": ["tests/ux/control-hierarchy-u2.walk.mjs", "tests/ux/preview-control-scope.walk.mjs", "tests/ux/generation-lock-exit-interrupted.walk.mjs"],
+    "rationale": "The tracked defaults and the unconditional resolution of unset receipt paths are removed from these entries."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Evidence placement and selection are harness rules implemented with the existing Node filesystem APIs.",
+    "exit_criteria": []
+  },
+  "migration": "Explicit destinations continue to work. No production data migration is needed.",
+  "residual_risks": ["Ubuntu and Electron replay remains unverified locally. Recheck the targeted startup and skip verdicts in the first nightly run containing the fix."]
+}

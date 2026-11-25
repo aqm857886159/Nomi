@@ -18,7 +18,13 @@ function toPx(value: string): number {
 
 /** 编译一串类名，按「子元素选择器」收拢出 width / height / stroke-width。 */
 async function compile(classes: string): Promise<Rendered[]> {
-  const config = { ...tailwindConfig, content: [{ raw: `<i class="${classes}"></i>`, extension: 'html' }], corePlugins: { preflight: false } }
+  const config = {
+    ...tailwindConfig,
+    content: [{ raw: `<i class="${classes}"></i>`, extension: 'html' }],
+    // Compile only this fixture's classes using the production theme and plugins.
+    safelist: [],
+    corePlugins: { preflight: false },
+  }
   const result = await postcss([tailwindcss(config)]).process('@tailwind utilities;', { from: undefined })
   const byTarget = new Map<string, Rendered>()
   result.root.walkRules((rule) => {

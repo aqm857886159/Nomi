@@ -1,0 +1,265 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-fc-media-and-lane-timeout-hierarchy",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-08",
+  "problem_type": "串行子操作的总预算倒挂、执行边界间丢失取消与同毫秒超时竞争",
+  "symptom": "NF-1113-0001：这一步等太久被停掉了。大本地视频波形读取可触发超时，底层工作仍在进行。",
+  "direct_cause": "波形素材分页、15 秒 fetch 和 20 秒解码串行，共用的读预算只有 30 秒。preload 与素材目标均未传取消。lane 与注册表用同一毫秒预算裁决。",
+  "class_root": "能力、兜底与子操作的截止关系没有落实到运行边界，取消消息也没有在资源所属的 renderer 还原成 AbortSignal。",
+  "affected_population": [
+    "通过 Agent 或桌面端 MCP 请求素材波形的用户",
+    "经过 lane 和执行注册表的读写工具"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/capabilityExecutorRegistry.ts",
+    "electron/agentLane/laneTools.mts",
+    "src/workbench/timeline/agent/mediaToolCall.ts",
+    "electron/surfacePortPreloadBridge.ts",
+    "src/workbench/project/projectCanvasReadSurface.ts",
+    "electron/shared/surfacePortBinding.ts",
+    "src/workbench/timeline/agent/phase4CapabilityTargets.ts"
+  ],
+  "entry_points": [
+    "look_at_media → phase4 adapter → registry → surface IPC → executeAssetReadTarget",
+    "素材 capability apply handler → executeAssetReadTarget",
+    "文稿和画布读写 → registry",
+    "本地 lane 工具 → lane guard"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://dom.spec.whatwg.org/#interface-abortsignal",
+      "checked_at": "2026-11-24",
+      "purpose": "父信号组合及中止语义。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/context-bridge#parameter--error--return-type-support",
+      "checked_at": "2026-11-24",
+      "purpose": "跨隔离上下文代理函数，renderer 创建自己的原生信号。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://webaudio.github.io/web-audio-api/#dom-audiocontext-close",
+      "checked_at": "2026-11-24",
+      "purpose": "关闭音频上下文资源的范围。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webaudio/base_audio_context.cc",
+      "checked_at": "2026-11-24",
+      "purpose": "已提交的 decodeAudioData 原生任务运行在 worker pool，未提供中止参数。"
+    }
+  ],
+  "invariants": [
+    "波形读取总期限严格小于读能力声明，且分页、获取响应体、解码共享同一信号。",
+    "注册表声明到点先于 lane 的失联兜底，用户取消在同一事件传递。",
+    "限时诊断只记工具、操作、经过时间和期限，不传原始参数或异常。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "executeAssetReadTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/agent/mediaToolCall.ts",
+      "symbol": "decodeWaveform"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "createLaneTools"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasReadExecutionRuntime.ts",
+      "symbol": "createMainCapabilityExecutorRegistry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "symbol": "declaredTimeout"
+    },
+    {
+      "kind": "write",
+      "path": "electron/surfacePortPreloadBridge.ts",
+      "symbol": "runCancellable"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "executeAssetReadTarget"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectCanvasReadSurface.ts",
+      "symbol": "registerAssetReadSource"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectCanvasReadSurface.ts",
+      "symbol": "onAssetRead"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/agent/phase4CapabilityTargets.ts",
+      "symbol": "applyMediaToolCall"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/assetRead.ts",
+      "symbol": "AssetReadInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/verbSemanticInput.ts",
+      "symbol": "AssetReadInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/surfacePortBinding.ts",
+      "symbol": "AssetReadInput"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "takeLaneToolFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "timeoutFailure"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 15,
+    "why_not": "保留应用与动作处理器的独立绑定入口、GUI 与无窗口注册表装配、Agent 工具装配、IPC 请求与 renderer 订阅、语义与线形的类型消费者以及共享资源边界。两条素材路径在同一个目标和同一预算敛合，主进程主动超时与失联看门狗各有独立职责。 lane 守卫负责生成失败信封，宿主在 after_tool 负责取走并投影。"
+  },
+  "generality_proof": "每个注册表调用用同一个声明预算计时，lane 外层一律增加 5 秒。两个素材入口通过同一个 renderer 目标，开始分页前取得同一个读到期信号。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "symbol": "declaredTimeout",
+      "responsibility": "按读写声明派生注册表权威执行期限。"
+    },
+    {
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "createLaneTools",
+      "responsibility": "用户立即可停，lane 截止只兜底仍未响应的工具。"
+    },
+    {
+      "path": "src/workbench/timeline/agent/mediaToolCall.ts",
+      "symbol": "applyMediaToolCall",
+      "responsibility": "从素材分页开始为波形读取统一计时并释放资源。"
+    },
+    {
+      "path": "electron/surfacePortPreloadBridge.ts",
+      "symbol": "runCancellable",
+      "responsibility": "匹配请求及端口后跨 preload 通知取消并退订。"
+    },
+    {
+      "path": "src/workbench/project/projectCanvasReadSurface.ts",
+      "symbol": "registerAssetReadSource",
+      "responsibility": "将 preload 取消转为 renderer 原生信号交给已绑定的素材端口。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/phase4SurfaceTransportAdapters.ts",
+      "entry_point": "tryExecuteRead",
+      "disposition": "enforced",
+      "evidence": "素材与导出轮询均走 CapabilityExecutorRegistry.execute，超时属注册表。"
+    },
+    {
+      "path": "electron/capabilityCore/documentWriteTransportAdapters.ts",
+      "entry_point": "execute",
+      "disposition": "enforced",
+      "evidence": "文稿写过期仍保留已派发未对账的原结局，并留期限诊断。"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "asset.read",
+      "disposition": "enforced",
+      "evidence": "直接 renderer 路径也经过 executeAssetReadTarget 与全程波形期限。"
+    }
+  ],
+  "recurrence_of": "2026-10-06-agent-feedback-batch",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "波形不同素材和分页耗时皆可重现；所有跨同一 lane 和注册表的声明读写原来使用同毫秒计时。",
+    "same_class_scan": [
+      "door-map：executeAssetReadTarget、applyMediaToolCall、createLaneTools、createMainCapabilityExecutorRegistry、declaredTimeout、decodeWaveform、onAssetRead、registerAssetReadSource、runCancellable；shared 根下 AssetReadInput。 lane 超时回执另数 timeoutFailure、takeLaneToolFailure。",
+      "检查 phase4 素材与导出端口、文稿读写端口和直接 renderer 素材处理器。",
+      "旧合同 NF-1001-0002 把读写默认值统一到声明，未分级计时器。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+    "invariant": "声明执行期限、lane 失联守卫和 renderer 波形期限按职责分级。",
+    "failure_mode": "超时或用户取消立即结束等待并释放能释放的资源；已发出的写保留待对账收据。",
+    "exception_policy": "none",
+    "strategy": "删两段波形闹钟，在共享入口设置单个截止；重用端口取消通道；保护 lane 先转发取消并移除已结算监听。",
+    "artifacts": [
+      "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "electron/agentLane/laneTools.mts",
+      "src/workbench/timeline/agent/mediaToolCall.ts",
+      "electron/surfacePortPreloadBridge.ts",
+      "src/workbench/project/projectCanvasReadSurface.ts",
+      "electron/shared/surfacePortBinding.ts",
+      "src/workbench/timeline/agent/phase4CapabilityTargets.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneTools.test.ts",
+    "electron/capabilityCore/capabilityExecutorRegistry.test.ts",
+    "electron/surfacePortPreloadBridge.test.ts",
+    "src/workbench/project/projectCanvasReadSurface.test.ts",
+    "src/workbench/timeline/agent/mediaToolCall.test.ts",
+    "src/workbench/timeline/agent/phase4CapabilityTargets.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneTools.test.ts",
+    "electron/capabilityCore/capabilityExecutorRegistry.test.ts",
+    "electron/surfacePortPreloadBridge.test.ts",
+    "src/workbench/project/projectCanvasReadSurface.test.ts",
+    "src/workbench/timeline/agent/mediaToolCall.test.ts",
+    "src/workbench/timeline/agent/phase4CapabilityTargets.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "在原入口直接替换串行闹钟和同毫秒兜底；无独立旧路径或持久数据要退役。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Electron 43.4.1 / Web Audio",
+    "target": "由应用拥有可中止的解码任务，或平台提供等价的解码取消接口",
+    "rationale": "现有 Web Audio 保留已支持编解码。退出等待后关闭上下文；已提交的 Chromium 原生后台任务可能运行到完成。",
+    "exit_criteria": [
+      "以原项目视频、音频和坏编码验证等价输出及取消后解码 CPU 回落，再替换现有 Web Audio 路径。"
+    ]
+  },
+  "migration": "没有保存的期限或 IPC 数据需要迁移；preload 和 renderer 随同一版本升级，原素材与回执保持兼容。",
+  "residual_risks": [
+    "原项目、同一用户素材和真窗口回归未验证。",
+    "Web Audio 无取消 decodeAudioData 的公开接口；已开始的 Chromium 原生解码可能自然收尾。",
+    "已在途的一页 asset IPC 不可中止，信号阻止开始下一页。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+    "tests": [
+      "electron/agentLane/laneTools.test.ts",
+      "electron/capabilityCore/capabilityExecutorRegistry.test.ts",
+      "electron/surfacePortPreloadBridge.test.ts",
+      "src/workbench/project/projectCanvasReadSurface.test.ts",
+      "src/workbench/timeline/agent/mediaToolCall.test.ts",
+      "src/workbench/timeline/agent/phase4CapabilityTargets.test.ts"
+    ],
+    "why": "注册表最早拥有声明期限与写入对账状态；lane 守卫响得更晚，renderer 自己拥有素材读取及上下文清理。"
+  }
+}

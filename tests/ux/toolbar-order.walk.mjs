@@ -9,19 +9,21 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expect, screenshotSettled } from './_assert.mjs'
+import { canvasFitView, switchWorkspace } from './_shell.mjs'
+import { findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const root = makeTempDir('nomi-toolbar-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'toolbar-order-walk'
 const projectRoot = path.join(projectsDir, `toolbar-${projectId}`)
-const outDir = path.join(repoRoot, '.toolbar-order-lab')
+const outDir = makeTempDir('nomi-toolbar-order-evidence-')
+process.env.EVIDENCE_DIR = outDir
+const locale = 'zh-CN'
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
-fs.mkdirSync(outDir, { recursive: true })
 
 let passed = 0
 function assert(cond, label) {
@@ -53,52 +55,59 @@ const project = { id: projectId, name: '工具栏梳理回归', version: 2, crea
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project))
 
-const { app, win } = await launchNomiApp({
+const { app, win: library } = await launchNomiApp({
   name: 'toolbar-order',
   userDataDir: settingsDir,
   settingsDir: settingsDir,
   projectsDir: projectsDir,
-  settleMs: 2000,
+  initialLocalStorage: {
+    'nomi:splash:v1': 'seen',
+    'nomi:journey-tour:v1': 'seen',
+    'nomi:canvas-gesture-hint:v1': 'seen',
+    'nomi:locale:v1': locale,
+  },
 })
 
 try {
-  await win.getByText('工具栏梳理回归').first().click()
-  await win.waitForTimeout(2000)
+  await library.locator('[data-project-card]', { hasText: project.name }).click()
+  const projectWindow = () => app.windows().find((page) => /[?&]projectId=/.test(page.url()))
+  await expect.poll(() => Boolean(projectWindow())).toBe(true)
+  const win = projectWindow()
+  await switchWorkspace(win, 'generation')
+  await canvasFitView(win)
+  await waitForCanvasViewportSettled(win)
 
-  // —— 图片节点：点节点容器选中（点标题会进改名模式，工具栏不浮）→ 读工具栏按钮顺序 ——
-  await win.locator('[data-node-id="img-node"]').first().click({ force: true })
-  await win.locator('[role="toolbar"][aria-label="图片操作"]').waitFor({ state: 'visible', timeout: 15000 })
-  const imgOrder = await win.evaluate(() => {
-    const bar = document.querySelector('[role="toolbar"][aria-label="图片操作"]')
-    if (!bar) return null
-    return Array.from(bar.querySelectorAll('button')).map((b) => (b.getAttribute('aria-label') || b.getAttribute('title') || b.textContent || '').trim().slice(0, 8))
-  })
-  assert(imgOrder && imgOrder.length > 0, `图片工具栏浮出（${imgOrder ? imgOrder.length : 0} 个按钮）`)
-  const fsIdx = imgOrder.findIndex((x) => x.includes('全屏'))
-  const dlIdx = imgOrder.findIndex((x) => x.includes('下载'))
-  assert(fsIdx > 0, `图片：全屏不再在最左（idx=${fsIdx}）`)
-  assert(dlIdx >= 0 && Math.abs(fsIdx - dlIdx) === 1, `图片：全屏与下载相邻成工具组（全屏idx=${fsIdx} 下载idx=${dlIdx}）`)
-  assert(!imgOrder[0].includes('全屏'), `图片：最左是创作动作不是全屏（最左=「${imgOrder[0]}」）`)
-  await screenshotSettled(win, { path: path.join(outDir, '1-image-toolbar.png') })
-
-  // —— 视频节点：点节点容器选中 → 读工具栏按钮顺序 ——
-  await win.locator('[data-node-id="vid-node"]').first().click({ force: true })
-  await win.locator('[role="toolbar"][aria-label="视频操作"]').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
-  const vidOrder = await win.evaluate(() => {
-    const bar = document.querySelector('[role="toolbar"][aria-label="视频操作"]')
-    if (!bar) return null
-    return Array.from(bar.querySelectorAll('button')).map((b) => (b.getAttribute('aria-label') || b.getAttribute('title') || b.textContent || '').trim().slice(0, 8))
-  })
-  if (vidOrder && vidOrder.length) {
-    const vFs = vidOrder.findIndex((x) => x.includes('全屏'))
-    const vDl = vidOrder.findIndex((x) => x.includes('下载'))
-    assert(vFs > 0, `视频：全屏不再在最左（idx=${vFs}）`)
-    assert(vDl >= 0 && Math.abs(vFs - vDl) === 1, `视频：全屏与下载相邻成工具组（全屏idx=${vFs} 下载idx=${vDl}）`)
-    await screenshotSettled(win, { path: path.join(outDir, '2-video-toolbar.png') })
-  } else {
-    console.log('  · 视频工具栏未定位到（选择器差异），仅截图留存')
-    await screenshotSettled(win, { path: path.join(outDir, '2-video-toolbar.png') })
+  async function selectNode(id) {
+    const nodeSelector = `.react-flow__node[data-id="${id}"]`
+    const node = win.locator(nodeSelector)
+    await expect(node).toBeVisible()
+    const hit = await findNodeHitPoint(win, { nodeSelector })
+    if (!hit) throw new Error(`${id} 没有可选中的节点表面`)
+    await win.mouse.click(hit.x, hit.y)
+    return node
   }
+
+  async function checkOrder(node, kind, shot) {
+    const key = `generationCommon.${kind}Toolbar`
+    const toolbar = node.getByRole('toolbar', { name: uiText(locale, `${key}.aria`), exact: true })
+    const order = await toolbar.getByRole('button').evaluateAll((buttons) =>
+      buttons.map((button) => button.getAttribute('aria-label') || button.getAttribute('title') || button.textContent?.trim()))
+    const fullscreen = uiText(locale, `${key}.fullscreenAria`)
+    const fsIndex = order.indexOf(fullscreen)
+    const dlIndex = order.indexOf(uiText(locale, 'generationCommon.imageToolbar.download'))
+    assert(order.length > 0, `${kind} 工具栏浮出（${order.length} 个按钮）`)
+    assert(fsIndex > 0, `${kind} 全屏在创作动作后（idx=${fsIndex}）`)
+    assert(dlIndex >= 0 && Math.abs(fsIndex - dlIndex) === 1, `${kind} 全屏与下载相邻（${fsIndex}, ${dlIndex}）`)
+    if (kind === 'image') assert(order[0] !== fullscreen, `图片工具栏最左保留创作动作（${order[0]}）`)
+    await screenshotSettled(win, { path: path.join(outDir, `${shot}.png`) })
+  }
+
+  const imageNode = await selectNode('img-node')
+  await win.locator('[role="toolbar"][aria-label="图片操作"]').waitFor({ state: 'visible', timeout: 15000 })
+  await checkOrder(imageNode, 'image', '1-image-toolbar')
+  const videoNode = await selectNode('vid-node')
+  await win.locator('[role="toolbar"][aria-label="视频操作"]').waitFor({ state: 'visible', timeout: 15000 })
+  await checkOrder(videoNode, 'video', '2-video-toolbar')
 
   console.log(`\n✅ 工具栏梳理走查通过（${passed} 项断言）\n   截图：${outDir}`)
 } finally {
