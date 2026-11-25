@@ -3,11 +3,12 @@
 // The same script is run from the baseline and the changed worktree; its normalized snapshot is
 // the byte-level acceptance artifact, while the guarded trace reports each catalog resolve.
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
 import { DEFAULT_TIMEOUT_MS, expect } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, chooseAssistantModel, createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas } from './agent-runtime-walk-support.mjs'
 import { prepareIsolatedCatalog, repoRoot } from './_launchApp.mjs'
@@ -18,7 +19,10 @@ const SHOT_COUNT = 33
 const MARKER = 'CARD12_REAL_33_ZERO_CREDIT'
 const PLAN_CALL = 'card12-real-33-plan'
 const profilerModule = path.join(repoRoot, 'tests/ux/_card12CpuProfiler.cjs')
-const profilePath = path.join(os.tmpdir(), `nomi-card12-cpu-${process.pid}.cpuprofile`)
+const tempDir = makeTempDir('nomi-card12-draft-shots-')
+const profilePath = path.join(tempDir, 'draft.cpuprofile')
+process.env.NOMI_WALK_OUT ||= tempDir
+process.env.EVIDENCE_DIR ||= tempDir
 
 function waitForFile(file, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs
@@ -70,7 +74,6 @@ try {
   await openCanvas(win)
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, CANVAS_PANEL)
 
-  let operationId
   const draftShots = Array.from({ length: SHOT_COUNT }, (_, index) => ({
     title: `真实目录镜 ${index + 1}`,
     prompt: `CARD12 real catalog shot ${index + 1}`,
@@ -88,12 +91,7 @@ try {
   })
   const drafted = walk.fixture.expectText({
     label: 'the real 33-shot draft result',
-    match: (body) => {
-      const result = (body.messages ?? []).find((message) => message.role === 'tool' && message.tool_call_id === PLAN_CALL)
-      if (!result) return false
-      operationId = /"operationId":"([^"]+)"/.exec(String(result.content))?.[1]
-      return Boolean(operationId)
-    },
+    match: (body) => (body.messages ?? []).some((message) => message.role === 'tool' && message.tool_call_id === PLAN_CALL),
     reply: { type: 'text', text: 'CARD12_REAL_33_DONE：33 镜草稿已建立，未生成。' },
   })
 
@@ -101,7 +99,11 @@ try {
   app.process().kill('SIGUSR1')
   await sendCanvas(win, `${MARKER}：建立 33 镜草稿，不要生成，不要调用供应商。`)
   await recorded(planner.received, 'real 33-shot draft request', DEFAULT_TIMEOUT_MS)
-  await recorded(drafted.received, 'real 33-shot draft result', DEFAULT_TIMEOUT_MS)
+  const result = await recorded(drafted.received, 'real 33-shot draft result', stationTimeout({ operations: 4 }))
+  const draftMessage = result.body.messages.find((message) => message.role === 'tool' && message.tool_call_id === PLAN_CALL)
+  const draftText = flattenRequestText({ messages: [draftMessage] })
+  const operationId = /"operationId":"([^"]+)"/.exec(draftText)?.[1]
+  expect(operationId, draftText).toBeTruthy()
   const afterMs = performance.now()
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length, { timeout: DEFAULT_TIMEOUT_MS }).toBe(SHOT_COUNT)
   app.process().kill('SIGUSR2')
@@ -110,6 +112,8 @@ try {
   const project = await readProject(win, projectId)
   const runPath = path.join(walk.report.projectRoot, '.nomi', 'runs', operationId, 'run.json')
   const run = JSON.parse(fs.readFileSync(runPath, 'utf8')).run
+  expect(run.generationPlan?.shots).toHaveLength(SHOT_COUNT)
+  expect(walk.fixture.images).toHaveLength(0)
   const catalog = JSON.parse(fs.readFileSync(path.join(walk.settingsDir, 'model-catalog.json'), 'utf8'))
   const snapshot = {
     catalog: {

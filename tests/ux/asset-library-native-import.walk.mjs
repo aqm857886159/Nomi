@@ -7,7 +7,6 @@ import { stationTimeout } from './_station-budget.mjs'
 import { openRailDrawer } from './_shell.mjs'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -25,7 +24,8 @@ const png = Buffer.from(
 )
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.writeFileSync(sourcePath, png)
-fs.writeFileSync(dropSourcePath, png)
+// 素材按内容去重，拖入需要一张和粘贴不同的真图片。
+fs.copyFileSync(new URL('./fixtures/test-upload.png', import.meta.url), dropSourcePath)
 const generationCanvas = { nodes: [], edges: [], selectedNodeIds: [], groups: [] }
 const project = {
   id: projectId,
@@ -91,7 +91,7 @@ try {
   if (nextStep === 'continue') await continueButton.click()
   // 素材库住在左栏「素材」抽屉里（不会自己弹出）：经 _shell.mjs 打开，面板就是抽屉里的内容区。
   const assetSection = await openRailDrawer(win, 'assets', '打开素材库抽屉')
-  const panel = assetSection.locator(':scope > div').first()
+  const panel = assetSection.locator(':scope > div[tabindex="0"]')
   await panel.waitFor({ state: 'visible', timeout: 8000 })
   const initialFiles = importedFiles()
   const existingFile = initialFiles.find(Boolean)
@@ -127,13 +127,13 @@ try {
   if (!fs.existsSync(sourcePath)) throw new Error('源文件被移动或删除')
 
   // 模拟 Finder/桌面文件拖入：File.path 是 Electron webUtils 失败时的兼容回落。
-  await win.evaluate(({ fileName, filePath }) => {
+  await panel.evaluate((panelRoot, { fileName, filePath }) => {
     const file = new File([new Uint8Array([137, 80, 78, 71])], fileName, { type: 'image/png' })
     Object.defineProperty(file, 'path', { value: filePath })
     const dataTransfer = new DataTransfer()
     dataTransfer.items.add(file)
-    const panelRoot = document.querySelector('section[aria-label="素材库"] > div[tabindex="0"]')
-    panelRoot?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+    const event = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer })
+    if (panelRoot.dispatchEvent(event)) throw new Error('素材库没有接管文件拖入事件')
   }, { fileName: path.basename(dropSourcePath), filePath: dropSourcePath })
   const dropDeadline = Date.now() + 8000
   let dropped = []
@@ -143,6 +143,7 @@ try {
     await win.waitForTimeout(200)
   }
   if (dropped.length !== 2) throw new Error(`拖入后未落盘第二张图片，发现 ${dropped.length} 张`)
+  await assetSection.locator('img[alt="拖入的原图.png"]').waitFor({ state: 'visible', timeout: stationTimeout() })
   const droppedPath = dropped.find((filePath) => path.basename(filePath) === '拖入的原图.png')
   if (!droppedPath) throw new Error('拖入后的文件名未落盘')
   const droppedHash = sha256(droppedPath)

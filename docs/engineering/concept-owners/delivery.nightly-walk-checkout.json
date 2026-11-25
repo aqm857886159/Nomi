@@ -16,6 +16,10 @@
       "symbol": "selectNightlyWalks"
     },
     {
+      "path": "scripts/nightly-walk-selection.mjs",
+      "symbol": "realMediaSkipReason"
+    },
+    {
       "path": "scripts/check-quality-gate-workflow.node-test.mjs",
       "symbol": "every workflow job that runs a repository script checks out the repository first"
     }

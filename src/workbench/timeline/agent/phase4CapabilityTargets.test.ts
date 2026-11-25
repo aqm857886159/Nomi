@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const deps = vi.hoisted(() => ({
   applyExport: vi.fn(),
@@ -16,9 +16,11 @@ vi.mock("../../generationCanvas/agent/proposalUndo", () => ({
   createProposalReceiptCoordinator: deps.createCoordinator,
 }));
 
+import { modelFacingToolSpecs } from "../../../../electron/shared/agentCapabilities/modelFacingToolRegistry";
 import { SurfacePortWireError } from "../../../../electron/shared/surfacePortBinding";
 import { useGenerationCanvasStore } from "../../generationCanvas/store/generationCanvasStore";
-import { executeExportWriteTarget } from "./phase4CapabilityTargets";
+import { WAVEFORM_READ_TIMEOUT_MS } from "./mediaToolCall";
+import { executeAssetReadTarget, executeExportWriteTarget } from "./phase4CapabilityTargets";
 
 const result = {
   operation: "export_timeline" as const,
@@ -140,5 +142,119 @@ describe("Phase 4 Export renderer target", () => {
     expect(deps.applyExport).not.toHaveBeenCalled();
     expect(deps.receipt.abort).not.toHaveBeenCalled();
     expect(canvasBytes()).toBe(before);
+  });
+});
+
+describe("Phase 4 waveform deadline and cancellation", () => {
+  const asset = {
+    id: "asset-a", projectId: "project-a", name: "clip.mp4",
+    data: { mediaType: "video", url: "nomi-local://project-a/clip.mp4" },
+  };
+  const page = { items: [asset], cursor: null };
+  const assetRequest = {
+    projectId: "project-a",
+    input: { operation: "read_waveform", assetId: "asset-a", buckets: 2 },
+    target: { kind: "asset", assetIds: ["asset-a"] },
+  };
+  const list = vi.fn();
+  const fetchMedia = vi.fn();
+  const decodeAudioData = vi.fn();
+  const close = vi.fn();
+  const response = () => new Response(new Uint8Array([1]));
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    list.mockReset().mockResolvedValue(page);
+    fetchMedia.mockReset().mockImplementation(async () => response());
+    decodeAudioData.mockReset();
+    close.mockReset().mockResolvedValue(undefined);
+    vi.stubGlobal("window", { nomiDesktop: { assets: { list } } });
+    vi.stubGlobal("fetch", fetchMedia);
+    vi.stubGlobal("AudioContext", class {
+      decodeAudioData = decodeAudioData;
+      close = close;
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["fetch", "body", "decode"])("cancels during %s before the clock advances", async (step) => {
+    if (step === "fetch") fetchMedia.mockReturnValue(new Promise(() => undefined));
+    if (step === "body") fetchMedia.mockResolvedValue({
+      ok: true, headers: new Headers(), arrayBuffer: () => new Promise(() => undefined),
+    });
+    decodeAudioData.mockReturnValue(new Promise(() => undefined));
+    close.mockReturnValue(new Promise(() => undefined));
+    const controller = new AbortController();
+    const request = { ...assetRequest, signal: controller.signal };
+    const outcome = executeAssetReadTarget(request).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMedia).toHaveBeenCalledOnce();
+    expect(decodeAudioData).toHaveBeenCalledTimes(step === "decode" ? 1 : 0);
+    controller.abort(new Error("stopped"));
+    expect((fetchMedia.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
+    expect(close).toHaveBeenCalledTimes(step === "decode" ? 1 : 0);
+    await expect(outcome).resolves.toBe(controller.signal.reason);
+  });
+
+  it("bounds pagination, fetch and decode with one deadline", async () => {
+    const wait = <T>(ms: number, value: T) => new Promise<T>((resolve) => setTimeout(resolve, ms, value));
+    list.mockImplementation(() => wait(8_000, page));
+    fetchMedia.mockImplementation(() => wait(12_000, response()));
+    decodeAudioData.mockReturnValue(new Promise(() => undefined));
+    const rejected = vi.fn();
+    const outcome = executeAssetReadTarget(assetRequest).catch(rejected);
+    await vi.advanceTimersByTimeAsync(25_999);
+    expect(decodeAudioData).toHaveBeenCalledOnce();
+    expect(rejected).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(rejected).toHaveBeenCalledWith(expect.objectContaining({ name: "TimeoutError" }));
+    expect((fetchMedia.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
+    expect(close).toHaveBeenCalledOnce();
+    await outcome;
+  });
+
+  it("stops paginating after expiry, even if an in-flight page eventually resolves", async () => {
+    let finishPage!: () => void;
+    list.mockReturnValue(new Promise((resolve) => {
+      finishPage = () => resolve({ ...page, cursor: "next" });
+    }));
+    const rejected = vi.fn();
+    const outcome = executeAssetReadTarget(assetRequest).catch(rejected);
+    await vi.advanceTimersByTimeAsync(26_000);
+    expect(rejected).toHaveBeenCalledWith(expect.objectContaining({ name: "TimeoutError" }));
+    finishPage();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(list).toHaveBeenCalledOnce();
+    expect(fetchMedia).not.toHaveBeenCalled();
+    await outcome;
+  });
+
+  it("returns sampled values for a slow read that still fits the combined budget", async () => {
+    fetchMedia.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(response()), 16_000)));
+    decodeAudioData.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({
+      duration: 1, sampleRate: 4, length: 4, numberOfChannels: 1,
+      getChannelData: () => new Float32Array([0.25, -0.75, 0, 1]),
+    }), 8_000)));
+    const outcome = executeAssetReadTarget(assetRequest);
+    await vi.advanceTimersByTimeAsync(24_000);
+    await expect(outcome).resolves.toMatchObject({
+      operation: "read_waveform",
+      buckets: [{ peak: 0.75, rms: 0.559 }, { peak: 1, rms: 0.7071 }],
+    });
+    expect(close).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("keeps WAVEFORM_READ_TIMEOUT_MS strictly inside every published internal asset.read catalog budget", () => {
+    const assetReadCatalog = modelFacingToolSpecs("internal").filter((spec) => spec.contractId === "asset.read");
+    expect(assetReadCatalog.length).toBeGreaterThan(0);
+    for (const spec of assetReadCatalog) {
+      expect(WAVEFORM_READ_TIMEOUT_MS).toBeGreaterThan(0);
+      expect(WAVEFORM_READ_TIMEOUT_MS).toBeLessThan(spec.execution.timeoutMs);
+    }
   });
 });

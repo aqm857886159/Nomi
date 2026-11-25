@@ -1,4 +1,6 @@
+import path from 'node:path'
 import { URL } from 'node:url'
+import { compareMotionBaseline, isMotionSource, scanMotionTokens } from './scripts/lib/motionTokenScan.mjs'
 // ESLint flat config —— 宽松起步策略：
 //   真能抓 bug 的规则设 error（红牌，阻断 CI）；风格 / any / 未用变量等存量问题
 //   设 warn（黄牌，只提示不阻断）。目标是「挡住新增的脏东西」，存量债逐步还，
@@ -532,6 +534,8 @@ const directQuitExemptionFiles = [
   // owner's before-quit / will-quit; the restart itself is the updater's platform primitive.
   'electron/update/installGate.ts',
 ]
+
+const motionBaseline = JSON.parse(fs.readFileSync(new URL('./scripts/motion-token-baseline.json', import.meta.url), 'utf8'))
 
 export default tseslint.config(
   {
@@ -1125,6 +1129,31 @@ export default tseslint.config(
     },
   },
   // T-8 结构防错规则 + 原独立推送前语法门岗收口（存量入 eslint-suppressions.json 只减不增）
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: {
+      'nomi-motion': {
+        rules: {
+          tokens: {
+            meta: { type: 'problem', schema: [] },
+            create(context) {
+              const file = path.relative(import.meta.dirname, context.filename).split(path.sep).join('/')
+              if (!isMotionSource(file)) return {}
+              return {
+                Program(node) {
+                  const hits = scanMotionTokens(file, context.sourceCode.text)
+                  for (const message of compareMotionBaseline(file, hits, motionBaseline)) {
+                    context.report({ node, message })
+                  }
+                },
+              }
+            },
+          },
+        },
+      },
+    },
+    rules: { 'nomi-motion/tokens': 'error' },
+  },
   ...t8StructuralGuardBlocks,
   prettier,
 )

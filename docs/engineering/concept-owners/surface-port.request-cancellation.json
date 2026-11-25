@@ -1,0 +1,23 @@
+{
+  "name": "preload 请求取消与退订",
+  "subject": "surface-port.request-cancellation",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/surfacePortPreloadBridge.ts",
+    "symbol": "runCancellable"
+  },
+  "write_api": [
+    {
+      "path": "electron/surfacePortPreloadBridge.ts",
+      "symbol": "runCancellable"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "匹配请求及端口后跨 preload 通知取消并退订。"
+}

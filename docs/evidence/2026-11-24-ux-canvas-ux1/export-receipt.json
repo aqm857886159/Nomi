@@ -1,0 +1,29 @@
+{
+  "bytes": 4499,
+  "sha256": "86784313b9cf15e92ca6abf622505ed54db7e918a2878661483500d02a906631",
+  "nodes": [
+    {
+      "kind": "image",
+      "status": "success",
+      "aspect": null,
+      "result_type": "image"
+    },
+    {
+      "kind": "video",
+      "status": "success",
+      "aspect": "1:1",
+      "result_type": "video"
+    }
+  ],
+  "edges": [
+    "first_frame"
+  ],
+  "streams": [
+    {
+      "codec_name": "h264",
+      "width": 1920,
+      "height": 1080,
+      "duration": "1.000000"
+    }
+  ]
+}

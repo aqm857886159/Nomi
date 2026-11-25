@@ -1,5 +1,10 @@
 import type { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
+import { NOMI_DURATION_VARS, NOMI_EASE_VARS } from './src/design/motion'
+
+function motionUtilities(prefix: string, vars: Record<string, string>) {
+  return Object.fromEntries(Object.keys(vars).map((key) => [key.replace(prefix, 'nomi-'), `var(${key})`]))
+}
 import {
   NOMI_OVERLAY_Z_INDEX_CSS_VARS,
   NOMI_OVERLAY_Z_INDEX_TAILWIND_SCALE,
@@ -183,11 +188,8 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-radius-sm': '6px',
       '--nomi-radius': '10px',
       '--nomi-radius-lg': '16px',
-      '--nomi-duration-fast': '140ms',
-      '--nomi-ease-fast': 'cubic-bezier(.2, .7, .3, 1)',
-      // 形变（设计系统 §2.7）：只给 Agent 形象（NomiAgentFace）在状态之间变形用；其它交互过渡一律 fast。
-      '--nomi-duration-morph': '550ms',
-      '--nomi-ease-morph': 'cubic-bezier(.16, 1, .3, 1)',
+      ...NOMI_DURATION_VARS,
+      ...NOMI_EASE_VARS,
       '--nomi-font-sans': 'Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif',
       '--nomi-font-display': '"Fraunces Variable", Fraunces, "Inter Variable", Inter, serif',
       '--nomi-font-mono': 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
@@ -661,6 +663,15 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       background: 'color-mix(in srgb, var(--nomi-ink) 18%, transparent)',
     },
   })
+  addBase({
+    '@media (prefers-reduced-motion: reduce)': {
+      ':root': Object.fromEntries(Object.keys(NOMI_DURATION_VARS).map((key) => [key, '0ms'])),
+      '.animate-spin, .animate-pulse, .animate-remove-bg-pulse, .animate-remove-bg-pulse-slow': {
+        animation: 'none !important',
+        opacity: '0.65',
+      },
+    },
+  })
 })
 
 export default {
@@ -694,6 +705,7 @@ export default {
     '!./src/vendor/**',
   ],
   safelist: [
+    ...Object.keys(NOMI_DURATION_VARS).map(key => key.replace('--nomi-duration-', 'duration-nomi-')),
     'mantine-Tooltip-tooltip',
     'tc-panel-card',
     'mantine-Paper-root',
@@ -880,13 +892,10 @@ export default {
         'workbench-pop': 'var(--workbench-shadow-pop)',
       },
       keyframes: {
-        // 收起角标的 settle 脉冲（09-01 定稿 §11.2：**单次** 420ms，不常闪）。
-        // 只是「刚变过」的一下落定，不是一个持续的注意力索取——所以起点是小一圈的自己，
-        // 冲过头一点点再回到 1，没有第二个来回。
-        'nomi-badge-settle': {
-          '0%': { transform: 'scale(0.4)', opacity: '0' },
-          '55%': { transform: 'scale(1.28)', opacity: '1' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
+        'nomi-fade': { from: { opacity: '0' }, to: { opacity: '1' } },
+        'nomi-panel-pop': {
+          from: { opacity: '0', transform: 'translateY(-4px) scale(0.985)' },
+          to: { opacity: '1', transform: 'none' },
         },
         // 局部图像操作（抠背景/局部重绘）待处理时的呼吸。原先手写在 src/styles/index.css，
         // 靠「index.css 是 tailwind 入口、原样透传」才出现在产物里——keyframes 有两个家。
@@ -921,24 +930,25 @@ export default {
         },
       },
       animation: {
-        'nomi-badge-settle': 'nomi-badge-settle 420ms ease-out 1',
-        'remove-bg-pulse': 'remove-bg-pulse 1.2s ease-in-out infinite',
-        'remove-bg-pulse-slow': 'remove-bg-pulse 1.5s ease-in-out infinite',
-        'nomi-agent-dock-in': 'nomi-agent-dock-in 260ms var(--nomi-ease-fast) 1',
-        'nomi-agent-scan': 'nomi-agent-scan 1.4s ease-in-out infinite alternate',
+        'nomi-fade': 'nomi-fade var(--nomi-duration-normal) var(--nomi-ease-out)',
+        'nomi-panel-pop': 'nomi-panel-pop var(--nomi-duration-fast) var(--nomi-ease-out)',
+        'remove-bg-pulse': 'remove-bg-pulse 1.2s var(--nomi-ease-in-out) infinite',
+        'remove-bg-pulse-slow': 'remove-bg-pulse 1.5s var(--nomi-ease-in-out) infinite',
+        'nomi-agent-dock-in': 'nomi-agent-dock-in var(--nomi-duration-normal) var(--nomi-ease-out) 1',
+        'nomi-agent-scan': 'nomi-agent-scan 1.4s var(--nomi-ease-in-out) infinite alternate',
         'nomi-agent-hop': 'nomi-agent-hop 700ms var(--nomi-ease-morph) 1',
-        'nomi-agent-blink': 'nomi-agent-blink 600ms ease-in-out 1',
+        'nomi-agent-blink': 'nomi-agent-blink 600ms var(--nomi-ease-in-out) 1',
         'nomi-agent-spin': 'spin 1.1s linear infinite',
       },
       // 层级刻度由 NOMI_OVERLAY_Z_INDEX 派生（见 src/design/overlayLayers.ts）。
       zIndex: NOMI_OVERLAY_Z_INDEX_TAILWIND_SCALE,
       transitionDuration: {
-        'nomi-fast': 'var(--nomi-duration-fast)',
-        'nomi-morph': 'var(--nomi-duration-morph)',
+        DEFAULT: 'var(--nomi-duration-micro)',
+        ...motionUtilities('--nomi-duration-', NOMI_DURATION_VARS),
       },
       transitionTimingFunction: {
-        'nomi-fast': 'var(--nomi-ease-fast)',
-        'nomi-morph': 'var(--nomi-ease-morph)',
+        DEFAULT: 'var(--nomi-ease-out)',
+        ...motionUtilities('--nomi-ease-', NOMI_EASE_VARS),
       },
     },
   },

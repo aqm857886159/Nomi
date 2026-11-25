@@ -1,11 +1,14 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowUp, IconCoin, IconLoader2 } from '../../../vendor/tablerIcons'
+import { TEXT_BUTTON_PRESS } from '../../../design/motion'
 import { cn } from '../../../utils/cn'
 import { ICON_TIERS } from '../../../design'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { ComposerBarYieldContext } from './composerBarYield'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design/tooltip'
+
+const sendPress = cn('transition-[transform,background-color,opacity]', TEXT_BUTTON_PRESS)
 
 // 带字框 = 左右内边距 + 图标 + 间距；校准走查对照实际绘制，不能用它们反过来画 CSS。
 // eslint-disable-next-line react-refresh/only-export-components -- 量宽必须复用绘制组件的定义，校准测试防止两者漂移。
@@ -57,6 +60,7 @@ export function ComposerSendButton({
             onClick={onClick}
             disabled={busy || disabled}
             className={cn(
+              sendPress,
               'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-nomi-sm bg-nomi-ink text-nomi-paper',
               busy || disabled ? 'cursor-default opacity-60' : 'hover:opacity-90 active:opacity-80',
             )}
@@ -79,6 +83,7 @@ export function ComposerSendButton({
       onClick={onClick}
       disabled={busy || disabled}
       className={cn(
+        sendPress,
         'inline-flex h-7 shrink-0 items-center gap-1 rounded-nomi-sm bg-nomi-ink px-2.5 text-caption font-medium text-nomi-paper',
         busy || disabled ? 'cursor-default opacity-60' : 'hover:opacity-90 active:opacity-80',
       )}
@@ -101,7 +106,7 @@ export function ComposerSendButton({
               <button
                 type="button"
                 data-bar-segment="generate"
-                className="group -my-0.5 -mr-0.5 inline-flex h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-pill border-0 bg-nomi-ink-10 py-0 pl-2.5 pr-0.5 disabled:cursor-not-allowed"
+                className={cn('group -my-0.5 -mr-0.5 inline-flex h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-pill border-0 bg-nomi-ink-10 py-0 pl-2.5 pr-0.5 disabled:cursor-not-allowed', sendPress)}
                 aria-label={ariaLabel}
                 aria-description={cost.description}
                 aria-busy={busy}
@@ -126,7 +131,7 @@ export function ComposerSendButton({
               <button
                 type="button"
                 data-bar-segment="generate"
-                className={GENERATE_BUTTON_CLASS}
+                className={cn(GENERATE_BUTTON_CLASS, sendPress)}
                 aria-label={ariaLabel}
                 aria-description={cost.description}
                 aria-busy={busy}
@@ -148,7 +153,7 @@ export function ComposerSendButton({
     <button
       type="button"
       data-bar-segment="generate"
-      className={GENERATE_BUTTON_CLASS}
+      className={cn(GENERATE_BUTTON_CLASS, sendPress)}
       aria-label={ariaLabel}
       aria-busy={busy}
       disabled={disabled}

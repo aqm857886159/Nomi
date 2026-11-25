@@ -10,13 +10,14 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasAddBar, canvasAddMoreMenu, newProjectEntry } from './_shell.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
+
 const tempRoot = makeTempDir('nomi-canvas-control-clarity-')
+const shotsDir = path.join(tempRoot, 'shots')
+process.env.EVIDENCE_DIR = path.join(tempRoot, 'feel')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })
@@ -132,11 +133,11 @@ async function ensureParameterPanel(composer) {
       clear: hit === element || Boolean(hit && element.contains(hit)),
       overlapsTimeline: overlapWidth > 0 && overlapHeight > 0,
       // 2026-09-25 起浮框钉在节点正下方（composerCanvasPlacement.ts）：顶边 = 节点底边 + 14×缩放、
-      // 中线 = 节点中线、屏幕宽恒 560；不再翻到上方、不再 clamp 进视口，所以这里不再量「在舞台内」。
+      // 中线 = 节点中线、屏幕宽恒 600；不再翻到上方、不再 clamp 进视口，所以这里不再量「在舞台内」。
       pinned: Boolean(cardRect && nodeRect
         && Math.abs(cardRect.top - (nodeRect.bottom + 14 * zoom)) <= 2
         && Math.abs((cardRect.left + cardRect.right) / 2 - (nodeRect.left + nodeRect.right) / 2) <= 2
-        && Math.abs(cardRect.width - 560) <= 1),
+        && Math.abs(cardRect.width - 600) <= 1),
       card: cardRect ? box(cardRect) : null,
       node: nodeRect ? box(nodeRect) : null,
       zoom,
@@ -148,7 +149,7 @@ async function ensureParameterPanel(composer) {
   })
   assert(hitTest.clear, '生成参数按钮不被底部时间轴遮挡', JSON.stringify(hitTest))
   assert(!hitTest.overlapsTimeline, '生成参数按钮与底部时间轴没有视觉重叠', JSON.stringify(hitTest))
-  assert(hitTest.pinned, '新建节点的编辑框钉在节点正下方（顶边 = 节点底边 + 14×缩放、中线对齐、宽 560）', JSON.stringify(hitTest))
+  assert(hitTest.pinned, '新建节点的编辑框钉在节点正下方（顶边 = 节点底边 + 14×缩放、中线对齐、宽 600）', JSON.stringify(hitTest))
   await trigger.click()
   const panel = getWin().getByRole('group', { name: '生成参数面板', exact: true }).first()
   await panel.waitFor({ timeout: 5000 })
@@ -180,12 +181,11 @@ try {
   await resize(1600, 1000)
   await dismissFirstRun()
 
-  // 两家（kie + fal：都是「首次使用才验」的内置家，存 key 不发验证请求；apimart 有凭据探测端点，占位 key 会被拒）都只写占位 key：让同一个 Nano Banana 2 出现 15 档比例 + 多供应商选择；全程不点生成。
-  const keyStatuses = await getWin().evaluate(() => Promise.all([
-    window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('kie', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
-    window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('fal', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
-  ]))
-  assert(keyStatuses.every((status) => Boolean(status?.hasApiKey)), '隔离模型目录已启用两家图像供应商（不发生成请求）')
+  // Kie / fal 提供同款 15 比例模型，Runway 提供声明 1–4 张的模型。只存首次使用才验的占位 key。
+  const keyStatuses = await getWin().evaluate(() => Promise.all(['kie', 'fal', 'runway'].map((vendor) =>
+    window.nomiDesktop.modelCatalog.upsertVendorApiKey(vendor, { apiKey: 'nomi-e2e-placeholder', enabled: true }),
+  )))
+  assert(keyStatuses.every((status) => Boolean(status?.hasApiKey)), '隔离模型目录已启用三家图像供应商（不发生成请求）')
   await getWin().reload()
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(1500)
@@ -278,7 +278,16 @@ try {
   await composer.waitFor({ timeout: 5000 })
   const modelSelect = composer.getByRole('button', { name: '模型', exact: true }).first()
   await modelSelect.click()
-  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?!\s*Lite)/ }).first()
+  const modelName = 'Nano Banana 2'
+  // 模型框默认把上一代收进「更多」。主标签独立于说明和供应商标签。
+  const menu = getWin().locator('[data-nomi-select-dropdown]:visible')
+  await menu.waitFor()
+  const moreModels = menu.getByRole('button', { name: uiText('zh-CN', 'onboardingProviders.modelControls.more'), exact: true })
+  if (await moreModels.isVisible()) await moreModels.click()
+  const modelOption = (name) => menu.getByRole('option').filter({
+    has: getWin().locator('[data-nomi-select-option-label]').and(getWin().getByText(name, { exact: true })),
+  })
+  const nanoBanana2 = modelOption(modelName)
   await expectVisible(nanoBanana2, '模型目录必须提供跨供应商 Nano Banana 2')
   await nanoBanana2.click()
   await getWin().waitForTimeout(400)
@@ -298,15 +307,21 @@ try {
   for (const ratio of ['1:1', '21:9', '9:16']) {
     await selectRatio(panel, ratio)
     await getWin().waitForTimeout(220)
-    const [nodeBox, composerBox, triggerBox, panelBox, nodeLayout] = await Promise.all([
+    const [nodeBox, composerBox, triggerBox, panelBox, nodeLayout, summary] = await Promise.all([
       node.boundingBox(),
       composer.boundingBox(),
       trigger.boundingBox(),
       panel.boundingBox(),
       node.evaluate((element) => ({ width: Number.parseFloat(element.style.width), height: Number.parseFloat(element.style.height) })),
+      trigger.evaluate((button) => {
+        const label = button.querySelector('span')
+        const range = document.createRange()
+        range.selectNodeContents(label)
+        return { text: label.textContent, width: range.getBoundingClientRect().width }
+      }),
     ])
     assert(Boolean(nodeBox && composerBox && triggerBox && panelBox), `${ratio} 四个几何对象均可测量`)
-    geometries.push({ ratio, node: nodeBox, nodeLayout, composer: composerBox, trigger: triggerBox, panel: panelBox })
+    geometries.push({ ratio, node: nodeBox, nodeLayout, composer: composerBox, trigger: triggerBox, panel: panelBox, summary })
   }
 
   const reference = geometries[0]
@@ -316,7 +331,12 @@ try {
     const visualRatio = current.node.width / current.node.height
     assert(Math.abs(visualRatio - targetRatio) < 0.025, `${current.ratio} 节点外形符合目标比例`, visualRatio.toFixed(3))
     assert(stableBox(reference.composer, current.composer), `${current.ratio} 编辑框不漂移`, JSON.stringify(roundedBox(current.composer)))
-    assert(stableBox(reference.trigger, current.trigger), `${current.ratio} 比例触发器不漂移`)
+    // 摘要钮随文字宽度伸缩，位置、高度及文字外的占位必须稳定。
+    assert(stableBox(
+      { ...reference.trigger, width: reference.trigger.width - reference.summary.width },
+      { ...current.trigger, width: current.trigger.width - current.summary.width },
+    ), `${current.ratio} 参数摘要钮的锚点与文字外宽度不漂移`)
+    assert(current.summary.text?.startsWith(current.ratio), `${current.ratio} 出现在当前参数摘要`)
     assert(stableBox(reference.panel, current.panel), `${current.ratio} 已打开浮层不漂移`)
   }
   const areas = geometries.map((item) => item.node.width * item.node.height)
@@ -345,17 +365,22 @@ try {
   )
   await snap('02-dark-canvas-ratio-panel.png')
 
-  // ③ 生成数量是明确的 1–4 选择，不再循环跳数；3 个是真选项。
-  //    文案 2026-09-10 由「张」改为「个」：同一个计数件现在也管视频/音频/3D（反馈 #11），
-  //    「张」只对图片成立。
+  // ③ 数量只在供应商为所选模型声明时出现。用 Runway Seedream 5.0 Pro 验 1–4 和选中 3。
   await getWin().keyboard.press('Escape')
-  const countSelect = composer.getByRole('button', { name: '每次生成几个', exact: true }).first()
+  await modelSelect.click()
+  const seedream = modelOption('Seedream 5.0 Pro')
+  await expectVisible(seedream, '数量测试要用 Seedream 5.0 Pro')
+  await seedream.getByRole('button', { name: 'Runway Dev', exact: true }).click()
+  const quantity = composer.locator('[data-bar-segment="quantity"]')
+  const countSelect = quantity.getByRole('button', { name: uiText('zh-CN', 'generationCommon.composerB3.quantity'), exact: true })
+  const quantityLabel = (count) => uiTextWith('zh-CN', 'generationCommon.composerB3.quantityImage', { count })
+  await expectVisible(countSelect, '声明数量的模型应在底栏显示选择器')
   await countSelect.click()
-  const countOptions = getWin().getByRole('option')
-  const labels = (await countOptions.allTextContents()).map((text) => text.trim())
-  assert(['1 个', '2 个', '3 个', '4 个'].every((label) => labels.includes(label)), '数量菜单明确包含 1、2、3、4 个')
-  await getWin().getByRole('option', { name: '3 个', exact: true }).click()
-  assert((await countSelect.textContent())?.includes('3 个'), '可直接选择 3 个并在触发器显示')
+  const labels = (await menu.getByRole('option').allTextContents()).map((text) => text.trim())
+  assert(JSON.stringify(labels) === JSON.stringify([1, 2, 3, 4].map(quantityLabel)), '数量菜单明确包含 1、2、3、4 张', JSON.stringify(labels))
+  await menu.getByRole('option', { name: quantityLabel(3), exact: true }).click()
+  await expect(quantity).toHaveAttribute('data-parameter-chip-value', '3')
+  assert(await expect(countSelect).toHaveText(quantityLabel(3)).then(() => true, () => false), '可直接选择 3 张并在触发器显示')
 
   // ④ 40px 合一顶栏右簇（10-08 外壳重设计）：任务 · 浏览器 · 设置常驻；「去出片」「接入模型」「上手清单」已归位删除。
   const actionGroups = await getWin().evaluate(() => ({
@@ -380,7 +405,9 @@ try {
   await getWin().waitForTimeout(450)
   const taskButton = getWin().locator('[data-task-center-trigger="true"]').first()
   assert(await taskButton.isVisible(), '有任务时显示“任务”入口')
-  assert((await taskButton.textContent())?.replace(/\s+/g, '').includes('任务2'), '任务入口显示名称与待处理数量 2')
+  await expect(taskButton).toHaveAccessibleName(uiText('zh-CN', 'taskCenter.title'))
+  const pending = taskButton.locator('[data-task-center-count="2"]')
+  assert(await expect(pending).toHaveText('2').then(() => true, () => false), '任务入口显示待处理数量 2')
 
   const darkTopbar = getWin().locator('[data-shell-topbar]').first()
   await snap('01-dark-topbar.png', darkTopbar)

@@ -142,7 +142,7 @@ describe('surface_port_stale sites outside the document owner stay as they are',
     // 那一次字面量随之消失。**降到 1 是这条钉子该有的反应**：它钉的是「别再多长一份手抄」，
     // 收掉一份就该降一格。
     ['electron/capabilityCore/canvasReadTransportAdapters.ts', 1],
-    ['src/workbench/project/projectCanvasReadSurface.ts', 8],
+    ['src/workbench/project/projectCanvasReadSurface.ts', 7],
     ['src/workbench/capability/canonicalCanvasPlanPatch.ts', 1],
     ['src/workbench/capability/capabilityApplyHandler.ts', 1],
     ['src/workbench/creation/documentWriteTarget.ts', 1],

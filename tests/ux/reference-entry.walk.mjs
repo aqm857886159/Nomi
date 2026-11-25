@@ -2,6 +2,7 @@
 // Asset ids are observed through main and on the actual outbound request, never seeded.
 import fs from 'node:fs'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { expect, clickOrFail, proveProbe, expectAbsent, waitForVisualQuiescence } from './_assert.mjs'
 import { canvasAddBar, canvasAddMoreMenu, canvasFitView, canvasZoomPercent, canvasZoomStep, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { createRuntimeWalk, CREATION_PANEL, CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, openCanvas,
@@ -10,6 +11,8 @@ import { readLaneTranscripts } from './agent-lane-observer.mjs'
 import { MIN_WINDOW } from './_minWindow.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 
+process.env.NOMI_WALK_OUT ??= makeTempDir('reference-entry-evidence')
+process.env.EVIDENCE_DIR ??= path.join(process.env.NOMI_WALK_OUT, 'feel')
 const walk = await createRuntimeWalk('reference-entry')
 const snapshots = []
 let textTargetId
@@ -210,6 +213,7 @@ try {
   await theme.click()
   await win.locator('[data-settings-close]').click()
   await walk.resizeWindow(MIN_WINDOW.width, MIN_WINDOW.height)
+  await ensureAgentPanelOpen(win, 'Reopen Nomi at the minimum window size')
   await expect(canvasPanel.locator('[data-reference-entry]'), 'board:ReferenceEntry/agent.entry.visible').toBeVisible()
   await expect(canvasPanel.locator('[data-reference-entry]')).toHaveText('')
   await expect(canvasPanel.locator('[data-reference-entry]')).toHaveAttribute('aria-label', 'Add reference')

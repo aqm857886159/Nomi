@@ -1,3 +1,4 @@
+import { NOMI_DURATION_MS, exitDurationMs } from '../design/motion'
 import { createTheme, type CSSVariablesResolver } from '@mantine/core'
 import { NOMI_OVERLAY_Z_INDEX } from '../design/overlayLayers'
 
@@ -114,8 +115,13 @@ export const nomiDesignTokens = {
 const sansSerifFontFamily = 'var(--nomi-font-sans)'
 const monospaceFontFamily = 'var(--nomi-font-mono)'
 
+function transitionProps(duration: number) {
+  return { duration, exitDuration: exitDurationMs(duration), timingFunction: 'var(--nomi-ease-out)' }
+}
+
 export function buildNomiTheme() {
   return createTheme({
+    respectReducedMotion: true,
     focusRing: 'auto',
     cursorType: 'pointer',
     defaultRadius: 'xs',
@@ -277,6 +283,7 @@ export function buildNomiTheme() {
       },
       Modal: {
         defaultProps: {
+          transitionProps: transitionProps(NOMI_DURATION_MS.normal),
           radius: 'md',
           shadow: 'lg',
           zIndex: NOMI_OVERLAY_Z_INDEX.dialog
@@ -284,13 +291,16 @@ export function buildNomiTheme() {
       },
       Drawer: {
         defaultProps: {
+          transitionProps: transitionProps(NOMI_DURATION_MS.normal),
           radius: 'sm',
           shadow: 'lg',
           zIndex: NOMI_OVERLAY_Z_INDEX.dialog
         }
       },
+      Combobox: { defaultProps: { transitionProps: transitionProps(NOMI_DURATION_MS.fast) } },
       Menu: {
         defaultProps: {
+          transitionProps: transitionProps(NOMI_DURATION_MS.fast),
           radius: 'sm',
           shadow: 'md',
           zIndex: NOMI_OVERLAY_Z_INDEX.popover
@@ -298,6 +308,7 @@ export function buildNomiTheme() {
       },
       Popover: {
         defaultProps: {
+          transitionProps: transitionProps(NOMI_DURATION_MS.fast),
           radius: 'sm',
           shadow: 'md',
           zIndex: NOMI_OVERLAY_Z_INDEX.popover

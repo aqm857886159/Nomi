@@ -97,3 +97,28 @@ test('the retired handbook page and its generator are gone, and the redirect tar
   assert.match(redirects, /^\/handbook\s+\/quickstart\s+301\s*$/m, '/handbook redirects to /quickstart')
   assert.match(redirects, /^\/handbook\.html\s+\/quickstart\s+301\s*$/m, '/handbook.html redirects to /quickstart')
 })
+
+test('robots.txt explicitly allows search and AI answer crawlers and matches its generator', async () => {
+  const { renderRobotsTxt } = await import('../../scripts/build-marketing-sitemap.mjs')
+  const robots = read('marketing/robots.txt')
+  assert.equal(robots, renderRobotsTxt(shared.siteUrl), 'marketing/robots.txt matches renderRobotsTxt output')
+  const requiredAgents = [
+    'Googlebot',
+    'Bingbot',
+    'GPTBot',
+    'OAI-SearchBot',
+    'ChatGPT-User',
+    'PerplexityBot',
+    'ClaudeBot',
+    'Google-Extended',
+  ]
+  for (const agent of requiredAgents) {
+    assert.match(
+      robots,
+      new RegExp(`^User-agent:\\s*${agent.replaceAll('.', '\\.')}\\nAllow:\\s*/\\s*$`, 'm'),
+      `marketing/robots.txt explicitly allows ${agent}`,
+    )
+  }
+  assert.match(robots, /^User-agent:\s*\*\nAllow:\s*\/\s*$/m, 'marketing/robots.txt keeps wildcard Allow: /')
+  assert.match(robots, /^Sitemap:\s*https:\/\/nomiaqm\.com\/sitemap\.xml\s*$/m, 'marketing/robots.txt points to canonical sitemap')
+})

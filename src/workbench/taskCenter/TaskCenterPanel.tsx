@@ -198,7 +198,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
         data-nomi-right-panel="tasks"
         // app-no-drag：与模型设置浮卡同因同治（issue #58）——Portal 到 body 的浮层不是窗口栏后代，
         // 拿不到窗口栏内的拖拽豁免，压在 Windows 自绘拖拽带上的按钮点击会被系统当拖窗口吞掉。
-        className="app-no-drag flex flex-col overflow-hidden bg-nomi-paper border border-nomi-line shadow-nomi-lg"
+        className="app-no-drag motion-safe:animate-nomi-panel-pop flex flex-col overflow-hidden bg-nomi-paper border border-nomi-line shadow-nomi-lg"
         style={{
           position: 'fixed',
           top: topOffset,
@@ -207,7 +207,6 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
           maxHeight: `calc(100vh - ${topOffset + 16}px)`,
           borderRadius: 'var(--nomi-radius-lg)',
           zIndex: 4000,
-          animation: 'nomi-panel-pop 140ms cubic-bezier(.2, .7, .3, 1)',
         }}
       >
         <div className="flex items-center gap-2 px-3.5 pt-3 pb-2.5 border-b border-nomi-line">
@@ -263,12 +262,6 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
           ) : null}
         </div>
 
-        <style>{`
-          @keyframes nomi-panel-pop {
-            from { opacity: 0; transform: translateY(-4px) scale(0.985); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
-          }
-        `}</style>
       </div>
     </Portal>
   )

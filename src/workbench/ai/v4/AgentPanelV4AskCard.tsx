@@ -1,3 +1,4 @@
+import { shouldReduceMotion } from '../../../design/motion'
 /**
  * 反问卡。**骨架**来自 Beautiful UI 的 Approval Card（MIT，见 `vendor/BEAUTIFUL-UI-LICENSE.md`），
  * **长相百分之百是 Nomi 的**（2026-09-22 用户：「卡族换壳，主要是要用我们的设计系统」）。
@@ -18,7 +19,7 @@
  * | 页码 `‹ 1/3 ›` | 面板现役翻页器 `V4Pager`（付费卡多镜翻页用的就是它） | `AgentPanelV4SlotShell.tsx` |
  *
  * 从 Beautiful UI 拿的**只有骨架与交互**：问题作标题、竖排整行可点的选项、末行内联输入、
- * 一次一题且卡高随题滑动（360ms `cubic-bezier(.22,1,.36,1)`）、单选点了 480ms 自动前进、
+ * 一次一题且卡高随题滑动（空间过渡）、单选点了 480ms 自动前进、
  * 多选与自由输入等主按钮、一条在行间滑动的高亮带（220ms）、`ready` 闸防首帧撑满。
  * 它的颜色、圆角、字号、阴影、按钮长相**一个值都没带过来**。
  *
@@ -65,20 +66,8 @@ export type V4AskCardLabels = Readonly<{
 }>
 
 /** 滑动曲线与时长照搬 Approval Card 的 `SLIDE`。 */
-const SLIDE = '360ms cubic-bezier(0.22, 1, 0.36, 1)'
+const SLIDE = 'var(--nomi-duration-spatial) var(--nomi-ease-spatial)'
 
-/**
- * 「这台机器要求别动画」。
- *
- * `matchMedia` 存在性要单独判：这个函数在**渲染期**被调用（滑动带的 `transition` 要它），
- * 而渲染期跑在的不只是浏览器——静态标记渲染（组件单测走的那条）里 `window` 在、
- * `matchMedia` 不在，少这一句就是一条 `TypeError`，整张卡渲不出来。
- * 探测不到就按「可以动」算：动效是默认，缺的是那份偏好不是那份权利。
- */
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
 
 /**
  * 一条滑动高亮带（Approval Card 的 `GlideMenu`）。
@@ -120,9 +109,9 @@ function AskGlideMenu({ children, className }: { children: React.ReactNode; clas
           top: box?.top ?? 0,
           height: box?.height ?? 0,
           opacity: box && visible ? 1 : 0,
-          transition: prefersReducedMotion()
-            ? 'opacity 150ms ease'
-            : 'top 220ms cubic-bezier(0.23,1,0.32,1), height 220ms cubic-bezier(0.23,1,0.32,1), opacity 150ms ease',
+          transition: shouldReduceMotion()
+            ? 'opacity var(--nomi-duration-fast) var(--nomi-ease-out)'
+            : 'top var(--nomi-duration-normal) var(--nomi-ease-spatial), height var(--nomi-duration-normal) var(--nomi-ease-spatial), opacity var(--nomi-duration-fast) var(--nomi-ease-out)',
         }}
       />
       {children}
@@ -203,7 +192,7 @@ export function V4AskCard({
   React.useLayoutEffect(() => {
     const item = itemRefs.current[index]
     if (!item) return
-    const withAnim = measured.current && !prefersReducedMotion()
+    const withAnim = measured.current && !shouldReduceMotion()
     measured.current = true
     setViewportH(item.offsetHeight)
     setTrackY(item.offsetTop)

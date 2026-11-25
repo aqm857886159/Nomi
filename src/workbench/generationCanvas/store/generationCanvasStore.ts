@@ -23,6 +23,7 @@ import { createCanvasNodeActions, removeGroupsEmptiedByNodeDeletion } from './ca
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
 import { createCanvasDocumentActions, isCanvasDocumentRestore, settleRewind } from './canvasDocumentCommit'
+import { reseedChangedFirstFrames } from './canvasConnectDerivations'
 import { forgetUnfitModeChoices } from './canvasModeChoiceForget'
 import { reconcileTimelineForDeletedNodes } from './canvasTimelineBridge'
 import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
@@ -230,30 +231,31 @@ bindCanvasHistoryDocument(useGenerationCanvasStore.getState, (restore, live) =>
 // Agent、MCP、删节点都经过这里，不管生成框有没有挂着。装载项目、重放尾巴、撤销 / 重做写进来的是权威状态，不重算（打开老项目不改写存盘）。
 // 订阅只记下「这笔手势之前长什么样」；真正的写等这笔手势的事件进了撤销日志再做（onAfterCanvasGesture），
 // 于是它落在手势的撤销点之后，⌘Z 和手势一起回去。没发事件的写由微任务兜底。
-let forgettingModeChoices = false
-let modeChoicesBefore: Pick<GenerationCanvasState, 'nodes' | 'edges'> | null = null
-function settleModeChoices(): void {
-  const previous = modeChoicesBefore
-  if (!previous || forgettingModeChoices) return
-  modeChoicesBefore = null
+let settlingInputChanges = false
+let graphBeforeInputChanges: Pick<GenerationCanvasState, 'nodes' | 'edges'> | null = null
+function settleInputChanges(): void {
+  const previous = graphBeforeInputChanges
+  if (!previous || settlingInputChanges) return
+  graphBeforeInputChanges = null
   const state = useGenerationCanvasStore.getState()
-  forgettingModeChoices = true
+  settlingInputChanges = true
   try {
     forgetUnfitModeChoices(previous, state, (nodeId, meta) => state.updateNode(nodeId, { meta }, { history: false }))
+    reseedChangedFirstFrames(previous, useGenerationCanvasStore.getState)
   } finally {
-    forgettingModeChoices = false
+    settlingInputChanges = false
   }
 }
 useGenerationCanvasStore.subscribe((state, previous) => {
-  if (forgettingModeChoices) return
-  if (isCanvasDocumentRestore()) { modeChoicesBefore = null; return }
+  if (settlingInputChanges) return
+  if (isCanvasDocumentRestore()) { graphBeforeInputChanges = null; return }
   if (state.edges === previous.edges && state.nodes === previous.nodes) return
-  if (modeChoicesBefore) return
-  modeChoicesBefore = { nodes: previous.nodes, edges: previous.edges }
-  queueMicrotask(settleModeChoices)
+  if (graphBeforeInputChanges) return
+  graphBeforeInputChanges = { nodes: previous.nodes, edges: previous.edges }
+  queueMicrotask(settleInputChanges)
 })
 onAfterCanvasGesture(() => {
-  settleModeChoices()
+  settleInputChanges()
   const live = useGenerationCanvasStore.getState()
   const flags = getHistoryFlags()
   if (live.canUndo !== flags.canUndo || live.canRedo !== flags.canRedo) useGenerationCanvasStore.setState(flags)

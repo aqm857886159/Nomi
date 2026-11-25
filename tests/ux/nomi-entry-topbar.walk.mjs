@@ -448,7 +448,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     }
 
     // ── 五种脸 + 点（A1–A5）、角标 / 胶囊（B1–B6）、提示（D5、G1） ──
-    const lead = t('appShell.agent.entryOpen', { shortcut: '⌘J' })
+    const lead = t('appShell.agent.entryOpen', { shortcut: process.platform === 'darwin' ? '⌘J' : 'Ctrl+J' })
     const status = (key, values) => t(`agentPanelV4.${key}`, values)
     const faceCases = [
       { id: 'A1', name: 'idle', set: {}, status: 'idle', dot: null, tip: [lead, status('dockIdle')] },
@@ -593,7 +593,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
       check(`${BOARD.tooltip} D5 整窗截图那一刻最长提示开着、在窗口里（拍前、拍后都在，最多拍三次）`, Boolean(captured), JSON.stringify({ tries: attempts.length, tipBox: captured?.tipBox ?? null, lost }))
       if (lost.length) unverified.push(`D5 最长提示整窗截图：拍了 ${attempts.length} 次，${lost.length} 次拍完提示已关（关前事件见 [tooltip-capture] 行），原因没查清`)
       await leaveEntry()
-      unverified.push('D5 / G1 Windows「Ctrl+J」：这台是 Mac，真窗口量不到；快捷键前缀按平台写由 nomiEntryLook.test.ts 覆盖')
+      if (process.platform !== 'win32') unverified.push(`D5 / G1 Windows「Ctrl+J」：本次平台 ${process.platform}，Windows 真窗口未验证`)
     }
 
     // ── 面板开着（D3、C4、C5）+ 形态切换（K1） ──

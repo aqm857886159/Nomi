@@ -18,7 +18,7 @@
 import { findModelOptionByIdentifier, peekGenerationNodeModelOptions } from '../adapters/modelOptionsAdapter'
 import { isAspectInputEdgeMode } from '../nodes/aspectRatio'
 import { resolveRenderedControls, resolveRenderedMode } from '../nodes/nodeModelArchetype'
-import { applyVideoAspectSeed, videoAspectSeedPatch } from '../nodes/videoAspectSeed'
+import { applyVideoAspectSeed, firstFrameResultAspect, videoAspectSeedPatch } from '../nodes/videoAspectSeed'
 import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
 import { isImageLikeGenerationNodeKind, isVideoLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -62,4 +62,23 @@ export function deriveTargetAfterConnect(
 ): void {
   void sourceNodeId
   seedTargetVideoAspect(getStore(), targetNodeId, mode)
+}
+
+/** A new main result or late decode can change a connected video's default while its editor is closed. */
+export function reseedChangedFirstFrames(previous: Pick<ConnectDerivationStore, 'nodes'>, getStore: () => ConnectDerivationStore): void {
+  const next = getStore()
+  if (previous.nodes === next.nodes) return
+  const frames = next.edges.filter(edge => edge.mode === 'first_frame')
+  if (!frames.length) return
+  const before = new Map(previous.nodes.map(node => [node.id, node]))
+  const after = new Map(next.nodes.map(node => [node.id, node]))
+  for (const edge of frames) {
+    const old = before.get(edge.source)
+    const source = after.get(edge.source)
+    if (old === source) continue
+    const ratio = firstFrameResultAspect(source)
+    if (ratio && (source?.result?.id !== old?.result?.id || ratio !== firstFrameResultAspect(old))) {
+      seedTargetVideoAspect(getStore(), edge.target, edge.mode)
+    }
+  }
 }

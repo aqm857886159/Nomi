@@ -15,7 +15,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //   ⑦ 本机失败（源文件被拿走）：新卡变错误卡，只有「重试」没有「换个模型」；放回文件点重试成功；
 //   ⑧ 画布缩到 50%：面板不跟着缩小，照常可拖照常可确认。
 // 用法：node tests/ux/video-clip-direct.walk.mjs [--locale en] [--scheme dark] [--shots no]
-// 截图：docs/evidence/2026-10-11-video-trim-production/<序号>-<状态>-<zh|en>[-dark].png
+// 截图和性能记录写到隔离的仓外临时目录。
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -37,8 +37,9 @@ const locale = argValue('--locale', 'zh-CN')
 const scheme = argValue('--scheme', 'light')
 const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}`
 const zh = locale !== 'en'
-const evidence = path.join(repoRoot, 'docs/evidence/2026-10-11-video-trim-production')
-const failShotDir = path.join(repoRoot, '.tmp/walk-fail')
+const evidence = makeTempDir('nomi-video-clip-evidence-')
+process.env.EVIDENCE_DIR ||= evidence
+const failShotDir = path.join(evidence, 'failures')
 const withShots = argValue('--shots', 'yes') !== 'no'
 
 const temp = makeTempDir('nomi-video-clip-')
@@ -102,7 +103,7 @@ const L = {
 
 const results = []
 const run = await launchNomiApp({
-  name: 'video-clip-direct', projectsDir, settleMs: 0,
+  name: 'video-clip-direct', settingsDir: path.join(temp, 'settings'), projectsDir, settleMs: 0,
   viewportSize: { width: 1680, height: 1050 },
   initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
 })
@@ -422,10 +423,11 @@ try {
     await openPanel('real-video')
     await shot('15-real-filmstrip')
     const selected = await readouts()
+    const previousIds = new Set(newCards(await snapshot()).map((node) => node.id))
     await win.getByRole('button', { name: L.confirm, exact: true }).click()
-    const before = newCards(await snapshot()).length
-    await expect.poll(async () => newCards(await snapshot()).filter(n=>n.status==='success').length).toBe(before)
-    const out = newCards(await snapshot()).find(n=>n.meta.sourceVideoNodeId==='real-video')
+    const newClip = async () => newCards(await snapshot()).filter((node) => !previousIds.has(node.id) && node.meta.sourceVideoNodeId === 'real-video')
+    await expect.poll(async () => (await newClip()).map((node) => node.status), { timeout: stationTimeout({ operations: 4 }) }).toEqual(['success'])
+    const [out] = await newClip()
     expect(Math.abs(durationOf(localPath(out.resultUrl)) - (selected.out-selected.in))).toBeLessThan(.25)
   })
 

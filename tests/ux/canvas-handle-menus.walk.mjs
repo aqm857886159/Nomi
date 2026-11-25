@@ -11,26 +11,24 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //   · 「在画布上点选」：顶栏出现、可点的卡描边、本卡变灰；点中一张 = 连上；Esc = 什么都不建；
 //   · 空画布 = 一排任务卡（与左缘工具条常驻同源）。
 // 用法：node tests/ux/canvas-handle-menus.walk.mjs [--locale en] [--scheme dark]
-// 截图：docs/evidence/2026-10-08-canvas-handles/<序号>-<状态>-<zh|en>[-dark].png
+// 截图落在仓库外的隔离证据目录。
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
-import { launchNomiApp } from './_launchApp.mjs'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { canvasAddBar, canvasAddMoreMenu, canvasResetView } from './_shell.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
 const locale = argValue('--locale', 'zh-CN')
 const scheme = argValue('--scheme', 'light')
 const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}`
 const zh = locale !== 'en'
-const evidence = path.join(repoRoot, 'docs/evidence/2026-10-08-canvas-handles')
-const failShotDir = path.join(repoRoot, '.tmp/walk-fail')
+const evidence = makeTempDir('nomi-handle-menus-evidence-')
+process.env.EVIDENCE_DIR = evidence
 
 const temp = makeTempDir('nomi-handle-menus-')
 const projectsDir = path.join(temp, 'projects')
@@ -39,8 +37,6 @@ const projectRoot = path.join(projectsDir, projectId)
 const assetsDir = path.join(projectRoot, 'assets/generated')
 fs.mkdirSync(assetsDir, { recursive: true })
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
-fs.mkdirSync(evidence, { recursive: true })
-fs.mkdirSync(failShotDir, { recursive: true })
 execFileSync(ffmpeg.path, ['-y', '-f', 'lavfi', '-i', 'testsrc2=size=640x360', '-frames:v', '1', path.join(assetsDir, 'street.png')], { stdio: 'pipe' })
 execFileSync(ffmpeg.path, ['-y', '-f', 'lavfi', '-i', 'smptebars=size=640x360', '-frames:v', '1', path.join(assetsDir, 'portrait.png')], { stdio: 'pipe' })
 const url = (file) => `nomi-local://asset/${projectId}/assets/generated/${file}`
@@ -85,8 +81,7 @@ async function task(name, body) {
   try { await body(); results.push({ name, pass: true }) }
   catch (error) {
     results.push({ name, pass: false, error: String(error?.message ?? error).split('\n').filter(Boolean).slice(0, 8).join(' | ') })
-    // 失败截图写到不进库的 .tmp/，不落进 docs/evidence（证据目录只放拍板过的图）。
-    await win.screenshot({ path: path.join(failShotDir, `FAIL-${name}-${tag}.png`) }).catch(() => {})
+    await win.screenshot({ path: path.join(evidence, `FAIL-${name}-${tag}.png`) }).catch(() => {})
     await win.keyboard.press('Escape').catch(() => {})
   }
   console.log(JSON.stringify(results.at(-1)))
@@ -245,25 +240,31 @@ try {
   await task('05-empty-cards-show-try', async () => {
     await win.evaluate(() => /** @type {any} */ (window).__nomiCanvasStore.getState().selectNodes([]))
     await waitForVisualQuiescence(win)
-    for (const [id, kind] of [['h-image', 'image'], ['h-video', 'video'], ['h-text', 'text'], ['h-clip', 'clip']]) {
-      await expect(win.locator(`${nodeSel(id)} [data-node-try="${kind}"]`), `${id} shows 试试`).toBeVisible()
+    for (const [id, kind, shotName] of [
+      ['h-image', 'image', '05-empty-image'], ['h-video', 'video', '06-empty-video'],
+      ['h-text', 'text', '07-empty-text'], ['h-clip', 'clip', '08-empty-clip'],
+    ]) {
+      const card = win.locator(nodeSel(id))
+      const actions = card.locator(`[data-node-try="${kind}"]`)
+      await expect(card.locator('[data-empty-tier="icon"]')).toBeVisible()
+      await expect(actions).toHaveCount(0)
+      await select(id)
+      await expect(actions, `${id} 单选时显示动作`).toBeVisible()
       // 「试试」那一行必须单行（中英文都是；文案按最小宽度写短，不靠 JS 动态藏点）：所有动作同一个 top，且不溢出自己的容器。
-      const row = await win.locator(`${nodeSel(id)} [data-node-try="${kind}"]`).evaluate((el) => {
+      const row = await actions.evaluate((el) => {
         const tops = new Set([...el.querySelectorAll('button')].map((button) => Math.round(button.getBoundingClientRect().top)))
         const frame = el.closest('[data-node-empty-state], .generation-canvas-v2-node')?.getBoundingClientRect()
         const rect = el.getBoundingClientRect()
         return { lines: tops.size, overflow: el.scrollWidth > el.clientWidth + 1, insideFrame: !frame || (rect.left >= frame.left - 1 && rect.right <= frame.right + 1) }
       })
       expect(row, `${id} 动作行单行、不溢出`).toEqual({ lines: 1, overflow: false, insideFrame: true })
+      await shot(shotName, card)
     }
-    await shot('05-empty-image', win.locator(nodeSel('h-image')))
-    await shot('06-empty-video', win.locator(nodeSel('h-video')))
-    await shot('07-empty-text', win.locator(nodeSel('h-text')))
-    await shot('08-empty-clip', win.locator(nodeSel('h-clip')))
     await shot('05-empty-cards-canvas')
   })
 
   await task('06-recipe-first-frame-builds-structure-one-undo', async () => {
+    await select('h-video')
     const item = win.locator(`${nodeSel('h-video')} [data-node-try-recipe="video.firstFrame"]`)
     await item.click()
     await expect.poll(async () => (await store()).edges.length).toBe(1)

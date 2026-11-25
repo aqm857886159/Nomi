@@ -1,139 +1,95 @@
-import { makeTempDir } from '../../scripts/_test-temp.mjs'
-// R16 走查（Phase B·方案门 surfacing）：外部 MCP agent 往画布**批量落节点**时，运行中的 Nomi
-// 弹出应用内「方案门」确认卡（复用付费卡漏斗，kind=plan、分镜图标），真人点了才落——不再静默写画布。
-// 起真 GUI app（写 instance 广告）+ 另起 stdio MCP 子进程（同 NOMI_CAPABILITY_DIR → 探到运行中的
-// GUI，经 RPC 转发）：stdio 发 nomi_canvas_edit(action=add_nodes, 3 节点) → 主进程经 hybrid 网关 requestRenderer('plan.confirm')
-// → GUI 弹方案卡 → 截图人眼看 → 点「落到画布」→ stdio 拿到 ids。全程**不花额度**（只建节点，不生成）。
-// 用法：pnpm run build && node tests/ux/plan-gate.walk.mjs
-import { launchNomiApp, repoRoot, spawnQuietElectron } from './_launchApp.mjs'
-import fs from 'node:fs'
-import os from 'node:os'
-import readline from 'node:readline'
+// R16：真实 MCP stdio 客户端请求批量建节点。没有 elicitation 能力的客户端走 Nomi 窗口内的方案门。
+// 真人确认前画布为空，确认后按回执中的身份读回三张镜头卡。全程不生成。
 import path from 'node:path'
-import { screenshotSettled } from './_assert.mjs'
+import os from 'node:os'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { launchNomiApp } from './_launchApp.mjs'
+import { makeIsolatedDirs, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
+import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { switchGenerationView, switchWorkspace } from './_shell.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/plan-gate')
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
-
-const base = makeTempDir('nomi-plangate-')
-const settingsDir = path.join(base, 'settings')
-const projectsDir = path.join(base, 'projects')
-const capDir = path.join(base, 'capability-core')
-fs.mkdirSync(settingsDir, { recursive: true })
-fs.mkdirSync(projectsDir, { recursive: true })
-// 只建节点、不生成：用 App 自带的目录就够，不拷用户真实目录与凭据（本机跑和夜跑同一份夹具）。
-
-const sharedEnv = {
-  NOMI_E2E: '1',
-  NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-  NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-  NOMI_SETTINGS_DIR: settingsDir,
-  NOMI_PROJECTS_DIR: projectsDir,
-  NOMI_CAPABILITY_DIR: capDir,
-}
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const shotsDir = assertOutsideRepo(makeTempDir('nomi-plangate-evidence-'))
+process.env.EVIDENCE_DIR = shotsDir
+const dirs = makeIsolatedDirs('nomi-plangate-')
 let passed = 0
-const ok = (c, l) => { if (!c) throw new Error(`FAIL: ${l}`); passed += 1; console.log(`  ✓ ${l}`) }
+function check(condition, label) {
+  expect(condition, label).toBeTruthy()
+  passed += 1
+  console.log(`  ✓ ${label}`)
+}
 
-// ── 起 GUI app（真窗口，写 instance 广告供 stdio 探测）───────────────────
-const { app } = await launchNomiApp({
+const run = await launchNomiApp({
+  ...dirs,
+  settingsDir: dirs.settingsDir,
+  projectsDir: dirs.projectsDir,
   name: 'plan-gate',
-  userDataDir: settingsDir,
-  settingsDir,
-  projectsDir,
-  env: { NOMI_CAPABILITY_DIR: capDir },
-  args: ['--disable-gpu', '--disable-software-rasterizer'],
-  settleMs: 0,
+  initialLocalStorage: { 'nomi:locale:v1': 'zh-CN', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen' },
+  syntheticCredentialStorage: true,
 })
-
-// ── stdio MCP 子进程（外部 agent 真路径；同 capDir → 转发到运行中的 GUI）─────
-let child = null
-const pending = new Map()
-let seq = 0
-function rpc(method, params, timeoutMs = 30000) {
-  const id = (seq += 1)
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`RPC 超时: ${method}`)) }, timeoutMs)
-    pending.set(id, { resolve, timer })
-    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n')
-  })
-}
-async function callTool(name, args, timeoutMs = 30000) {
-  const res = (await rpc('tools/call', { name, arguments: args }, timeoutMs)).result
-  const text = res?.content?.[0]?.text || ''
-  if (res?.isError) throw new Error(`工具 ${name} 失败：${text}`)
-  try { return JSON.parse(text) } catch { return text }
-}
-
-let exitCode = 0
+const { win } = run
+let client
 try {
-  const win = app.windows().filter((w) => !w.isClosed()).slice(-1)[0]
-  win.on('pageerror', (e) => console.log('  [pageerror]', e.message.slice(0, 160)))
-  await win.waitForLoadState('domcontentloaded')
-  await sleep(1500)
-  await win.evaluate(() => { for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen') })
-  await win.reload(); await sleep(1500)
-  for (let i = 0; i < 5; i++) { const s = win.locator('button,[role="button"],a', { hasText: /跳过|开始创作|进入|完成/ }).first(); if (await s.count()) await s.click({ timeout: 1000 }).catch(() => {}); await win.keyboard.press('Escape').catch(() => {}); await sleep(300) }
+  client = spawnMcpStdioClient({
+    ...dirs,
+    clientInfo: { name: 'plan-gate-walk', version: '1.0' },
+    capabilities: {},
+    env: { NOMI_APP_NAME: 'nomi' },
+    syntheticCredentialStorage: true,
+  })
+  const init = await client.initialize()
+  check(init?.result, 'stdio MCP 服务完成握手')
+
+  const created = await client.callToolOrThrow('nomi_project_create', { name: '方案门走查' })
+  const { id: projectId, projectSelectionHandle } = parseToolResult(created).json
+  check(projectId && projectSelectionHandle, '建项目并取得项目选择句柄')
+  await win.reload()
+  await win.locator(`[data-project-card][data-project-id="${projectId}"]`).click()
+  await switchWorkspace(win, 'generation')
+  await switchGenerationView(win, 'canvas')
   await screenshotSettled(win, { path: path.join(shotsDir, '01-app-ready.png') })
 
-  child = spawnQuietElectron([repoRoot, '--disable-gpu'], { cwd: repoRoot, env: { ...process.env, ...sharedEnv, NOMI_MCP_STDIO: '1' }, stdio: ['pipe', 'pipe', 'inherit'] })
-  const rl = readline.createInterface({ input: child.stdout })
-  rl.on('line', (line) => {
-    const t = line.trim(); if (!t.startsWith('{')) return
-    let msg; try { msg = JSON.parse(t) } catch { return }
-    if (msg.id != null && pending.has(msg.id)) { const { resolve, timer } = pending.get(msg.id); clearTimeout(timer); pending.delete(msg.id); resolve(msg) }
-  })
+  const session = await client.callToolOrThrow('nomi_session_open', { projectSelectionHandle })
+  const { leaseHandle } = parseToolResult(session).json
+  check(leaseHandle, '为所选项目打开已验证的 MCP 租约')
+  const nodes = win.locator('.generation-canvas-v2-node[data-node-id]')
+  const emptyCanvas = win.locator('[data-empty-canvas-tasks="true"]')
+  const emptyCanvasProof = await proveProbe(emptyCanvas, '隔离项目打开时画布为空')
+  await expectAbsent(nodes, { provenBy: emptyCanvasProof })
 
-  // 起服务（等它探到运行中的 GUI）。
-  let init = null
-  for (let i = 0; i < 20 && !init; i++) {
-    try { init = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'plan-gate-walk', version: '1.0' } }, 4000) } catch { await sleep(1000) }
-  }
-  ok(init?.result, 'stdio MCP 服务起来了（探到运行中的 GUI）')
-
-  const proj = await callTool('nomi_project_create', { name: '方案门走查' })
-  const projectId = proj.projectId || proj.id
-  ok(projectId, `建项目（${projectId}）`)
-
-  // 发批量 create_canvas_nodes（3 节点 = 一套方案）——**不 await**：它会阻塞在 GUI 的方案门卡上。
-  console.log('  · 外部 agent 发 nomi_canvas_edit(create_canvas_nodes, 3 节点)，应在 GUI 弹方案门…')
-  const addPromise = callTool('nomi_canvas_edit', {
+  const add = client.callToolOrThrow('nomi_canvas_edit', {
     projectId,
+    leaseHandle,
     operation: 'create_canvas_nodes',
+    summary: '添加面馆方案的三张镜头卡',
     nodes: [
-      { kind: 'shot', title: 'S1 空店', prompt: '深夜面馆空荡的店面' },
-      { kind: 'shot', title: 'S2 擦桌', prompt: '老陈擦拭木桌' },
-      { kind: 'shot', title: 'S3 门帘', prompt: '门帘一挑，女儿进门' },
+      { clientId: 'shop', kind: 'shot', title: 'S1 空店', prompt: '深夜面馆空荡的店面' },
+      { clientId: 'table', kind: 'shot', title: 'S2 擦桌', prompt: '老陈擦拭木桌' },
+      { clientId: 'curtain', kind: 'shot', title: 'S3 门帘', prompt: '门帘一挑，女儿进门' },
     ],
-  }, 60000)
+  }).then(result => ({ result }), error => ({ error }))
 
-  // GUI 应弹方案卡（kind=plan：分镜图标 + 「AI 助手想在画布落一套方案」+「落到画布」）。
-  const planCard = win.locator('[data-spend-confirm-dialog]').filter({ hasText: /在画布落一套方案|落到画布/ }).first()
-  let cardShown = false
-  for (let i = 0; i < 30; i++) { if (await planCard.count()) { cardShown = true; break } await sleep(1000) }
+  const planCard = win.getByRole('dialog', { name: uiText('zh-CN', 'runtime.capability.planTitle'), exact: true })
+  await Promise.race([
+    expect(planCard).toBeVisible(),
+    add.then(({ error }) => { throw error ?? new Error('MCP 在真人确认前已结束') }),
+  ])
+  await expectAbsent(nodes, { provenBy: emptyCanvasProof, message: '确认前画布没有新节点' })
+  check(await planCard.isVisible(), 'MCP 批量落节点先弹出应用内方案门，画布仍为空')
   await screenshotSettled(win, { path: path.join(shotsDir, '02-plan-gate-card.png') })
-  ok(cardShown, '外部 agent 批量落节点 → GUI 弹出应用内「方案门」卡（不再静默写画布）')
-  const cardText = await win.evaluate(() => document.body.innerText.match(/AI 助手想在画布落一套方案[\s\S]{0,120}/)?.[0] || '').catch(() => '')
-  console.log('  · 方案卡文案：', cardText.replace(/\n+/g, ' ').slice(0, 120))
-
-  // 点「落到画布」确认 → stdio 的 add_nodes 解阻塞、拿到 3 个 id。
-  const confirmBtn = planCard.locator('button').last()
-  await confirmBtn.click({ timeout: 3000 }).catch(() => {})
-  const added = await addPromise
-  const ids = added.nodeIds || added.ids || []
-  ok(Array.isArray(ids) && ids.length === 3, `确认后 3 节点真落画布（ids=${ids.length}）`)
-  ok(!added.cancelled, '确认路径 cancelled 未置位')
-  await sleep(1500)
+  await planCard.locator('[data-spend-confirm-action="confirm"]').click()
+  const { result, error } = await add
+  if (error) throw error
+  const added = parseToolResult(result).json
+  const ids = added.affectedNodeIds
+  check(Array.isArray(ids) && new Set(ids).size === 3, '确认后 MCP 回执有三个不同的节点 ID')
+  check(!added.cancelled, '确认路径 cancelled 未置位')
+  await expect(nodes).toHaveCount(3)
+  for (const id of ids) await expect(nodes.and(win.locator(`[data-node-id="${id}"]`))).toBeAttached()
   await screenshotSettled(win, { path: path.join(shotsDir, '03-after-confirm.png') })
-
-  console.log(`\nPLAN-GATE PASS: ${passed} 断言——外部 agent 批量落节点经应用内方案门确认闭环。`)
-  console.log('  截图 →', shotsDir)
-} catch (err) {
-  console.log(`✗ ${err?.message || err}`)
-  exitCode = 1
+  console.log(`PLAN-GATE PASS: ${passed}/${passed} 项断言`)
 } finally {
-  if (child) child.kill('SIGTERM')
-  await app.close().catch(() => undefined)
-  setTimeout(() => process.exit(exitCode), 300)
+  await client?.terminate()
+  await run.close()
 }

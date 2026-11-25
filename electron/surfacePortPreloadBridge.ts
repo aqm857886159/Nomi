@@ -491,17 +491,18 @@ export function createCanvasReadSurfacePreloadBridge(
       return events.subscribe(SURFACE_ASSET_READ_REQUEST_CHANNEL, (payload) => {
         const request = assetReadRequest(payload);
         if (!request) return;
-        let result: unknown | Promise<unknown>;
-        try {
-          result = handler({
-            binding: request.binding,
-            input: request.input,
-            target: request.target,
-            preconditions: request.preconditions,
-          });
-        } catch (error) {
-          result = Promise.reject(error);
-        }
+        const result = runCancellable(request, (signal) => handler({
+          binding: request.binding,
+          input: request.input,
+          target: request.target,
+          preconditions: request.preconditions,
+          onCancel: (cancel) => {
+            const onAbort = () => cancel();
+            if (signal.aborted) onAbort();
+            else signal.addEventListener("abort", onAbort, { once: true });
+            return () => signal.removeEventListener("abort", onAbort);
+          },
+        }));
         void Promise.resolve(result).then(
           (value) => events.send(SURFACE_ASSET_READ_REPLY_CHANNEL, {
             requestId: request.requestId,
