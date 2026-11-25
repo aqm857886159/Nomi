@@ -2087,11 +2087,6 @@
       "count": 1
     }
   },
-  "tests/ux/layout-timeline-panel-span.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/library-cover-imported-video.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2411,16 +2406,6 @@
       "count": 2
     }
   },
-  "tests/ux/runway-vendor-honest-modes.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/screenshot-hotkey.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/settings-relocation.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2532,11 +2517,6 @@
     }
   },
   "tests/ux/timeline-context-menu.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/timeline-toolbar-row.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
