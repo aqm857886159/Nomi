@@ -49,11 +49,13 @@ test('auditSitemap catches a stale or missing canonical route', () => {
   assert.ok(result.failures.some((item) => item.rule === 'SITEMAP-STALE'))
 })
 
-test('auditRobots requires crawl access and a sitemap pointer', () => {
+test('auditRobots requires crawl access, AI search crawler access, and a sitemap pointer', () => {
   assert.equal(auditRobots('User-agent: *\nAllow: /\nSitemap: https://nomiaqm.com/sitemap.xml\n').failures.length, 0)
   const result = auditRobots('User-agent: *\nDisallow: /\n')
   assert.ok(result.failures.some((item) => item.rule === 'ROBOTS-DISALLOW-ALL'))
   assert.ok(result.failures.some((item) => item.rule === 'ROBOTS-SITEMAP'))
+  const blockedAi = auditRobots('User-agent: OAI-SearchBot\nDisallow: /\n\nUser-agent: *\nAllow: /\nSitemap: https://nomiaqm.com/sitemap.xml\n')
+  assert.ok(blockedAi.failures.some((item) => item.rule === 'ROBOTS-CRAWLER-DISALLOW'))
 })
 
 test('runAudit records network failures and optional performance status', async () => {
