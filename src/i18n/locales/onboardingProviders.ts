@@ -612,7 +612,6 @@ export const zhOnboardingProviders = {
   assistedOnboarding: {
     title: '用 AI 帮我接入',
     subtitle: '让你在用的 AI 助手（Claude Code、Codex 等）把别家模型接进 Nomi',
-    requirement: '需要一个能装 MCP 的 AI 助手',
     otherHost: '其它',
     copy: '复制指引',
     copied: '已复制',
@@ -1956,7 +1955,6 @@ export const enOnboardingProviders = {
   assistedOnboarding: {
     title: 'Let AI connect it for me',
     subtitle: 'Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi',
-    requirement: 'You need an AI assistant that can install MCP servers',
     otherHost: 'Other',
     copy: 'Copy guide',
     copied: 'Copied',

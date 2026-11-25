@@ -20,6 +20,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -103,8 +104,10 @@ expect(order.clipped, '① 卡不许被设置弹窗裁在窗外').toBe(false)
 expect(order.apimart, '① APIMart 接入要排在 AI 协助之前').toBeLessThan(order.assisted)
 expect(order.assisted, '① 卡要排在「其他接入方式」之前').toBeLessThan(order.other)
 
-// 动手前先知道要付出什么（卡点表 ②）：这句 hint 必须在卡上。
-await expectVisible(card.getByText('需要一个能装 MCP 的 AI 助手', { exact: false }), '② 卡上要写清前提：需要一个能装 MCP 的助手')
+// 动手前先知道要付出什么（卡点表 ②）：卡按 ModelSurfaces 收成一行，前提由这一行的副标题说（要你在用的 AI 助手）。
+await expectVisible(card.locator(':scope > summary').getByText(uiText('zh-CN', 'onboardingProviders.assistedOnboarding.subtitle'), { exact: true }), '② 收起的那一行要写清前提：你在用的 AI 助手')
+// 收起时只有一行，创作者点开才看到宿主分段和复制指引。
+await clickOrFail(card.locator(':scope > summary'), '展开「用 AI 帮我接入」那一行')
 
 // ── 选 Codex ────────────────────────────────────────────────────────────────
 await clickOrFail(card.getByText('Codex', { exact: true }).first(), '宿主分段「Codex」')
