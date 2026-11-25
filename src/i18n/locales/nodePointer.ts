@@ -11,6 +11,9 @@ export const zhNodePointer = {
   more: '还有 {{count}} 个',
   moreCompact: '+{{count}}',
   moreAria: '还有 {{count}} 个，点了全部展开',
+  /** 列表行那一组超过 4 行折起之后，下面那一行文字按钮（板 2026-11-15 chat.rows.more）：点了全部展开。 */
+  moreShots_one: '还有 {{count}} 个镜头',
+  moreShots_other: '还有 {{count}} 个镜头',
   /**
    * 窄窗口点了指向、对话收起之后，回来的那一颗：看得见的字（设计系统 §1.8 规则 3：中文 ≤4 字、英文 ≤2 词）。
    * 英文挑「Back」不挑「Chat」：Back 说的是动作（回去），回到哪儿由聊天图标（不带标签的那种）、悬停名和读屏名补；Chat 只有对象、没有动作。
@@ -37,6 +40,8 @@ export const enNodePointer: typeof zhNodePointer = {
   more: '{{count}} more',
   moreCompact: '+{{count}}',
   moreAria: '{{count}} more, show all',
+  moreShots_one: '{{count}} more shot',
+  moreShots_other: '{{count}} more shots',
   backToChat: 'Back',
   backToChatWithLabel: '{{label}} · Back',
   backToChatName: 'Back to chat',

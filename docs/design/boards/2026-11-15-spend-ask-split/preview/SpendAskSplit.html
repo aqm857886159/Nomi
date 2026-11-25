@@ -1,0 +1,278 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>SpendAskSplit</title><style>
+body{margin:0}
+.stage{box-sizing:border-box;background:oklch(0.985 0.003 90);display:flex;gap:40px;padding:36px 40px;align-items:flex-start;font-family:Inter,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif}
+.col{display:flex;flex-direction:column;gap:12px;width:392px;flex:none}
+.col.nw{width:320px}
+.sep{width:1px;align-self:stretch;background:oklch(0.88 0.004 80);flex:none}
+.lab{font-size:13px;line-height:1.5;color:oklch(0.32 0.01 80);min-height:84px}
+.lab b{display:block;font-size:14px;color:oklch(0.22 0.01 80)}
+.lab i{font-style:normal;color:oklch(0.50 0.01 80)}
+.pn{--paper:oklch(1 0 0);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink10:oklch(0.94 0.003 80);--line:oklch(0.91 0.004 80);box-sizing:border-box;width:392px;height:700px;background:var(--paper);border:1px solid var(--line);border-radius:14px;color:var(--ink);font-size:13px;line-height:1.55;display:flex;flex-direction:column;overflow:hidden}
+.nw .pn{width:320px}
+.pn.dk{--paper:oklch(0.20 0.004 80);--ink:oklch(0.94 0.003 80);--ink80:oklch(0.84 0.003 80);--ink60:oklch(0.68 0.004 80);--ink40:oklch(0.48 0.004 80);--ink10:oklch(0.27 0.004 80);--line:oklch(0.31 0.004 80)}
+.hd{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);flex:none}
+.logo{width:18px;height:18px;border-radius:5px;background:var(--ink);color:var(--paper);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.wm{font-size:14px;font-weight:600}
+.ring{font-size:11px;color:var(--ink60);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+.flow{flex:1;min-height:20px;display:flex;flex-direction:column;gap:10px;padding:12px;overflow:hidden}
+.ub{align-self:flex-end;max-width:300px;background:var(--ink);color:var(--paper);border-radius:12px;padding:7px 12px}
+.msg{margin:0}
+.ps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pc{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ph{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;overflow:hidden;height:22px}
+.chip{border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--ink80);flex:none}
+.ph b{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.th{height:60px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink60)}
+.nw .th{height:48px}
+.th.more{background:var(--ink80);border-color:var(--ink80);color:var(--paper);font-size:13px;font-weight:600}
+.ic{width:26px;height:26px;border-radius:999px;background:var(--ink10);display:flex;align-items:center;justify-content:center;color:var(--ink60)}
+.ok{display:flex;gap:6px;align-items:center;color:var(--ink60);font-size:12px}
+.cd{margin:0 10px 8px;border:1px solid var(--ink40);border-radius:10px;display:flex;flex-direction:column;flex:none}
+.cb{padding:10px;display:flex;flex-direction:column;gap:8px}
+.tt{font-weight:600}
+.sm{font-size:12px;color:var(--ink60)}
+.sm b{font-weight:600;color:var(--ink)}
+.sm .nb{white-space:nowrap}
+.bar{border-top:1px solid var(--line);padding:8px 10px;display:flex;justify-content:flex-end;gap:6px}
+.ask{margin:0 10px 8px;border:1px solid var(--ink40);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:8px;flex:none;position:relative}
+.ask .row{display:flex;justify-content:flex-end;align-items:center;gap:6px}
+.ask .row .st{margin-right:auto;font-weight:600;display:flex;gap:7px;align-items:center}
+.spin{width:12px;height:12px;border-radius:999px;border:1.6px solid var(--ink40);border-top-color:var(--ink);box-sizing:border-box}
+.tip{position:absolute;left:206px;bottom:calc(100% - 6px);background:var(--ink);color:var(--paper);font-size:12px;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.b2{font:inherit;font-weight:500;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:7px;padding:4px 12px}
+.b1{font:inherit;font-weight:600;border:1px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:7px;padding:4px 12px;display:flex;gap:6px;align-items:center}
+.b1 span{opacity:.6;font-weight:400}
+.cp{margin:0 10px 10px;border:1px solid var(--line);border-radius:12px;min-height:58px;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 10px;flex:none}
+.cr{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink80)}
+.cr .sp{flex:1}
+.hgt{font-size:12px;color:oklch(0.50 0.01 80)}
+
+
+body{margin:0}
+.stage{box-sizing:border-box;background:oklch(0.985 0.003 90);display:flex;gap:40px;padding:36px 40px;align-items:flex-start;font-family:Inter,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif}
+.col{display:flex;flex-direction:column;gap:12px;width:392px;flex:none}
+.col.nw{width:320px}
+.sep{width:1px;align-self:stretch;background:oklch(0.88 0.004 80);flex:none}
+.lab{font-size:13px;line-height:1.5;color:oklch(0.32 0.01 80);min-height:84px}
+.lab b{display:block;font-size:14px;color:oklch(0.22 0.01 80)}
+.lab i{font-style:normal;color:oklch(0.50 0.01 80)}
+.pn{--paper:oklch(1 0 0);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink10:oklch(0.94 0.003 80);--line:oklch(0.91 0.004 80);box-sizing:border-box;width:392px;height:700px;background:var(--paper);border:1px solid var(--line);border-radius:14px;color:var(--ink);font-size:13px;line-height:1.55;display:flex;flex-direction:column;overflow:hidden}
+.nw .pn{width:320px}
+.pn.dk{--paper:oklch(0.20 0.004 80);--ink:oklch(0.94 0.003 80);--ink80:oklch(0.84 0.003 80);--ink60:oklch(0.68 0.004 80);--ink40:oklch(0.48 0.004 80);--ink10:oklch(0.27 0.004 80);--line:oklch(0.31 0.004 80)}
+.hd{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);flex:none}
+.logo{width:18px;height:18px;border-radius:5px;background:var(--ink);color:var(--paper);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.wm{font-size:14px;font-weight:600}
+.ring{font-size:11px;color:var(--ink60);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+.flow{flex:1;min-height:20px;display:flex;flex-direction:column;gap:10px;padding:12px;overflow:hidden}
+.ub{align-self:flex-end;max-width:300px;background:var(--ink);color:var(--paper);border-radius:12px;padding:7px 12px}
+.msg{margin:0}
+.ps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pc{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ph{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;overflow:hidden;height:22px}
+.chip{border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--ink80);flex:none}
+.ph b{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.th{height:60px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink60)}
+.nw .th{height:48px}
+.th.more{background:var(--ink80);border-color:var(--ink80);color:var(--paper);font-size:13px;font-weight:600}
+.ic{width:26px;height:26px;border-radius:999px;background:var(--ink10);display:flex;align-items:center;justify-content:center;color:var(--ink60)}
+.ok{display:flex;gap:6px;align-items:center;color:var(--ink60);font-size:12px}
+.cd{margin:0 10px 8px;border:1px solid var(--ink40);border-radius:10px;display:flex;flex-direction:column;flex:none}
+.cb{padding:10px;display:flex;flex-direction:column;gap:8px}
+.tt{font-weight:600}
+.sm{font-size:12px;color:var(--ink60)}
+.sm b{font-weight:600;color:var(--ink)}
+.sm .nb{white-space:nowrap}
+.bar{border-top:1px solid var(--line);padding:8px 10px;display:flex;justify-content:flex-end;gap:6px}
+.ask{margin:0 10px 8px;border:1px solid var(--ink40);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:8px;flex:none;position:relative}
+.ask .row{display:flex;justify-content:flex-end;align-items:center;gap:6px}
+.ask .row .st{margin-right:auto;font-weight:600;display:flex;gap:7px;align-items:center}
+.spin{width:12px;height:12px;border-radius:999px;border:1.6px solid var(--ink40);border-top-color:var(--ink);box-sizing:border-box}
+.tip{position:absolute;left:206px;bottom:calc(100% - 6px);background:var(--ink);color:var(--paper);font-size:12px;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.b2{font:inherit;font-weight:500;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:7px;padding:4px 12px}
+.b1{font:inherit;font-weight:600;border:1px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:7px;padding:4px 12px;display:flex;gap:6px;align-items:center}
+.b1 span{opacity:.6;font-weight:400}
+.cp{margin:0 10px 10px;border:1px solid var(--line);border-radius:12px;min-height:58px;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 10px;flex:none}
+.cr{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink80)}
+.cr .sp{flex:1}
+.hgt{font-size:12px;color:oklch(0.50 0.01 80)}
+
+.rs{display:flex;flex-direction:column;gap:6px}
+.rw{display:flex;align-items:center;gap:8px;min-height:40px;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:4px 8px 4px 4px;font-size:12px;min-width:0}
+.rw.bad{border-color:oklch(0.80 0.08 25)}
+.rw.off{background:var(--ink10)}
+.rt{width:32px;height:32px;flex:none;border-radius:5px;box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink60);background:var(--paper)}
+.rt.f1{background:linear-gradient(135deg,oklch(0.78 0.06 230),oklch(0.62 0.07 250))}
+.rt.f2{background:linear-gradient(135deg,oklch(0.80 0.07 90),oklch(0.62 0.08 60))}
+.rx{display:flex;flex-direction:column;min-width:0;flex:1}
+.rl{display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.rl b{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.r2{color:var(--ink60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r2 b{font-weight:600;color:var(--ink)}
+.r2.red{color:oklch(0.50 0.15 25)}
+.ra{flex:none;color:var(--ink60);font-size:12px}
+.mr{font:inherit;font-size:12px;color:var(--ink80);background:none;border:0;padding:4px 4px;text-align:left}
+
+.board-cell-title{margin:24px 40px 0;font:600 15px/1.4 Inter,"PingFang SC",system-ui,sans-serif;color:oklch(0.22 0.01 80)}</style></head><body><section data-board-cell="Split"><h2 class="board-cell-title">⑤ 拆开：镜头在对话里一行一个，输入框上方只剩一条确认</h2>
+
+<div class="stage" style="width: 2700px; height: 920px">
+
+  <div class="col">
+    <div class="lab"><b>今天 · 3 个镜头</b>一张卡里装了四样：问话、三个缩略图、参数、按钮。还没生成，缩略图是空框。<i>（照真窗口画的）</i></div>
+    <div class="pn">
+      <div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div>
+      <div class="flow">
+        <div class="ub">把文稿拆成 3 个镜头，每个 8 秒。</div>
+        <p class="msg">已在画布上起草了 3 个镜头，确认就开始生成。</p>
+      </div>
+      <div class="cd">
+        <div class="cb">
+          <div class="tt">生成这些视频？</div>
+          <div class="ps">
+            <div class="pc"><div class="ph"><span class="chip">镜 01</span><b>纸船出发</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 02</span><b>越过落叶</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 03</span><b>漂向远处</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+          </div>
+          <div class="sm">Seedance 2（Nomi 选的）· 16:9 · 480p · 共 30s</div>
+        </div>
+        <div class="bar"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 3 段 <span>↵</span></button></div>
+      </div>
+      <div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div>
+    </div>
+    <div class="hgt">确认卡高约 210</div>
+  </div>
+
+  <div class="col">
+    <div class="lab"><b>今天 · 12 个镜头，点开「+9」之后</b>卡跟着镜头数长高，对话被挤到只剩一条缝；再加说明行还要更高。<i>（按代码推的：实验室里最多只画过 3 镜，没有真截图）</i></div>
+    <div class="pn">
+      <div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div>
+      <div class="flow">
+        <p class="msg">已在画布上起草了 12 个镜头，确认就开始生成。</p>
+      </div>
+      <div class="cd">
+        <div class="cb">
+          <div class="tt">生成这些视频？</div>
+          <div class="ps">
+            <div class="pc"><div class="ph"><span class="chip">镜 01</span><b>纸船出发</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 02</span><b>越过落叶</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 03</span><b>漂向远处</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 04</span><b>撞上石阶</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 05</span><b>孩子追来</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 06</span><b>伸手去够</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 07</span><b>水面倒影</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 08</span><b>雨又落下</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 09</span><b>纸船打转</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 10</span><b>钻进涵洞</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 11</span><b>亮处出来</b></div><div class="th"></div></div>
+            <div class="pc"><div class="ph"><span class="chip">镜 12</span><b>汇入小河</b></div><div class="th"></div></div>
+          </div>
+          <div class="sm">Seedance 2（Nomi 选的）· 16:9 · 480p · 共 120s</div>
+        </div>
+        <div class="bar"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 12 段 <span>↵</span></button></div>
+      </div>
+      <div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div>
+    </div>
+    <div class="hgt">确认卡高约 500</div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="col">
+    <div class="lab"><b>拆开（推荐）· 3 个镜头</b>镜头回到对话里，跟着 Agent 那句话；输入框上只剩一条：参数 + 两个按钮。落的和原本要的不一样，就标在那个值后面，原因悬停才出。</div>
+    <div class="pn">
+      <div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div>
+      <div class="flow">
+        <div class="ub">把文稿拆成 3 个镜头，每个 8 秒。</div>
+        <p class="msg">起草了 3 个镜头。</p>
+        <div class="ps">
+          <div class="pc"><div class="ph"><span class="chip">镜 01</span><b>纸船出发</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+          <div class="pc"><div class="ph"><span class="chip">镜 02</span><b>越过落叶</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+          <div class="pc"><div class="ph"><span class="chip">镜 03</span><b>漂向远处</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+        </div>
+      </div>
+      <div class="ask">
+        <span class="tip">这个模型只有 5 秒和 10 秒</span>
+        <div class="sm">Seedance 2（Nomi 选的）· 16:9 · 480p · <span class="nb"><b>每段 10s</b>（原 8s）</span></div>
+        <div class="row"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 3 段 <span>↵</span></button></div>
+      </div>
+      <div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div>
+    </div>
+    <div class="hgt">确认条高约 75（画的是鼠标停在「每段 10s」上）</div>
+  </div>
+
+  <div class="col">
+    <div class="lab"><b>拆开 · 12 个镜头</b>对话里露 3 个，第 3 格写「+9」，点了展开。确认条和 3 个镜头时一样高。</div>
+    <div class="pn">
+      <div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div>
+      <div class="flow">
+        <div class="ub">把这篇文稿拆成分镜，每个 8 秒。</div>
+        <p class="msg">起草了 12 个镜头。</p>
+        <div class="ps">
+          <div class="pc"><div class="ph"><span class="chip">镜 01</span><b>纸船出发</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+          <div class="pc"><div class="ph"><span class="chip">镜 02</span><b>越过落叶</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+          <div class="pc"><div class="ph"><span class="chip">镜 03</span><b>漂向远处</b></div><div class="th more">+9</div></div>
+        </div>
+      </div>
+      <div class="ask">
+        <div class="sm">Seedance 2（Nomi 选的）· 16:9 · 480p · <span class="nb"><b>每段 10s</b>（原 8s）</span></div>
+        <div class="row"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 12 段 <span>↵</span></button></div>
+      </div>
+      <div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div>
+    </div>
+    <div class="hgt">确认条高约 75</div>
+  </div>
+
+  <div class="col nw">
+    <div class="lab"><b>拆开 · 最坏：英文、窄面板、深色、三处不一样</b>三个值后面各标一处，折成两行；不另起说明行。</div>
+    <div class="pn dk">
+      <div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div>
+      <div class="flow">
+        <div class="ub">Split it into shots, 8s each, 21:9, 1080p.</div>
+        <p class="msg">Drafted 12 shots.</p>
+        <div class="ps">
+          <div class="pc"><div class="ph"><span class="chip">S01</span></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+          <div class="pc"><div class="ph"><span class="chip">S02</span></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div>
+          <div class="pc"><div class="ph"><span class="chip">S03</span></div><div class="th more">+9</div></div>
+        </div>
+      </div>
+      <div class="ask">
+        <div class="sm">Seedance 2 (picked by Nomi) · <span class="nb"><b>16:9</b> (asked 21:9)</span> · <span class="nb"><b>720p</b> (asked 1080p)</span> · <span class="nb"><b>10s each</b> (asked 8s)</span></div>
+        <div class="row"><button type="button" class="b2">Cancel</button><button type="button" class="b1">Generate 12 <span>↵</span></button></div>
+      </div>
+      <div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>Ask first</span></div></div>
+    </div>
+    <div class="hgt">确认条高约 93</div>
+  </div>
+
+  <div class="col">
+    <div class="lab"><b>拆开 · 点了「生成」之后</b>确认条只报进度，每一镜到哪了在对话里那组镜头上自己显示。发完这一条收走，那组镜头下面留一行「已发出 12 段」，不再另画一组。</div>
+    <div class="pn">
+      <div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div>
+      <div class="flow">
+        <div class="ub">把这篇文稿拆成分镜，每个 8 秒。</div>
+        <p class="msg">起草了 12 个镜头。</p>
+        <div class="ps">
+          <div class="pc"><div class="ph"><span class="chip">镜 01</span><b>纸船出发</b></div><div class="th">生成中</div></div>
+          <div class="pc"><div class="ph"><span class="chip">镜 02</span><b>越过落叶</b></div><div class="th">生成中</div></div>
+          <div class="pc"><div class="ph"><span class="chip">镜 03</span><b>漂向远处</b></div><div class="th more">+9</div></div>
+        </div>
+      </div>
+      <div class="ask">
+        <div class="row"><span class="st"><span class="spin"></span>正在发出 5/12 段</span><button type="button" class="b2">取消</button></div>
+      </div>
+      <div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div>
+    </div>
+    <div class="hgt">确认条高约 48</div>
+  </div>
+
+</div>
+</section>
+<section data-board-cell="Rows"><h2 class="board-cell-title">⑥ 镜头横着排还是竖着排（用户 11-15：按竖排做没有问题）</h2>
+
+<div class="stage" style="width: 2200px; height: 920px">
+<div class="col"><div class="lab"><b>横排 · 3 个镜头（第 ⑤ 块那样）</b>一行三格，缩略图大。还没生成时是三个空框；标题只放得下四五个字。</div><div class="pn"><div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div><div class="flow"><div class="ub">把文稿拆成 3 个镜头，每个 8 秒。</div><p class="msg">起草了 3 个镜头。</p><div class="ps"><div class="pc"><div class="ph"><span class="chip">镜 01</span><b>纸船出发</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div><div class="pc"><div class="ph"><span class="chip">镜 02</span><b>越过落叶</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div><div class="pc"><div class="ph"><span class="chip">镜 03</span><b>漂向远处</b></div><div class="th"><span class="ic"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span></div></div></div></div><div class="ask"><div class="sm">Seedance 2（Nomi 选的）· 16:9 · 480p · <span class="nb"><b>每段 10s</b>（原 8s）</span></div><div class="row"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 3 段 <span>↵</span></button></div></div><div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div></div><div class="hgt">这组镜头高约 88</div></div>
+<div class="col"><div class="lab"><b>竖排（推荐）· 3 个镜头</b>一行一个：小缩略图 + 镜号 + 标题，标题放得全。参数都一样时每行只有这一行字，参数在确认条上说一次。</div><div class="pn"><div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div><div class="flow"><div class="ub">把文稿拆成 3 个镜头，每个 8 秒。</div><p class="msg">起草了 3 个镜头。</p><div class="rs"><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 01</span><b>纸船出发</b></span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 02</span><b>越过落叶</b></span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 03</span><b>漂向远处</b></span></span></div></div></div><div class="ask"><div class="sm">Seedance 2（Nomi 选的）· 16:9 · 480p · <span class="nb"><b>每段 10s</b>（原 8s）</span></div><div class="row"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 3 段 <span>↵</span></button></div></div><div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div></div><div class="hgt">这组镜头高约 138</div></div>
+<div class="col"><div class="lab"><b>竖排 · 12 个镜头</b>露前 4 个，下面一行「还有 8 个」，点了展开。确认条不变。</div><div class="pn"><div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div><div class="flow"><div class="ub">把这篇文稿拆成分镜，每个 8 秒。</div><p class="msg">起草了 12 个镜头。</p><div class="rs"><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 01</span><b>纸船出发</b></span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 02</span><b>越过落叶</b></span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 03</span><b>漂向远处</b></span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 04</span><b>撞上石阶</b></span></span></div><button type="button" class="mr">还有 8 个镜头 ›</button></div></div><div class="ask"><div class="sm">Seedance 2（Nomi 选的）· 16:9 · 480p · <span class="nb"><b>每段 10s</b>（原 8s）</span></div><div class="row"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 12 段 <span>↵</span></button></div></div><div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div></div><div class="hgt">这组镜头高约 219</div></div>
+<div class="col"><div class="lab"><b>竖排 · 每个镜头不一样、说明变多的时候</b>哪一镜有话要说，就写在哪一镜自己那一行的第二行：和原本要的不一样、参数和别的镜头不同、已去掉。确认条只留大家都一样的。</div><div class="pn"><div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div><div class="flow"><div class="ub">拆成 4 个镜头：第 1 个 8 秒，第 3 个竖版 5 秒，其余 10 秒。</div><p class="msg">起草了 4 个镜头。</p><div class="rs"><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 01</span><b>纸船出发</b></span><span class="r2"><b>10s</b>（原 8s）</span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 02</span><b>越过落叶</b></span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 03</span><b>漂向远处</b></span><span class="r2">9:16 · 5s</span></span></div><div class="rw off"><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 04</span><b>撞上石阶</b></span><span class="r2">已去掉，不生成</span></span><span class="ra">恢复</span></div></div></div><div class="ask"><div class="sm">Seedance 2（Nomi 选的）· 480p</div><div class="row"><button type="button" class="b2">取消</button><button type="button" class="b1">生成 3 段 <span>↵</span></button></div></div><div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div></div><div class="hgt">横排做不到这一点：格子里放不下第二行字，只能在卡上另起说明行</div></div>
+<div class="col"><div class="lab"><b>竖排 · 生成之后</b>同一组镜头接着用：出了结果的换成画面，在跑的写「生成中」，没成的把原因写在它自己那一行。确认条已经收走。</div><div class="pn"><div class="hd"><span class="logo">N</span><span class="wm">Nomi</span><span class="ring">18%</span></div><div class="flow"><div class="ub">把文稿拆成 3 个镜头，每个 8 秒。</div><p class="msg">起草了 3 个镜头。</p><div class="rs"><div class="rw "><span class="rt f1"></span><span class="rx"><span class="rl"><span class="chip">镜 01</span><b>纸船出发</b></span></span></div><div class="rw "><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 02</span><b>越过落叶</b></span><span class="r2">生成中</span></span></div><div class="rw bad"><span class="rt "><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg></span><span class="rx"><span class="rl"><span class="chip">镜 03</span><b>漂向远处</b></span><span class="r2 red">没有发出去：余额不足</span></span><span class="ra">再试</span></div></div><div class="ok"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg><span>已发出 2 段</span></div></div><div class="cp"><div class="cr"><span>＋</span><span>GPT-5.6</span><span>Skill</span><span class="sp"></span><span>请求批准</span></div></div></div><div class="hgt">缩略图小，只够认出是哪一镜；要细看点它去画布</div></div>
+</div>
+</section></body></html>

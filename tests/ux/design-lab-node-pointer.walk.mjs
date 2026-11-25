@@ -25,6 +25,8 @@ const A = {
   narrowBack: 'board:NodePointer/pointer.narrow.back',
   row: 'board:NodePointer/pointer.p2.row',
   chip: 'board:NodePointer/pointer.p2.chip',
+  // 列表行折起（付费确认拆开那张板的元素：对话里那一组超过 4 行折起）。
+  rowsMore: 'board:SpendAskSplit/chat.rows.more',
 }
 
 const pointer = (id, scope = '') => `${scope} [data-node-pointer-id="${id}"]`.trim()
@@ -53,6 +55,10 @@ async function faces(page, scope = '') {
     aria: el.getAttribute('aria-label') || '',
     disabled: el.getAttribute('aria-disabled') === 'true',
     text: el.textContent || '',
+    // 行密度行尾的状态图标（✓ / 转圈 / 钟 / ⚠）2026-11-16 起没有了（SpendAskSplit 板取代 pointer.p2.row 那一句和 pointer.state.*）：缩略图、「已定位」里的不算。
+    trailingIcons: el.getAttribute('data-node-pointer') === 'row'
+      ? [...el.querySelectorAll('svg')].filter((svg) => !el.firstElementChild?.contains(svg) && !svg.closest('[data-node-pointer-located]')).length
+      : 0,
   })), `${scope} [data-node-pointer]`.trim())
 }
 
@@ -61,6 +67,8 @@ async function expectStatesBoard(page, state, record, english) {
   const all = await faces(page)
   const face = (id, density = 'card') => all.find((item) => item.id === id && item.density === density)
   const expectFace = (id, kind, name, density = 'card') => { if (face(id, density)?.face !== kind) record(`${state.id} ${name}: ${id}(${density}) 应是 ${kind}，实际 ${face(id, density)?.face}`) }
+  const iconRows = all.filter((item) => item.trailingIcons > 0)
+  if (iconRows.length) record(`${state.id} ${A.row}: 行尾不该再有状态图标（用户 2026-11-16）：${iconRows.map((item) => item.id).join(', ')}`)
   expectFace('np-await', 'production', A.waiting)
   expectFace('np-queued', 'production', A.queued)
   expectFace('np-gen', 'generating', A.generating)
@@ -168,9 +176,31 @@ async function expectNodePointerState(page, state, record) {
         await noAccentOutline(page, state, record)
         break
       }
+      case 'np-rows-fold': {
+        // 5 行：露前 4 行 +「还有 1 个镜头」；点了全露、那颗按钮收走。正好 4 行：不折。
+        const five = page.locator('[data-lab-rows="five"]')
+        const four = page.locator('[data-lab-rows="four"]')
+        const shown = await five.locator('[data-node-pointer="row"]').count()
+        if (shown !== 4) record(`${state.id} ${A.rowsMore}: 5 行应只露 4 行，实际 ${shown}`)
+        const more = five.locator('[data-node-pointer-more]')
+        const moreText = (await more.textContent().catch(() => null))?.trim()
+        if (moreText !== '还有 1 个镜头') record(`${state.id} ${A.rowsMore}: 折起那一颗应是「还有 1 个镜头」，实际「${moreText}」`)
+        if (await four.locator('[data-node-pointer="row"]').count() !== 4 || await four.locator('[data-node-pointer-more]').count()) record(`${state.id} ${A.rowsMore}: 正好 4 行不该折`)
+        await more.click()
+        const opened = await five.locator('[data-node-pointer="row"]').count()
+        if (opened !== 5 || await five.locator('[data-node-pointer-more]').count()) record(`${state.id} ${A.rowsMore}: 点了「还有 1 个镜头」应全露 5 行、按钮收走，实际 ${opened} 行`)
+        await noAccentOutline(page, state, record)
+        break
+      }
       case 'np-p2': {
+        // 6 行超过折起阈值（SpendAskSplit chat.rows.more）：先露 4 行 +「还有 2 个镜头」，点了才全露。
+        const folded = await faces(page, '[data-node-pointer-group="row"]')
+        if (folded.length !== 4) record(`${state.id} ${A.rowsMore}: 6 行的列表应先露 4 行，实际 ${folded.length}`)
+        const rowsMore = page.locator('[data-node-pointer-group="row"] [data-node-pointer-more="2"]')
+        if (!(await expect(rowsMore).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.rowsMore}: 6 行的列表没有「还有 2 个镜头」`)
+        else await rowsMore.click()
         const rows = await faces(page, '[data-node-pointer-group="row"]')
-        if (rows.length !== 6) record(`${state.id} ${A.row}: 列表行应有 6 行，实际 ${rows.length}`)
+        if (rows.length !== 6) record(`${state.id} ${A.row}: 展开后列表行应有 6 行，实际 ${rows.length}`)
         if (!(await expect(page.locator(`${pointer('np-done')}[data-node-pointer="row"] [data-node-pointer-located]`).first()).toBeVisible().then(() => true, () => false))) record(`${state.id} ${A.located}: 点过的那一行没标「已定位」`)
         const chips = page.locator('[data-node-pointer="chip"]')
         if (await chips.count() < 7) record(`${state.id} ${A.chip}: 句中小标签数量不对：${await chips.count()}`)

@@ -71,8 +71,8 @@ export const LAB_SCREENS: readonly LabScreen[] = [
   { id: 'empty-node-ratios', label: '空节点比例', states: EMPTY_NODE_RATIOS_STATES, cell: { width: EMPTY_NODE_RATIOS_WIDTH, height: EMPTY_NODE_RATIOS_HEIGHT } },
   // 聊天里的指向元素（NodePointer 板，2026-10-23 D2 第②步）：生产组件搭全状态，先不接进聊天。
   { id: 'node-pointer', label: '指向元素（聊天里代表画布节点）', states: NODE_POINTER_STATES, cell: { width: NODE_POINTER_CELL_WIDTH, height: NODE_POINTER_CELL_HEIGHT } },
-  // Agent 面板的付费卡（SpendCardQ1 板，2026-10-24 D2 第③步）：指向元素 + 一行只读摘要 + 「生成」，接画布那一台发动机。
-  { id: 'spend-card', label: '付费卡（指向元素 + 只读摘要）', states: SPEND_CARD_STATES, cell: { width: SPEND_CARD_CELL_WIDTH, height: SPEND_CARD_CELL_HEIGHT } },
+  // Agent 面板的付费确认（SpendAskSplit 板，2026-11-15 拆开）：镜头在对话里一行一个，输入框上方一条确认（共同参数 + 「生成 N 段」）。
+  { id: 'spend-card', label: '付费确认（镜头在对话里 + 输入框上方一条确认）', states: SPEND_CARD_STATES, cell: { width: SPEND_CARD_CELL_WIDTH, height: SPEND_CARD_CELL_HEIGHT } },
   { id: 'find-reference', label: '找参考', states: FIND_REFERENCE_STATES, cell: { width: 1260, height: 650 } },
   { id: 'shot-table', label: '画布 · 拆解表', states: SHOT_TABLE_STATES, cell: { width: 992, height: 452 } },
   { id: 'generation-list', label: '生成页 · 列表视图', states: GENERATION_LIST_STATES, cell: { width: GENERATION_LIST_CELL_WIDTH, height: GENERATION_LIST_CELL_HEIGHT } },

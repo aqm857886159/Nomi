@@ -83,11 +83,12 @@ try {
   // ── ② 按下去：真的发出去，而且发的是**这家自己的**那份报文 ──
   const nodeId = (await readProject(win, projectId)).payload.generationCanvas.nodes[0].id
   await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮「生成」', { noWaitAfter: true })
-  // 先等「有结论」再判对错：被拒会写在卡上那一行说明里（不是超时的形状）。
+  // 先等「有结论」再判对错：被拒会写在那一镜那一行第二行里（不是超时的形状）。
   await expect.poll(async () => {
     if (walk.fixture.images.length > 0) return 'sent'
-    const notices = (await cardFacts(win))?.notices ?? []
-    return notices.length ? `refused: ${notices.map((notice) => notice.text).join(' | ')}` : 'waiting'
+    const facts = await cardFacts(win)
+    const said = [...(facts?.notices ?? []).map((notice) => notice.text), ...(facts?.rowFailures ?? [])]
+    return said.length ? `refused: ${said.join(' | ')}` : 'waiting'
   }, { message: '按下「生成」之后，这家供应商必须真的收到一次生成请求（或者卡上说了为什么不行）', timeout: DEFAULT_TIMEOUT_MS }).toBe('sent')
   await recorded(turnDone.received, 'generate returns once the user pressed generate')
   // 一台发动机：这一镜是用户在卡上按「生成」交给画布的，作业住在画布那一镜的单镜 Run 里。

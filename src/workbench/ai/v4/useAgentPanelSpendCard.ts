@@ -53,7 +53,7 @@ export type AgentPanelSpendCard = Readonly<{
   /** 此刻卡上那一笔（介入槽的优先序、收起后小球的待确认计数都读它）。 */
   pending: PendingSpendConfirm | undefined
   slot: InterventionData | undefined
-  /** 卡体（指向元素 + 摘要 + 说明行）；缺卡 / 没有卡时缺席。 */
+  /** 确认条体（共同参数 + 说明行）+ 交给对话那一组的行数据；缺卡 / 没有卡时缺席。 */
   body: SpendCardBodyProps | undefined
   /** 主按钮那一下（卡上那颗按钮的字也是投影定的）。 */
   primary: () => void
@@ -303,17 +303,18 @@ export function useAgentPanelSpendCard(read: PendingSpendRead | undefined): Agen
     act(target, () => (restore ? productionRunApi.restoreSpendShot : productionRunApi.removeSpendShot)(target.projectId, target.operationId, target.quoteId, shotId, cardIdentity(target)))
   }, [act])
 
-  const body = React.useMemo<SpendCardBodyProps | undefined>(() => (model
+  const operationId = pending?.operationId
+  const body = React.useMemo<SpendCardBodyProps | undefined>(() => (model && operationId
     ? {
+      operationId,
       pointers: model.pointers,
-      single: model.single,
       ...(model.summary ? { summary: model.summary } : {}),
       notices: model.notices,
       busy,
       onExclude: (shotId: string) => exclusion(shotId, false),
       onRestore: (shotId: string) => exclusion(shotId, true),
     }
-    : undefined), [model, busy, exclusion])
+    : undefined), [model, operationId, busy, exclusion])
 
   return { pending, slot, body, primary, discard }
 }
