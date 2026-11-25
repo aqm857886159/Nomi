@@ -338,3 +338,21 @@ describe('外部 MCP 连线（applyExternalGraph）', () => {
     expect(aspectOf('v')).toBe('16:9')
   })
 })
+
+it('reseeds a connected video on landing, main-version selection and late decode, preserving explicit choices', () => {
+  const img = image('frame', '16:9')
+  const targets = [video('auto', {}, VIDU), video('explicit', { aspect_ratio: '16:9' }, VIDU)]
+  state().restoreSnapshot({ nodes: [img, ...targets], edges: targets.map(target => ({
+    id: target.id, source: img.id, target: target.id, mode: 'first_frame',
+  })), groups: [] })
+  const result = (id: string) => ({ id, type: 'image' as const, url: 'https://example.com/' + id, createdAt: 1 })
+  state().addNodeResult(img.id, result('square'), { width: 100, height: 100 })
+  expect(aspectOf('auto')).toBe('1:1')
+  state().addNodeResult(img.id, result('tall'), { width: 90, height: 160 })
+  expect(aspectOf('auto')).toBe('9:16')
+  state().setNodeMainResult(img.id, 'square', { imageWidth: 100, imageHeight: 100 })
+  expect(aspectOf('auto')).toBe('1:1')
+  state().updateNode(img.id, { meta: { imageWidth: 90, imageHeight: 160 } })
+  expect(aspectOf('auto')).toBe('9:16')
+  expect(aspectOf('explicit')).toBe('16:9')
+})

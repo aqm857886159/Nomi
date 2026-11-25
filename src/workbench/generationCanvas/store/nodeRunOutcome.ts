@@ -119,17 +119,6 @@ function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, m
   const index = runId ? runs.findIndex((run) => run.id === runId) : runs.findIndex((run) => isLiveRun(run) && isProductionRunRecord(run))
   const target = index >= 0 ? runs[index] : undefined
   const patch: NodeRunOutcomePatch = {}
-  // Freeze the existing visual footprint before switching from placeholder to result.
-  // Intrinsic media dimensions still update metadata; they cannot move the canvas on completion.
-  if (node.status === 'queued' || node.status === 'running' || isLiveRun(target)) {
-    const footprint = resolveNodeVisualSize(node)
-    patch.size = footprint
-    patch.meta = { ...node.meta, previewHeight: footprint.height }
-  }
-  const mediaMetaPatch = mediaDimensions
-    ? computeMediaMetaPatch({ resultType: result.type, meta: patch.meta ?? node.meta ?? {}, ...mediaDimensions, durationSeconds: result.durationSeconds })
-    : null
-  if (mediaMetaPatch) patch.meta = mediaMetaPatch.meta
   const completedAt = result.createdAt || Date.now()
   const nextRuns = target
     ? replaceRun(runs, index, mergeRunRecord(target, {
@@ -152,6 +141,17 @@ function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, m
   patch.resultVersionMax = landed.resultVersionMax
   const superseded = index > 0 && runs.slice(0, index).some((run) => run.status === 'success')
   if (superseded) return { ...patch, ...projectNodeDisplay(node, nextRuns || []) }
+  // Freeze the existing visual footprint before switching from placeholder to result.
+  // Intrinsic media dimensions still update metadata; they cannot move the canvas on completion.
+  if (node.status === 'queued' || node.status === 'running' || isLiveRun(target)) {
+    const footprint = resolveNodeVisualSize(node)
+    patch.size = footprint
+    patch.meta = { ...node.meta, previewHeight: footprint.height }
+  }
+  const mediaMetaPatch = mediaDimensions
+    ? computeMediaMetaPatch({ resultType: result.type, meta: patch.meta ?? node.meta ?? {}, ...mediaDimensions, durationSeconds: result.durationSeconds })
+    : null
+  if (mediaMetaPatch) patch.meta = mediaMetaPatch.meta
   patch.result = landed.result
   return { ...patch, ...(liveDisplay(node, nextRuns || []) ?? { status: 'success', error: undefined, progress: undefined }) }
 }

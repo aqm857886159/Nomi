@@ -3,16 +3,17 @@
 // （3D-BOX 起群众不再是选中角色后检查器基础页的「批量生成群众队列」，入口是添加菜单里的「群众」：设行列间距 → 放置群众 → 点地面。）
 // 无界面 Chromium 是软件渲染（SwiftShader）：帧间隔只当相对参考，真 GPU 帧率另记 unverified。
 // 用法：node tests/ux/director-ual-crowd.walk.mjs（先开着 `vite --port 5175` 走热路径）
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { addTrack, clickOrFail, expectVisible, launchDirectorLab, openAddMenu, placeCharacter, rowAddClipMenu } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
-const lab = await launchDirectorLab({ name: 'ual-crowd', viewport: { width: 1600, height: 900 } })
+const lab = await launchDirectorLab({ name: 'ual-crowd', viewport: { width: 1600, height: 900 }, shotsDir: makeTempDir('nomi-director-crowd-') })
 const { page, check } = lab
 const header = () => page.getByTestId('director-timeline-header')
 /** 从头播放 3 秒，量 rAF 帧间隔，再停止回 0 帧 */
-async function measurePlayback(label) {
-  await clickOrFail(header().getByRole('button', { name: /^停止/ }), '停止回开头')
-  await clickOrFail(header().getByRole('button', { name: /^播放/ }), '播放')
+async function measurePlayback(label, clickOptions) {
+  await clickOrFail(header().getByRole('button', { name: /^停止/ }), '停止回开头', clickOptions)
+  await clickOrFail(header().getByRole('button', { name: /^播放/ }), '播放', clickOptions)
   const stats = await page.evaluate(() => new Promise((resolve) => {
     const gaps = []
     let last = performance.now()
@@ -29,7 +30,7 @@ async function measurePlayback(label) {
     requestAnimationFrame(tick)
   }))
   console.log(`  · ${label} 播放中帧间隔（无界面软件渲染，相对参考）：${JSON.stringify(stats)}`)
-  await clickOrFail(header().getByRole('button', { name: /^停止/ }), '停止回开头')
+  await clickOrFail(header().getByRole('button', { name: /^停止/ }), '停止回开头', clickOptions)
   return stats
 }
 try {
@@ -82,21 +83,22 @@ try {
     `posePreset=${crowdMembers[0]?.posePreset} · 手比上臂低（m）=${JSON.stringify(handDrops)}`)
   // 群众真站好以后每人每帧都要套一次站立姿态（T 字时采样落空、什么都不套）：101 个蒙皮人偶 + 阴影在无界面软件渲染下播放一帧约 0.8 s，
   // 截图要等一帧合成，单步 15 s 的上限在机器忙时会撞上（本机 2 次里撞过 1 次）。这一段的单步上限放到 4 个操作，仍只是上限、不是等待条件。
-  page.setDefaultTimeout(stationTimeout({ operations: 4 }))
+  const crowdClick = { timeout: stationTimeout({ operations: 4 }) }
+  page.setDefaultTimeout(crowdClick.timeout)
   // 视角拉远看全体：Esc 清选择后按 F（无选中 = 框全部）
   await page.mouse.move(800, 300)
   await page.keyboard.press('Escape')
   await page.keyboard.press('f')
   await page.waitForTimeout(1500)
   await lab.snap('crowd-static')
-  await clickOrFail(header().getByRole('button', { name: /^播放/ }), '播放（截播放中的样子）')
+  await clickOrFail(header().getByRole('button', { name: /^播放/ }), '播放（截播放中的样子）', crowdClick)
   await page.waitForTimeout(2500)
   await lab.snap('crowd-playing')
-  const many = await measurePlayback('101 人')
+  const many = await measurePlayback('101 人', crowdClick)
   check('播放中有帧在走', many.frames > 1, JSON.stringify(many))
   console.log(`  · 101 人 / 1 人 帧间隔比：${(many.medianMs / Math.max(1, single.medianMs)).toFixed(1)}×`)
 } catch (error) {
-  check(`旅程中断：${String(error.message || error).split('\n')[0]}`, false)
+  check(`旅程中断：${String(error.stack ?? error)}`, false)
   await lab.snap('journey-failed')
 } finally {
   await lab.finish()

@@ -158,12 +158,10 @@ Nomi は 24 個の MCP ツールを備えた MCP サーバーを同梱してお�
 - バグと機能リクエスト：[GitHub Issues](https://github.com/aqm857886159/Nomi/issues)
 - リリースノートと短いデモ：[X / Twitter](https://x.com/sdf297417627618) · [Bilibili](https://www.bilibili.com/video/BV1Lf8b6nEjf/)
 
-WeChat をお使いの方は、スキャンしてユーザーグループに参加できます（左）。グループの QR コードの期限が切れている場合は、メンテナー（右）を **TZ857886159** で追加してください。
+WeChat ユーザーグループ：WeChat グループの QR コードは 7 日ごとに期限切れになるため、静的なグループ QR コードの掲載は終了しました。下の QR コードをスキャンするか、メンテナーを WeChat ID **TZ857886159**（「Nomi」と添えて）で追加すると最新のグループへ招待します。
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-11-13.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-11-13.jpg" alt="Nomi ユーザーグループの WeChat QR コード" width="220" /></a>
-  &nbsp;&nbsp;
-  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi メンテナーの WeChat QR コード" width="180" /></a>
+  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi メンテナーの WeChat QR コード" width="200" /></a>
 </p>
 
 バグに遭遇しましたか？ コードは公開されています — エラーと[issue 修正用プロンプト](docs/guide/codex-issue-fix-prompt-en.md)を Claude Code か Codex に送れば、多くの場合は自動で修正してくれます。みんなが遭遇する問題は、ぜひ私たちに教えてください。本流に取り込みます。

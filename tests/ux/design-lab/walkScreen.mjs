@@ -63,7 +63,7 @@ function waitForServer(url, timeoutMs = 60000) {
  * 于是「这两条 npm script 从来没跑起来过」只能等有人手动跑那条 script 才会暴露。
  * 这里把多出来的键也变成当场抛：死参数不许安静地躺着（R28 防线建在最早能拦住的那层）。
  */
-const CONFIG_KEYS = new Set(['screen', 'title', 'role', 'cellWidth', 'columns', 'viewport', 'assertState'])
+const CONFIG_KEYS = new Set(['screen', 'title', 'role', 'cellWidth', 'columns', 'viewport', 'outDir', 'beforeCapture', 'assertState'])
 
 /**
  * @param {{
@@ -73,6 +73,8 @@ const CONFIG_KEYS = new Set(['screen', 'title', 'role', 'cellWidth', 'columns', 
  *   cellWidth: number,
  *   columns: number,
  *   viewport?: {width: number, height: number},
+ *   outDir?: string,
+ *   beforeCapture?: (page: import('playwright').Page, state: {id: string, name: string}) => Promise<void>,
  *   assertState?: (page: import('playwright').Page, state: {id: string, name: string}, record: (message: string) => void) => Promise<void>,
  * }} config
  */
@@ -81,7 +83,7 @@ export async function walkDesignLabScreen(config) {
   if (strayKeys.length) {
     throw new Error(`走查入口传了没人读的参数：${strayKeys.join(', ')}（已登记：${[...CONFIG_KEYS].join(', ')}）`)
   }
-  const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
+  const OUT_DIR = config.outDir ?? path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
   // 端口按 worktree 派生，不再写死（labServer.mjs）：写死的端口是整台机器的全局单例，
   // 而这台机器上常年挂着 20+ worktree。下面那道 waitForServer 只探「有没有人应答」——
@@ -93,7 +95,7 @@ export async function walkDesignLabScreen(config) {
   const failures = []
   const record = (message) => { failures[failures.length] = message; console.error(`  ✗ ${message}`) }
 
-  fs.rmSync(OUT_DIR, { recursive: true, force: true })
+  if (!config.outDir) fs.rmSync(OUT_DIR, { recursive: true, force: true })
   fs.mkdirSync(OUT_DIR, { recursive: true })
 
   const states = readLabStates(config.screen)
@@ -169,6 +171,7 @@ export async function walkDesignLabScreen(config) {
       const box = await render(async (page) => {
         await page.goto(`${BASE}/design-lab.html?screen=${config.screen}&frame=1&state=${state.id}`)
         await waitForLabReady(page)
+        if (config.beforeCapture) await config.beforeCapture(page, state)
         const shot = page.locator(`[data-design-lab-shot="${state.id}"]`)
         const box = await shot.boundingBox()
         if (state.capture !== 'viewport' && (!box || box.width < 40 || box.height < 24)) {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
   IconAdjustmentsHorizontal,
+  IconVideo,
   IconBrush,
   IconCheck,
   IconCrop,
@@ -84,6 +85,7 @@ export type ImageQuickActionsToolbarProps = {
    * 点它走 onSelect（去添加 / 换一个同能力的模型），不派生（2026-10-06 用户：高清没有模型时不能是死路）。
    */
   quickActionGuides?: Partial<Record<QuickActionId, QuickActionGuide>>
+  onCreateVideo?: () => void
   onQuickAction: (id: QuickActionId) => void
 }
 
@@ -164,6 +166,12 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
   return (
     <>
       <FloatingToolbarShell ariaLabel={t('generationCommon.imageToolbar.aria')} nodeId={node.id}>
+        {imageUrl && node.kind === 'image' && <ToolbarButton
+          icon={<IconVideo size={I.size} stroke={I.stroke} />}
+          label={t('creationAi.selection.video')}
+          disabled={busy || node.status === 'queued' || node.status === 'running' || !props.onCreateVideo}
+          onClick={() => props.onCreateVideo?.()}
+        />}
         {isAnchor && onToggleFreeze ? (
           <>
             <ToolbarButton

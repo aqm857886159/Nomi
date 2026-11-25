@@ -1892,11 +1892,6 @@
       "count": 1
     }
   },
-  "tests/ux/director-assets.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/director-j2-walk-to-b.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1

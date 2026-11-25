@@ -18,6 +18,7 @@ import { admitNumber, parseControlInput } from '../../../../../electron/shared/v
 import { isComfyuiVendorKey } from '../../model/comfyuiVendor'
 import {
   ASPECT_RATIO_META_KEYS,
+  isAutoOptionValue,
   aspectRatioControlKey,
   aspectRatioControlsOf,
   normalizeAspectRatioToWH,
@@ -660,13 +661,14 @@ export function parameterControlChangePatch(control: ModelParameterControl, rawV
  */
 export function videoAspectDefaultPatch(
   controls: readonly DynamicModelControl[],
-  preferred: '16:9' | '9:16',
+  preferred: string,
 ): Record<string, unknown> {
+  const matches = (value: string) => preferred === 'auto' ? isAutoOptionValue(value) : sameAspectRatio(value, preferred)
   for (const control of controls) {
     if (isParameterControl(control)) {
       if (!isAspectRatioControl({ ...control, binding: 'parameter' })) continue
       const matched = control.options.find(
-        (o) => sameAspectRatio(controlValueToString(o.value), preferred) || sameAspectRatio(o.label, preferred),
+        (o) => matches(controlValueToString(o.value)) || matches(o.label),
       )
       if (!matched) return {}
       const patch: Record<string, unknown> = { [control.key]: matched.value }
@@ -675,7 +677,7 @@ export function videoAspectDefaultPatch(
     }
     if (!isAspectRatioControl(control)) continue
     const matched = control.options.find((o) => {
-      return sameAspectRatio(optionValue(o), preferred) || sameAspectRatio(typeof o === 'string' ? o : o.label, preferred)
+      return matches(optionValue(o)) || matches(typeof o === 'string' ? o : o.label)
     })
     if (!matched) return {}
     return defaultPatchForCatalogControl({ ...control, defaultValue: optionValue(matched) })
