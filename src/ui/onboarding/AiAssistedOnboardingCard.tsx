@@ -14,7 +14,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  IconCheck, IconChevronDown, IconCopy, IconExternalLink, IconRobot,
+  IconCheck, IconChevronDown, IconChevronRight, IconCopy, IconExternalLink, IconRobot,
 } from '@tabler/icons-react'
 
 import { DesignSegmentedControl } from '../../design'
@@ -98,7 +98,7 @@ export function AiAssistedOnboardingCard({
     <details open={progress ? true : undefined}
       data-model-home-assisted-onboarding={host}
       className={cn(
-        'flex flex-col gap-3 rounded-nomi-sm border px-3 py-2',
+        'group flex flex-col gap-3 rounded-nomi-sm border px-3 py-2',
         firstSeen ? 'border-nomi-line' : 'border-nomi-line-soft',
       )}
     >
@@ -114,7 +114,7 @@ export function AiAssistedOnboardingCard({
             {t('onboardingProviders.assistedOnboarding.subtitle')}
           </div>
         </div>
-        <IconChevronDown size={14} className="text-nomi-ink-40" />
+        <IconChevronRight size={14} className="text-nomi-ink-40 transition-transform group-open:rotate-90" aria-hidden="true" />
       </summary>
 
       {progress ? (

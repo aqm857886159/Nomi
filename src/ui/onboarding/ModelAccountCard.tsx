@@ -5,6 +5,7 @@ import { WorkbenchIconButton, WorkbenchMenu } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { ModelAccountBalance } from '../../../electron/shared/contracts/modelSettingsAccount'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
+import { formatCreditValue } from '../../workbench/generationCanvas/spend/sendCostFormat'
 
 import { useModelUsage, usageTotal } from './useModelUsage'
 
@@ -31,7 +32,7 @@ export function ModelAccountCard({ vendor, name, onAddress, onManage, onDisconne
     return () => { active = false; window.removeEventListener('focus', focus) }
   }, [vendor, revision])
   const total = periods && usageTotal(periods[7])
-  const credits = (amount: number) => t('settings.modelsHome.credits', { amount: amount.toLocaleString(i18n.language, { maximumFractionDigits: 5 }) })
+  const credits = (amount: number) => t('settings.modelsHome.credits', { amount: formatCreditValue(amount, i18n.language) })
   const unknown = loading ? '…' : t('settings.modelsHome.unavailable')
   const stale = (at: number) => <small className="block text-nomi-ink-60">{t('settings.modelsHome.stale', {
     time: new Date(at).toLocaleString(i18n.language, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
@@ -44,7 +45,8 @@ export function ModelAccountCard({ vendor, name, onAddress, onManage, onDisconne
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2"><strong className="truncate text-body-sm">{translateModelDisplayText(name)}</strong>
           <span className="rounded-pill bg-workbench-success-soft px-1.5 text-micro text-workbench-success-ink">{t('settings.modelsHome.connected')}</span></div>
-        {balance?.keySuffix && <div className="text-micro text-nomi-ink-40">••••{balance.keySuffix}</div>}
+        {/* The card only renders for a key the OS secure storage decrypted (onboardingDrawerConnections), so the storage line is always true here. */}
+        <div data-model-key-storage className="text-micro text-nomi-ink-40">{balance?.keySuffix && <><span className="font-nomi-mono">••••{balance.keySuffix}</span> · </>}{t('settings.modelsHome.keychain')}</div>
       </div>
       <WorkbenchIconButton size="sm" icon={<IconRefresh />} label={t('settings.modelsHome.refresh')} disabled={loading} onClick={reload} />
       <WorkbenchMenu align="end" escapeLayer="menu" trigger={<WorkbenchIconButton size="sm" icon={<IconDots />} label={t('settings.modelsHome.more')} />}

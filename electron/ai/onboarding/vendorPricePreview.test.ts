@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { configureVendorBaseFallback, resetVendorBaseFallbackForTests } from "../../vendor/vendorBaseFallback";
 import { appFetch } from "../../appFetch";
 import { readCatalog } from "../../catalog/catalogStore";
-import { publicPriceFor, readVendorPricePreview } from "./vendorPricePreview";
+import { publicPriceFor, publicPriceGap, readPublicPriceListing, readVendorPricePreview } from "./vendorPricePreview";
+import recorded from "../../../tests/fixtures/apimart/media-pricing-api.json";
 import type { VendorPriceQuery, VendorPriceRequest } from "../../shared/contracts/vendorPricePreview";
 import { applyBuiltinSeeds } from "../../catalog/seedBuiltins";
 import { priceQueryFromRequest } from "./vendorPriceRequest";
@@ -49,6 +50,38 @@ describe("read-only public media price", () => {
     expect(quote(d, { ...input, resolution: "2K" })?.usd).toBe(0.035);
     for (const change of [{ size: "auto" }, { quality: "auto" }, { size: undefined }, { resolution: "4K" }, { referenceCount: 1 }])
       expect(quote(d, { ...input, ...change })).toBeNull();
+  });
+
+  it("gives each model its own recorded APIMart rate, and names the listing's reason when there is no fixed rate", async () => {
+    const reference = (modelId: string, kind: "image" | "video"): VendorPriceQuery => ({ vendorKey: "apimart", modelId, kind,
+      resolution: kind === "video" ? "720p" : "1k", size: "1:1", quality: "medium", count: 1, durationSec: 1, referenceCount: 0, hasAudio: false, hasVideoInput: false });
+    const rows = [["gpt-image-2.6-flare", "image"], ["gpt-image-2", "image"], ["gemini-nano-banana-2.1", "image"], ["doubao-seedance-2.5", "video"]] as const;
+    const parsed = rows.map(([id, kind]) => {
+      const detail = recorded.models[id];
+      const quote = publicPriceFor(reference(id, kind), detail, kind === "image" ? recorded.list : null, "recorded");
+      return [id, quote ? { credits: quote.credits, basis: quote.basis ?? null } : null, quote ? null : publicPriceGap(detail)] as const;
+    });
+    expect(parsed).toEqual([
+      ["gpt-image-2.6-flare", { credits: expect.closeTo(0.34776, 9), basis: "output-estimate" }, null],
+      ["gpt-image-2", { credits: expect.closeTo(0.085, 9), basis: null }, null],
+      ["gemini-nano-banana-2.1", null, "token"],
+      ["doubao-seedance-2.5", null, "tiered"],
+    ]);
+    expect(publicPriceGap({ success: false })).toBeNull();
+    expect(publicPriceGap({ success: true, data: { billing_type: "per_second" } })).toBeNull();
+
+    // The official fallback origin keeps this test's cached reads apart from the primary-origin tests below.
+    vi.mocked(readCatalog).mockReturnValue({ vendors: [{ key: "apimart", baseUrlHint: "https://api.apib.ai/v1" }] } as ReturnType<typeof readCatalog>);
+    vi.mocked(appFetch).mockReset().mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      return Response.json(url.pathname.endsWith("/all") ? recorded.list : recorded.models[url.searchParams.get("model") as keyof typeof recorded.models]);
+    });
+    const listings = await Promise.all(rows.map(([id, kind]) => readPublicPriceListing(reference(id, kind))));
+    expect(listings.map(l => [l.quote?.credits ?? null, l.gap])).toEqual(parsed.map(([, quote, gap]) => [quote?.credits ?? null, gap]));
+    expect(await readVendorPricePreview(reference("gpt-image-2", "image"))).toEqual(listings[1].quote);
+    vi.mocked(readCatalog).mockReturnValue({ vendors: [{ key: "apimart", baseUrlHint: "https://relay.example/v1" }] } as ReturnType<typeof readCatalog>);
+    expect(await readPublicPriceListing(reference("gemini-nano-banana-2.1", "image"))).toEqual({ quote: null, gap: null });
+    vi.mocked(appFetch).mockReset();
   });
 
   it("sends only a public GET to the real configured service origin, shares simultaneous reads, and never quotes a relay as APIMart", async () => {

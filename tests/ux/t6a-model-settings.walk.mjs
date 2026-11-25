@@ -31,20 +31,16 @@ const attempts = []
 const measurements = []
 const probes = {}
 let nameChecks = 0
+// Recorded APIMart public price listings: every model has its own rate, and two have none. A uniform fixture cannot catch a page that shows another model's rate.
+const pricing = JSON.parse(fs.readFileSync(path.join(root, 'tests/fixtures/apimart/media-pricing-api.json'), 'utf8'))
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost')
   requests.push([req.method, url.pathname])
   let body
   if (url.pathname === '/v1/user/balance' && !offline) body = { remain_credits: 52.3 }
   if (url.pathname === '/v1/balance') body = { unlimited_quota: true, remain_credits: -1 }
-  if (url.pathname === '/api/pricing/model') {
-    const model = url.searchParams.get('model')
-    const video = model.includes('seedance')
-    body = { success: true, data: { model_name: model, membership: { category: video ? 'video' : 'image' },
-      paid_price: video ? 0.216 : 0.035, ...(video ? { billing_type: 'per_second' } : {}) } }
-  }
-  if (url.pathname === '/api/pricing/models/all') body = { success: true, data: { models: { image:
-    ['gpt-image-2.6-flare', 'gpt-image-2', 'gemini-nano-banana-2.1'].map(id => ({ id, specification: 'image', fixed_prices: { unit: 'usd_per_image' } })) } } }
+  if (url.pathname === '/api/pricing/model') body = pricing.models[url.searchParams.get('model')]
+  if (url.pathname === '/api/pricing/models/all') body = pricing.list
   res.writeHead(body ? 200 : 503, { 'content-type': 'application/json' })
   res.end(JSON.stringify(body ?? {}))
 })
@@ -104,10 +100,13 @@ async function checkNames(win) {
 function seedUsage(settingsDir) {
   const [project] = JSON.parse(fs.readFileSync(path.join(settingsDir, 'recent-workspaces.json')))
   const events = []
+  const now = Date.now()
+  const midnight = new Date(now).setHours(0, 0, 0, 0)
   for (let i = 0; i < 42; i++) {
     const day = i === 41 ? 15 : 1
     const amount = day === 15 ? 10.8 : i === 0 ? 5.6 : 0.35
-    const ts = new Date(Date.now() - day * 86400000).toISOString()
+    // The first receipt lands today (between local midnight and now); the rest are a day or more old.
+    const ts = new Date(i === 0 ? midnight + (now - midnight) / 2 : now - day * 86400000).toISOString()
     for (const [type, facts] of [
       ['vendor.call.requested', { recipe: { vendorKey: 'apimart', modelKey: 'gpt-image-2' } }],
       ['vendor.call.completed', { status: 'succeeded', cost: { amount, unit: 'credits', provider: 'apimart' } }],
@@ -289,13 +288,29 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       await checkNames(win)
       await account.getByRole('button', { name: labelFor('usage') }).click()
       await expect(loc('[data-usage-model="gpt-image-2"]'), 'board:ModelSurfaces/settings.usage-page').toContainText('19.6')
-      await expect(loc('[data-unit-price="gpt-image-2"]')).toContainText('≈0.35')
+      // Each row shows its own recorded rate, or the listing's reason for having none; never 0 and never a neighbour's rate.
+      const price = key => loc('[data-unit-price="' + key + '"]')
+      await expect(price('gpt-image-2.6-flare')).toContainText(labelFor('imageUnit', { amount: '0.35' }))
+      await expect(price('gpt-image-2.6-flare')).toContainText(labelFor('specImageQuality'))
+      await expect(price('gpt-image-2')).toContainText(labelFor('imageUnit', { amount: '0.09' }))
+      await expect(price('gemini-nano-banana-2.1')).toContainText(labelFor('gapToken') + ' —')
+      await expect(price('doubao-seedance-2.5')).toContainText(labelFor('gapTiered') + ' —')
+      await expect(price('doubao-seedance-2.5')).toContainText(labelFor('specVideo'))
+      const rates = await loc('[data-unit-price] > span:last-child').allInnerTexts()
+      assert.equal(rates.length, 4)
+      assert.equal(new Set(rates).size, rates.length, 'every reference model shows a different rate or reason: ' + rates.join(' | '))
+      await expect(loc('[data-usage-scope]')).toHaveText(labelFor('localScope'))
       if (zh && theme === 'light' && width !== 700) await shot(win, 'M1-usage')
       await checkNames(win)
+      await dialog.getByRole('radio', { name: labelFor('today') }).click()
+      await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText(labelFor('runs', { count: 1 }))
+      await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText(labelFor('credits', { amount: 5.6 }))
       await dialog.getByRole('radio', { name: /30/ }).click()
       await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText('30.4')
       await expect(loc('[data-usage-model="gpt-image-2"]')).toContainText(labelFor('runs', { count: 42 }))
       await back()
+      await expect(account).toContainText(labelFor('week'))
+      await expect(account.locator('[data-model-key-storage]'), 'board:ModelSurfaces/settings.account-card').toContainText(labelFor('keychain'))
       await openSettings(win, { tab: 'ai' })
       const b = await frame.boundingBox()
       assert(Math.abs(b.y - a.y) < 1 && b.height >= 360 && b.height <= 560 && b.height > a.height, 'board:ModelSurfaces/settings.frame-height')
@@ -418,12 +433,12 @@ async function runWalkthrough() {
     evidence: comparisons.map(name => '[设计与实窗 · ' + name + '](board-vs-impl-' + name + '.png)'),
   })
   const report = [score, '## ui-task-scorecard · 原始走查记录', '',
-    '隔离凭据与回环供应商共收到 ' + requests.length + ' 次 GET。7 天为 41 次、19.6 积分，30 天为 42 次、30.4 积分。公开单价来自独立报价响应。外部付款链接只核对目标地址。',
+    '隔离凭据与回环供应商共收到 ' + requests.length + ' 次 GET。今天为 1 次、5.6 积分，7 天为 41 次、19.6 积分，30 天为 42 次、30.4 积分。公开单价回放 2026-11-26 录下的 APIMart 公开价目原始响应（tests/fixtures/apimart/media-pricing-api.json），四行各是自己的价或原因：GPT Image 2.6 Flare ≈0.35、GPT Image 2 ≈0.09 积分/张，Nano Banana 2.1 按 token 计，Seedance 2.5 分档计价；四行文字互不相同才算过。外部付款链接只核对目标地址。',
     '', '| 语言 / 主题 / 视口宽 | 账户页高 | 策略页高 | 共同顶边 |', '| --- | ---: | ---: | ---: |',
     ...measurements.map(m => '| ' + [m.locale + ' / ' + m.theme + ' / ' + m.width, m.home, m.policy, m.top].join(' | ') + ' |'),
     '', '旧用户场景保留了发布版 Relay One 目录和原始加密字段，并加入 KIE 和同模型中转，分别验证四个连接不显示搜索、五个连接可搜索及排序。新装、旧版与只读目录各自收到零次供应商请求。',
     '', '调试记录：启动器起初拒绝未由测试世界签发的目录。随后实窗发现模型整理入口缺失；改用各媒体目录后复测通过。上传开关由键盘空格操作，读回持久偏好。新版只读场景显式保留超前版本夹具，以便走到产品的保护逻辑。',
-    '', '样张差异：积分展示遵循金额格式冻结；菜单依 D-account-default 延后更换 Key。公共临时托管开关开启对应先询问，通道及有效期由实际解析器提供。模型页折叠既有 AI 接入指引，MCP 安装仍归自动化页。已删除的 settings.drop.test-connection 的 component 为空，沿用 D-1117。',
+    '', '样张差异：积分展示遵循金额格式冻结，余额格和单价页脚不印美元；菜单依 D-account-default 延后更换 Key。账户卡「用量」与首页「其他接入」保持控件短标签（协调 11-26 定，待用户拍板入口算不算按钮）。Key 只读得到尾号，不印「sk-」前缀（印前缀要改余额读取文件，见方向复盘 §7）。用量只有本机记录，页面与账户卡都标「本机」。样张里的 Midjourney、Seedance 2.0 Fast 两行不在内置目录（前者未接入，后者是 Seedance 2.0 的变体），单价区只列目录里有的四个模型。公共临时托管开关开启对应先询问，通道及有效期由实际解析器提供。模型页折叠既有 AI 接入指引，MCP 安装仍归自动化页。已删除的 settings.drop.test-connection 的 component 为空，沿用 D-1117。',
     '', '截图左侧为已批样张，右侧为实窗。后台项目、模型目录、回执次数和余额使用隔离数据；七张原图与同名对照图一起保存。', '']
   fs.writeFileSync(path.join(output, 'walkthrough.md'), report.join('\n'))
   console.log('Seven board comparisons. Provider requests', requests.length, 'paid submissions 0, split quoted names 0.')

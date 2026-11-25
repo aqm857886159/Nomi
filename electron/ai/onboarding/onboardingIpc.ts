@@ -12,7 +12,7 @@ import { normalizeProviderKind, readCatalog } from "../../catalog/catalogStore";
 import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
 import { priceQueryFromRequest } from "./vendorPriceRequest";
-import { readVendorPricePreview } from "./vendorPricePreview";
+import { readPublicPriceListing, readVendorPricePreview } from "./vendorPricePreview";
 import { checkVendorAccountBalance, readModelSettingsAccount, readVendorAccountBalance } from "./vendorAccountBalance";
 
 import { readModelSettingsUsage, readModelUnitPrices } from "./modelSettingsUsage";
@@ -41,7 +41,7 @@ export function registerOnboardingIpc(): void {
 
   ipcMain.handle("nomi:onboarding:model-unit-prices", (event, vendorKey: string) => {
     assertTrustedSender(event);
-    return readModelUnitPrices(vendorKey, readVendorPricePreview);
+    return readModelUnitPrices(vendorKey, readPublicPriceListing);
   });
 
   ipcMain.handle("nomi:onboarding:model-usage", (event, vendorKey: string) => {

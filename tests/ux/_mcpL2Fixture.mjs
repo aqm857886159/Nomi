@@ -28,6 +28,9 @@ function mediaFixture() {
   return { image, video: fs.readFileSync(videoPath), poster, referencePath, root }
 }
 
+// 真 APIMart 的公开价目（不带 Key 的 GET）在假供应商这里回放 11-26 录下的原始响应，设置页单价和发送键约价读到的都是各模型自己的价。
+const publicPricing = JSON.parse(fs.readFileSync(path.join(repoRoot, 'tests/fixtures/apimart/media-pricing-api.json'), 'utf8'))
+
 export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0, failTasks = 0 } = {}) {
   let dropsLeft = dropSubmits
   let failsLeft = failTasks
@@ -54,6 +57,14 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
       }
       if (req.url === '/fixture/video.mp4') {
         res.writeHead(200, { 'content-type': 'video/mp4', 'content-length': media.video.length }); res.end(media.video); return
+      }
+      const pricingUrl = new URL(req.url || '/', 'http://fixture')
+      if (req.method === 'GET' && pricingUrl.pathname === '/api/pricing/models/all') { json(publicPricing.list); return }
+      if (req.method === 'GET' && pricingUrl.pathname === '/api/pricing/model') {
+        const recorded = publicPricing.models[pricingUrl.searchParams.get('model')]
+        if (recorded) json(recorded)
+        else json({ success: false, message: 'model not found' }, 404)
+        return
       }
       if (req.url === '/v1/uploads/images') {
         setTimeout(() => json({ url: `${origin}/fixture/image.png` }), 25)

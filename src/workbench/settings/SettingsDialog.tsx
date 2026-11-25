@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useViewportSize } from '@mantine/hooks'
 import { IconAdjustmentsHorizontal, IconBrain, IconFolder, IconInfoCircle, IconLock, IconPlugConnected } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { confirmDialog, DesignModal, NOMI_OVERLAY_Z_INDEX } from '../../design'
@@ -63,6 +64,9 @@ const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'about', icon: IconInfoCircle, labelKey: 'settings.tab.about' },
 ]
 
+/** 设置框最高 560（和下面 data-settings-frame 的 max-h-[560px] 是同一个数）：顶边停在「560 的框居中」处，内容变矮只收底边。 */
+const SETTINGS_FRAME_MAX_HEIGHT = 560
+
 export function SettingsDialog({
   initialTab = 'file',
   initialSection = null,
@@ -77,6 +81,7 @@ export function SettingsDialog({
 }): JSX.Element {
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
+  const { height: viewportHeight } = useViewportSize()
   const [tab, setTab] = React.useState<SettingsTab>(initialTab)
   const [modelsMounted, setModelsMounted] = React.useState(initialTab === 'models')
   // 「去配置 KIE」这类请求：切到模型 tab 还不够，得让模型工作区直接落到那家的 Key 输入页。
@@ -243,7 +248,8 @@ export function SettingsDialog({
       onClose={() => { void requestClose() }}
       title={t('settings.title')}
       size={760}
-      centered
+      // 顶边钉住（ModelSurfaces settings.frame-height）：按窗口高算一次，换页签只有底边动；窗口拉伸才重算。矮窗限高归外壳。
+      yOffset={Math.max(12, Math.round((viewportHeight - SETTINGS_FRAME_MAX_HEIGHT) / 2))}
       padding={0}
       innerScroll
       closeOnEscape={false}
@@ -258,7 +264,7 @@ export function SettingsDialog({
         <div
           ref={(node) => { dialogRef.current = node?.closest<HTMLDivElement>('[role="dialog"]') ?? null }}
           data-settings-frame
-          className="relative flex h-[560px] max-h-full min-h-0 flex-col overflow-hidden sm:flex-row"
+          className="relative flex min-h-[360px] max-h-[560px] flex-col overflow-hidden sm:flex-row"
         >
           <aside
             ref={navRef}

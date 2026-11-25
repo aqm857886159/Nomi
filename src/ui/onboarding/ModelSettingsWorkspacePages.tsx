@@ -1,4 +1,5 @@
-import type { ModelUnitPrice } from '../../../electron/shared/contracts/modelSettingsAccount'
+import type { ModelUnitPrice, ModelUsagePeriod } from '../../../electron/shared/contracts/modelSettingsAccount'
+import { formatCreditValue } from '../../workbench/generationCanvas/spend/sendCostFormat'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { CatalogPackageActions } from './ModelCatalogNotices'
@@ -15,6 +16,8 @@ import { ModelAdapterStatusSection } from './ModelAdapterStatusSection'
 import { formatMissing } from './modelAdapterDetailState'
 import { MODEL_CHIP_KINDS } from './modelChipGrouping'
 import { projectModelCapability } from './modelCapabilityProjection'
+
+const USAGE_PERIODS: readonly ModelUsagePeriod[] = [7, 'today', 30]
 
 export class ModelSettingsDetailBoundary extends React.Component<
   { children: React.ReactNode; fallback: React.ReactNode },
@@ -367,7 +370,7 @@ export function OtherConnectionWays({ local, onBack, onCustomApi, onDirectScript
 
 export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name: string; onBack: () => void }): JSX.Element {
   const { t, i18n } = useTranslation()
-  const [days, setDays] = React.useState<7 | 30>(7)
+  const [period, setPeriod] = React.useState<ModelUsagePeriod>(7)
   const { periods, refresh } = useModelUsage(vendor)
   const [prices, setPrices] = React.useState<ModelUnitPrice[] | null>()
   const [attempt, retryPrices] = React.useReducer(n => n + 1, 0)
@@ -377,18 +380,24 @@ export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name:
       value => { if (active) setPrices(value ?? null) }, () => { if (active) setPrices(null) })
     return () => { active = false }
   }, [vendor, attempt])
-  const rows = periods?.[days]
+  const rows = periods?.[period]
   const total = rows && usageTotal(rows)
-  const number = (v: number) => v.toLocaleString(i18n.language, { maximumFractionDigits: 5 })
-  const amount = (v: number | null) => v === null ? t('settings.modelsHome.pending') : t('settings.modelsHome.credits', { amount: number(v) })
+  const amount = (v: number | null) => v === null ? t('settings.modelsHome.pending') : t('settings.modelsHome.credits', { amount: formatCreditValue(v, i18n.language) })
+  const periodLabel = (p: ModelUsagePeriod) => p === 'today' ? t('settings.modelsHome.today') : t('settings.modelsHome.days', { count: p })
+  const spec = (p: ModelUnitPrice) => t(p.kind === 'video' ? 'settings.modelsHome.specVideo'
+    : p.basis === 'output-estimate' ? 'settings.modelsHome.specImageQuality' : 'settings.modelsHome.specImage')
+  const rate = (p: ModelUnitPrice) => p.credits !== null
+    ? t(p.kind === 'video' ? 'settings.modelsHome.videoUnit' : 'settings.modelsHome.imageUnit', { amount: formatCreditValue(p.credits, i18n.language) })
+    : <><span className="text-micro text-nomi-ink-60">{t(p.gap === 'token' ? 'settings.modelsHome.gapToken' : p.gap === 'tiered' ? 'settings.modelsHome.gapTiered' : 'settings.modelsHome.unavailable')}</span> —</>
   const row = 'grid grid-cols-[minmax(0,1fr)_auto_4rem] items-center gap-2 border-b border-nomi-line-soft px-2 py-1.5 text-caption'
   return <div className="min-h-0 overflow-y-auto" data-model-settings-page="usage">
     <ModelSettingsPageHeader title={t('settings.modelsHome.usage')} subtitle={name} backLabel={t('common.back')} onBack={onBack} />
     <div className="space-y-3 p-4">
-      <div className="flex items-center gap-3"><h3 className="text-caption font-semibold">{t('settings.modelsHome.spent')}</h3>
-        <NomiSegmented ariaLabel={t('settings.modelsHome.spent')} density="compact" fit="content" value={String(days)}
-          options={[7, 30].map(count => ({ value: String(count), label: t('settings.modelsHome.days', { count }) }))}
-          onChange={value => setDays(value === '30' ? 30 : 7)} /></div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="text-caption font-semibold">{t('settings.modelsHome.spent')}</h3>
+        <NomiSegmented ariaLabel={t('settings.modelsHome.spent')} density="compact" fit="content" value={String(period)}
+          options={USAGE_PERIODS.map(p => ({ value: String(p), label: periodLabel(p) }))}
+          onChange={value => setPeriod(USAGE_PERIODS.find(p => String(p) === value) ?? 7)} />
+        <span data-usage-scope className="text-micro text-nomi-ink-60">{t('settings.modelsHome.localScope')}</span></div>
       <div className="rounded-nomi-sm border border-nomi-line">
         {rows ? rows.map(r => <div key={r.modelKey} data-usage-model={r.modelKey} className={row}>
           <span title={r.modelKey} className="truncate">{prices?.find(p => p.modelKey === r.modelKey)?.label || r.modelKey}</span>
@@ -402,8 +411,10 @@ export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name:
       <p className="text-micro text-nomi-ink-60">{t('settings.modelsHome.receipt')}</p>
       <h3 className="text-caption font-semibold">{t('settings.modelsHome.rates')}</h3>
       <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line">
-        {prices?.map(p => <div key={p.modelKey} data-unit-price={p.modelKey} className="flex gap-2 px-2 py-1.5 text-caption"><span className="min-w-0 flex-1">{translateModelDisplayText(p.label)}</span>
-          <span>{p.credits === null ? t('settings.modelsHome.unavailable') : t(p.kind === 'video' ? 'settings.modelsHome.videoUnit' : 'settings.modelsHome.imageUnit', { amount: number(p.credits) })}</span></div>)}
+        {prices?.map(p => <div key={p.modelKey} data-unit-price={p.modelKey} className="flex items-baseline gap-2 px-2 py-1.5 text-caption">
+          <span className="min-w-0 truncate">{translateModelDisplayText(p.label)}</span>
+          <span className="min-w-0 flex-1 truncate text-micro text-nomi-ink-40">{spec(p)}</span>
+          <span className="shrink-0">{rate(p)}</span></div>)}
         {prices === undefined ? <p className="p-2 text-caption">{t('onboardingProviders.drawer.loading')}</p> : !prices?.length && <p className="p-2 text-caption">
           <span>{t('settings.modelsHome.noRates')}</span> · <button type="button" className="text-nomi-accent hover:underline" onClick={retryPrices}>{t('settings.modelsHome.retry')}</button>
         </p>}
