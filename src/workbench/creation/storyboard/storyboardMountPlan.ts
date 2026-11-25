@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Virtualizer } from '@tanstack/react-virtual'
 import type { PlanShot } from '../../generationCanvas/agent/storyboardPlan'
+import { shouldReduceMotion } from '../../../design/motion'
 
 /**
  * 窗口化列表里，每一项这一帧挂「完整行」还是「轻量占位」。
@@ -69,7 +70,7 @@ export function useStoryboardRowFocus({ tableRef, scrollRef, virtualizer, mounte
     const itemIndex = itemIndexOfKey(itemKey)
     if (itemIndex < 0) return false
     const prompt = target === 'prompt'
-    const smooth = prompt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const smooth = prompt && !shouldReduceMotion()
     virtualizer.scrollToIndex(itemIndex, { align: prompt ? 'start' : 'center', behavior: smooth ? 'smooth' : 'auto' })
     setPendingFocus({ itemKey, nativeScroll: false, prompt, reveal: prompt })
     return true
