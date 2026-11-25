@@ -55,7 +55,7 @@ test('one click adds an editable reference card and restores disclosure for popu
   }
 })
 
-test('deleting the final reference reports an empty zone and returns focus to Add Reference', async () => {
+test('deleting the final reference reports an empty zone and returns focus to Add reference', async () => {
   const page = await fixture.browser.newPage()
   try {
     await page.goto(fixture.url(harness, '?locale=en'))

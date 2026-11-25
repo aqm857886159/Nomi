@@ -24,7 +24,7 @@ for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) te
     await expect(editor).toBeVisible()
     const expand = editor.getByRole('button', { name: en ? 'Expand all' : '全部展开', exact: true })
     if (await expand.isVisible()) await expand.click()
-    await editor.getByRole('button', { name: en ? 'Add Reference' : '添加参考', exact: true }).click()
+    await editor.getByRole('button', { name: en ? 'Add reference' : '添加参考', exact: true }).click()
     await expect(editor.locator('[data-storyboard-anchor-row]')).toHaveCount(1)
     // A-1 restores this editor budget by collapsing the existing resource sidebar.
     // Full-shell preference/toggle behavior is covered by the Electron journey.

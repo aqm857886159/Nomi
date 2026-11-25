@@ -2,7 +2,7 @@
   "schema_version": 3,
   "id": "2026-11-24-storyboard-actions",
   "problem_type": "A plan edit action available to the user is outside the current visible view or behind an irrelevant disclosure.",
-  "symptom": "A zero-card storyboard advertised Add Reference behind Expand all, and Add shot fell below the fixed footer.",
+  "symptom": "A zero-card storyboard advertised Add reference behind Expand all, and Add shot fell below the fixed footer.",
   "direct_cause": "Both controls were subordinate to data presentation: the first depended on expanded rows and the second was the last scrolling child.",
   "class_root": "The editor did not give its persistent and empty-state edit actions a visible entry independent of whether their target rows were visible.",
   "affected_population": [
@@ -32,7 +32,7 @@
     }
   ],
   "invariants": [
-    "The editable zero-card state offers one Add Reference button and no expand/collapse control. Adding creates an editable row.",
+    "The editable zero-card state offers one Add reference button and no expand/collapse control. Adding creates an editable row.",
     "The production editor offers one Add shot button outside its scrolling content, using the existing plan mutator. A new shot is revealed through its row or the existing virtual row navigation."
   ],
   "doors": [

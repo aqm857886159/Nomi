@@ -22,7 +22,7 @@
   ],
   "entry_points": [
     "Footer add shot",
-    "Empty, expanded and collapsed reference Add Reference",
+    "Empty, expanded and collapsed reference Add reference",
     "Anchor row menu delete",
     "External reference import"
   ],
@@ -31,7 +31,7 @@
   "invariants": [
     "Fresh shots receive shot-1 and shot-2 in order. Further appends start above the highest surviving numeric shot ID and skip occupied or undo-reserved IDs. The written identity remains independent of display order.",
     "Footer append opens only the destination scene and focuses the new prompt without changing selection.",
-    "The empty reference zone reports collapsed and Add Reference gets focus upon removal of the last card.",
+    "The empty reference zone reports collapsed and Add reference gets focus upon removal of the last card.",
     "Deleting a card detaches its shot-slot provenance and leaves the attached asset. An ID reserved by historical provenance or auto-reference history cannot be assigned to a new card."
   ],
   "doors": [
@@ -231,7 +231,7 @@
       "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
       "entry_point": "StoryboardAnchorStrip",
       "disposition": "enforced",
-      "evidence": "The collapsed Add Reference action invokes the same handler as the empty and expanded zone."
+      "evidence": "The collapsed Add reference action invokes the same handler as the empty and expanded zone."
     },
     {
       "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
@@ -300,7 +300,7 @@
       "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
       "src/workbench/creation/storyboard/storyboardDeleteUndo.ts"
     ],
-    "rationale": "The footer stops routing appends through external selection or DOM scroll. All reference Add Reference buttons share one handoff. Manual writes use the numbered allocator instead of UUIDs or IDs derived from the insertion position. Undo replaces content matching of legacy rows with stable identity."
+    "rationale": "The footer stops routing appends through external selection or DOM scroll. All reference Add reference buttons share one handoff. Manual writes use the numbered allocator instead of UUIDs or IDs derived from the insertion position. Undo replaces content matching of legacy rows with stable identity."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
