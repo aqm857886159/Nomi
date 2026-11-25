@@ -1,27 +1,27 @@
 // R13 走查：① 视频节点可按名称 @ 并建立真实 video_ref 边 ② 裂图 → 可读「加载失败」占位。
 // 用法: node tests/ux/at-mention-edge.walk.mjs
 // 隔离 userData + 临时 NOMI_PROJECT_ROOT（构造一个含场景的项目，不碰用户真实数据）。
-// 产出: tests/ux/shots/at-mention/*.png —— 人眼判断：视频候选/视频1 chip、broken 图「加载失败」。
+// 产出：隔离临时目录中的视频候选、视频引用 chip 和坏图占位截图。
 import { launchNomiApp } from './_launchApp.mjs'
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
-import os from 'node:os'
-import { fileURLToPath } from 'node:url'
+import { require as tsxRequire } from 'tsx/cjs/api'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/at-mention')
+const { currentReferenceMedia } = tsxRequire('../../src/workbench/generationCanvas/nodes/mentionCandidates.ts', import.meta.url)
+const base = makeTempDir('nomi-atmention-')
+const shotsDir = path.join(base, 'shots')
+process.env.EVIDENCE_DIR = path.join(base, 'feel')
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const base = path.join(os.tmpdir(), 'nomi-atmention') // 不写死 /tmp：Windows 上会变成盘符相对路径，Electron 起不来
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
-fs.rmSync(base, { recursive: true, force: true })
 fs.mkdirSync(settingsDir, { recursive: true })
 
 // —— 构造项目：working 图(data URL,能加载) 连线 → omni 视频节点；broken 图(坏 nomi-local url) 验占位 ——
@@ -112,6 +112,7 @@ const { app, win } = await launchNomiApp({
   projectsDir,
 })
 await win.evaluate(() => {
+  window.localStorage.setItem('__nomiE2E', '1')
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen')
 })
 await win.reload()
@@ -189,21 +190,38 @@ console.log('  → @ 浮层信息:', JSON.stringify(dropdownInfo))
 const videoMention = dropdownInfo.mentionItems.find((item) => item.kind === 'video')
 check('可按视频节点标题过滤出视频候选', videoMention?.label === 'drone reference', JSON.stringify(videoMention))
 
-// 选择候选后必须建立真实 video_ref 边，并插入 1-based 的「视频1」chip。
+// 选择候选后必须建立真实参考边、填视频槽，并插入按资产名截取的 chip。
 const edgesBefore = await win.locator('.generation-canvas-v2__edge-path').count()
+const readGraph = () => win.evaluate(() => {
+  const { nodes, edges } = window.__nomiCanvasStore.getState()
+  return { nodes, edges }
+})
+const referencesForTarget = ({ nodes, edges }) =>
+  currentReferenceMedia(nodes.find((node) => node.id === videoTarget.id), nodes, edges)
+const referencesBefore = referencesForTarget(await readGraph())
 const videoOption = win.locator('[data-mention-item][data-mention-kind="video"]', { hasText: 'drone reference' }).first()
 if (await videoOption.count()) await videoOption.click({ timeout: 5000 }).catch(() => {})
 await win.waitForTimeout(1800)
 const selectedState = await win.evaluate(() => ({
   edgeCount: document.querySelectorAll('.generation-canvas-v2__edge-path').length,
-  chips: Array.from(document.querySelectorAll('[data-asset-mention]')).map((el) => ({
+  chips: Array.from(document.querySelectorAll('.generation-canvas-v2-node__composer [data-asset-mention] [data-storyboard-mention-chip]')).map((el) => ({
     text: el.textContent?.trim() ?? '',
     label: el.getAttribute('aria-label'),
   })),
 }))
 console.log('  → 选择视频后:', JSON.stringify(selectedState))
 check('选择视频候选后新增真实参考边', selectedState.edgeCount === edgesBefore + 1, `${edgesBefore} → ${selectedState.edgeCount}`)
-check('首个视频引用 chip 显示「视频1」', selectedState.chips.some((chip) => chip.text === '视频1' && chip.label === '视频1'), JSON.stringify(selectedState.chips))
+const graph = await readGraph()
+const videoEdge = graph.edges.find((edge) => edge.source === videoSource.id && edge.target === videoTarget.id)
+check('新增的边连接指定视频和目标镜头，语义为参考', videoEdge?.mode === 'reference', JSON.stringify(videoEdge))
+const referencesAfter = referencesForTarget(graph)
+const videoReferences = referencesAfter.filter((reference) => reference.kind === 'video')
+check('指定视频进入首个视频参考槽，原有其他引用保持不变', videoReferences.length === 1
+  && videoReferences[0].url === VIDEO_URL && videoReferences[0].index === 1
+  && JSON.stringify(referencesAfter.filter((reference) => reference.kind !== 'video')) === JSON.stringify(referencesBefore),
+JSON.stringify(referencesAfter))
+check('首个视频引用 chip 显示截取后的资产名', selectedState.chips.length === 1
+  && selectedState.chips[0].text === 'drone re…' && selectedState.chips[0].label === 'drone re…', JSON.stringify(selectedState.chips))
 await snap(win, 'video-mention-selected')
 
 await app.close()
