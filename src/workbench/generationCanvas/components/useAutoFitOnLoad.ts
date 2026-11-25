@@ -2,8 +2,6 @@ import React from 'react'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getCanvasNodeVisualSize } from './generationCanvasGeometry'
 
-type Viewport = { zoom: number; offset: { x: number; y: number } }
-
 /**
  * 当前视口是否框住了至少一个节点。历史视口若停在空白处（所有节点都在视口外），盲目恢复它会让用户以为
  * 「图全没了」——其实只是被平移挡住。
@@ -55,16 +53,17 @@ export function useAutoFitOnLoad(params: {
   ready: boolean
   nodes: GenerationCanvasNode[]
   activeCategoryId: string
-  categoryViewports: Record<string, Viewport | undefined>
-  fitView: () => void
+  hasRememberedViewport: boolean
+  fitView: (animate: boolean, opening: boolean) => void
+  revealRememberedSelection: () => void
   stageRef: React.RefObject<HTMLDivElement | null>
   zoomRef: React.MutableRefObject<number>
   offsetRef: React.MutableRefObject<{ x: number; y: number }>
   hasFlowNode: (id: string) => boolean
 }): void {
-  const { ready, nodes, activeCategoryId, categoryViewports, fitView, stageRef, zoomRef, offsetRef, hasFlowNode } = params
-  const latest = React.useRef({ nodes, categoryViewports, fitView, hasFlowNode })
-  latest.current = { nodes, categoryViewports, fitView, hasFlowNode }
+  const { ready, nodes, activeCategoryId, hasRememberedViewport, fitView, revealRememberedSelection, stageRef, zoomRef, offsetRef, hasFlowNode } = params
+  const latest = React.useRef({ nodes, hasRememberedViewport, fitView, hasFlowNode, revealRememberedSelection })
+  latest.current = { nodes, hasRememberedViewport, fitView, hasFlowNode, revealRememberedSelection }
   React.useEffect(() => {
     if (!ready) return undefined
     const openNodes = latest.current.nodes
@@ -79,12 +78,13 @@ export function useAutoFitOnLoad(params: {
         if (waited < MAX_WAIT_FRAMES) frame = requestAnimationFrame(fitWhenMeasured)
         return
       }
-      const { categoryViewports: viewports, fitView: fit } = latest.current
+      const { hasRememberedViewport, fitView: fit } = latest.current
       if (shouldFitOnOpen({
         nodeCountAtOpen: openNodes.length,
-        hasRememberedViewport: Boolean(viewports[activeCategoryId]),
+        hasRememberedViewport,
         anyNodeVisible: anyNodeVisibleInViewport(openNodes, zoomRef.current, offsetRef.current, rect.width, rect.height),
-      })) fit()
+      })) fit(false, true)
+      else latest.current.revealRememberedSelection()
     }
     frame = requestAnimationFrame(fitWhenMeasured)
     return () => cancelAnimationFrame(frame)

@@ -1,0 +1,23 @@
+{
+  "name": "波形读取总期限与资源清理",
+  "subject": "asset.waveform-read-deadline",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/timeline/agent/mediaToolCall.ts",
+    "symbol": "applyMediaToolCall"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/timeline/agent/mediaToolCall.ts",
+      "symbol": "applyMediaToolCall"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "从素材分页开始为波形读取统一计时并释放资源。"
+}

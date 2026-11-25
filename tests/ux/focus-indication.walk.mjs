@@ -1,8 +1,15 @@
-// Real Electron tasks: draft in composer, find a project, inspect a budget field,
+// Real Electron tasks: draft in composer, find a project, focus a settings field,
 // and edit a storyboard cell. No production DOM/CSS injection or paid generation.
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { expect } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { backToLibrary, closeSettings, openSettings, switchWorkspace } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import {
   createRuntimeWalk, openCanvas, CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, COMPOSER_ADD_FILE, expectComposerText } from './agent-runtime-walk-support.mjs'
+process.env.NOMI_WALK_OUT = assertOutsideRepo(makeTempDir('nomi-focus-indication-'))
+process.env.EVIDENCE_DIR = process.env.NOMI_WALK_OUT
 const walk = await createRuntimeWalk('focus-indication')
 let failure
 try {
@@ -38,7 +45,10 @@ try {
     expect(keyboard.outlineStyle, `${label} keyboard text has no outer ring`).toBe('none')
     walk.report.focus.push({ label, mouse, keyboard, container: await measure(container) })
   }
-  const search = win.getByRole('searchbox', { name: '搜索项目', exact: true })
+  // The first-run library has no search field. Create a project through the UI to enter the projects list.
+  await walk.newProject()
+  await backToLibrary(win)
+  const search = win.getByRole('searchbox', { name: uiText('zh-CN', 'library.searchPlaceholder'), exact: true })
   await inspectText('library-search', search, search.locator('..'))
   await search.fill('FOCUS-JOURNEY')
   await expect(search).toHaveValue('FOCUS-JOURNEY')
@@ -51,6 +61,8 @@ try {
   await input.fill('远景，雨后的街道。先保留这条创作草稿。')
   await inspectText('canvas-composer', input, composer)
   await win.keyboard.press('Tab')
+  await expect(composer.locator('[data-reference-entry="true"]'), 'Tab reaches the canvas reference picker first').toBeFocused()
+  await win.keyboard.press('Tab')
   const button = win.locator(`${CANVAS_PANEL} ${COMPOSER_ADD_FILE}`)
   const keyboard = await measure(button)
   expect(keyboard.focused, 'Tab reaches add-file button').toBe(true)
@@ -60,16 +72,15 @@ try {
   walk.report.focus.push({ label:'canvas-button-keyboard', keyboard })
   await walk.snap('canvas-button-keyboard')
   await recordSurface('canvas')
-  await win.getByRole('button', { name:'设置', exact:true }).click()
-  const settings = win.getByRole('dialog', { name:'设置', exact:true })
-  await settings.getByRole('button', { name:'AI 策略', exact:true }).click()
-  const budget = settings.locator('[data-settings-field="hard-budget"]')
-  await inspectText('settings-budget', budget)
+  const settings = await openSettings(win, { tab: 'ai' })
+  await settings.locator('[data-settings-custom-relay] summary').click()
+  const relayEndpoint = settings.locator('[data-settings-field="asset-relay-endpoint"]')
+  await inspectText('settings-relay-endpoint', relayEndpoint)
   await recordSurface('settings', settings)
-  await settings.locator('[data-settings-close]').click()
+  await closeSettings(win)
   await expectComposerText(input, '远景，雨后的街道。先保留这条创作草稿。', '创作草稿切走再回来还在')
-  await win.getByRole('button', { name:'创作', exact:true }).click()
-  await win.getByRole('button', { name:/^分镜方案,/ }).click()
+  await switchWorkspace(win, 'creation')
+  await openStoryboardEditor(win)
   const storyboard = win.locator('[data-storyboard-editor="true"]')
   await expect(storyboard).toBeVisible()
   const cell = storyboard.locator('[data-storyboard-row="1"] [contenteditable="true"]')

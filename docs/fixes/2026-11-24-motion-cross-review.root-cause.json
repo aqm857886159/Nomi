@@ -1,0 +1,217 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-motion-cross-review",
+  "problem_type": "Shared motion and loading contracts bypassed at UI and validation boundaries",
+  "symptom": "Capture flyouts reused the full enter duration on exit. Raw shorthand, referenced Motion transitions and press scale escaped validation. Mantine hid the loading status.",
+  "direct_cause": "The flyout inherited its enter transition, CSS parity collapsed repeated declarations, the scanner missed several syntax forms, and the status was inside the decorative loader.",
+  "class_root": "The design-system boundary did not enforce the same motion and accessibility invariants across CSS, Motion and the Mantine control adapter.",
+  "affected_population": [
+    "Browser capture users in both hosts",
+    "Users of the shared DesignButton with assistive technology",
+    "Production authors using CSS or Motion"
+  ],
+  "scope_paths": [
+    "scripts/check-design-tokens.mjs",
+    "scripts/lib/motionTokenScan.mjs",
+    "src/design/actions.tsx",
+    "src/ui/browser/BrowserCaptureFlyouts.tsx",
+    "src/design/motion.ts"
+  ],
+  "entry_points": [
+    "Browser dialog and browser asset overlay capture",
+    "DesignButton loading",
+    "Shared design token gate"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.w3.org/WAI/WCAG21/Techniques/aria/ARIA22",
+      "checked_at": "2026-11-24",
+      "purpose": "Keep the status container present before inserting the message."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://motion.dev/docs/react-animate-presence",
+      "checked_at": "2026-11-24",
+      "purpose": "Set the transition on the exit target."
+    }
+  ],
+  "invariants": [
+    "Each mirrored motion declaration equals the value exported by the shared scale and each flyout exit uses the shared formula.",
+    "The gate catches raw CSS duration and curve values, raw literal durations in referenced Motion objects and unauthorized active press scale.",
+    "A busy DesignButton retains its name, dimensions and disabled state while publishing loading text in an independent live region."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/design/actions.tsx",
+      "symbol": "loaderProps"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
+      "symbol": "BrowserCaptureFlyouts"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/browser/overlay/BrowserAssetOverlayApp.tsx",
+      "symbol": "BrowserCaptureFlyouts"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-design-tokens.mjs",
+      "symbol": "scanMotionTokens"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-design-tokens.mjs",
+      "symbol": "compareMotionBaseline"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-design-tokens.mjs",
+      "symbol": "checkMotionMirror"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/motion.ts",
+      "symbol": "exitDurationMs"
+    },
+    {
+      "kind": "write",
+      "path": "src/theme/nomiTheme.ts",
+      "symbol": "exitDurationMs"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "exitDurationMs"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/BrowserCaptureFlyouts.tsx",
+      "symbol": "exitDurationMs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "symbol": "exitDurationMs"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 11,
+    "why_not": "The browser has two host surfaces with one flyout. Tokens, the theme and each overlay need the formula for their own API. The gate needs both scan and compare for current and inherited uses. The adapter still accepts a visual loader override and publishes status separately."
+  },
+  "generality_proof": "Both browser hosts call the same flyout. The checker uses the runtime export for every CSS declaration and scans transition objects at their JSX uses. All Mantine DesignButton users get the same status region from the adapter.",
+  "shared_boundaries": [
+    {
+      "path": "src/design/motion.ts",
+      "symbol": "exitDurationMs",
+      "responsibility": "Own the exit formula across renderer and token APIs."
+    },
+    {
+      "path": "scripts/lib/motionTokenScan.mjs",
+      "symbol": "scanMotionTokens",
+      "responsibility": "Validate motion authorship in production CSS and renderer sources."
+    },
+    {
+      "path": "src/design/actions.tsx",
+      "symbol": "DesignButton",
+      "responsibility": "Expose a loading status outside Mantine’s decorative loader and busy subtree."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
+      "entry_point": "BrowserCaptureFlyouts",
+      "disposition": "enforced",
+      "evidence": "The dialog renders the shared capture flyout."
+    },
+    {
+      "path": "src/ui/browser/overlay/BrowserAssetOverlayApp.tsx",
+      "entry_point": "BrowserCaptureFlyouts",
+      "disposition": "enforced",
+      "evidence": "The floating overlay renders the same capture flyout."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx",
+      "entry_point": "TEXT_BUTTON_PRESS",
+      "disposition": "enforced",
+      "evidence": "The send control is an approved consumer of the press utility."
+    },
+    {
+      "path": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
+      "entry_point": "DesignButton",
+      "disposition": "enforced",
+      "evidence": "Browser asset actions render through the same shared button adapter."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Future motion consumers or loading buttons can repeat each failure whenever token or accessibility ownership is implicit.",
+    "same_class_scan": [
+      "door-map for exitDurationMs, BrowserCaptureFlyouts, loaderProps and scanner entry points; rg for CSS motion shorthands and TEXT_BUTTON_PRESS consumers."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/lib/motionTokenScan.mjs",
+    "invariant": "Production motion inputs use shared timing and an approved press control, with an occurrence-level CSS mirror and a shared live status adapter.",
+    "failure_mode": "The gate reports the file and matching source line for non-token motion and rejects drift in the CSS mirror.",
+    "exception_policy": "none",
+    "strategy": "Check syntax at the shared gate and put transition and accessibility behavior in the renderer components both hosts and button callers already share.",
+    "artifacts": [
+      "scripts/check-design-tokens.mjs",
+      "scripts/lib/motionTokenScan.mjs",
+      "src/design/actions.tsx",
+      "src/ui/browser/BrowserCaptureFlyouts.tsx"
+    ]
+  },
+  "regression_tests": [
+    "scripts/motionTokenScan.test.mjs",
+    "src/design/actions.test.tsx",
+    "src/design/motion.test.ts",
+    "src/ui/browser/BrowserCaptureFlyouts.test.tsx"
+  ],
+  "class_regression_tests": [
+    "scripts/motionTokenScan.test.mjs",
+    "src/design/actions.test.tsx",
+    "src/design/motion.test.ts",
+    "src/ui/browser/BrowserCaptureFlyouts.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-design-tokens.mjs",
+      "src/ui/browser/BrowserCaptureFlyouts.tsx"
+    ],
+    "rationale": "Replace the last-value-only mirror check and the inherited flyout exit timing at their existing owners."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@mantine/core 8.3.18",
+    "target": "A Mantine Button release with an independent accessible loading status",
+    "rationale": "The decorative loader is intentionally hidden in the locked package. The wrapper supplies the application’s localized status while retaining Mantine layout and disabled states.",
+    "exit_criteria": [
+      "Use the upstream status once it remains present while idle, publishes a single localized message outside the busy subtree, and passes the Chromium width and accessible-name regression."
+    ]
+  },
+  "migration": "No persisted state changes. Browser hosts and existing DesignButton callers retain their entry points. generationCanvas.css retains the media loading cycle's 1250 ms period through the shared variable mirrored in nomi-tokens.css. These are static stylesheet inputs to the token parity check.",
+  "residual_risks": [
+    "Chromium verifies the live region and dimensions. Screen-reader speech output and a full desktop capture remain separate verification."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": "scripts/lib/motionTokenScan.mjs",
+    "tests": [
+      "scripts/motionTokenScan.test.mjs",
+      "src/design/actions.test.tsx",
+      "src/design/motion.test.ts",
+      "src/ui/browser/BrowserCaptureFlyouts.test.tsx"
+    ],
+    "why": "The design-token gate owns production scanner coverage. The motion scale, flyout and button own their runtime semantics and are covered by the other listed tests."
+  }
+}

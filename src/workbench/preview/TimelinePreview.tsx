@@ -354,7 +354,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           'relative max-w-full max-h-full grid place-items-center overflow-hidden',
           'rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)]',
           'bg-[var(--nomi-paper)] shadow-[var(--workbench-shadow-md)]',
-          'cursor-default transition-[width,height] duration-[160ms] ease-in-out touch-none',
+          'cursor-default touch-none',
           hasMedia && 'cursor-grab active:cursor-grabbing',
         )}
         data-aspect-ratio={activeRatio.value}

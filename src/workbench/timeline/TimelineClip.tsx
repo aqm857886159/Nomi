@@ -1,3 +1,4 @@
+import { pulseSnap } from './pulseSnap'
 import React, { type JSX } from 'react'
 import { TimelineGenerationFeedback } from './TimelineGenerationFeedback'
 import { useTranslation } from 'react-i18next'
@@ -54,15 +55,6 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
   const filmstrip = useFilmstrip(clip.type === 'video' ? clip.url : '')
 
   // 吸附"咔哒"微反馈：WAAPI 实现，免改全局 CSS（规则 10）；不与 React 的 style.left 冲突。
-  const pulseSnap = React.useCallback(() => {
-    const node = clipRef.current
-    if (!node || typeof node.animate !== 'function') return
-    node.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.015)' }, { transform: 'scale(1)' }], {
-      duration: 130,
-      easing: 'cubic-bezier(.2,.7,.3,1)',
-    })
-  }, [])
-
   const applySnapGuide = React.useCallback(
     (snap: SnapResult | null) => {
       const store = useWorkbenchStore.getState()
@@ -70,14 +62,14 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
         store.setTimelineSnapGuide({ frame: snap.frame, label: snap.point.label })
         if (snap.point.label !== lastSnapLabelRef.current) {
           lastSnapLabelRef.current = snap.point.label
-          pulseSnap()
+          pulseSnap(clipRef.current)
         }
       } else {
         store.setTimelineSnapGuide(null)
         lastSnapLabelRef.current = null
       }
     },
-    [pulseSnap],
+    [],
   )
 
   const startSession = usePointerSession()

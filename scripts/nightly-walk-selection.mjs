@@ -3,6 +3,20 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const realMediaWalks = new Set([
+  'tests/ux/browser-extract-real.rehearsal.walk.mjs',
+  'tests/ux/real-media-import.walk.mjs',
+])
+
+function realMediaSkipReason(dir) {
+  if (!dir?.trim()) return 'NOMI_REAL_MEDIA_DIR is unset'
+  try {
+    if (fs.statSync(dir).isDirectory()) return null
+  } catch (error) {
+    if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error
+  }
+  return 'NOMI_REAL_MEDIA_DIR is not a directory'
+}
 
 export function loadNightlyExclusions(root = repoRoot) {
   const source = JSON.parse(fs.readFileSync(path.join(root, 'tests/ux/nightly-ci-exclusions.json'), 'utf8'))
@@ -51,11 +65,17 @@ export function walksForBatch(walks, batch) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  // node scripts/nightly-walk-selection.mjs [目录] [--batch <批号>]：不带 --batch 打印整份清单。
+  // --include-skips 保留整批成员，跳过项在文件名后附制表符与原因，供工作流记录状态 125。
   const args = process.argv.slice(2)
   const flag = args.indexOf('--batch')
   const batch = flag >= 0 ? args[flag + 1] : null
-  const directory = args.find((arg, index) => !arg.startsWith('--') && index !== flag + 1) ?? 'tests/ux'
+  const directory = args.find((arg, index) => !arg.startsWith('--') && (flag < 0 || index !== flag + 1)) ?? 'tests/ux'
   const walks = nightlyWalkInventory({ directory })
-  for (const file of batch === null ? walks : walksForBatch(walks, batch)) console.log(file)
+  const includeSkips = args.includes('--include-skips')
+  const skipReason = realMediaSkipReason(process.env.NOMI_REAL_MEDIA_DIR)
+  for (const file of batch === null ? walks : walksForBatch(walks, batch)) {
+    if (!skipReason || !realMediaWalks.has(file)) console.log(file)
+    else if (includeSkips) console.log(`${file}\t${skipReason}`)
+    else console.error(`Skipped ${file}: ${skipReason}`)
+  }
 }

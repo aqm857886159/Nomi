@@ -9,6 +9,7 @@
 // 少了前半截，「按钮是活的」可能只是因为我们压根没测到那个按钮。
 //
 // 用法：node tests/ux/omni-video-reference-gate.walk.mjs
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, encryptFixtureKey, currentCatalogVersion } from './_launchApp.mjs'
 import { expect, clickOrFail, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { spawn } from 'node:child_process'
@@ -17,16 +18,15 @@ import http from 'node:http'
 import path from 'node:path'
 import { newProjectEntry } from './_shell.mjs'
 import { modeName, openModeMenu, closeModeMenu, readModeCell } from './_modeMenu.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = process.cwd()
 const port = 5291
 const baseUrl = `http://127.0.0.1:${port}`
-const tempRoot = path.join(repoRoot, '.tmp', 'nomi-omni-video-reference-gate')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/omni-video-reference-gate')
-for (const dir of [tempRoot, shotsDir]) {
-  fs.rmSync(dir, { recursive: true, force: true })
-  fs.mkdirSync(dir, { recursive: true })
-}
+const tempRoot = makeTempDir('nomi-omni-video-reference-gate-')
+const shotsDir = path.join(tempRoot, 'shots')
+fs.mkdirSync(shotsDir)
+process.env.EVIDENCE_DIR = shotsDir
 // 给 apimart 一把合成后端加密的假 key，让 Seedance 2.0 在这台没配供应商的机器上可用（只看判定 → 按钮，不发请求；
 // syntheticCredentialStorage 同时打开测试网闸，假 key 出不了本机）。明文 key 只算 needs_resave = 不可用。
 // 没有它模型解析不到档案，方式格根本不出现——旧版靠「换成另一个可用档案」，那个兜底早没了。
@@ -65,23 +65,13 @@ try {
     projectsDir: path.join(tempRoot, 'projects'),
     env: { NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: baseUrl },
     syntheticCredentialStorage: true,
-    settleMs: 0,
-  }))
-  await win.evaluate(() => {
-    localStorage.setItem('__nomiE2E', '1')
-    localStorage.setItem('nomi-color-scheme', 'dark')
-    for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(key, 'seen')
-  })
-  // 冷启动一次（不是 win.reload()：原地刷新后活动项目会话为空，面板会静默空掉）。
-  await win.close().catch(() => {})
-  await app.close().catch(() => {})
-  ;({ app, win } = await launchNomiApp({
-    name: 'omni-video-reference-gate-2',
-    userDataDir: path.join(tempRoot, 'user-data'),
-    settingsDir: path.join(tempRoot, 'settings'),
-    projectsDir: path.join(tempRoot, 'projects'),
-    env: { NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: baseUrl },
-    syntheticCredentialStorage: true,
+    initialLocalStorage: {
+      __nomiE2E: '1',
+      'nomi-color-scheme': 'dark',
+      'nomi:splash:v1': 'seen',
+      'nomi:journey-tour:v1': 'seen',
+      'nomi:canvas-gesture-hint:v1': 'seen',
+    },
     settleMs: 1800,
   }))
   const snap = async (name) => { await screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) }) }
@@ -113,7 +103,7 @@ try {
   // 所以不能信注入值，要读方式格——否则后面那条「按钮变活」验的可能是 i2v 首帧接力，
   // 根本不是用户报的 omni 现场（第一版就是这么假绿的：截图里高亮的是「图生视频」）。
   const composer = win.locator('.generation-canvas-v2-node__composer').first()
-  const generateButton = win.getByRole('button', { name: /生成素材|重新生成/ }).first()
+  const generateButton = composer.locator('button[data-bar-segment="generate"]')
 
   // ① 基线：没有任何参考时方式格是文生视频、全能参考在菜单里置灰 —— 证明方式格这根探针是活的。
   await expect.poll(() => readModeCell(composer, 'zh'), { message: '没连参考时方式格应是文生视频', timeout: DEFAULT_TIMEOUT_MS }).toBe(modeName('zh', 'text'))
@@ -138,10 +128,13 @@ try {
   await snap('02-video-reference-enabled')
 
   // ④ tooltip 也不该再让用户去做已经做完的事。
-  const title = await generateButton.locator('xpath=..').getAttribute('title')
-  expect(title, `↑ 的 tooltip 仍写着「需要先添加参考素材」，可参考已经连上了：${title}`).not.toMatch(/需要先添加参考素材/)
+  await generateButton.hover()
+  const tooltip = win.locator('[data-send-cost-hover]')
+  await expect(tooltip).toBeVisible()
+  await expect(tooltip).toHaveText(/\S/)
+  await expect(tooltip, '参考已连上，生成提示不应要求再添加参考').not.toContainText(uiText('zh-CN', 'generationCommon.composer.videoReferenceRequired'))
 
-  console.log('✅ 全能参考「只连视频参考」→ ↑ 可点；截图见 tests/ux/shots/omni-video-reference-gate/')
+  console.log('✅ 全能参考「只连视频参考」→ ↑ 可点；截图：', shotsDir)
 } catch (error) {
   failed = error
   await win?.screenshot({ path: path.join(shotsDir, 'failure.png') }).catch(() => {})

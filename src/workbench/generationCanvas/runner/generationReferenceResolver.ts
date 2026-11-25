@@ -124,6 +124,31 @@ function targetRelaysVideoToFirstFrame(archetypeMode: ArchetypeModeResolution | 
   return kinds.has('first_frame')
 }
 
+function admittedIncomingEdges(node: GenerationCanvasNode, nodesById: Map<string, GenerationCanvasNode>, incoming: GenerationCanvasEdge[]) {
+  return incoming.filter((edge) => {
+    const source = nodesById.get(edge.source)
+    return !source || validateEdgeKinds(source, node, edge.mode).ok || isDerivedOutputPair(source, node.kind)
+  })
+}
+
+/** Only occupied slots with an existing, still-unresolved source can be waiting. */
+export function waitingForFrameSource(nodeId: string, nodes: GenerationCanvasNode[], edges: GenerationCanvasEdge[]): boolean {
+  const incoming = getEdgesByTarget(edges).get(nodeId)
+  if (!incoming?.length) return false
+  const byId = getNodesById(nodes)
+  const target = byId.get(nodeId)
+  const missing = (source: string) => byId.has(source) && !findNodeResultUrl(byId, source)
+  if (!target || !incoming.some(edge => missing(edge.source))) return false
+  const admitted = admittedIncomingEdges(target, byId, incoming)
+  const contract = readParameterReferenceContract(target.meta)
+  if (contract?.slots.length || (contract && isComfyuiVendorKey(contract.vendorKey))) {
+    return resolveIndexedParameterReferenceAssignments(target, contract.slots, byId, admitted)
+      .some(({ edge }) => edge && missing(edge.source))
+  }
+  const slots = resolveReferencePlacement(target, nodes, admitted.filter(edge => !edge.targetParamKey)).slots
+  return slots.some(slot => slot.fills.some(fill => fill.origin.type === 'edge' && missing(fill.origin.sourceNodeId)))
+}
+
 export function resolveGenerationReferences(
   node: GenerationCanvasNode,
   context: { nodes?: GenerationCanvasNode[]; edges?: GenerationCanvasEdge[] } = {},
@@ -136,10 +161,7 @@ export function resolveGenerationReferences(
   const archetypeMode = nodeArchetype ? effectiveArchetypeMode(nodeArchetype, node, { nodes, edges }) : undefined
   // 旧项目里已经存在的非法旧边（视频 / 声音 → 文本、剪辑 → 图片……）不删用户数据，但执行时一律忽略：
   // 目标这一类不收这种输入，它们不该变成参考素材。判据与新建连线同一份（edgeAdmission.validateEdgeKinds）；出处边（派生输出）不在此列。
-  const incomingEdges = (edgesByTarget.get(node.id) || []).filter((edge) => {
-    const source = nodesById.get(edge.source)
-    return !source || validateEdgeKinds(source, node, edge.mode).ok || isDerivedOutputPair(source, node.kind)
-  })
+  const incomingEdges = admittedIncomingEdges(node, nodesById, edgesByTarget.get(node.id) || [])
   const referenceImages: string[] = []
   const styleReferenceImages: string[] = []
   const characterReferenceImages: string[] = []

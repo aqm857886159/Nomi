@@ -471,7 +471,7 @@ export function NodePointer({
               : model.summary(side ? 'side' : 'card')
   // 悬停 / 聚焦：画面框外一圈 1.5px 深色细线 + 阴影抬一级（板 .p1.hot），不用蓝。任意属性写法见 externalHighlightShellClass 的注释。
   const frameClass = cn(
-    'absolute overflow-hidden rounded-nomi-sm transition-shadow duration-200',
+    'absolute overflow-hidden rounded-nomi-sm transition-shadow duration-nomi-fast',
     frameTone(model.face),
     lit ? '[box-shadow:0_0_0_1.5px_var(--nomi-ink),var(--nomi-shadow-md)]' : 'ring-1 ring-inset ring-nomi-line',
   )

@@ -2,12 +2,12 @@ import { uiText } from './full-walk/invariants.mjs'
 import { expect } from './_assert.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
-import { chooseAssistantModel, COMPOSER_INPUT, COMPOSER_PERMISSION, permissionTier, readProject, STORYBOARD_PANEL, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
+import { chooseAssistantModel, COMPOSER_INPUT, COMPOSER_PERMISSION, escapeForRegExp, permissionTier, readProject, STORYBOARD_PANEL, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
 const { stableShotId } = tsxRequire('../../electron/shared/storyboard/storyboardSubjectIdentity.ts', import.meta.url)
 
 // One journey for the real brain and its local rehearsal; neither path authorizes generation.
-export async function runStoryboardAgentBulk({ walk, brainLabel, imageLabel, beforeSend }) {
+export async function runStoryboardAgentBulk({ walk, modelLabels, beforeSend }) {
   const running = await walk.start({ first: true })
   const { win } = running
   const rendererErrors = []
@@ -30,6 +30,10 @@ export async function runStoryboardAgentBulk({ walk, brainLabel, imageLabel, bef
     })
   })
   const { projectId } = await walk.newProject()
+  // Paid walks populate the authorized catalog labels during newProject.
+  const { brainLabel, imageLabel } = modelLabels()
+  expect(brainLabel, 'The storyboard brain must have a display label').toBeTruthy()
+  expect(imageLabel, 'The storyboard image model must have a display label').toBeTruthy()
   const rail = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
   if (await rail.isVisible()) await rail.click()
   await win.locator('[data-add-storyboard]').first().click()
@@ -42,7 +46,7 @@ export async function runStoryboardAgentBulk({ walk, brainLabel, imageLabel, bef
     const row = editor.locator(`[data-storyboard-row="${index}"]`)
     await row.locator('[data-prompt-box] [contenteditable="true"]').fill(`Bulk edit shot ${index}`)
     await row.getByRole('button', { name: uiText('zh-CN', 'generationCommon.parameters.model'), exact: true }).click()
-    await win.getByRole('option', { name: new RegExp(imageLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first().click()
+    await win.getByRole('option', { name: new RegExp(escapeForRegExp(imageLabel)) }).first().click()
   }
   for (const index of [1, 2, 3]) await editor.locator(`input[data-storyboard-select="${index}"]`).check()
   const readPlan = async () => {

@@ -1,3 +1,4 @@
+import { NOMI_DURATION_MS, shouldReduceMotion } from '../../../design/motion'
 import React from 'react'
 import type { ReactFlowInstance } from '@xyflow/react'
 import { createViewportAnimationCoordinator, type ViewportAnimationCoordinator } from '../components/viewportAnimationCoordinator'
@@ -67,7 +68,7 @@ export function useReactFlowViewportAnimation(input: {
     (
       zoom: number,
       offset: { x: number; y: number },
-      duration = 160,
+      duration: number = NOMI_DURATION_MS.fast,
       onSettled?: (outcome: ViewportAnimationSettlementOutcome) => void,
     ) => {
       if (!Number.isFinite(zoom) || !Number.isFinite(offset.x) || !Number.isFinite(offset.y)) {
@@ -81,7 +82,7 @@ export function useReactFlowViewportAnimation(input: {
         onSettled?.('cancelled')
         return
       }
-      coordinator.animateTo(zoom, offset, duration, (outcome) => {
+      coordinator.animateTo(zoom, offset, shouldReduceMotion() ? 0 : duration, (outcome) => {
         if (outcome === 'completed') onAnimationSettledRef.current(flow.getViewport())
         onSettled?.(outcome)
       })

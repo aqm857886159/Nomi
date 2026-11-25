@@ -1471,11 +1471,6 @@
       "count": 1
     }
   },
-  "tests/ux/agent-timeline-ops.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/agent-timeline-receipt.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -1550,11 +1545,6 @@
     }
   },
   "tests/ux/asset-library-interactions.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/asset-library-native-import.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -1761,16 +1751,8 @@
     }
   },
   "tests/ux/composer-long-prompt.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    },
     "no-empty": {
       "count": 2
-    }
-  },
-  "tests/ux/control-hierarchy-u2.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
     }
   },
   "tests/ux/core-a-blank-storyboard.e2e.mjs": {
@@ -1911,11 +1893,6 @@
     }
   },
   "tests/ux/diagnostics-bundle.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/director-assets.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -2088,11 +2065,6 @@
     }
   },
   "tests/ux/journeys/experience.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/layout-timeline-panel-span.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -2306,11 +2278,6 @@
       "count": 1
     }
   },
-  "tests/ux/preview-control-scope.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/preview-export-busy.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2350,9 +2317,6 @@
     }
   },
   "tests/ux/project-switch-background-run.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-useless-assignment": {
       "count": 1
     }
@@ -2419,16 +2383,6 @@
   "tests/ux/rich-editor-p1.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2
-    }
-  },
-  "tests/ux/runway-vendor-honest-modes.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/screenshot-hotkey.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
     }
   },
   "tests/ux/settings-relocation.walk.mjs": {
@@ -2501,11 +2455,6 @@
       "count": 1
     }
   },
-  "tests/ux/storyboard-strategy-resolve.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/storyboard-table-exec.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2542,11 +2491,6 @@
     }
   },
   "tests/ux/timeline-context-menu.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/timeline-toolbar-row.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

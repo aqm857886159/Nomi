@@ -1,15 +1,17 @@
 // User-facing asset tree actions plus a real uploaded 3DGS valley (generated PLY), using the existing renderer.
 // 仓库不内置任何泼溅文件：示例场景由用户自备上传，这里用与 J5 相同的生成山谷走同一条上传通路。
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { expect } from './_assert.mjs'
-import { addCameraPreset, clickOrFail, closeAssets, launchDirectorLab, openAssets, repoRoot, writeValleyPly } from './_directorLab.mjs'
+import { addCameraPreset, clickOrFail, closeAssets, directorText, launchDirectorLab, openAssets, writeValleyPly } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
-const lab = await launchDirectorLab({ name: 'asset-tree' })
+const tempDir = makeTempDir('nomi-director-assets-')
+const lab = await launchDirectorLab({ name: 'asset-tree', shotsDir: path.join(tempDir, 'shots') })
 const { page } = lab
 try {
   await openAssets(lab)
-  const assets = page.getByTestId('director-assets')
+  const assets = page.getByTestId('director-assets-drawer').getByTestId('director-assets')
   const folder = (name) => assets.locator('div[draggable="true"]').filter({ has: page.getByRole('button', { name, exact: true }) }).last()
   const header = (name) => folder(name).locator(':scope > div.group').first()
   async function createFolder(name, parent) {
@@ -46,7 +48,7 @@ try {
   await lab.snap('nested-search')
   await search.fill('')
   await search.press('Escape')
-  const ply = writeValleyPly(path.join(repoRoot, '.tmp', 'director-assets', 'valley.ply'), 15000)
+  const ply = writeValleyPly(path.join(tempDir, 'valley.ply'), 15000)
   await assets.locator('input[type="file"]').setInputFiles(ply)
   const valley = assets.locator('div.pl-6').filter({ hasText: 'valley' }).first()
   await expect(valley).toBeVisible()
@@ -55,12 +57,12 @@ try {
   // 上限和下面「显现完成」同一档，不用默认 20s。
   await lab.waitScene("s.objects.some(o => o.type === 'splat')", '上传的山谷入场', stationTimeout({ operations: 4 }))
   const splat = (await lab.scene()).objects.find((object) => object.type === 'splat')
-  await page.waitForFunction((id) => {
-    const info = window.__nomiDirectorE2E?.splatInfo(id)
-    return info?.initialized && info.count > 0 && !info.revealing
-  }, splat.id, { timeout: stationTimeout({ operations: 4 }) })
-  const info = await lab.bridge('splatInfo', splat.id)
-  lab.check('上传的 PLY 山谷已解码且完成显现', info.initialized && info.count > 0 && !info.revealing, `${info.count} splats`)
+  const splatInfo = () => lab.bridge('splatInfo', splat.id)
+  // 软件渲染下显现受帧耗时影响。按解码与显现完成的读数收口。
+  await expect.poll(splatInfo, { message: '上传的 PLY 山谷已解码且完成显现', timeout: stationTimeout({ operations: 8 }) })
+    .toMatchObject({ initialized: true, count: 15000, revealing: false })
+  const info = await splatInfo()
+  lab.check('上传的 PLY 山谷已解码且完成显现', info.initialized && info.count === 15000 && !info.revealing, `${info.count} splats`)
   lab.check('泼溅添加按源轴约定绕X翻转180度', splat.rotation.x === 180)
   await lab.openOutliner()
   await lab.outlinerRow('valley').dblclick()
@@ -76,11 +78,14 @@ try {
   await closeAssets(lab)
   await addCameraPreset(lab, '正面特写')
   await lab.waitScene('s.cameras.length === 1', '为山谷建立观察机位')
-  await page.getByTestId('director-pip').getByRole('button', { name: '进入视角', exact: true }).click()
+  const enterPov = page.getByTestId('director-pip').getByRole('button', { name: await directorText(page, 'camera.enterPov'), exact: true })
+  const timeout = stationTimeout({ operations: 4 })
+  await clickOrFail(enterPov, '观察机位·进入视角', { timeout })
+  await expect(page.getByTestId('director-pov-hud')).toBeVisible({ timeout })
   await lab.snap('valley-observation-camera')
   lab.check('资产目录菜单/拖拽/循环拒绝/折叠搜索走通', true)
 } catch (error) {
-  lab.check(`资产走查中断：${String(error)}`, false)
+  lab.check(`资产走查中断：${String(error.stack ?? error)}`, false)
 } finally {
   await lab.finish()
 }

@@ -33,7 +33,7 @@ export const DATA_FIXTURES = Object.freeze({
 })
 
 export const USAGE = [
-  '用法：node tests/ux/ui.mjs up [--locale zh|en] [--theme light|dark] [--size 1280x800|1100x720|1100x690|700x720]',
+  `用法：node tests/ux/ui.mjs up [--locale zh|en] [--theme light|dark] [--size ${Object.keys(SIZE_PRESETS).join('|')}]`,
   `                              [--data ${Object.keys(DATA_FIXTURES).join('|')}] [--out <证据目录>]`,
   '                              [--vendor fake-apimart] [--vendor-pending <非负整数>] [--vendor-drop-submit <非负整数>] [--vendor-fail-task <非负整数>]',
   '      显式要真实资料：NOMI_WALK_FOREGROUND_OK=1 node tests/ux/ui.mjs up --real-profile',

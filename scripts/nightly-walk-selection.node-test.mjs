@@ -1,7 +1,8 @@
 import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -9,6 +10,7 @@ import ts from 'typescript'
 import { load } from 'js-yaml'
 import { loadNightlyExclusions, NIGHTLY_WALK_BATCH_COUNT, nightlyWalkBatchIds, nightlyWalkInventory, selectNightlyWalks, walksForBatch } from './nightly-walk-selection.mjs'
 import { expectedBatches } from './nightly-walk-summary.mjs'
+import { walkEvidenceDir } from '../tests/ux/_walkEvidence.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -49,8 +51,75 @@ test('the repository nightly inventory is reduced exactly by the B registry', ()
 })
 
 test('夜跑清单就是工作流跑的那份：CLI 输出 = nightlyWalkInventory()', () => {
-  const cli = execFileSync(process.execPath, [path.join(repoRoot, 'scripts/nightly-walk-selection.mjs'), 'tests/ux'], { cwd: repoRoot, encoding: 'utf8' })
-  assert.deepEqual(cli.trim().split('\n'), nightlyWalkInventory())
+  const cli = execFileSync(process.execPath, [path.join(repoRoot, 'scripts/nightly-walk-selection.mjs'), 'tests/ux', '--include-skips'], { cwd: repoRoot, encoding: 'utf8' })
+  assert.deepEqual(cli.trim().split('\n').map((line) => line.split('\t')[0]), nightlyWalkInventory())
+})
+
+test('nightly skips only the two media walks when the registered directory is unavailable', (t) => {
+  const root = makeTempDir('nomi-nightly-media-')
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const file = path.join(root, 'not-a-directory')
+  fs.writeFileSync(file, '')
+  const media = ['tests/ux/browser-extract-real.rehearsal.walk.mjs', 'tests/ux/real-media-import.walk.mjs']
+  const control = 'tests/ux/preview-control-scope.walk.mjs'
+  const inventory = nightlyWalkInventory()
+  const cli = (dir, ...args) => {
+    const env = { ...process.env }
+    delete env.NOMI_REAL_MEDIA_DIR
+    if (dir !== undefined) env.NOMI_REAL_MEDIA_DIR = dir
+    const result = spawnSync(process.execPath, ['scripts/nightly-walk-selection.mjs', 'tests/ux', ...args], { cwd: repoRoot, encoding: 'utf8', env })
+    assert.equal(result.status, 0, result.stderr)
+    return { walks: result.stdout.trim().split('\n'), reasons: result.stderr }
+  }
+  for (const [dir, reason] of [[undefined, 'is unset'], [path.join(root, 'missing'), 'is not a directory'], [file, 'is not a directory']]) {
+    const selected = cli(dir)
+    assert.deepEqual(selected.walks, inventory.filter((walk) => !media.includes(walk)))
+    for (const walk of media) {
+      assert.ok(selected.reasons.includes(`${walk}: NOMI_REAL_MEDIA_DIR ${reason}`))
+      const batch = String(inventory.indexOf(walk) % NIGHTLY_WALK_BATCH_COUNT)
+      const planned = cli(dir, '--batch', batch, '--include-skips')
+      assert.ok(planned.walks.includes(`${walk}\tNOMI_REAL_MEDIA_DIR ${reason}`))
+      assert.deepEqual(planned.walks.map((line) => line.split('\t')[0]), walksForBatch(inventory, batch))
+    }
+    assert.ok(selected.walks.includes(control))
+  }
+  assert.deepEqual(cli(root), { walks: inventory, reasons: '' })
+})
+
+test('walk evidence defaults to a fresh external directory and preserves explicit overrides', (t) => {
+  const first = walkEvidenceDir({ argv: [] })
+  const second = walkEvidenceDir({ argv: [] })
+  t.after(() => [first, second].forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })))
+  assert.notEqual(first, second)
+  for (const dir of [first, second]) {
+    assert.equal(path.dirname(dir), fs.realpathSync(os.tmpdir()))
+    assert.match(path.basename(dir), /^nomi-walk-/)
+    assert.ok(fs.statSync(dir).isDirectory())
+  }
+  const checkout = path.join(first, 'checkout')
+  const configured = path.join(first, 'from-env')
+  const explicit = path.join(second, 'from-cli')
+  assert.equal(walkEvidenceDir({ argv: [], configured, checkouts: [checkout] }), configured)
+  assert.equal(walkEvidenceDir({ argv: ['--out', explicit], configured, checkouts: [checkout] }), explicit)
+  assert.ok(fs.statSync(explicit).isDirectory())
+  for (const out of [checkout, path.join(checkout, 'screenshots')]) {
+    assert.throws(() => walkEvidenceDir({ argv: ['--out', out], checkouts: [checkout] }), /outside the checkout/)
+  }
+  assert.equal(fs.existsSync(checkout), false)
+  assert.throws(() => walkEvidenceDir({ argv: ['--out'] }), /requires a directory/)
+  assert.throws(() => walkEvidenceDir({ argv: ['--out', 'relative'], absolute: true }), /absolute directory/)
+})
+
+test('walk evidence survives process exit while scratch storage is reclaimed', (t) => {
+  const script = `
+    import { walkEvidenceDir } from './tests/ux/_walkEvidence.mjs'
+    import { makeTempDir } from './scripts/_test-temp.mjs'
+    console.log(JSON.stringify({ evidence: walkEvidenceDir(), scratch: makeTempDir('nomi-walk-scratch-') }))
+  `
+  const { evidence, scratch } = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', script], { cwd: repoRoot, encoding: 'utf8' }))
+  t.after(() => fs.rmSync(evidence, { recursive: true, force: true }))
+  assert.ok(fs.statSync(evidence).isDirectory())
+  assert.equal(fs.existsSync(scratch), false)
 })
 
 // ---- 夜跑选中的走查自己不许去拿用户真实资料（2026-10-24，夜跑 run 40035294026；N-nightly 第 2 轮并入）----

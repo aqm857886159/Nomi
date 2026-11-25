@@ -8,20 +8,18 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { screenshotSettled, expectVisible, clickOrFail, expectCount } from './_assert.mjs'
+import { screenshotSettled, expectVisible, clickOrFail, expectCount, expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const root = makeTempDir('nomi-toolbar-row-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'toolbar-row-walk'
 const projectRoot = path.join(projectsDir, `toolbar-${projectId}`)
-// 截图进被忽略的 tests/ux/shots/：写进仓库根没忽略的目录会让构建戳的源码身份漂移，夜跑后面的走查全被拒跑（run 40035294026）。
-const outDir = path.join(repoRoot, 'tests/ux/shots/node-toolbar-one-row')
+const outDir = path.join(root, 'shots')
+process.env.EVIDENCE_DIR = outDir
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(outDir, { recursive: true })
 
@@ -58,8 +56,8 @@ fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify
 
 const LOCALE = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh'
 const L = LOCALE === 'en'
-  ? { img: 'Image actions', vid: 'Video actions', presets: 'More effects', refine: 'Edit', grid: 'Grid', extract: 'Capture frame', breakDown: 'Break down', first: 'First frame', last: 'Last frame', freeze: 'Confirm look' }
-  : { img: '图片操作', vid: '视频操作', presets: '更多效果', refine: '改图', grid: '宫格', extract: '截帧', breakDown: '拆解', first: '首帧', last: '尾帧', freeze: '定妆' }
+  ? { img: 'Image actions', vid: 'Video actions', first: 'First frame', last: 'Last frame', freeze: 'Confirm look' }
+  : { img: '图片操作', vid: '视频操作', first: '首帧', last: '尾帧', freeze: '定妆' }
 const { app, win } = await launchNomiApp({
   name: 'node-toolbar-one-row',
   userDataDir: settingsDir,
@@ -68,25 +66,25 @@ const { app, win } = await launchNomiApp({
   settleMs: 2000,
   initialLocalStorage: { 'nomi:locale:v1': LOCALE === 'en' ? 'en' : 'zh-CN', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', 'nomi-onboarding-checklist:v1': 'seen' },
 })
-const barSel = (label) => `[role="toolbar"][aria-label="${label}"]`
-let bar = ''
+let bar
 async function select(id, label) {
-  bar = label
-  await win.locator(`[data-node-id="${id}"]`).first().click({ force: true })
-  await expectVisible(win.locator(barSel(label)), `浮条出现：${label}`)
-  await win.waitForTimeout(400)
-  return win.evaluate((sel) => {
-    const el = document.querySelector(sel)
+  const node = win.locator(`[data-node-id="${id}"]`)
+  await node.click()
+  bar = node.getByRole('toolbar', { name: label, exact: true })
+  await expectVisible(bar, `浮条出现：${label}`)
+  return bar.evaluate((el) => {
     const btns = Array.from(el.querySelectorAll('button'))
     const tops = new Set(btns.map((b) => (() => { const q = b.getBoundingClientRect(); return Math.round((q.top + q.bottom) / 2 / 6) })()))
     return { rows: tops.size, labels: btns.map((b) => (b.getAttribute('aria-label') || b.textContent || '').trim()), width: Math.round(el.getBoundingClientRect().width), vw: innerWidth }
-  }, barSel(label))
+  })
 }
-async function openMenu(label, shot) {
-  await win.locator(barSel(bar)).getByRole('button', { name: label }).first().click()
-  await win.waitForTimeout(300)
+async function openMenu(action, shot) {
+  await bar.locator(`[data-toolbar-action-menu="${action}"]`).click()
+  const menu = win.getByTestId(`toolbar-action-menu-${action}`)
+  await expectVisible(menu, `浮条菜单已打开：${action}`)
   await screenshotSettled(win, { path: path.join(outDir, `${LOCALE}-${shot}.png`) })
-  await win.locator(barSel(bar)).getByRole('button', { name: label }).first().click()
+  await win.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
 }
 try {
   await win.getByText('工具栏梳理回归').first().hover()
@@ -97,9 +95,9 @@ try {
   await screenshotSettled(win, { path: path.join(outDir, `${LOCALE}-1-image-bar.png`) })
   assert(r.rows === 1, `图片浮条一行（${r.rows} 行，${r.width}px / 窗口 ${r.vw}）`)
   assert(!r.labels.some((x) => /建参考卡|AI 编辑|AI edit|Create reference/.test(x)), '图片浮条没有建参考卡 / AI 编辑')
-  await openMenu(L.presets, '2-presets-menu')
-  await openMenu(L.refine, '3-refine-menu')
-  await openMenu(L.grid, '8-grid-picker')
+  await openMenu('more-effects', '2-presets-menu')
+  await openMenu('refine', '3-refine-menu')
+  await openMenu('grid', '8-grid-picker')
   r = await select('anchor-node', L.img)
   console.log('anchor', JSON.stringify(r))
   if (LOCALE === 'en' && r.rows !== 1) console.log('  ! 英文锚卡在 1280 + Agent 面板下折两行（已知，见 PR）')
@@ -109,10 +107,10 @@ try {
   r = await select('vid-node', L.vid)
   console.log('video', JSON.stringify(r))
   assert(r.rows === 1, `视频浮条一行（${r.rows} 行，${r.width}px / 窗口 ${r.vw}）`)
-  await openMenu(L.extract, '4-extract-menu')
-  await openMenu(L.breakDown, '5-breakdown-menu')
+  await openMenu('capture-frame', '4-extract-menu')
+  await openMenu('break-down', '5-breakdown-menu')
   const before = await win.locator('[data-node-id]').count()
-  await win.locator(barSel(L.vid)).getByRole('button', { name: L.extract }).first().click()
+  await bar.locator('[data-toolbar-action-menu="capture-frame"]').click()
   await win.getByRole('menuitem', { name: L.first }).click()
   await win.waitForFunction(() => Array.from(document.querySelectorAll('[data-node-id]')).some((el) => !['img-node', 'vid-node', 'anchor-node'].includes(el.getAttribute('data-node-id') || '')), undefined, { timeout: stationTimeout() })
   const afterIds = await win.locator('[data-node-id]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-id')).filter(Boolean))
@@ -121,7 +119,7 @@ try {
   await screenshotSettled(win, { path: path.join(outDir, `${LOCALE}-6-after-extract.png`) })
   await canvasFitViewButton(win).click()
   await select('vid-node', L.vid)
-  await win.locator(barSel(L.vid)).getByRole('button', { name: L.extract }).first().click()
+  await bar.locator('[data-toolbar-action-menu="capture-frame"]').click()
   await win.getByRole('menuitem', { name: L.last }).click()
   await win.waitForFunction((expectedCount) => document.querySelectorAll('[data-node-id]').length > expectedCount, after, { timeout: stationTimeout() })
   const afterLastIds = await win.locator('[data-node-id]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-id')).filter(Boolean))

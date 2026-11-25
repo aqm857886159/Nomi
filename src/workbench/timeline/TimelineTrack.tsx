@@ -257,7 +257,7 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
           secondary ? 'min-h-[30px]' : 'min-h-[46px]',
           'relative overflow-hidden cursor-crosshair',
           'border border-[var(--nomi-line-soft)] rounded-[var(--nomi-radius-sm)]',
-          'bg-[var(--nomi-ink-05)] transition-[background,box-shadow] duration-[140ms] ease-in-out',
+          'bg-[var(--nomi-ink-05)] transition-[background,box-shadow] duration-nomi-micro ease-nomi-out',
           dragPreview &&
             dragPreview.canPlace &&
             'bg-[var(--workbench-accent-soft)] shadow-[inset_0_0_0_1px_var(--nomi-ink-40)]',

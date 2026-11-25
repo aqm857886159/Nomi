@@ -12,7 +12,6 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 零额度：文本模型是本机 loopback fixture，无生成、无解码、隔离 profile。
 // Run: pnpm run build && node tests/ux/agent-timeline-ops.walk.mjs
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
@@ -22,9 +21,8 @@ import {
   COMPOSER_SEND, INTERVENTION_CONFIRM, INTERVENTION_ESCALATE, PREVIEW_PANEL,
   chooseAssistantModel, hasToolResult, recorded,
 } from './agent-runtime-walk-support.mjs'
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-timeline-ops')
-fs.rmSync(shotsDir, { recursive: true, force: true })
-fs.mkdirSync(shotsDir, { recursive: true })
+const shotsDir = makeTempDir('nomi-agent-timeline-ops-shots-')
+process.env.EVIDENCE_DIR ||= shotsDir
 
 const root = makeTempDir('nomi-agent-timeline-ops-')
 const userDataDir = path.join(root, 'user-data')
@@ -98,6 +96,7 @@ async function persistedTimeline() {
 const fixture = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir })
 const launched = await launchNomiApp({
   name: 'agent-timeline-ops', userDataDir, settingsDir, projectsDir, capabilityDir, timeout: 300_000,
+  mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')],
   env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' },
   args: ['--no-proxy-server'],
 })
@@ -212,13 +211,9 @@ try {
   // 而且改卡长什么样要先出样张（P5/R8）。它在这里保持**红**，不许靠删断言清账——
   // 删掉它，这条走查就会退回「什么都没在看」的状态，而这正是它刚从里面爬出来的坑。
   await expect(approval, '介入槽必须逐条给出人话摘要，而不是一串 operation JSON').toContainText('收紧')
-  // v4：可逆 / 不可逆写在槽的 data-kind 上（时间轴计划带 planLines 时 kind 是 plan，
-  // 否则可逆改动是 approval-reversible）。两者都必须**不是** irreversible。
-  await expect(approval, '可逆的本地改动不该被判成不可逆').not.toHaveAttribute('data-kind', 'approval-irreversible')
-  // 授权范围在 v4 里只剩两档：「确认」（仅这一次）与「不再问 →」（这一个能力以后不再问，
-  // = 旧的 approvalScope 'always'）。旧的「本会话」那一档随 2026-09-06 收口一起删了，
-  // 所以这里不再断言它存在——那会变成一条钉住已删控件的死断言。
-  await expect(approval.locator(INTERVENTION_ESCALATE), '可撤销的改动才给到「不再问 →」').toBeVisible()
+  // edit_timeline 的逐条复审是 plan 槽。永久授权只出现在普通可逆审批槽里。
+  await expect(approval, '剪辑改动必须逐条复审').toHaveAttribute('data-kind', 'plan')
+  await expectAbsent(approval.locator(INTERVENTION_ESCALATE), { provenBy: approvalProof, message: '剪辑计划必须逐次确认' })
   const previewBands = win.locator('[data-timeline-plan-preview="true"] [data-plan-preview-band]')
   await expect(previewBands.first(), '待批准的计划必须先在时间轴上高亮').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const bandsProof = await proveProbe(previewBands.first(), '待批准的计划会在时间轴上画出高亮带')

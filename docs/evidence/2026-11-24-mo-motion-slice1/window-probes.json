@@ -1,0 +1,1536 @@
+{
+  "before-zh-light": {
+    "version": "before",
+    "id": "zh-light",
+    "locale": "zh-CN",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "导出 MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "导出 MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00045.jpg",
+        "ratio": 1
+      },
+      "toolbar": {
+        "idle": {
+          "text": "复制为变体",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "held": {
+          "text": "复制为变体",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "heldFrame": "00084.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "重新生成",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "重新生成",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00099.jpg",
+        "ratio": 1
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "zh-CN",
+        "theme": "light",
+        "reduce": false,
+        "token": "",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 127,
+    "frameTimes": {
+      "text": 2.186,
+      "toolbar": 10.065,
+      "send": 12.584,
+      "agent": 17.332
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        0.8
+      ],
+      [
+        0.986,
+        3.086
+      ],
+      [
+        8.865,
+        10.965
+      ],
+      [
+        11.384,
+        13.484
+      ],
+      [
+        16.132,
+        17.765
+      ]
+    ],
+    "compositeFrame": "00046.jpg",
+    "clipDuration": 8.767
+  },
+  "before-zh-dark": {
+    "version": "before",
+    "id": "zh-dark",
+    "locale": "zh-CN",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "导出 MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "导出 MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00046.jpg",
+        "ratio": 1
+      },
+      "toolbar": {
+        "idle": {
+          "text": "复制为变体",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "held": {
+          "text": "复制为变体",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "heldFrame": "00092.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "重新生成",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "重新生成",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00111.jpg",
+        "ratio": 1
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "zh-CN",
+        "theme": "dark",
+        "reduce": false,
+        "token": "",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 141,
+    "frameTimes": {
+      "text": 1.956,
+      "toolbar": 8.396,
+      "send": 10.172,
+      "agent": 15.409
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        2.856
+      ],
+      [
+        7.196,
+        11.072
+      ],
+      [
+        14.209,
+        15.844
+      ]
+    ],
+    "compositeFrame": "00111.jpg",
+    "clipDuration": 8.4
+  },
+  "before-en-light": {
+    "version": "before",
+    "id": "en-light",
+    "locale": "en",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "Export MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Export MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00025.jpg",
+        "ratio": 1
+      },
+      "toolbar": {
+        "idle": {
+          "text": "Duplicate as variant",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "held": {
+          "text": "Duplicate as variant",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "heldFrame": "00069.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "Regenerate",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Regenerate",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00086.jpg",
+        "ratio": 1
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "en",
+        "theme": "light",
+        "reduce": false,
+        "token": "",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 108,
+    "frameTimes": {
+      "text": 2.672,
+      "toolbar": 10.605,
+      "send": 13.606,
+      "agent": 22.65
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        0.8
+      ],
+      [
+        1.472,
+        3.572
+      ],
+      [
+        9.405,
+        11.505
+      ],
+      [
+        12.406,
+        14.506
+      ],
+      [
+        21.45,
+        23.088
+      ]
+    ],
+    "compositeFrame": "00107.jpg",
+    "clipDuration": 8.767
+  },
+  "before-en-dark": {
+    "version": "before",
+    "id": "en-dark",
+    "locale": "en",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "Export MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Export MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00021.jpg",
+        "ratio": 1
+      },
+      "toolbar": {
+        "idle": {
+          "text": "Duplicate as variant",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "held": {
+          "text": "Duplicate as variant",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "heldFrame": "00085.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "Regenerate",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Regenerate",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00099.jpg",
+        "ratio": 1
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "en",
+        "theme": "dark",
+        "reduce": false,
+        "token": "",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 121,
+    "frameTimes": {
+      "text": 4.41,
+      "toolbar": 29.2,
+      "send": 34.381,
+      "agent": 44.841
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        0.8
+      ],
+      [
+        3.21,
+        5.31
+      ],
+      [
+        28.0,
+        30.1
+      ],
+      [
+        33.181,
+        35.281
+      ],
+      [
+        43.641,
+        45.283
+      ]
+    ],
+    "compositeFrame": "00085.jpg",
+    "clipDuration": 8.8
+  },
+  "before-narrow": {
+    "version": "before",
+    "id": "narrow",
+    "locale": "en",
+    "theme": "light",
+    "width": 1100,
+    "height": 690,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "Export MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Export MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00037.jpg",
+        "ratio": 1
+      },
+      "toolbar": {
+        "idle": {
+          "text": "Duplicate as variant",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "held": {
+          "text": "Duplicate as variant",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "heldFrame": "00082.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "Regenerate",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 29.99993896484375,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Regenerate",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 29.99993896484375,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00095.jpg",
+        "ratio": 1
+      },
+      "window": {
+        "size": [
+          1100,
+          690
+        ],
+        "lang": "en",
+        "theme": "light",
+        "reduce": false,
+        "token": "",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 118,
+    "frameTimes": {
+      "text": 5.853,
+      "toolbar": 50.226,
+      "send": 54.838,
+      "agent": 72.47
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        0.8
+      ],
+      [
+        4.653,
+        6.753
+      ],
+      [
+        49.026,
+        51.126
+      ],
+      [
+        53.638,
+        55.738
+      ],
+      [
+        71.27,
+        72.937
+      ]
+    ],
+    "compositeFrame": "00117.jpg",
+    "clipDuration": 8.8
+  },
+  "before-reduce": {
+    "version": "before",
+    "id": "reduce",
+    "locale": "zh-CN",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "导出 MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "导出 MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00028.jpg",
+        "ratio": 1
+      },
+      "toolbar": {
+        "idle": {
+          "text": "复制为变体",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "held": {
+          "text": "复制为变体",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.14s"
+        },
+        "heldFrame": "00064.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "重新生成",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "重新生成",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00073.jpg",
+        "ratio": 1
+      },
+      "viewport": [
+        "translate(291.12px, 151.36px) scale(0.984)",
+        "translate(151.631px, 59.82px) scale(1.4199)",
+        "translate(19.5574px, -26.853px) scale(1.83263)",
+        "translate(-77.4622px, -90.5221px) scale(2.13582)",
+        "translate(-162.566px, -146.372px) scale(2.40177)",
+        "translate(-224.514px, -187.025px) scale(2.59536)",
+        "translate(-273.118px, -218.921px) scale(2.74724)",
+        "translate(-307.221px, -241.301px) scale(2.85382)",
+        "translate(-328.978px, -255.58px) scale(2.92181)",
+        "translate(-343.92px, -265.385px) scale(2.9685)",
+        "translate(-353.56px, -271.711px) scale(2.99863)",
+        "translate(-354px, -272px) scale(3)"
+      ],
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "zh-CN",
+        "theme": "light",
+        "reduce": true,
+        "token": "",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 111,
+    "frameTimes": {
+      "text": 3.856,
+      "toolbar": 14.673,
+      "send": 17.608,
+      "agent": 25.273
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        0.8
+      ],
+      [
+        2.656,
+        4.756
+      ],
+      [
+        13.473,
+        15.573
+      ],
+      [
+        16.408,
+        18.508
+      ],
+      [
+        24.073,
+        25.736
+      ]
+    ],
+    "compositeFrame": "00073.jpg",
+    "clipDuration": 8.8
+  },
+  "after-zh-light": {
+    "version": "after",
+    "id": "zh-light",
+    "locale": "zh-CN",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "导出 MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "导出 MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 93.9990234375,
+          "height": 27.160001754760742,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00037.jpg",
+        "ratio": 0.9699995969042244
+      },
+      "toolbar": {
+        "idle": {
+          "text": "复制为变体",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "复制为变体",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00091.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "重新生成",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "重新生成",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 29.0999755859375,
+          "height": 29.0999755859375,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00115.jpg",
+        "ratio": 0.9699991861979167
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "zh-CN",
+        "theme": "light",
+        "reduce": false,
+        "token": "110ms",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 144,
+    "frameTimes": {
+      "text": 1.865,
+      "toolbar": 6.811,
+      "send": 8.895,
+      "agent": 12.309
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        2.765
+      ],
+      [
+        5.611,
+        9.795
+      ],
+      [
+        11.109,
+        12.754
+      ]
+    ],
+    "compositeFrame": "00038.jpg",
+    "clipDuration": 8.634
+  },
+  "after-zh-dark": {
+    "version": "after",
+    "id": "zh-dark",
+    "locale": "zh-CN",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "导出 MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "导出 MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 93.9990234375,
+          "height": 27.160001754760742,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00067.jpg",
+        "ratio": 0.9699995969042244
+      },
+      "toolbar": {
+        "idle": {
+          "text": "复制为变体",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "复制为变体",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00136.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "重新生成",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "重新生成",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 29.0999755859375,
+          "height": 29.0999755859375,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00168.jpg",
+        "ratio": 0.9699991861979167
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "zh-CN",
+        "theme": "dark",
+        "reduce": false,
+        "token": "110ms",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 206,
+    "frameTimes": {
+      "text": 1.327,
+      "toolbar": 5.294,
+      "send": 6.832,
+      "agent": 9.063
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        2.227
+      ],
+      [
+        4.094,
+        7.732
+      ],
+      [
+        7.863,
+        9.517
+      ]
+    ],
+    "compositeFrame": "00168.jpg",
+    "clipDuration": 7.567
+  },
+  "after-en-light": {
+    "version": "after",
+    "id": "en-light",
+    "locale": "en",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "Export MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "Export MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 107.0107421875,
+          "height": 27.160001754760742,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00056.jpg",
+        "ratio": 0.970000354082572
+      },
+      "toolbar": {
+        "idle": {
+          "text": "Duplicate as variant",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Duplicate as variant",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00124.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "Regenerate",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "Regenerate",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 29.0999755859375,
+          "height": 29.0999755859375,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00149.jpg",
+        "ratio": 0.9699991861979167
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "en",
+        "theme": "light",
+        "reduce": false,
+        "token": "110ms",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 179,
+    "frameTimes": {
+      "text": 1.396,
+      "toolbar": 4.829,
+      "send": 5.967,
+      "agent": 8.514
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        2.296
+      ],
+      [
+        3.629,
+        6.867
+      ],
+      [
+        7.314,
+        8.944
+      ]
+    ],
+    "compositeFrame": "00178.jpg",
+    "clipDuration": 7.2
+  },
+  "after-en-dark": {
+    "version": "after",
+    "id": "en-dark",
+    "locale": "en",
+    "theme": "dark",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "Export MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "Export MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 107.0107421875,
+          "height": 27.160001754760742,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00057.jpg",
+        "ratio": 0.970000354082572
+      },
+      "toolbar": {
+        "idle": {
+          "text": "Duplicate as variant",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Duplicate as variant",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00114.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "Regenerate",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "Regenerate",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 29.0999755859375,
+          "height": 29.0999755859375,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00144.jpg",
+        "ratio": 0.9699991861979167
+      },
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "en",
+        "theme": "dark",
+        "reduce": false,
+        "token": "110ms",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 180,
+    "frameTimes": {
+      "text": 1.512,
+      "toolbar": 4.864,
+      "send": 6.33,
+      "agent": 8.498
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        2.412
+      ],
+      [
+        3.664,
+        7.23
+      ],
+      [
+        7.298,
+        8.937
+      ]
+    ],
+    "compositeFrame": "00114.jpg",
+    "clipDuration": 7.634
+  },
+  "after-narrow": {
+    "version": "after",
+    "id": "narrow",
+    "locale": "en",
+    "theme": "light",
+    "width": 1100,
+    "height": 690,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "Export MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 110.3203125,
+          "height": 28,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "Export MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 107.0107421875,
+          "height": 27.160001754760742,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00055.jpg",
+        "ratio": 0.970000354082572
+      },
+      "toolbar": {
+        "idle": {
+          "text": "Duplicate as variant",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "held": {
+          "text": "Duplicate as variant",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0.15s"
+        },
+        "heldFrame": "00108.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "Regenerate",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 29.99993896484375,
+          "height": 30,
+          "duration": "0.11s"
+        },
+        "held": {
+          "text": "Regenerate",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+          "scale": "none",
+          "width": 29.10003662109375,
+          "height": 29.10003662109375,
+          "duration": "0.11s"
+        },
+        "heldFrame": "00138.jpg",
+        "ratio": 0.9700031941796756
+      },
+      "window": {
+        "size": [
+          1100,
+          690
+        ],
+        "lang": "en",
+        "theme": "light",
+        "reduce": false,
+        "token": "110ms",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 174,
+    "frameTimes": {
+      "text": 1.629,
+      "toolbar": 6.215,
+      "send": 7.55,
+      "agent": 9.958
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        2.529
+      ],
+      [
+        5.015,
+        8.45
+      ],
+      [
+        8.758,
+        10.374
+      ]
+    ],
+    "compositeFrame": "00173.jpg",
+    "clipDuration": 7.6
+  },
+  "after-reduce": {
+    "version": "after",
+    "id": "reduce",
+    "locale": "zh-CN",
+    "theme": "light",
+    "width": 1280,
+    "height": 800,
+    "probes": {
+      "text": {
+        "idle": {
+          "text": "导出 MP4",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0s"
+        },
+        "held": {
+          "text": "导出 MP4",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(1, 0, 0, 1, 0, 0)",
+          "scale": "none",
+          "width": 96.90625,
+          "height": 28,
+          "duration": "0s"
+        },
+        "heldFrame": "00008.jpg",
+        "ratio": 1
+      },
+      "toolbar": {
+        "idle": {
+          "text": "复制为变体",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0s"
+        },
+        "held": {
+          "text": "复制为变体",
+          "active": true,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 32,
+          "height": 32,
+          "duration": "0s"
+        },
+        "heldFrame": "00041.jpg",
+        "ratio": 1
+      },
+      "send": {
+        "idle": {
+          "text": "重新生成",
+          "active": false,
+          "disabled": false,
+          "transform": "none",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0s"
+        },
+        "held": {
+          "text": "重新生成",
+          "active": true,
+          "disabled": false,
+          "transform": "matrix(1, 0, 0, 1, 0, 0)",
+          "scale": "none",
+          "width": 30,
+          "height": 30,
+          "duration": "0s"
+        },
+        "heldFrame": "00048.jpg",
+        "ratio": 1
+      },
+      "viewport": [
+        "translate(291.12px, 151.36px) scale(0.984)",
+        "translate(-354px, -272px) scale(3)"
+      ],
+      "window": {
+        "size": [
+          1280,
+          800
+        ],
+        "lang": "zh-CN",
+        "theme": "light",
+        "reduce": true,
+        "token": "0ms",
+        "buttons": [
+          "creation",
+          "generation",
+          "preview"
+        ],
+        "agentVisible": true
+      }
+    },
+    "applicationType": "\"ApplicationType\"=\"UIElement\"",
+    "imageRequests": 0,
+    "frames": 71,
+    "frameTimes": {
+      "text": 1.606,
+      "toolbar": 6.5,
+      "send": 7.897,
+      "agent": 11.663
+    },
+    "reviewSourceSeconds": [
+      [
+        0,
+        2.506
+      ],
+      [
+        5.3,
+        8.797
+      ],
+      [
+        10.463,
+        12.102
+      ]
+    ],
+    "compositeFrame": "00048.jpg",
+    "clipDuration": 7.667
+  }
+}

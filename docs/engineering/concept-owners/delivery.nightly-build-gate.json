@@ -22,6 +22,10 @@
     {
       "path": "scripts/nightly-walk-tree-guard.mjs",
       "symbol": "guardWalkTree"
+    },
+    {
+      "path": "tests/ux/_walkEvidence.mjs",
+      "symbol": "walkEvidenceDir"
     }
   ],
   "forbidden_derivations": [],
