@@ -16,28 +16,30 @@
 // 三条断言，缺一条这个 bug 就还在：
 //   ① 重启后那一格**不再是「本地找切点」**（进行中那句话不许再出现）
 //   ② 有**一句用户看得见的话**说清发生了什么（空表 + 没有话 = 和「还没拆过」长得一样）
-//   ③ 有**能点的找回入口**（「重新拆解」），且点得动——走查 §6.5 的原话是
+//   ③ 有**能点的找回入口**，且点得动——走查 §6.5 的原话是
 //      「行级重试在代码里是有的，但这个卡死态根本走不到那一层」
 //
 // 另加 R15 双轨：中断这句话在 English 下也要是英文（新文案两语同批加的）。
 //
 // 用法：pnpm run build && node tests/ux/deconstruction-interrupted-recovery.walk.mjs
-// 产出：tests/ux/shots/deconstruction-interrupted-recovery/*.png
+// 产出：系统临时目录下的 shots/*.png
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitViewButton, canvasResetView, canvasZoomPercent, canvasZoomSlider, closeCanvasViewOptions, newProjectEntry, switchWorkspace, collapseAgentPanel } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const root = path.join(repoRoot, '.tmp', 'deconstruction-interrupted-recovery')
+const root = makeTempDir('nomi-deconstruction-interrupted-recovery-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const userDataDir = path.join(root, 'user')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/deconstruction-interrupted-recovery')
-fs.rmSync(root, { recursive: true, force: true })
+const shotsDir = path.join(root, 'shots')
 for (const dir of [settingsDir, projectsDir, userDataDir, shotsDir]) fs.mkdirSync(dir, { recursive: true })
+process.env.EVIDENCE_DIR = shotsDir
 
 const FIXTURE = path.join(repoRoot, 'tests/ux/fixtures/fixture-video.mp4')
 if (!fs.existsSync(FIXTURE)) {
@@ -49,7 +51,6 @@ if (!fs.existsSync(FIXTURE)) {
 const RUNNING_PHRASE = '本地找切点'
 const INTERRUPTED_PHRASE = '这次拆解被中断了'
 const INTERRUPTED_PHRASE_EN = 'Interrupted (the app closed'
-const RESTART_LABEL = '重新拆解'
 
 const failures = []
 const check = (ok, label) => { console.log(`  ${ok ? '✓' : '✗'} ${label}`); if (!ok) failures.push(label) }
@@ -143,7 +144,7 @@ try {
   await expect(await canvasZoomSlider(win), '重置后 ⋯ 里的缩放滑块不是 100').toHaveValue('100')
   await closeCanvasViewOptions(win)
 
-  const restarted = win.locator('[data-testid="shot-table-node"]').first()
+  const restarted = win.locator(`[data-testid="shot-table-node"][data-node-id="${seeded.tableId}"]`)
   await proveProbe(restarted, '重启后分镜表节点还在（证据没丢）')
 
   // ① 进行中那句话不许再出现。
@@ -159,12 +160,14 @@ try {
   await expect(notice).toContainText(INTERRUPTED_PHRASE)
   check(true, '② 中断说明可见且说人话')
 
-  // ③ 有能点的找回入口。
-  const restart = restarted.locator('[data-testid="shot-table-restart-deconstruction"]')
-  await expectVisible(restart, '重启后没有「重新拆解」入口——走查原话：这个卡死态根本走不到重试那一层')
+  // ③ 选中原表才显示拆解栏。React Flow 把栏和表卡放在同一宿主下。
+  await clickOrFail(restarted.locator('header'), '选择中断的镜头表')
+  const restart = win.locator('.react-flow__node').filter({ has: restarted })
+    .locator('[data-shot-table-composer="deconstruct"]').getByTestId('shot-table-restart-deconstruction')
+  await expectVisible(restart, '重启后仍可从同一张表恢复拆解')
   await expect(restart).toBeEnabled()
-  await expect(restart).toContainText(RESTART_LABEL)
-  check(true, `③ 「${RESTART_LABEL}」可见且可点`)
+  await expect(restart).toHaveText(uiText('zh-CN', 'shotTable.node.deconstruct'))
+  check(true, '③ 恢复拆解入口可见且可点')
   await snap('02-after-restart-interrupted')
 
   // R15 双轨：这两句是本批新加的文案，English 下必须是英文。
@@ -177,7 +180,7 @@ try {
   const enNotice = win.locator('[data-testid="shot-table-interrupted-notice"]').first()
   await expectVisible(enNotice, 'English 下中断说明不见了')
   await expect(enNotice).toContainText(INTERRUPTED_PHRASE_EN)
-  await expect(win.locator('[data-testid="shot-table-restart-deconstruction"]').first()).not.toContainText(RESTART_LABEL)
+  await expect(restart).toHaveText(uiText('en', 'shotTable.node.deconstruct'))
   check(true, 'R15：English 下中断说明与找回入口都是英文')
   await snap('03-after-restart-interrupted-en')
   // 拍完切回中文，不把用户的界面留在英文。

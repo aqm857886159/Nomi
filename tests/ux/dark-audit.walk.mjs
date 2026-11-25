@@ -1,17 +1,18 @@
 // 暗色设计审计：每个界面双主题截图，喂设计/用户 Agent 逐张人眼审。
 // 用法: NOMI_AUDIT_THEME=dark node tests/ux/dark-audit.walk.mjs  (再跑 light)
-// 产出: tests/ux/shots/audit-<theme>/*.png
+// 产出：系统临时目录下的 audit-<theme>/*.png
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry, switchWorkspace } from './_shell.mjs'
 
-const repoRoot = process.cwd()
 const THEME = process.env.NOMI_AUDIT_THEME === 'light' ? 'light' : 'dark'
-const shots = path.join(repoRoot, 'tests/ux/shots', `audit-${THEME}`)
-fs.rmSync(shots, { recursive: true, force: true })
+const tempRoot = makeTempDir('nomi-dark-audit-')
+const shots = path.join(tempRoot, `audit-${THEME}`)
 fs.mkdirSync(shots, { recursive: true })
-const userData = path.join(repoRoot, '.tmp', 'nomi-audit-userdata')
+process.env.EVIDENCE_DIR = shots
 
 let n = 0
 async function snap(win, name) {
@@ -33,32 +34,40 @@ async function dismissTour(win) {
   }
 }
 
-const { app, win } = await launchNomiApp({ name: 'dark-audit', userDataDir: userData })
-await win.evaluate((t) => { localStorage.setItem('nomi-color-scheme', t); for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen') }, THEME)
-await win.reload(); await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'dark-audit', tempRoot })
+try {
+  await win.evaluate((t) => { localStorage.setItem('nomi-color-scheme', t); for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen') }, THEME)
+  await win.reload(); await win.waitForTimeout(1500)
 
-await snap(win, 'library')
-// 库页弹层：模型接入 / 提示词库前先在库页能点到的
-await click(win, '修好一个小机器人', 2600) || await click(win, '示例', 2600)
-await dismissTour(win)
-await snap(win, 'creation')
-// 生成画布（空 + 建节点卡）
-await click(win, '生成', 1800); await dismissTour(win); await snap(win, 'canvas-empty')
-// 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
-await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click({ timeout: 1600 }); await snap(win, 'canvas-node-card')
-// 时间轴/预览（白线所在）
-await click(win, '预览', 1800); await dismissTour(win); await snap(win, 'preview-timeline')
-// 顶栏各库
-if (await click(win, '素材库', 1200)) { await snap(win, 'material-library'); await escClose(win) }
-if (await click(win, '提示词库', 1200)) { await snap(win, 'prompt-library'); await escClose(win) }
-{ const s = win.locator('[aria-label*="技能"]').first(); if (await s.count()) { await s.click({ timeout: 3000 }).catch(() => {}); await win.waitForTimeout(900); await snap(win, 'skill-library'); await escClose(win) } }
-if (await click(win, '模型接入', 1400)) { await snap(win, 'model-onboarding'); await escClose(win) }
-// 创作助手对话面板
-await click(win, '创作', 1200)
-{ const a = win.locator('[aria-label*="助手"], button, [role="button"]', { hasText: /创作助手|Nomi 创作|AI/ }).first(); if (await a.count()) { await a.click({ timeout: 2500 }).catch(() => {}); await win.waitForTimeout(900); await snap(win, 'creation-assistant') } }
-// About 弹层（外观行）
-for (const sel of ['text=Nomi', '[aria-label*="关于"]']) { const b = win.locator(sel).first(); if (await b.count()) { await b.click({ timeout: 2000 }).catch(() => {}); await win.waitForTimeout(600); break } }
-await snap(win, 'about-popover')
+  await snap(win, 'library')
+  // 库页弹层：模型接入 / 提示词库前先在库页能点到的
+  await click(win, '修好一个小机器人', 2600) || await clickOrFail(newProjectEntry(win), 'open a blank project')
+  await dismissTour(win)
+  await snap(win, 'creation')
+  // 生成画布（空 + 建节点卡）
+  await switchWorkspace(win, 'generation')
+  await dismissTour(win)
+  const imageTask = win.locator('[data-empty-canvas-tasks="true"] [data-add-intent="image"]')
+  await expectVisible(imageTask, '空画布的图片任务卡')
+  await snap(win, 'canvas-empty')
+  await clickOrFail(imageTask, '从空画布创建图片节点')
+  await expectVisible(win.locator('[data-node-id][data-kind="image"]'), '图片节点已建成')
+  await snap(win, 'canvas-node-card')
+  // 时间轴/预览（白线所在）
+  await click(win, '预览', 1800); await dismissTour(win); await snap(win, 'preview-timeline')
+  // 顶栏各库
+  if (await click(win, '素材库', 1200)) { await snap(win, 'material-library'); await escClose(win) }
+  if (await click(win, '提示词库', 1200)) { await snap(win, 'prompt-library'); await escClose(win) }
+  { const s = win.locator('[aria-label*="技能"]').first(); if (await s.count()) { await s.click({ timeout: 3000 }).catch(() => {}); await win.waitForTimeout(900); await snap(win, 'skill-library'); await escClose(win) } }
+  if (await click(win, '模型接入', 1400)) { await snap(win, 'model-onboarding'); await escClose(win) }
+  // 创作助手对话面板
+  await click(win, '创作', 1200)
+  { const a = win.locator('[aria-label*="助手"], button, [role="button"]', { hasText: /创作助手|Nomi 创作|AI/ }).first(); if (await a.count()) { await a.click({ timeout: 2500 }).catch(() => {}); await win.waitForTimeout(900); await snap(win, 'creation-assistant') } }
+  // About 弹层（外观行）
+  for (const sel of ['text=Nomi', '[aria-label*="关于"]']) { const b = win.locator(sel).first(); if (await b.count()) { await b.click({ timeout: 2000 }).catch(() => {}); await win.waitForTimeout(600); break } }
+  await snap(win, 'about-popover')
 
-console.log(`\n${THEME}: ${n} shots → ${path.relative(repoRoot, shots)}`)
-await app.close()
+  console.log(`\n${THEME}: ${n} shots → ${shots}`)
+} finally {
+  await app.close()
+}
