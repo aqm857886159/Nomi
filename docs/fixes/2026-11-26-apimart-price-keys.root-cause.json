@@ -1,0 +1,131 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-26-apimart-price-keys",
+  "problem_type": "Hand-written allowlist silently diverges from the catalog it guards",
+  "symptom": "Choosing APIMart Seedance 2.5 text-to-video on the canvas shows no approximate price beside the send button, while Seedance 2.0 shows one.",
+  "direct_cause": "priceQueryFromRequest returned null for any request-body key outside the hand-written PRICE_FIELDS set (vendorPriceRequest.ts); the 2.5 body carries output_format, return_last_frame and nsfw_check, none of which were in it.",
+  "class_root": "The allowlist is maintained by hand next to, not derived from, the catalog. Adding a body key to a catalog mapping makes the price silently disappear, and nothing forces anyone to decide whether the new key changes the price.",
+  "migration": "The single PRICE_FIELDS set is replaced in the same commit by four named, documented sets (query keys, ignored keys, per-model ignored keys, known-unquotable keys) plus classifyPriceKey. No old name remains.",
+  "affected_population": [
+    "Creators sending APIMart Seedance 2.5 text-to-video from a canvas node (no price beside the send button)",
+    "Any future APIMart catalog mapping that adds a body key"
+  ],
+  "scope_paths": [
+    "electron/ai/onboarding/vendorPriceRequest.ts",
+    "electron/ai/onboarding/vendorPriceRequest.test.ts",
+    "electron/ai/onboarding/vendorPriceKeyCensus.test.ts"
+  ],
+  "entry_points": [
+    "electron/ai/onboarding/onboardingIpc.ts:45 priceQueryFromRequest (the only caller; renderer reaches it through useNodePricePreview)"
+  ],
+  "invariants": [
+    "A body key reaches a price quote only if it is a query key or has been checked against the model's own billing text as not changing the price.",
+    "A key nobody classified makes the quote null (never a wrong price).",
+    "Every body key of every built-in APIMart text-to-image / text-to-video mapping is classified, or CI fails naming the model and key."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "priceQueryFromRequest"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/vendorPriceRequest.ts",
+      "symbol": "classifyPriceKey"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "onboardingIpc is the one caller of priceQueryFromRequest; classifyPriceKey is the new single key gate inside it. They are one call chain, not two parallel entries, so there is nothing to merge."
+  },
+  "regression_tests": [
+    "electron/ai/onboarding/vendorPriceRequest.test.ts",
+    "electron/ai/onboarding/vendorPriceKeyCensus.test.ts"
+  ],
+  "residual_risks": [
+    "Per-model ignore entries rest on the APIMart billing text read on 2026-11-26; a silent upstream billing change is caught only by the existing doc radar, not here.",
+    "Other models carrying output_format / nsfw_check (Seedream 5, flux-3-image-klein, kling-v4-flash, MiniMax-H3-Max) stay unquoted until their billing pages are read."
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation.md",
+      "checked_at": "2026-11-26",
+      "purpose": "Billing section: billed by seconds x resolution tier; nsfw_check moderation not billed; output_format and return_last_frame are not billing factors."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation.md",
+      "checked_at": "2026-11-26",
+      "purpose": "Billing is by actual pixels and the page is unclear on nsfw_check cost, so those keys are not allowed globally."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any catalog edit that adds a request-body key to a mapping can silently remove that model's price; Seedance 2.5, Seedream 5, flux klein, kling-v4-flash and MiniMax-H3-Max were all already in that state.",
+    "same_class_scan": [
+      "electron/ai/onboarding/vendorPriceRequest.ts:68 the only key gate in the price projection",
+      "electron/catalog/apimartVideos.ts:188 2.5 body keys",
+      "electron/catalog/referenceKeyProjectionCensus.test.ts the existing census pattern reused here"
+    ]
+  },
+  "generality_proof": "classifyPriceKey is the single gate and the census walks every built-in APIMart text-to-image and text-to-video mapping, so a new key in any model fails CI until someone classifies it, and an unclassified key at runtime yields no quote instead of a wrong one.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/onboarding/vendorPriceRequest.ts",
+      "symbol": "classifyPriceKey",
+      "responsibility": "Decide per body key whether it feeds the quote, is checked as not changing the price for this model, is known but unquotable, or is unclassified (refuse)."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/onboarding/vendorPriceRequest.ts",
+      "entry_point": "priceQueryFromRequest",
+      "disposition": "enforced",
+      "evidence": "Its key filter now calls classifyPriceKey; 2.5 quotes, unclassified or price-changing keys refuse."
+    },
+    {
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "entry_point": "nomi:onboarding:vendor-price-preview",
+      "disposition": "not-affected",
+      "evidence": "It only forwards to priceQueryFromRequest (door-map: one caller) and adds no key filter of its own."
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "electron/ai/onboarding/vendorPriceRequest.ts",
+    "invariant": "Every body key of a built-in APIMart text-to-image / text-to-video mapping is classified for price quotes.",
+    "failure_mode": "vendorPriceKeyCensus.test.ts goes red in CI listing model, task kind and key.",
+    "exception_policy": "none",
+    "strategy": "Split the allowlist into named classes with documented meaning and census the catalog against it.",
+    "artifacts": [
+      "electron/ai/onboarding/vendorPriceRequest.ts",
+      "electron/ai/onboarding/vendorPriceKeyCensus.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/ai/onboarding/vendorPriceKeyCensus.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/onboarding/vendorPriceRequest.ts"
+    ],
+    "rationale": "The single PRICE_FIELDS set was replaced in the same commit; no old name remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is added, upgraded or retained.",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-26",
+  "invariant_owner_layer": {
+    "layer": "electron/ai/onboarding/vendorPriceRequest.ts",
+    "tests": [
+      "electron/ai/onboarding/vendorPriceKeyCensus.test.ts"
+    ]
+  }
+}

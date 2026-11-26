@@ -1,0 +1,29 @@
+{
+  "name": "约价查询里请求体的键算不算价格因素",
+  "subject": "spend.price-estimate-keys",
+  "lifecycle": "spend-authority",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/ai/onboarding/vendorPriceRequest.ts",
+    "symbol": "classifyPriceKey"
+  },
+  "write_api": [
+    {
+      "path": "electron/ai/onboarding/vendorPriceRequest.ts",
+      "symbol": "classifyPriceKey"
+    },
+    {
+      "path": "electron/ai/onboarding/vendorPriceRequest.ts",
+      "symbol": "priceQueryFromRequest"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/ai/onboarding/onboardingIpc.ts"
+  ],
+  "since": "2026-11-26",
+  "notes": "2026-11-26 PR #1687：请求体里每个键只能是 query（改价、逐个读出）/ ignored（核过计费文档不改价）/ unquotable（没核过、带它就不报价）/ unclassified（没人登记，同样不报价、CI 的 vendorPriceKeyCensus 点名模型和键）。分类只在 classifyPriceKey 一处判，目录新加键不能悄悄让价格消失或报错价。根因合同：docs/fixes/2026-11-26-apimart-price-keys.root-cause.json。"
+}
