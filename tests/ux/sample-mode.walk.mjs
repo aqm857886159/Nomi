@@ -540,7 +540,8 @@ for (const run of RUNS) {
     })
 
     await station('narrow', run, async () => {
-      // ★9-7 最长文字：28 字镜头名放在最窄（240）节点上，标签行省略；下方一行（最长的一档「剩 21 小时」/「21 h left」+「出高清」）
+      // ★9-7 最长文字：28 字镜头名放在最窄（240）节点上，标签行省略；下方一行（最长的一档：中文「剩 21 小时」、英文「48 min left」
+      // ——清单 boundarySheet 记英文最长是「Draft · 48 min left」+「Make HD」——加「出高清」）
       // 折行不省略、不出节点。照创作者的路做：点标签改名、拖右边缩放区缩到最窄；量完改回原名、拖回原宽，后面的站照常比拍板图。
       const node = nodeById(win, ctx.sampleNodeId)
       const card = node.locator('.generation-canvas-v2-node').first()
@@ -571,8 +572,11 @@ for (const run of RUNS) {
       await expect(row).toHaveAttribute('data-sample-state', 'ready')
       await win.clock.install()
       ctx.clockInstalled = true
-      await win.clock.setSystemTime(ctx.sendAt + TTL_HOURS * HOUR - (21 * HOUR + 30 * MINUTE))
-      await expect(row.locator('[data-sample-expiry]').first(), '剩 21 小时（最长的一档）').toHaveText(uiTextWith(locale, 'generationCommon.sample.expiry.hours', { count: 21 }))
+      const longest = locale === 'en'
+        ? { remaining: 47 * MINUTE + 30_000, key: 'generationCommon.sample.expiry.minutes', count: 48 }
+        : { remaining: 21 * HOUR + 30 * MINUTE, key: 'generationCommon.sample.expiry.hours', count: 21 }
+      await win.clock.setSystemTime(ctx.sendAt + TTL_HOURS * HOUR - longest.remaining)
+      await expect(row.locator('[data-sample-expiry]').first(), `最长的一档（${longest.key} = ${longest.count}）`).toHaveText(uiTextWith(locale, longest.key, { count: longest.count }))
       const title = node.locator('[data-node-inline-title="true"]').first()
       const rename = async (value, label) => {
         await onCanvas(win, title.locator('span').first(), label, { keep })
