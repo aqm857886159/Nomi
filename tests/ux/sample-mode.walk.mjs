@@ -27,6 +27,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, holdAbsent, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { addCanvasNode, canvasSetZoomPercent, canvasZoomPercent, canvasZoomStep, createBlankProject, selectOrAddCanvasNode, ensureAgentPanelOpen, nodeModelTrigger, openNodeModelMenu, openNodeParams, selectedNodeComposer, switchWorkspace } from './_shell.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { encryptFixtureKey, startFakeApimartServer } from './_mcpL2Fixture.mjs'
@@ -202,6 +203,9 @@ async function dragIntoView(win, locator, keep, { whole = false, center = false 
       const top = keepRect.y + dy
       if (left > p.right - visible || left + keepRect.width < p.left + visible || top > p.bottom - visible || top + keepRect.height < p.top + visible) return { kind: 'blocked' }
     }
+    // 起手点挑一处「拖完终点还在画布里」的空白（往左拖就从右边起手），一把拖到；实在没有才退到第一处空白、拖一截下一轮再拖
+    // （实测从左缘起手往左拖，每次只挪得动 44px）。
+    let fallback = null
     for (let fy = 0.15; fy <= 0.85; fy += 0.1) {
       for (let fx = 0.1; fx <= 0.9; fx += 0.1) {
         const sx = p.left + p.width * fx
@@ -209,10 +213,11 @@ async function dragIntoView(win, locator, keep, { whole = false, center = false 
         if (document.elementFromPoint(sx, sy) !== pane) continue
         const ex = clamp(sx + dx, p.left + margin, p.right - margin)
         const ey = clamp(sy + dy, p.top + margin, p.bottom - margin)
-        return { kind: 'drag', sx, sy, ex, ey }
+        if (ex === sx + dx && ey === sy + dy) return { kind: 'drag', sx, sy, ex, ey }
+        fallback ??= { kind: 'drag', sx, sy, ex, ey }
       }
     }
-    return { kind: 'no-empty' }
+    return fallback ?? { kind: 'no-empty' }
   }, { keepRect: keepBox, whole, center })
   if (!plan || plan.kind === 'inside' || plan.kind === 'blocked') return plan?.kind ?? 'inside'
   if (plan.kind === 'no-empty') throw new Error('画布上找不到空白处来拖')
@@ -526,14 +531,26 @@ for (const run of RUNS) {
       const card = node.locator('.generation-canvas-v2-node').first()
       const keep = node.locator('.generation-canvas-v2-node__preview').first()
       const row = node.locator('[data-sample-row]').first()
-      await win.keyboard.press('Escape')
-      // 第一下 Esc 可能只让提示词框失焦：生成框还在就再按一下，取消选择。
-      if (await selectedNodeComposer(win).isVisible().catch(() => false)) await win.keyboard.press('Escape')
+      // 取消选择：节点选着、生成框开着时，画布会把生成框留在视口里（拖过去又被带回来）。
+      // Esc 可能只让提示词框失焦，所以像真人一样点一下画布空白处。
+      const deselect = async (label) => {
+        await win.keyboard.press('Escape')
+        if (!(await selectedNodeComposer(win).isVisible().catch(() => false))) return
+        const blank = await findCanvasBlankPoint(win)
+        assert(blank, `${label}：画布上找不到空白处`)
+        await win.mouse.click(blank.x, blank.y)
+        await expect(selectedNodeComposer(win), `${label}：点空白处取消选择，生成框收起`).toBeHidden()
+      }
+      // 把样片节点拖到画布正中（标签、卡、下方一行一起在视口里）。
+      const centerCard = async (label) => {
+        for (let step = 0; (await dragIntoView(win, card, null, { center: true })) === 'dragged'; step += 1) {
+          if (step >= 3) throw new Error(`${label}：拖 4 次还没到画布正中`)
+        }
+      }
+      await deselect('取消前一站新节点的选择')
       // 前一站给新节点的生成框让位时画布可能被缩到 40% 以下（en 实测 33%），那时节点只画远看的轻量卡，没有标签和缩放线。
       // 真人会把样片节点拖到画布正中，再放大到 100% 看清楚——照做。
-      for (let step = 0; (await dragIntoView(win, card, null, { center: true })) === 'dragged'; step += 1) {
-        if (step >= 3) throw new Error('把样片节点拖到画布正中：拖 4 次还没到')
-      }
+      await centerCard('把样片节点拖到画布正中')
       if ((await canvasZoomPercent(win)) !== 100) await canvasSetZoomPercent(win, 100, 'zoom to 100% to read the sample node')
       await expect(keep, '放大到 100% 后样片节点画整卡').toBeAttached()
       await expect(row).toHaveAttribute('data-sample-state', 'ready')
@@ -557,18 +574,43 @@ for (const run of RUNS) {
         await onCanvas(win, keep, `${label}：把节点拖进来`, { hover: true, keep })
         if (!(await card.getAttribute('data-selected') === 'true')) await card.click({ position: { x: 8, y: 8 } })
         await expect(card, `${label}：选中才有缩放区`).toHaveAttribute('data-selected', 'true')
-        // 画布里的缩放把手归 React Flow 的 NodeResizer（唯一选中的卡才挂）；右边那条线横着拖，媒体卡按比例跟着缩。
-        await dragIntoView(win, card, keep, { whole: true })
-        const handle = node.locator('.react-flow__resize-control.line.right').first()
-        await expect(handle, `${label}：右边缩放线`).toBeAttached()
-        const start = await handle.boundingBox()
+        // 选中后生成框弹出来、画布会挪一下给它让位：等卡停稳再找把手。
+        await expect.poll(async () => {
+          const before = await card.boundingBox()
+          await win.waitForTimeout(120)
+          const after = await card.boundingBox()
+          return Math.abs(before.x - after.x) + Math.abs(before.y - after.y)
+        }, { message: `${label}：选中后卡停稳` }).toBeLessThan(1)
+        // 画布里的缩放把手归 React Flow 的 NodeResizer（唯一选中的卡才挂）。真人缩小一张卡，是抓右下角往左上拉：
+        // 媒体卡锁比例，React Flow 的角把手只横拉不动（锁比例时角取宽高里变得少的那个），所以斜着拉；
+        // 右边那条线只有 1px，落在半像素上时整数坐标的鼠标点不中（实测按下落在画面上、拖成了平移），不用它。
+        // 角被盖住或出了画布时退到底边那条线竖着拉（锁比例，宽跟着缩）。点都取整数坐标，再看最上面那层是不是这张卡的把手。
+        const grip = await node.evaluate((root) => {
+          const pane = document.querySelector('.react-flow__pane')?.getBoundingClientRect()
+          const inPane = (x, y) => Boolean(pane) && x > pane.left + 4 && x < pane.right - 4 && y > pane.top + 4 && y < pane.bottom - 4
+          const box = root.getBoundingClientRect()
+          const tries = []
+          const corner = root.querySelector('.react-flow__resize-control.handle.bottom.right')?.getBoundingClientRect()
+          if (corner) for (const [ox, oy] of [[4, 4], [0, 0], [4, 0], [0, 4]]) tries.push({ kind: 'corner', x: Math.round(corner.left + corner.width / 2) + ox, y: Math.round(corner.top + corner.height / 2) + oy })
+          const bottom = root.querySelector('.react-flow__resize-control.line.bottom')?.getBoundingClientRect()
+          if (bottom) for (const f of [0.3, 0.5, 0.7]) tries.push({ kind: 'bottom', x: Math.round(bottom.left + bottom.width * f), y: Math.ceil(bottom.top) })
+          const miss = []
+          for (const point of tries) {
+            const top = inPane(point.x, point.y) ? document.elementFromPoint(point.x, point.y) : null
+            if (top?.closest('.react-flow__resize-control') && root.contains(top)) return { ...point, ratio: box.height / box.width }
+            miss.push(`${point.kind}@${point.x},${point.y}→${top ? `${top.tagName}.${String(top.className).slice(0, 40)}` : '画布外'}`)
+          }
+          return { miss }
+        })
+        assert(!grip.miss, `${label}：缩放把手都被盖着或在画布外：${JSON.stringify(grip.miss)}`)
         const now = await card.evaluate((el) => ({ layout: el.offsetWidth, screen: el.getBoundingClientRect().width }))
-        const dx = (target - now.layout) * (now.screen / now.layout)
-        const sx = start.x + start.width / 2
-        const sy = start.y + start.height / 2
+        const along = (target - now.layout) * (now.screen / now.layout)
+        const [dx, dy] = grip.kind === 'corner' ? [along, along * grip.ratio] : [0, along * grip.ratio]
+        const sx = grip.x
+        const sy = grip.y
         await win.mouse.move(sx, sy)
         await win.mouse.down()
-        for (let i = 1; i <= 10; i += 1) await win.mouse.move(sx + (dx * i) / 10, sy)
+        for (let i = 1; i <= 10; i += 1) await win.mouse.move(sx + (dx * i) / 10, sy + (dy * i) / 10)
         await win.mouse.up()
         await win.waitForTimeout(200)
         return now.layout
@@ -576,8 +618,9 @@ for (const run of RUNS) {
       const originalWidth = await resizeTo(MIN_NODE_WIDTH - 200, 'shrink to the narrowest node')
       const width = await card.evaluate((el) => el.offsetWidth)
       assert(Math.abs(width - MIN_NODE_WIDTH) <= 1, `缩到最窄应是 ${MIN_NODE_WIDTH}，实际 ${width}`)
-      await win.keyboard.press('Escape')
-      await onCanvas(win, row, 'look at the narrow node', { hover: true, keep })
+      // 缩完看整张窄卡：取消选择、拖回画布正中，标签、卡、下方一行同屏（这张截图对拍板图 long-text+narrow 那一格）。
+      await deselect('缩完取消选择')
+      await centerCard('缩完把窄卡拖回画布正中')
       await win.mouse.move(4, 200)
       const geo = await node.evaluate((root) => {
         const box = (el) => el.getBoundingClientRect()
@@ -590,7 +633,8 @@ for (const run of RUNS) {
           .map((el) => el.textContent.trim())
         return {
           card: { left: cardBox.left, right: cardBox.right },
-          label: { text: label?.textContent, truncated: !!label && label.scrollWidth > label.clientWidth + 0.5, left: box(label).left, right: box(label).right },
+          // 标题 span 带 `-mx-1 px-1`（悬停底色向两侧各出 4px），字在内边距里：量字所在的内容框，不量悬停底色。
+          label: { text: label?.textContent, truncated: !!label && label.scrollWidth > label.clientWidth + 0.5, left: box(label).left + parseFloat(getComputedStyle(label).paddingLeft), right: box(label).right - parseFloat(getComputedStyle(label).paddingRight) },
           row: { text: rowEl.innerText.replace(/\s+/g, ' '), left: box(rowEl).left, right: box(rowEl).right, height: Math.round(box(rowEl).height), clipped },
         }
       })
