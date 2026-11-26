@@ -112,12 +112,12 @@ describe('样片还在（★9-1 / ★9-2）', () => {
 
 describe('价估不出（★9-6 反例）', () => {
   it('钮上没有数字、没有 0；悬停那一句是发送键那一句', () => {
-    env.cost = { description: '暂时估不出这次用量' }
+    env.cost = { description: 'cost.description.unknown' }
     const html = render(node())
     expect(buttonText(html)).toBe('generationCommon.sample.makeFinal')
     expect(buttonText(html)).not.toMatch(/\d/)
     expect(html).not.toContain('data-sample-cost')
-    expect(html).toContain('aria-description="暂时估不出这次用量"')
+    expect(html).toContain('aria-description="cost.description.unknown"')
   })
 })
 

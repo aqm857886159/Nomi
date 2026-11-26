@@ -3,6 +3,7 @@
 // 出高清没成时下面多一行原因。高清版、普通视频、老项目节点读不出样片事实 → 这一行不存在。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TranslationKey } from '../../../../i18n/translationKey'
 import { IconAlertCircle, IconClock } from '../../../../vendor/tablerIcons'
 import { ICON_TIERS } from '../../../../design'
 import { TEXT_BUTTON_PRESS } from '../../../../design/motion'
@@ -101,18 +102,30 @@ function failureReason(error: string): string {
   return classifyGenerationError(error).reason.replace(/[。.!！]+$/u, '')
 }
 
+/** 剩多久三档各自的整键（不拼键：死键门岗按 satisfies 验每一格，复数后缀交给 i18next）。 */
+const EXPIRY_LABEL_KEY = {
+  days: 'generationCommon.sample.expiry.days',
+  hours: 'generationCommon.sample.expiry.hours',
+  minutes: 'generationCommon.sample.expiry.minutes',
+} as const satisfies Record<'days' | 'hours' | 'minutes', TranslationKey>
+const EXPIRY_TOOLTIP_KEY = {
+  days: 'generationCommon.sample.tooltip.days',
+  hours: 'generationCommon.sample.tooltip.hours',
+  minutes: 'generationCommon.sample.tooltip.minutes',
+} as const satisfies Record<'days' | 'hours' | 'minutes', TranslationKey>
+
 function ExpiryChip({ expiry, ttlHours }: { expiry: SampleExpiry | null; ttlHours: number | undefined }): JSX.Element {
   const { t } = useTranslation()
   const label = !expiry
     ? t('generationCommon.sample.badge')
     : expiry.kind === 'expired'
       ? t('generationCommon.sample.expiry.expired')
-      : t(`generationCommon.sample.expiry.${expiry.kind}`, { count: expiry.count })
+      : t(EXPIRY_LABEL_KEY[expiry.kind], { count: expiry.count })
   const tooltip = !expiry
     ? null
     : expiry.kind === 'expired'
       ? t('generationCommon.sample.tooltip.expired', { ttl: ttlText(ttlHours ?? 0, t) })
-      : t(`generationCommon.sample.tooltip.${expiry.kind}`, { count: expiry.count })
+      : t(EXPIRY_TOOLTIP_KEY[expiry.kind], { count: expiry.count })
   const chip = (
     <span
       data-sample-expiry={expiry?.kind ?? 'none'}
