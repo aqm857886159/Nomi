@@ -6,18 +6,33 @@ import { type FailureLocale } from './generationFailureCopy'
 import { type GenerationErrorKind } from './generationFailureKinds'
 import { parseTaskFailureMessage, type VendorErrorStructuredLite } from './generationFailureWire'
 
+/** 两个入口都可能拿到整页、内联标签或已截断的标签。 */
+export function containsHtmlMarkup(text: string): boolean {
+  return /<(?:!doctype\b|!--|\/?[a-z][\w:-]*(?=[\s/>]|$))/i.test(text)
+}
+
+export function isTechnicalErrorLine(text: string): boolean {
+  return containsHtmlMarkup(text)
+    || /^(?:[\w$]*(?:Error|Exception)|[A-Z][A-Z0-9_]+|[A-Za-z][A-Za-z0-9]*_\w+)$/.test(text)
+    || /^HTTP\s+\d{3}(?:$|\s*:\s*provider returned\b)/i.test(text)
+}
+
 export function cleanProviderMessage(candidate: string | undefined): string {
   const source = String(candidate || '').trim()
   const msg = (jsonErrorMessage(source) ?? source).replace(/\s+/g, ' ').trim()
-  if (!msg || msg === '(no detail from provider)') return ''
+  if (!msg || msg === '(no detail from provider)' || isTechnicalErrorLine(msg)) return ''
+  // 截断的信封、数组或裸键值对。保留以 [Pro] 等业务标记开头的句子。
+  const jsonArray = /^\[\s*(?:[[{"\d-]|true\b|false\b|null\b|$)/.test(msg)
+  if (msg.startsWith('{') || jsonArray || /"[^"]+"\s*:/.test(msg)) return ''
   return msg.length > 200 ? `${msg.slice(0, 199)}…` : msg
 }
 
-/** provider 常把报错塞进 JSON：{ error: { message } } / { message } / { error }。抠不出返回 null。 */
+/** provider 常把报错塞进 JSON：{ error: { message } } / { message } / { error }。有效 JSON 没有消息时给空串，解析失败才给 null。 */
 function jsonErrorMessage(source: string): string | null {
   try {
     const parsed = JSON.parse(source) as unknown
-    if (!parsed || typeof parsed !== 'object') return null
+    if (typeof parsed === 'string') return parsed.trim()
+    if (!parsed || typeof parsed !== 'object') return ''
     const record = parsed as Record<string, unknown>
     const errorField = record.error
     const candidates = [
@@ -30,7 +45,7 @@ function jsonErrorMessage(source: string): string | null {
     for (const value of candidates) {
       if (typeof value === 'string' && value.trim()) return value.trim()
     }
-    return null
+    return ''
   } catch {
     return null // 不是 JSON
   }
@@ -39,7 +54,7 @@ function jsonErrorMessage(source: string): string | null {
 /**
  * 未命中任何已知分类时，从 raw 里抠一句**可读首行**当 reason——而不是又甩一句
  * "生成失败"（那会和顶部状态徽标重复，对用户零信息）。优先解析 JSON 里的
- * message/error 字段，否则取第一行非空文本并截断。抠不出可读内容才返回 ''。
+ * message/error 字段，否则取第一行非空文本，供标题先判形状再截断。没有内容返回 ''。
  */
 export function extractReadableErrorLine(raw: string): string {
   // IPC 外壳（`Error invoking remote method '…': Error: …`）是我们自己的管道细节，对用户零信息，却正好占住
@@ -48,13 +63,13 @@ export function extractReadableErrorLine(raw: string): string {
   if (!source) return ''
   // 1) provider 常把报错塞进 JSON（与 cleanProviderMessage 共用同一个剥壳器，两处不许各写一份）
   const fromJson = jsonErrorMessage(source)
-  if (fromJson) return truncateLine(fromJson)
+  if (fromJson) return fromJson
   // 2) 纯文本：取第一行非空内容
   const firstLine = source
     .split('\n')
     .map((line) => line.trim())
     .find(Boolean)
-  return firstLine ? truncateLine(firstLine) : ''
+  return firstLine ?? ''
 }
 
 /**
@@ -175,6 +190,8 @@ export function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
       lower.includes('not enabled'))
   )
     return 'model-config'
+  // 旧报文可能只有状态短语或异常类名，没有 HTTP 状态字段。
+  if (/\bservice\s*unavailable(?:error|exception)?\b/.test(lower)) return 'server'
   if (lower.includes('content') && (lower.includes('policy') || lower.includes('safety') || lower.includes('filter')))
     return 'content-policy'
   return null

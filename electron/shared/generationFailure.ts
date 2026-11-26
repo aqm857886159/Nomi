@@ -10,7 +10,7 @@ import { withoutIpcInvokeWrapper } from './contracts/ipcInvokeFailure'
 import { type FailureLocale } from './generationFailureCopy'
 import { ERROR_KEY_BY_KIND, actionsOfKind, isVendorSideKind, shotClaimCopy, type GenerationErrorAction, type GenerationErrorKind } from './generationFailureKinds'
 import { parseVendorErrorFromMessage, stripVendorErrorMarker, confirmPublicError } from './generationFailureWire'
-import { cleanProviderMessage, extractReadableErrorLine, unknownCopyParams, truncateLine, STRUCTURED_KINDS, detectMissingImageReference, legacyEvidence, detectLegacyErrorKind, detectModelNotOpen, detectImageRouteDisabled, detectAccountGate, detectBalance, detectContentModerationTarget, detectAssetUploadFailed, detectAssetTooLarge, vendorOriginatedText, detectModelUnavailableUpstream, detectModelRetired, detectModelKindMismatch, detectNoTextBrain, isInLocale } from './generationFailureDetect'
+import { cleanProviderMessage, extractReadableErrorLine, isTechnicalErrorLine, unknownCopyParams, truncateLine, STRUCTURED_KINDS, detectMissingImageReference, legacyEvidence, detectLegacyErrorKind, detectModelNotOpen, detectImageRouteDisabled, detectAccountGate, detectBalance, detectContentModerationTarget, detectAssetUploadFailed, detectAssetTooLarge, vendorOriginatedText, detectModelUnavailableUpstream, detectModelRetired, detectModelKindMismatch, detectNoTextBrain, isInLocale } from './generationFailureDetect'
 
 export type { FailureLocale } from './generationFailureCopy'
 export * from './generationFailureKinds'
@@ -312,7 +312,7 @@ function classify(message: string, locale: FailureLocale): Draft {
   const readable = extractReadableErrorLine(raw)
   return {
     kind: 'unknown',
-    reason: readable ? { text: readable } : failureCopyOf('unknown').reason,
+    reason: readable && !isTechnicalErrorLine(readable) ? { text: truncateLine(readable) } : failureCopyOf('unknown').reason,
     hint: failureCopyOf('unknown', unknownCopyParams(structured)).hint,
     // 认不出来源、也没有供应商说的话：可能是我们自己的话（本机护栏 / 内部错误），不点名任何一家。
     vendorSide: false,
