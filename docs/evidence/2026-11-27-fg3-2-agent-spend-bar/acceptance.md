@@ -1,13 +1,13 @@
-有条件通过：第 2 轮 4 项审查问题（`keyCode 229` 选字回车拦截、按出价身份消费单次回车及 500ms 换卡审阅保护、带芯片裸斜杠 Esc 后拦截、真实 Pi `before_tool` 宿主 `heldToolCallIds` 投影）与 ★9 验收项及回退必红反例全部独立实测通过；禁区零改动、零真付费调用；中英真窗截图按派活单留交协调审查补截确认。
+有条件通过：第 3 轮 3 项审查修复（`handOverRevision` 贯通防旧确认重放、面板展开后整颗主按钮进入视口起算 500ms 审阅保护、`watchSpendCardClose` 拆分 `closed`/`settled` 与 `awaitingDecisionToolCallIds` 关卡即时清「待确认」）及钩子内聚（`9ad780c15`）全部独立盲验实测通过；定向测试与三项门禁全绿，禁区零改动、零真付费调用；中英真窗截图按派活单留交协调审查补截确认。
 
-- 验收线：v-fg3-2-r3
-- 验收 HEAD：b11c696601e7c785fcbebbca77328ef4580123d5
+- 验收线：v-fg3-2-r5
+- 验收 HEAD：9ad780c15e4ff528553c6924eed70f680090e09c
 - 阻断：无
-- 上一轮盲验 HEAD：1e1a6b7a34fe24899c17cd32ca8e2e87d1308049（v-fg3-2-r2）；首轮盲验 HEAD：042cfec75cf607fa32ca32e83708d2b58920e1f3（v-fg3-2）
-- 第 2 轮测试提交：7505ee8ce
-- 第 2 轮实现提交：cd456aad4
+- 历次盲验 HEAD：第 2 轮 `b11c696601e7c785fcbebbca77328ef4580123d5`（v-fg3-2-r3）；视觉基线复验 `1e1a6b7a34fe24899c17cd32ca8e2e87d1308049`（v-fg3-2-r2）；首轮 `042cfec75cf607fa32ca32e83708d2b58920e1f3`（v-fg3-2）
+- 第 3 轮提交链：测试 `68a5ef9d7` / 实现 `643fc2db9` / 钩子内聚 `9ad780c15`
+- 第 2 轮提交链：测试 `7505ee8ce` / 实现 `cd456aad4`
 - 首轮基线与仅测试提交：a05ca5219 / fd6a60bac
-- 验证方式：盲验独立源码审计（`git diff origin/main..b11c696601e7c785fcbebbca77328ef4580123d5`、`7505ee8ce`、`cd456aad4`）+ 门禁脚本 + 轻量定向 Vitest 与 `agent-runtime` 宿主 `node --test` + 第 2 轮回退必红反例（未读取任何实现线自报材料，未触发真付费调用）
+- 验证方式：盲验独立源码审计（`git diff origin/main..9ad780c15e4ff528553c6924eed70f680090e09c` 及 `68a5ef9d7`、`643fc2db9`、`9ad780c15`）+ 禁区与残留扫描 + 定向 Vitest（8 文件 / 687 用例）+ 自写登记 / 概念 owner / 根因合同三项门禁（未读取任何实现线自报材料，未触发真付费调用）
 
 ## 1. 范围与禁区核查
 
@@ -145,3 +145,34 @@
   - `src/workbench/ai/lane/laneViewModel.test.ts`：1 failed（`heldToolCallIds` 未被投影为 `approval-requested`）；
   - `electron/agentLane/laneExtendedDesktopPorts.test.ts`：1 failed（真实 Pi `before_tool` 预检挂起未被投影为静态「待确认」）。
 - **还原核对**：`git restore --source=HEAD --worktree -- electron/ src/` 后 `git status --short` 零改动，`git rev-parse HEAD` 维持 `b11c696601e7c785fcbebbca77328ef4580123d5`。
+
+## 8. 第 3 轮最终独立盲验（`9ad780c15e4ff528553c6924eed70f680090e09c` · `v-fg3-2-r5`）
+
+### 8.1 全分支范围与禁区复核（`origin/main..9ad780c15e4ff528553c6924eed70f680090e09c`）
+
+核对 `git diff --stat origin/main..9ad780c15e4ff528553c6924eed70f680090e09c`（共 66 个文件，+1574/-133 行；第 3 轮含测试提交 `68a5ef9d7`、实现提交 `643fc2db9`、钩子内聚提交 `9ad780c15`）：
+
+| 禁区与清理项 | 核查结果 | 依据 |
+|---|---|---|
+| `SpendConfirmDialog.tsx` | 未触碰（通过） | `git diff --name-only origin/main..9ad780c15e4ff528553c6924eed70f680090e09c -- '*SpendConfirmDialog.tsx'` 零命中 |
+| `src/workbench/generationCanvas/` | 未触碰（通过） | 变更文件清单零命中 |
+| `docs/design/boards/` | 未触碰（通过） | 变更文件清单零命中 |
+| 真实付费调用 / 密钥逻辑 | 未触碰（通过） | 变更仅涉及尝试版本准入、视口审阅钩子、审批等待释放与对应测试/治理文件 |
+| 生产源码、测试与治理契约残留 `heldToolCallIds` | 零残留（通过） | 全仓 `git grep heldToolCallIds` 仅剩本文件第 7 节历史记录文本；`electron/`、`src/`、`docs/engineering/`、`tests/` 均为 0 命中 |
+| 钩子内聚（`9ad780c15`） | 通过 | `useSpendEnterConfirmation` 并入 `src/workbench/ai/v4/useAgentPanelSpendCard.ts` 并删除原独立文件 `useSpendEnterConfirmation.ts`，同步更新概念登记与根因合同，`check:self-written` 确认 0 未认领新文件 |
+
+### 8.2 第 3 轮 3 项审查修复独立核查表
+
+| 编号 | 审查问题 | 核查结果 | 源码与行为依据 |
+|---|---|---|---|
+| [P1-1] | 防旧确认重放：`handOverRevision` 贯通投影、IPC 与 `appIntegrationSpendConfirm.ts` 准入，`not_sent` 后旧卡空框回车新增 0 次交接，明确点击「再试一次」新增 1 次交接 | **通过** | `electron/shared/contracts/pendingSpendConfirm.ts:51,73-74` 在 `PendingSpendConfirm` 与 `PendingSpendHandOverInput` 增加 `handOverRevision`；`electron/productionRun/productionPendingSpend.ts:64,170` 从 `presentation?.handOvers?.length ?? 0` 投影该版本；`src/workbench/ai/v4/useAgentPanelSpendCard.ts:252` 与 `src/workbench/production/productionRunApi.ts:25` / `src/desktop/productionRunBridgeTypes.ts:34` / `electron/preload/runtimeBridge.ts:29` 原样透传；`electron/productionRun/productionActionIpc.ts:97-102` 校验非负安全整数否则当场拒收（`generation_quote_changed`）；`electron/capabilityCore/appIntegrationSpendConfirm.ts:209` 强校 `input.handOverRevision !== pending.handOverRevision` 并移除 `handing_over` 放行短路；`electron/capabilityCore/canvasHandOver.ts:93-172` 在首个 `await` 前同步写账本递增 `handOvers` 长度，并按 `presentationCount` 与 `entry` 精确执行 `settleUnbound`。实测 `not_sent` 后旧卡空框回车被拒、画布交接数维持 1（新增 0 次），刷新至「再试一次」后旧回车不发，明确点击「再试一次」新增 1 次交接并成功发出一镜（`agentPanelV4SpendEnter.test.tsx`、`agentPanelSpendCardFailures.e2e.test.ts`、`productionActionIpcPendingSpend.test.ts`、`agentPanelSpendCard.e2e.test.ts` 全通过）。 |
+| [P1-2] | 500ms 从整颗主按钮实际进入视口起算：`ShellAgentHost` 下传 `collapsed` + `useSpendEnterConfirmation` 结合 `IntersectionObserver({ threshold: 1 })` 与 `visibilitychange`，收起期间出价到达 1s 后 `Mod+J` 展开立即回车新增 0 次确认，满 500ms 后确认 1 次 | **通过** | `src/ui/app-shell/shell/agentPanelHeaderSlot.ts:14` 与 `ShellAgentHost.tsx:262` 将 `collapsed: form === 'collapsed'` 下传至面板上下文；`AgentPanelV4Panel.tsx:251-253` 调用 `src/workbench/ai/v4/useAgentPanelSpendCard.ts:325-375` 中的 `useSpendEnterConfirmation(slot?.spendConfirmationId, !headerSlot?.collapsed)`，通过 state callback ref 绑定主按钮并结合 `IntersectionObserver({ threshold: 1 })` 与 `visibilitychange`：面板收起、文档不可见或按钮未完全进入视口（`!isIntersecting \|\| intersectionRatio < 1`）时重置 `reviewUntil = Infinity` 并置 `needsReview = true`；仅在展开、文档可见且按钮完整入视口瞬间起算 500ms 审阅窗。`ShellAgentHost.formProbe.test.tsx` 实测收起期间新出价到达 1s 后 `Mod+J` 展开立即回车新增 0 次确认，视口外停留 1s 仍 0 次、重开或切换文档可见性均重算审阅窗、499ms 仍拦截、满 500ms 精确确认 1 次（`visibleOnOpen: true/false` 均通过）。 |
+| [P2] | 关卡后立即清除工具行「待确认」：`watchSpendCardClose` 拆分 `closed` 与 `settled`，投影 `awaitingDecisionToolCallIds`（全仓零残留 `heldToolCallIds`），取消关卡后立即撤下「待确认」 | **通过** | `electron/agentLane/laneSpendCardClose.ts:36-76` 将 `watchSpendCardClose` 拆分为 `closed`（账本关卡立即兑现）与 `settled`（等交接落定或宽限期结束，并支持 `AbortSignal` 停止回合立即结束与退订）；`electron/agentLane/laneDesktopSpend.ts:54-55` 与 `electron/agentLane/laneExtendedDesktopPorts.ts:292-298` 在 `card.closed` 立即 `wait.settle({ kind: 'card-closed' })` 释放审批闸等待，随后再 `await card.settled` 读逐镜回执；`laneApprovalGate.ts:89,321`、`laneHost.mts:368-373`、`laneWorkspace.mts:103`、`laneContracts.ts:366`、`laneViewModel.ts:421` 全部更名为 `awaitingDecisionToolCallIds`（`trimLaneProjectionForIpc` 原样透传）。`laneSpendCardClose.test.ts`、`laneViewModel.test.ts` 与 `laneExtendedDesktopPorts.test.ts` 实测取消关卡后即便交接仍在收尾，工具行也立即撤下「待确认」，回合结束后该字段消失。 |
+
+### 8.3 第 3 轮亲手实跑命令与通过数（HEAD `9ad780c15e4ff528553c6924eed70f680090e09c`）
+
+| 命令 | 退出码 | 实测结果 |
+|---|---|---|
+| `VITEST_MAX_WORKERS=2 npx vitest run src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx src/ui/app-shell/shell/ShellAgentHost.formProbe.test.tsx electron/capabilityCore/agentPanelSpendCardFailures.e2e.test.ts electron/agentLane/laneSpendCardClose.test.ts src/workbench/ai/lane/laneViewModel.test.ts` | 0 | **5 文件，610 / 610 全部通过**（`agentPanelV4SpendEnter` 29/29、`ShellAgentHost.formProbe` 517/517、`agentPanelSpendCardFailures.e2e` 12/12、`laneSpendCardClose` 6/6、`laneViewModel` 46/46） |
+| `VITEST_MAX_WORKERS=2 npx vitest run electron/agentLane/laneExtendedDesktopPorts.test.ts electron/productionRun/productionActionIpcPendingSpend.test.ts electron/capabilityCore/agentPanelSpendCard.e2e.test.ts` | 0 | **3 文件，77 / 77 全部通过**（`laneExtendedDesktopPorts` 53/53、`productionActionIpcPendingSpend` 7/7、`agentPanelSpendCard.e2e` 17/17） |
+| `pnpm run check:self-written && node ./scripts/check-concept-owners.mjs && node ./scripts/check-root-cause-contracts.mjs` | 0 | **3 项全绿**：自写登记门岗（20/20 单测通过，178 领域目录 · 70 登记 · 新增代码文件 1 个，0 未认领）；概念 owner 门岗（431 概念，converged 427 / pending 4，第二写口 0 新增，未登记共享边界 31 冻结在基线）；根因合同门禁（2 个高风险生产文件均有合同与变化中的回归测试） |
