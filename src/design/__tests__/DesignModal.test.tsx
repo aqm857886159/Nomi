@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DesignModal, type DesignModalProps } from '../overlays'
-import { LONG_TITLE, expectWrappingTitle } from './modalTitleAssertions'
+import { LONG_TITLE, expectWrappingTitle } from '../../../tests/setup/modalTitleAssertions'
 
 let root: Root
 beforeEach(() => {

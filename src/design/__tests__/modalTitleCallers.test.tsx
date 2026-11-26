@@ -3,10 +3,10 @@ import React, { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { LONG_TITLE, expectWrappingTitle } from './modalTitleAssertions'
+import { LONG_TITLE, expectWrappingTitle } from '../../../tests/setup/modalTitleAssertions'
 import { ConfirmDialogHost } from '../confirmDialog'
 import { confirmDialog } from '../confirmDialogStore'
-import { OVERLAY_STATES } from '../../devlab/designLab/primitivesSurfaces/states/02-overlays'
+import { DesignModal } from '../overlays'
 import { UpdateDialogCard } from '../../ui/app-shell/UpdateDialog'
 import { BrowserPromptExtractionSettingsModal } from '../../ui/browser/prompt/BrowserPromptExtractionSettingsModal'
 import { createDefaultBrowserPromptExtractionTemplateSettings } from '../../ui/browser/prompt/browserPromptExtractionSettings'
@@ -100,7 +100,7 @@ const cases: [string, React.ReactElement, string?][] = [
     onChange={noop} onClose={noop} onOpenHelp={noop} />],
   ['SettingsDialog', <SettingsDialog onClose={noop} />],
   ['TimelineShortcutsDialog', <TimelineShortcutsDialog onClose={noop} />],
-  ['ps-07-modal', OVERLAY_STATES.find(state => state.id === 'ps-07-modal')!.render()],
+  ['DesignModalDefault', <DesignModal opened onClose={noop} title={LONG_TITLE}><div>内容</div></DesignModal>],
 ]
 
 it.each(cases)('%s 的超长标题', async (_, element, typography) => {
