@@ -31,9 +31,16 @@ const PARAMS: ModelParameterControl[] = [
 
 // 图层分离的三个控件（键和普通改图的比例 size 分开：清晰度档存 layer_size，由线缆 paramMap 写成 wire 的 size）。
 const LAYER_PARAMS: ModelParameterControl[] = [
-  { key: LAYER_COUNT_KEY, label: "拆成几层", type: "number", options: [], defaultValue: 30, min: 2, max: 100, step: 1 },
-  { key: LAYER_SIZE_KEY, label: "清晰度", type: "select", options: [{ value: "auto", label: "自动" }, ...opt(["1K", "1.5K", "2K"])], defaultValue: "auto" },
-  { key: TEXT_RECOGNITION_KEY, label: "识别文字", type: "boolean", options: [], defaultValue: false },
+  {
+    key: LAYER_COUNT_KEY, label: "拆成几层", type: "number", options: [], defaultValue: 30, min: 2, max: 100, step: 1,
+    presets: [8, 16, 30], note: "默认 30 层，含底图。是上限，可能拆得更少。",
+  },
+  {
+    key: LAYER_SIZE_KEY, label: "清晰度", type: "select", options: [{ value: "auto", label: "自动" }, ...opt(["1K", "1.5K", "2K"])], defaultValue: "auto",
+    // 价按档位预扣：1K / 1.5K 低档，2K / auto 高档（APIMart 官方，2026-11-26 取；D-1126-se-auto-tier）。
+    note: "2K / 自动 价更高",
+  },
+  { key: TEXT_RECOGNITION_KEY, label: "识别文字", type: "boolean", options: [], defaultValue: false, note: "认出图里的字，文字层用它当名字" },
 ];
 
 export const SEEDREAM_55_ARCHETYPE: ModelArchetype = {

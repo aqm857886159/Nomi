@@ -11,7 +11,7 @@ import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
-import { deriveFromNode, isDerivedPromptReady, layerSplitVendorKeys, QUICK_ACTION_META_KEY, readQuickActionMeta, type DeriveHost } from './deriveFromNode'
+import { deriveFromNode, findLayerSplitModelOption, isDerivedPromptReady, layerSplitVendorKeys, QUICK_ACTION_META_KEY, readQuickActionMeta, type DeriveHost } from './deriveFromNode'
 import { KNOWN_VENDORS } from '../../../config/knownVendors'
 import { applyBuiltinSeeds } from '../../../../electron/catalog/seedBuiltins'
 import type { CatalogState } from '../../../../electron/catalog/types'
@@ -279,9 +279,16 @@ describe('图层分离入口 —— 派生一个方式已定好的节点，不�
     expect(layerSplitVendorKeys(vendorMappingsReader(undefined), KNOWN_VENDORS.map((vendor) => vendor.vendorKey))).toEqual([])
   })
 
-  it('源图自己的模型能拆就沿用；不能拆就挑目录里第一个能拆的', async () => {
+  it('挑能拆得最多的那个：目录里 5.0 Pro（最多 17 层）排在前、源图也是它，仍给 5.5（最多 100 层、可选层数）', async () => {
+    const SEEDREAM_PRO: ModelOption = { value: 'doubao-seedream-5-0-pro', label: 'Seedream 5.0 Pro', vendor: 'apimart', modelKey: 'doubao-seedream-5-0-pro' }
     const source = addSource()
-    const derivedId = derivedIdOf(await derive(source, layerHost({ editModelOptions: [MODEL, SEEDREAM_55] }), 'layer-split'))
+    store().updateNode(source, { meta: { ...nodeOf(source).meta, modelKey: SEEDREAM_PRO.modelKey, modelVendor: 'apimart' } })
+    const host = layerHost({ editModelOptions: [MODEL, SEEDREAM_PRO, SEEDREAM_55] })
+    expect(findLayerSplitModelOption(host.editModelOptions, host.readMappings!)?.modelKey).toBe('seedream-5-5')
+    const derivedId = derivedIdOf(await derive(source, host, 'layer-split'))
     expect(nodeOf(derivedId).meta).toMatchObject({ modelKey: 'seedream-5-5' })
+    // 只有 Pro 能拆时就给 Pro（不因「拆得少」说没有）。
+    const onlyPro = derivedIdOf(await derive(source, layerHost({ editModelOptions: [MODEL, SEEDREAM_PRO] }), 'layer-split'))
+    expect(nodeOf(onlyPro).meta).toMatchObject({ modelKey: 'doubao-seedream-5-0-pro' })
   })
 })

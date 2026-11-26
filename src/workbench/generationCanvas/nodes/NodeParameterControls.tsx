@@ -91,7 +91,10 @@ import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
 import InlineParameterBar, { type ComposerFooterSlots } from './InlineParameterBar'
-import { composerHeadlineParts } from './composerHeadlineSummary'
+import { composerHeadlineParts, layerSplitHeadlineParts } from './composerHeadlineSummary'
+import { IconStack2 } from '@tabler/icons-react'
+import { ICON_TIERS } from '../../../design'
+import { isLayerSplitMode, requestedLayerCount, LAYER_COUNT_COST_REMINDER_AT, LAYER_COUNT_KEY } from '../../../../electron/shared/modelArchetypes/layerSplit'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import { buildAspectRatioNodePatch } from './nodeSizing'
@@ -519,7 +522,29 @@ export default function NodeParameterControls({
     // 在用同一个入口），不新造第二条摘要通路。工作流的口径优先——它连「值串出来没人认得」
     // 这个更基本的问题都还没解决，轮不到再挑两个。
     // 摘要按整值给出（带退让顺序）：底栏挤时只退这一格、一个值不截半截（K4）。
-    const headlineParts = workflowSummary ? [] : composerHeadlineParts({
+    // 图层分离（板 2026-11-26-layer-split · layers.composer-cell / pro-fixed）：这一格报「图层分离 · 层数 · 清晰度」、带叠层图标；
+    // 层数写死的模型（没有层数参数）报「最多 N 层」、摆成不可点的静态格。比例不发（分离时比例返回 400），所以格里没有比例。
+    const layerSplit = archMode && isLayerSplitMode(archMode) && archMode.layerSplit ? layerSplitHeadlineParts({
+      modeName: t('generationCommon.quickActions.actions.layerSplit'),
+      controls: panelRenderedControls,
+      meta,
+      maxLayers: archMode.layerSplit.maxLayers,
+      formatLayers: (count) => t('generationCommon.layerSplitComposer.cellLayers', { count: Number(count) }),
+      formatUpTo: (count) => t('generationCommon.layerSplitComposer.cellUpTo', { count }),
+      autoLabel: t('generationCommon.parameters.auto'),
+    }) : null
+    // 层数多就贵（≥ 50 层，裁定 4）：只提醒、不拦；数随当前层数，发送键上有约价就带上。
+    const layerCount = layerSplit && archMode ? requestedLayerCount(archMode, meta) : null
+    const sendCredits = footer?.send?.cost?.credits
+    const sendAmount = sendCredits
+      ? (footer?.send?.cost?.unit ?? 'credits') === 'credits' ? t('generationCommon.layerSplitComposer.creditsAmount', { value: sendCredits }) : sendCredits
+      : ''
+    const layerNotices = layerSplit && !layerSplit.fixed && layerCount !== null && layerCount >= LAYER_COUNT_COST_REMINDER_AT
+      ? { [LAYER_COUNT_KEY]: sendAmount
+        ? t('generationCommon.layerSplitComposer.costReminderEstimate', { count: layerCount, amount: sendAmount })
+        : t('generationCommon.layerSplitComposer.costReminder', { count: layerCount }) }
+      : undefined
+    const headlineParts = workflowSummary ? [] : layerSplit ? layerSplit.parts : composerHeadlineParts({
       isImageLike,
       isVideoLike,
       controls: panelRenderedControls,
@@ -543,6 +568,11 @@ export default function NodeParameterControls({
         {...(footer ? { footer } : {})}
         summaryOverride={summaryOverride}
         {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
+        {...(layerSplit ? {
+          summaryIcon: <IconStack2 size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} data-layer-split-icon="true" />,
+          summaryStatic: layerSplit.fixed,
+          ...(layerNotices ? { controlNotices: layerNotices } : {}),
+        } : {})}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。
         {...(modeMenu ? {
           modeMenu: {
@@ -609,7 +639,9 @@ export default function NodeParameterControls({
 
   // 行尾：模型自己放不下（任何方式都收不下全部）→ 报数；方式刚因为加多被换掉 → 「放了 N 张，已改成 X」；图片节点放了图 → 「按图改」。
   const inputCount = modeInputs?.inputs.length ?? 0
-  const modelLimit = modeInputs ? modelLimitNotice(modelOptions, selectedModelOption, modeResolution, inputCount) : null
+  // 图层分离放多了只拆第 1 张：那一句在底栏上方（layers.two-images-hint），行尾不再重复报「最多用 1 张」，也不写「按图改」。
+  const splitting = Boolean(archMode && isLayerSplitMode(archMode))
+  const modelLimit = modeInputs && !splitting ? modelLimitNotice(modelOptions, selectedModelOption, modeResolution, inputCount) : null
   const switchedRow = modeMenu && archMode ? modeMenu.rows.find((row) => row.id === archMode.id) : undefined
   const switchNoticeMeta = modeInputs && archMode ? liveModeSwitchNotice(meta, inputCount, archMode.id) : null
   const tail = referenceRowTail(t, {
@@ -617,7 +649,7 @@ export default function NodeParameterControls({
     switchNotice: switchNoticeMeta && switchedRow
       ? { count: switchNoticeMeta.count, allImages: Boolean(modeInputs?.inputs.every((input) => input.asset === 'image')), modeName: modeRowName(t, switchedRow) }
       : null,
-    imageEdit: isImageLike && arrayCount > 0,
+    imageEdit: isImageLike && arrayCount > 0 && !splitting,
   })
 
   // 当前方式一个收图的槽都没有（文生，或渠道发不出这些槽）时，参考列表里的图照样要看得见——淡显「未用到」，

@@ -212,8 +212,9 @@ export function PendingGenerationPlaceholder({
       </div>
     )
   }
+  // 「提示词已填好」只在真填了时说：图层分离派生出来提示词是空的（留空即自动拆），那句就是假话——只留「选中它，点 ↑ 才开始生成」。
   const titleText = derivedReady
-    ? t('generationCommon.nodeEmpty.derivedReady.title')
+    ? (node.prompt ?? '').trim() ? t('generationCommon.nodeEmpty.derivedReady.title') : undefined
     : isVideo
     ? t('generationCommon.nodeEmpty.video.title')
     : isModel3d

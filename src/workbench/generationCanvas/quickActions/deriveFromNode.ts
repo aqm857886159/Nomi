@@ -158,14 +158,26 @@ export function layerSplitVendorKeys(readMappings: VendorMappingsReader, vendorK
   }))
 }
 
-/** 目录里第一个能做图层分离的模型（按偏好 / 健康排好的顺序）。 */
+/**
+ * 目录里能做图层分离、且能拆得最多的那个模型（层数上限 `layerSplit.maxLayers` 最大；一样多按目录里偏好 / 健康排好的顺序）。
+ * 拆图层这件事要的是「拆得开」，不是画风接续：源图用的模型能拆 17 层、目录里另一个能拆 100 层且可选层数时，默认给后者
+ * （板 2026-11-26-layer-split：派生节点默认「30 层 · 自动」，5.0 Pro 是「换成」之后的样子）。
+ */
 export function findLayerSplitModelOption(options: readonly ModelOption[], readMappings: VendorMappingsReader): ModelOption | null {
-  return options.find((option) => canLayerSplit(option, readMappings)) ?? null
+  let best: { option: ModelOption; maxLayers: number } | null = null
+  for (const option of options) {
+    if (!canLayerSplit(option, readMappings)) continue
+    const maxLayers = layerSplitModeOf(resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey }))?.layerSplit?.maxLayers ?? 0
+    if (!best || maxLayers > best.maxLayers) best = { option, maxLayers }
+  }
+  return best?.option ?? null
 }
 
 /**
- * 点这一项时派生用哪个模型：源图自己的（能做这件事的话）→ 用户的改图默认（同上）→ 目录第一个能做的。
- * 「能做」：普通改图 = 不是放大档；图层分离 = `canLayerSplit`；放大 = 目录里的放大档。
+ * 点这一项时派生用哪个模型。
+ * - 普通改图：源图自己的（不是放大档的话）→ 用户的改图默认 → 目录第一个不是放大档的。
+ * - 图层分离：用户的改图默认（能拆的话）→ 目录里能拆得最多的（`findLayerSplitModelOption`）。不沿用源图模型：拆图层不讲画风接续。
+ * - 放大：目录里的放大档。
  */
 export function pickDerivedModel(
   source: GenerationCanvasNode,
@@ -174,15 +186,18 @@ export function pickDerivedModel(
   readMappings?: VendorMappingsReader,
 ): ModelOption | null {
   if (requires === 'upscale') return findUpscaleModelOption(options)
-  const fits = requires === 'layer-split'
-    ? (option: ModelOption) => (readMappings ? canLayerSplit(option, readMappings) : false)
-    : (option: ModelOption) => !findUpscaleModelOption([option])
+  const preferred = getGenerationModelDefaults().image_edit
+  const preferredOption = preferred ? findModelOptionByIdentifier(options, preferred.modelKey, preferred.vendorKey) : null
+  if (requires === 'layer-split') {
+    if (!readMappings) return null
+    if (preferredOption && canLayerSplit(preferredOption, readMappings)) return preferredOption
+    return findLayerSplitModelOption(options, readMappings)
+  }
+  const fits = (option: ModelOption) => !findUpscaleModelOption([option])
   const own = nodeSelectedModelAddress((source.meta ?? {}) as Record<string, unknown>)
   const sourceOption = source.kind === 'image' && own.modelKey ? findModelOptionByIdentifier(options, own.modelKey, own.vendorKey) : null
   if (sourceOption && fits(sourceOption)) return sourceOption
-  const preferred = getGenerationModelDefaults().image_edit
-  const preferredOption = preferred ? findModelOptionByIdentifier(options, preferred.modelKey, preferred.vendorKey) : null
-  if (preferredOption && (requires === 'image-edit' || fits(preferredOption))) return preferredOption
+  if (preferredOption) return preferredOption
   return options.find(fits) ?? null
 }
 

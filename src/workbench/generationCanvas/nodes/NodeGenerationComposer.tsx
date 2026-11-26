@@ -42,7 +42,8 @@ import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
 import { ComposerAnchor } from './composerAnchor'
 import { ConnectedTextChips } from './ConnectedTextChips'
 import TextNodeComposer from './TextNodeComposer'
-import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconRefresh } from '@tabler/icons-react'
+import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconInfoCircle, IconRefresh } from '@tabler/icons-react'
+import { layerSplitComposerState } from './layerSplitComposerState'
 import { useSendCost } from '../spend/useSendCost'
 import { useSendCostLowBalance } from '../spend/useSendCostLowBalance'
 import { ReferenceNamesContext, resolveReferenceInfos } from '../../assets/referenceNames'
@@ -213,6 +214,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
     return archetype ? effectiveArchetypeMode(archetype, node, { nodes: [node], edges: [] }).mode : null
   }, [isAudioKind, node])
   const audioIsTranscribe = audioMode?.transportTaskKind === 'transcribe'
+  // 图层分离（板 2026-11-26-layer-split）：占位、效果小胶囊、没放图的禁用原因、底栏上方那一句都问这一份。
+  const layerSplit = React.useMemo(() => (isImageLikeGenerationNodeKind(node.kind) ? layerSplitComposerState(node, graph) : null), [node, graph])
   const hasPromptPickerButton = Boolean(nodeExecutionKind) && acceptsPrompt && !audioIsTranscribe
   const hasReferenceControls =
     isImageLikeGenerationNodeKind(node.kind) ||
@@ -346,7 +349,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       ? `generationCommon.observability.error.shotClaimed.${productionClaimCopy.key}.reason`
       : 'generationCommon.observability.error.shotClaimed.generic.reason')
     : !canGenerateNow && !isGenerating
-    ? nodeExecutionKind === 'video'
+    ? layerSplit && layerSplit.inputCount === 0
+      ? t('generationCommon.layerSplitComposer.needImage')
+      : nodeExecutionKind === 'video'
       ? acceptsDrop
         ? t('generationCommon.composer.videoReferenceRequired')
         : t('generationCommon.composer.videoFirstFrameRequired')
@@ -447,7 +452,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           <PromptEditor
             className={cn('min-h-[72px]')}
             owner={promptOwner}
-            placeholder={appendMentionHint(getGenerationNodePromptPlaceholder(node.kind))}
+            placeholder={layerSplit ? t('generationCommon.layerSplitComposer.placeholder') : appendMentionHint(getGenerationNodePromptPlaceholder(node.kind))}
             editable={!readOnly}
             onBlur={() => { if (!readOnlyRef.current) void persistActiveWorkbenchProjectNow().catch(() => {}) }}
             onReady={setPromptEditor}
@@ -473,7 +478,20 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       )}
       {/* 连进来的文字：拼进提示词的那几段，摆出来（和生成时拼提示词读同一个投影）。 */}
       <ConnectedTextChips node={node} graph={graph} onDisconnect={readOnly ? undefined : disconnectTextInput} />
-      {showPromptPicker && effects.recommendations}
+      {/* 图层分离不放效果小胶囊（人物三视图这类是生图的配方，拆图用不上）；那一行换成一句有后果的说明：放多了只拆第 1 张 / 层数写死。 */}
+      {showPromptPicker && !layerSplit && effects.recommendations}
+      {layerSplit && (layerSplit.inputCount > 1 || layerSplit.fixed) ? (
+        <p data-layer-split-note={layerSplit.inputCount > 1 ? 'only-first' : 'fixed-model'} className="m-0 flex min-w-0 items-start gap-1 text-micro leading-snug text-nomi-ink-60">
+          <IconInfoCircle size={12} stroke={1.8} className="mt-px shrink-0" aria-hidden />
+          <span className="min-w-0">
+            {layerSplit.inputCount > 1
+              ? layerSplit.inputCount === 2
+                ? t('generationCommon.layerSplitComposer.onlyFirstOne')
+                : t('generationCommon.layerSplitComposer.onlyFirstRest', { rest: layerSplit.inputCount - 1 })
+              : t('generationCommon.layerSplitComposer.fixedModel', { model: selectedModelOption?.label ?? '', layers: layerSplit.maxLayers - 1 })}
+          </span>
+        </p>
+      ) : null}
       {/* 底栏（B3，2026-10-18/19 用户拍板）：铺满卡宽（w-full），左边「出什么」、右边「怎么写 → 出几张 → 走」，不换行：
           `[模型 ▾] [变体 ▾] [16:9 · 5s ▾] ……… [预设][翻译][N] │ [1 个 ▾] [↑]`
           左边模型一颗、变体一颗、参数摘要一颗（现有组件原样）；右边三个提示词钮 + 分隔线 + 数量（模型声明了才有）+ ↑ 圆钮。

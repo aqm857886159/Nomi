@@ -78,7 +78,7 @@ describe("read-only public media price", () => {
       expect(layerQuote({ ...detail55, input_image_first_free: true })?.usd).toBeCloseTo(30 * 0.028, 9);
     });
     it("prints no number when anything it needs is missing or unproved", () => {
-      for (const patch of [{ layerSplit: { maxImages: 101 } }, { layerSplit: { maxImages: 0 } }, { size: "4K" }, { referenceCount: 0 }, { count: 2 },
+      for (const patch of [{ layerSplit: { maxImages: 101 } }, { layerSplit: { maxImages: 0 } }, { size: "4K" }, { referenceCount: 0 }, { referenceCount: 2 }, { count: 2 },
         { modelId: "doubao-seedream-5-0-pro" }])
         expect(layerQuote(detail55, { ...layerQuery, ...patch } as VendorPriceQuery), JSON.stringify(patch)).toBeNull();
       for (const patch of [{ layer_decomposition_paid_prices: { "1K": 0.016 } }, { input_image_paid_price: undefined }, { layer_decomposition_max_images: undefined },

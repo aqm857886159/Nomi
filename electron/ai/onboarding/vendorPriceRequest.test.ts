@@ -101,6 +101,13 @@ describe('layer split asks for the reservation quote (layer cap + input image), 
     expect(query).toMatchObject({ kind: 'image', modelId: 'seedream-5-5', size: 'auto', count: 1, referenceCount: 1, layerSplit: { maxImages: 30 } })
   })
 
+  it('0 images yet (reference removed): still a layer-split query, so the greyed send key keeps its price', () => {
+    const node = createGenerationNode({ id: 'layer-node', kind: 'image', prompt: '' })
+    node.meta = { modelVendor: 'apimart', vendor: 'apimart', ...seedream55 }
+    const query = priceQueryFromRequest(priceRequest(node, { nodes: [node], edges: [] })!, seeded())
+    expect(query).toMatchObject({ kind: 'image', modelId: 'seedream-5-5', referenceCount: 1, layerSplit: { maxImages: 30 } })
+  })
+
   it('reads the chosen layer cap and tier', () => {
     const query = priceQueryFromRequest(layerNode({ ...seedream55, layer_count: 8, layer_size: '1.5K' }), seeded())
     expect(query).toMatchObject({ size: '1.5K', layerSplit: { maxImages: 8 } })

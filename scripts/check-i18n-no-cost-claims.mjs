@@ -73,6 +73,8 @@ export const COST_LABEL_EXACT = Object.freeze({
   'generationCommon.composer.sendCostLowBalance.topUpAria': Object.freeze({ 'zh-CN': '去 APIMart 充值（还差 {{value}} 积分）', en: 'Top up on APIMart (short {{value}} credits)' }),
   'generationCommon.composer.sendCostLowBalance.description': Object.freeze({ 'zh-CN': '当前余额约 {{balance}} 积分，这次约需 {{need}} 积分，还差 {{shortfall}} 积分。充值后返回即可继续生成。', en: 'Current balance is about {{balance}} credits; this run needs about {{need}} credits ({{shortfall}} short). Return after topping up to continue.' }),
   'modelSetup.apimartVerification.credits': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
+  // 图层分离 ≥50 层提醒句里的约价（板 2026-11-26-layer-split · layers.params-panel）：单位跟发送键，积分档时印这一句。
+  'generationCommon.layerSplitComposer.creditsAmount': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
   'modelSetup.apimartVerification.connectedBalance': Object.freeze({ 'zh-CN': ' · 余额 {{value}} 积分', en: ' · Balance {{value}} credits' }),
   'modelSetup.apimartVerification.topup': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
   'modelSetup.apimartVerification.topupBody': Object.freeze({ 'zh-CN': 'Key 已存好，就差充值：出图和上传素材都要余额大于 0。充好后回到 Nomi 会自动再查一次。', en: 'Key saved. Images and asset uploads need a balance above zero. Top up, then return to Nomi for an automatic check.' }),

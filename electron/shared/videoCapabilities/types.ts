@@ -35,6 +35,13 @@ export type ModelParameterControl = {
   step?: number;
   placeholder?: string;
   /**
+   * 数字参数的常用档（面板里摊成一排可点项，末尾一格「自定义」打开数字框，范围仍是 min–max）。只给 number 用；
+   * 没有 = 照旧按区间画滑杆 / 数字框。
+   */
+  presets?: number[];
+  /** 面板里这一项下面的一行小字（说明这个值的后果，如「是上限，可能拆得更少」）；界面按 modelDisplayText 翻译。 */
+  note?: string;
+  /**
    * 报文写法，只由声明门（paramValue.ts 的 normalizeDeclaredControls）写：供应商文档要字符串数字（`"5"`）的下拉，门里用数字档，
    * 出口（taskParams 的 encodeParamsForWire）按它编回字符串。没有 = 报文就是内部类型本身。档案里不手写。
    */
