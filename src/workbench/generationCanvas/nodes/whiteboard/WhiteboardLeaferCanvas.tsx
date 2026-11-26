@@ -49,6 +49,7 @@ import { useWhiteboardDrawing } from './useWhiteboardDrawing'
 import { useWhiteboardBoxSelection } from './useWhiteboardBoxSelection'
 import { useWhiteboardSelectionActions } from './useWhiteboardSelectionActions'
 import { useWhiteboardSceneSync } from './useWhiteboardSceneSync'
+import { canDrawOnLayer } from './whiteboardStateOps'
 
 export type { CanvasObjectTarget, CanvasStroke } from './whiteboardCanvasTypes'
 
@@ -540,7 +541,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
   }, [])
 
   const activeLayer = layers.find((layer) => layer.id === activeLayerId)
-  const canDraw = (activeTool === 'brush' || activeTool === 'eraser') && Boolean(activeLayer && !activeLayer.locked)
+  const canDraw = canDrawOnLayer(activeTool, activeLayer)
   const removeBackgroundBounds = removingBackgroundTargetId
     ? getCanvasTargetsUnionBounds(
         [{ kind: 'asset', id: removingBackgroundTargetId }],

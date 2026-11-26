@@ -34,6 +34,7 @@ import {
   ASSET_DRAG_MIME,
   assessDeleteTarget,
   clampCanvasPosition,
+  commitStrokeToState,
   deleteTargetFromState,
   getAssetPanelItems,
   groupTargetsIntoLayer,
@@ -215,31 +216,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
 
     const commitStroke = React.useCallback(
       (stroke: CanvasStroke) => {
-        setState((current) => {
-          if (stroke.tool !== 'brush') {
-            return { ...current, strokes: [...current.strokes, stroke] }
-          }
-          const layerId = createWhiteboardId('stroke-layer')
-          const nextStroke = { ...stroke, layerId }
-          const strokeIndex = current.layers.filter((layer) => layer.id.startsWith('stroke-layer')).length + 1
-          return {
-            ...current,
-            activeLayerId: layerId,
-            strokes: [...current.strokes, nextStroke],
-            layers: [
-              ...current.layers,
-              {
-                id: layerId,
-                name: t('generationCommon.whiteboard.brushPath', { index: strokeIndex }),
-                visible: true,
-                locked: false,
-                opacity: 1,
-                kind: 'drawing',
-                thumbnail: 'checker',
-              },
-            ],
-          }
-        })
+        setState((current) => commitStrokeToState(current, stroke, (index) => t('generationCommon.whiteboard.brushPath', { index })))
         setActiveCanvasObject({ kind: 'stroke', id: stroke.id })
       },
       [t, setState],
