@@ -1,8 +1,9 @@
 有条件通过：空框回车唯一确认付费条、输入有字与组字防误花钱、工具行静态「待确认」不转圈、裸斜杠不误发及回退必红反例全部实测通过；中英真窗截图按派活单由协调审查补截确认。
 
-- 验收线：v-fg3-2
-- 验收 HEAD：042cfec75cf607fa32ca32e83708d2b58920e1f3
+- 验收线：v-fg3-2-r2
+- 验收 HEAD：1e1a6b7a34fe24899c17cd32ca8e2e87d1308049
 - 阻断：无
+- 上一轮盲验 HEAD：042cfec75cf607fa32ca32e83708d2b58920e1f3（v-fg3-2）
 - 基线提交：a05ca5219
 - 仅测试提交：fd6a60bac
 - 验证方式：盲验独立源码审计 + 门禁脚本 + 定向单测 + 破坏必红反例（未读取任何实现线自报/交付材料，未触发真付费调用）
@@ -93,3 +94,11 @@
 ## 5. 未在本次盲验执行项
 
 - 中英文真窗截图（含付费确认条、静态「待确认」工具行、输入框新占位文字）：按派活单留交协调审查时补截确认。
+
+## 6. 视觉基线同步复验（`1e1a6b7a3` · `v-fg3-2-r2`）
+
+- **HEAD 与增量核查**：确认当前 `HEAD` 为 `1e1a6b7a34fe24899c17cd32ca8e2e87d1308049`。核对 `git diff --stat 042cfec75cf607fa32ca32e83708d2b58920e1f3..1e1a6b7a34fe24899c17cd32ca8e2e87d1308049`（共 2 个提交：`62f8232a8`、`1e1a6b7a3`），仅改动 5 个文件——本验收报告 `acceptance.md` 与 `tests/ux/design-lab/__baselines__/creation-columns/` 下 4 张 PNG，**生产代码与测试代码零改动**。
+- **4 张新视觉基线与 4 张 `-diff.png` 亲眼核验**（逐张读取 `tests/ux/design-lab/__baselines__/creation-columns/{columns-current,columns-specimen,columns-specimen-dark,columns-storyboard-tree}.png` 及 `docs/evidence/2026-11-27-fg3-2-agent-spend-bar/design-lab-diff/` 对应 `-diff.png`）：
+  - `columns-current.png`、`columns-specimen.png`、`columns-specimen-dark.png`：像素差异**仅限于**右下角停靠 Agent 输入框占位词末尾移去 `@ 引用素材或技能`（从 `继续告诉 Nomi 要改什么... @ 引用素材或技能` 收紧为 `继续告诉 Nomi 要改什么...`，符合 `LibraryPointers` 拍板），明暗两套界面均无破版、裁切或遮挡。
+  - `columns-storyboard-tree.png`：右下角 Agent 输入框占位词同样仅移去 `@ 引用素材或技能`；另见右上角 `Nomi` 标题右侧原空态上下文胶囊 `— ⌄`（`V4ContextRing`）在旧基线 `6484cf76f` 时尚存在、现已隐藏——核查归因系主线已合入提交 `4e8ed701b`（空用量时隐藏 `V4ContextRing`）所致，与本分支无关且与其余 3 张 `creation-columns` 顶栏一致，无任何破版或遮挡。
+- **定向回归复跑**：在 `1e1a6b7a34fe24899c17cd32ca8e2e87d1308049` 上复跑 `VITEST_MAX_WORKERS=2 pnpm exec vitest run src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx`，**21 / 21 全部通过**（1 test file passed, 58ms）。
