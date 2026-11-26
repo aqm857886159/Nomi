@@ -37,7 +37,6 @@
     "src/ui/app-shell/shell/agentPanelHeaderSlot.ts",
     "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
     "src/workbench/production/productionRunApi.ts",
-    "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
     "electron/capabilityCore/canvasHandOver.ts"
   ],
   "entry_points": [
@@ -301,7 +300,7 @@
     },
     {
       "kind": "read",
-      "path": "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
       "symbol": "confirmDisplayedSpend"
     },
     {
@@ -383,7 +382,7 @@
       "responsibility": "Associate an unresolved tool call with its own waiting spend offer or pending tool approval."
     },
     {
-      "path": "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
       "symbol": "confirmDisplayedSpend",
       "responsibility": "Consume the displayed offer after continuous visibility of the primary button."
     },
@@ -454,7 +453,7 @@
       "electron/productionRun/productionPendingSpend.ts",
       "electron/agentLane/laneSpendCardClose.ts",
       "electron/agentLane/laneExtendedDesktopPorts.ts",
-      "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
       "electron/capabilityCore/canvasHandOver.ts"
     ]
   },

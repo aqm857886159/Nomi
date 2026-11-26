@@ -1,4 +1,4 @@
-import { useSpendEnterConfirmation } from './useSpendEnterConfirmation'
+import { useSpendEnterConfirmation } from './useAgentPanelSpendCard'
 import { NomiBrand } from '../../../design/identity'
 // Agent 面板 v4 · 整块面板的装配壳
 //

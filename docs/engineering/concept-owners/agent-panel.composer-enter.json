@@ -16,7 +16,7 @@
       "symbol": "AgentPanelV4Composer"
     },
     {
-      "path": "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
       "symbol": "confirmDisplayedSpend"
     }
   ],
