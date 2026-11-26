@@ -273,7 +273,7 @@
         "191-span-480p低成本试片满意后",
         "192-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "note": "C-D5：目录里独立一行，模型菜单、隐藏模型、设置里的模型框整理、分镜菜单都有；出高清只在画布节点下方",
       "assertion": "board:SampleMode/sample.picker-row"
@@ -307,7 +307,7 @@
         "423-svg",
         "424-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.picker-chip"
     },
@@ -384,7 +384,7 @@
         "435-svg",
         "436-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.send-price"
     },
@@ -418,7 +418,7 @@
         "603-span-生成音频",
         "604-span-生成音频"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.params-panel"
     },
@@ -511,7 +511,7 @@
         "677-span-Draft21hleft",
         "678-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.expiry-chip"
     },
@@ -540,7 +540,7 @@
         "641-span-soitcantbema",
         "642-span-Redraftthenm"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.expiry-tooltip"
     },
@@ -620,7 +620,7 @@
         "572-button-出高清",
         "573-div-暂时估不出这次用量"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.hd-no-price"
     },
@@ -648,7 +648,7 @@
         "637-span-54",
         "638-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.redraft-button"
     },
@@ -667,7 +667,7 @@
       "candidates": [
         "540-span-高清生成中"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.hd-progress"
     },
@@ -712,7 +712,7 @@
       "candidates": [
         "475-span-生成中"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.generating"
     },
@@ -736,7 +736,7 @@
         "545-div-2",
         "548-div-铺开2个版本"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "note": "C-D2：版本栈不设上限，照今天的做法；板上画 2 版只是样片 + 高清版这个场景",
       "assertion": "board:SampleMode/sample.version-hd"
@@ -800,7 +800,7 @@
         "611-span-0050",
         "612-div-只有从Seedance2"
       ],
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.plain-480p"
     },
