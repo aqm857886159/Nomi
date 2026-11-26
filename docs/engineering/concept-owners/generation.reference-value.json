@@ -1,0 +1,24 @@
+{
+  "name": "正式生成参考素材出站交付值合法性判据（HTTP 与有界内联媒体）",
+  "subject": "generation.reference-value",
+  "lifecycle": "frozen-execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/generationProviderReferenceValue.ts",
+    "symbol": "providerReferenceValueValidator"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/generationProviderReferenceValue.ts",
+      "symbol": "providerReferenceValueValidator"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/productionReferenceUrls.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "合同 docs/fixes/2026-11-24-fc-declared-provider-and-wan-handles.root-cause.json：授权前参考封存与出站请求投影共享同一交付值校验，放行合规 HTTP URL 与已声明 inline-base64 有界媒体 data URI。"
+}

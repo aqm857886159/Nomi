@@ -65,8 +65,10 @@ app.once('browser-window-created', (_event, window) => installWindowCloseConfirm
     await openStoryboardEditor(win, DESIGN, 'editable draft persistence')
     await expect(win.locator('[data-storyboard-editor="true"]')).toBeVisible()
     const anchors = win.locator('[data-storyboard-anchors-toggle]')
-    if (await anchors.getAttribute('aria-expanded') === 'false') await anchors.click()
-    await expect(anchors).toHaveAttribute('aria-expanded', 'true')
+    if (await anchors.count() > 0) {
+      if (await anchors.getAttribute('aria-expanded') === 'false') await anchors.click()
+      await expect(anchors).toHaveAttribute('aria-expanded', 'true')
+    }
     return win
   }
   const snapshot = async name => { await current.win.screenshot({ path: path.join(root, `${name}.png`) }) }

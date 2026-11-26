@@ -446,6 +446,10 @@
       "reason": "付费卡的卡体（D2 SpendCardQ1 板）：指向元素 + 一行只读摘要 + 说明行——按镜头花钱的领域呈现，卡上每个字都从那几镜节点现读"
     },
     {
+      "path": "src/workbench/ai/v4/AgentPanelV4SpendBar*",
+      "reason": "付费确认条（SpendAskSplit 板）：独立的付费确认槽组件，承接所有 kind === 'spend' 的花钱确认（共同参数、进度、失败、md 档取消/生成按钮）——按镜头花钱的领域呈现"
+    },
+    {
       "path": "src/workbench/ai/v4/spendCard*",
       "reason": "付费卡上说「没成」的那几句：卡上那一下动作本身没做成、交给画布的某一镜没发出去——只认 Nomi 自己的语义码，只说发没发出去和下一步"
     },
@@ -1656,6 +1660,7 @@
       "paths": [
         "src/design/Nomi*",
         "src/design/iconTiers.ts",
+        "src/design/motion.ts",
         "src/theme/"
       ],
       "alternativesChecked": [
@@ -1680,7 +1685,7 @@
           "source": "https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/new-york-v4/ui/button.tsx"
         }
       ],
-      "whyNotIntegrated": "领域约束：产品的视觉识别与密度优先的规范是 Nomi 自己的（token 翻转、天黑自动暗、一致的控件层级）；基础交互原语已经用 Mantine，不自写。这里自写的只有品牌层（登记只覆盖 Nomi 前缀的品牌组件与主题，加上图标四档令牌 src/design/iconTiers.ts——四档的数值是 Nomi 拍板的视觉规范，不是通用能力）。新增的通用交互组件（例如又一个浮层）仍应先看 Mantine / Radix 有没有。",
+      "whyNotIntegrated": "领域约束：产品的视觉识别与密度优先的规范是 Nomi 自己的（token 翻转、天黑自动暗、一致的控件层级）；基础交互原语已经用 Mantine，不自写。这里自写的只有品牌层（登记只覆盖 Nomi 前缀的品牌组件与主题，加上图标四档和动效六档——取值是 Nomi 拍板的视觉规范，不是通用能力）。新增的通用交互组件（例如又一个浮层）仍应先看 Mantine / Radix 有没有。",
       "revisitWhen": "0.24 S6：Tailwind 4 与 AI Elements 评估时，一并评估设计系统与它们的冲突与可替换部分",
       "revisitBy": "2026-12-31"
     },
@@ -2585,6 +2590,33 @@
       "revisitWhen": "既有请求构造器直接提供同形的只读报价投影，或公开价读取迁入统一的模型连接领域 owner 时，合并这些适配并删掉重复入口；任何时候都不得用估价结果替代生成授权。"
     },
     {
+      "id": "send-cost-account-balance",
+      "capability": "发送键旁余额不足提醒的主进程余额读取：从内置供应商档案声明读取官方 /v1/balance（仅官方域名、Bearer 凭据走既有解密与出站目的地授权、失败与无限额度 -1 均退回不拦截发送），与公开价目预览彻底解耦",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-17-cost-step1-estimate.md",
+      "paths": [
+        "electron/ai/onboarding/vendorAccountBalance.ts",
+        "src/workbench/generationCanvas/spend/useVendorBalance.ts",
+        "src/workbench/generationCanvas/spend/useSendCostLowBalance.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "复用既有出站授权与备用域名回落：直接调用 authorizeSubmitDestination、findIllegalHeader、fetchVendorWithBaseFallback 与 decryptApiKeyRecord，不另写 HTTP 传输或凭据读写",
+          "source": "electron/vendor/vendorHttp.ts"
+        },
+        {
+          "name": "不合进公开价目读取 vendorPricePreview：公开价必须零凭据 GET；账户余额必须带 Bearer 且仅发往官方域名，架构测试明确禁止公开价链出现账户/余额依赖",
+          "source": "electron/ai/onboarding/vendorPricePreview.ts:1"
+        },
+        {
+          "name": "供应商档案声明驱动：端点路径与充值链接声明在 builtinVendorSeeds / apimartVendor，未声明余额能力的供应商直接返回 null，不在调用处硬编码 URL",
+          "source": "electron/catalog/apimartVendor.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：把主进程保存的 APIMart 凭据、官方域名白名单与 Nomi 按镜约价对比，输出「还差 N 积分 + 去充值」状态，且余额未知/过期/无限(-1)必须退回正常发送键；传输、重试、凭据解密和目的地授权全部复用既有模块。",
+      "revisitWhen": "未来若建立统一的供应商账户中心（覆盖额度、账单与余额订阅），将此只读查询并入该唯一 owner 并删掉独立文件。"
+    },
+    {
       "id": "param-value-door-eslint-rule",
       "capability": "ESLint 小规则 param-value-door/no-reparse：画布、分镜、助手与发送这几块目录里，不许再对参数袋里的时长或控件档位值自己写一份 typeof / Number / parseFloat / 一元 + / 字符串化比较，规整只走 electron/shared/videoCapabilities/paramValue.ts 的门",
       "status": "justified",
@@ -2656,6 +2688,32 @@
       ],
       "whyNotIntegrated": "领域约束：两份官方结果在 Nomi 中控制不同动作。只有账户确认为零才停在充值卡；Key 额度用于单行提示。保存凭据、回到原节点草稿与发送侧余额快照共享同一账户来源。",
       "revisitWhen": "供应商账户合同或 Nomi 接入流程取消这两个独立信号时，合并或删除对应投影。"
+    },
+    {
+      "id": "canvas-selection-composer-viewport",
+      "capability": "画布首进自动取景与单选节点生成框越界平滑入画：把画布坐标的节点主体/标题/浮条与屏幕像素反缩放的固定宽 ComposerAnchor、四周停靠栏合成为单一编辑占地",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-24-ux-simple-canvas-ux1.md",
+      "paths": [
+        "src/workbench/generationCanvas/reactFlow/selectionComposerViewport.ts",
+        "src/workbench/generationCanvas/reactFlow/useSelectionComposerPan.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "React Flow getNodesBounds / fitView：已用于读取含虚拟化节点的画布外接框，但其只计算画布坐标节点矩形，不知道 scale(1/zoom) 固定屏幕像素宽的节点下方 ComposerAnchor 与外框停靠遮挡",
+          "source": "https://reactflow.dev/api-reference/utils/get-nodes-bounds"
+        },
+        {
+          "name": "现有 focusViewportRecovery：复用其区分屏幕像素遮挡（左栏/时间轴/停靠 Agent）与画布单位的坐标约定，不另造第二套舞台空地读取",
+          "source": "src/workbench/generationCanvas/reactFlow/focusViewportRecovery.ts"
+        },
+        {
+          "name": "现有 useReactFlowViewportAnimation：平滑视口平移与手动交互中断直接委托既有视口动画协调器，不自写帧循环动画",
+          "source": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：用户 2026-09-25 与 2026-11-24 拍板要求生成框以固定屏幕像素宽度钉在节点正下方（反画布缩放）、单选越界时只平移画布不变形生成框，且首进与派生需同时容纳框外标题浮条与下方生成框；没有任何通用图库认识这套混合坐标系的节点外挂生成框。",
+      "revisitWhen": "生成框改为标准舞台停靠层或 React Flow 原生支持混合屏幕像素锚点外接盒取景时，删除本适配并迁回内置 fitView。"
     }
   ]
 }

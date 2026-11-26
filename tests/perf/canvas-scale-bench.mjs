@@ -42,7 +42,6 @@ import { FAR_DENSE_LAUNCH_ARGS, FAR_DENSE_LAUNCH_ENV, FAR_DENSE_SAMPLE_KEYS, FAR
 import { IPC_PROBE_MODULE, startDiagnostics } from './canvas-scale/diagnostics.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const outputDir = path.join(repoRoot, 'tests/perf/results')
 // 屏幕外窗口会被 Windows 判成「被遮挡」而停掉渲染帧：挂屏幕外时同时关掉遮挡判定，量到的帧才是真的。
 const OFFSCREEN_MODULE = path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')
 const OFFSCREEN_CHROMIUM_ARGS = ['--disable-features=CalculateNativeWinOcclusion']
@@ -98,7 +97,9 @@ if (hasArg('--help') || hasArg('-h')) {
   --extra-projects  库里另放 N 个小项目（默认 0）
   --diag-out   诊断腿：第一个计数样本抓 CDP trace、渲染 / 主进程 profile、IPC 计时、store 写、合成层（见 canvas-scale/diagnostics.mjs）
   --profile    对每个场景另抓一次 CDP CPU profile（JS 自时间前 25 名）
+  --out        指定原始 JSON 文件路径
   --label      产物文件名后缀（默认 run）
+  --out        原始采样 JSON 的完整输出路径
   --onscreen   窗口放在屏幕上（默认挂屏幕外、不抢焦点）`)
   process.exit(0)
 }
@@ -125,6 +126,7 @@ const extraProjects = Math.max(0, Number(argValue('--extra-projects', '0')))
 const diagOut = argValue('--diag-out', '')
 const withProfile = hasArg('--profile')
 const label = argValue('--label', 'run')
+const outPath = path.resolve(argValue('--out', path.join(repoRoot, 'tests/perf/results', `canvas-scale-${label}.json`)))
 
 const sleep = (page, ms) => page.waitForTimeout(ms)
 
@@ -775,7 +777,7 @@ async function collectProfile(cdp, fn) {
 }
 
 async function main() {
-  fs.mkdirSync(outputDir, { recursive: true })
+  fs.mkdirSync(path.dirname(outPath), { recursive: true })
   const machine = {
     platform: process.platform,
     arch: process.arch,
@@ -973,10 +975,9 @@ async function main() {
       } else {
         results.push({ scale, scenario, nodes: fixture.summary.nodes, edges: fixture.summary.edges, runs: 0, skipped: true, error: launchError })
       }
-      fs.writeFileSync(path.join(outputDir, `canvas-scale-${label}.json`), JSON.stringify({ label, machine, generatedAt: new Date().toISOString(), scales, scenarios, runs, results }, null, 2))
+      fs.writeFileSync(outPath, JSON.stringify({ label, machine, generatedAt: new Date().toISOString(), scales, scenarios, runs, results }, null, 2))
     }
   }
-  const outPath = path.join(outputDir, `canvas-scale-${label}.json`)
   console.log(`\n结果写入 ${outPath}`)
   console.log('\n| scale | nodes | scenario | selected | zoom | mounted | fps | p50 | p95 | max | script/style/layout ms | layouts | 长任务(次/最长ms) | 每帧触碰节点(中位/峰值) | 响应 ms | 主进程往返峰值 ms |')
   console.log('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|')

@@ -17,22 +17,19 @@ const expectBefore = (document, token, boundary, message) => {
   const boundaryIndex = document.indexOf(boundary)
   expect(tokenIndex >= 0 && boundaryIndex >= 0 && tokenIndex < boundaryIndex, message)
 }
-/** README 的微信转化块：住在「社区」一节里，用户群码大图在前，维护者码在后，不用会缩小的 Markdown 表格。 */
+/** README 的常青社区转化块：住在「社区」一节里，展示永不过期的维护者二维码 + 微信号进群说明 + GitHub Discussions/Issues，不再嵌 7 天必过期的微信群码。 */
 const expectCommunityConversion = (document, heading, nextHeading, language) => {
   const startIndex = document.indexOf(heading)
   const boundaryIndex = document.indexOf(nextHeading, startIndex + heading.length)
   expect(startIndex >= 0 && boundaryIndex > startIndex, `${language} community block is bounded`)
   const conversion = document.slice(startIndex, boundaryIndex)
-  const groupImage = conversion.match(/<img src="docs\/media\/nomi-canvas-group-wechat-[0-9]{4}-[0-9]{2}-[0-9]{2}\.jpg"[^>]*>/)?.[0]
-  expect(groupImage && /width="2\d{2}"/.test(groupImage), `${language} group QR remains prominent on mobile`)
+  const maintainerImage = conversion.match(/<img src="docs\/media\/qingyang-wechat\.jpg"[^>]*>/)?.[0]
+  expect(maintainerImage && /width="(?:180|2\d{2})"/.test(maintainerImage), `${language} maintainer QR remains prominent on mobile`)
   expect(!conversion.includes('|:---'), `${language} conversion avoids a shrinking Markdown table`)
-  expectBefore(
-    conversion,
-    'docs/media/nomi-canvas-group-wechat-2026-11-22.jpg',
-    'docs/media/qingyang-wechat.jpg',
-    `${language} puts the user-group QR before maintainer contact`,
-  )
+  expect(!/nomi-canvas-group-wechat|group-wechat-/.test(conversion), `${language} community block ships no expiring 7-day group QR asset`)
   expect(conversion.includes('TZ857886159'), `${language} community block keeps the textual WeChat fallback`)
+  expect(conversion.includes('github.com/aqm857886159/Nomi/discussions'), `${language} community block links GitHub Discussions`)
+  expect(conversion.includes('github.com/aqm857886159/Nomi/issues'), `${language} community block links GitHub Issues`)
 }
 
 const zh = read('marketing/index.html')
@@ -43,6 +40,7 @@ const sitemap = read('marketing/sitemap.xml')
 const headers = read('marketing/_headers')
 const readmeEn = read('README.md')
 const readmeZh = read('README.zh-CN.md')
+const readmeJa = read('README.ja.md')
 const packageJson = JSON.parse(read('package.json'))
 const releaseVersion = packageJson.version
 // 官网写的最低 macOS 跟着 Electron 走（Electron docs/breaking-changes.md：38 起要 macOS 12，44 起要 13，已核到 46）。
@@ -64,9 +62,7 @@ const files = [
   'marketing/assets/promo-0.22/film-poster-en.jpg',
   'marketing/assets/social-preview-zh.jpg',
   'marketing/assets/social-preview-en.jpg',
-  'marketing/assets/group-wechat-2026-11-22.jpg',
   'marketing/assets/qingyang-wechat.jpg',
-  'docs/media/nomi-canvas-group-wechat-2026-11-22.jpg',
   'docs/media/qingyang-wechat.jpg',
   '.github/ISSUE_TEMPLATE/business_inquiry.yml',
   'marketing/quickstart.html',
@@ -120,9 +116,11 @@ for (const html of [zh, en]) {
     expect(html.includes(`/releases/latest/download/${installer}`), `${installer} direct link exists`)
   }
   expect(html.includes('business_inquiry.yml'), 'business CTA destination exists')
-  expect(html.includes('/assets/group-wechat-2026-11-22.jpg'), 'current group QR is used')
-  expect(html.includes('<figure class="qr" id="community-qr"><img'), 'group QR is directly rendered in the page')
-  expect(!html.includes('data-open-dialog="group'), 'group QR does not require a dialog trigger')
+  expect(html.includes('https://github.com/aqm857886159/Nomi/discussions'), 'community Discussions link exists')
+  expect(html.includes('https://github.com/aqm857886159/Nomi/issues'), 'community Issues link exists')
+  expect(!/group-wechat-|nomi-canvas-group-wechat|日前有效|天内.*有效/.test(html), 'no expiring 7-day group QR or expiry date ships on homepage')
+  expect(html.includes('<figure class="qr" id="community-qr"><img src="/assets/qingyang-wechat.jpg"'), 'non-expiring maintainer WeChat QR is directly rendered in the community section')
+  expect(!html.includes('data-open-dialog="group'), 'community QR does not require a dialog trigger')
   expect(html.includes('/assets/qingyang-wechat.jpg'), 'maintainer QR destination exists')
   expect(html.includes('/assets/nomi-logo.svg'), 'official Nomi mark is used')
   expect(html.includes(`macOS ${macFloor}+`), `macOS minimum version matches what Electron ${electronMajor} requires`)
@@ -188,11 +186,14 @@ for (const html of [zh, en, zhQuickstart, enQuickstart]) {
 for (const relativePath of files) expect(fs.existsSync(path.join(root, relativePath)), `${relativePath} exists`)
 expect(
   fs
-    .readFileSync(path.join(root, 'marketing/assets/group-wechat-2026-11-22.jpg'))
-    .equals(fs.readFileSync(path.join(root, 'docs/media/nomi-canvas-group-wechat-2026-11-22.jpg'))),
-  'website and README publish the identical current group QR',
+    .readFileSync(path.join(root, 'marketing/assets/qingyang-wechat.jpg'))
+    .equals(fs.readFileSync(path.join(root, 'docs/media/qingyang-wechat.jpg'))),
+  'website and README publish the identical non-expiring maintainer QR',
 )
-expect(!zh.includes('/assets/group-wechat-2026-08-14.png') && !en.includes('/assets/group-wechat-2026-08-14.png'), 'old group QR is not published by the homepage')
+for (const dir of ['marketing/assets', 'docs/media']) {
+  const staleGroupQrs = fs.readdirSync(path.join(root, dir)).filter((name) => /group-wechat/i.test(name))
+  expect(staleGroupQrs.length === 0, `${dir} contains no 7-day expiring group QR files (found: ${staleGroupQrs.join(', ')})`)
+}
 expect(fs.statSync(path.join(root, `marketing${film}`)).size < 15 * 1024 * 1024, 'the web film stays small enough for the static host')
 expect(!fs.existsSync(path.join(root, 'marketing/assets/demo.gif')), 'legacy demo GIF remains removed')
 expect(!fs.existsSync(path.join(root, 'marketing/assets/vendor/gsap.min.js')), 'GSAP remains removed')
@@ -242,7 +243,8 @@ expect(
 )
 expectCommunityConversion(readmeEn, '## Community', '\n## ', 'English README')
 expectCommunityConversion(readmeZh, '## 社区', '\n## ', 'Chinese README')
-expectBefore(readmeEn, '## Download', '## Community', 'English README puts downloads before the community QR codes')
-expectBefore(readmeZh, '## 下载', '## 社区', 'Chinese README puts downloads before the community QR codes')
+expectCommunityConversion(readmeJa, '## コミュニティ', '\n## ', 'Japanese README')
+expectBefore(readmeEn, '## Download', '## Community', 'English README puts downloads before the community section')
+expectBefore(readmeZh, '## 下载', '## 社区', 'Chinese README puts downloads before the community section')
 
 console.log('MARKETING HOME STATIC PASS')

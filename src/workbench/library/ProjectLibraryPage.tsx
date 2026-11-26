@@ -46,7 +46,7 @@ const CARD_ACTION_CLASS = cn(
   'grid place-items-center text-nomi-ink-60 cursor-pointer',
   // 低频动作 hover/聚焦才显，不在每张卡常驻一颗带框按钮
   'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-  'transition-[background,border-color,color,opacity] duration-150',
+  'transition-[background,border-color,color,opacity] duration-nomi-micro',
   'hover:bg-nomi-ink-05 hover:border-nomi-ink-20 hover:text-nomi-accent',
 )
 
@@ -355,7 +355,7 @@ export default function ProjectLibraryPage({
                     onClick={() => setSourceFilter(option.id)}
                     className={cn(
                       'inline-flex h-6 items-center gap-1 rounded-pill border-0 bg-transparent px-2.5 text-caption font-inherit cursor-pointer',
-                      'text-nomi-ink-60 transition-[background,color,box-shadow] duration-150 hover:text-nomi-ink',
+                      'text-nomi-ink-60 transition-[background,color,box-shadow] duration-nomi-micro hover:text-nomi-ink',
                       sourceFilter === option.id && 'bg-nomi-paper font-medium text-nomi-ink shadow-nomi-sm',
                     )}
                   >
@@ -553,7 +553,7 @@ export default function ProjectLibraryPage({
                   <div
                     className={cn(
                       'aspect-video relative overflow-hidden rounded-panel bg-nomi-ink-05 ring-1 ring-inset ring-nomi-line-soft',
-                      'transition-[box-shadow,transform] duration-150',
+                      'transition-[box-shadow,transform] duration-nomi-micro',
                       !unavailable && 'group-hover:-translate-y-0.5 group-hover:shadow-nomi-md',
                     )}
                     style={urls.length === 0 && project.thumbStyle ? { background: project.thumbStyle } : undefined}
@@ -561,7 +561,7 @@ export default function ProjectLibraryPage({
                     <ThumbnailMosaic urls={urls} videoUrl={project.coverVideoUrl} />
                     <div
                       className={cn(
-                        'absolute inset-0 bg-nomi-scrim opacity-0 transition-opacity duration-150',
+                        'absolute inset-0 bg-nomi-scrim opacity-0 transition-opacity duration-nomi-micro',
                         'flex items-center justify-center z-[2]',
                         'group-hover:opacity-100',
                       )}
@@ -570,7 +570,7 @@ export default function ProjectLibraryPage({
                         className={cn(
                           'absolute top-[9px] right-[9px] size-8 rounded-nomi-sm border-none',
                           'bg-workbench-danger-soft text-workbench-danger grid place-items-center cursor-pointer',
-                          'transition-[background,color] duration-150',
+                          'transition-[background,color] duration-nomi-micro',
                           'hover:bg-workbench-danger hover:text-nomi-paper',
                         )}
                         type="button"
@@ -600,7 +600,7 @@ export default function ProjectLibraryPage({
                           className={cn(
                             'h-8 px-3 rounded-nomi-sm border-none',
                             'bg-nomi-paper/90 text-nomi-ink font-inherit text-caption font-medium cursor-pointer',
-                            'transition-colors duration-150 hover:bg-nomi-paper',
+                            'transition-colors duration-nomi-micro hover:bg-nomi-paper',
                           )}
                           type="button"
                           onClick={(e) => {

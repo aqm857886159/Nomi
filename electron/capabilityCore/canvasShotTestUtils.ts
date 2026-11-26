@@ -34,6 +34,7 @@ export function canvasTestRequest(nodeId: string, prompt = "a red cube", extras:
 export function setupCanvasShots(options: {
   previewBlock?: DirectorPreviewSpendBlockReason | "unrecognized" | null;
   root?: string;
+  vendorKey?: string;
   repository?: ReturnType<typeof createProductionRunRepository>;
   now?: () => string;
   observe?: (submission: unknown, projectId: string, runId: string) => void;
@@ -70,7 +71,8 @@ export function setupCanvasShots(options: {
     onEvents: (_events, run) => followRunChange(run),
     approvalReceiptAuthority: receipts, projectRevisionResolver: () => 0,
   });
-  const canvasProvider = createCanvasTransportProvider("acme", options.transport ?? transport);
+  const vendorKey = options.vendorKey ?? "acme";
+  const canvasProvider = createCanvasTransportProvider(vendorKey, options.transport ?? transport);
   const providers = [options.submitIdempotency ? { ...canvasProvider, capabilities: { ...canvasProvider.capabilities, submitIdempotency: true } } : canvasProvider];
   const observed: Array<[string, string]> = [];
   const previewCalls: string[] = [];
@@ -97,12 +99,12 @@ export function setupCanvasShots(options: {
   const gesture = { webContentsId: 7, frameId: 1, origin: "app://nomi" };
   /** 单节点 ↑ 或批量卡上轮到的那一镜：渲染层「交」。 */
   const submit = (nodeId: string, runRecordId: string, prompt?: string, extras?: Record<string, unknown>) => runs.submit({
-    projectId: CANVAS_TEST_PROJECT, nodeId, runRecordId, vendor: "acme", request: canvasTestRequest(nodeId, prompt, extras), gesture, senderId: 7,
+    projectId: CANVAS_TEST_PROJECT, nodeId, runRecordId, vendor: vendorKey, request: canvasTestRequest(nodeId, prompt, extras), gesture, senderId: 7,
   });
   /** 批量卡上点了确认：卡上列出的这几个节点各开一份出价。 */
   const consent = (shots: Array<Pick<CanvasConsentShot, "nodeId" | "runRecordId">>, senderId = 7) => runs.consent({
     projectId: CANVAS_TEST_PROJECT, senderId,
-    shots: shots.map((shot) => ({ ...shot, vendor: "acme", modelKey: "img-model", kind: "image" })),
+    shots: shots.map((shot) => ({ ...shot, vendor: vendorKey, modelKey: "img-model", kind: "image" })),
   });
   const withdraw = (runRecordIds: string[], by: "removed" | "user_closed" | "stopped") => runs.withdraw({ projectId: CANVAS_TEST_PROJECT, runRecordIds, by });
   /** 这一下点击来自哪个窗口（节点 ↑、批量卡、付费卡交给画布的那几镜都是同一个渲染层窗口）。 */

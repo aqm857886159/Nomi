@@ -1,13 +1,15 @@
 // Real isolated App: retain the approved controls at minimum size, then exclude two shots before any POST.
-import fs from 'node:fs'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { createRuntimeWalk, readProject } from './agent-runtime-walk-support.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from './agent-runtime-fixture.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { collapseAgentPanel } from './_shell.mjs'
-import { expect, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, expect, screenshotSettled } from './_assert.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
+process.env.NOMI_WALK_OUT ??= makeTempDir('storyboard-confirm-selection-evidence')
+process.env.EVIDENCE_DIR ??= path.join(process.env.NOMI_WALK_OUT, 'feel')
 const walk = await createRuntimeWalk('storyboard-confirm-selection', { generationProvider: 'apimart', trustFixtureOrigin: true })
 const designId = 'storyboard-selection-contract'
 let failure
@@ -17,8 +19,9 @@ try {
   await win.reload()
   const { projectId } = await walk.newProject()
   const documentId = (await readProject(win, projectId)).payload.workbenchDocuments[0].id
+  // A row keeps its duration when switching kinds. Five seconds is valid for Seedance 2.0 text-to-video.
   const shots = [1, 2, 3, 4].map(index => ({ index, shotId: `selection-shot-${index}`, shotKind: 'image',
-    durationSec: 3, anchorIds: [], prompt: `A bookshop window, shot ${index}`,
+    durationSec: 5, anchorIds: [], prompt: `A bookshop window, shot ${index}`,
     modelKey: FIXTURE_APIMART_MODEL, modelVendor: FIXTURE_APIMART_VENDOR }))
   await expect.poll(() => win.evaluate(() => typeof window.__nomiCapabilityApply)).toBe('function')
   const saved = await win.evaluate(({ projectId, documentId, designId, shots }) =>
@@ -28,8 +31,6 @@ try {
   await expect.poll(async () => Object.values((await readProject(win, projectId)).payload.storyboardDesignsByDocumentId)
     .flat().find(design => design.id === designId)?.plan.shots.length).toBe(4)
   await walk.resizeWindow(1100, 720)
-  const folder = path.resolve('tests/ux/shots/storyboard-only-what-works')
-  fs.mkdirSync(folder, { recursive: true })
   for (const locale of ['zh-CN', 'en']) for (const scheme of ['light', 'dark']) {
     await win.evaluate(({ locale, scheme }) => {
       localStorage.setItem('nomi:locale:v1', locale)
@@ -55,7 +56,7 @@ try {
       expect(box.x + box.width).toBeLessThanOrEqual(1100)
       expect(box.y + box.height).toBeLessThanOrEqual(720)
     }
-    const screenshot = path.join(folder, `${locale}-${scheme}-app-minimum.png`)
+    const screenshot = path.join(walk.outputDir, `${locale}-${scheme}-app-minimum.png`)
     await screenshotSettled(win, { path: screenshot })
     walk.report.screenshots.push(screenshot)
   }
@@ -86,8 +87,11 @@ try {
   expect(await firstRow.locator('[data-parameter-summary]').innerText()).not.toBe(imageSummary)
   await firstRow.getByRole('button', { name: uiTextWith('en', 'storyboardEditor.frame.generateAria', { index: 1 }), exact: true }).click()
   await expect.poll(() => walk.fixture.videos.length, { message: 'An image row explicitly switched to a video model must issue one video POST' }).toBe(1)
+  walk.fixture.releaseVideos()
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes
-    .find(node => node.meta?.storyboardDesignId === designId && node.meta?.shotId === 'selection-shot-1')?.result?.type).toBe('video')
+    .find(node => node.meta?.storyboardDesignId === designId && node.meta?.shotId === 'selection-shot-1')?.result?.type, {
+    timeout: DEFAULT_TIMEOUT_MS,
+  }).toBe('video')
   expect(walk.fixture.images).toHaveLength(2)
   await model.click()
   await win.getByRole('option').first().click()

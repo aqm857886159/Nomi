@@ -1,0 +1,145 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-browser-motion-probe",
+  "problem_type": "Cross-realm browser capability reads",
+  "symptom": "The full Vitest run could not execute the serialized generation-motion probe after token consolidation.",
+  "direct_cause": "The serialized function referenced a module import in the destination browser realm.",
+  "class_root": "The single owner of the live media preference must also support execution without module capture.",
+  "affected_population": [
+    "Browser probes reconstructed by automation",
+    "Generation badges and live accessibility preference subscribers"
+  ],
+  "scope_paths": [
+    "src/design/motion.ts",
+    "src/workbench/generationCanvas/nodes/processMotionCapability.ts"
+  ],
+  "entry_points": [
+    "Document-scoped generation renderer probe",
+    "Playwright page.evaluate callback",
+    "Reduced-motion subscriptions and direct reads"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Existing Playwright evaluate and the September probe contract define transport semantics. The rendering engine and its APIs are unchanged.",
+  "invariants": [
+    "A standalone browser function reads the actual target-window preference and releases any temporary WebGL context.",
+    "Query-only consumers observe a live MediaQueryList without creating a canvas."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/design/motion.ts",
+      "symbol": "ProcessMotionCapability"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/motion.ts",
+      "symbol": "readBrowserMotion"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/processMotionCapability.ts",
+      "symbol": "ProcessMotionCapability"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useReducedProcessMotion.ts",
+      "symbol": "readProcessMotionCapability"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/motion.ts",
+      "symbol": "reducedMotionQuery"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Row.tsx",
+      "symbol": "reducedMotionQuery"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useReducedProcessMotion.ts",
+      "symbol": "reducedMotionQuery"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 7,
+    "why_not": "Preference consumers require both reactive and immediate reads; the generation renderer and direct automation additionally need the complete snapshot. They now all use a single query in the same browser primitive."
+  },
+  "generality_proof": "The complete reader has no external runtime symbol. A query-only request returns before the WebGL path, while existing callers retain the no-argument snapshot.",
+  "shared_boundaries": [
+    {
+      "path": "src/design/motion.ts",
+      "symbol": "readBrowserMotion",
+      "responsibility": "Resolve browser capabilities in the calling realm and release the temporary GPU context."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/processMotionCapability.ts",
+      "entry_point": "readProcessMotionCapability",
+      "disposition": "enforced",
+      "evidence": "Existing serializable entry is an export of the browser primitive."
+    },
+    {
+      "path": "src/design/motion.ts",
+      "entry_point": "reducedMotionQuery",
+      "disposition": "enforced",
+      "evidence": "Returns the media query directly and does not allocate a WebGL context."
+    }
+  ],
+  "recurrence_of": "2026-09-20-process-motion-probe",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "A future import inside a callback serialized by value will again be unavailable in a separate realm.",
+    "same_class_scan": [
+      "git grep readProcessMotionCapability plus door-map readBrowserMotion reducedMotionQuery; checked generation hook, Agent row and standalone Playwright evaluation."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/design/motion.ts",
+    "invariant": "Both supported browser reads originate from a standalone function using the target realm’s own APIs.",
+    "failure_mode": "Absent matchMedia yields false; an unavailable renderer remains null and the process policy selects a static surface.",
+    "exception_policy": "none",
+    "strategy": "Preserve the cross-realm entry as an alias of the single browser reader and exercise it inside a separate Chromium page.",
+    "artifacts": [
+      "src/design/motion.ts",
+      "src/workbench/generationCanvas/nodes/processMotionCapability.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/useReducedProcessMotion.test.ts",
+    "src/workbench/generationCanvas/nodes/useReducedProcessMotion.browser.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/useReducedProcessMotion.test.ts",
+    "src/workbench/generationCanvas/nodes/useReducedProcessMotion.browser.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/processMotionCapability.ts"
+    ],
+    "rationale": "Removed the reader that relied on a captured import; its public name still resolves to the standalone primitive."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Application-owned function transport uses the existing standard browser APIs and existing Playwright.",
+    "exit_criteria": []
+  },
+  "migration": "Existing no-argument calls and the returned capability fields are preserved. No persisted schema changes.",
+  "residual_risks": [
+    "Runtime GPU switching inside the same Document still follows the existing document cache."
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": "src/design/motion.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/useReducedProcessMotion.test.ts",
+      "src/workbench/generationCanvas/nodes/useReducedProcessMotion.browser.test.ts"
+    ],
+    "why": "Full reads and preference-only reads both run at this boundary."
+  }
+}

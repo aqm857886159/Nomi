@@ -8,11 +8,16 @@ const source = (path: string): string => stripComments(readFileSync(resolve(proc
 
 describe('PlanRows is the single plan-list renderer', () => {
   it('keeps Agent panel and paid confirmation on the shared component', () => {
-    const agent = source('src/workbench/ai/v4/AgentPanelV4Cards.tsx')
+    // Agent 面板卡族的清单画在共用卡身 SlotContent（AgentPanelV4SlotShell.tsx，PR #1548 从 AgentPanelV4Cards.tsx 收口过去）；
+    // 卡族分发壳 AgentPanelV4Cards.tsx 不许再自己 map 清单。
+    const agent = source('src/workbench/ai/v4/AgentPanelV4SlotShell.tsx')
+    const cards = source('src/workbench/ai/v4/AgentPanelV4Cards.tsx')
     const spend = source('src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx')
     expect(agent).toContain("import { PlanRows } from '../../shared/PlanRows'")
     expect(agent).toMatch(/<PlanRows\s+rows=\{data\.plan\}/)
     expect(agent).not.toContain('data.plan.map(')
+    expect(cards).toContain('<SlotContent ')
+    expect(cards).not.toContain('data.plan.map(')
     expect(spend).toContain("import { PlanRows } from '../../shared/PlanRows'")
     expect(spend).toContain('<PlanRows rows={pending.planRows}')
   })

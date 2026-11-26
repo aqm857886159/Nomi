@@ -1,3 +1,4 @@
+import { NOMI_DURATION_MS, exitDurationMs } from '../../../design/motion'
 // 左栏：60px（图标 + 11px 字），创作 / 生成 / 预览三面同一条（10-08 外壳拍板稿 Main / CreationDoc / Chrome 三块板）。
 //
 //   这个项目的：文稿（创作内容树）· 目录（原「分组」= CategoryTree，能力原样）· 素材 · 流程
@@ -297,7 +298,7 @@ export function ShellRail({ projectId }: { projectId: string | null }): JSX.Elem
         // 层级合同（overlayLayers.ts）：抽屉是浮在内容上的面板（floatingPanel 4000），不是对话框——主题给 Drawer 的默认层级是
         // dialog（9100），会把素材全屏预览（applicationModal 9000）和抽屉里点出的菜单压在下面（#1136 复核实测）。
         zIndex={NOMI_OVERLAY_Z_INDEX.floatingPanel}
-        transitionProps={{ transition: 'slide-right', duration: 160 }}
+        transitionProps={{ transition: 'slide-right', duration: NOMI_DURATION_MS.normal, exitDuration: exitDurationMs(NOMI_DURATION_MS.normal) }}
         classNames={{
           inner: 'pointer-events-none',
           content: 'pointer-events-auto relative flex flex-col overflow-hidden rounded-nomi-lg bg-nomi-paper shadow-nomi-lg ring-1 ring-nomi-line-soft',

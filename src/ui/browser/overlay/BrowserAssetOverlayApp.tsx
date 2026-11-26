@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, motion } from 'framer-motion'
+import type { BrowserCaptureFlyout, BrowserCaptureFlyoutRect } from '../dialog/NomiBrowserDialogModel'
+import { BrowserCaptureFlyouts } from '../BrowserCaptureFlyouts'
 import {
   getDesktopBridge,
   type DesktopBrowserAssetOverlayCaptureRequest,
@@ -21,23 +22,7 @@ import {
 import { subscribeBrowserAssetsImportToCanvas } from './globalAssetPopoverEvents'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 
-type OverlayCaptureFlyoutRect = {
-  left: number
-  top: number
-  width: number
-  height: number
-}
-
-type OverlayCaptureFlyout = {
-  id: string
-  url: string
-  mediaType: 'image' | 'video'
-  sourceRect: OverlayCaptureFlyoutRect
-  targetRect: OverlayCaptureFlyoutRect
-}
-
 const CAPTURE_FLYOUT_TARGET_WIDTH = 96
-const CAPTURE_FLYOUT_KEYFRAME_TIMES = [0, 0.18, 1]
 
 function canDownloadFromBrowserView(url: string): boolean {
   return /^(https?:\/\/|blob:)/i.test(url)
@@ -92,7 +77,7 @@ function captureRequestForPopover(
 function localSourceRectFromCapture(
   request: DesktopBrowserAssetOverlayCaptureRequest,
   config: DesktopBrowserAssetOverlayConfig,
-): OverlayCaptureFlyoutRect | null {
+): BrowserCaptureFlyoutRect | null {
   const rect = request.sourceRect
   if (!rect || !config.bounds) return null
   return {
@@ -103,7 +88,7 @@ function localSourceRectFromCapture(
   }
 }
 
-function targetRectFromPopover(rect: FloatingWindowBoundsRect | null): OverlayCaptureFlyoutRect | null {
+function targetRectFromPopover(rect: FloatingWindowBoundsRect | null): BrowserCaptureFlyoutRect | null {
   if (!rect || rect.width <= 0 || rect.height <= 0) return null
   const width = Math.round(Math.min(CAPTURE_FLYOUT_TARGET_WIDTH, Math.max(52, rect.width - 32)))
   const height = Math.round(width * 0.64)
@@ -113,11 +98,6 @@ function targetRectFromPopover(rect: FloatingWindowBoundsRect | null): OverlayCa
     width,
     height,
   }
-}
-
-function captureFlyoutScale(source: OverlayCaptureFlyoutRect, target: OverlayCaptureFlyoutRect): number {
-  const sourceWidth = Math.max(1, source.width)
-  return Math.max(0.66, Math.min(0.92, target.width / sourceWidth))
 }
 
 export function BrowserAssetOverlayApp(): JSX.Element {
@@ -144,7 +124,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
   const [fullWindowModal, setFullWindowModal] = React.useState(false)
   const [captureEnabled, setCaptureEnabled] = React.useState(false)
   const [browserCaptureRequest, setBrowserCaptureRequest] = React.useState<BrowserAssetCaptureRequest | null>(null)
-  const [captureFlyouts, setCaptureFlyouts] = React.useState<OverlayCaptureFlyout[]>([])
+  const [captureFlyouts, setCaptureFlyouts] = React.useState<BrowserCaptureFlyout[]>([])
   const pendingCaptureFlyoutRef = React.useRef<DesktopBrowserAssetOverlayCaptureRequest | null>(null)
   const handledCaptureRequestIdRef = React.useRef<string | null>(null)
   const lastSentStateKeyRef = React.useRef<string | null>(null)
@@ -436,71 +416,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         probeCanvasImportAvailable={probeCanvasImportAvailable}
       />
       <ConfirmDialogHost />
-      <AnimatePresence>
-        {captureFlyouts.map((flyout) => (
-          <motion.div
-            key={flyout.id}
-            data-browser-capture-flyout=""
-            className="pointer-events-none absolute left-0 top-0 z-[600] overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-lg"
-            initial={{
-              x: flyout.sourceRect.left,
-              y: flyout.sourceRect.top,
-              width: flyout.sourceRect.width,
-              height: flyout.sourceRect.height,
-              opacity: 0.72,
-              scale: 0.98,
-            }}
-            animate={{
-              x: [
-                flyout.sourceRect.left,
-                flyout.sourceRect.left,
-                flyout.targetRect.left,
-              ],
-              y: [
-                flyout.sourceRect.top,
-                flyout.sourceRect.top,
-                flyout.targetRect.top,
-              ],
-              width: [
-                flyout.sourceRect.width,
-                flyout.sourceRect.width,
-                flyout.targetRect.width,
-              ],
-              height: [
-                flyout.sourceRect.height,
-                flyout.sourceRect.height,
-                flyout.targetRect.height,
-              ],
-              opacity: [0.78, 1, 0.08],
-              scale: [0.98, 1.02, captureFlyoutScale(flyout.sourceRect, flyout.targetRect)],
-            }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.74, times: CAPTURE_FLYOUT_KEYFRAME_TIMES, ease: [0.22, 1, 0.36, 1] }}
-            onAnimationComplete={() =>
-              setCaptureFlyouts((current) => current.filter((item) => item.id !== flyout.id))
-            }
-            aria-hidden="true"
-          >
-            {flyout.mediaType === 'video' ? (
-              <>
-                <video src={flyout.url} muted playsInline className="block size-full bg-nomi-ink object-contain" />
-                <span className="absolute right-1 top-1 rounded-pill bg-nomi-accent px-1.5 py-0.5 text-micro font-semibold leading-none text-nomi-paper shadow-nomi-sm">
-                  {t('browserAssets.video')}
-                </span>
-              </>
-            ) : (
-              <img src={flyout.url} alt="" draggable={false} className="block size-full object-contain" />
-            )}
-            <span className="absolute inset-0 rounded-nomi ring-1 ring-inset ring-nomi-paper/85" />
-            <motion.span
-              className="absolute inset-0 rounded-nomi bg-nomi-accent"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 0.28, 0] }}
-              transition={{ duration: 0.42, times: [0, 0.28, 1], ease: 'easeOut' }}
-            />
-          </motion.div>
-        ))}
-      </AnimatePresence>
+      <BrowserCaptureFlyouts captureFlyouts={captureFlyouts} removeCaptureFlyout={(id) => setCaptureFlyouts((current) => current.filter((item) => item.id !== id))} className="absolute z-[600]" />
     </div>
   )
 }

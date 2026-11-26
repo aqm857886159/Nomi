@@ -45,3 +45,39 @@ it('projects the shipped GPT Image 2.6 Flare mapping for an explicit output size
     expect(priceQueryFromRequest(request, catalog)).toBeNull()
   }
 })
+
+describe('Seedance 2.5 text-to-video shows a price (output_format / return_last_frame / nsfw_check do not change it)', () => {
+  const seedance25: VendorPriceRequest = { vendorKey: 'apimart', request: { kind: 'text_to_video', prompt: '',
+    extras: { modelKey: 'doubao-seedance-2.5', archetype: { id: 'seedance-2.5-apimart', modeId: 't2v' },
+      archetypeInput: { resolution: '720p', duration: 5, generate_audio: true } } } }
+  const create25 = (catalog: ReturnType<typeof seeded>) =>
+    catalog.mappings.find(m => m.vendorKey === 'apimart' && m.modelKey === 'doubao-seedance-2.5' && m.taskKind === 'text_to_video')!.create!
+
+  it('prices the body the catalog really renders for 2.5', () => {
+    const catalog = seeded()
+    // 前提：2.5 真的会把这三个键发给供应商（否则这条测试量不到目标）。
+    expect(Object.keys(create25(catalog).body as object)).toEqual(expect.arrayContaining(['output_format', 'return_last_frame', 'nsfw_check']))
+    expect(priceQueryFromRequest(seedance25, catalog)).toMatchObject({
+      modelId: 'seedance-2.5', kind: 'video', resolution: '720p', durationSec: 5, hasAudio: true, count: 1, referenceCount: 0 })
+  })
+
+  it.each([
+    ['reference images (changes the price)', { image_urls: ['reference.png'] }],
+    ['a key nobody classified (invented, in no list)', { zz_new_catalog_key: '{{request.params.zz}}' }],
+  ])('still refuses a 2.5 body that also carries %s', (_label, extra) => {
+    const catalog = seeded()
+    const create = create25(catalog)
+    create.body = { ...(create.body as object), ...extra }
+    expect(priceQueryFromRequest(seedance25, catalog)).toBeNull()
+  })
+
+  it('does not widen the allowance to a model that carries the same keys without a checked billing page', () => {
+    const catalog = seeded()
+    const modelKey = 'doubao-seedream-5-0-pro'
+    const mapping = catalog.mappings.find(m => m.vendorKey === 'apimart' && m.modelKey === modelKey && m.taskKind === 'text_to_image')!
+    expect(Object.keys(mapping.create!.body as object)).toEqual(expect.arrayContaining(['output_format', 'nsfw_check']))
+    const request: VendorPriceRequest = { vendorKey: 'apimart', request: { kind: 'text_to_image', prompt: 'x',
+      extras: { modelKey, archetype: { id: modelKey, modeId: 't2i' }, archetypeInput: { size: '1:1', resolution: '2K' } } } }
+    expect(priceQueryFromRequest(request, catalog)).toBeNull()
+  })
+})

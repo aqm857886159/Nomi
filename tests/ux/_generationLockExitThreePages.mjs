@@ -31,6 +31,18 @@ export async function threePageLockExitJourney(input) {
       await page.locator(`[data-storyboard-row="${index}"]`).scrollIntoViewIfNeeded()
     }
   }
+  const expandAnchors = async () => {
+    const toggle = page.locator('[data-storyboard-anchors-toggle="true"]')
+    await expect(toggle).toBeVisible()
+    if (await toggle.getAttribute('aria-expanded') === 'true') return
+    // The retry notice from the deliberate error batch can cover the toggle.
+    const retryNotice = page.locator('[data-notification-reason="generation-failed"]')
+    for (const close of await retryNotice.locator('button.mantine-Notification-closeButton').all()) {
+      if (await close.isVisible()) await close.click()
+    }
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  }
   const canvas = async id => {
     await switchWorkspace(page, 'generation')
     await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page)
@@ -100,7 +112,7 @@ export async function threePageLockExitJourney(input) {
     await shot('429-storyboard')
     const failedAsset = (await nodes()).find(n => n.status === 'error' && n.meta?.anchorId)
     assert.ok(failedAsset, 'E2 includes an asset refusal as well as a shot refusal')
-    if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
+    await expandAnchors()
     await expect(page.locator(`[data-storyboard-anchor-row="${failedAsset.meta.anchorId}"]`)).toContainText(t('generationCommon.observability.error.quota.reason'))
     await shot('429-storyboard-asset')
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'running').length).toBe(0)
@@ -136,8 +148,7 @@ export async function threePageLockExitJourney(input) {
     await canvas(asset.id); proxy.dropNextReply(); await submit()
     await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await openStoryboardEditor(page, design.id)
-    const toggle = page.locator('[data-storyboard-anchors-toggle]')
-    if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await toggle.click()
+    await expandAnchors()
     const assetRow = page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`)
     await expect(assetRow.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true })).toBeVisible()
     await shot('unknown-storyboard-anchor')
@@ -169,7 +180,7 @@ export async function threePageLockExitJourney(input) {
     await expect(page.locator(dialog)).not.toBeVisible()
     report.checks.singleReleaseWithoutExtraDialog = true
     await openStoryboardEditor(page, design.id)
-    if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
+    await expandAnchors()
     await page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`).getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await confirmLockExitSpend(page, report, { shot })
     await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')

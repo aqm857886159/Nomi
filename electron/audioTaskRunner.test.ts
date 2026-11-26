@@ -1,3 +1,5 @@
+import { recoverAcceptedTask } from "./tasks/acceptedTaskResult";
+import { withPaidReceiptWriter, type PaidSubmissionReceipt } from "./productionRun/paidSubmissionReceipt";
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 vi.mock("./catalog/profileHttpRequest", async (importOriginal) => ({
@@ -45,6 +47,22 @@ describe("runAudioTask（音频同步执行路径）", () => {
     expect(result.assets).toHaveLength(1);
     expect(result.assets[0].type).toBe("audio");
     expect(result.assets[0].url).toContain("nomi-local://");
+  });
+
+  it("recovers the original TTS bytes after the first local write fails", async () => {
+    const bytes = Buffer.from([1, 2, 3, 4]);
+    const fetchSpy = vi.fn(async () => new Response(Uint8Array.from(bytes), { headers: { "content-type": "audio/wav" } }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const receipts: PaidSubmissionReceipt[] = [];
+    vi.mocked(writeGeneratedAsset).mockRejectedValueOnce(new Error("interrupted"));
+    const request = { kind: "text_to_audio" as const, prompt: "hello", extras: { projectId: "p", nodeId: "n" } };
+    await expect(withPaidReceiptWriter(receipt => receipts.push(structuredClone(receipt)), () =>
+      runAudioTask({ vendor, model: ttsModel, apiKey: "k", request, kind: request.kind, taskId: "audio-1", projectId: "p", nodeId: "n", mapping: null }),
+    )).rejects.toThrow();
+    expect(receipts[0]).toMatchObject({ rawAcceptance: bytes.toString("base64"), remoteTaskId: null });
+    expect((await recoverAcceptedTask(receipts[0]!, request)).status).toBe("succeeded");
+    expect(vi.mocked(writeGeneratedAsset).mock.lastCall?.[1]).toEqual(bytes);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
   it("Whisper：multipart → 同步 JSON 文本（无资产，raw.text 落文本）", async () => {

@@ -1,0 +1,29 @@
+{
+  "id": "spend-rows-expand-hover-40",
+  "feature": "付费确认拆开：一次出价的镜头在对话里一行一个（超过 4 行折起）。点「还有 N 个镜头」到那一组全画出来，再停到最后一行到画布上那个节点亮起；主数取两下里慢的那一下；最坏 200 个有图节点的画布、一次出价 40 镜（宿主上限）",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "I200",
+    "--scenarios",
+    "spend-rows-expand-hover-40",
+    "--warmup",
+    "1"
+  ],
+  "scale": "200 个有图节点的画布 + 一次出价 40 镜（对话里那一组露 4 行、点开全露 40 行）",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "budgetStatus": "proposed",
+  "budgetBasis": "仓库默认「操作到可见反馈 ≤100ms，p95 ≤150ms」（docs/engineering/perf-scenarios.md）；同类「指向元素悬停 / 点」12 镜基线 93.2ms（chat-node-pointer-hover-focus）。行密度比卡密度轻（32px 小缩略图、没有画面框比例换算），40 行一次画出来仍在一帧量级；每一行只订自己那一个节点（NodePointer.test 钉住改别的节点 0 次重渲）",
+  "baseline": {
+    "median": 39.2,
+    "p95": 47.8,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-16",
+    "commit": "0d91ea69a"
+  }
+}

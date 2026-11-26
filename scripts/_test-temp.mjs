@@ -106,8 +106,10 @@ function ownedPrefix(prefix) {
 // 返回解过符号链接的真路径：macOS 的 tmpdir 是 /var → /private/var 的链接，而 import.meta.url、
 // git rev-parse --show-toplevel、子进程 cwd 拿到的都是真路径。返回链接路径时，拿它比路径的测试只在 Mac 上红，
 // Linux CI 永远看不见（2026-10-08 迁到本助手时丢了四处各自的 realpath，三道门岗在 Mac 上红了十天）。
-export function makeTempDir(prefix = 'nomi-test-') {
+export function makeTempDir(prefix = 'nomi-test-', { retain = false } = {}) {
   const base = os.tmpdir()
+  // Walkthrough evidence must remain readable after the process exits.
+  if (retain) return fs.realpathSync(fs.mkdtempSync(path.join(base, prefix)))
   sweepOnce(base)
   return registerTestTemp(fs.realpathSync(fs.mkdtempSync(path.join(base, ownedPrefix(prefix)))))
 }

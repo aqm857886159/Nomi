@@ -1,9 +1,13 @@
 import type { DesktopAssetDto } from '../../../desktop/bridge'
 import { getDesktopBridge } from '../../../desktop/bridge'
+import { logRendererWarn } from '../../../desktop/rendererLog'
 import { requireCapabilityProjectId } from '../../capability/capabilityProjectBinding'
 import { readWorkbenchTimeline } from '../../adoption/adoptionStorePorts'
 import type { TimelineClip, TimelineState } from '../timelineTypes'
 import { ASSET_SOURCE_USAGE_LIMIT } from '../../../../electron/shared/agentCapabilities/assetRead'
+import { MODEL_TOOL_READ_TIMEOUT_MS_VALUE } from '../../../../electron/shared/agentCapabilities/verbDeclaration'
+
+export const WAVEFORM_READ_TIMEOUT_MS = Math.min(26_000, MODEL_TOOL_READ_TIMEOUT_MS_VALUE - 4_000)
 
 export type MediaToolCallName =
   | 'get_media'
@@ -45,11 +49,12 @@ type WaveformBucket = {
 }
 
 export type MediaToolRuntime = {
-  listProjectAssets: (projectId: string) => Promise<DesktopAssetDto[]>
+  listProjectAssets: (projectId: string, signal?: AbortSignal) => Promise<DesktopAssetDto[]>
   inspectAsset: (asset: ProjectMediaAsset) => Promise<MediaTechnicalMetadata>
   readWaveform: (
     asset: ProjectMediaAsset,
     range: { startSeconds: number; endSeconds?: number; buckets: number },
+    signal: AbortSignal,
   ) => Promise<{
     durationSeconds: number
     sampleRate: number
@@ -207,14 +212,16 @@ function loadElementMetadata(asset: ProjectMediaAsset): Promise<MediaTechnicalMe
   })
 }
 
-async function listProjectAssets(projectId: string): Promise<DesktopAssetDto[]> {
+async function listProjectAssets(projectId: string, signal?: AbortSignal): Promise<DesktopAssetDto[]> {
   const desktop = getDesktopBridge()
   if (!desktop?.assets?.list) throw new Error('Media tools require the Electron desktop runtime')
   const assets: DesktopAssetDto[] = []
   let cursor: string | null = null
   const seenCursors = new Set<string>()
   do {
+    signal?.throwIfAborted()
     const page = await desktop.assets.list({ projectId, cursor, limit: 500 })
+    signal?.throwIfAborted()
     assets.push(...page.items)
     cursor = page.cursor
     if (assets.length >= 5_000) break
@@ -227,7 +234,9 @@ async function listProjectAssets(projectId: string): Promise<DesktopAssetDto[]> 
 async function decodeWaveform(
   asset: ProjectMediaAsset,
   range: { startSeconds: number; endSeconds?: number; buckets: number },
+  signal: AbortSignal,
 ): Promise<{ durationSeconds: number; sampleRate: number; channels: number; startSeconds: number; endSeconds: number; buckets: WaveformBucket[] }> {
+  signal.throwIfAborted()
   if (asset.kind === 'image') throw new Error('read_waveform requires an audio or video asset')
   if (!asset.renderUrl) throw new Error('The selected asset has no readable local media source')
   const size = finitePositive(asRecord(asset.dto.data).size) ?? 0
@@ -237,31 +246,27 @@ async function decodeWaveform(
     ?? (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!AudioContextConstructor) throw new Error('Web Audio decoding is unavailable in this runtime')
 
-  const fetchController = new AbortController()
-  const fetchTimeout = globalThis.setTimeout(() => fetchController.abort(), 15_000)
-  let bytes: ArrayBuffer
-  try {
-    const response = await fetch(asset.renderUrl, { signal: fetchController.signal })
-    if (!response.ok) throw new Error(`Unable to read media for waveform (${response.status})`)
-    const contentLength = finitePositive(response.headers.get('content-length')) ?? 0
-    if (contentLength > 128 * 1024 * 1024) throw new Error('waveform_asset_too_large: assets over 128 MB require a proxy waveform')
-    bytes = await response.arrayBuffer()
-  } finally {
-    globalThis.clearTimeout(fetchTimeout)
-  }
+  const response = await fetch(asset.renderUrl, { signal })
+  signal.throwIfAborted()
+  if (!response.ok) throw new Error(`Unable to read media for waveform (${response.status})`)
+  const contentLength = finitePositive(response.headers.get('content-length')) ?? 0
+  if (contentLength > 128 * 1024 * 1024) throw new Error('waveform_asset_too_large: assets over 128 MB require a proxy waveform')
+  const bytes = await response.arrayBuffer()
+  signal.throwIfAborted()
   if (bytes.byteLength > 128 * 1024 * 1024) throw new Error('waveform_asset_too_large: assets over 128 MB require a proxy waveform')
 
   const context = new AudioContextConstructor()
+  const close = () => { void context.close().catch(() => undefined) }
+  let onAbort!: () => void
   try {
-    let decodeTimeout: ReturnType<typeof setTimeout> | undefined
-    const decoded = await Promise.race([
-      context.decodeAudioData(bytes.slice(0)),
-      new Promise<never>((_resolve, reject) => {
-        decodeTimeout = globalThis.setTimeout(() => reject(new Error('Audio decode timed out')), 20_000)
-      }),
-    ]).finally(() => {
-      if (decodeTimeout !== undefined) globalThis.clearTimeout(decodeTimeout)
+    // Web Audio takes ownership of the buffer. The abort handler releases the
+    // context immediately, even if Chromium finishes the native decode later.
+    const decoded = await new Promise<AudioBuffer>((resolve, reject) => {
+      onAbort = () => { close(); reject(signal.reason) }
+      signal.addEventListener('abort', onAbort, { once: true })
+      context.decodeAudioData(bytes).then(resolve, reject)
     })
+    signal.throwIfAborted()
     const durationSeconds = decoded.duration
     const startSeconds = Math.min(range.startSeconds, durationSeconds)
     const endSeconds = Math.min(range.endSeconds ?? durationSeconds, durationSeconds)
@@ -303,11 +308,13 @@ async function decodeWaveform(
       buckets,
     }
   } catch (error) {
+    signal.throwIfAborted()
     const wrapped = new Error(`waveform_decode_failed: ${error instanceof Error ? error.message : String(error)}`) as Error & { cause?: unknown }
     wrapped.cause = error
     throw wrapped
   } finally {
-    await context.close().catch(() => undefined)
+    signal.removeEventListener('abort', onAbort)
+    if (!signal.aborted) close()
   }
 }
 
@@ -326,15 +333,17 @@ function scopeProjectId(boundProjectId?: unknown): string {
   return requireCapabilityProjectId(boundProjectId, 'project_scope_required: an active project is required for media tools')
 }
 
-async function mediaAssets(runtime: MediaToolRuntime, boundProjectId?: unknown): Promise<ProjectMediaAsset[]> {
+async function mediaAssets(runtime: MediaToolRuntime, boundProjectId?: unknown, signal?: AbortSignal): Promise<ProjectMediaAsset[]> {
   const projectId = scopeProjectId(boundProjectId)
-  return (await runtime.listProjectAssets(projectId))
+  const assets = await runtime.listProjectAssets(projectId, signal)
+  signal?.throwIfAborted()
+  return assets
     .map((asset) => toProjectMediaAsset(asset, projectId))
     .filter((asset): asset is ProjectMediaAsset => Boolean(asset))
 }
 
-async function requireMedia(assetId: string, runtime: MediaToolRuntime, boundProjectId?: unknown): Promise<ProjectMediaAsset> {
-  const asset = (await mediaAssets(runtime, boundProjectId)).find((candidate) => candidate.id === assetId)
+async function requireMedia(assetId: string, runtime: MediaToolRuntime, boundProjectId?: unknown, signal?: AbortSignal): Promise<ProjectMediaAsset> {
+  const asset = (await mediaAssets(runtime, boundProjectId, signal)).find((candidate) => candidate.id === assetId)
   if (!asset) throw new Error(`media_not_found: ${assetId}`)
   return asset
 }
@@ -360,10 +369,36 @@ function sourceRangeUsages(timeline: TimelineState, asset: ProjectMediaAsset, st
   }))
 }
 
+async function withWaveformDeadline<T>(parentSignal: AbortSignal | undefined, read: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  parentSignal?.throwIfAborted()
+  const startedAt = performance.now()
+  const deadline = new AbortController()
+  const signal = parentSignal ? AbortSignal.any([parentSignal, deadline.signal]) : deadline.signal
+  const timer = setTimeout(() => {
+    deadline.abort(new DOMException('Waveform read timed out', 'TimeoutError'))
+    logRendererWarn('waveform-read-timed-out', {
+      toolName: 'look_at_media', subOperation: 'read_waveform',
+      elapsedMs: Math.round(performance.now() - startedAt), timeoutMs: WAVEFORM_READ_TIMEOUT_MS,
+    })
+  }, WAVEFORM_READ_TIMEOUT_MS)
+  let onAbort!: () => void
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(signal.reason)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    return await Promise.race([aborted, read(signal)])
+  } finally {
+    clearTimeout(timer)
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
 export async function applyMediaToolCall(
   toolName: string,
   args: unknown,
   runtime: MediaToolRuntime = defaultRuntime,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   const input = asRecord(args)
   switch (toolName as MediaToolCallName) {
@@ -421,18 +456,19 @@ export async function applyMediaToolCall(
         semanticInspection: 'not_performed',
       }
     }
-    case 'read_waveform': {
-      const asset = await requireMedia(stringArg(input, 'assetId'), runtime, input.projectId)
+    case 'read_waveform': return withWaveformDeadline(signal, async (readSignal) => {
       const startSeconds = input.startSeconds === undefined ? 0 : finiteNonNegative(input.startSeconds, 'startSeconds')
       const endSeconds = input.endSeconds === undefined ? undefined : finiteNonNegative(input.endSeconds, 'endSeconds')
       if (endSeconds !== undefined && endSeconds <= startSeconds) throw new Error('endSeconds must be greater than startSeconds')
       const buckets = input.buckets === undefined ? 64 : positiveInteger(input.buckets, 'buckets', 256)
+      const asset = await requireMedia(stringArg(input, 'assetId'), runtime, input.projectId, readSignal)
+      readSignal.throwIfAborted()
       return {
         operation: toolName,
         assetId: asset.id,
-        ...(await runtime.readWaveform(asset, { startSeconds, endSeconds, buckets })),
+        ...(await runtime.readWaveform(asset, { startSeconds, endSeconds, buckets }, readSignal)),
       }
-    }
+    })
     default: return null
   }
 }

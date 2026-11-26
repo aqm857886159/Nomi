@@ -1,4 +1,4 @@
-import { SurfacePortWireError, unwrapSurfacePortIpcResponse, type SurfacePortHandlerResult } from '../../../electron/shared/surfacePortBinding'
+import { SurfacePortWireError, unwrapSurfacePortIpcResponse, type CanvasReadSurfaceBridge, type SurfacePortHandlerResult } from '../../../electron/shared/surfacePortBinding'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -620,8 +620,34 @@ it.each([
   registerSource(async () => { throw new SurfacePortWireError('capability_execution_failed', 'no-disk-space') })
   const callback = (test.bridge[subscribe].mock.calls[0] as unknown as [(request: unknown) => SurfacePortHandlerResult])[0]
   expect(await callback({
-    binding: activeBinding, signal: new AbortController().signal,
+    binding: activeBinding, signal: new AbortController().signal, onCancel: () => () => undefined,
     operation: 'set_node_prompt', input: {}, target: {}, preconditions: {},
     documentId: 'doc', scope: 'full',
   })).toEqual({ ok: false, error: { code: 'capability_execution_failed', reason: 'no-disk-space' } })
+})
+
+it('creates a renderer-native signal from the asset read cancellation callback', async () => {
+  const test = harness()
+  const epoch = test.coordinator.beginHydration()
+  const binding = await epoch.commitCanvasRead('project-a')
+  let signal!: AbortSignal
+  test.coordinator.registerAssetReadSource((request) => {
+    signal = request.signal
+    return new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new SurfacePortWireError('capability_cancelled')), { once: true })
+    })
+  })
+  const handler = (test.bridge.onAssetRead.mock.calls[0] as unknown as
+    [Parameters<CanvasReadSurfaceBridge['onAssetRead']>[0]])[0]
+  let cancel!: () => void
+  const unsubscribe = vi.fn()
+  const result = handler({
+    binding: binding!, input: { operation: 'get_media', assetId: 'asset-a' }, target: {}, preconditions: {},
+    onCancel: (abort) => { cancel = abort; return unsubscribe },
+  })
+  expect(signal).toBeInstanceOf(AbortSignal)
+  cancel()
+  expect(signal.aborted).toBe(true)
+  await expect(result).resolves.toEqual({ ok: false, error: { code: 'capability_cancelled' } })
+  expect(unsubscribe).toHaveBeenCalledOnce()
 })

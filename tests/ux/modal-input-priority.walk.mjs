@@ -1,13 +1,15 @@
 // 模态弹层的输入优先（真窗走查，中英两轨）。设计卡 docs/plan/2026-10-31-modal-input-priority.md ★9 的 A1–A13 逐项对应。
 //
 // 用法：WALK_LOCALE=zh-CN node tests/ux/modal-input-priority.walk.mjs；WALK_LOCALE=en 同一条。
-// 产出：$NOMI_WALK_TEMP_ROOT/modal-input-priority-<locale>/ 下的截图和 observations.json。
+// 产出：本次隔离目录下的截图和 observations.json。
 //
 // 每个键都先备好「按了就看得出来」的前提：撤销栈、重做栈、画布剪贴板都有东西，选中的只是其中一张。否则按键没生效和按键被挡住长得一样，
 // 绿灯是假的。每一段的最后再用正向断言确认同一个键在弹层关掉后真的生效。
 // 一段红了不停，整张红绿表一次看全；画布的改动从 store 还原，所以后面的段不受牵连。
 import fs from 'node:fs'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import {
@@ -16,7 +18,11 @@ import {
 } from './_shell.mjs'
 import { launchParityFixture, selectParityNode } from './_viewParityFixture.mjs'
 
-const KEYS = ['Delete', 'Backspace', 'Meta+z', 'Meta+Shift+z', 'Meta+a', 'Meta+v']
+const evidence = assertOutsideRepo(makeTempDir('nomi-modal-input-priority-evidence-'))
+process.env.NOMI_WALK_TEMP_ROOT = evidence
+process.env.EVIDENCE_DIR = evidence
+
+const KEYS = ['Delete', 'Backspace', 'ControlOrMeta+z', 'ControlOrMeta+Shift+z', 'ControlOrMeta+a', 'ControlOrMeta+v']
 // 画布的 Cmd+V 走 120ms 兜底计时器（useCanvasShortcuts）：等够了才算这一键真的没动静。
 const PASTE_SETTLE_MS = 320
 const KEY_SETTLE_MS = 60
@@ -146,7 +152,7 @@ const dispatchPaste = (selector = null) => fixture.win.evaluate((target) => {
 
 async function pressAndSettle(key) {
   await fixture.win.keyboard.press(key)
-  await fixture.win.waitForTimeout(key === 'Meta+v' ? PASTE_SETTLE_MS : KEY_SETTLE_MS)
+  await fixture.win.waitForTimeout(key === 'ControlOrMeta+v' ? PASTE_SETTLE_MS : KEY_SETTLE_MS)
 }
 
 /** 画布：六个键逐个按，节点、位置、连线、选区一处都不许变；变了记下来、从 store 还原，继续按下一个。 */
@@ -205,14 +211,14 @@ async function prepareCanvasEffects() {
   for (let step = 0; step < 6; step += 1) await canvasZoomStep(win, 'out')
   await selectParityNode(win)
   await expect.poll(async () => (await snapshot()).selected).toEqual(['shared-node'])
-  await win.keyboard.press('Meta+d')
+  await win.keyboard.press('ControlOrMeta+d')
   await expect.poll(async () => (await snapshot()).nodes.length).toBe(2)
-  await win.keyboard.press('Meta+d')
+  await win.keyboard.press('ControlOrMeta+d')
   await expect.poll(async () => (await snapshot()).nodes.length).toBe(3)
-  await win.keyboard.press('Meta+z')
+  await win.keyboard.press('ControlOrMeta+z')
   await expect.poll(async () => (await snapshot()).nodes.length).toBe(2)
   await selectCanvasNode('shared-node')
-  await win.keyboard.press('Meta+c')
+  await win.keyboard.press('ControlOrMeta+c')
   await win.waitForTimeout(KEY_SETTLE_MS)
   return { nodes: 2 }
 }
@@ -220,7 +226,7 @@ async function prepareCanvasEffects() {
 /** 预览页的 Cmd+Z 先撤面板布局（PreviewWorkspace 的 undoEditingPanelLayout），再撤时间轴：按到片段数真的变了为止。 */
 async function undoTimelineClip(root, from) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await fixture.win.keyboard.press('Meta+z')
+    await fixture.win.keyboard.press('ControlOrMeta+z')
     await fixture.win.waitForTimeout(200)
     if ((await clipFacts(root)).length !== from) return
   }
@@ -232,9 +238,9 @@ async function prepareTimelineEffects(root) {
   await win.locator(`${root} [data-clip-id]`).first().click()
   await expect.poll(async () => (await clipFacts(root)).filter((clip) => clip.selected === 'true').length).toBeGreaterThan(0)
   const start = (await clipFacts(root)).length
-  await win.keyboard.press('Meta+d')
+  await win.keyboard.press('ControlOrMeta+d')
   await expect.poll(async () => (await clipFacts(root)).length).toBe(start + 1)
-  await win.keyboard.press('Meta+d')
+  await win.keyboard.press('ControlOrMeta+d')
   await expect.poll(async () => (await clipFacts(root)).length).toBe(start + 2)
   await undoTimelineClip(root, start + 2)
   await expect.poll(async () => (await clipFacts(root)).length).toBe(start + 1)
@@ -275,25 +281,25 @@ try {
     await closeConfirm()
     await selectCanvasNode((await canvasFacts()).selected[0] ?? 'shared-node')
     const before = await canvasFacts()
-    await win.keyboard.press('Meta+a')
+    await win.keyboard.press('ControlOrMeta+a')
     await expect.poll(async () => (await canvasFacts()).selected.length).toBe(before.nodes.length)
     await win.keyboard.press('Delete')
     await expect.poll(async () => (await canvasFacts()).nodes.length).toBe(0)
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await expect.poll(async () => (await canvasFacts()).nodes.length).toBe(before.nodes.length)
-    await win.keyboard.press('Meta+Shift+z')
+    await win.keyboard.press('ControlOrMeta+Shift+z')
     await expect.poll(async () => (await canvasFacts()).nodes.length).toBe(0)
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await expect.poll(async () => (await canvasFacts()).nodes.length).toBe(before.nodes.length)
     await selectCanvasNode(before.selected[0] ?? 'shared-node')
-    await win.keyboard.press('Meta+c')
-    await win.keyboard.press('Meta+v')
+    await win.keyboard.press('ControlOrMeta+c')
+    await win.keyboard.press('ControlOrMeta+v')
     await expect.poll(async () => (await canvasFacts()).nodes.length).toBe(before.nodes.length + 1)
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await expect.poll(async () => (await canvasFacts()).nodes.length).toBe(before.nodes.length)
     await dispatchPaste()
     await expect.poll(async () => (await canvasFacts()).nodes.length, { message: 'paste 事件在弹层关掉后应当归画布' }).toBe(before.nodes.length + 1)
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await expect.poll(async () => (await canvasFacts()).nodes.length).toBe(before.nodes.length)
     await shot('03-after-close-keys-work')
     return { nodes: before.nodes.length }
@@ -306,12 +312,12 @@ try {
       void window.__nomiConfirmDialogE2E({ title: 'Q2', message: 'second', danger: true })
     })
     await expect(win.locator(CONFIRM)).toBeVisible()
-    await canvasIgnoresKeys('排队第一条', ['Delete', 'Meta+a'])
+    await canvasIgnoresKeys('排队第一条', ['Delete', 'ControlOrMeta+a'])
     await win.locator(CONFIRM_CANCEL).click()
     await expect(win.getByRole('dialog', { name: 'Q2' })).toBeVisible()
-    await canvasIgnoresKeys('排队第二条', ['Delete', 'Meta+a'])
+    await canvasIgnoresKeys('排队第二条', ['Delete', 'ControlOrMeta+a'])
     await closeConfirm()
-    await win.keyboard.press('Meta+a')
+    await win.keyboard.press('ControlOrMeta+a')
     await expect.poll(async () => (await canvasFacts()).selected.length).toBe((await canvasFacts()).nodes.length)
   })
 
@@ -324,10 +330,10 @@ try {
     await expect.poll(prompt).toContain('abc')
     const typed = await prompt()
     await openConfirm('U')
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await win.waitForTimeout(KEY_SETTLE_MS)
     expect(await prompt(), 'Cmd+Z 撤了框后面的字').toBe(typed)
-    await win.keyboard.press('Meta+Shift+z')
+    await win.keyboard.press('ControlOrMeta+Shift+z')
     await win.waitForTimeout(KEY_SETTLE_MS)
     expect(await prompt(), 'Cmd+Shift+Z 动了框后面的字').toBe(typed)
     await closeConfirm()
@@ -371,7 +377,7 @@ try {
     await canvasIgnoresKeys('确认框关了、设置还开着 × 画布')
     await closeSettings(win)
     await selectCanvasNode('shared-node')
-    await win.keyboard.press('Meta+a')
+    await win.keyboard.press('ControlOrMeta+a')
     await expect.poll(async () => (await canvasFacts()).selected.length).toBe((await canvasFacts()).nodes.length)
     await selectCanvasNode('shared-node')
   })
@@ -399,19 +405,22 @@ try {
   await step('A7', '模态里的输入框打字不受影响，画布不动', async () => {
     const before = await canvasFacts()
     const dialog = await openSettings(win, { tab: 'ai' })
-    await dialog.locator('[data-settings-custom-relay] summary').click()
-    const input = dialog.locator('[data-settings-field="asset-relay-endpoint"]')
+    await expect(dialog.locator('fieldset[aria-busy="false"]')).toBeEnabled()
+    const relay = dialog.locator('[data-settings-custom-relay]')
+    await relay.locator('summary').click()
+    const input = relay.locator('[data-settings-field="asset-relay-endpoint"]')
+    await expect(input).toBeEditable()
     await input.click()
     await win.keyboard.type('https://a')
     await win.keyboard.press('Backspace')
     await expect(input).toHaveValue('https://')
     await win.keyboard.press('Delete')
-    await win.keyboard.press('Meta+a')
+    await win.keyboard.press('ControlOrMeta+a')
     await win.keyboard.type('xy')
     await expect(input).toHaveValue('xy')
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await win.waitForTimeout(KEY_SETTLE_MS)
-    await win.keyboard.press('Meta+Shift+z')
+    await win.keyboard.press('ControlOrMeta+Shift+z')
     await win.waitForTimeout(KEY_SETTLE_MS)
     await shot('06-typing-in-modal')
     // Cmd+V 只用页内造的 paste 事件验：工作区不许截走、不许 preventDefault。按真键会把用户系统剪贴板的内容贴进来。
@@ -449,7 +458,7 @@ try {
     const before = await clipFacts(GENERATION_TIMELINE)
     await win.keyboard.press('Delete')
     await expect.poll(async () => (await clipFacts(GENERATION_TIMELINE)).length).toBe(before.length - 1)
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await expect.poll(async () => (await clipFacts(GENERATION_TIMELINE)).length).toBe(before.length)
     return detail
   })
@@ -479,7 +488,7 @@ try {
     await expect.poll(async () => (await clipFacts(GENERATION_TIMELINE)).filter((clip) => clip.selected === 'true').length).toBeGreaterThan(0)
     await win.keyboard.press('Delete')
     await expect.poll(async () => (await clipFacts(GENERATION_TIMELINE)).length, { message: '灯箱只盖画布：点过时间轴，时间轴就要接键' }).toBe(clipsBefore.length - 1)
-    await win.keyboard.press('Meta+z')
+    await win.keyboard.press('ControlOrMeta+z')
     await expect.poll(async () => (await clipFacts(GENERATION_TIMELINE)).length).toBe(clipsBefore.length)
     await expect(win.locator(LIGHTBOX)).toBeVisible()
     await pressCloses(win.locator(LIGHTBOX), 'Escape', '灯箱开着')
@@ -505,7 +514,7 @@ try {
     await win.keyboard.press('ArrowRight')
     await expect.poll(() => lightbox.getAttribute('aria-label'), { message: '方向键应当翻到另一版' }).not.toBe(firstLabel)
     await shot('11-version-lightbox')
-    await canvasIgnoresKeys('版本灯箱 × 画布', ['Delete', 'Meta+a'])
+    await canvasIgnoresKeys('版本灯箱 × 画布', ['Delete', 'ControlOrMeta+a'])
     await pressCloses(lightbox, 'Escape', '版本灯箱开着')
     await expect(grid, 'Esc 只该关灯箱，版本宫格还开着').toBeVisible()
     await pressCloses(grid, 'Escape', '版本宫格开着', '灯箱关了之后 Esc 才归宫格')
@@ -550,14 +559,14 @@ try {
     await collapseAgentPanel(win)
     await expect.poll(() => agentForm()).toBe('collapsed')
     await openConfirm('J')
-    await win.keyboard.press('Meta+j')
+    await win.keyboard.press('ControlOrMeta+j')
     await win.waitForTimeout(150)
     expect(await agentForm(), '窗口级模态开着，Mod+J 不该把面板叫出来').toBe('collapsed')
     expect(await win.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]'))), '焦点应当还在确认框里').toBe(true)
     await closeConfirm()
     await pointerSelectNode()
     await openLightbox()
-    await win.keyboard.press('Meta+j')
+    await win.keyboard.press('ControlOrMeta+j')
     await expect.poll(() => agentForm(), { message: '灯箱只盖画布，Mod+J 照常' }).not.toBe('collapsed')
     await shot('14-agent-over-lightbox')
     await win.evaluate(() => window.__nomiAgentForm.collapseAgent('generation'))
@@ -567,7 +576,7 @@ try {
   await step('A11', '非模态不误挡：任务中心、菜单、Agent 面板开着时画布快捷键照常', async () => {
     const selectAll = async (label) => {
       await selectCanvasNode('shared-node')
-      await win.keyboard.press('Meta+a')
+      await win.keyboard.press('ControlOrMeta+a')
       await expect.poll(async () => (await canvasFacts()).selected.length, { message: `${label} 开着时 Cmd+A 应当归画布` }).toBe((await canvasFacts()).nodes.length)
     }
     await pointerSelectNode()

@@ -1,0 +1,24 @@
+{
+  "name": "动效退场时长换算",
+  "subject": "motion.exit-duration",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/design/motion.ts",
+    "symbol": "exitDurationMs"
+  },
+  "write_api": [
+    {
+      "path": "src/design/motion.ts",
+      "symbol": "exitDurationMs"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/design/motion.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "将进入时长乘以三分之二后取最接近的 10 毫秒，供动效刻度、主题和覆盖层统一计算退场时长。"
+}

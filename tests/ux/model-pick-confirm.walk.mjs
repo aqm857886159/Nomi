@@ -1,103 +1,82 @@
-// 拉取模型 → 第二屏勾选确认 R13 走查（2026-06-29）。
-// 用法: NOMI_E2E=1 node tests/ux/model-pick-confirm.walk.mjs
-// 产出: tests/ux/shots/pick-confirm/*.png —— 人眼判断：来源名称字段 / 模型空态 / 第二屏分组勾选 /
-//        手填 id 自动按 文本·图片·视频·配音 归类 / 回表单「已选 N 个」摘要。
-// 不需要真 relay：手填 id 走的是 candidate→picker→summary 同一条管线，guessKinds 本机纯启发式。
-import { launchNomiApp } from './_launchApp.mjs'
+// 自定义 API：保存连接 → 手填、分类、勾选模型 → 确认后进入本机适配。
+// 只用回环地址和假凭据，禁止测试访问供应商或生成素材。
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { launchNomiApp } from './_launchApp.mjs'
 import { openCustomApiWizard } from './_shell.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/pick-confirm')
+const locale = process.argv[2] === 'en' ? 'en' : 'zh-CN'
+const shotsDir = process.env.EVIDENCE_DIR ? assertOutsideRepo(process.env.EVIDENCE_DIR) : makeTempDir('model-pick-confirm-')
 fs.mkdirSync(shotsDir, { recursive: true })
-const userData = path.join(repoRoot, '.tmp', 'nomi-pick-confirm-userdata')
-fs.rmSync(userData, { recursive: true, force: true })
-fs.mkdirSync(userData, { recursive: true })
-
-let n = 0
-async function snap(win, name) {
-  n += 1
-  const tag = `${String(n).padStart(2, '0')}-${name}`
-  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.png`) })
-  console.log(`  · shot ${tag}`)
-}
-
-const { app, win } = await launchNomiApp({
+process.env.EVIDENCE_DIR = shotsDir
+const text = (key, values) => values ? uiTextWith(locale, key, values) : uiText(locale, key)
+const modelText = (key, values) => text(`onboardingProviders.modelControls.${key}`, values)
+const models = [
+  ['gpt-5.5', 'text'],
+  ['flux-2-flex', 'image'],
+  ['kling-v3', 'video'],
+  ['doubao-tts-2.0', 'audio'],
+  ['deepseek-v4-pro', 'text'],
+]
+const { win, close } = await launchNomiApp({
   name: 'model-pick-confirm',
-  userDataDir: userData,
+  env: { NOMI_TEST_NETWORK_GUARD: '1' },
+  initialLocalStorage: {
+    'nomi:locale:v1': locale,
+    'nomi:splash:v1': 'seen',
+    'nomi:journey-tour:v1': 'seen',
+    'nomi:canvas-gesture-hint:v1': 'seen',
+  },
 })
+const snap = (name) => screenshotSettled(win, { path: path.join(shotsDir, `${locale}-${name}.png`) })
 
-await win.evaluate(() => {
-  for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
-    window.localStorage.setItem(k, 'seen')
+try {
+  await openCustomApiWizard(win)
+  const wizard = win.locator('[data-model-access-entry~="relay-model-discovery"]')
+  const source = wizard.getByPlaceholder(text('modelSetup.vendorNamePlaceholder'), { exact: true })
+  await expect(source).toBeVisible()
+  await snap('01-connection')
+  await source.fill('Picker loopback')
+  await wizard.getByPlaceholder(text('modelSetup.openAiUrlPlaceholder'), { exact: true }).fill('http://127.0.0.1:1/v1')
+  await wizard.getByPlaceholder(text('modelSetup.apiKeyPlaceholder'), { exact: true }).fill('sk-fixture-model-picker')
+  await clickOrFail(wizard.getByRole('button', { name: text('modelSetup.saveConnection'), exact: true }), '保存连接')
+  const saved = wizard.locator('[data-model-connection-saved]')
+  await expect(saved).toBeVisible()
+  await snap('02-connection-saved')
+
+  await clickOrFail(saved.getByRole('button', { name: text('modelSetup.manualEnter'), exact: true }), '手动输入模型 ID')
+  const manual = wizard.getByPlaceholder(modelText('manualPlaceholder'), { exact: true })
+  await expect(wizard.getByText(modelText('endpointEmpty'), { exact: true })).toBeVisible()
+  await expect(wizard.getByRole('button', { name: modelText('addModels', { count: 0 }), exact: true })).toBeDisabled()
+  await snap('03-picker-empty')
+
+  for (const [id, kind] of models) {
+    await manual.fill(id)
+    await manual.press('Enter')
+    await expect(wizard.getByRole('button', { name: id, exact: true })).toBeVisible()
+    await expect(wizard.getByRole('button', { name: modelText('retypeAria', { name: id }), exact: true })).toHaveText(modelText(`kind.${kind}`))
   }
-})
-await win.reload()
-await win.waitForTimeout(1200)
-for (let i = 0; i < 6; i++) {
-  const skip = win.locator('button, [role="button"], a', { hasText: /跳过|开始创作|进入|完成/ }).first()
-  if (await skip.count()) await skip.click({ timeout: 1200 }).catch(() => {})
-  await win.keyboard.press('Escape').catch(() => {})
-  await win.waitForTimeout(300)
+  await expect(wizard.getByRole('button', { name: modelText('addModels', { count: models.length }), exact: true })).toBeEnabled()
+  await snap('04-picker-grouped')
+
+  const excluded = models.at(-1)[0]
+  await clickOrFail(wizard.getByRole('button', { name: excluded, exact: true }), '取消一个已选模型')
+  const confirm = wizard.getByRole('button', { name: modelText('addModels', { count: models.length - 1 }), exact: true })
+  await expect(confirm).toBeEnabled()
+  await snap('05-picker-toggled')
+  await clickOrFail(confirm, '确认所选模型')
+
+  const adapter = win.locator('[data-model-access-entry="provider-adapter"]')
+  await expect(adapter).toBeVisible()
+  for (const [id] of models.slice(0, -1)) await expect(adapter.getByText(id, { exact: true }).first()).toBeVisible()
+  const submittedProbe = await proveProbe(adapter.getByText(models[0][0], { exact: true }), '适配页面能找到一个已提交的模型')
+  await expectAbsent(adapter.getByText(excluded, { exact: true }), { provenBy: submittedProbe, message: '取消勾选的模型没有进入适配' })
+  await snap('06-adapter-selection')
+  console.log(`PASS ${locale}: 保存连接、四种模型类型、五选减一、仅四个模型进入适配。证据 ${shotsDir}`)
+} finally {
+  await close()
 }
-
-// 设置 → 模型 →「自定义 API / 中转站」开 wizard（经 _shell.mjs）
-await openCustomApiWizard(win, { label: '开接入向导' })
-await win.waitForTimeout(700)
-console.log('— 第一屏：来源名称字段 + 模型「拉取」空态 —')
-await snap(win, 'form-empty')
-
-// 选 new-api 预设（自定义中转），填来源名称 + 假地址 + 假 key
-const relayChip = win.locator('button', { hasText: /new-?api/i }).first()
-if (await relayChip.count()) await relayChip.click().catch(() => {})
-await win.waitForTimeout(300)
-
-// 来源名称：按 placeholder 定位
-const srcInput = win.getByPlaceholder('如：TOAPI 中转')
-if (await srcInput.count()) { await srcInput.fill('TOAPI 中转'); }
-const baseInput = win.getByPlaceholder(/api\.openai\.com|可留空/).first()
-if (await baseInput.count()) { await baseInput.fill('https://toapis.com/v1') }
-const keyInput = win.getByPlaceholder('sk-...').first()
-if (await keyInput.count()) { await keyInput.fill('sk-faketestkey1234567890') }
-await win.keyboard.press('Tab') // blur → 自动拉取（假地址会失败）
-await win.waitForTimeout(2500)
-console.log('— 自动拉取（假地址失败）→ 端点没列出态 + 手动选择入口 —')
-await snap(win, 'form-fetch-empty')
-
-// 进第二屏：手动选择 / 选择模型
-const toPicker = win.locator('button', { hasText: /手动选择|选择模型/ }).first()
-await toPicker.click({ timeout: 4000 })
-await win.waitForTimeout(600)
-console.log('— 第二屏：空池 + 手填 id 入口 —')
-await snap(win, 'picker-empty')
-
-// 手填四类 id，验证自动归类到 文本/图片/视频/配音
-const manual = win.getByPlaceholder(/没列出来的/).first()
-for (const id of ['gpt-5.5', 'flux-2-flex', 'kling-v3', 'doubao-tts-2.0', 'deepseek-v4-pro']) {
-  await manual.fill(id)
-  await manual.press('Enter')
-  await win.waitForTimeout(500)
-}
-await win.waitForTimeout(600)
-console.log('— 第二屏：五个 id 自动按 文本·图片·视频·配音 分组，默认全勾（手填即选） —')
-await snap(win, 'picker-grouped')
-
-// 取消一个（点 gpt-5.5 行）测试勾选交互 + 计数
-const row = win.locator('button', { hasText: 'deepseek-v4-pro' }).first()
-if (await row.count()) await row.click().catch(() => {})
-await win.waitForTimeout(400)
-console.log('— 取消一个 → 计数 / 按钮数字应 -1 —')
-await snap(win, 'picker-toggled')
-
-// 确认添加 → 回第一屏摘要
-const addModels = win.locator('button', { hasText: /添加 \d+ 个模型/ }).first()
-await addModels.click({ timeout: 4000 })
-await win.waitForTimeout(700)
-console.log('— 回第一屏：已选 N 个 + 每行 id+类型下拉+删除 —')
-await snap(win, 'form-summary')
-
-await app.close()
-console.log(`\n✓ 走查完成，${n} 张截图在 ${shotsDir}`)

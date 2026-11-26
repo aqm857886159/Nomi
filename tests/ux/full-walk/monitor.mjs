@@ -22,7 +22,7 @@ import {
 } from '../agent-runtime-fixture.mjs'
 import { laneMessages, readLaneTranscripts } from '../agent-lane-observer.mjs'
 import { appFramesOf, classifyEgress, REQUIRED_GUARD_LAYERS, vendorHostsOf } from './egress.mjs'
-import { INVARIANTS, invariantById, loadDictionaries, loadLimits, spendCardTitleCount, UI_LOCALES, uiText, uiTextPattern } from './invariants.mjs'
+import { INVARIANTS, invariantById, loadDictionaries, loadLimits, spendButtonCount, UI_LOCALES, uiText, uiTextPattern } from './invariants.mjs'
 import { activeDebt, collectVisibleTextInPage, compileExemptions, findLeaks } from './outcomeText.mjs'
 import { ensurePageProbe, readPageProbe } from './pageProbe.mjs'
 import { unseenPromptAdditions } from './promptTruth.mjs'
@@ -312,9 +312,9 @@ export function createInvariantMonitor(options) {
   }
 
   /**
-   * 付费卡上点主按钮之前调用（D2 起：卡 = 指向元素 + 一行只读摘要 + 主按钮，点「生成」= 把这几镜照节点此刻的样子交给画布）。
-   * 卡上没有第二份数据——每一镜摆给用户看的就是它指着的那个画布节点，所以逐镜读节点（`nodeShown`，和节点上点 ↑ 同一个读法）；
-   * 卡上只读标题、主按钮字和全部文字。返回的 consent 在点完之后由监视器拿去对供应商收到的请求。
+   * 付费确认条上点主按钮之前调用（2026-11-15 拆开起：镜头在对话里一行一个，确认条 = 一行共同参数 + 主按钮，点「生成」= 把这几镜照节点此刻的样子交给画布）。
+   * 条上没有第二份数据——每一镜摆给用户看的就是那一行指着的画布节点，所以逐镜读节点（`nodeShown`，和节点上点 ↑ 同一个读法）；
+   * 条上只读标题（只有出错时才有）、主按钮字和全部文字。返回的 consent 在点完之后由监视器拿去对供应商收到的请求。
    */
   async function consentSpendCard(card, { label } = {}) {
     const read = await readLaneSpend(win()).catch(() => null)
@@ -327,10 +327,9 @@ export function createInvariantMonitor(options) {
         text: String(element.innerText ?? '').replace(/\s+/g, ' ').trim().slice(0, 1200),
       }
     })
-    // 标题问的是几镜：按词典那两句认（英文单数没有数字）；认不出（不是那一句问话）再看标题里有没有数字；都没有记 null，下面照实报。
-    const titleDigits = /(\d+)/.exec(dom.title)?.[1]
-    const buttonCount = Number(/(\d+)/.exec(dom.confirmLabel)?.[1] ?? 0)
-    const declaredCount = spendCardTitleCount(dom.title, locale, Math.max(pending?.shots?.length ?? 0, 1)) ?? (titleDigits ? Number(titleDigits) : (buttonCount || null))
+    // 主按钮说的是几镜（数量只在主按钮上：单段「生成」= 1，多段读数字）；读不出记 null，下面照实报。
+    const declaredCount = spendButtonCount(dom.confirmLabel, locale)
+    const buttonCount = declaredCount ?? 0
     const canvas = (await readProject())?.payload?.generationCanvas ?? {}
     const allShots = []
     for (const shot of pending?.shots ?? []) {
@@ -372,14 +371,15 @@ export function createInvariantMonitor(options) {
   }
 
   /**
-   * 付费卡上「这是图还是视频」只有一个答案：卡标题、候选的模式、模型自己的种类、画布占位节点的种类，四样必须一致。
-   * 任何两样不一致，用户在付钱前那一刻看到的就是自相矛盾的一张卡（标题说视频、模型是图片模型、节点又是视频）。
+   * 付费确认上「这是图还是视频」只有一个答案：主按钮（中文「生成 N 段」是视频、「生成 N 张」是图；英文不带名词，不算这一样）、候选的模式、模型自己的种类、画布占位节点的种类，四样必须一致。
+   * 任何两样不一致，用户在付钱前那一刻看到的就是自相矛盾的一条确认（按钮说段、模型是图片模型、节点又是视频）。
    */
   async function checkCardCoherence(consent) {
     const kindOfText = (value) => (/video|视频/i.test(String(value ?? '')) ? 'video' : /image|图|封面/i.test(String(value ?? '')) ? 'image' : null)
-    const titleKind = /视频|video/i.test(consent.dom.title) ? 'video' : /图片|image|张/i.test(consent.dom.title) ? 'image' : null
+    // 主按钮只有中文带量词（「生成 N 段 / 张」）；英文按板上「Generate 12」不带名词，读不出种类就不算这一样（null），不猜。
+    const buttonKind = /段/.test(consent.dom.confirmLabel) ? 'video' : /张/.test(consent.dom.confirmLabel) ? 'image' : null
     for (const shot of consent.allShots) {
-      const facts = { 卡标题: titleKind, 宿主种类: kindOfText(shot.hostKind), 模型种类: shot.modelKind, 画布节点: shot.nodeKind }
+      const facts = { 主按钮: buttonKind, 宿主种类: kindOfText(shot.hostKind), 模型种类: shot.modelKind, 画布节点: shot.nodeKind }
       const distinct = new Set(Object.values(facts).filter(Boolean))
       if (distinct.size <= 1) continue
       await violate({
@@ -388,8 +388,8 @@ export function createInvariantMonitor(options) {
         // semanticGenerationCandidate.admitShotIdentity 核，之后四处都读 generationShotKind。这条规则还红，
         // 说明有一个读者绕开了它（或者一条建镜头的路没过核对）。删掉的按提示词猜种类的旧路不该再出现。
         module: 'electron/shared/generationShotKind.ts（resolveShotTaskKind 定种类 / generationShotKind 唯一读口）+ electron/capabilityCore/semanticGenerationCandidate.ts admitShotIdentity（建镜头时核模型 + 模式）——这条还红就是有读者绕开了唯一主人',
-        message: `付费卡对「${shot.shotId}」说的自相矛盾：${Object.entries(facts).map(([name, value]) => `${name}=${value ?? '无'}`).join('，')}（标题「${consent.dom.title}」，节点上的模型 ${shot.providerId}/${shot.model}）`,
-        snapshot: { facts, shot: { ...shot, surfaceText: undefined }, title: consent.dom.title },
+        message: `付费卡对「${shot.shotId}」说的自相矛盾：${Object.entries(facts).map(([name, value]) => `${name}=${value ?? '无'}`).join('，')}（主按钮「${consent.dom.confirmLabel}」，节点上的模型 ${shot.providerId}/${shot.model}）`,
+        snapshot: { facts, shot: { ...shot, surfaceText: undefined }, confirmLabel: consent.dom.confirmLabel },
       })
     }
   }
@@ -725,8 +725,8 @@ export function createInvariantMonitor(options) {
       const problems = [
         ...(undecidedCount > 0 && consent.declaredCount !== undecidedCount
           ? [consent.declaredCount === null
-            ? `标题「${consent.dom.title}」读不出问的是几镜（不是词典里那一句问话，也没有数字），点下去那一刻卡上还没决定的是 ${undecidedCount} 镜`
-            : `标题写「${consent.dom.title}」（${consent.declaredCount} 镜），点下去那一刻卡上还没决定的是 ${undecidedCount} 镜`] : []),
+            ? `主按钮「${consent.dom.confirmLabel}」读不出是几镜（不是「生成」也没有数字），点下去那一刻还没决定的是 ${undecidedCount} 镜`
+            : `主按钮写「${consent.dom.confirmLabel}」（${consent.declaredCount} 镜），点下去那一刻还没决定的是 ${undecidedCount} 镜`] : []),
         ...(tagAlong.length > 0
           ? [`按钮是「${consent.dom.confirmLabel}」（${consent.scope.length} 镜），点完供应商还收到同一张卡上别的 ${tagAlong.length} 镜`] : []),
         ...(dropped.length > 0
@@ -735,8 +735,8 @@ export function createInvariantMonitor(options) {
       if (problems.length > 0) {
         await violate({
           invariant: 3, rule: 'card-scope-mismatch', key: consent.id,
-          module: 'electron/productionRun/productionGenerationPresentationEdits.ts + electron/shared/productionGenerationPresentation.ts（出价记录：卡上摆哪几镜、哪几镜是用户去掉 / 关掉的）+ src/workbench/ai/v4/agentPanelSpendCard.ts（标题数还没决定的镜）',
-          message: `付费卡「${consent.dom.title}」上点了「${consent.dom.confirmLabel}」：${problems.join('；')}`,
+          module: 'electron/productionRun/productionGenerationPresentationEdits.ts + electron/shared/productionGenerationPresentation.ts（出价记录：卡上摆哪几镜、哪几镜是用户去掉 / 关掉的）+ src/workbench/ai/v4/agentPanelSpendCard.ts（主按钮数还没决定的镜）',
+          message: `付费确认上点了「${consent.dom.confirmLabel}」：${problems.join('；')}`,
           snapshot: { consent, submissions: later, presentations: run?.generationPlan?.presentations ?? null },
         })
       }

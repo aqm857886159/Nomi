@@ -48,8 +48,8 @@ describe('handOverPrecheck：节点自己的那几条', () => {
     expect(codes(['v1'], [video('v1', 't2v', { modelVendor: undefined, modelKey: undefined })])).toEqual({ v1: 'parameter_rejected:model_not_selected' })
   })
 
-  it('本机模型（ComfyUI）不进单镜 Run → 卡交不出去', () => {
-    expect(codes(['v1'], [video('v1', 't2v', { modelVendor: 'comfyui-local', modelKey: 'h3-t2v', archetype: undefined })])).toEqual({ v1: 'parameter_rejected:local_model_on_card' })
+  it('本机 ComfyUI 镜头进入同一可恢复 Run', () => {
+    expect(codes(['v1'], [video('v1', 't2v', { modelVendor: 'comfyui-local', modelKey: 'h3-t2v', archetype: undefined })])).toEqual({})
   })
 
   it('3D-BOX 预演还在渲染 → 参数被拒（与生成钮置灰同一个判据）', () => {

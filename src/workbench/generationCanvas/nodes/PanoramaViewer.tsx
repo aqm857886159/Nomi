@@ -455,7 +455,7 @@ function PanoramaDialogControls({
             key={ratio.id}
             type="button"
             className={cn(
-              'h-7 rounded-full px-2.5 text-micro font-medium tabular-nums transition-colors duration-150',
+              'h-7 rounded-full px-2.5 text-micro font-medium tabular-nums transition-colors duration-nomi-micro',
               captureRatioId === ratio.id
                 ? 'bg-nomi-ink text-nomi-paper'
                 : 'bg-transparent text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
@@ -577,7 +577,7 @@ export default function PanoramaViewer({
               'pointer-events-auto inline-flex items-center gap-1.5 rounded-full',
               'px-3 py-1.5 text-micro font-medium text-nomi-paper',
               'bg-[color-mix(in_oklab,var(--nomi-ink)64%,transparent)] backdrop-blur-[6px]',
-              'opacity-0 transition-opacity duration-150 group-hover:opacity-100',
+              'opacity-0 transition-opacity duration-nomi-micro group-hover:opacity-100',
               'hover:bg-[color-mix(in_oklab,var(--nomi-ink)80%,transparent)] focus-visible:opacity-100',
             )}
             aria-label={t('generationCommon.panorama.enterAria')}

@@ -15,6 +15,7 @@ import {
   paidBuildMarkerProblems, paidRunRefusal, paidWalkCoverageProblems, rehearsalReceiptFile, scriptFingerprint, writeRehearsalReceipt,
   REHEARSAL_ENDPOINTS, REHEARSAL_RECEIPT_VERSION, rehearsalEndpointOf,
 } from './_paidRun.mjs'
+import { isApimartKeyCandidate } from '../../electron/shared/contracts/vendorAccountBalance'
 import { REHEARSAL_STATIONS } from './_paidNetwork.mjs'
 import { finalizeRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -31,6 +32,14 @@ function walkScripts() {
 }
 const repoPaidWalks = () => walkScripts().filter((file) => /\.paid\.mjs$/.test(file))
 const read = (file) => fs.readFileSync(path.join(repoRoot, file), 'utf8')
+
+describe('rehearsal fake key · same shape check as the product', () => {
+  // 假钥匙是演练自己的一份：产品的接入页只收 isApimartKeyCandidate 认的形状（11-24 起），演练的假钥匙不合格就卡在接入页。
+  // 直接拿产品那一个判断来判它，产品再收紧格式这里先红。
+  it('passes the APIMart connect page key-shape check', () => {
+    expect(isApimartKeyCandidate(REHEARSAL_FAKE_KEY)).toBe(true)
+  })
+})
 
 describe('paid walk coverage', () => {
   it('every *.paid.mjs in the repo uses openPaidWalk or sits in the exception table (and the table has no dead entries)', () => {

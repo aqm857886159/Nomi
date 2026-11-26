@@ -1,3 +1,4 @@
+import { reducedMotionQuery, shouldReduceMotion } from '../../../design/motion'
 import React from 'react'
 import { readProcessMotionCapability, shouldReduceProcessMotion } from './processMotionCapability'
 
@@ -8,14 +9,15 @@ function readReducedMotion(): boolean {
   if (!rendererByDocument.has(document)) rendererByDocument.set(document, readProcessMotionCapability().renderer)
   return shouldReduceProcessMotion({
     renderer: rendererByDocument.get(document)!,
-    prefersReducedMotion: typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    prefersReducedMotion: shouldReduceMotion(),
   })
 }
 
 export function useReducedProcessMotion(): boolean {
   const [reduced, setReduced] = React.useState(readReducedMotion)
   React.useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const query = reducedMotionQuery()
+    if (!query) return
     const update = () => setReduced(readReducedMotion())
     query.addEventListener('change', update)
     update()

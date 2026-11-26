@@ -18,7 +18,7 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CARD_CANCEL, CARD_PRIMARY, CARD_PROGRESS, CARD_TITLE, EXCLUDE, STOP_NOTICE, createPresenter, offerFacts, primaryLabel, say, stoppedLine,
+  CARD_CANCEL, CARD_PRIMARY, CARD_PROGRESS, CARD_TITLE, EXCLUDE, OFFER_ROWS, STOP_NOTICE, createPresenter, offerFacts, primaryLabel, say, stoppedLine,
 } from './_spendCardWalk.mjs'
 import { CANVAS_PANEL, createRuntimeWalk, expandResidentPanel, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
 import { backToLibrary, newProjectEntry } from './_shell.mjs'
@@ -26,7 +26,7 @@ import { handOverCounts, quickShot, receiptDecision, singleStopRound, stopNotice
 
 const IMAGE = 'gpt-image-2@apimart'
 const BATCH_CONCURRENCY = 6
-const A = { progress: 'board:SpendCardQ1/card.progress', stop: 'board:SpendCardQ1/card.progress.stop' }
+const A = { progress: 'board:SpendAskSplit/ask.sending', stop: 'board:SpendAskSplit/ask.sending' }
 
 const present = createPresenter('S_STOP')
 const twelve = (tag) => Array.from({ length: 12 }, (_, index) => ({
@@ -39,13 +39,13 @@ function vendorCounts(walk, from) {
   return { received: records.length, accepted: records.filter((record) => record.acceptedAt).length }
 }
 
-/** 正在发出时卡上摆着的控件（只该剩「取消」）。 */
+/** 正在发出时确认条上摆着的控件（只该剩「取消」），以及对话里那一组行尾还挂没挂「不生成 ×」（不该挂）。 */
 function sendingControls(card) {
-  return card.evaluate((element, exclude) => ({
+  return card.evaluate((element, { exclude, rows }) => ({
     confirm: element.querySelectorAll('[data-v4-control="confirm"]').length,
     dismiss: element.querySelectorAll('[data-v4-control="slot-dismiss"]:not([disabled])').length,
-    toggles: element.querySelectorAll(exclude).length,
-  }), EXCLUDE)
+    toggles: element.querySelectorAll(exclude).length + [...document.querySelectorAll(rows)].reduce((sum, group) => sum + group.querySelectorAll(exclude).length, 0),
+  }), { exclude: EXCLUDE, rows: OFFER_ROWS })
 }
 
 /** ① 正在发出 1/12：拍那一画面，然后放开受理、让它跑完。 */
@@ -58,9 +58,9 @@ async function sendingRound(walk, win, projectId, locale) {
   let peak
   try {
     await clickOrFail(card.locator(CARD_PRIMARY), `${locale}：「全部生成（12）」`, { noWaitAfter: true })
-    await expect(card.locator(CARD_TITLE), `${A.progress}：标题说正在发出第 1 张（还没有一张落定）`)
+    await expect(card.locator(CARD_PROGRESS), `${A.progress}：确认条只剩一行「正在发出第 1 张」（还没有一张落定）`)
       .toContainText(say(locale, 'agentPanelV4.spendBatchProgressImage', { current: 1, total: 12 }), { timeout: stationTimeout({ operations: 4 }) })
-    await expect(card.locator(CARD_PROGRESS), `${A.stop}：动作行只说怎么停`).toContainText(say(locale, 'agentPanelV4.spendBatchStopHint'))
+    await expect(card.locator(CARD_TITLE), `${A.stop}：正在发出时不画标题`).toHaveCount(0)
     expect(await sendingControls(card), `${A.progress}：正在发出时没有主按钮、没有「不生成 ×」，「取消」在且可点`).toEqual({ confirm: 0, dismiss: 1, toggles: 0 })
     await expect.poll(() => vendorCounts(walk, imagesBefore).received, { message: `${locale}：画布批量并发的那一批到了供应商门口`, timeout: stationTimeout({ operations: 6 }) }).toBe(BATCH_CONCURRENCY)
     peak = vendorCounts(walk, imagesBefore).received

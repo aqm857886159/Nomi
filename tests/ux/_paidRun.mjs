@@ -49,8 +49,8 @@ export const REHEARSAL_TIERS = Object.freeze({
   'no-key': '不要 Key：一把假钥匙经可见接入页装进隔离副本，真实资料目录和环境变量里的真 Key 一概不读；只覆盖 APIMart 的模型',
   'real-key': '要真 Key、出不了网：凭据照真付费那样装（真实资料副本或环境变量 Key），放行名单是空的',
 })
-/** 不要 Key 那档的假钥匙：形状过得了接入页，值一眼看得出是假的，不是秘密。 */
-export const REHEARSAL_FAKE_KEY = 'nomi-rehearsal-fake-key-not-a-secret'
+/** 不要 Key 那档的假钥匙：形状过得了接入页（单测直接拿产品的 isApimartKeyCandidate 判它），值一眼看得出是假的，不是秘密。 */
+export const REHEARSAL_FAKE_KEY = 'sk-nomi-rehearsal-fake-key-not-a-secret'
 
 /**
  * 替身供应商要答的免费探测：从产品种子里代码拥有的 `credentialProbe` 派生（不手抄第二份），答成「成功判据那个字段 = 0」。
@@ -100,6 +100,7 @@ export const REHEARSAL_ENDPOINTS = Object.freeze({
   'creation-ai-rewrite-real.paid.mjs': { endsAt: 'brain', why: '写作区 AI 编辑：一次文字模型调用' },
   'deconstruct-real.paid.mjs': { endsAt: 'brain', why: '拆解：读图模型的对话请求就是它花钱的那条' },
   'look-at-canvas-selection-real.paid.mjs': { endsAt: 'brain', why: '只看工具写对率、回合成功率：只花文字模型的钱' },
+  'storyboard-agent-bulk-real.paid.mjs': { endsAt: 'brain', why: '只让 Agent 编辑当前分镜，不提交媒体生成' },
   'text-tasks-pi-ai-real.paid.mjs': { endsAt: 'brain', why: '文本任务单次调用：只花文字模型的钱' },
   'tool-schema-real.paid.mjs': { endsAt: 'brain', why: '一回合文字模型的工具调用，不生成媒体' },
 })

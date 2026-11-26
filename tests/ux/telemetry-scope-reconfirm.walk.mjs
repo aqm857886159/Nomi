@@ -6,60 +6,71 @@
 //   ⑤ 重载后卡不再出现。
 // 用法：先 pnpm run build；node tests/ux/telemetry-scope-reconfirm.walk.mjs
 //       EVIDENCE_DIR=<目录> 指定截图落点
-import { launchNomiApp } from './_launchApp.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
+import { AGENT_PANEL, createBlankProject, ensureAgentPanelOpen } from './_shell.mjs'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 import { uiText } from './full-walk/invariants.mjs'
-import { expect, expectAbsent, proveProbe, clickOrFail, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const repoRoot = process.cwd()
-const evidenceDir = process.env.EVIDENCE_DIR || path.join(repoRoot, 'tests/ux/shots/telemetry-scope-reconfirm')
+const tempRoot = makeTempDir('nomi-telemetry-scope-reconfirm-')
+const evidenceDir = process.env.EVIDENCE_DIR ? assertOutsideRepo(process.env.EVIDENCE_DIR) : path.join(tempRoot, 'evidence')
 fs.mkdirSync(evidenceDir, { recursive: true })
-const tempRoot = path.join(repoRoot, '.tmp', 'nomi-telemetry-scope-reconfirm')
-fs.rmSync(tempRoot, { recursive: true, force: true })
+process.env.EVIDENCE_DIR = evidenceDir
 
 const PERF_PROPS = { interactionP75: '100-200', interactionP95: '200-500', longFramesPerMin: '1-3', longestFrame: '100-250', observedMinutes: '5-30', page: 'generation', nodes: '21-100', imageNodes: '1-20', generating: false, cpuCores: '5-8', memoryGb: '8plus' }
-const LOCALES = [
-  { locale: 'zh-CN', newProject: /新建空白项目/ },
-  { locale: 'en', newProject: /New blank project/ },
-]
+const LOCALES = ['zh-CN', 'en']
 
 let failed = null
-for (const spec of LOCALES) {
-  let app
+for (const locale of LOCALES) {
+  let close
+  let fixture
   try {
-    const dir = path.join(tempRoot, spec.locale)
-    const opts = { userDataDir: path.join(dir, 'user-data'), settingsDir: path.join(dir, 'settings'), projectsDir: path.join(dir, 'projects') }
-    fs.mkdirSync(opts.settingsDir, { recursive: true })
+    const dir = path.join(tempRoot, locale)
+    const settingsDir = path.join(dir, 'settings')
+    fs.mkdirSync(settingsDir, { recursive: true })
     // 旧版本写下的文件：开着、没有 scopeVersion 这一格。
-    fs.writeFileSync(path.join(opts.settingsDir, 'telemetry-settings.json'), JSON.stringify({ schemaVersion: 1, enabled: true, endpointMode: 'aptabase', consentedAt: '2026-09-20T00:00:00.000Z', installSessionId: 'legacySession0123456789' }))
+    fs.writeFileSync(path.join(settingsDir, 'telemetry-settings.json'), JSON.stringify({ schemaVersion: 1, enabled: true, endpointMode: 'aptabase', consentedAt: '2026-09-20T00:00:00.000Z', installSessionId: 'legacySession0123456789' }))
+    // 未接文本模型时，Agent 显示接入卡。为已接入的旧用户种一个回环模型，才能走到同意卡。
+    fixture = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir })
     let win
-    ;({ app, win } = await launchNomiApp({ name: `scope-reconfirm-${spec.locale}`, ...opts, settleMs: 0 }))
-    await win.evaluate((locale) => {
-      localStorage.setItem('nomi:locale:v1', locale)
-      localStorage.setItem('nomi:agent-consent-asked:v1', 'asked')
-      for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen')
-    }, spec.locale)
-    await win.reload()
+    ;({ close, win } = await launchNomiApp({
+      name: `scope-reconfirm-${locale}`,
+      userDataDir: path.join(dir, 'user-data'),
+      settingsDir,
+      projectsDir: path.join(dir, 'projects'),
+      env: { NOMI_TEST_NETWORK_GUARD: '1' },
+      initialLocalStorage: {
+        'nomi:locale:v1': locale,
+        'nomi:agent-consent-asked:v1': 'asked',
+        'nomi:splash:v1': 'seen',
+        'nomi:journey-tour:v1': 'seen',
+        'nomi:canvas-gesture-hint:v1': 'seen',
+      },
+    }))
     await win.waitForFunction(() => Boolean(window.nomiDesktop?.settings?.telemetry))
 
     const before = await win.evaluate(() => window.nomiDesktop.settings.telemetry.get())
     expect(before.enabled, '预埋的旧设置应当是开着的').toBe(true)
     expect(before.scopeVersion, '旧设置里没有范围版本，读出来应当是 1').toBe(1)
 
-    await clickOrFail(win.getByRole('button', { name: spec.newProject }), 'new project', { noWaitAfter: true })
-    await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
-    const card = win.locator('[data-v4-block="consent"]').first()
-    await expect(card, '已同意旧范围的用户该看到再确认卡').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    const proof = await proveProbe(win.locator('[data-v4-block="consent"]'), '能看到再确认卡')
+    await createBlankProject(win)
+    await ensureAgentPanelOpen(win)
+    const empty = win.locator(AGENT_PANEL).locator('[data-v4-block="empty"]')
+    await expect(empty).toBeVisible()
+    const card = empty.locator('[data-v4-block="consent"]')
+    const proof = await proveProbe(card, '已同意旧范围的用户能看到再确认卡')
     expect(await card.getAttribute('data-v4-consent-mode'), '应当是 scope 形态，不是首次询问卡').toBe('scope')
-    await card.screenshot({ path: path.join(evidenceDir, `${spec.locale}-scope-card.png`) })
+    await screenshotSettled(card, { path: path.join(evidenceDir, `${locale}-scope-card.png`) })
 
     const queuedBefore = await win.evaluate((props) => window.nomiDesktop.telemetry.track({ eventName: 'perf.session.summary', props }), PERF_PROPS)
     expect(queuedBefore.queued, '确认之前新范围的事件不许入队').toBe(false)
 
     // 按钮按词典里的名字认，不抄文案。
-    await card.getByRole('button', { name: uiText(spec.locale, 'agentPanelV4.consent.scopeAccept'), exact: true }).click()
+    await card.getByRole('button', { name: uiText(locale, 'agentPanelV4.consent.scopeAccept'), exact: true }).click()
     await expect.poll(async () => (await win.evaluate(() => window.nomiDesktop.settings.telemetry.get())).scopeVersion, { timeout: DEFAULT_TIMEOUT_MS }).toBe(2)
     const after = await win.evaluate(() => window.nomiDesktop.settings.telemetry.get())
     expect(after.scopeVersion, '点同意后范围版本应升到 2').toBe(2)
@@ -70,15 +81,22 @@ for (const spec of LOCALES) {
     expect(names, '本机待发 / 已发摘要里应当有 perf.session.summary').toContain('perf.session.summary')
 
     await win.reload()
-    // 等 Agent 面板的空态出现（卡就住在它里面），再证明卡不在——不拿 sleep 当信号。
-    await win.waitForSelector('[data-v4-block="empty"]', { timeout: DEFAULT_TIMEOUT_MS })
-    await expectAbsent(win.locator('[data-v4-block="consent"]'), { provenBy: proof, message: '确认过的用户重载后又被弹了卡' })
-    await screenshotSettled(win, { path: path.join(evidenceDir, `${spec.locale}-after-confirm.png`) })
-    console.log(`✅ ${spec.locale}: 再确认卡出现 → 确认前不入队 → 确认后升到范围 2 并入队 → 重载不再弹`)
+    await ensureAgentPanelOpen(win)
+    await expect(empty).toBeVisible()
+    await expectAbsent(card, { provenBy: proof, message: '确认过的用户重载后又被弹了卡' })
+    await screenshotSettled(win, { path: path.join(evidenceDir, `${locale}-after-confirm.png`) })
+    fixture.assertClean()
+    expect(fixture.requests, '遥测确认不调用文本模型').toHaveLength(0)
+    expect(fixture.images, '遥测确认不调用图片模型').toHaveLength(0)
+    console.log(`✅ ${locale}: 再确认卡出现 → 确认前不入队 → 确认后升到范围 2 并入队 → 重载不再弹`)
   } catch (error) {
     failed = error
   } finally {
-    await app?.close().catch(() => {})
+    try {
+      await close?.()
+    } finally {
+      await fixture?.close()
+    }
   }
   if (failed) break
 }

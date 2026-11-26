@@ -281,13 +281,15 @@ describe('按下那一刻：卡上画着的 = 交出去的', () => {
     expect(host.handOverSpend.mock.calls[0]![0]).toMatchObject({ shotIds: ['s1', 's2'] })
   })
 
-  it('卡上的摘要读节点：节点上改了比例，卡上那一行跟着变（不等宿主再推一份）', () => {
+  it('确认条的共同参数读节点：节点上改了比例，条上那一行和那一镜那一行跟着变（不等宿主再推一份）', () => {
     const view = mount(ready(offer([shot(1), shot(2)])))
     expect(api.body?.summary).toContain('16:9')
     expect(api.body?.summary).not.toContain('9:16')
     editNode('n2', { aspect_ratio: '9:16' })
     view.flush()
-    expect(api.body?.summary).toContain('9:16')
+    // 两镜比例不同了：比例不再是共同项，回到各自那一行。
+    expect(api.body?.summary).not.toContain('16:9')
+    expect(api.body?.pointers.map((pointer) => pointer.note)).toEqual(['16:9', '9:16'])
   })
 
   it('卡只订卡上那几镜的节点：画布上别的节点改了参数 / 被拖了，卡不重渲；卡上那一镜改了才重渲（200 节点的画布上拖一张卡不带着卡重渲）', () => {
@@ -303,7 +305,7 @@ describe('按下那一刻：卡上画着的 = 交出去的', () => {
     editNode('n2', { aspect_ratio: '9:16' })
     view.flush()
     expect(renders).toBeGreaterThan(settled)
-    expect(api.body?.summary).toContain('9:16')
+    expect(api.body?.pointers[1]?.note).toContain('9:16')
   })
 
   it.each([
@@ -363,14 +365,14 @@ describe('停下那一句只说宿主数的', () => {
     expect(host.toast).toHaveBeenCalledWith(i18n.t(spendActionFailureCopy(stale), { field: '' }), 'error')
   })
 
-  it('正在发出时点「取消」：卡标题换成「正在停」，宿主不再推「在交」之后回到常态', () => {
+  it('正在发出时点「取消」：那一行换成「正在停」，宿主不再推「在交」之后回到常态', () => {
     const view = mount(ready(offer([shot(1, { offer: 'sent' }), shot(2, { offer: 'handing_over' }), shot(3)])))
     api.discard()
     view.flush()
-    expect(api.slot?.title).toBe(i18n.t('agentPanelV4.spendBatchStopping'))
+    expect(api.slot?.progress?.hint).toBe(i18n.t('agentPanelV4.spendBatchStopping'))
     view.render(ready(offer([shot(1, { offer: 'sent' }), shot(2, { offer: 'sent' }), shot(3, { offer: 'removed' })])))
     view.flush()
-    expect(api.slot?.title).not.toBe(i18n.t('agentPanelV4.spendBatchStopping'))
+    expect(api.slot?.progress?.hint).not.toBe(i18n.t('agentPanelV4.spendBatchStopping'))
   })
 })
 

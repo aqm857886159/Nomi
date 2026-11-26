@@ -100,6 +100,5 @@ export const WALK_FOCUS_BY_TAG_EXITS = Object.freeze({
  * 迁成「行自己持有的编辑器实例」要另做方向检查，交协调另排。迁完同提交把这一行删掉。
  */
 export const FOCUS_BY_INPUT_IMPL_EXITS = Object.freeze({
-  'src/workbench/creation/storyboard/StoryboardShotTable.tsx': Object.freeze({ count: 1, what: '定位到某一镜后把光标放进那一行的提示词框：row.querySelector(\'[data-prompt-box] [contenteditable="true"]\')' }),
   'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx': Object.freeze({ count: 1, what: '行上按 Enter 进提示词框：querySelector(\'[data-prompt-box="true"] [contenteditable="true"]\')' }),
 })

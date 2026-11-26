@@ -15,14 +15,16 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, expectHittable, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { collapseAgentPanel, ensureAgentPanelOpen, switchWorkspace } from './_shell.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests/ux/shots/layout-timeline-panel-span')
-fs.mkdirSync(shotsDir, { recursive: true })
+const root = makeTempDir('nomi-layout-span-')
+const shotsDir = path.join(root, 'shots')
+fs.mkdirSync(shotsDir)
+process.env.EVIDENCE_DIR ??= path.join(root, 'feel')
+
+// ShellFrame 的拍板边距（shellGeometry.SHELL_GUTTER），与实际 DOM 几何独立对账。
+const EXPECTED_SHELL_GUTTER = 8
 
 /**
  * 生产侧真相源是 `timelinePanelBounds.TIMELINE_PANEL_DEFAULT`（由「内边距 + 工具条行 +
@@ -33,7 +35,6 @@ const EXPECTED_DEFAULT_HEIGHT = 240
 /** 主窗最小宽（electron/main.ts）之上的一个常规窗口，两态都够宽。 */
 const WINDOW = { width: 1440, height: 920 }
 
-const root = makeTempDir('nomi-layout-span-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
@@ -148,10 +149,14 @@ async function measureShellGeometry(win) {
       && point.y >= rect.top - 0.5 && point.y <= rect.bottom + 0.5
     const sectionBox = box(section)
     const canvas = box(section.querySelector('.workbench-generation__canvas'))
+    const surface = box(section.querySelector('.workbench-generation__surface'))
     // 停靠态与收起态是两种几何：收起时 AssistantPane 改成 `absolute inset-0` 的浮层
     // （AssistantPane.tsx），而它的定位祖先就是整个工作区 —— 那时它的矩形等于工作区，
     // 拿它判「面板收没收起」永远判不出来。真相源是工作区自己声明的 data-ai-layout。
     const aiLayout = section.getAttribute('data-ai-layout')
+    const workspaceStyle = getComputedStyle(section)
+    const assistantWidth = Number.parseFloat(workspaceStyle.getPropertyValue('--generation-assistant-width'))
+    const targetAssistantWidth = Number.parseFloat(workspaceStyle.getPropertyValue('--generation-assistant-target-width'))
     const assistantRaw = box(section.querySelector('[data-assistant-pane]'))
     // 底部停靠区名单本身也是证据：漏一块 / 多一块都会让让位算法算出奇怪的位置。
     const bottomDocks = Array.from(section.querySelectorAll('[data-canvas-bottom-dock]')).map((element) => ({
@@ -174,7 +179,7 @@ async function measureShellGeometry(win) {
     // 右下角与右上角的探针点：贴着工作区边界往里 4px，不取角点本身（边框那一像素不算内容）。
     const bottomRight = { x: sectionBox.right - 4, y: sectionBox.bottom - 4 }
     const bottomLeft = { x: sectionBox.left + 4, y: sectionBox.bottom - 4 }
-    const parts = [canvas, assistant, timelineHost].filter(Boolean)
+    const parts = [surface, assistant, timelineHost].filter(Boolean)
     const coveredBy = (point) => parts.some((rect) => covers(rect, point))
     const intersects = (a, b) => Boolean(a && b) && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
     return {
@@ -182,7 +187,10 @@ async function measureShellGeometry(win) {
       aiLayout,
       section: sectionBox,
       canvas,
+      surface,
       assistant,
+      assistantWidth,
+      targetAssistantWidth,
       timelineHost,
       timelinePanel,
       appBarRight,
@@ -231,8 +239,8 @@ function assertBottomBandSpans(geometry, state) {
     `${state}：底部带右缘没顶到工作区右缘（timeline.right=${geometry.timelineHost.right} section.right=${geometry.section.right}）`,
   ).toBe(true)
   expect(
-    Math.abs(geometry.timelineHost.right - geometry.viewport.w) <= 1,
-    `${state}：底部带没「在右面通过去」——右缘没到窗口右边（timeline.right=${geometry.timelineHost.right} viewport=${geometry.viewport.w}）`,
+    Math.abs(geometry.viewport.w - geometry.timelineHost.right - EXPECTED_SHELL_GUTTER) <= 1,
+    `${state}：底部带右缘离窗口应留 ${EXPECTED_SHELL_GUTTER}px（timeline.right=${geometry.timelineHost.right} viewport=${geometry.viewport.w}）`,
   ).toBe(true)
   expect(geometry.bottomRightInTimeline, `${state}：工作区右下角那一块不是底部带（就是用户说的「缺了一大块」）`).toBe(true)
   expect(geometry.bottomLeftInTimeline, `${state}：工作区左下角那一块不是底部带`).toBe(true)
@@ -282,6 +290,10 @@ try {
   // ① 只开面板（时间轴默认收起）：面板拿满内容行，底部带不占高度。
   await expect(assistantPane, '① Nomi 面板没停靠').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(capsule, '① 折叠态底部把手没出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect.poll(async () => {
+    const probe = await measureShellGeometry(win)
+    return Math.abs(probe.assistantWidth - probe.targetAssistantWidth)
+  }, { message: '① 停靠的助手列宽应到达目标，才记录仅助手展开的基线' }).toBeLessThanOrEqual(1)
   const panelOnly = await measureShellGeometry(win)
   assertInstrumentsAlive(panelOnly, '① 只开面板')
   expect(panelOnly.timelineHost.h, '① 时间轴收起时底部带不该占高度').toBeLessThanOrEqual(1)
@@ -364,8 +376,8 @@ try {
   expect(panelOpenBandClosed.collapsedDock, '④ 停靠态不该有浮起的收起坞').toBeNull()
   expect(panelOpenBandClosed.timelineHost.h, '④ 收起后底部带不该再占高度').toBeLessThanOrEqual(1)
   expect(
-    Math.abs(panelOpenBandClosed.canvas.bottom - panelOpenBandClosed.section.bottom) <= 2,
-    `④ 收起后画布应当拿回整块高度（canvas.bottom=${panelOpenBandClosed.canvas.bottom} section.bottom=${panelOpenBandClosed.section.bottom}）`,
+    Math.abs(panelOpenBandClosed.surface.bottom - panelOpenBandClosed.section.bottom) <= 2,
+    `④ 收起后工作面（画布和底边窄条）应一路到底（surface.bottom=${panelOpenBandClosed.surface.bottom} section.bottom=${panelOpenBandClosed.section.bottom}）`,
   ).toBe(true)
   expect(
     Math.abs(panelOpenBandClosed.assistant.bottom - panelOpenBandClosed.section.bottom) <= 2,

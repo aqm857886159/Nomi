@@ -355,6 +355,8 @@ export type CanvasReadSurfaceBridge = Readonly<{
       input: AssetReadInput;
       target: unknown;
       preconditions: unknown;
+      /** contextBridge proxies callbacks; the renderer constructs its own AbortSignal. */
+      onCancel: (cancel: () => void) => () => void;
     }>) => SurfacePortHandlerResult | Promise<SurfacePortHandlerResult>,
   ) => () => void;
   onExportRead: (

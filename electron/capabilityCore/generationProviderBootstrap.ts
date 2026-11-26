@@ -1,5 +1,6 @@
-import { apiKeyDecryptStatus, decryptApiKeyRecord } from "../catalog/secrets";
+import { decryptApiKeyRecord } from "../catalog/secrets";
 import { readCatalog } from "../catalog/catalogStore";
+import { createCatalogAvailability } from "../catalog/catalogModelAvailability";
 import type { CatalogState } from "../catalog/types";
 import { builtinVendorScopeMatches, isBuiltinDirectKeyVendor } from "../catalog/builtinVendorSeeds";
 import { hasBuiltinCuratedExecution } from "../catalog/seedBuiltins";
@@ -64,14 +65,6 @@ function safeFixtureApiKey(baseUrl: string | undefined): string | undefined {
   return value || undefined;
 }
 
-function credentialIsUsable(state: CatalogState, vendorKey: string): boolean {
-  const credential = state.apiKeysByVendor[vendorKey];
-  return Boolean(typeof credential?.apiKey === "string"
-    && credential.apiKey.trim()
-    && credential.enabled === true
-    && apiKeyDecryptStatus(credential) === "ok");
-}
-
 /**
  * The only main-process boundary that turns a saved credential into a
  * semantic generation provider.
@@ -109,13 +102,14 @@ export function createGenerationProviderBootstrap(
   const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env);
   const fixtureApiKey = safeFixtureApiKey(fixtureBaseUrl);
   const fixtureVendor = fixtureVendorKey();
+  const { credentialStatusFor } = createCatalogAvailability(state);
 
   for (const vendor of state.vendors) {
     if (!vendor.enabled) continue;
     const vendorKey = vendor.key;
-    const fixtureKeyForVendor = vendorKey === fixtureVendor ? fixtureApiKey : undefined;
+    const fixtureKeyForVendor = vendorKey === fixtureVendor && vendor.authType !== "none" ? fixtureApiKey : undefined;
     const fixtureBaseForVendor = vendorKey === fixtureVendor ? fixtureBaseUrl : undefined;
-    if (!credentialIsUsable(state, vendorKey) && !fixtureKeyForVendor) continue;
+    if (credentialStatusFor(vendorKey) !== "ok" && !fixtureKeyForVendor) continue;
     if (!hasPublishedExecutionForProvider(state, vendorKey)) continue;
     // 「认证接管」只对内置 direct-key 家有意义，在它的 scope 判据里问（见文件头 #975 一段）。
     if (!hasSafeDirectKeyScope(state, vendorKey)) continue;
@@ -128,15 +122,18 @@ export function createGenerationProviderBootstrap(
         : () => {
           const current = catalogReader();
           const live = current.vendors.find((candidate) => candidate.key === vendorKey && candidate.enabled);
-          if (!live || !credentialIsUsable(current, vendorKey)) return null;
+          if (!live) return null;
           if (isBuiltinDirectKeyVendor(vendorKey)
             && (isCertificationOwnedConnection(current, vendorKey)
               || !builtinVendorScopeMatches(live)
               || !hasBuiltinCuratedExecution(current, vendorKey))) {
             return null;
           }
+          const baseUrl = (fixtureBaseForVendor ?? live.baseUrlHint) || undefined;
+          if (!isBuiltinDirectKeyVendor(vendorKey) && live.authType === "none") return { apiKey: "", baseUrl };
+          if (createCatalogAvailability(current).credentialStatusFor(vendorKey) !== "ok") return null;
           const apiKey = decryptApiKeyRecord(current.apiKeysByVendor[vendorKey]!).trim();
-          return apiKey ? { apiKey, baseUrl: (fixtureBaseForVendor ?? live.baseUrlHint) || undefined } : null;
+          return apiKey ? { apiKey, baseUrl } : null;
         };
     const provider = createCatalogGenerationProvider({
       vendorKey,

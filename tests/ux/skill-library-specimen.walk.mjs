@@ -1,14 +1,25 @@
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, clickOrFail } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
+import { assertOutsideRepo } from './uiDriverOptions.mjs'
 
 // Start Vite separately; the specimen reads the real Electron host, not fabricated DTOs.
 const base = process.env.NOMI_SKILL_UI_DEV_URL || 'http://127.0.0.1:5297'
-const output = path.resolve('docs/design/verification/2026-09-09-skill-library')
-const run = await launchNomiApp({ name: 'skill-library-specimen', settleMs: 0, env: { NOMI_RENDERER_URL: base, VITE_DEV_SERVER_URL: base } })
+const output = assertOutsideRepo(makeTempDir('nomi-skill-library-specimen-'))
+process.env.EVIDENCE_DIR = output
+const locale = 'zh-CN'
+const run = await launchNomiApp({
+  name: 'skill-library-specimen',
+  settleMs: 0,
+  env: { NOMI_RENDERER_URL: base, VITE_DEV_SERVER_URL: base },
+  initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen' },
+})
 try {
-  await expectVisible(newProjectEntry(run.win), '真实 Electron 宿主已就绪')
+  const projectTitle = run.win.getByText(uiText(locale, 'library.newBlankProject'), { exact: true })
+  const newProject = run.win.locator('[data-library-first-run]').getByRole('button').filter({ has: projectTitle })
+  await expectVisible(newProject, '首启项目库的新建项目卡已经在真实 Electron 宿主渲染')
   await run.win.goto(`${base}/docs/design/verification/2026-09-09-skill-library/specimen.html`)
   const window = await run.app.browserWindow(run.win)
   await window.evaluate(w => w.setBounds({ x: 0, y: 0, width: 1440, height: 900 }))

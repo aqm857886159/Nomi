@@ -24,7 +24,7 @@ function wan27Image(modelId: string, label: string, t2iTiers: string[], detail: 
   return {
     id: modelId, family: "wan-image", label, kind: "image",
     defaultModeId: "t2i", transportTaskKind: "text_to_image",
-    identifierPatterns: [modelId],
+    identifierPatterns: [modelId, modelId.replace(/^wan/, "wan-")],
     sources: [{
       url: "https://docs.apimart.ai/en/api-reference/images/wan2.7-image/generation.md", checkedAt: "2026-11-07", vendorKey: "apimart",
       covers: `model \`${modelId}\`；${COMMON}${detail}不声明 n / enable_sequential / bbox_list / thinking_mode / color_palette / negative_prompt / seed / watermark；响应 data[0].task_id。`,

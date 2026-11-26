@@ -1,0 +1,25 @@
+{
+  "name": "分镜参考卡删除与素材来源解绑",
+  "subject": "storyboard.anchor-deletion",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+    "symbol": "removeAnchor"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "removeAnchor"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
+  ],
+  "since": "2026-11-24",
+  "notes": "删除参考卡时，方案写入边界同时清除引用素材上的该卡来源标记，保留素材及其余绑定。"
+}

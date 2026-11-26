@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { reducedMotionQuery } from '../../../design/motion'
 import { readProcessMotionCapability, shouldReduceProcessMotion } from './processMotionCapability'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -21,12 +22,22 @@ describe('process motion renderer admission', () => {
     expect(loseContext).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the direct reader serializable without module dependencies', () => {
+  it.each([false, true])('reads the live preference %s in a standalone browser realm', reduced => {
+    vi.stubGlobal('window', { matchMedia: (query: string) => ({ matches: reduced && query === '(prefers-reduced-motion: reduce)' }) })
     const loseContext = vi.fn()
     mockContext({ getExtension: (name: string) => name === 'WEBGL_lose_context' ? { loseContext } : null })
     const serializedReader = new Function(`return (${readProcessMotionCapability.toString()})()`) as () => ReturnType<typeof readProcessMotionCapability>
-    expect(serializedReader()).toEqual({ renderer: '', prefersReducedMotion: false })
+    expect(serializedReader()).toEqual({ renderer: '', prefersReducedMotion: reduced })
     expect(loseContext).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads the live media query without allocating a renderer probe', () => {
+    const query = { matches: true }
+    const createElement = vi.fn()
+    vi.stubGlobal('window', { matchMedia: () => query })
+    vi.stubGlobal('document', { createElement })
+    expect(reducedMotionQuery()).toBe(query)
+    expect(createElement).not.toHaveBeenCalled()
   })
 
   it('keeps a valid capability if the browser cannot release the temporary context', () => {

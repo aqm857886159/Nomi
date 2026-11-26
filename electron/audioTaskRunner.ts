@@ -1,3 +1,4 @@
+import { checkpointAudioResponse } from "./productionRun/paidSubmissionReceipt";
 // 音频任务执行引擎（从 runtime 抽出 —— 规则 12 巨壳门岗；音频自成一单元，与 textTaskRunner 同构）。
 //
 // 为什么单独成路：图像/视频是 async create→poll；这两个音频端点是 **OpenAI 兼容同步** 调用，
@@ -61,7 +62,7 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
   // 声明驱动分流（P4）：NDJSON+base64 形状（豆包语音 unidirectional）走专属手搓分支，
   // 其余（缺省/binary，OpenAI 兼容裸音频字节）走下方通用路径。
   if (op.audioResponse === "ndjson-base64") return runDoubaoUnidirectionalTts(input, op);
-  const decoded = await executeSynchronousAudioOperation({ vendor, model, apiKey, request, operation: op });
+  const decoded = await executeSynchronousAudioOperation({ vendor, model, apiKey, request, operation: op, taskId });
   const saved = await saveGeneratedAudio(input, decoded.bytes, `tts-${taskId}.${decoded.extension}`, decoded.contentType);
   const url = String(saved.data?.url || "");
   if (!url) throw new Error(desktopT("dubbing.diskWriteFailed"));
@@ -124,6 +125,7 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
     }
     throw new Error(desktopT("dubbing.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) }));
   }
+  checkpointAudioResponse({ vendor, model, modeId: kind, taskId, bytes: audioBytes, audio: { contentType: "audio/mpeg", format: "mp3", codec: "ndjson-base64" } });
   const audio = decodeDoubaoNdjsonAudio(audioBytes.toString("utf8"));
   if (audio.byteLength === 0) throw new Error(desktopT("dubbing.emptyAudio"));
   const saved = await saveGeneratedAudio(input, audio, `tts-${taskId}.mp3`, "audio/mpeg");
@@ -139,7 +141,7 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
 type SavedAudio = { id?: string; name?: string; data?: { url?: string } };
 
 /** 配音 / 音乐 / 音效的字节进项目只有这一处：生成产物、期望音频（runtime 已在发请求前保证有项目号）。 */
-async function saveGeneratedAudio(input: AudioTaskInput, bytes: Uint8Array, fileName: string, contentType: string): Promise<SavedAudio> {
+export async function saveGeneratedAudio(input: Pick<AudioTaskInput, "projectId" | "nodeId">, bytes: Uint8Array, fileName: string, contentType: string): Promise<SavedAudio> {
   return await writeGeneratedAsset(input.projectId, bytes, fileName, contentType, {
     kind: "generated", source: "provider", ownerNodeId: input.nodeId || null,
   }, "audio") as SavedAudio;

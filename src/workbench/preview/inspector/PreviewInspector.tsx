@@ -14,7 +14,7 @@ import type { TimelineState } from '../../timeline/timelineTypes'
 import { TextClipFields } from './TextClipFields'
 import { ClipTransitionFields } from './ClipTransitionFields'
 import { PanelRail } from '../PanelRail'
-import { PREVIEW_RATIOS } from '../previewAspectRatios'
+import { PREVIEW_RATIOS, selectPreviewAspectRatio } from '../previewAspectRatios'
 import type { PreviewAspectRatio } from '../../workbenchTypes'
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }): JSX.Element {
@@ -48,7 +48,7 @@ export type PreviewInspectorProps = {
 
 export default function PreviewInspector({ timeline, collapsed, onExpand, onCollapse }: PreviewInspectorProps): JSX.Element {
   const { t } = useTranslation()
-  const aspectRatio = useWorkbenchStore((state) => state.previewAspectRatio)
+  const aspectRatio = useWorkbenchStore(selectPreviewAspectRatio)
   const setAspectRatio = useWorkbenchStore((state) => state.setPreviewAspectRatio)
   const selectedIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
   const selectedTextId = useWorkbenchStore((state) => state.selectedTextClipId)

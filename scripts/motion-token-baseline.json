@@ -1,0 +1,27 @@
+{
+  "src/ui/onboarding/ApimartConnectPage.tsx": [
+    "prefers-reduced-motion query | && window.matchMedia('(prefers-reduced-motion: reduce)').matches"
+  ],
+  "src/ui/onboarding/ApimartConnectedHint.tsx": [
+    "duration-200 | return notice && <p role=\"status\" data-apimart-connected className={`flex items-center gap-1 text-caption text-workbench-success transition-opacity duration-200 ${fading ? 'opacity-0' : 'opacity-100'}`}>"
+  ],
+  "src/ui/onboarding/ApimartWorksCollage.tsx": [
+    "prefers-reduced-motion query | return window.matchMedia('(prefers-reduced-motion: reduce)').matches",
+    "prefers-reduced-motion query | const media = window.matchMedia('(prefers-reduced-motion: reduce)')"
+  ],
+  "src/ui/onboarding/FoldableModelCard.tsx": [
+    "duration-150 | className={cn('shrink-0 text-nomi-ink-40 transition-transform duration-150', visible && 'rotate-180')}"
+  ],
+  "src/ui/onboarding/ModelPickerScreen.tsx": [
+    "duration-100 | 'transition-colors duration-100 hover:bg-nomi-ink-05',"
+  ],
+  "src/ui/onboarding/NetworkSection.tsx": [
+    "duration-150 | 'shrink-0 text-nomi-ink-30 transition-transform duration-150 group-hover:text-nomi-ink-40',"
+  ],
+  "src/ui/onboarding/OnboardingWizardAdvancedFields.tsx": [
+    "duration-150 | 'transition-[background,color,border-color] duration-150',"
+  ],
+  "src/workbench/settings/TikhubConnectorCard.tsx": [
+    "duration-150 | 'shrink-0 text-nomi-ink-30 transition-transform duration-150 group-hover:text-nomi-ink-40',"
+  ]
+}

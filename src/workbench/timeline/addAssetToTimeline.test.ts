@@ -112,9 +112,9 @@ describe('asset timeline actions', () => {
   })
 
   it('probes only the relevant duration source before building a clip', async () => {
-    const readVideoDuration = vi.fn(async () => 8)
+    const readVideoMetadata = vi.fn(async () => ({ durationSeconds: 8, aspectRatio: 9 / 16 }))
     const readAudioDuration = vi.fn(async () => 12)
-    const probes = { readVideoDuration, readAudioDuration }
+    const probes = { readVideoMetadata, readAudioDuration }
 
     const image = await buildAssetTimelineClip(assetRefFromDragPayload(payload('image'))!, {
       fps: 30,
@@ -131,8 +131,9 @@ describe('asset timeline actions', () => {
 
     expect(image?.frameCount).toBe(90)
     expect(video?.frameCount).toBe(240)
+    expect(video?.sourceAspectRatio).toBe(9 / 16)
     expect(audio?.frameCount).toBe(360)
-    expect(readVideoDuration).toHaveBeenCalledTimes(1)
+    expect(readVideoMetadata).toHaveBeenCalledTimes(1)
     expect(readAudioDuration).toHaveBeenCalledTimes(1)
   })
 

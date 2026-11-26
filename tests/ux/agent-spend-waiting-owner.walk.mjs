@@ -160,11 +160,12 @@ try {
   await expect(card, '重启后说一句「生成」= 对同一份草稿重新出价').toBeVisible()
   const finalCardProof = await proveProbe(card, 'the card presented after the restart is really on screen')
   await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮「生成」', { noWaitAfter: true })
-  // 先等「有结论」再判对错：被拒会写在卡上那一行说明里（不是超时的形状）。
+  // 先等「有结论」再判对错：被拒会写在那一镜那一行第二行里（不是超时的形状）。
   await expect.poll(async () => {
     if (walk.fixture.images.length > 0) return 'sent'
-    const notices = (await cardFacts(win))?.notices ?? []
-    return notices.length ? `refused: ${notices.map((notice) => notice.text).join(' | ')}` : 'waiting'
+    const facts = await cardFacts(win)
+    const said = [...(facts?.notices ?? []).map((notice) => notice.text), ...(facts?.rowFailures ?? [])]
+    return said.length ? `refused: ${said.join(' | ')}` : 'waiting'
   }, { message: '按下「生成」之后必须有结论（发出去了，或者卡上说了为什么不行）', timeout: DEFAULT_TIMEOUT_MS }).toBe('sent')
   expect(flattenRequestText((await recorded(approved.received, 'generate returns approved')).body),
     // 付费卡逐镜（2026-09-30）：回执渲染宿主的逐镜结局——这张卡上的每一镜都在生成，才说「都在生成」。

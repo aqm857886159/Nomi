@@ -80,7 +80,7 @@ export function CreationDocumentSwitcher(): JSX.Element {
         <span className="min-w-0 truncate">{title}</span>
         <IconChevronDown size={14} stroke={1.8} className="shrink-0 text-nomi-ink-40" />
       </button>
-      <WorkbenchMenu open={open} onOpenChange={setOpen} anchorRect={rect} items={items} className="min-w-[220px]" ariaLabel={t('appShell.docSwitcher.aria', { title })} />
+      <WorkbenchMenu open={open} onOpenChange={setOpen} anchorRect={rect} items={items} className="max-w-[260px]" ariaLabel={t('appShell.docSwitcher.aria', { title })} />
     </>
   )
 }

@@ -1,3 +1,4 @@
+import { isComfyuiVendor } from "./catalog/types"
 import { randomUUID } from 'node:crypto'
 import { readCatalog } from './catalog/catalogStore'
 import { deriveShotPrice } from './productionRun/shotPricing'
@@ -7,6 +8,7 @@ const quotes = new Map<string, { quote: PreparedSpendQuote; expiresAt: number }>
 const TTL = 30 * 60_000
 
 export function quoteSpendLine(input: SpendQuoteInput): SpendQuoteLine {
+  if (isComfyuiVendor({ key: input.vendorKey })) return { vendorKey: input.vendorKey, modelKey: input.modelKey, amount: 0 }
   const model = readCatalog().models.find((row) => row.vendorKey === input.vendorKey
     && (row.modelKey === input.modelKey || row.modelAlias === input.modelKey))
   const price = deriveShotPrice({

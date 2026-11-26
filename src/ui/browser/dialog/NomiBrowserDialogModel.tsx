@@ -79,7 +79,6 @@ export const BOOKMARKS_STORAGE_KEY = 'nomi.browser.bookmarks.v1'
 export const CAPTURE_FLYOUT_MAX_WIDTH = 220
 export const CAPTURE_FLYOUT_MAX_HEIGHT = 160
 export const CAPTURE_FLYOUT_TARGET_WIDTH = 96
-export const CAPTURE_FLYOUT_KEYFRAME_TIMES = [0, 0.18, 1]
 export const BROWSER_VIEW_POPOVER_GAP = 10
 export const BROWSER_ASSET_POPOVER_FALLBACK_WIDTH = 520
 export const BROWSER_ASSET_POPOVER_FALLBACK_HEIGHT = 620
@@ -349,11 +348,6 @@ export function captureFlyoutTargetRectFromPopover(rect: FloatingWindowBoundsRec
   const preferredTop = rect.top + clampNumber(rect.height * 0.3, 94, 132)
   const top = Math.round(clampNumber(preferredTop, rect.top + 64, rect.bottom - height - 14))
   return { left, top, width, height }
-}
-
-export function captureFlyoutScale(source: BrowserCaptureFlyoutRect, target: BrowserCaptureFlyoutRect): number {
-  const sourceWidth = Math.max(1, source.width)
-  return Math.max(0.66, Math.min(0.92, target.width / sourceWidth))
 }
 
 export function sameBoundsRect(left: FloatingWindowBoundsRect | null, right: FloatingWindowBoundsRect | null): boolean {

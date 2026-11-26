@@ -1,0 +1,23 @@
+{
+  "name": "Agent lane 工具执行的失联兜底",
+  "subject": "agent-lane.tool-deadlock-guard",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneTools.mts",
+    "symbol": "createLaneTools"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "createLaneTools"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "用户立即可停，lane 截止只兜底仍未响应的工具。"
+}
