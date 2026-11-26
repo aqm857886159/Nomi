@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { postWithUploadRetry } from "./localAssetFile";
+import { VendorRequestError } from "../vendor/vendorHttp";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -65,6 +66,37 @@ describe("postWithUploadRetry — 资产上传瞬态有界重试", () => {
     const doFetch = vi.fn(async () => textResponse(400, '<?xml version="1.0"?><Error><Code>EntityTooSmall</Code><Message>minimum allowed size</Message><RequestId>secret-ish</RequestId></Error>'));
     await expect(postWithUploadRetry(doFetch, NO_DELAY)).rejects.toThrow(/HTTP 400.*EntityTooSmall: minimum allowed size/);
     await expect(postWithUploadRetry(doFetch, NO_DELAY)).rejects.not.toThrow(/RequestId/);
+  });
+
+  // S4：上传这扇门和媒体请求、模型调用同一张归类表——上游自己说「钱不够」就是 balance、不重试，不看状态码猜。
+  it("失败是结构化的 VendorRequestError：文案逐字不变，带状态码、上游码与类别，不带 providerAnswer", async () => {
+    const doFetch = vi.fn(async () => jsonResponse(403, { error: { message: "用户额度不足", type: "new_api_error", code: "insufficient_user_quota" } }));
+    const error = await postWithUploadRetry(doFetch, NO_DELAY).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(VendorRequestError);
+    const failure = error as VendorRequestError;
+    expect(failure.message).toBe("素材上传失败(HTTP 403)：(无详情)");
+    expect(failure.structured).toMatchObject({ method: "POST", httpStatus: 403, upstreamCode: "insufficient_user_quota", category: "balance", retryable: false });
+    expect(failure.providerAnswer).toBeUndefined();
+    expect(doFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("402 + type insufficient_user_quota（上传端点实录的形状）→ balance，1 次", async () => {
+    const doFetch = vi.fn(async () => jsonResponse(402, { error: { message: "insufficient balance", type: "insufficient_user_quota" } }));
+    const error = await postWithUploadRetry(doFetch, NO_DELAY).catch((caught: unknown) => caught);
+    expect((error as VendorRequestError).structured).toMatchObject({ category: "balance", retryable: false });
+    expect(doFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("429 + insufficient_quota（OpenAI 额度用完）不重试；同为 429 的 rate_limit_exceeded 照旧重试", async () => {
+    const exhausted = vi.fn(async () => jsonResponse(429, { error: { message: "You exceeded your current quota", type: "insufficient_quota", code: "insufficient_quota" } }));
+    const error = await postWithUploadRetry(exhausted, NO_DELAY).catch((caught: unknown) => caught);
+    expect((error as VendorRequestError).structured).toMatchObject({ category: "balance", retryable: false });
+    expect(exhausted).toHaveBeenCalledTimes(1);
+
+    const throttled = vi.fn(async () => jsonResponse(429, { error: { message: "Rate limit reached", type: "requests", code: "rate_limit_exceeded" } }));
+    const throttledError = await postWithUploadRetry(throttled, NO_DELAY).catch((caught: unknown) => caught);
+    expect((throttledError as VendorRequestError).structured).toMatchObject({ category: "quota", retryable: true });
+    expect(throttled).toHaveBeenCalledTimes(3);
   });
 
   it("瞬态一直失败 → 耗尽 maxAttempts 后抛最后一次错误", async () => {
