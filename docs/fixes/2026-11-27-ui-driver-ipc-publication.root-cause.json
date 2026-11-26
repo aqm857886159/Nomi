@@ -1,0 +1,156 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-ui-driver-ipc-publication",
+  "problem_type": "常驻走查驱动的文件协议跨进程、跨程序版本交接。",
+  "symptom": "命令可能得到 bad req 或无法解析回执；更新工作树后仍可能复用旧写端，写入者被杀会遗留暂存件。",
+  "direct_cause": "第 1 轮夹具绕过三个实际入口。ready 只能表示曾经启动，写入者也只能在自己的进程中清理。",
+  "class_root": "文件可见即交接完成的约定需要由两个端点共同遵守；就绪标记缺少协议身份，暂存件缺少可跨进程使用的回收边界。",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-11",
+  "invariant_owner_layer": {
+    "layer": "tests/ux/uiIpcFile.mjs",
+    "tests": [
+      "tests/ux/uiIpcPublication.test.mjs"
+    ],
+    "why": "两端共用发布协议，测试启动真实驱动和命令行，从文件系统核对首次可见内容。"
+  },
+  "affected_population": [
+    "复用当前工作树常驻驱动的走查，包括工作树更新以及写入进程被强杀后重启的情形。"
+  ],
+  "scope_paths": [
+    "tests/ux/uiIpcFile.mjs",
+    "tests/ux/ui-driver.mjs",
+    "tests/ux/ui.mjs",
+    "scripts/_test-temp.mjs"
+  ],
+  "entry_points": [
+    "客户端发布 req；驱动发布 state、ready 和 res；客户端在发布普通命令前读取 ready。"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/npm/write-file-atomic/blob/main/lib/index.js",
+      "checked_at": "2026-11-27",
+      "purpose": "同步入口内部产生哈希名，通知发生在创建之后。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/fabiospampinato/atomically",
+      "checked_at": "2026-11-27",
+      "purpose": "tmpCreate 在创建前决定路径，库完成同目录原子替换与失败清理。"
+    }
+  ],
+  "invariants": [
+    "请求、回执和启动状态首次可见即可完整读取。普通命令要求当前协议。停旧实例能容忍不完整的旧回执。",
+    "回收只认带协议名、已退出写入 PID、属于当前用户的普通文件。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "ownerIsGone"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/uiIpcFile.mjs",
+      "symbol": "ownerIsGone"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/ui-driver.mjs",
+      "symbol": "writeUiIpcFile"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/ui.mjs",
+      "symbol": "writeUiIpcFile"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "移除独立夹具写端。实际客户端与驱动分别持有请求和回执，各自必须发布。系统临时目录和工作树 IPC 暂存件在各自回收时使用同一死 PID 判据。"
+  },
+  "generality_proof": "按工作树内的文件和写入 PID 判断归属，版本检查发生在发送边界，与具体走查命令和载荷大小无关。",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/uiIpcFile.mjs",
+      "symbol": "writeUiIpcFile",
+      "responsibility": "协议版本、暂存件归属及完整发布。"
+    },
+    {
+      "path": "tests/ux/ui.mjs",
+      "symbol": "send",
+      "responsibility": "普通命令发布前验证常驻驱动的协议。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/ui-driver.mjs",
+      "entry_point": "writeUiIpcFile",
+      "disposition": "enforced",
+      "evidence": "启动状态和命令回执均以文件名为可读信号。"
+    },
+    {
+      "path": "tests/ux/ui.mjs",
+      "entry_point": "send",
+      "disposition": "enforced",
+      "evidence": "驱动按目标名轮询请求；客户端发送前读取版本。"
+    },
+    {
+      "path": "tests/ux/uiDriverOptions.mjs",
+      "entry_point": "acquireInstanceLock",
+      "disposition": "not-affected",
+      "evidence": "实例锁依赖排他创建语义。"
+    }
+  ],
+  "recurrence_of": "2026-10-28-test-temp-owner-reclaim",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "请求、回执、状态任一端回退，以及任意一次写入中断，都能独立触发。",
+    "same_class_scan": [
+      "door-map writeUiIpcFile --roots=tests --include-tests 找到两个真实端点、三次 JSON 写入。",
+      "rg 核对 req.json、res.json、state.json、ready 和 instance.lock 的创建、读取、退出和重启。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/uiIpcFile.mjs",
+    "invariant": "共享库原子替换；协议标记与写入进程归属在发布时确定。",
+    "failure_mode": "拒绝旧驱动普通命令时给出 down、up；无法确认进程已退出的暂存件留给下次。",
+    "exception_policy": "none",
+    "strategy": "在两端真实交接、重启和停旧进程的边界验证结果。",
+    "artifacts": [
+      "tests/ux/uiIpcFile.mjs",
+      "tests/ux/ui.mjs",
+      "tests/ux/ui-driver.mjs",
+      "scripts/_test-temp.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/uiIpcPublication.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/uiIpcPublication.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/uiIpcFile.mjs"
+    ],
+    "rationale": "删除手写写入再改名的实现和绕开实际入口的独立夹具。"
+  },
+  "dependency_lifecycle": {
+    "decision": "upgrade-now",
+    "current": "Node fs 手写发布",
+    "target": "atomically 2.1.1 开发依赖",
+    "rationale": "tmpCreate 在文件出现前保留 PID 归属，脚本可直接复用库。",
+    "exit_criteria": [
+      "三个实际写端分别回退都能单独红；死 PID 在下次启动被回收；开发依赖通过打包与 Vite 定向门岗。"
+    ]
+  },
+  "migration": "旧 ready 仅含 PID。先用 down、quit 或 stop 停旧实例再 up。旧暂存件无专属前缀，保持原样。",
+  "residual_risks": [
+    "PID 被复用时延后回收。未启动下一次驱动时，强杀遗留件仍在 IPC 目录。"
+  ]
+}
