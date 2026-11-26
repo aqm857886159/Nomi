@@ -7,6 +7,7 @@ import {
   IconFolderOpen,
   IconFolderShare,
   IconMovie,
+  IconPencil,
   IconPlayerPlay,
   IconPlugConnected,
   IconPlus,
@@ -40,11 +41,20 @@ const PromptLibraryContent = lazyWithChunkBoundary('i18n:sidebar.promptLibrary',
 /** 项目库左上页签（10-08 外壳拍板稿 Library 板）：项目库不放左栏，Skill / 提示词在这里是页签，进项目后在左栏抽屉里。 */
 type LibraryTab = 'projects' | 'skills' | 'prompts'
 
+const CARD_ACTION_CLASS = cn(
+  'shrink-0 size-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
+  'grid place-items-center text-nomi-ink-60 cursor-pointer',
+  // 低频动作 hover/聚焦才显，不在每张卡常驻一颗带框按钮
+  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+  'transition-[background,border-color,color,opacity] duration-nomi-micro',
+  'hover:bg-nomi-ink-05 hover:border-nomi-ink-20 hover:text-nomi-accent',
+)
+
 type Props = {
   projectFeedback?: { projectId: string | null; message: string } | null
   onOpenProject: (projectId: string) => void
   onDeleteProject: (project: LocalProjectSummary) => void
-  /** 列表页双击项目名改名（不用点进项目）；缺省则名字不可编辑。 */
+  /** 项目卡铅笔启动行内改名；缺省则隐藏铅笔。 */
   onRenameProject?: (projectId: string, name: string) => void
   onNewProject: (templateId?: ProjectTemplateId) => void
   onOpenFolder?: () => void
@@ -154,7 +164,6 @@ export default function ProjectLibraryPage({
   const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
   const usageVersion = useLibraryUsageVersion()
   const normalizedQuery = query.trim()
-  // 双击项目名进入 inline 编辑：editingId 记哪张卡在编辑、editValue 是输入中的名字。
   const [editingId, setEditingId] = React.useState('')
   const [editValue, setEditValue] = React.useState('')
   const syncInspectionByProject = useLibrarySyncInspections()
@@ -538,7 +547,7 @@ export default function ProjectLibraryPage({
                   role={unavailable ? undefined : 'button'}
                   tabIndex={unavailable ? undefined : 0}
                   onClick={unavailable ? undefined : () => openProject(project.id)}
-                  onKeyDown={unavailable ? undefined : (e) => e.key === 'Enter' && openProject(project.id)}
+                  onKeyDown={unavailable ? undefined : (e) => e.target === e.currentTarget && e.key === 'Enter' && openProject(project.id)}
                 >
                   {projectFeedback?.projectId === project.id && projectFeedback.message ? <p role="alert" className="m-0 px-3 py-2 text-caption text-nomi-danger">{projectFeedback.message}</p> : null}
                   <div
@@ -622,27 +631,16 @@ export default function ProjectLibraryPage({
                             e.stopPropagation()
                             if (e.key === 'Enter') commitRename(project.id, project.name)
                             else if (e.key === 'Escape') setEditingId('')
+                            else return
+                            e.preventDefault()
+                            requestAnimationFrame(() => {
+                              document.querySelector<HTMLButtonElement>(`[data-project-rename="${CSS.escape(project.id)}"]`)?.focus()
+                            })
                           }}
                           onBlur={() => commitRename(project.id, project.name)}
                         />
                       ) : (
-                        <div
-                          className={cn(
-                            'text-body-sm font-semibold text-nomi-ink truncate mb-0.5',
-                            onRenameProject && !unavailable && 'cursor-text',
-                          )}
-                          title={onRenameProject && !unavailable ? t('library.renameHint') : undefined}
-                          // 名字区单击不打开项目（留给双击改名）；缩略图/「继续创作」仍单击打开。
-                          onClick={onRenameProject && !unavailable ? (e) => e.stopPropagation() : undefined}
-                          onDoubleClick={
-                            onRenameProject && !unavailable
-                              ? (e) => {
-                                  e.stopPropagation()
-                                  beginRename(project)
-                                }
-                              : undefined
-                          }
-                        >
+                        <div className="text-body-sm font-semibold text-nomi-ink truncate mb-0.5" title={project.name}>
                           {project.name}
                         </div>
                       )}
@@ -674,27 +672,37 @@ export default function ProjectLibraryPage({
                         ) : null}
                       </div>
                     </div>
-                    {onRevealProjectFolder && project.rootPath && !project.unreadableReason && !project.missing ? (
-                      <button
-                        type="button"
-                        aria-label={t('library.openProjectFolder', { name: project.name })}
-                        title={t('library.revealProjectFolderTitle')}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onRevealProjectFolder(project.id)
-                        }}
-                        className={cn(
-                          'shrink-0 size-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
-                          'grid place-items-center text-nomi-ink-60 cursor-pointer',
-                          // 低频动作 hover/聚焦才显，不在每张卡常驻一颗带框按钮
-                          'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-                          'transition-[background,border-color,color,opacity] duration-nomi-micro',
-                          'hover:bg-nomi-ink-05 hover:border-nomi-ink-20 hover:text-nomi-accent',
-                        )}
-                      >
-                        <IconFolderShare size={15} stroke={1.6} aria-hidden="true" />
-                      </button>
-                    ) : null}
+                    <div className="flex items-center gap-1">
+                      {onRenameProject && !unavailable && (
+                        <button
+                          type="button"
+                          className={CARD_ACTION_CLASS}
+                          data-project-rename={project.id}
+                          aria-label={t('library.renameProject', { name: project.name })}
+                          title={t('library.renameProject', { name: project.name })}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            beginRename(project)
+                          }}
+                        >
+                          <IconPencil size={15} stroke={1.6} aria-hidden="true" />
+                        </button>
+                      )}
+                      {onRevealProjectFolder && project.rootPath && !project.unreadableReason && !project.missing ? (
+                        <button
+                          type="button"
+                          aria-label={t('library.openProjectFolder', { name: project.name })}
+                          title={t('library.revealProjectFolderTitle')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onRevealProjectFolder(project.id)
+                          }}
+                          className={CARD_ACTION_CLASS}
+                        >
+                          <IconFolderShare size={15} stroke={1.6} aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               )

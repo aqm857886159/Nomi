@@ -94,10 +94,8 @@ try {
   // ── 1. 冷启动：面板是空的，但不该是**沉默**的 ──────────────────────────────
   const panel = win.locator(CREATION_PANEL)
   await expect(panel.locator(COMPOSER)).toBeVisible()
-  // 上下文环在还没有任何回合时**不知道**用了多少——它必须写「—」而不是「0%」。
-  // 「0%」是一个断言（「你几乎没用上下文」），而我们那一刻连模型多大都不知道。
-  await expect(panel.locator(CONTEXT_RING)).toContainText('—')
-  await expect(panel.locator(`${CONTEXT_RING}[data-context-known="true"]`)).toHaveCount(0)
+  // 空会话还没有用量记录，第一轮结算后才显示上下文环。
+  await expect(panel.locator(CONTEXT_RING)).toHaveCount(0)
   // 空框的发送钮是真 disabled，不是「灰着但能按」。
   await expect(panel.locator(COMPOSER_SEND)).toBeDisabled()
   // 面板主体不能是一片白：一句话说清这里能干什么 + 三条**这个面真做得到**的起手。

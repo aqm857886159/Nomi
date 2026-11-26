@@ -8,12 +8,11 @@ import { describe, expect, it } from 'vitest'
 //   · 画布格式条自己写 absolute 定位，不走节点浮条共享外壳，跟着画布缩放、贴顶时被顶栏盖住；
 //   · 选区浮条第三份清单，定位把工具栏那一排也算进了可用区，盖住工具栏的钮。
 // 合同：格式状态只在 richTextActions.tsx 里读（经 useEditorState 订阅事务），格式命令只在那里发；
-// 三个壳都经 useRichTextActions + RichTextActionButton 出钮；画布那一壳挂在 FloatingToolbarShell 里。
+// 两个格式工具栏经 useRichTextActions + RichTextActionButton 出钮；画布那一壳挂在 FloatingToolbarShell 里。
 const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 const OWNER = 'src/workbench/common/richTextActions.tsx'
 const SHELLS = [
   'src/workbench/creation/WorkbenchEditor.tsx',
-  'src/workbench/creation/SelectionGeneratePopover.tsx',
   'src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx',
 ]
 

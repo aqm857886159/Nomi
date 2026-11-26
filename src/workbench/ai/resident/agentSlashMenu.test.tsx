@@ -46,7 +46,7 @@ const SAMPLE_SKILLS: readonly SkillListItemDto[] = [
   {
     name: 'storyboard-planner',
     origin: 'builtin',
-    description: '拆成分镜',
+    description: '为故事编排镜头',
     cover: 'nomi-local://skill/storyboard.png',
     stageLabels: ['分镜'],
     curation: {
