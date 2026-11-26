@@ -263,8 +263,8 @@ describe('S6 · APIMart verification', () => {
     vi.useFakeTimers()
     const h = mountCheck()
     try {
-      h.save.mockResolvedValue({status: 'offline'})
-      h.read.mockResolvedValue({status: 'received', keyQuota: null, accountBalance: null})
+      h.save.mockResolvedValue({status: 'offline', checkedKeyId: 'original'})
+      h.read.mockResolvedValue({status: 'received', checkedKeyId: 'original', keyQuota: null, accountBalance: null})
       await h.state().check('sk-loopback')
       h.flush()
       expect(h.state().stage).toBe('offline')
@@ -281,8 +281,8 @@ describe('S6 · APIMart verification', () => {
   })
 
   const balance = (remainCredits: number | null, unlimited = false) => ({ remainCredits, reportedBalance: null, unlimited })
-  const received = (accountBalance: ReturnType<typeof balance>, keyQuota: ReturnType<typeof balance> | null) => ({
-    status: 'received' as const, accountBalance, keyQuota,
+  const received = (accountBalance: ReturnType<typeof balance>, keyQuota: ReturnType<typeof balance> | null, checkedKeyId = 'original') => ({
+    status: 'received' as const, checkedKeyId, accountBalance, keyQuota,
   })
 
   // Render the full page against the state produced by the mounted verification hook.
@@ -379,6 +379,49 @@ describe('S6 · APIMart verification', () => {
     } finally { h.close() }
   })
 
+  it.each(['pasted here', 'already saved'] as const)(
+    'isolates a foreground recheck after settings replaces a Key (%s)',
+    async (initialKey) => {
+      vi.useFakeTimers()
+      vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+      const h = mountCheck()
+      const connected = vi.fn()
+      window.addEventListener(APIMART_CONNECTED_EVENT, connected)
+      const funded = balance(52.3)
+      try {
+        const firstCheck = initialKey === 'pasted here' ? h.save : h.read
+        firstCheck.mockResolvedValueOnce(received(funded, balance(0)))
+        await h.state().check(initialKey === 'pasted here' ? 'sk-original-1234' : undefined)
+        h.flush()
+        expect(h.state().stage).toBe('keyQuota')
+
+        // Account HTTP 200 and quota HTTP 503, first for the original saved Key.
+        h.read.mockResolvedValueOnce(received(funded, null))
+        window.dispatchEvent(new Event('focus'))
+        await Promise.resolve()
+        h.flush()
+        expect(h.state().stage).toBe('keyQuota')
+        expect(h.state().received?.keyQuota).toEqual(balance(0))
+        vi.advanceTimersByTime(500)
+        expect(connected).not.toHaveBeenCalled()
+        expect(h.back).not.toHaveBeenCalled()
+
+        // Settings replaced the saved Key while this same page remained mounted.
+        h.read.mockResolvedValueOnce(received(funded, null, 'replacement'))
+        window.dispatchEvent(new Event('focus'))
+        await Promise.resolve()
+        h.flush()
+        expect(h.save).toHaveBeenCalledTimes(initialKey === 'pasted here' ? 1 : 0)
+        expect(h.read).toHaveBeenCalledTimes(initialKey === 'pasted here' ? 2 : 3)
+        expect(h.state().stage).toBe('passed')
+        expect(h.state().received?.keyQuota).toBeNull()
+        vi.advanceTimersByTime(450)
+        expect(connected).toHaveBeenCalledOnce()
+        expect(h.back).toHaveBeenCalledOnce()
+      } finally { h.close() }
+    },
+  )
+
   it('prioritizes topup while retaining the zero quota for the same Key only', async () => {
     vi.useFakeTimers()
     vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
@@ -399,7 +442,7 @@ describe('S6 · APIMart verification', () => {
       h.flush()
       expect.soft(h.state().stage).toBe('keyQuota')
 
-      h.save.mockResolvedValue(received(funded, null))
+      h.save.mockResolvedValueOnce(received(funded, null)).mockResolvedValueOnce(received(funded, null, 'replacement'))
       await h.state().check('sk-original-1234')
       h.flush()
       expect.soft(h.state().stage).toBe('keyQuota')
@@ -449,7 +492,7 @@ describe('S6 · APIMart verification', () => {
     const h = mountCheck()
     try {
       const account = { remainCredits: 0, remainUsd: 0, unlimited: false, fetchedAt: 1, topUpUrl: APIMART_REGISTER_URL }
-      h.save.mockResolvedValue({ status: 'received', keyQuota: null, accountBalance: account })
+      h.save.mockResolvedValue({ status: 'received', checkedKeyId: 'original', keyQuota: null, accountBalance: account })
       await h.state().check('sk-loopback')
       h.flush()
       expect(h.state().stage).toBe('topup')
@@ -463,7 +506,7 @@ describe('S6 · APIMart verification', () => {
       const card = stripTags(cardHtml)
       expect(card).toContain(i18n.t('modelSetup.apimartVerification.topupBody'))
       expect(card).toContain(i18n.t('modelSetup.apimartVerification.delayed'))
-      h.read.mockResolvedValue({ status: 'received', keyQuota: null, accountBalance: { ...account, remainCredits: 52.3, remainUsd: 5.23 } })
+      h.read.mockResolvedValue({ status: 'received', checkedKeyId: 'original', keyQuota: null, accountBalance: { ...account, remainCredits: 52.3, remainUsd: 5.23 } })
       document.dispatchEvent(new Event('visibilitychange'))
       window.dispatchEvent(new Event('focus'))
       await Promise.resolve()
