@@ -7,36 +7,133 @@
   "symptom": "401 网页跟在鉴权原因后面，503 或无状态的 ServiceUnavailableError 直接出现在失败卡和 Agent 对话。",
   "direct_cause": "运行时把非 JSON 响应体截成 upstreamMsg。共享清洗函数能取 JSON 信封里的消息，但将无法识别的文本直接放行。无来源的未知错误还会把异常名当成标题。",
   "class_root": "服务商回过话只证明了来源。旧实现把这当成内容适合展示的充分条件，导致结构化字段和旧节点串都能把诊断数据送进可见区。",
-  "affected_population": ["文本模型调用和 Agent 对话收到网页或技术回复的创作者", "重新打开保存过原始错误或 IPC 错误的节点的创作者"],
-  "scope_paths": ["electron/ai/runtimeVendorError.ts", "electron/shared/generationFailureDetect.ts", "electron/shared/generationFailure.ts"],
-  "entry_points": ["模型传输事实经 modelCallFailure、describeAgentError 到 Agent 和文本任务", "已保存的 IPC 错误、异步任务报文和无来源的 node.error 经 decideGenerationFailure 到展示层"],
-  "internal_only_reason": "业务说明可见、原始技术细节可查以及同语种标题是 Nomi 的展示合同。HTTP 类别和 JSON 解析继续使用已有实现。",
-  "invariants": ["已知分类的服务商原话、未知分类的同语种标题都只展示可读业务说明。", "没有状态码的服务不可用仍得到服务端失败的本地化原因。", "合法中文和英文业务句都能到达创作者。"],
-  "doors": [
-    {"kind": "write", "path": "electron/shared/generationFailure.ts", "symbol": "cleanProviderMessage"},
-    {"kind": "write", "path": "electron/ai/runtimeVendorError.ts", "symbol": "upstreamMessageFromBody"},
-    {"kind": "write", "path": "electron/shared/generationFailureDetect.ts", "symbol": "jsonErrorMessage"}
+  "affected_population": [
+    "文本模型调用和 Agent 对话收到网页或技术回复的创作者",
+    "重新打开保存过原始错误或 IPC 错误的节点的创作者"
   ],
-  "door_reduction": {"before": 3, "after": 3, "why_not": "运行时负责从 HTTP 正文取消息，共享判定负责过滤所有生产者和持久化错误。保存过的错误会跳过今天的运行时提取。内部 JSON 解析供原话和旧报错首行共用。"},
+  "scope_paths": [
+    "electron/ai/runtimeVendorError.ts",
+    "electron/shared/generationFailureDetect.ts",
+    "electron/shared/generationFailure.ts"
+  ],
+  "entry_points": [
+    "模型传输事实经 modelCallFailure、describeAgentError 到 Agent 和文本任务",
+    "已保存的 IPC 错误、异步任务报文和无来源的 node.error 经 decideGenerationFailure 到展示层"
+  ],
+  "internal_only_reason": "业务说明可见、原始技术细节可查以及同语种标题是 Nomi 的展示合同。HTTP 类别和 JSON 解析继续使用已有实现。",
+  "invariants": [
+    "已知分类的服务商原话、未知分类的同语种标题都只展示可读业务说明。",
+    "没有状态码的服务不可用仍得到服务端失败的本地化原因。",
+    "合法中文和英文业务句都能到达创作者。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "cleanProviderMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "upstreamMessageFromBody"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailureDetect.ts",
+      "symbol": "jsonErrorMessage"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "运行时负责从 HTTP 正文取消息，共享判定负责过滤所有生产者和持久化错误。保存过的错误会跳过今天的运行时提取。内部 JSON 解析供原话和旧报错首行共用。"
+  },
   "generality_proof": "传输层的正文提取与共享层的展示检查各处理自己的输入。所有已分类原话和未知分类的同语种标题都经过同一个内容检查，覆盖不同服务商和旧项目。业务句通过相同入口。",
   "shared_boundaries": [
-    {"path": "electron/shared/generationFailureDetect.ts", "symbol": "cleanProviderMessage", "responsibility": "从上游信封提取人话，过滤其中的诊断形状。"},
-    {"path": "electron/ai/runtimeVendorError.ts", "symbol": "upstreamMessageFromBody", "responsibility": "HTTP 响应体提取失败时，网页不能作为上游消息。"},
-    {"path": "electron/shared/generationFailure.ts", "symbol": "decideGenerationFailure", "responsibility": "对节点和 Agent 产出同一个类别与可见原因。"}
+    {
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "decideGenerationFailure",
+      "responsibility": "生成与对话失败判定的唯一共享入口（经 cleanProviderMessage 过滤诊断形状、保留可读业务原话，并对节点和 Agent 产出同一份类别与原因）。"
+    },
+    {
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "modelCallFailure",
+      "responsibility": "主进程模型调用 HTTP 失败事实转结构化错误的唯一入口（经 upstreamMessageFromBody 拦截 HTML 正文进入 upstreamMsg）。"
+    }
   ],
   "same_class_entry_points": [
-    {"path": "electron/ai/runtimeVendorError.ts", "entry_point": "vendorErrorFromRuntimeFacts", "disposition": "enforced", "evidence": "agentError.test.ts 从非 2xx 模型调用事实读回实际 IPC 结构和业务原话。"},
-    {"path": "electron/shared/generationFailure.ts", "entry_point": "reportFor", "disposition": "enforced", "evidence": "vendorQuoteProvenance.test.ts 读取已存 503 的 providerMessage 及原始诊断。"},
-    {"path": "electron/shared/generationFailure.ts", "entry_point": "classify", "disposition": "enforced", "evidence": "同一个测试经异步任务报文触发 unknown 的同语种判断，也覆盖无来源的裸异常和机器码。"}
+    {
+      "path": "electron/ai/runtimeVendorError.ts",
+      "entry_point": "vendorErrorFromRuntimeFacts",
+      "disposition": "enforced",
+      "evidence": "agentError.test.ts 从非 2xx 模型调用事实读回实际 IPC 结构和业务原话。"
+    },
+    {
+      "path": "electron/shared/generationFailure.ts",
+      "entry_point": "reportFor",
+      "disposition": "enforced",
+      "evidence": "vendorQuoteProvenance.test.ts 读取已存 503 的 providerMessage 及原始诊断。"
+    },
+    {
+      "path": "electron/shared/generationFailure.ts",
+      "entry_point": "classify",
+      "disposition": "enforced",
+      "evidence": "同一个测试经异步任务报文触发 unknown 的同语种判断，也覆盖无来源的裸异常和机器码。"
+    }
   ],
   "recurrence_of": null,
-  "recurrence": {"classification": "recurring", "reason": "可以在新调用、旧 IPC 报文与旧节点字符串上重复，涉及画布及 Agent 两个出口。", "same_class_scan": ["door-map cleanProviderMessage 查到 reportFor 和 classify 两处调用。", "door-map upstreamMessageFromBody 查到 vendorErrorFromRuntimeFacts。", "rg providerMessage 确认节点、可找回面板和 Agent 文案投影均消费共享结果。"]},
-  "prevention": {"kind": "centralized-boundary", "enforcement_path": "electron/shared/generationFailureDetect.ts", "invariant": "所有可见服务商说明经过相同内容检查，再决定能否作为当前语言的标题。", "failure_mode": "诊断形状输出空原话，保留分类原因与动作。无来源机器码的标题使用 unknown 词条。", "exception_policy": "none", "strategy": "在现有共享清洗处识别消息形状，在传输事实进入 IPC 上游消息前排除网页。", "artifacts": ["electron/shared/generationFailureDetect.ts", "electron/ai/runtimeVendorError.ts", "electron/shared/generationFailure.ts"]},
-  "regression_tests": ["electron/ai/agentError.test.ts", "src/workbench/observability/vendorQuoteProvenance.test.ts"],
-  "class_regression_tests": ["src/workbench/observability/vendorQuoteProvenance.test.ts"],
-  "invariant_owner_layer": {"layer": "electron/shared/generationFailureDetect.ts", "tests": ["src/workbench/observability/vendorQuoteProvenance.test.ts"]},
-  "legacy_paths": {"status": "removed", "removed_paths": ["electron/ai/runtimeVendorError.ts", "electron/shared/generationFailureDetect.ts", "electron/shared/generationFailure.ts"], "rationale": "移除网页正文直接截入 upstreamMsg、未清洗诊断直接进入原话以及机器名充当兜底标题的行为。"},
-  "dependency_lifecycle": {"decision": "not-applicable", "rationale": "此处过滤的是产品可见文案，不涉及底层库版本或协议变更。", "exit_criteria": []},
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "可以在新调用、旧 IPC 报文与旧节点字符串上重复，涉及画布及 Agent 两个出口。",
+    "same_class_scan": [
+      "door-map cleanProviderMessage 查到 reportFor 和 classify 两处调用。",
+      "door-map upstreamMessageFromBody 查到 vendorErrorFromRuntimeFacts。",
+      "rg providerMessage 确认节点、可找回面板和 Agent 文案投影均消费共享结果。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/generationFailureDetect.ts",
+    "invariant": "所有可见服务商说明经过相同内容检查，再决定能否作为当前语言的标题。",
+    "failure_mode": "诊断形状输出空原话，保留分类原因与动作。无来源机器码的标题使用 unknown 词条。",
+    "exception_policy": "none",
+    "strategy": "在现有共享清洗处识别消息形状，在传输事实进入 IPC 上游消息前排除网页。",
+    "artifacts": [
+      "electron/shared/generationFailureDetect.ts",
+      "electron/ai/runtimeVendorError.ts",
+      "electron/shared/generationFailure.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/ai/agentError.test.ts",
+    "src/workbench/observability/vendorQuoteProvenance.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/observability/vendorQuoteProvenance.test.ts"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/generationFailureDetect.ts",
+    "tests": [
+      "src/workbench/observability/vendorQuoteProvenance.test.ts"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/runtimeVendorError.ts",
+      "electron/shared/generationFailureDetect.ts",
+      "electron/shared/generationFailure.ts"
+    ],
+    "rationale": "移除网页正文直接截入 upstreamMsg、未清洗诊断直接进入原话以及机器名充当兜底标题的行为。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "此处过滤的是产品可见文案，不涉及底层库版本或协议变更。",
+    "exit_criteria": []
+  },
   "migration": "没有持久化字段变化，旧报错在读取时走共享判定。",
-  "residual_risks": ["定向测试重放反馈中的响应，不使用反馈者的账号或真实供应商请求；真实桌面回放未验证。", "独立文本任务和设置中的独立文案出口由看板其他任务负责。"]
+  "residual_risks": [
+    "定向测试重放反馈中的响应，不使用反馈者的账号或真实供应商请求；真实桌面回放未验证。",
+    "独立文本任务和设置中的独立文案出口由看板其他任务负责。"
+  ]
 }
