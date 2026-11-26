@@ -1,0 +1,154 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-ci-apt-third-party-source",
+  "problem_type": "CI 系统依赖安装与无关软件仓库的可用性耦合",
+  "symptom": "运行 45902550876 的 E2E 分片 4 和 45903980638 的分片 2 在浏览器安装前失败。",
+  "direct_cause": "运行 45902550876 在 apt-get update 收到 Microsoft 源的 403 与签名错误。运行 45903980638 下载 Microsoft 索引成功，只见该源，随后 apt-get install 找不到多个字体包。两次 apt 均退出 100。",
+  "class_root": "共享安装步骤没有限定软件源范围，安装 Ubuntu 提供的库要求镜像上的全部源都在线。",
+  "affected_population": [
+    "使用 GitHub 托管 Ubuntu 镜像安装 Playwright Chromium 的工作流和分片"
+  ],
+  "scope_paths": [
+    "scripts/ci-install-chromium.sh"
+  ],
+  "entry_points": [
+    "四个工作流的六处脚本调用；其中 Quality Gate 的 macOS 入口没有 apt。"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/microsoft/playwright/blob/v1.60.0/packages/playwright-core/src/server/registry/dependencies.ts",
+      "checked_at": "2026-11-27",
+      "purpose": "核实 Linux 的 update / install 顺序。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ubuntu.com/server/docs/how-to/software/package-management/",
+      "checked_at": "2026-11-27",
+      "purpose": "核实 24.04 的 DEB822 与早期主列表布局。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/actions/runner-images/blob/main/images/ubuntu/scripts/build/configure-apt-sources.sh",
+      "checked_at": "2026-11-27",
+      "purpose": "核实两版官方源文件及 mirror+file URI。"
+    }
+  ],
+  "invariants": [
+    "镜像预装的独立第三方源离线时仍能从官方源安装库；Ubuntu 的镜像列表、套件、签名设置均可继续使用。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": ".github/workflows/desktop-rc.yml",
+      "symbol": "scripts/ci-install-chromium.sh"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/full-experience-run.yml",
+      "symbol": "scripts/ci-install-chromium.sh"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "symbol": "scripts/ci-install-chromium.sh"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/quality-gate.yml",
+      "symbol": "scripts/ci-install-chromium.sh"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "Quality Gate、夜间走查、发布候选和手动全体验各有独立触发时机，均经同一个安装脚本。"
+  },
+  "generality_proof": "所有 Linux 调用都在同一安装器处理；按 runner 发行版布局保留官方源并检查传统主列表的 URI，供应商数量、名称和错误码无关。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/ci-install-chromium.sh",
+      "symbol": "isolate_ubuntu_apt_sources",
+      "responsibility": "在系统依赖安装接触 apt 之前确定托管 Ubuntu 镜像可用的源。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/desktop-rc.yml",
+      "entry_point": "validate",
+      "disposition": "enforced",
+      "evidence": "工作流调用 bash scripts/ci-install-chromium.sh；仅在有 apt 的托管 runner 隔离源。"
+    },
+    {
+      "path": ".github/workflows/full-experience-run.yml",
+      "entry_point": "full",
+      "disposition": "enforced",
+      "evidence": "工作流调用 bash scripts/ci-install-chromium.sh；仅在有 apt 的托管 runner 隔离源。"
+    },
+    {
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "entry_point": "walks",
+      "disposition": "enforced",
+      "evidence": "工作流调用 bash scripts/ci-install-chromium.sh；仅在有 apt 的托管 runner 隔离源。"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "unit, desktop-linux, design-lab-macos",
+      "disposition": "enforced",
+      "evidence": "工作流调用 bash scripts/ci-install-chromium.sh；仅在有 apt 的托管 runner 隔离源。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "六处调用共享机器自带的 apt 配置。不同分片独立启动，同一个无关源故障可使任一 Ubuntu 作业失败；另一宗字体缺包事故说明保留官方源也须验收。",
+    "same_class_scan": [
+      "door-map 扫描 scripts 和 .github，仅识别 JS/TS 标识符，结果 0。",
+      "git grep -n ci-install-chromium -- .github/workflows 查得四份 YAML、六个调用点；install-deps 由脚本统一调用。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/ci-install-chromium.sh",
+    "invariant": "托管 runner 的 apt 只加载 ubuntu.sources 及主列表中指向 Ubuntu 的条目。",
+    "failure_mode": "隔离写入出错即终止；真实 apt 或安装失败按原退出码终止并保留备份。",
+    "exception_policy": "none",
+    "strategy": "将第三方源备份到 apt 搜索目录之外；保留官方定义和签名配置，再执行一次 install-deps。",
+    "artifacts": [
+      "scripts/ci-install-chromium.sh"
+    ]
+  },
+  "regression_tests": [
+    "scripts/ci-install-chromium.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/ci-install-chromium.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "沿用唯一安装器，调用方无需过渡。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Playwright 1.60.0，GitHub Ubuntu 22.04 / 24.04 镜像布局",
+    "target": "Playwright 提供可透传官方源范围的 install-deps 接口时改用上游接口。",
+    "rationale": "当前 CLI 只支持演练，仍需由 CI 安装器限定安装时的源。",
+    "exit_criteria": [
+      "上游能同时覆盖传统主列表与 DEB822，并通过本合同两种坏源夹具及托管 runner 的浏览器安装。"
+    ]
+  },
+  "migration": "每个作业使用独立临时镜像，下一次作业重新读取当时的镜像配置。",
+  "residual_risks": [
+    "官方镜像自身离线仍可能导致失败。runner 改变官方源文件位置时须复核布局。",
+    "运行 45903980638 缺少官方包索引的成因未证实；本修复保留镜像现有官方源，未覆盖镜像本身缺失官方源的情况。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/ci-install-chromium.sh",
+    "tests": [
+      "scripts/ci-install-chromium.node-test.mjs"
+    ]
+  },
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-04"
+}

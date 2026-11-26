@@ -14,9 +14,47 @@ set -euo pipefail
 attempts=3
 per_attempt_seconds=240
 
+# runner-images keeps the distribution's DEB822 entries in ubuntu.sources.
+# On Jammy the main list can contain both archive entries and vendor entries.
+isolate_ubuntu_apt_sources() {
+  local apt_dir=${1:-/etc/apt} backup=$2 part elevate=
+  local main="$apt_dir/sources.list"
+  if [[ ! -w "$apt_dir" ]]; then elevate=sudo; fi
+  mkdir -p "$backup/sources.list.d"
+  for part in "$apt_dir"/sources.list.d/*.{list,sources}; do
+    [[ -f "$part" && ${part##*/} != ubuntu.sources ]] || continue
+    $elevate mv -- "$part" "$backup/sources.list.d/"
+  done
+
+  [[ -f "$main" ]] || return 0
+  # Match the URI field after any [options]. Comments, suites and key paths can
+  # also contain a host name and must never decide which repository is active.
+  awk '
+    $1 == "deb" || $1 == "deb-src" {
+      entry = $0
+      sub(/^[[:space:]]*[^[:space:]]+[[:space:]]+/, "", entry)
+      sub(/^\[[^]]*\][[:space:]]+/, "", entry)
+      split(entry, fields, /[[:space:]]+/)
+      uri = tolower(fields[1])
+      if (uri !~ /^https?:\/\/([a-z0-9-]+\.)*(ubuntu|canonical)\.com(:[0-9]+)?(\/|$)/ &&
+          fields[1] !~ /^(mirror\+)?file:\/etc\/apt\/apt-mirrors\.txt$/) next
+    }
+    { print }
+  ' "$main" > "$backup/official.list"
+  if ! cmp -s "$main" "$backup/official.list"; then
+    cp "$main" "$backup/sources.list"
+    $elevate install -m 644 "$backup/official.list" "$main"
+  fi
+}
+
 if command -v apt-get >/dev/null 2>&1; then
+  apt_dir=${1:-/etc/apt}
+  if [[ ${RUNNER_ENVIRONMENT:-} == github-hosted ]]; then
+    backup=${2:-$(mktemp -d)}
+    isolate_ubuntu_apt_sources "$apt_dir" "$backup"
+  fi
   echo 'Acquire::Retries "3"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30"; DPkg::Lock::Timeout "300";' \
-    | sudo tee /etc/apt/apt.conf.d/99nomi-ci >/dev/null
+    | sudo tee "$apt_dir/apt.conf.d/99nomi-ci" >/dev/null
   pnpm exec playwright install-deps chromium
 fi
 

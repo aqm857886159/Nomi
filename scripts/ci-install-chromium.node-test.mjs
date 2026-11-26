@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 import { fileURLToPath } from 'node:url'
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ci-install-chromium.sh')
@@ -59,8 +59,8 @@ const jammyList = [
 
 for (const suite of ['noble', 'jammy']) {
   test(`${suite}: 故障源移走后用官方源安装系统依赖，再下载 Chromium`, (t) => {
-    const root = fs.mkdtempSync(path.join(tmpdir(), 'ci-chromium-'))
-    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+    const root = makeTempDir('ci-chromium')
+    t.after(() => cleanupTestTemp(root))
     const put = (name, value, mode) => fs.writeFileSync(path.join(root, name), value, { mode })
     const read = (name) => fs.readFileSync(path.join(root, name), 'utf8')
     const parts = 'etc/apt/sources.list.d'

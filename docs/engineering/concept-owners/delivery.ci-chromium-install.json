@@ -1,0 +1,29 @@
+{
+  "name": "CI Chromium 系统依赖安装源",
+  "subject": "delivery.ci-chromium-install",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/ci-install-chromium.sh",
+    "symbol": "isolate_ubuntu_apt_sources"
+  },
+  "write_api": [
+    {
+      "path": "scripts/ci-install-chromium.sh",
+      "symbol": "isolate_ubuntu_apt_sources"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/ci-install-chromium.node-test.mjs",
+  "allowed_consumers": [
+    ".github/workflows/desktop-rc.yml",
+    ".github/workflows/full-experience-run.yml",
+    ".github/workflows/nightly-walkthroughs.yml",
+    ".github/workflows/quality-gate.yml"
+  ],
+  "since": "2026-11-27",
+  "notes": "GitHub 托管 Ubuntu 机器在 Playwright 更新 apt 索引之前隔离镜像附带的第三方源。"
+}
