@@ -206,7 +206,7 @@ export function AgentPanelV4Composer({
   // 「有东西可发」是**一个**判据，发送钮的长相、它的 disabled、以及 Enter 那条路都从这里取，
   // 免得三处各判一次、以后有人只改了其中一处（长相灰着但 Enter 还能发＝还是在假装能发）。
   const text = value.trim()
-  const canSend = !admitting && Boolean(chips?.length || (text && text !== '/'))
+  const canSend = !admitting && text !== '/' && Boolean(chips?.length || text)
   /** 这颗圆钮此刻是「停止」：在跑，而且框里没有要发的东西。 */
   const stopping = running && !canSend
   return (
@@ -257,7 +257,8 @@ export function AgentPanelV4Composer({
         inputAttributes={COMPOSER_INPUT_ATTRIBUTES}
         mentionReferences={mentionReferences} mentionSearch={mentionSearch} onMentionSelect={onMentionSelect}
         onKeyDownCapture={event => {
-          if (event.nativeEvent.isComposing || event.defaultPrevented || (editorRef.current && SuggestionPluginKey.getState(editorRef.current.state)?.active)) return
+          if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
+          if (event.defaultPrevented || (editorRef.current && SuggestionPluginKey.getState(editorRef.current.state)?.active)) return
           if (onPopoverKeyDown?.(event)) return
           if (shouldSubmitComposer({ key:event.key, shiftKey:event.shiftKey, isComposing:event.nativeEvent.isComposing })) {
             event.preventDefault()

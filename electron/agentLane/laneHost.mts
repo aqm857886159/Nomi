@@ -42,7 +42,7 @@ import { omitSupersededReads } from './laneSupersededReads.mjs';
 import {
   LANE_APPROVAL_NOTE_TYPE, LANE_TASK_NOTE_TYPE, LANE_UI_NOTE_PREFIX, laneNoteEntersModelContext,
   type LaneApprovalNote, type LaneCancelQueuedResult, type LaneCommand, type LaneCommandOutcome,
-  type LaneHandle, type LanePendingApproval, type LaneProjection, type LaneSkillIndexEntry, type LaneThinkingLevel,
+  type LaneHandle, type LaneProjection, type LaneSkillIndexEntry, type LaneThinkingLevel,
 } from '../shared/agentLane/laneContracts.js';
 import { createLaneApprovalGate } from './laneApprovalGate.js';
 import type { OpenLane, OpenLaneOptions } from './laneRuntimePort.js';
@@ -344,28 +344,6 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const watch = await lane.watch(context);
   let snapshot: LaneSnapshot = watch.snapshot;
   const history = await openLaneHistoryPage(session, laneName, context, snapshot.tipId);
-  let pending: LanePendingApproval | undefined;
-  // 沙箱状态**整条 lane 只测一次**（`openLaneNativeDesktop` 开 lane 那一刻），所以它不是
-  // 快照的函数，也不该进 `projectLaneSnapshot` 的参数表——那个纯函数的入参每多一个，
-  // 「这次投影为什么和上次不一样」的可能来源就多一个。这里摊进去，投影层一个字都不用改。
-  const sandboxFacts = native?.sandboxInactive ? { sandboxInactive: native.sandboxInactive.code } : {};
-  let projection: LaneProjection = { ...projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks, history.entries(), history.previousInputId(), options.attachments), history: history.state(), ...sandboxFacts };
-  const listeners = new Set<(next: LaneProjection) => void>();
-  const publish = () => {
-    projection = { ...projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks, history.entries(), history.previousInputId(), options.attachments), history: history.state(), ...sandboxFacts };
-    for (const listener of listeners) listener(projection);
-  };
-  watch.start(async (event, eventContext) => {
-    if (reduceLaneSnapshot(snapshot, event) === 'rebase') {
-      // pi buffers and serializes events until this listener installs the returned snapshot.
-      snapshot = await watch.resnapshot(eventContext);
-      await history.reset(snapshot.tipId);
-    } else if (event.type === 'entry_added') {
-      history.append(event.entry);
-    }
-    publish();
-  });
-
   const approval = options.approval;
   const gate = approval
     ? createLaneApprovalGate({
@@ -379,9 +357,38 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         // 不复活用户从没看见过的卡。名单从**转录本身**算，不靠一个「我在恢复」的布尔值：
         // 布尔值要有人记得关，而这份名单每消费一个就少一个。
         restoredToolCallIds: interruptedToolCallIds(watch.snapshot),
-        onPendingChange: (next) => { pending = next; publish(); },
+        onChange: () => publish(),
       })
     : undefined;
+  // 沙箱状态**整条 lane 只测一次**（`openLaneNativeDesktop` 开 lane 那一刻），所以它不是
+  // 快照的函数，也不该进 `projectLaneSnapshot` 的参数表——那个纯函数的入参每多一个，
+  // 「这次投影为什么和上次不一样」的可能来源就多一个。这里摊进去，投影层一个字都不用改。
+  const sandboxFacts = native?.sandboxInactive ? { sandboxInactive: native.sandboxInactive.code } : {};
+  const currentProjection = (): LaneProjection => {
+    const heldToolCallIds = gate?.heldToolCallIds();
+    return {
+      ...projectLaneSnapshot(snapshot, modelFacts, gate?.pending(), options.tasks, history.entries(), history.previousInputId(), options.attachments),
+      history: history.state(), ...sandboxFacts,
+      ...(heldToolCallIds?.length ? { heldToolCallIds } : {}),
+    };
+  };
+  let projection = currentProjection();
+  const listeners = new Set<(next: LaneProjection) => void>();
+  const publish = () => {
+    projection = currentProjection();
+    for (const listener of listeners) listener(projection);
+  };
+  watch.start(async (event, eventContext) => {
+    if (reduceLaneSnapshot(snapshot, event) === 'rebase') {
+      // pi buffers and serializes events until this listener installs the returned snapshot.
+      snapshot = await watch.resnapshot(eventContext);
+      await history.reset(snapshot.tipId);
+    } else if (event.type === 'entry_added') {
+      history.append(event.entry);
+    }
+    publish();
+  });
+
   const directlyApplied = new Set<string>();
   turn.attach(harness, lane, registeredToolNames);
 
@@ -618,7 +625,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       if (command.kind === 'abort') inputs.cancel();
       const admission = inputs.capture(executionOptions?.admissionSignal);
       if (command.kind === 'history-older') { await history.older(command.before); publish(); return {}; }
-      if (command.kind === 'prompt' && !projection.running && !pending) {
+      if (command.kind === 'prompt' && !projection.running && !gate?.pending()) {
         const message = await awaitWithContext(inputMessage(command.text), admission);
         // 「这条技能要不要 coding 工具」判在准入这一刻，而用户可能就是刚导入它的——
         // 所以先把索引刷到这个回合，再问。不刷的症状是模型说「我去跑它的 selftest」，然后说它没有工具。

@@ -23,5 +23,5 @@
     "src/workbench/ai/v4/useAgentPanelV4Data.ts"
   ],
   "since": "2026-11-27",
-  "notes": "Associate an unresolved tool call with its own waiting spend offer or pending tool approval."
+  "notes": "A receipt reads heldToolCallIds from the host approval gate or the pending spend approval toolCallId. It never infers a wait from an operation or Pi runningTools."
 }

@@ -8,7 +8,7 @@ import type {
   LaneMetric, LaneMetricUnknownReason, LanePart, LaneProjection, LaneTaskFacts, LaneUsage,
 } from '../../../../electron/shared/agentLane/laneContracts'
 import { LANE_APPROVAL_NOTE_TYPE, LANE_TASK_STATUSES } from '../../../../electron/shared/agentLane/laneContracts'
-import { laneInterventionSource, laneViewModel } from './laneViewModel'
+import { laneInterventionSource, laneViewModel, type LaneViewModelLabels } from './laneViewModel'
 import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from './laneToolFailureText'
 import type { SkillListItemDto } from '../../api/skillApi'

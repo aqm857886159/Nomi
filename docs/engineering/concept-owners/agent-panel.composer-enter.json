@@ -14,6 +14,10 @@
     {
       "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
       "symbol": "AgentPanelV4Composer"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "confirmDisplayedSpend"
     }
   ],
   "forbidden_derivations": [],
@@ -24,5 +28,5 @@
     "src/workbench/ai/v4/AgentPanelV4Panel.tsx"
   ],
   "since": "2026-11-27",
-  "notes": "Dispatch editor Enter to a single action. An empty editor can delegate to the waiting spend button in its own panel."
+  "notes": "The composer owns IME, picker and send eligibility. Its panel consumes the displayed quote or approval identity once for empty Enter and protects the handoff to the next card."
 }

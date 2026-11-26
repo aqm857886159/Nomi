@@ -323,7 +323,7 @@ function laneApprovalWasAnswer(note: LaneApprovalNote, args: unknown): boolean {
  * 这里**断言**这件事而不是相信它：顺序一旦在某一层被悄悄打乱，面板上看到的就是
  * 「它先做了、后说要做」，而那种错在截图里非常像「模型自己顺序乱」。
  */
-export function laneViewModel(projection: LaneProjection, labels: LaneViewModelLabels, undoableToolCallId?: string, waitingSpendOperationId?: string): LaneViewModel {
+export function laneViewModel(projection: LaneProjection, labels: LaneViewModelLabels, undoableToolCallId?: string): LaneViewModel {
   const items: V4FlowItem[] = []
   /**
    * 每一条流项属于第几回合。**它不是第二份顺序真相**——顺序仍然只有 `sequence` 一个来源；
@@ -418,9 +418,7 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
     }
     if (part.kind === 'tool-call') {
       slots.set(part.toolCallId, { index: items.length, toolName: part.toolName, args: part.args })
-      const waitingOnOffer = part.running && waitingSpendOperationId !== undefined && part.toolName === 'generate'
-        && part.args !== null && typeof part.args === 'object' && 'operationId' in part.args
-        && part.args.operationId === waitingSpendOperationId
+      const waitingOnOffer = projection.heldToolCallIds?.includes(part.toolCallId) === true
       const waitingOnApproval = projection.pending?.effectClass === 'spend' && projection.pending.toolCallId === part.toolCallId
       push({ kind: 'tool', receipt: receiptFor(part, labels, waitingOnOffer || waitingOnApproval) })
       continue

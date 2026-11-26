@@ -100,7 +100,7 @@ export async function openLaneWorkspace(
       return part;
     });
     projection = { lanes, closed: true, active: { ...snapshot, parts, running: false,
-      pending: undefined, retry: undefined, queues: [] } };
+      pending: undefined, heldToolCallIds: undefined, retry: undefined, queues: [] } };
     try { for (const listener of listeners) listener(projection); }
     finally { listeners.clear(); }
   }

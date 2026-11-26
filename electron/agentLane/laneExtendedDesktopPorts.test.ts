@@ -327,7 +327,7 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
   const presentedCard = { ok: true as const, result: { operation: { operationId: 'op-1' }, shots: ['shot-1'], nextAction: 'await_user' } }
   const generateCall: RuntimeToolCall = { toolName: 'generate', args: { operationId: 'op-1' }, toolCallId: 'call-generate' }
   /** 宿主算的逐镜结局（付费卡逐镜）：回合只读它，回执只渲染它。 */
-  const resolvedOutcome = { closedBy: 'resolved', generating: ['shot-1'], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [] }
+  const resolvedOutcome = { closedBy: 'resolved' as const, generating: ['shot-1'], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [] }
   const closedOutcome = { closedBy: 'user_closed', generating: [], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [{ shotId: 'shot-1', reason: 'user_closed' }] }
   const wroteOutcome = { closedBy: 'user_wrote', generating: [], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [{ shotId: 'shot-1', reason: 'user_wrote' }] }
 
@@ -390,8 +390,9 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
         expect(lane.projection()).not.toHaveProperty('heldToolCallIds')
       } finally { await lane.close() }
     } finally {
+      f.assembly.dispose()
       await http.close()
-      await cleanupTestTemp(root)
+      cleanupTestTemp(root)
     }
   })
 

@@ -2,8 +2,8 @@
   "schema_version": 3,
   "id": "2026-11-27-agent-spend-enter",
   "problem_type": "Editor gestures and tool receipts lose the identity of the next user action",
-  "symptom": "Empty Enter does nothing, a dismissed slash picker sends a slash, and a waiting generation receipt spins.",
-  "direct_cause": "The editor attempts only message submission. The receipt treats every unresolved call as streaming or running.",
+  "symptom": "Composition-end Enter and slash with a chip submit unintended actions. Two presses can confirm two offers. A generate call waiting in preflight is folded as streaming.",
+  "direct_cause": "Capture treated keyCode 229 as plain Enter, chip eligibility overrode slash, and an unscoped button ref could activate each new primary. The receipt joined the operation ID to Pi runningTools, which excludes before_tool.",
   "class_root": "Neither input dispatch nor tool presentation binds the waiting user action to its actual owner.",
   "affected_population": [
     "Creators using the resident panel in the sidebar, dock or floating shell and the shared panel in the design lab."
@@ -17,7 +17,13 @@
     "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
     "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
     "src/workbench/ai/v4/agentPanelV4Collapse.ts",
-    "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "electron/agentLane/laneApprovalGate.ts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneWorkspace.mts",
+    "electron/shared/agentLane/laneContracts.ts",
+    "src/workbench/ai/v4/agentPanelSpendCard.ts",
+    "src/workbench/ai/v4/agentPanelV4Types.ts"
   ],
   "entry_points": [
     "Composer capture in AgentPanelV4Panel",
@@ -27,7 +33,9 @@
   "internal_only_reason": "The approved Nomi boards and design system specify the gesture and the existing tool-state vocabulary.",
   "invariants": [
     "Plain empty Enter activates only the mounted waiting spend action. Drafts, IME, repeated keys and library navigation cannot authorize it.",
-    "Waiting receipts remain visible with their existing localized approval label. Concurrent work keeps its own progress."
+    "Waiting receipts remain visible with their existing localized approval label. Concurrent work keeps its own progress.",
+    "A quote may be confirmed from the composer once. A retry requires direct interaction. A subsequent quote accepts Enter after it has been visible for 500 ms.",
+    "An external card hold and a gate approval remain distinct. Only the held toolCallIds enter the receipt projection."
   ],
   "doors": [
     {
@@ -134,14 +142,89 @@
       "kind": "write",
       "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
       "symbol": "laneViewModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneWorkspace.mts",
+      "symbol": "openLane"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "createLaneApprovalGate"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
+      "symbol": "projectSpendCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/spendCard/spendCardLabKit.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/b2cFormFixtures.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/03-flow.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "heldToolCallIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "heldToolCallIds"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "spendConfirmationId"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneApprovalGate.ts",
+      "symbol": "preflightLaneApproval"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "heldToolCallIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/agentPanelSpendCard.ts",
+      "symbol": "roleOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "symbol": "V4InterventionKind"
     }
   ],
   "door_reduction": {
-    "before": 21,
-    "after": 21,
-    "why_not": "The docks and design fixtures mount the shared cards or the whole panel. Single receipts and work history consume the same tool facts. The language resources supply the existing labels."
+    "before": 36,
+    "after": 36,
+    "why_not": "The docks and design fixtures mount the shared cards or the whole panel. Single receipts and work history consume the same tool facts. The language resources supply the existing labels. The desktop host owns the actual wait. The card hook reads the quote and each mounted panel consumes the displayed identity."
   },
-  "generality_proof": "The native button is local to one panel. Unmounting or disabling it removes activation without a second authorization callback. Receipt status joins the waiting operation or approval ID before any presentation grouping.",
+  "generality_proof": "All resident layouts use the same panel. The displayed spend quoteId covers the project, operation, presentation and shot revisions independently of handoff progress. Lane approvals use the pending toolCallId. The gate publishes all active holds by call ID so concurrent calls and old calls on the same plan keep their own statuses.",
   "shared_boundaries": [
     {
       "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
@@ -152,6 +235,16 @@
       "path": "src/workbench/ai/lane/laneViewModel.ts",
       "symbol": "laneViewModel",
       "responsibility": "Associate an unresolved tool call with its own waiting spend offer or pending tool approval."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "confirmDisplayedSpend",
+      "responsibility": "Consume a displayed confirmation identity once and protect the transition to a subsequent offer."
+    },
+    {
+      "path": "electron/agentLane/laneApprovalGate.ts",
+      "symbol": "createLaneApprovalGate",
+      "responsibility": "Publish and clear the call IDs of outside-card waits with the lifetime of the holds."
     }
   ],
   "same_class_entry_points": [
@@ -180,32 +273,39 @@
     "reason": "Every later conversation can present another offer during text composition, library navigation or parallel tool execution.",
     "same_class_scan": [
       "door-map V4Intervention, V4SpendBar and AgentPanelV4Composer identified the resident and design-lab surfaces.",
-      "Traced laneViewModel and collapseV4Flow through ToolStatusIcon against generate waiting in laneExtendedDesktopPorts."
+      "Traced laneViewModel and collapseV4Flow through ToolStatusIcon against generate waiting in laneExtendedDesktopPorts.",
+      "The desktop generate preflight borrows a hold from the gate. The ordinary spend approval stays in pending. The pending quote and lane approval are the two identities consumed by the panel."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
     "invariant": "Each editor gesture belongs to one active control.",
-    "failure_mode": "An absent, pending or disabled button cannot confirm. An unresolved picker trigger cannot be submitted as a bare message.",
+    "failure_mode": "Composition and slash stay in the editor. A consumed quote, a retry, or a freshly switched quote cannot spend through accidental Enter. Direct interaction with an enabled button remains available.",
     "exception_policy": "none",
-    "strategy": "Delegate confirmation to the rendered button and project the receipt status before folding work history.",
+    "strategy": "Capture composition before picker/send/confirm, veto bare slash before chip eligibility, and bind empty Enter to a consumable quote on the rendered button. Read call identity from the gate before folding the receipt.",
     "artifacts": [
       "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
       "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
       "src/workbench/ai/lane/laneViewModel.ts",
-      "src/workbench/ai/v4/agentPanelV4Collapse.ts"
+      "src/workbench/ai/v4/agentPanelV4Collapse.ts",
+      "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "electron/agentLane/laneApprovalGate.ts",
+      "electron/agentLane/laneHost.mts",
+      "src/workbench/ai/v4/agentPanelSpendCard.ts"
     ]
   },
   "regression_tests": [
     "src/workbench/ai/lane/laneViewModel.test.ts",
     "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
-    "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx"
+    "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx",
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/ai/lane/laneViewModel.test.ts",
     "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
-    "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx"
+    "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx",
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -213,7 +313,7 @@
       "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
       "src/workbench/ai/lane/laneViewModel.ts"
     ],
-    "rationale": "Replaced unconditional send eligibility for bare slash and the running-only projection of unresolved tools."
+    "rationale": "Removed unconditional button activation, chip-first slash eligibility, and renderer inference of a held call from runningTools and operationId."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -231,7 +331,8 @@
     "tests": [
       "src/workbench/ai/lane/laneViewModel.test.ts",
       "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
-      "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx"
+      "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx",
+      "electron/agentLane/laneExtendedDesktopPorts.test.ts"
     ]
   }
 }

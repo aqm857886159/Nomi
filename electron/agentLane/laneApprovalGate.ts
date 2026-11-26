@@ -77,7 +77,7 @@ export interface LaneApprovalGateOptions {
    */
   readonly restoredToolCallIds?: Iterable<string>;
   /** 「在等你」变了。宿主据此重发投影。 */
-  onPendingChange?(pending: LanePendingApproval | undefined): void;
+  onChange?(): void;
 }
 
 export interface LaneApprovalGate {
@@ -86,6 +86,7 @@ export interface LaneApprovalGate {
   /** 用户在卡上点了什么。答的不是当前那张卡就返回 `false`（卡已经翻篇了，别把答案落到新的一张上）。 */
   answer(toolCallId: string, action: LaneApprovalAction, reason?: string): boolean;
   pending(): LanePendingApproval | undefined;
+  heldToolCallIds(): readonly string[];
   /**
    * 这一次调用**真的**是怎么过闸的（2026-09-18 · T-ED-02）。工具回执据此说人话：
    * `auto-granted` = 用户这一档下压根没出过卡，`granted-once` / `granted-session` = 他点过。
@@ -189,7 +190,7 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
     undrained.push(entry);
   }
 
-  const publish = () => options.onPendingChange?.(currentPending());
+  const publish = () => options.onChange?.();
 
   function currentPending(): LanePendingApproval | undefined {
     // 串行执行下最多一张；并行读那一批理论上能同时进预检，所以按插入序取第一张、
@@ -317,6 +318,7 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
 
   return {
     pending: currentPending,
+    heldToolCallIds: () => [...holds.keys()],
     decisionFor: (toolCallId) => decisions.get(toolCallId),
     answerFor: (toolCallId) => answers.get(toolCallId),
     forget: (toolCallId) => { answers.delete(toolCallId); decisions.delete(toolCallId); },
@@ -379,6 +381,7 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
       let settle!: (outcome: LaneHoldOutcome) => void;
       const answered = new Promise<LaneHoldOutcome>((resolve) => { settle = resolve; });
       holds.set(request.toolCallId, { toolName: request.toolName, settle });
+      publish();
       const detach = new AbortController();
       const stopped = new Promise<LaneHoldOutcome>((resolve) => {
         if (!signal) return;
@@ -390,7 +393,7 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
         return await Promise.race([answered, stopped]);
       } finally {
         detach.abort();
-        holds.delete(request.toolCallId);
+        if (holds.delete(request.toolCallId)) publish();
       }
     },
 
@@ -400,6 +403,7 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
       // 只认第一次：面板确认与「用户打字」同时到时，先到的那个算数（方案反方评审 Q1-b）。
       holds.delete(toolCallId);
       held.settle(outcome);
+      publish();
       return true;
     },
 

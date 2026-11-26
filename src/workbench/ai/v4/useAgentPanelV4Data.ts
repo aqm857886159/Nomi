@@ -134,8 +134,6 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
   const undoableToolCallId = undoableLaneToolCallId(snapshot.active.parts, committedProposal)
   const activeThreadId = snapshot.lanes.find((lane) => lane.laneName === snapshot.active.lane)?.sessionId ?? null
   const spend = useAgentPanelSpendCard(snapshot.spend)
-  const waitingSpendOperationId = spend.slot?.kind === 'spend' && !spend.slot.progress
-    ? spend.pending?.operationId : undefined
   const primaryPending = snapshot.active.pending
   const pendingRecords = React.useMemo(() => primaryPending ? [{ call: primaryPending }] : [], [primaryPending])
   const [models, setModels] = React.useState<readonly ModelCatalogModelDto[]>([])
@@ -253,7 +251,7 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
       const found = skillForKey(skills, key)
       return found ? { cover: found.cover, preview: found.preview } : undefined
     },
-  }, undoableToolCallId, waitingSpendOperationId), [snapshot.active, skills, skillLabel, t, toolDisplayCache, undoableToolCallId, waitingSpendOperationId])
+  }, undoableToolCallId), [snapshot.active, skills, skillLabel, t, toolDisplayCache, undoableToolCallId])
   useLogUnclassifiedProviderFailures(view.items)
   const flow = React.useMemo(() => {
     const items = [...view.items]
@@ -313,7 +311,9 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
       const result = await laneClient.loadOlder()
       if (!result.ok) throw new Error(result.code)
     } : undefined,
-    slot,
+    slot: slot?.kind === 'spend' && primaryPending
+      ? { ...slot, spendConfirmationId: JSON.stringify([snapshot.workspaceId, snapshot.active.lane, primaryPending.toolCallId]) }
+      : slot,
     plan: { ...plan, kept: (slot?.plan ?? []).filter((row) => row.checked).map((row) => row.label) },
     queue,
     context,
