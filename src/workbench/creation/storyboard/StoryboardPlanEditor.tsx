@@ -1,6 +1,6 @@
 import { generationFailureActions } from '../../observability/generationFailureActions'
 import React, { type JSX } from 'react'
-import { deleteStoryboardRows, restoreStoryboardDeletion, type StoryboardDeletion } from './storyboardDeleteUndo'
+import { deleteStoryboardRows, restoreStoryboardDeletion, useStoryboardDeletionFocus, type StoryboardDeletion } from './storyboardDeleteUndo'
 import { isCanvasTextEditingContext } from '../../generationCanvas/components/useCanvasShortcuts'
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -77,6 +77,7 @@ export function StoryboardPlanEditorFooter({
   progress,
   issueLabel,
   onBack,
+  onAddShot,
   onGenerate,
   busy,
   runnableCount,
@@ -85,6 +86,7 @@ export function StoryboardPlanEditorFooter({
   progress: string
   issueLabel?: string
   onBack: () => void
+  onAddShot?: () => void
   onGenerate: () => void
   busy: boolean
   runnableCount: number
@@ -103,6 +105,12 @@ export function StoryboardPlanEditorFooter({
         ) : <span className="text-caption text-nomi-ink-60 min-w-0 truncate" data-storyboard-progress="true">{progress}</span>}
       </div>
       <div className="flex items-center gap-2.5 shrink-0">
+        {onAddShot ? (
+          <WorkbenchButton size="sm" onClick={onAddShot} data-storyboard-add-shot="true">
+            <IconPlus />
+            {t('storyboardEditor.addShot')}
+          </WorkbenchButton>
+        ) : null}
         <WorkbenchButton variant="primary" onClick={onGenerate} disabled={busy || runnableCount === 0} data-storyboard-batch="true">
           <IconPlayerPlay size={15} stroke={1.8} />
           {generateLabel ?? t('storyboardEditor.footer.generateRemaining', { count: runnableCount })}
@@ -125,7 +133,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const designId = activeDesign?.id ?? ''
   const legacySetStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
   const setStoryboardPlan = React.useMemo(() => (next: StoryboardPlan) => {
-    if (activeDesign) legacySetStoryboardPlan(next, activeDesign.documentId, activeDesign.id)
+    return activeDesign ? legacySetStoryboardPlan(next, activeDesign.documentId, activeDesign.id) : null
   }, [activeDesign, legacySetStoryboardPlan])
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
@@ -160,22 +168,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   // 锚区两态（v6 §2.2）：一次切全部，不做逐张展开（那会多出"哪几张是展开的"这个状态）。
   const [anchorsExpanded, setAnchorsExpanded] = React.useState(false)
   const deletedPlanUndoRef = React.useRef<(StoryboardDeletion & { projectId: typeof projectId; documentId: string; designId: string }) | null>(null)
-  const editorRef = React.useRef<HTMLElement>(null)
+  const { editorRef, lastEditorFocusRef, onFocusCapture, captureDeletedFocus } = useStoryboardDeletionFocus(plan)
   // 分镜页的滚动区：镜头表按它的视口只挂看得见的行（StoryboardShotTable 窗口化）。
   const scrollRef = React.useRef<HTMLDivElement>(null)
-  const deletedFocusRef = React.useRef<Element | null>(null)
-  const lastEditorFocusRef = React.useRef<Element | null>(null)
-  React.useLayoutEffect(() => {
-    const removedFocus = deletedFocusRef.current
-    deletedFocusRef.current = null
-    const active = document.activeElement
-    // Original confirmation resolves before its exit animation removes the focused button.
-    // Restore only that departing control or orphaned body focus, never a new live input.
-    const closingConfirmation = removedFocus?.matches('[data-confirm-dialog-confirm="true"]')
-    if (removedFocus && ((!removedFocus.isConnected && active === document.body)
-      || (closingConfirmation && (active === removedFocus || active === document.body)))
-      && editorRef.current?.offsetParent !== null) editorRef.current?.focus({ preventScroll: true })
-  }, [plan])
+  const appendRevealRef = React.useRef<(shotId: string) => void>(null)
   const currentTargetRef = React.useRef({ projectId, activeDocumentId, designId, plan })
   currentTargetRef.current = { projectId, activeDocumentId, designId, plan }
   const onUndo = (event: React.KeyboardEvent<HTMLElement>): void => {
@@ -318,6 +314,17 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }, [strategyState, t])
 
   if (!plan) return null
+
+  const undo = deletedPlanUndoRef.current
+  const reservedShotIds = undo && undo.projectId === projectId && undo.documentId === activeDocumentId && undo.designId === designId
+    ? undo.before.map(stableShotId)
+    : undefined
+  const onAddShot = (): void => {
+    const shot = setStoryboardPlan(addShot(plan, reservedShotIds))?.plan.shots.at(-1)
+    if (!shot) return
+    setFilterAnchorId(null)
+    appendRevealRef.current?.(stableShotId(shot))
+  }
 
   const issues = validatePlan(plan).filter(issue => issue.kind !== 'anchor-not-consumable')
   // 刚建出来、一个字都还没写的空白起手式**不报错**（2026-09-21 真机截图：新建方案一落地，
@@ -495,7 +502,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       ref={editorRef}
       tabIndex={-1}
       onKeyDown={onUndo}
-      onFocusCapture={event => { if (event.target instanceof Element) lastEditorFocusRef.current = event.target }}
+      onFocusCapture={onFocusCapture}
       data-storyboard-editor="true"
     >
       <header className="flex items-center justify-between gap-3 h-12 px-4 border-b border-nomi-line">
@@ -542,7 +549,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           onToggleFrozenAnchor={onToggleFrozenAnchor}
           onOpenPreviewAnchor={onOpenPreviewAnchor}
           onFilterByAnchor={setFilterAnchorId}
-          onAddAnchor={() => setStoryboardPlan(addAnchor(plan))}
+          onAddAnchor={() => setStoryboardPlan(addAnchor(plan))?.plan.anchors.at(-1)?.id}
         />
 
         <section>
@@ -578,6 +585,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           <div className="flex flex-col gap-2">
             <StoryboardShotTable
               plan={plan}
+              appendRevealRef={appendRevealRef}
+              reservedShotIds={reservedShotIds}
               planSource={ACTIVE_PLAN_SOURCE}
               projectId={projectId}
               rows={rows}
@@ -607,12 +616,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 try {
                   const ids = selected.flatMap(runtime => [runtime.exec.node?.id, runtime.exec.keyframeNode?.id]).filter((id): id is string => Boolean(id))
                   const deletion = deleteStoryboardRows(plan, selected.map(runtime => runtime.shot), ids, useGenerationCanvasStore.getState())
-                  const focused = document.activeElement
-                  // 行菜单等走 portal 的浮层不在编辑器的 DOM 里，但焦点事件沿 React 树冒泡，
-                  // onFocusCapture 记下的就是它：它也算编辑器自己的焦点，删除后同样要把焦点还给编辑器。
-                  deletedFocusRef.current = focused && (editorRef.current.contains(focused) || focused === lastEditorFocusRef.current
-                    || focused.matches('[data-confirm-dialog-confirm="true"]'))
-                    ? focused : focused === document.body ? lastEditorFocusRef.current : null
+                  captureDeletedFocus(editorRef.current)
                   deletedPlanUndoRef.current = { ...deletion.undo, projectId, documentId: activeDocumentId, designId }
                   setStoryboardPlan(deletion.plan)
                 } catch { reportFailure(t('storyboardEditor.exec.actionFailed')) }
@@ -621,14 +625,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               filterAnchorId={filterAnchorId}
               scrollRef={scrollRef}
             />
-            <button
-              type="button"
-              onClick={() => setStoryboardPlan(addShot(plan))}
-              className="self-start h-6 px-2.5 rounded-full border border-dashed border-nomi-ink-20 text-caption text-nomi-ink-60 inline-flex items-center gap-1 hover:text-nomi-ink-80"
-            >
-              <IconPlus size={13} stroke={1.8} />
-              {t('storyboardEditor.addShot')}
-            </button>
           </div>
         </section>
       </div>
@@ -637,6 +633,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         progress={`${t('storyboardEditor.footer.progress', { done: batch.doneCount + batch.excluded.locked, total: plan.shots.length })}${excludedReasons.length > 0 ? ` ${excludedReasons.join(t('storyboardEditor.footer.reasonSeparator'))}${t('storyboardEditor.footer.excludedSuffix')}` : ''}`}
         issueLabel={visibleIssues.length > 0 ? t('storyboardEditor.issuesSummary', { count: visibleIssues.length, issue: firstIssueLabel(visibleIssues[0]) }) : undefined}
         onBack={() => { setActiveStoryboardId(null); setWorkspaceMode('creation') }}
+        onAddShot={onAddShot}
         onGenerate={onRunBatch}
         busy={busy}
         runnableCount={batch.runnable.length}

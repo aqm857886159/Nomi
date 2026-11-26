@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { deleteStoryboardRows, restoreStoryboardDeletion, restoredStoryboardPlan } from './storyboardDeleteUndo'
-import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { stableShotId, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { addShot } from '../../generationCanvas/agent/storyboardPlanEdits'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 const plan = (): StoryboardPlan => ({ title: 'Original', anchors: [], shots: [1, 2, 3].map(index => ({ index, shotId: `s${index}`, prompt: `Prompt ${index}`, durationSec: 3, anchorIds: [] })) })
 
@@ -23,11 +24,14 @@ describe('local storyboard deletion inverse', () => {
     expect(restored.shots.map(shot => shot.shotId)).toEqual(['s1', 's3'])
     expect(restored.shots[0].prompt).toBe('Newer restored content')
   })
-  it('restores ID-less legacy rows without assigning persisted IDs and rejects changed ambiguous survivors', () => {
+  it('restores legacy rows by identity after a survivor edit and append', () => {
     const before = plan(); before.shots = before.shots.map(({ shotId: _id, ...shot }) => shot)
     const { plan: after, undo } = deleteStoryboardRows(before, [before.shots[0]], [], null)
-    expect(restoredStoryboardPlan({ ...after, title: 'Later' }, undo).shots).toEqual(before.shots)
-    expect(() => restoredStoryboardPlan({ ...after, shots: after.shots.map(shot => ({ ...shot, prompt: 'Changed' })) }, undo)).toThrow('Legacy storyboard row changed')
+    after.shots[0] = { ...after.shots[0], prompt: 'Changed' }
+    const appended = addShot(after, undo.before.map(stableShotId))
+    const restored = restoredStoryboardPlan(appended, undo)
+    expect(restored.shots.map(stableShotId)).toEqual(['shot-1', 'shot-2', 'shot-3', 'shot-4'])
+    expect(restored.shots.map(shot => shot.prompt)).toEqual(['Prompt 1', 'Changed', 'Prompt 3', ''])
   })
   it('rejects a stale row object before any deletion; a deleted anchor no longer blocks undo (anchorIds do nothing)', () => {
     const before = plan(); before.anchors = [{ id: 'a', kind: 'character', carrier: 'text', name: 'A', description: 'A' }]; before.shots[0].anchorIds = ['a']

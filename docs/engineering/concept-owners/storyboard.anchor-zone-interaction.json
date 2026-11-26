@@ -1,0 +1,23 @@
+{
+  "name": "分镜参考区展开与增删焦点",
+  "subject": "storyboard.anchor-zone-interaction",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+    "symbol": "StoryboardAnchorZone"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+      "symbol": "StoryboardAnchorZone"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "参考区根据卡片数量和展开状态决定可见内容。添加后展开并聚焦新卡名称，删除最后一张后聚焦添加入口。"
+}

@@ -64,7 +64,9 @@ export function readNodeMetricRuns(payload, selection, expectedRuns = null) {
   }))
 }
 
-const nodeResultFile = (label) => path.relative(process.cwd(), path.resolve(process.env.NOMI_PERF_OUTPUT_DIR || 'tests/perf/results', `node-json-${label}.json`))
+const perfResultFile = (name) => path.relative(process.cwd(), path.resolve(process.env.NOMI_PERF_OUTPUT_DIR || 'tests/perf/results', name))
+const nodeResultFile = (label) => perfResultFile(`node-json-${label}.json`)
+const documentSwitchResultFile = (label) => perfResultFile(`document-switch-${label}.json`)
 
 export const DRIVERS = Object.freeze({
   // Any non-UI Node instrument: --runs N --out file -> { runs, noisy, metrics: { name: number[] } }.
@@ -162,8 +164,8 @@ export const DRIVERS = Object.freeze({
   // 大文稿项目切文稿 / 打开分镜方案的响应（tests/perf/document-switch-bench.mjs：点击到目标界面到位再过两帧）
   'tests/perf/document-switch-bench.mjs': {
     supports: ['response', 'longTasks'],
-    buildArgs: (script, args, { runs, label }) => [script, ...args, '--runs', String(runs), '--label', label],
-    resultFile: (label) => `tests/perf/results/document-switch-${label}.json`,
+    buildArgs: (script, args, { runs, label }) => [script, ...args, '--runs', String(runs), '--label', label, '--out', documentSwitchResultFile(label)],
+    resultFile: documentSwitchResultFile,
     readRuns(payload) {
       const samples = payload.samples ?? []
       return { response: samples.map((sample) => sample.responseMs), longTasks: samples.map((sample) => sample.longTasks) }

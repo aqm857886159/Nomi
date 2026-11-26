@@ -36,9 +36,9 @@ export type ExternalNodeHighlight = 'hover' | 'flash'
 export function externalHighlightShellClass(highlight: ExternalNodeHighlight | null): string {
   // 写成任意属性 [box-shadow:…]：Tailwind 的 shadow-[…] 碰上「多段阴影 + var()」会把整串当成阴影颜色（只出 --tw-shadow-color、
   // 不出 box-shadow），样子静默消失——设计实验室走查读 computed box-shadow 抓到的。
-  if (highlight === 'hover') return 'rounded-nomi transition-shadow duration-300 [box-shadow:0_0_0_1.5px_var(--nomi-ink),var(--nomi-shadow-lg)]'
-  if (highlight === 'flash') return 'rounded-nomi transition-shadow duration-300 [box-shadow:0_0_0_1.5px_var(--nomi-ink),0_0_0_9px_color-mix(in_oklab,var(--nomi-ink)_12%,transparent),var(--nomi-shadow-lg)]'
-  return 'rounded-nomi transition-shadow duration-300'
+  if (highlight === 'hover') return 'rounded-nomi transition-shadow duration-nomi-fast [box-shadow:0_0_0_1.5px_var(--nomi-ink),var(--nomi-shadow-lg)]'
+  if (highlight === 'flash') return 'rounded-nomi transition-shadow duration-nomi-fast [box-shadow:0_0_0_1.5px_var(--nomi-ink),0_0_0_9px_color-mix(in_oklab,var(--nomi-ink)_12%,transparent),var(--nomi-shadow-lg)]'
+  return 'rounded-nomi transition-shadow duration-nomi-fast'
 }
 
 export type GenerationFlowNode = FlowNode<GenerationFlowNodeData, 'generation'>

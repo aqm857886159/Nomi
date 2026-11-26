@@ -3,7 +3,8 @@ import { confirmAndRunNode, regenerateNodeInPlace } from './generationRunControl
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 const calls = vi.hoisted(() => ({ confirm: vi.fn(), mint: vi.fn(), current: true }))
 vi.mock('../../project/projectCanvasReadSurface', () => ({ withProjectAction: (fn: (value: unknown) => unknown) => fn({ binding: { projectId: 'p' }, assertCurrent() {} }), isProjectExecutionContextCurrent: () => true }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: calls.mint }))
+// 本地 ComfyUI 也走单镜 Run（收据要能找回）：点之前先问主进程这一节点要不要再确认；没有开着的 Run 时它答「直接发」。
+vi.mock('../../api/taskApi', () => ({ mintSpendGrant: calls.mint, canvasResendDecide: async () => ({ action: 'send' }) }))
 vi.mock('../spend/spendConfirm', async original => ({ ...await original<typeof import('../spend/spendConfirm')>(), confirmGenerationSpend: calls.confirm }))
 beforeEach(() => {
   calls.current = true; calls.mint.mockReset().mockResolvedValue('grant'); calls.confirm.mockReset().mockImplementation(async () => { calls.current=false; return true })

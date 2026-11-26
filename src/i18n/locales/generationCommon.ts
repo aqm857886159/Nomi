@@ -976,11 +976,27 @@ export const zhGenerationCommon = {
     uploading: '上传中',
     uploadingEllipsis: '上传中…',
     dropToAddReference: '松手添加为参考',
-    // 发送键上的约价（悬停 / 读屏那一句）。可以印预估、不断言实扣、算不出不写 0（2026-11-15）；精确文案门岗逐字登记。
+    // 发送键上的约价（悬停 / 读屏那一句、单位切换与余额不足缺额）。可以印预估、不断言实扣、算不出不写 0（2026-11-15）；精确文案门岗逐字登记。
     sendCost: {
       estimate: '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。',
+      estimateCny: '这次约 {{cny}}（{{value}} 积分）。按 APIMart 公开价与人民银行中间价（{{date}}，{{pair}}）估。出完按 APIMart 实际扣费记。',
+      estimateUsd: '这次约 {{usd}}（{{value}} 积分）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。',
       outputEstimate: '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算',
+      outputEstimateCny: '仅输出约 {{cny}}（{{value}} 积分）。按人民银行中间价（{{date}}，{{pair}}）估，实际按 token 结算。',
+      outputEstimateUsd: '仅输出约 {{usd}}（{{value}} 积分）。按 APIMart 公开价估，实际按 token 结算。',
       priceUnknown: '暂时估不出这次用量',
+      unitMenuHeading: '预计',
+      unitMenuAria: '切换约价显示单位',
+      unitSwitchAria: '当前约价 {{amount}}，点击切换显示单位',
+      unitCredits: '积分',
+      unitCny: '人民币',
+      unitUsd: '美元',
+    },
+    sendCostLowBalance: {
+      shortfall: '还差 {{value}} 积分',
+      topUp: '去充值',
+      topUpAria: '去 APIMart 充值（还差 {{value}} 积分）',
+      description: '当前余额约 {{balance}} 积分，这次约需 {{need}} 积分，还差 {{shortfall}} 积分。充值后返回即可继续生成。',
     },
   },
   whiteboard: {
@@ -2747,8 +2763,24 @@ export const enGenerationCommon = {
     dropToAddReference: 'Drop to add as a reference',
     sendCost: {
       estimate: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.',
+      estimateCny: 'About {{cny}} ({{value}} credits). Converted at PBOC midpoint ({{date}}, {{pair}}) from the APIMart public rate. Recorded at the actual APIMart charge once done.',
+      estimateUsd: 'About {{usd}} ({{value}} credits). Estimated at the APIMart public rate. Recorded at the actual APIMart charge once done.',
       outputEstimate: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens',
+      outputEstimateCny: 'Output estimate {{cny}} ({{value}} credits). Converted at PBOC midpoint ({{date}}, {{pair}}), billed by actual tokens.',
+      outputEstimateUsd: 'Output estimate {{usd}} ({{value}} credits). Estimated at the APIMart public rate, billed by actual tokens.',
       priceUnknown: 'No usage estimate yet',
+      unitMenuHeading: 'Estimated',
+      unitMenuAria: 'Switch estimate unit',
+      unitSwitchAria: 'Estimate {{amount}}; click to switch display unit',
+      unitCredits: 'Credits',
+      unitCny: 'CNY',
+      unitUsd: 'USD',
+    },
+    sendCostLowBalance: {
+      shortfall: 'Short {{value}} credits',
+      topUp: 'Top up',
+      topUpAria: 'Top up on APIMart (short {{value}} credits)',
+      description: 'Current balance is about {{balance}} credits; this run needs about {{need}} credits ({{shortfall}} short). Return after topping up to continue.',
     },
   },
   whiteboard: {

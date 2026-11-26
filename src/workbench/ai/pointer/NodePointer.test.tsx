@@ -51,14 +51,11 @@ function seed(nodes: GenerationCanvasNode[], ready = true): void {
 
 type Host = { type: string; props: Record<string, unknown>; clientWidth?: number }
 
-/** 测试宿主没有排版：格子小动作那一槽给一个假宽（useElementWidth 读 clientWidth）。 */
-const SLOT_WIDTH = 40
-
 function mount(element: React.ReactElement) {
   const hosts: Host[] = []
   const renderer = createReactTestRenderer<Host>({
     createInstance: (type, props) => {
-      const host: Host = { type, props, ...(props['data-node-pointer-cell-accessory'] !== undefined ? { clientWidth: SLOT_WIDTH } : {}) }
+      const host: Host = { type, props }
       hosts.push(host)
       return host
     },
@@ -132,6 +129,17 @@ describe('NodePointer · deleted only on an explicit fact (board D4)', () => {
     expect(markup).toContain(i18n.t('nodePointer.deletedHint'))
     expect(markup).toContain('line-through')
     expect(markup).toContain(`aria-label="${i18n.t('nodePointer.ariaDeleted', { name: 'S05 sunrise' })}"`)
+  })
+
+  it('row density: the shot pill is the board’s tight one (SpendAskSplit `.chip`: no vertical padding, 6px sides), the deleted snapshot pill too; tiles keep the shared pill', () => {
+    const tight = ['[&amp;_[data-shot-number]]:px-1.5', '[&amp;_[data-shot-number]]:py-0', '[&amp;_[data-shot-snapshot]]:px-1.5', '[&amp;_[data-shot-snapshot]]:py-0']
+    const row = renderToStaticMarkup(<NodePointer subject={{ ...gone, removed: true }} density="row" />)
+    for (const token of tight) expect(row).toContain(token)
+    expect(row, 'the deleted row still draws its snapshot pill, marked so the row can tighten it').toContain('data-shot-snapshot="true"')
+    const live = renderToStaticMarkup(<NodePointer subject={{ nodeId: 'n1' }} density="row" />)
+    for (const token of tight) expect(live).toContain(token)
+    const card = renderToStaticMarkup(<NodePointer subject={{ nodeId: 'n1' }} />)
+    for (const token of tight) expect(card, 'only the chat row tightens the pill').not.toContain(token)
   })
 
   it('node merely missing, or the canvas not loaded yet: a neutral placeholder that never says deleted', () => {
@@ -430,47 +438,79 @@ describe('NodePointerGroup · tiles stay tellable apart in a narrow panel (narro
     }
   })
 
-  it('a host action lives on the tile thumbnail: hidden until the tile is hovered or focused unless pinned', () => {
-    const accessory = (subject: NodePointerSubject) => subject.nodeId === 'b'
-      ? { action: <button type="button" data-test-action="restore">restore</button>, pinned: true, dimmed: true }
-      : { action: <button type="button" data-test-action="exclude">x</button>, pinned: false, dimmed: false }
-    const markup = renderToStaticMarkup(<NodePointerGroup subjects={tiles} cellAccessory={accessory} />)
-    expect(markup.match(/data-node-pointer-cell=""/g)).toHaveLength(3)
-    expect(markup.match(/data-accessory-pinned="true"/g)).toHaveLength(1)
-    expect(markup.match(/data-node-pointer-cell-dimmed="true"/g)).toHaveLength(1)
-    const slots = [...markup.matchAll(/<span class="([^"]*)" data-node-pointer-cell-accessory="">/g)].map((match) => match[1]!)
-    expect(slots).toHaveLength(3)
-    // 藏着的那两槽：看不见也不接点击；悬停 / 聚焦这一格才露。常驻恢复也先让画面接到 hover，再接按钮点击。
-    expect(slots.filter((slot) => slot.includes('opacity-0') && slot.includes('pointer-events-none'))).toHaveLength(2)
-    // × 的摆法同输入框里参考图那一颗（AssetTile）：28px 点击区，上缘比画面框（26px）高 10px、右缘比画面框多 10px。
-    expect(slots.filter((slot) => slot.includes('top-[16px]') && slot.includes('h-7') && slot.includes('-10px)]'))).toHaveLength(2)
-    expect(slots.filter((slot) => slot.includes('pointer-events-none') && slot.includes('aspect-video'))).toHaveLength(1)
-    expect(slots.filter((slot) => slot.includes('aspect-video') && slot.includes('justify-center'))).toHaveLength(1)
-    const { renderer, hosts } = mount(<NodePointerGroup subjects={tiles} cellAccessory={accessory} />)
+  it('a host action never sits inside a tile any more: the tile group takes no accessory (the spend rows moved to the row list)', () => {
+    const markup = renderToStaticMarkup(<NodePointerGroup subjects={tiles} />)
+    expect(markup).not.toContain('data-node-pointer-row-accessory')
+    expect(markup).not.toContain('data-node-pointer-cell')
+  })
+})
+
+// 列表行那一组（板 2026-11-15 chat.rows / chat.rows.more / chat.rows.exclude）：超过 4 行折起、行尾挂宿主小动作、第二行只写有话要说的。
+describe('NodePointerGroup · row list (spend ask split 2026-11-15)', () => {
+  const rows = (count: number): NodePointerSubject[] => Array.from({ length: count }, (_, index) => ({ nodeId: `r${index}` }))
+  const seedRows = (count: number): void => seed(Array.from({ length: count }, (_, index) => video(`r${index}`)))
+
+  it('twelve rows show the first four and one text button 「还有 8 个镜头」; four or fewer never fold', () => {
+    seedRows(12)
+    const twelve = renderToStaticMarkup(<NodePointerGroup subjects={rows(12)} density="row" />)
+    expect(twelve.match(/data-node-pointer="row"/g)).toHaveLength(4)
+    expect(twelve).toContain('data-node-pointer-more="8"')
+    expect(twelve).toContain(i18n.t('nodePointer.moreShots', { count: 8 }))
+    const four = renderToStaticMarkup(<NodePointerGroup subjects={rows(4)} density="row" />)
+    expect(four.match(/data-node-pointer="row"/g)).toHaveLength(4)
+    expect(four).not.toContain('data-node-pointer-more')
+    const five = renderToStaticMarkup(<NodePointerGroup subjects={rows(5)} density="row" />)
+    expect(five).toContain(i18n.t('nodePointer.moreShots', { count: 1 }))
+  })
+
+  it('pressing 「还有 N 个镜头」 shows every row, and they stay shown', () => {
+    seedRows(12)
+    const { renderer, hosts, buttons } = mount(<NodePointerGroup subjects={rows(12)} density="row" />)
     try {
-      // 框宽（--node-pointer-frame-width）写在这一格自己身上：小动作是指向元素按钮的兄弟，写在按钮上它读不到（原来就是这样，× 一直贴格子右缘）。
-      const cells = hosts.filter((host) => host.type === 'div' && host.props['data-node-pointer-cell'] !== undefined)
-      expect(cells.map((cell) => (cell.props.style as Record<string, string>)['--node-pointer-frame-width'])).toEqual(['100%', '100%', '100%'])
-      expect(hosts.filter((host) => host.type === 'button' && host.props['data-node-pointer'] !== undefined).every((button) => button.props.style === undefined)).toBe(true)
+      const more = hosts.find((host) => host.type === 'button' && host.props['data-node-pointer-more'] !== undefined)!
+      ;(more.props.onClick as () => void)()
+      renderer.flushPassiveEffects()
+      expect(new Set(buttons().map((button) => button.props['data-node-pointer-id'])).size).toBe(12)
     } finally {
       renderer.close()
     }
   })
 
-  it('a portrait tile hangs its × on the portrait frame’s own corner: the cell carries that frame’s width, not the full slot', () => {
-    seed([video('a'), video('b', { meta: { modelKey: 'seedance-2', aspect_ratio: '9:16', duration: 5 } }), video('c')])
-    const markup = renderToStaticMarkup(<NodePointerGroup subjects={tiles} cellAccessory={() => ({ action: <button type="button">x</button>, pinned: false, dimmed: false })} />)
-    const widths = [...markup.matchAll(/data-node-pointer-cell=""|--node-pointer-frame-width:([\d.]+)%/g)].flatMap((match) => (match[1] ? [Number(match[1])] : []))
-    // 9:16 在 16:9 的槽里：(9/16) / (16/9) = 81/256 ≈ 31.64%；横版满宽。
-    expect(widths).toHaveLength(3)
-    expect(widths[0]).toBe(100)
-    expect(widths[1]).toBeCloseTo(31.640625, 5)
-    expect(widths[2]).toBe(100)
+  it('a row action is a sibling of the row button (never a button inside a button): hidden until hover / focus unless pinned; a pinned one dims the row', () => {
+    seedRows(3)
+    const accessory = (subject: NodePointerSubject) => subject.nodeId === 'r1'
+      ? { action: <button type="button" data-test-action="restore">restore</button>, pinned: true, dimmed: true }
+      : { action: <button type="button" data-test-action="exclude">x</button>, pinned: false, dimmed: false }
+    const markup = renderToStaticMarkup(<NodePointerGroup subjects={rows(3)} density="row" rowAccessory={accessory} />)
+    expect(markup.match(/data-node-pointer-row=""/g)).toHaveLength(3)
+    expect(markup.match(/data-accessory-pinned="true"/g)).toHaveLength(1)
+    expect(markup.match(/data-node-pointer-row-dimmed="true"/g)).toHaveLength(1)
+    const slots = [...markup.matchAll(/<span class="([^"]*)" data-node-pointer-row-accessory="">/g)].map((match) => match[1]!)
+    expect(slots).toHaveLength(3)
+    expect(slots.filter((slot) => slot.includes('opacity-0') && slot.includes('pointer-events-none'))).toHaveLength(2)
+    expect(slots.filter((slot) => slot.includes('group-focus-within/pointer-row:opacity-100') && slot.includes('group-hover/pointer-row:opacity-100'))).toHaveLength(2)
+    // 行本身是按钮：小动作不在它里面。
+    for (const row of markup.split('data-node-pointer="row"').slice(1)) expect(row.split('</button>')[0]).not.toContain('data-test-action')
+    // 每一行行尾都让出那一截（有一行挂就都让：几行文字的右缘对齐）。
+    expect([...markup.matchAll(/<button[^>]*data-node-pointer="row"[^>]*>/g)].filter((match) => match[0].includes('pr-9'))).toHaveLength(3)
   })
 
-  it('a tile whose host gives no action is not wrapped (nothing to make room for)', () => {
-    const markup = renderToStaticMarkup(<NodePointerGroup subjects={tiles} cellAccessory={(subject) => (subject.nodeId === 'a' ? { action: <span>x</span>, pinned: false, dimmed: false } : null)} />)
-    expect(markup.match(/data-node-pointer-cell=""/g)).toHaveLength(1)
+  it('rows whose host gives no action are not wrapped and make no room at the end', () => {
+    seedRows(2)
+    const markup = renderToStaticMarkup(<NodePointerGroup subjects={rows(2)} density="row" rowAccessory={() => null} />)
+    expect(markup).not.toContain('data-node-pointer-row=""')
+    expect([...markup.matchAll(/<button[^>]*data-node-pointer="row"[^>]*>/g)].some((match) => match[0].includes('pr-9'))).toBe(false)
+  })
+
+  it('rowDetail="status": a row says a second line only when it has something to say (the host note); otherwise just the title', () => {
+    seedRows(2)
+    const markup = renderToStaticMarkup(<NodePointerGroup subjects={[{ nodeId: 'r0' }, { nodeId: 'r1', note: '9:16 · 5s' }]} density="row" rowDetail="status" />)
+    const [first, second] = markup.split('data-node-pointer="row"').slice(1)
+    expect(second).toContain('9:16 · 5s')
+    // 第一行只有标题：没有模型摘要那第二行（每行都一样的事在确认条上说一次）。
+    expect(first!.split('</button>')[0]).not.toContain('Seedance 2')
+    const summaryMode = renderToStaticMarkup(<NodePointerGroup subjects={[{ nodeId: 'r0' }]} density="row" />)
+    expect(summaryMode).toContain('Seedance 2')
   })
 })
 
@@ -514,14 +554,5 @@ describe('NodePointer · one thing in the middle of the thumbnail', () => {
     expect(centersOf(renderToStaticMarkup(<NodePointer subject={{ nodeId: 'n1' }} frame="cell" centerTaken />))).toEqual([])
     seed([video('n1', { status: 'error', error: 'socket hang up' })])
     expect(centersOf(renderToStaticMarkup(<NodePointer subject={{ nodeId: 'n1' }} frame="cell" centerTaken />))).toEqual([])
-  })
-
-  it('in a group, only the tile with a pinned action gives up its middle; its neighbours keep theirs', () => {
-    const tiles: NodePointerSubject[] = [{ nodeId: 'n1' }, { nodeId: 'n2' }, { nodeId: 'tall' }]
-    const markup = renderToStaticMarkup(<NodePointerGroup subjects={tiles} cellAccessory={(subject) => (subject.nodeId === 'n2'
-      ? { action: <button type="button">restore</button>, pinned: true, dimmed: true }
-      : { action: <button type="button">x</button>, pinned: false, dimmed: false })} />)
-    const cells = markup.split('data-node-pointer-cell=""').slice(1)
-    expect(cells.map((cell) => centersOf(cell.split('data-node-pointer-cell-accessory=""')[0]!))).toEqual([['icon'], [], ['icon']])
   })
 })

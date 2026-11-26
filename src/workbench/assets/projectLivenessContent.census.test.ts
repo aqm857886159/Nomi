@@ -88,6 +88,7 @@ describe('存活判定的项目内容普查', () => {
     const payloadFields: Record<keyof WorkbenchProjectPayload, 'scanned' | 'not-a-reference'> = {
       workbenchDocuments: 'scanned', activeDocumentId: 'scanned', workbenchDocument: 'scanned', timeline: 'scanned', generationCanvas: 'scanned',
       categories: 'scanned', generationCanvasLastSeq: 'scanned', storyboardDesignsByDocumentId: 'scanned', editingPanelLayout: 'scanned',
+      previewAspect: 'scanned',
       pendingAssetDeletions: 'not-a-reference',
     }
     const written = Object.keys(readCurrentWorkbenchProjectContent())

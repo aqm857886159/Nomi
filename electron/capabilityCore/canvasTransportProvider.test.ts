@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { matchNomiErrorCode } from "../shared/nomiErrorCodes";
-import { canvasLastResult, createCanvasTransportProvider, type CanvasTaskResult } from "./canvasTransportProvider";
+import { createCanvasTransportProvider, type CanvasTaskResult } from "./canvasTransportProvider";
 
 const context = { modelId: "m", mode: "text_to_image", parameters: { vendor: "acme", request: { kind: "text_to_image", prompt: "x" } } };
 
@@ -25,7 +25,6 @@ describe("canvas transport query", () => {
 
     const thrown = await query(taskId).catch((error: unknown) => error);
     expect(matchNomiErrorCode(String((thrown as Error).message))).toBe("retrieval-unavailable");
-    expect(canvasLastResult(taskId)).toBeUndefined();
 
     await expect(query(taskId)).resolves.toMatchObject({ status: "succeeded" });
   });
@@ -33,7 +32,6 @@ describe("canvas transport query", () => {
   it("供应商真说失败：照旧是这一单的结论", async () => {
     const taskId = "task-provider-failed";
     const query = providerAnswering([{ id: taskId, kind: "text_to_image", status: "failed", assets: [], raw: { code: "content_policy" }, error: "blocked" }]);
-    await expect(query(taskId)).resolves.toMatchObject({ status: "failed" });
-    expect(canvasLastResult(taskId)?.error).toBe("blocked");
+    await expect(query(taskId)).resolves.toMatchObject({ status: "failed", raw: { error: "blocked" } });
   });
 });

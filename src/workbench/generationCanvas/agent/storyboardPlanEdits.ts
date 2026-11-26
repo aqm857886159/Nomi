@@ -6,8 +6,7 @@ import { nextStoryboardSubjectIds, renumberStoryboardShots } from '../../../../e
  * 分镜方案的**纯编辑 + 校验**层（S3 字段编辑器的领域逻辑，与渲染解耦、可单测）。
  *
  * 决策 B：字段控件直接绑 StoryboardPlan 对象，改字段就是改对象——这里是那些「改对象」的
- * 不可变操作的唯一真相源（组件只调它、不自己 spread）。删锚**不擦引用它的镜头**，失效引用
- * 由 validatePlan 暴露成红标（plan doc §1.4：标红提示，不去猜）。
+ * 不可变操作的唯一真相源（组件只调它、不自己 spread）。删锚会断开镜头参考素材的来源关联，保留素材本身。
  */
 
 /**
@@ -154,21 +153,35 @@ export function changeAnchorKind(plan: StoryboardPlan, id: string, kind: PlanAnc
   return updateAnchor(plan, id, { kind, carrier: defaultCarrierForKind(kind), scope: defaultScopeForKind(kind) })
 }
 
-/** 删锚：**不**擦引用它的镜头 anchorIds——失效引用交给 validatePlan 标红（不静默改用户的镜头）。 */
+/** 保留镜头里的参考素材，只断开已删除的来源。旧 anchorIds 是无效字段，继续原样保留。 */
 export function removeAnchor(plan: StoryboardPlan, id: string): StoryboardPlan {
-  return { ...plan, anchors: plan.anchors.filter((anchor) => anchor.id !== id) }
+  const anchors = plan.anchors.filter((anchor) => anchor.id !== id)
+  if (anchors.length === plan.anchors.length) return plan
+  const shots = plan.shots.map((shot) => {
+    const slots = Object.entries(shot.referenceBindings ?? {})
+    if (!slots.some(([, bindings]) => bindings.some((binding) => binding.anchorId === id))) return shot
+    const referenceBindings = Object.fromEntries(slots.map(([slot, bindings]) => [slot, bindings.map((binding) => {
+      if (binding.anchorId !== id) return binding
+      const { anchorId: _removed, ...asset } = binding
+      return asset
+    })]))
+    return { ...shot, referenceBindings }
+  })
+  return { ...plan, anchors, shots }
 }
 
 /** 镜号重排成连续 1..N（删除/拖动后调用，保证 shot.index 唯一且连续，转换器据此生成 clientId）。 */
 const renumber = renumberStoryboardShots<PlanShot>
 
-export function addShot(plan: StoryboardPlan): StoryboardPlan {
+export function addShot(plan: StoryboardPlan, reservedShotIds?: readonly string[]): StoryboardPlan {
   // 新镜头继承上一镜的种类/模型/模式/画幅/时长/所属场（v5：手加的镜头别突然换血统）；空方案默认视频 5s（旧行为）。
   const last = plan.shots[plan.shots.length - 1]
   const lastKind = last?.shotKind
   const lastKeyframeEnabled = last?.keyframe?.enabled === true
   const lastAspect = last?.params?.aspect_ratio
+  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot' }], reservedShotIds)
   const shot: PlanShot = {
+    shotId,
     index: plan.shots.length + 1,
     ...(lastKind ? { shotKind: lastKind } : {}),
     ...(last?.sceneId ? { sceneId: last.sceneId } : {}),
@@ -186,8 +199,9 @@ export function addShot(plan: StoryboardPlan): StoryboardPlan {
 }
 
 /** D3 行间插镜：只继承上一镜的生成血统，内容保持空白，避免复制出用户未要求的 prompt/引用。 */
-export function insertShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+export function insertShotAt(plan: StoryboardPlan, pos: number, reservedShotIds?: readonly string[]): StoryboardPlan {
   const previous = plan.shots[pos - 1] ?? plan.shots[pos]
+  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot' }], reservedShotIds)
   const next: PlanShot = previous
     ? {
         index: pos + 1,
@@ -202,15 +216,16 @@ export function insertShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan 
       }
     : { index: 1, durationSec: DEFAULT_VIDEO_DURATION_SEC, anchorIds: [], prompt: '' }
   const shots = [...plan.shots]
-  shots.splice(Math.max(0, Math.min(pos, shots.length)), 0, next)
+  shots.splice(Math.max(0, Math.min(pos, shots.length)), 0, { ...next, shotId })
   return { ...plan, shots: renumber(shots) }
 }
 
 /** D3 复制镜头：复制可见内容但不给新行复用稳定身份。 */
-export function duplicateShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+export function duplicateShotAt(plan: StoryboardPlan, pos: number, reservedShotIds?: readonly string[]): StoryboardPlan {
   const source = plan.shots[pos]
   if (!source) return plan
-  const copy: PlanShot = { ...source, shotId: undefined, index: source.index + 1, anchorIds: [...source.anchorIds], ...(source.params ? { params: { ...source.params } } : {}), ...(source.keyframe ? { keyframe: { ...source.keyframe, ...(source.keyframe.params ? { params: { ...source.keyframe.params } } : {}) } } : {}) }
+  const [shotId] = nextStoryboardSubjectIds(plan, [{ role: 'shot' }], reservedShotIds)
+  const copy: PlanShot = { ...source, shotId, index: source.index + 1, anchorIds: [...source.anchorIds], ...(source.params ? { params: { ...source.params } } : {}), ...(source.keyframe ? { keyframe: { ...source.keyframe, ...(source.keyframe.params ? { params: { ...source.keyframe.params } } : {}) } } : {}) }
   const shots = [...plan.shots]
   shots.splice(pos + 1, 0, copy)
   return { ...plan, shots: renumber(shots) }

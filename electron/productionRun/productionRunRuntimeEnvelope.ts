@@ -1,4 +1,8 @@
+import type { PaidSubmissionReceipt } from "./paidSubmissionReceipt";
 import fs from "node:fs";
+import path from "node:path";
+import { fsyncDirectoryIfDurable } from "../durability";
+import { createHmac } from "node:crypto";
 
 import { writeJsonFileAtomic } from "../jsonFile";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
@@ -19,6 +23,8 @@ export type ProductionRunRuntimeEnvelope = {
   state: RuntimeEnvelopeState;
   providerTaskId?: string;
   rawReceipt?: unknown;
+  acceptance?: PaidSubmissionReceipt;
+  acceptanceMac?: string;
   lastPoll?: {
     status: string;
     /** Durable observation order; legacy observations are revision zero. */
@@ -73,14 +79,22 @@ function sameSemanticInput(left: RuntimeEnvelopeSealInput, right: ProductionRunR
  */
 const LIFECYCLE_WAIT_MS = 45_000;
 
-export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now?: () => string; lifecycleWaitMs?: number }) {
+export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now?: () => string; lifecycleWaitMs?: number; receiptKey?: string | NodeJS.TypedArray }) {
   const now = deps.now ?? (() => new Date().toISOString());
+
+  // Project files can be imported. Bind executable recovery instructions to the original authorized Run.
+  function receiptMac(envelope: ProductionRunRuntimeEnvelope): string | undefined {
+    if (!deps.receiptKey || !envelope.acceptance) return undefined;
+    const key = typeof deps.receiptKey === "string" ? deps.receiptKey : Buffer.from(deps.receiptKey.buffer, deps.receiptKey.byteOffset, deps.receiptKey.byteLength);
+    return createHmac("sha256", key).update(JSON.stringify([envelope.runId, envelope.jobId, envelope.contractHash, envelope.acceptance])).digest("base64url");
+  }
 
   function read(): ProductionRunRuntimeEnvelope | null {
     if (!fs.existsSync(deps.filePath)) return null;
     try {
       const value = JSON.parse(fs.readFileSync(deps.filePath, "utf8")) as ProductionRunRuntimeEnvelope;
       if (value.schemaVersion !== RUNTIME_ENVELOPE_SCHEMA_VERSION || !value.runId || !value.jobId || !value.contractHash || !value.state) throw new Error("invalid runtime envelope");
+      if (deps.receiptKey && value.acceptance && value.acceptanceMac !== receiptMac(value)) throw new Error("Invalid acceptance signature");
       return value;
     } catch (error) {
       throw new RuntimeEnvelopeConflictError(`Runtime envelope is corrupt: ${error instanceof Error ? error.message : String(error)}`);
@@ -103,25 +117,31 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
     return envelope;
   }
 
-  function markProviderAccepted(input: { providerTaskId: string; rawReceipt?: unknown }): ProductionRunRuntimeEnvelope {
+  function markProviderAccepted(input: { providerTaskId: string; rawReceipt?: unknown; acceptance?: PaidSubmissionReceipt }): ProductionRunRuntimeEnvelope {
     const current = read();
     if (!current) throw new RuntimeEnvelopeConflictError("Cannot accept a provider task before sealing the runtime envelope");
     const providerTaskId = input.providerTaskId.trim();
     if (!providerTaskId) throw new RuntimeEnvelopeConflictError("Provider task id is required before polling");
+    if (current.providerTaskId && current.providerTaskId !== providerTaskId) throw new RuntimeEnvelopeConflictError("Conflicting provider acceptance");
+    if (current.state === "materialized") return current;
     const next: ProductionRunRuntimeEnvelope = {
       ...current,
       state: "provider_accepted",
       providerTaskId,
+      ...(input.acceptance && !current.acceptance ? { acceptance: input.acceptance } : {}),
       ...(input.rawReceipt === undefined ? {} : { rawReceipt: structuredClone(input.rawReceipt) }),
       updatedAt: now(),
     };
+    if (input.acceptance && !current.acceptance) next.acceptanceMac = receiptMac(next);
     writeJsonFileAtomic(deps.filePath, next);
+    if (input.acceptance && !current.acceptance) fsyncDirectoryIfDurable(path.dirname(deps.filePath));
     return next;
   }
 
   function markSubmittedUnknown(): ProductionRunRuntimeEnvelope {
     const current = read();
     if (!current) throw new RuntimeEnvelopeConflictError("Cannot mark an unsealed runtime envelope unknown");
+    if (current.providerTaskId) return current;
     const next = { ...current, state: "submitted_unknown" as const, updatedAt: now() };
     writeJsonFileAtomic(deps.filePath, next);
     return next;

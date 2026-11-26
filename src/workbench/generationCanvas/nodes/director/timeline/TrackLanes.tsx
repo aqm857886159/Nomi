@@ -348,7 +348,7 @@ export function TrackLanes({ rows, viewport, totalDuration, renderRowMenu, onRej
                   style={{ left: markerLeft(marker) }}
                   onPointerDown={(event) => beginMarkerDrag(event, track.entityId, isBone ? 'bone' : 'trajectory', marker)}
                 >
-                  <span className={cn('block size-2.5 rotate-45 border transition-all', diamond)} />
+                  <span className={cn('block size-2.5 rotate-45 border transition-[transform,background-color,border-color]', diamond)} />
                 </button>
               )
             })}

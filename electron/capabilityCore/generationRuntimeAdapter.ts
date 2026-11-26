@@ -71,7 +71,7 @@ export type GenerationProviderMaterializationResult = {
  * 供应商实现早就留了「调用方明说」这条路（apimartGenerationProvider.queryTargetFor ①），只是这一层从来没把它递下去。
  * `parameters` 同理：画布传输（canvasTransportProvider）查结果要知道是哪家、哪个项目，它们冻在合同参数里。
  */
-export type GenerationProviderTaskContext = Partial<Pick<GenerationProviderRequestInputV1, "modelId" | "mode" | "parameters">>;
+export type GenerationProviderTaskContext = Partial<Pick<GenerationProviderRequestInputV1, "modelId" | "mode" | "parameters">> & { acceptance?: import("../productionRun/paidSubmissionReceipt").PaidSubmissionReceipt; rawReceipt?: unknown };
 
 export type GenerationProvider = {
   providerId: string;
@@ -298,7 +298,7 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     if (!providerTaskId) throw new Error("Provider task id is required for query");
     const provider = providers.get(input.providerId);
     if (!provider) throw new GenerationProviderCapabilityError(input.providerId, ["registered_provider"]);
-    if (!provider.query || !provider.capabilities.query) throw new GenerationProviderObservationError(input.providerId, "query");
+    if (!provider.query || (!provider.capabilities.query && !input.context?.acceptance)) throw new GenerationProviderObservationError(input.providerId, "query");
     const result = await provider.query(providerTaskId, input.context);
     const providerStatus = typeof result.status === "string" ? result.status.trim() : "";
     if (!providerStatus) return { state: "unknown", providerStatus: "unknown", ...(result.raw === undefined ? {} : { raw: result.raw }) };

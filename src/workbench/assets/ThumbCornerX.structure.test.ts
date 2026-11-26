@@ -2,7 +2,7 @@
 //
 // 付费卡板 card.pointer.exclude 写的是「和输入框里参考图的 × 同一个样子」；上一轮付费卡自己画了一颗白底灰叉的胶囊，
 // 报告说「一致」、放大看图才发现是两颗（2026-10-25）。把「同一个样子」从「靠人眼对」变成「只有一份定义、用的人只能引用它」：
-// 两处使用方（参考图 tile、付费卡格子）都得 import 共用件、都不许自己再写圆点的类名或 IconX。
+// 两处使用方（参考图 tile、对话里付费那一组的行尾）都得 import 共用件、都不许自己再写圆点的类名或 IconX。
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -13,7 +13,8 @@ const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*
 const shared = stripComments(read('src/workbench/assets/ThumbCornerX.tsx'))
 const consumers = {
   'AssetTile（输入框里的参考图）': stripComments(read('src/workbench/assets/AssetTile.tsx')),
-  'AgentPanelV4SpendCardBody（付费卡的格子）': stripComments(read('src/workbench/ai/v4/AgentPanelV4SpendCardBody.tsx')),
+  // 付费确认拆开（2026-11-15）：「不生成 ×」随镜头搬到对话里那一组的行尾，确认条体不再画镜头。
+  'GenerationReceiptPointers（对话里那一组的行尾）': stripComments(read('src/workbench/ai/pointer/GenerationReceiptPointers.tsx')),
 }
 
 describe('缩略图角上的 ×：只有一份定义', () => {

@@ -206,10 +206,10 @@ describe("连上之后才断（结果未知）：不能当没写出去，更不�
   const jobFor = (run: NonNullable<ReturnType<ReturnType<typeof createProductionRunRepository>["read"]>>, shotId: string) =>
     run.jobs.find((job) => job.metadata?.shotId === shotId)!;
 
-  it("供应商不支持幂等：一次都不重发，这一镜是 submission_unknown，预留挂 unsettled", async () => {
+  it.each([false, true])("幂等声明 %s：无响应的已发送请求留待核对", async (idempotent) => {
     const { root, repository } = setup(four());
     const submits: string[] = [];
-    const resetting = provider(submits, (key) => key.includes("shot-3"), { failure: socketClosedFailure, idempotent: false });
+    const resetting = provider(submits, (key) => key.includes("shot-3"), { failure: socketClosedFailure, idempotent });
 
     await scheduler(root, repository, resetting).runToQuiescence();
 
@@ -218,31 +218,6 @@ describe("连上之后才断（结果未知）：不能当没写出去，更不�
     expect(submits.filter((key) => key.includes("shot-3"))).toHaveLength(1);
     const ledger = repository.readBudgetLedger("project-1", "op-batch");
     expect(Object.entries(ledger.reservations).find(([id]) => id.includes("shot-3"))?.[1].status).not.toBe("released");
-  });
-
-  it("供应商真支持幂等：同一个键最多重发一次，重发成功就过", async () => {
-    const { root, repository } = setup(four());
-    const submits: string[] = [];
-    const idempotent = provider(submits, (key, index) => key.includes("shot-3") && index === 1, { failure: socketClosedFailure, idempotent: true });
-
-    await scheduler(root, repository, idempotent).runToQuiescence();
-
-    const shot3 = submits.filter((key) => key.includes("shot-3"));
-    expect(shot3).toHaveLength(2);
-    expect(new Set(shot3).size).toBe(1);
-    const run = repository.read("project-1", "op-batch")!;
-    expect(["ready", "adopted"]).toContain(jobFor(run, "shot-3").status);
-  });
-
-  it("供应商真支持幂等但两次都被断：只发两次，最终是未知", async () => {
-    const { root, repository } = setup(four());
-    const submits: string[] = [];
-    const idempotent = provider(submits, (key) => key.includes("shot-3"), { failure: socketClosedFailure, idempotent: true });
-
-    await scheduler(root, repository, idempotent).runToQuiescence();
-
-    expect(submits.filter((key) => key.includes("shot-3"))).toHaveLength(2);
-    expect(jobFor(repository.read("project-1", "op-batch")!, "shot-3").status).toBe("submission_unknown");
   });
 
   it("先连不上（确定没发出去）、第二次连上却被断：最终是未知，不是「没发出去」", async () => {
@@ -435,21 +410,12 @@ describe("宿主级：真实 socket 上付费提交的重发规则", () => {
     expect(job.errorCode).not.toBe("provider_not_reached");
   });
 
-  it("④ 支持幂等的供应商：被重置后同一个键最多重发 1 次，供应商两次收到的是同一个键", async () => {
+  it("④ 幂等供应商读完请求后断线，账本保留未知且只收到一次", async () => {
     const fx = await fixture("destroy-first-then-accept");
     const calls: string[] = [];
     const { job } = await runOneShot(loopbackProvider(fx, calls, { idempotent: true }));
-    expect(fx.posts).toHaveLength(2);
-    expect(new Set(fx.posts.map((post) => post.idempotencyHeader)).size).toBe(1);
+    expect(fx.posts).toHaveLength(1);
     expect(fx.posts[0].idempotencyHeader).toBeTruthy();
-    expect(["ready", "adopted"]).toContain(job.status);
-  });
-
-  it("④b 支持幂等的供应商但两次都被重置：只发两次，最终「未知」", async () => {
-    const fx = await fixture("destroy-after-read");
-    const calls: string[] = [];
-    const { job } = await runOneShot(loopbackProvider(fx, calls, { idempotent: true }));
-    expect(fx.posts).toHaveLength(2);
     expect(job.status).toBe("submission_unknown");
   });
 });

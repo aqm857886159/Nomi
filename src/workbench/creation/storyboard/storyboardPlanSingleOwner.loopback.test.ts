@@ -260,9 +260,11 @@ for (const lang of LANGS) {
         expect(value.shots.map(shot => shot.index)).toEqual([1, 2])
         expect(value.anchors).toHaveLength(2)
         expect(value.anchors.every(anchor => !/^shot-\d+$/.test(anchor.id))).toBe(true)
-        const target = patchStoryboardSubject(value, 'shot-1', { prompt: 'x' })
-        expect('description' in target).toBe(false)
-        expect((target as { index: number }).index).toBe(1)
+        for (const row of [1, 2]) {
+          const target = patchStoryboardSubject(value, `shot-${row}`, { prompt: 'x' })
+          expect('description' in target).toBe(false)
+          expect(target).toMatchObject({ index: row, prompt: 'x' })
+        }
       })
     }
   })

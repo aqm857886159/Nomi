@@ -750,7 +750,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
         />
         {contextMenu ? (
           <div
-            className="absolute z-20 grid w-[124px] overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper p-1 text-body-sm text-nomi-ink shadow-nomi-lg [&>button]:h-8 [&>button]:rounded-nomi-sm [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-inherit [&>button]:transition [&>button]:duration-150 [&>button]:ease-out [&>button:focus-visible]:bg-nomi-accent-soft [&>button:focus-visible]:text-nomi-accent [&>button:focus-visible]:outline-none [&>button:hover]:bg-nomi-accent-soft [&>button:hover]:text-nomi-accent"
+            className="absolute z-20 grid w-[124px] overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper p-1 text-body-sm text-nomi-ink shadow-nomi-lg [&>button]:h-8 [&>button]:rounded-nomi-sm [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-inherit [&>button]:transition [&>button]:duration-nomi-micro [&>button]:ease-nomi-out [&>button:focus-visible]:bg-nomi-accent-soft [&>button:focus-visible]:text-nomi-accent [&>button:focus-visible]:outline-none [&>button:hover]:bg-nomi-accent-soft [&>button:hover]:text-nomi-accent"
             data-canvas-context-menu="true"
             role="menu"
             style={{ left: contextMenu.x, top: contextMenu.y } as CSSProperties}

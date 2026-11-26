@@ -30,14 +30,20 @@
     {
       "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
       "symbol": "withLifecycle"
+    },
+    {
+      "path": "electron/productionRun/paidSubmissionReceipt.ts",
+      "symbol": "checkpointPaidResponse"
     }
   ],
   "forbidden_derivations": [],
   "parity_test": "electron/productionRun/productionGenerationLifecycle.test.ts",
   "allowed_consumers": [
     "electron/productionRun/productionGenerationSubmission.ts",
-    "electron/productionRun/generationSubmission.ts"
+    "electron/productionRun/generationSubmission.ts",
+    "electron/productionRun/singleShotRunLifecycle.ts",
+    "electron/tasks/acceptedTaskResult.ts"
   ],
   "since": "2026-10-31",
-  "notes": "信封版本与文件租约是poll/materialize等待外部调用后的统一判据。已落地只读回执，旧观察不盖新观察，真变化回调按最新Run revision写；同pending不新增读写。Electron及独立stdio实例共用同一文件边界；输出落地只在租约内。 2026-10-31（合同 docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json）：已有产物时收尾只走 settleWithArtifact，先补 job 再收信封；withLifecycle 给等生命周期锁设期限，等不到向调用方报忙。 2026-11-09（合同 docs/fixes/2026-11-09-multi-result-landing.root-cause.json）：一次运行可能给多份产物——提交出口逐份按序号把上游产物记成 job 的产物、重入不重复；收尾 settleWithArtifact 改名 settleWithArtifacts，带这个 job 的全部产物，只在逐份都有收据后才收；第一份落盘不算完成。"
+  "notes": "信封版本与文件租约是poll/materialize等待外部调用后的统一判据。已落地只读回执，旧观察不盖新观察，真变化回调按最新Run revision写；同pending不新增读写。Electron及独立stdio实例共用同一文件边界；输出落地只在租约内。 2026-10-31（合同 docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json）：已有产物时收尾只走 settleWithArtifact，先补 job 再收信封；withLifecycle 给等生命周期锁设期限，等不到向调用方报忙。 2026-11-09（合同 docs/fixes/2026-11-09-multi-result-landing.root-cause.json）：一次运行可能给多份产物——提交出口逐份按序号把上游产物记成 job 的产物、重入不重复；收尾 settleWithArtifact 改名 settleWithArtifacts，带这个 job 的全部产物，只在逐份都有收据后才收；第一份落盘不算完成。 2026-11-24 受理原文先写进这一镜的信封，再发布作业状态。进程重开按信封内的连接和媒体收据续查。"
 }

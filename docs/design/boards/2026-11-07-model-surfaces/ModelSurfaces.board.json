@@ -1564,8 +1564,9 @@
         "1265-span-去充值",
         "1266-svg"
       ],
-      "status": "missing",
-      "owner": "花费显示第三步：余额不够去充值（未开工）"
+      "status": "implemented",
+      "owner": "花费显示第二步与第三步：发送键旁单位切换与余额不足去充值（t1-impl）",
+      "assertion": "board:ModelSurfaces/cost.low-balance"
     },
     {
       "id": "cost.batch-card",

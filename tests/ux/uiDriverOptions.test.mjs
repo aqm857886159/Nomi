@@ -73,12 +73,12 @@ describe('ui-driver defaults', () => {
     expect(buildLaunchOptions(options, { tempRoot: '/tmp/nomi-ui-driver-z' }).userDataDir).toBe('/tmp/legacy-ud')
   })
 
-  it('locale, theme and the three named sizes go into the first window', () => {
+  it('locale, theme and the named sizes go into the first window', () => {
     const options = parseDriverArgs(['--locale', 'en', '--theme', 'dark', '--size', '700x720'], {})
     const launch = buildLaunchOptions(options, { tempRoot: '/tmp/nomi-ui-driver-w' })
     expect(launch.viewportSize).toEqual({ width: 700, height: 720 })
     expect(launch.initialLocalStorage).toMatchObject({ 'nomi:locale:v1': 'en', 'nomi-color-scheme': 'dark' })
-    expect(Object.keys(SIZE_PRESETS)).toEqual(expect.arrayContaining(['1280x800', '1100x720', '700x720']))
+    expect(Object.keys(SIZE_PRESETS)).toEqual(expect.arrayContaining(['1280x800', '1100x720', '1100x690', '700x720']))
     expect(() => parseDriverArgs(['--size', '999x999'], {})).toThrow(/不认识的尺寸/)
   })
 

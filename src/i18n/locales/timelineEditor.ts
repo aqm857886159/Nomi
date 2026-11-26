@@ -114,9 +114,9 @@ export const zhTimelineEditor = {
     //   里显示的短名，几何约束：必须塞得进这列，不能靠加宽列来容纳（那会牵动整条轴的内容起点与标尺对齐）。
     // *Label（不带 rail 前缀）= 句子里用的描述名（如 wrongType「…需要放到{{track}}」），要读得通顺。
     //   中文两者恰好同字；英文分开——rail 用 Images/Videos/Audio（进得了 132px 列），句子用 Image track/… 更自然。
-    railImageLabel: '图片轨',
-    railVideoLabel: '视频轨',
-    railAudioLabel: '音频轨',
+    railImageLabel: '图片',
+    railVideoLabel: '视频',
+    railAudioLabel: '配乐',
     imageLabel: '图片轨',
     videoLabel: '视频轨',
     audioLabel: '音频轨',
@@ -138,7 +138,7 @@ export const zhTimelineEditor = {
     music: '配乐',
   },
   textTrack: {
-    title: '文字轨',
+    title: '文字',
     titleCard: '标题卡',
     caption: '字幕',
     empty: '（空）',
@@ -264,7 +264,7 @@ export const enTimelineEditor = {
     // *Label (no rail prefix): descriptive names used inside sentences (e.g. wrongType), kept readable.
     railImageLabel: 'Images',
     railVideoLabel: 'Videos',
-    railAudioLabel: 'Audio',
+    railAudioLabel: 'Music',
     imageLabel: 'Image track',
     videoLabel: 'Video track',
     audioLabel: 'Audio track',
@@ -279,14 +279,14 @@ export const enTimelineEditor = {
     clip: 'Clip',
   },
   secondary: {
-    addCaption: 'Add caption',
-    caption: 'Caption',
+    addCaption: 'Add subtitle',
+    caption: 'Subtitles',
     overlay: 'Overlay',
     addMusic: 'Add music',
     music: 'Music',
   },
   textTrack: {
-    title: 'Text track',
+    title: 'Text',
     titleCard: 'Title card',
     caption: 'Caption',
     empty: '(Empty)',

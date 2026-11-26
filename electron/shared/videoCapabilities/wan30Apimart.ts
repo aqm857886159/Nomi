@@ -67,6 +67,8 @@ const BASE_PARAMS: ModelParameterControl[] = [SIZE, RESOLUTION, DURATION, AUDIO,
 // （注意本档案的比例字段名是 `size`，不是 kie 那份的 `aspect_ratio`——同一个模型两家不同名。）
 const FRAME_PARAMS: ModelParameterControl[] = BASE_PARAMS.filter((p) => p.key !== "size");
 
+const WAN_3_0_FAMILY_NAMES = ["wan-3.0", "wan3.0"];
+
 export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
   id: "wan-3.0-apimart",
   family: "wan",
@@ -74,7 +76,8 @@ export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
   kind: "video",
   defaultModeId: "t2v",
   transportTaskKind: "text_to_video",
-  identifierPatterns: ["wan3.0-video", "wan3-0-video"],
+  identifierPatterns: ["wan3.0-video", "wan3-0-video", "wan-3.0-video"],
+  familyIdentifierPatterns: WAN_3_0_FAMILY_NAMES,
   sources: [
     {
       url: "https://docs.apimart.ai/cn/api-reference/videos/wan3.0-video/generation",
@@ -156,5 +159,5 @@ export const WAN_3_0_PRIME_APIMART_ARCHETYPE: ModelArchetype = {
   ...WAN_3_0_APIMART_ARCHETYPE,
   id: "wan-3.0-prime-apimart",
   label: "Wan 3.0 Prime",
-  identifierPatterns: ["wan3.0-video-prime", "wan3-0-video-prime"],
+  identifierPatterns: ["wan3.0-video-prime", "wan3-0-video-prime", "wan-3.0-video-prime", "wan-3.0-prime", "wan3.0-prime"],
 };

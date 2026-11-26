@@ -10,6 +10,7 @@ import type { StoryboardDesign } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
 import type { EditingPanelLayout } from '../preview/panelLayout'
+import type { PreviewAspect } from '../preview/previewAspectRatios'
 import { cloneBuiltinCategories, type ProjectCategory } from './projectCategories'
 
 // Persisted records come in two shapes that carry an identical `payload`:
@@ -64,6 +65,7 @@ export const workbenchProjectPayloadSkeletonSchema = z.object({
   workbenchDocuments: z.array(z.unknown()).optional(),
   activeDocumentId: z.string().optional(),
   timeline: z.unknown().optional(),
+  previewAspect: z.unknown().optional(),
   // Keep project loading tolerant of legacy v0.5 category ids so the
   // v5→v6 migration can run before the stricter canvas schema is enforced.
   generationCanvas: workbenchProjectGenerationCanvasPayloadSchema,
@@ -133,6 +135,7 @@ export type WorkbenchProjectPayload = {
   /** @deprecated 单文档（旧字段，读侧迁移用，写侧不再产出）。 */
   workbenchDocument?: WorkbenchDocument
   timeline: TimelineState
+  previewAspect?: PreviewAspect
   generationCanvas: GenerationCanvasSnapshot
   categories?: ProjectCategory[]
   /** S5-b-1:快照覆盖到日志的 seq(尾部重放游标);老项目无此字段则跳过重放。 */

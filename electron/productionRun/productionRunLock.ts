@@ -134,6 +134,41 @@ export function inspectProductionRunLockFile(
   }
 }
 
+/**
+ * 另一个还活着的进程（例如 MCP 宿主）正拿着这把 Run 锁：恢复门不许把它手上的提交判成结果未知。
+ * 只答「别的进程」。同一进程里谁在交由仓库那一份宿主自己答（`repository.isSubmittingHere`）——
+ * 那份表只在内存里，进程没了它就没了，正是「交到一半进程没了」的意思；放在模块级会让同进程里新建的宿主也当它还活着。
+ */
+export function runLockHeldByOtherLiveProcess(filePath: string): boolean {
+  let lease: ProductionRunLockLease | null;
+  try { lease = parseLease(filePath); } catch { return inspectProductionRunLockFile(filePath, "lease") === "held"; }
+  if (!lease || lease.pid === process.pid || Date.parse(lease.expiresAt) <= Date.now()) return false;
+  try { process.kill(lease.pid, 0); return true; }
+  catch (error) { return (error as NodeJS.ErrnoException).code === "EPERM"; }
+}
+
+/**
+ * 同一个问题的另一半：这一份仓库（生产里一个进程一份）手上正在交给供应商的 Run。只在内存里——进程没了它就没了，
+ * 这正是「交到一半进程没了」。打开 / 切回项目的恢复门凭它分清「同一宿主还在交」和「上一个进程交到一半没了」。
+ * 挂在仓库这一份宿主上（展开复制仍共用同一张表），按 Run 计数：同一个 Run 的几镜可以同时在交。
+ */
+export function withHostSubmissions<T extends object>(repository: T) {
+  const submittingHere = new Map<string, number>();
+  async function trackSubmission<R>(projectId: string, runId: string, work: () => Promise<R>): Promise<R> {
+    const key = `${projectId}\u0000${runId}`;
+    submittingHere.set(key, (submittingHere.get(key) ?? 0) + 1);
+    try {
+      return await work();
+    } finally {
+      const left = (submittingHere.get(key) ?? 1) - 1;
+      if (left > 0) submittingHere.set(key, left);
+      else submittingHere.delete(key);
+    }
+  }
+  const isSubmittingHere = (projectId: string, runId: string): boolean => submittingHere.has(`${projectId}\u0000${runId}`);
+  return { ...repository, trackSubmission, isSubmittingHere };
+}
+
 export function createProductionRunLock(deps: ProductionRunLockDeps) {
   const ownerId = deps.ownerId?.trim() || `worker-${process.pid}-${crypto.randomUUID()}`;
   const pid = deps.pid ?? process.pid;

@@ -1,0 +1,103 @@
+{
+  "workers": 2,
+  "shards": [
+    {
+      "shard": 1,
+      "files": {
+        "passed": 309
+      },
+      "tests": {
+        "passed": 3666,
+        "expected fail": 1
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "passed": 309
+      },
+      "tests": {
+        "passed": 5355,
+        "skipped": 2
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "passed": 308
+      },
+      "tests": {
+        "passed": 3825,
+        "expected fail": 33,
+        "skipped": 2
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "passed": 308
+      },
+      "tests": {
+        "passed": 4294,
+        "expected fail": 2,
+        "skipped": 9
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "passed": 307,
+        "skipped": 1
+      },
+      "tests": {
+        "passed": 4422,
+        "skipped": 3
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "passed": 308
+      },
+      "tests": {
+        "passed": 4162
+      }
+    },
+    {
+      "shard": 7,
+      "files": {
+        "passed": 307,
+        "skipped": 1
+      },
+      "tests": {
+        "passed": 4531,
+        "skipped": 4
+      }
+    },
+    {
+      "shard": 8,
+      "files": {
+        "passed": 308
+      },
+      "tests": {
+        "passed": 5979,
+        "expected fail": 3,
+        "skipped": 3
+      }
+    }
+  ],
+  "files": {
+    "passed": 2464,
+    "skipped": 2
+  },
+  "tests": {
+    "passed": 36234,
+    "expected fail": 39,
+    "skipped": 23
+  },
+  "nodeSuitesPassed": 747,
+  "retries": {
+    "5": "isolated Tailwind content fixture from global safelist",
+    "6": "restored the standalone browser-motion capability reader and covered both live preferences"
+  }
+}

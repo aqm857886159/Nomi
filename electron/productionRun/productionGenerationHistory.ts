@@ -1,6 +1,7 @@
 import type { ExecutionContractV1 } from "../capabilityCore/executionContract";
 import type { ProductionRunRepository } from "./productionRunRepository";
 import type { ProductionJob, ProductionRun } from "./productionRunTypes";
+import { nextGenerationAttempt } from "./prepareProductionGenerationAuthorization";
 import { authorizationGateForJob, normalizeLegacySpendAuthority } from "../shared/productionSpendAuthority";
 
 /**
@@ -77,4 +78,41 @@ export function readGenerationExecution(
     if (contract) return { job, contract: rememberFrozenContract(key, contract), currentAuthority: false };
   }
   throw new Error("Frozen generation execution contract is unavailable");
+}
+
+/**
+ * P4 S1: resolve the sub-contract this call addresses.
+ * - No shotId → the default (single) shot: the top-level plan contract.
+ * - shotId → that shot's sealed sub-contract.
+ * 批没批准不在这里判：派发前 `prepareAuthorizedSubmission` 核「批这个 job 的那道门」（唯一判据），这里只要合同在。
+ */
+export function requiredGenerationContract(run: ProductionRun, shotId?: string): ExecutionContractV1 {
+  const plan = run.generationPlan;
+  if (!plan || (plan.state !== "sealed" && plan.state !== "submitted")) {
+    throw new Error("Seal and confirm the generation plan before starting");
+  }
+  if (shotId) {
+    const shot = (plan.shots ?? []).find((candidate) => candidate.shotId === shotId);
+    if (!shot?.contract) throw new Error("Seal and confirm the generation plan before starting");
+    return shot.contract;
+  }
+  if (!plan.contract) throw new Error("Seal and confirm the generation plan before starting");
+  return plan.contract;
+}
+
+/**
+ * 「这次提交要发的是第几次尝试」**只有一个 owner**：`nextGenerationAttempt`（按 `metadata.shotId`
+ * 数这一镜已有的 attempt）。授权在 job 落盘**之前**问它，拿到 `max + 1`；提交在 job 落盘**之后**问，
+ * 要的就是那一条，于是 `- 1`。
+ *
+ * 这里原本另有一份 `latestGenerationAttempt`，按 jobId 前缀（含 contractHash）去数。它今天给的答案
+ * 和这条一样，但口径不同：换了参数就换 contractHash，于是它对「同一镜的第几次」这个问题的回答
+ * 会从头开始。一个语义两个推导式、两边都不报错 —— 那正是要收掉的形状（P1/R14.1）。
+ *
+ * P4 S1 identity: shotId is part of the jobId so two shots with identical parameters (equal contract
+ * hash) never collide. The default shot keeps the legacy prefix (`generation-<run>-<hash16>`) so
+ * durable Runs and single-shot callers are byte-compatible; a named shot inserts `-<shotId>` after it.
+ */
+export function addressedGenerationAttempt(run: ProductionRun, shotId?: string): number {
+  return Math.max(1, nextGenerationAttempt(run, shotId) - 1);
 }

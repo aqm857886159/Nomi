@@ -1,3 +1,4 @@
+import { shouldReduceMotion } from '../../../design/motion'
 import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { createPortal, flushSync } from 'react-dom'
@@ -178,7 +179,7 @@ function revealInScrollParent(el: HTMLElement): void {
   const viewBottom = viewTop + scroller.clientHeight
   if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
   const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
-  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduce = shouldReduceMotion()
   scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
 }
 
@@ -298,7 +299,7 @@ export default function InlineParameterBar({
     const selects = identity.querySelectorAll<HTMLElement>('button[aria-haspopup="listbox"]')
     const model = hideModel ? null : selects[0]
     const mode = modeMenu ? selects[hideModel ? 0 : 1] : null
-    const send = row.querySelector<HTMLElement>('[data-bar-segment="generate"]')
+    const send = row.querySelector<HTMLElement>('[data-send-cost-group]') ?? row.querySelector<HTMLElement>('[data-bar-segment="generate"]')
     const fixed = Array.from(row.children).filter((el): el is HTMLElement => el instanceof HTMLElement
       && el.getAttribute('data-bar-segment') !== 'model-params' && !el.hasAttribute('data-yield-action'))
     if (rulerRoot.current?.host !== host) rulerRoot.current = host.attachShadow({ mode: 'closed' })

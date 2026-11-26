@@ -169,7 +169,7 @@ export const PRIMITIVES_MENU_STATES: readonly LabState[] = [
                 },
               ]}
             />
-            <MenuStage note="分组标题（面板 / 预设）+ checkbox（多选、选完不关）+ radio（单选、选完就关）。勾选槽固定占 16px，勾与不勾的行不会左右错开。" />
+            <MenuStage note="分组标题（面板 / 预设）+ checkbox（多选、选完不关）+ radio（单选、选完就关）。右侧对勾对齐 NomiSelect，固定占 14px 槽，勾与不勾的行不会左右错开。" />
           </>
         )}
       </Stateful>

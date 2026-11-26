@@ -9,6 +9,7 @@
 // 外壳底色（--nomi-chrome）包住顶栏、左栏和工作面四周，层次靠底色、不靠分割线。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useShallow } from 'zustand/react/shallow'
 import { IconArrowLeft, IconBrowser, IconChevronDown, IconChevronRight, IconDownload, IconLayoutSidebarLeftExpand, IconSettings } from '@tabler/icons-react'
 import {
   ICON_TIERS,
@@ -24,11 +25,13 @@ import {
   type WorkbenchMenuNode,
 } from '../../../design'
 import { cn } from '../../../utils/cn'
-import type { WorkspaceMode } from '../../../workbench/workbenchStore'
+import { useWorkbenchStore, type WorkspaceMode } from '../../../workbench/workbenchStore'
 import { TaskCenterButton } from '../../../workbench/taskCenter/TaskCenterButton'
 import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/store/generationCanvasStore'
 import EditingLayoutMenu from '../../../workbench/preview/EditingLayoutMenu'
+import { selectPreviewAspectRatio } from '../../../workbench/preview/previewAspectRatios'
 import {
+  canExportPreviewTimeline,
   isPreviewExportBusy,
   previewExportStageKey,
   requestPreviewExport,
@@ -303,12 +306,20 @@ export function ShellTopBar({
   const onboarding = useOnboardingProgress()
   const previewExport = usePreviewExportState()
   const exportBusy = isPreviewExportBusy(previewExport.status)
+  const exportContent = useWorkbenchStore(useShallow(state => workspaceMode === 'preview'
+    ? { tracks: state.timeline.tracks, textClips: state.timeline.textClips } : null))
+  const exportEmpty = exportContent !== null && !canExportPreviewTimeline(exportContent)
+  const exportAspect = useWorkbenchStore(selectPreviewAspectRatio)
+  const exportResolution = useWorkbenchStore(state => state.exportResolution)
   const exportStageKey = previewExportStageKey(previewExport.status)
   const exportPercent = Math.round(previewExport.progress * 100)
   const exportLabel = exportBusy && exportStageKey
     ? t('timelinePreview.exportBusyReason', { stage: t(exportStageKey), percent: exportPercent })
     : t('timelinePreview.exportMp4')
   const exportText = exportBusy ? t('timelinePreview.exporting', { percent: exportPercent }) : t('timelinePreview.exportMp4')
+  const exportTooltip = exportBusy ? exportLabel
+    : exportEmpty ? t('timelinePreview.exportEmptyReason')
+      : `${exportLabel} · ${exportAspect} · ${exportResolution}`
   const updateKey = useUpdateStore((state) => `${state.updater.phase}:${state.updater.errorStage ?? ''}`)
   const headerRef = React.useRef<HTMLElement | null>(null)
   const leftRef = React.useRef<HTMLDivElement | null>(null)
@@ -406,12 +417,15 @@ export function ShellTopBar({
           {workspaceMode === 'preview' ? (
             <>
               <span className="app-no-drag"><EditingLayoutMenu /></span>
-              <BarTooltip label={exportLabel}>
-                <span title={exportLabel} style={{ display: 'contents' }}>
+              <BarTooltip label={exportTooltip}>
+                <span
+                  className={cn('app-no-drag inline-flex', (exportEmpty || exportBusy) && 'cursor-not-allowed')}
+                  tabIndex={exportEmpty || exportBusy ? 0 : undefined}
+                >
                   <WorkbenchButton
                     className={cn(
                       'app-no-drag mx-1 inline-flex h-7 items-center gap-1.5 rounded-pill border-0 text-caption font-medium',
-                      'bg-nomi-ink text-nomi-paper hover:bg-nomi-ink-80 disabled:cursor-not-allowed disabled:opacity-60',
+                      'bg-nomi-ink text-nomi-paper hover:bg-nomi-ink-80 disabled:pointer-events-none disabled:opacity-60',
                       // 第 ① 步：同一颗钮只留图标（28 圆），悬停出字（外面那层 BarTooltip）。
                       exportCompact ? 'w-7 justify-center px-0' : 'px-3',
                     )}
@@ -421,6 +435,7 @@ export function ShellTopBar({
                     data-shell-export
                     data-shell-export-compact={exportCompact ? 'true' : undefined}
                     loading={exportBusy}
+                    disabled={exportEmpty}
                     onClick={requestPreviewExport}
                   >
                     {exportBusy ? null : <IconDownload />}
