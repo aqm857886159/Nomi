@@ -1243,8 +1243,13 @@
         "1209-span-480P",
         "1210-span-满意再出1080P"
       ],
-      "status": "missing",
-      "owner": "S2 画布模型选择器"
+      "status": "dropped",
+      "owner": "S2 画布模型选择器",
+      "userDecision": {
+        "quote": "两个设计有没有去看LibTV上的相关的设计啊？你看一下，然后微调一下，然后就去做就好了。重点是参考它的交互呀、设计呀、名称呀、Icon呀什么的。那么具体的这些逻辑还要基于我们的中转站去做。",
+        "date": "2026-11-26",
+        "supersededBy": "docs/design/boards/2026-11-26-sample-mode（sample.picker-row：「Seedance 2.5（样片模式）」；「草稿」「正片」「升正片」不再用；Q9 样片单独一行仍算数）"
+      }
     },
     {
       "id": "picker.old-pinned",
