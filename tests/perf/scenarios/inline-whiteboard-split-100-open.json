@@ -1,6 +1,6 @@
 {
   "id": "inline-whiteboard-split-100-open",
-  "feature": "Layer split result opened on its board (design card docs/plan/2026-11-26-layer-split.md ★7): click Whiteboard on a split node until the editor is usable with every layer placed",
+  "feature": "Layer split result opened on its board (design card docs/plan/2026-11-26-layer-split.md ★7): click Whiteboard on a split node until the editor is usable with every layer placed; then click Layers until all 100 image rows are listed (response, printed only)",
   "script": "tests/ux/whiteboard-perf.probe.mjs",
   "args": [
     "--scene",
@@ -10,9 +10,19 @@
   "scale": "the API maximum (max_images 100 incl. the base): base filling a 1280x720 board + 99 placed layers drawn from 6 distinct frames of the repository real AI shot (640x360), 101 rows in the layers panel; time from the pointer down on the toolbar button",
   "metrics": [
     "openToInteractive",
+    "response",
     "longTasks"
   ],
   "budget": 1000,
   "budgetStatus": "proposed",
-  "budgetBasis": "Same open-to-interactive budget as inline-whiteboard-open (<=1 s, Nielsen 1 s limit for keeping the flow of thought, docs/engineering/perf-scenarios.md): a split board is opened with the same button and creators expect the same wait."
+  "budgetBasis": "Same open-to-interactive budget as inline-whiteboard-open (<=1 s, Nielsen 1 s limit for keeping the flow of thought, docs/engineering/perf-scenarios.md): a split board is opened with the same button and creators expect the same wait.",
+  "baseline": {
+    "median": 364.8,
+    "p95": 366.3,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-26",
+    "commit": "e6203b5b2",
+    "noisy": true
+  }
 }

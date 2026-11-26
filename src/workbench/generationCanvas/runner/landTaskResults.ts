@@ -47,10 +47,13 @@ async function foldLayerSplit(
   if (localized.some((item) => !item.url || isRemoteHttpUrl(item.url))) throw landFailed('layer not saved locally')
   const baseIndex = layerSplitBaseIndex(layers)
   const base = localized[baseIndex]!
-  const baseSize = await (deps.readImageSize ?? loadImageSize)(base.url!)
+  const readSize = deps.readImageSize ?? loadImageSize
+  const baseSize = await readSize(base.url!)
   if (!baseSize) throw landFailed('base image unreadable')
+  // 各层自己的像素：判它是裁到框的小图还是整幅透明图（读不出 = 按框摆，与说明一致）。
+  const sizes = await Promise.all(localized.map((item, index) => (index === baseIndex ? baseSize : readSize(item.url!))))
   const board = buildLayerSplitBoard({
-    pieces: layers.map((layer, index) => ({ layer, url: localized[index]!.url! })),
+    pieces: layers.map((layer, index) => ({ layer, url: localized[index]!.url!, size: sizes[index] })),
     baseSize,
     baseName: i18n.t('generationCommon.whiteboard.baseImage'),
     fallbackName: (n) => i18n.t('generationCommon.whiteboard.splitLayerName', { n }),

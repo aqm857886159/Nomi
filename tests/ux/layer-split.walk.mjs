@@ -20,8 +20,10 @@ const client = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ui.mjs')
 const env = { ...process.env, NOMI_TEST_NETWORK_GUARD: '1', NOMI_UI_DIR: path.join(makeTempDir('nomi-layer-split-walk-'), 'ipc') }
 const en = options.locale === 'en'
 const L = en
-  ? { generate: 'Generate asset', split: 'Split layers', cell: 'Split layers · 30 · Auto', readText: 'Read text', whiteboard: 'Whiteboard', base: 'Base image', del: 'Delete selected element', brushPath: 'Brush path', status: 'Layers 3 · incl. base', guide: 'connect APIMart', disconnect: 'Disconnect' }
-  : { generate: '生成素材', split: '图层分离', cell: '图层分离 · 30 层 · 自动', readText: '识别文字', whiteboard: '画板', base: '底图', del: '删除选中元素', brushPath: '画笔路径', status: '3 层', guide: '接入 APIMart', disconnect: '断开' }
+  ? { generate: 'Generate asset', split: 'Split layers', cell: 'Split layers · 30 · Auto', readText: 'Read text', whiteboard: 'Whiteboard', base: 'Base image', del: 'Delete selected element', brushPath: 'Brush path', status: 'Layers 3 · incl. base', guide: 'connect APIMart', disconnect: 'Disconnect',
+    boardHint: 'Edit on the whiteboard and import the current image automatically', layersHint: 'Edit the layers on the whiteboard' }
+  : { generate: '生成素材', split: '图层分离', cell: '图层分离 · 30 层 · 自动', readText: '识别文字', whiteboard: '画板', base: '底图', del: '删除选中元素', brushPath: '画笔路径', status: '3 层', guide: '接入 APIMart', disconnect: '断开',
+    boardHint: '在画板中编辑（自动导入当前图片）', layersHint: '在画板中编辑图层' }
 fs.mkdirSync(out, { recursive: true })
 
 function ui(...args) {
@@ -78,6 +80,8 @@ try {
   // ② 改图 ▾ → 图层分离：只建好连着原图的新节点，0 个请求。
   const before = { hits: nonGet(vendorHits()).length, nodes: nodesOf(readProject()).length, edges: readProject().payload.generationCanvas.edges.length }
   clickNodeCenter(sourceId)
+  const whiteboardTitle = () => read('document.querySelector(\'[data-toolbar-action="whiteboard-open"]\')?.getAttribute("title") || ""')
+  assert.equal(whiteboardTitle(), L.boardHint, 'an image that was never split keeps today\'s whiteboard hint')
   ui('click', 'css:[data-toolbar-action-menu="refine"]')
   shot('LS01-refine-menu')
   const entry = read(`(() => { const item = [...document.querySelectorAll('[role="menuitem"]')].find(e => e.textContent.includes(${JSON.stringify(L.split)})); return item ? { disabled: item.getAttribute('aria-disabled') === 'true' || item.disabled === true, text: item.textContent } : null })()`)
@@ -127,6 +131,8 @@ try {
   const person = board.canvasAssets.find((asset) => board.layers.find((layer) => layer.id === asset.layerId)?.name === '人物')
   assert.ok(person, 'the「人物」layer is on the board')
   clickNodeCenter(derived.id)
+  assert.equal(whiteboardTitle(), L.layersHint, 'a split node\'s whiteboard hint says it edits the layers')
+  console.log(`✓ whiteboard hint: never split「${L.boardHint}」/ split「${L.layersHint}」`)
   ui('click', 'css:[data-toolbar-action="whiteboard-open"]')
   await until(visible('[data-whiteboard-stage]'), 'whiteboard opens', 3)
   ui('click', 'css:[data-toolbar-action="whiteboard-layers"]')

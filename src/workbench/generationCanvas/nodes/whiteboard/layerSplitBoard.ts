@@ -1,7 +1,9 @@
 // 一次图层分离的结果 → 一张白板（设计卡 docs/plan/2026-11-26-layer-split.md ★9 第 3 条）。纯函数，不读盘、不联网。
 //
 // 摆法照供应商说明（docs.apimart.ai seedream-5-5/generation，2026-11-26 取）：底图铺满；每层「resize each layer to the box's
-// w × h and place it at (x, y)」，框是底图像素坐标；叠放按 zIndex 从下到上。画布按底图原比例、长边 1280（与新建白板同一个长边），
+// w × h and place it at (x, y)」，框是底图像素坐标；叠放按 zIndex 从下到上。说明没写死每层回来的是「裁到框的小图」还是
+// 「和底图一样大的整幅透明图」：一层的图和底图一样大就当整幅铺满（缩进框会把整幅压扁），否则缩进框——两种都落对位置，
+// 真形状等付费核对定案（设计卡 ★6）。画布按底图原比例、长边 1280（与新建白板同一个长边），
 // 不贴最近的标准比例——贴了会留白、各层对不齐。图层面板只有「背景」+「底图」+ 各层：不预建空的「图层 1」（C-E3，第一次落笔时才建）。
 import type { TaskResultLayer } from '../../../../../electron/shared/modelArchetypes/layerSplit'
 import { getDefaultLayers, type CanvasAsset, type CanvasDimensions, type LayerItem } from './lib/canvas'
@@ -12,7 +14,17 @@ import type { WhiteboardState } from './whiteboardTypes'
 /** 白板画布的长边（与 createDefaultWhiteboardState 的 1280 同一个数）。 */
 export const LAYER_SPLIT_BOARD_LONG_EDGE = 1280
 
-export type LayerSplitPiece = { url: string; layer: TaskResultLayer }
+export type LayerSplitPiece = {
+  url: string
+  layer: TaskResultLayer
+  /** 这一层图自己的像素（读得到才给）：和底图一样大 = 整幅透明图，铺满；不给 / 不一样大 = 按框摆。 */
+  size?: { width: number; height: number } | null
+}
+
+/** 这一层的图是不是和底图一样大的整幅图（整幅透明图不缩进框，铺满）。 */
+export function isFullCanvasPiece(size: LayerSplitPiece['size'], baseSize: { width: number; height: number }): boolean {
+  return Boolean(size && size.width === baseSize.width && size.height === baseSize.height)
+}
 
 export type LayerSplitBoardInput = {
   /** 与 layers 按下标平行的每张图（已落进项目的地址）。 */
@@ -67,7 +79,7 @@ export function buildLayerSplitBoard(input: LayerSplitBoardInput): WhiteboardSta
   const assets: CanvasAsset[] = []
   const place = (piece: LayerSplitPiece, name: string, framed: boolean) => {
     const layerId = createId('asset-layer')
-    const box = framed ? piece.layer.box : undefined
+    const box = framed && !isFullCanvasPiece(piece.size, input.baseSize) ? piece.layer.box : undefined
     layers.push({ id: layerId, name, visible: true, locked: false, opacity: 1, kind: 'asset', thumbnail: 'image' })
     assets.push({
       id: createId('asset'),
@@ -82,7 +94,7 @@ export function buildLayerSplitBoard(input: LayerSplitBoardInput): WhiteboardSta
             width: Math.max(1, Math.round((box.right - box.left) * scale)),
             height: Math.max(1, Math.round((box.bottom - box.top) * scale)),
           }
-        // 没有框的层按说明铺满底图。
+        // 没有框的层（底图、整幅透明图）铺满底图。
         : { x: 0, y: 0, width: dimensions.width, height: dimensions.height }),
     })
   }

@@ -148,7 +148,8 @@ const INSTALL_SOURCE = `(() => {
     },
     // 画板图层面板列全：面板开着、至少 count 行（图层分离 100 层的板；面板换虚拟列表前每行都在 DOM 里）。
     whiteboardLayersListed(count) {
-      const panel = document.querySelector('[data-nomi-inline-whiteboard="true"] [data-whiteboard-panel="layers"]')
+      // 面板浮层挂在画板编辑器外面（工具条的弹层），按面板自己的标记找。
+      const panel = document.querySelector('[data-whiteboard-panel="layers"]')
       return visible(panel) && panel.querySelectorAll(':scope > div > div').length >= count
     },
     // 画板完成：编辑器收起，节点上换成刚导出的那张图，并且图已解码可见（导出 + 落盘 + 节点结果 + 画布预览整段）。

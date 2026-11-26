@@ -1,5 +1,6 @@
 // 图层分离 → 白板的摆法（设计卡 docs/plan/2026-11-26-layer-split.md ★9 第 3、7 条）。
-// 反例：把排序删掉 → 「按叠放序从下到上」红；把框的缩放删掉 → 「框按画布比例缩」红；预建「图层 1」→ 「不预建」红。
+// 反例：把排序删掉 → 「按叠放序从下到上」红；把框的缩放删掉 → 「框按画布比例缩」红；预建「图层 1」→ 「不预建」红；
+// 整幅透明图也缩进框 → 「两种都落对位置」红。
 import { describe, expect, it } from 'vitest'
 import { buildLayerSplitBoard, layerSplitBaseIndex, layerSplitBoardDimensions, layerSplitCompositePixelRatio } from './layerSplitBoard'
 
@@ -36,6 +37,22 @@ describe('buildLayerSplitBoard', () => {
   it('框按画布比例缩（底图像素 → 画布像素），每层自己的图缩进框里', () => {
     const cup = board().canvasAssets.find((asset) => asset.url.endsWith('cup.png'))!
     expect(cup).toMatchObject({ x: 640, y: 360, width: 320, height: 360 })
+  })
+
+  it('回来的形状说明没写死：和底图一样大的整幅透明图铺满、不缩进框；裁好的小图缩进框（两种都落对位置）', () => {
+    const shaped = (size: { width: number; height: number } | null) => buildLayerSplitBoard({
+      baseSize: { width: 2560, height: 1440 },
+      baseName: '底图',
+      fallbackName: (n) => `图层 ${n}`,
+      createId,
+      pieces: [
+        { url: 'nomi-local://base.png', layer: { zIndex: 0 }, size: { width: 2560, height: 1440 } },
+        { url: 'nomi-local://cup.png', layer: { zIndex: 1, name: '杯子', box: { left: 1280, top: 720, right: 1920, bottom: 1440 } }, size },
+      ],
+    }).canvasAssets[1]
+    expect(shaped({ width: 2560, height: 1440 })).toMatchObject({ x: 0, y: 0, width: 1280, height: 720 })
+    expect(shaped({ width: 640, height: 720 })).toMatchObject({ x: 640, y: 360, width: 320, height: 360 })
+    expect(shaped(null)).toMatchObject({ x: 640, y: 360, width: 320, height: 360 })
   })
 
   it('不预建空的「图层 1」：只有背景（锁住、在最底）+ 底图 + 各层', () => {

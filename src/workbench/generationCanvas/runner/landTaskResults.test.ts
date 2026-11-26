@@ -1,6 +1,6 @@
 // 终态结果落地（生成与找回共用，设计卡 docs/plan/2026-11-26-layer-split.md ★9 第 3 条）。
 // 反例：把图层那一支删掉 → 「一笔图层落成一个结果」红（会落成 3 张普通图）；把「各层都已落进项目」那道闸删掉 →
-// 「临时地址不进白板」红；把尺寸回报改回逐张 → 「只回报底图尺寸」红。
+// 「临时地址不进白板」红；把尺寸回报改回逐张 → 「只回报底图尺寸」红；不读各层像素 → 「整幅透明图落成铺满」红。
 import { describe, expect, it, vi } from 'vitest'
 import type { TaskResultDto } from '../../api/taskApi'
 import { createGenerationNode } from '../model/graphOps'
@@ -28,7 +28,8 @@ const LAYERS: TaskResultDto['layers'] = [
 function deps(over: Partial<LandTaskResultsDeps> = {}) {
   const renderBoard = vi.fn(async () => new Blob(['png'], { type: 'image/png' }))
   const persist = vi.fn(async () => ({ url: 'nomi-local://composite.png', previewState: 'source' as const }))
-  const readImageSize = vi.fn(async () => ({ width: 2560, height: 1440 }))
+  // 底图 2560×1440；各层是裁到框的小图（600×300），名字里带 full 的是和底图一样大的整幅透明图。
+  const readImageSize = vi.fn(async (url: string) => (/base|full/.test(url) ? { width: 2560, height: 1440 } : { width: 600, height: 300 }))
   return { renderBoard, persist, readImageSize, ...over }
 }
 
@@ -57,6 +58,17 @@ describe('landTaskResults', () => {
     const state = readWhiteboardEditingState({ ...node, result })!
     expect(state.layers.map((layer) => layer.name)).toEqual(['背景', '底图', '标题', '图层 2'])
     expect(state.canvasAssets.map((asset) => asset.url)).toEqual(['nomi-local://base.png', 'nomi-local://title.png', 'nomi-local://shape.png'])
+    // 裁到框的小图缩进框（底图像素 → 画布像素，÷2）。
+    expect(state.canvasAssets[2]).toMatchObject({ x: 640, y: 360, width: 640, height: 360 })
+  })
+
+  it('整幅透明图（和底图一样大）落成铺满，不压进框；读每层自己的像素来判', async () => {
+    const d = deps()
+    const [result] = await landTaskResults(layered(['nomi-local://base.png', 'nomi-local://title.png', 'nomi-local://shape-full.png'], LAYERS), node, project, undefined, d)
+    const state = readWhiteboardEditingState({ ...node, result: result! })!
+    expect(state.canvasAssets[1]).toMatchObject({ x: 0, y: 0, width: 640, height: 180 })
+    expect(state.canvasAssets[2]).toMatchObject({ x: 0, y: 0, width: 1280, height: 720 })
+    expect(vi.mocked(d.readImageSize!).mock.calls.map(([url]) => url)).toEqual(expect.arrayContaining(['nomi-local://title.png', 'nomi-local://shape-full.png']))
   })
 
   it.each([
