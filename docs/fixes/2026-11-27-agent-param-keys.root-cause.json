@@ -26,6 +26,12 @@
     "Every built-in archetype's every mode, projected by both real producers, passes both real boundaries.",
     "Unknown keys are still rejected (the boundary stays strict)."
   ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+    "tests": [
+      "electron/shared/agentCapabilities/agentModelEntryBoundary.class.test.ts"
+    ]
+  },
   "doors": [
     {
       "kind": "read",
@@ -34,14 +40,19 @@
     },
     {
       "kind": "read",
+      "path": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+      "symbol": "agentParamShape"
+    },
+    {
+      "kind": "read",
       "path": "electron/shared/agentCapabilities/verbs/readVerbs.ts",
       "symbol": "agentModelEntrySchema"
     }
   ],
   "door_reduction": {
-    "before": 2,
-    "after": 2,
-    "why_not": "The two doors are different boundaries: laneDesktopInput validates the turn input coming from the renderer, readVerbs reuses the same shape as the list_models output contract. Both now read the one agentParamShape table, so there is one key list behind two necessary entries."
+    "before": 3,
+    "after": 3,
+    "why_not": "agentParamShape is the one key table (before the fix the same place held the hand-written literal); laneDesktopInput validates the turn input coming from the renderer and readVerbs reuses the same shape as the list_models output contract. They are one table behind two necessary, different boundaries, so there is nothing to merge."
   },
   "generality_proof": "The key table is now typed against keyof ModelParameterControl, so the whole class (a new, renamed or removed control key) cannot compile without someone deciding the boundary shape; the class test walks every built-in archetype through both real producers and both real boundaries, so a value-level mismatch (like mediaKind audio) or a new archetype also fails CI by name.",
   "shared_boundaries": [
