@@ -146,6 +146,11 @@ const INSTALL_SOURCE = `(() => {
       const importButton = editor ? editor.querySelector('[data-toolbar-action="whiteboard-importImage"]') : null
       return visible(editor) && Boolean(editor.querySelector('canvas')) && Boolean(importButton) && !importButton.disabled
     },
+    // 画板图层面板列全：面板开着、至少 count 行（图层分离 100 层的板；面板换虚拟列表前每行都在 DOM 里）。
+    whiteboardLayersListed(count) {
+      const panel = document.querySelector('[data-nomi-inline-whiteboard="true"] [data-whiteboard-panel="layers"]')
+      return visible(panel) && panel.querySelectorAll(':scope > div > div').length >= count
+    },
     // 画板完成：编辑器收起，节点上换成刚导出的那张图，并且图已解码可见（导出 + 落盘 + 节点结果 + 画布预览整段）。
     whiteboardResultVisible(nodeId) {
       if (document.querySelector('[data-nomi-inline-whiteboard="true"]')) return false

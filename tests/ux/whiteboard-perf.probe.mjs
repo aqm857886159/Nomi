@@ -8,6 +8,8 @@
 //   --scene moving-panel   size panel open while the canvas zooms by wheel: how far the panel strays from its anchor, frame by frame
 //   --scene done-export    worst-case board (4096x4096, 12 placed photographs from 6 distinct frames, 24 brush paths): Done -> its picture on the node
 //   --scene legacy-previews  20 boards saved as state only (no picture yet), all in view: the cards mount -> every card shows its drawn preview
+//   --scene split-board-open a layer-split result at the API maximum (100 images incl. base: base + 99 placed layers from 6 distinct
+//                            frames): click "whiteboard" -> editor usable; then open the layers panel -> all 101 rows listed
 //
 // Measurement tools are the existing ones (Playwright + CDP Performance.getMetrics + PerformanceObserver + the shared
 // response timer); nothing here is a profiler of our own.
@@ -23,7 +25,7 @@ import { armResponse, takeResponse } from '../perf/canvas-scale/responseTimer.mj
 
 const argValue = (name) => { const index = process.argv.indexOf(name); return index >= 0 ? process.argv[index + 1] : undefined }
 const scene = argValue('--scene')
-const SCENES = ['idle-panel', 'open-type', 'many-images', 'moving-panel', 'done-export', 'legacy-previews']
+const SCENES = ['idle-panel', 'open-type', 'many-images', 'moving-panel', 'done-export', 'legacy-previews', 'split-board-open']
 if (!SCENES.includes(scene)) throw new Error(`--scene must be one of ${SCENES.join(' / ')}`)
 const runs = Number(argValue('--runs') ?? 1)
 const label = argValue('--label') ?? `${scene}-adhoc`
@@ -38,6 +40,8 @@ const percentile = (values, fraction) => { const sorted = [...values].sort((a, b
 
 // Declared before the run loop below: the loop runs at module evaluation, before later top-level consts exist.
 const LEGACY_BOARDS = 20
+// A layer split at the API maximum: max_images 100 includes the base.
+const SPLIT_LAYERS = 100
 
 const samples = []
 for (let iteration = 0; iteration < runs; iteration++) samples.push(await (scene === 'legacy-previews' ? runLegacyPreviewsOnce() : runOnce()))
@@ -66,6 +70,24 @@ function worstCaseBoard(sources, size) {
     activeLayerId: 'drawing-layer-1', activeRatio: '1:1',
   }
   return { id: 'big-board', kind: 'whiteboard', categoryId: 'shots', title: 'Big board', prompt: '', position: { x: 880, y: 440 }, size: { width: 300, height: 300 }, status: 'idle', meta: { whiteboardState } }
+}
+
+// A layer-split result at the API maximum (max_images 100 includes the base): the board the split lands on the node
+// (result.raw.whiteboardState, shape of buildLayerSplitBoard): background + base filling the board + 99 framed layers.
+function splitBoardResult(sources, size) {
+  const width = 1280, height = Math.round(1280 * size.height / size.width)
+  const background = { id: 'background', name: 'Background', visible: true, locked: true, opacity: 1, kind: 'background', thumbnail: 'blank' }
+  const pieces = Array.from({ length: SPLIT_LAYERS }, (_, index) => {
+    const column = (index - 1) % 11, row = Math.floor((index - 1) / 11)
+    const box = index === 0 ? { x: 0, y: 0, width, height } : { x: 20 + column * 112, y: 20 + row * Math.floor((height - 40) / 9), width: 96, height: Math.floor((height - 40) / 9) - 8 }
+    return { id: `split-asset-${index}`, layerId: `split-layer-${index}`, name: index === 0 ? 'Base image' : `Layer ${index}`, url: sources[index % sources.length].result.url, source: 'generated', ...box }
+  })
+  const whiteboardState = {
+    texts: [], sceneTransforms: { offsets: {}, assetTransforms: {}, flips: {} }, canvasDimensions: { width, height }, strokes: [], canvasAssets: pieces,
+    layers: [background, ...pieces.map((piece) => ({ id: piece.layerId, name: piece.name, visible: true, locked: false, opacity: 1, kind: 'asset', thumbnail: 'image' }))],
+    activeLayerId: pieces.at(-1).layerId, activeRatio: '16:9',
+  }
+  return { ...sources[0].result, id: 'layer-split', raw: { layerSplit: { layers: SPLIT_LAYERS }, whiteboardState } }
 }
 
 // A board saved before Done made a picture (0.23.0, or before 2026-10-22): state only, no result. 1280x720 with two placed
@@ -196,9 +218,10 @@ async function runLegacyPreviewsOnce() {
 async function runOnce() {
   const manyImages = scene === 'many-images'
   const doneExport = scene === 'done-export'
+  const splitBoard = scene === 'split-board-open'
   const project = buildInlineWhiteboardProject({
     repoMedia,
-    frames: manyImages || doneExport ? 6 : 1,
+    frames: manyImages || doneExport || splitBoard ? 6 : 1,
     extraNodes: ({ sources, size }) => doneExport ? [worstCaseBoard(sources, size)] : manyImages
       ? Array.from({ length: 24 }, (_, index) => ({
         id: `visible-${index}`, kind: 'image', categoryId: 'shots', title: `Frame ${index}`, prompt: '',
@@ -208,6 +231,13 @@ async function runOnce() {
       }))
       : [],
   })
+  if (splitBoard) {
+    // The image node itself carries the split result (what landing a layer split writes), so the same toolbar button opens it.
+    const image = project.record.payload.generationCanvas.nodes.find((entry) => entry.id === 'image')
+    image.result = splitBoardResult(project.sources, { width: project.source.width, height: project.source.height })
+    image.history = [image.result]
+    for (const file of [project.recordPath, path.join(path.dirname(path.dirname(project.recordPath)), 'project.json')]) fs.writeFileSync(file, JSON.stringify(project.record))
+  }
   const t = (key) => uiText(locale, key)
   const run = await launchNomiApp({ name: `whiteboard-perf-${scene}`, projectsDir: project.projectsDir, settleMs: 0, initialLocalStorage: {
     'nomi:locale:v1': locale, 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen',
@@ -336,6 +366,14 @@ async function runOnce() {
       await page.waitForTimeout(500)
       const drift = await page.evaluate(() => { window.__panelDrift.active = false; return window.__panelDrift })
       Object.assign(sample, { panelDriftPx: Math.round(drift.maxDriftPx * 10) / 10, panelFramesOff: drift.framesOff, panelFramesSampled: drift.frames })
+    }
+
+    if (splitBoard) {
+      // Today's layers panel lists every row (a virtual list is PR2 of the layer-split card): click -> all 100 image rows in the DOM.
+      await armResponse(page, { trigger: 'pointerdown', predicate: 'whiteboardLayersListed', arg: SPLIT_LAYERS, timeoutMs: 30_000 })
+      await action('layers').click()
+      const listed = await takeResponse(page)
+      Object.assign(sample, { layersPanelMs: listed.ms, layersPanelLongTasks: listed.longTasks, board: `layer split, ${SPLIT_LAYERS} images incl. base (6 distinct frames)` })
     }
 
     if (scene === 'open-type') {

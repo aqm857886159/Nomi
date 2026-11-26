@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>图层分离 · 派生与层数 1440</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+.nm{font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",system-ui,sans-serif;color:var(--ink);font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+.L{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--ink:oklch(0.22 0.01 80);--i80:oklch(0.32 0.01 80);--i60:oklch(0.50 0.01 80);--i40:oklch(0.68 0.01 80);--i20:oklch(0.88 0.005 80);--i10:oklch(0.94 0.003 80);--i05:oklch(0.97 0.003 80);--chrome:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--line2:oklch(0.95 0.003 80);--acc:oklch(0.55 0.13 250);--oki:oklch(0.45 0.09 145);--sh-sm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--sh-md:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);--sh-lg:0 4px 8px oklch(0 0 0 / 0.05),0 20px 50px oklch(0 0 0 / 0.08);--dot:oklch(0.88 0.005 80);--logo:oklch(0.22 0.01 80)}
+.board{display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--paper)}
+.bh{display:flex;flex-direction:column;gap:4px}
+.bh h1{margin:0;font-size:16px;line-height:24px;font-weight:600}
+.bh p{margin:0;font-size:13px;line-height:20px;color:var(--i60)}
+.row{display:flex;align-items:center}
+.abs{position:absolute}
+.nw{white-space:nowrap}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cap{font-size:12px;line-height:18px}
+.c60{color:var(--i60)}.c80{color:var(--i80)}
+.w6{font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+.ico{flex:none;display:block}
+.win{position:relative;overflow:hidden;background:var(--chrome);box-shadow:0 0 0 1px var(--line);flex:none}
+.logo{width:20px;height:20px;border-radius:5px;background:var(--logo);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.seg{display:inline-flex;align-items:center;height:30px;padding:2px;border-radius:999px;background:var(--i10)}
+.seg span{height:26px;padding:0 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--i80);white-space:nowrap}
+.seg .on{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:var(--sh-sm)}
+.seg .on i{font-style:normal;font-weight:400;color:var(--i60);font-size:11px}
+.tbi{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:var(--i80);border-radius:6px}
+.face{width:20px;height:20px;border-radius:5px;background:var(--logo);display:inline-flex;align-items:center;justify-content:center;gap:3px}
+.face b{width:3px;height:7px;border-radius:2px;background:oklch(1 0 0)}
+.ri{position:absolute;left:0;width:60px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;line-height:14px;color:var(--i80)}
+.surf{position:absolute;overflow:hidden;border-radius:10px;background-color:var(--bg);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:20px 20px}
+.card{background:var(--paper);border-radius:10px;box-shadow:inset 0 0 0 1px var(--line),var(--sh-md)}
+.tl{position:absolute;height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--paper);border-radius:10px;box-shadow:var(--sh-sm);font-size:13px}
+.zm{position:absolute;height:34px;display:flex;align-items:center;gap:2px;padding:0 6px;font-size:13px}
+.zm .i{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:var(--i80)}
+.vsep{width:1px;height:18px;background:var(--line);margin:0 4px;flex:none}
+.ftb{position:absolute;height:40px;display:flex;align-items:center;gap:2px;padding:0 6px}
+.ftb .i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;color:var(--ink);border-radius:6px}
+.lab{position:absolute;display:flex;align-items:center;gap:6px;height:28px}
+.kind{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);font-size:12px;line-height:18px;white-space:nowrap;flex:none}
+.ttl{font-size:12px;line-height:18px;color:var(--i60)}
+.media{position:absolute;border-radius:10px;overflow:hidden;box-shadow:var(--sh-sm)}
+.empty{position:absolute;border-radius:10px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line),var(--sh-sm);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.eic{width:36px;height:36px;border-radius:999px;background:var(--i05);box-shadow:inset 0 0 0 1px var(--line);display:inline-flex;align-items:center;justify-content:center;color:var(--i80);margin-bottom:4px}
+.poster{position:absolute;inset:0;background:linear-gradient(180deg,oklch(0.78 0.06 50) 0%,oklch(0.88 0.06 75) 56%,oklch(0.58 0.06 230) 57%,oklch(0.36 0.05 240) 100%)}
+.ptitle{position:absolute;left:0;right:0;text-align:center;color:oklch(1 0 0);font-weight:700;letter-spacing:4px;text-shadow:0 1px 2px oklch(0 0 0 / 0.25)}
+.psub{position:absolute;left:0;right:0;text-align:center;color:oklch(1 0 0 / 0.92);letter-spacing:2px}
+.sun{position:absolute;border-radius:999px;background:oklch(0.95 0.05 85)}
+.fig{position:absolute;border-radius:6px 6px 2px 2px;background:oklch(0.22 0.02 260)}
+.fighead{position:absolute;border-radius:999px;background:oklch(0.22 0.02 260)}
+.lh{position:absolute;background:oklch(0.30 0.02 250);border-radius:2px 2px 0 0}
+.edge{position:absolute;height:1.5px;background:var(--i40)}
+.hd{position:absolute;width:10px;height:10px;border-radius:999px;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--i40)}
+.cmp{position:absolute;width:600px;background:var(--paper);border-radius:10px;box-shadow:inset 0 0 0 1px var(--line),var(--sh-md);padding:12px;display:flex;flex-direction:column}
+.sq{width:40px;height:40px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:var(--i10);color:var(--i80);flex:none;position:relative;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line);background:var(--paper);font-size:13px;line-height:20px;color:var(--ink);white-space:nowrap;flex:none;border:0;font-family:inherit}
+.chip.f{background:var(--i10);box-shadow:none}
+.chip.op{background:var(--i10);box-shadow:inset 0 0 0 1px var(--i40)}
+.brand{width:16px;height:16px;border-radius:999px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);display:inline-flex;align-items:center;justify-content:center;color:var(--ink);flex:none}
+.ib{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:var(--i80);border-radius:6px;flex:none}
+.sendp{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 2px 0 10px;border-radius:999px;background:var(--i10);flex:none;white-space:nowrap;margin-left:10px}
+.ibg{display:inline-flex;align-items:center;gap:2px;margin-left:auto;flex:none}
+.sendp .n{display:inline-flex;align-items:center;gap:3px;font-size:13px;font-weight:600;color:var(--i80)}
+.go{width:30px;height:30px;border-radius:999px;background:var(--ink);color:var(--paper);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.pop{position:absolute;background:var(--paper);border-radius:10px;box-shadow:inset 0 0 0 1px var(--line),var(--sh-lg);padding:12px;display:flex;flex-direction:column;gap:10px}
+.sgc{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:2px;border-radius:8px;background:var(--i10)}
+.sgc button{height:28px;border:0;border-radius:6px;background:transparent;font-family:inherit;font-size:13px;color:var(--i80);white-space:nowrap}
+.sgc .on{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:var(--sh-sm)}
+.hr{height:1px;background:var(--line2)}
+.sw{width:30px;height:18px;border-radius:999px;background:var(--i20);position:relative;flex:none;border:0;padding:0}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:999px;background:var(--paper);box-shadow:var(--sh-sm)}
+.sw.on{background:var(--ink)}
+.sw.on::after{left:14px}
+.dock{position:absolute;background:var(--paper);border-radius:10px;box-shadow:var(--sh-sm);overflow:hidden;display:flex;flex-direction:column}
+.dh{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--line2);flex:none}
+.wm{font-family:Fraunces,Georgia,serif;font-size:15px;font-weight:500}
+.fsw{display:inline-flex;align-items:center;gap:2px;height:28px;padding:2px;border-radius:999px;background:var(--i05)}
+.fsw span{width:28px;height:24px;border-radius:999px;display:grid;place-items:center;color:var(--i60)}
+.fsw .on{background:var(--paper);color:var(--ink);box-shadow:var(--sh-sm)}
+.msgs{flex:1;padding:16px 14px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.ub{align-self:flex-end;max-width:82%;background:var(--i05);border-radius:10px;padding:8px 12px;font-size:13px;line-height:20px}
+.at{font-size:13px;line-height:20px}
+.np{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 10px 4px 4px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);background:var(--paper)}
+.np .tn{width:32px;height:32px;border-radius:6px;overflow:hidden;position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;background:var(--i05);color:var(--i60)}
+.ask{border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);padding:12px;display:flex;flex-direction:column;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:600;border:0;font-family:inherit;white-space:nowrap}
+.btn.pri{background:var(--ink);color:var(--paper)}
+.btn.gh{background:transparent;color:var(--i80)}
+.ac{margin:0 10px 10px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:12px;flex:none}
+.mk{position:absolute;width:20px;height:20px;border-radius:999px;background:var(--acc);color:oklch(1 0 0);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--paper);z-index:5}
+.lg{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.lg div{display:flex;gap:8px;font-size:12px;line-height:18px;color:var(--i80)}
+.lg i{font-style:normal;flex:none;width:18px;height:18px;border-radius:999px;background:var(--acc);color:oklch(1 0 0);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.L{--accs:color-mix(in srgb,oklch(0.55 0.13 250) 12%,white)}
+.D{--accs:color-mix(in srgb,oklch(0.70 0.13 250) 26%,oklch(0.235 0.007 80))}
+.wbt{position:absolute;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:var(--paper);border-radius:10px;box-shadow:inset 0 0 0 1px var(--line),var(--sh-md)}
+.wbt .r{display:flex;align-items:center;gap:8px;height:32px}
+.wbt .b{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:var(--i80);border-radius:6px;flex:none}
+.wbt .b.on{color:var(--acc)}
+.wbt .b.pr{background:var(--i10);color:var(--ink)}
+.wbt .b.dim{color:var(--i40)}
+.wbt .vs{width:1px;height:16px;background:var(--line);flex:none}
+.wbt .sz{font-size:12px;line-height:16px;color:var(--i60);white-space:nowrap}
+.wbt .done{margin-left:auto;font-size:13px;line-height:20px;font-weight:600;color:var(--acc);white-space:nowrap;padding:0 6px}
+.lp{position:absolute;display:flex;flex-direction:column;overflow:hidden;background:var(--paper);border-radius:10px;box-shadow:inset 0 0 0 1px var(--line),var(--sh-md)}
+.lp .lh2{height:40px;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--line2);flex:none}
+.lp .ls{position:relative;flex:1;display:flex;flex-direction:column;padding:4px;overflow:hidden}
+.lr{height:34px;display:flex;align-items:center;gap:8px;padding:0 6px 0 2px;border-radius:6px;flex:none;color:var(--ink)}
+.lr.hv{background:var(--i05)}
+.lr.on{background:var(--accs)}
+.lr .gp{width:14px;height:20px;display:inline-flex;align-items:center;justify-content:center;color:var(--i40);flex:none;visibility:hidden}
+.lr.hv .gp,.lr.on.hv .gp{visibility:visible}
+.lr .nmn{font-size:12px;line-height:16px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lr .nmn.dm{color:var(--i60)}
+.lr .ey{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;color:var(--i60);flex:none}
+.lp .lf{height:52px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px 0 12px;border-top:1px solid var(--line2);flex:none}
+.obtn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line),var(--sh-sm);font-size:12px;line-height:16px;font-weight:600;color:var(--ink);white-space:nowrap;border:0;font-family:inherit}
+.abx{position:absolute;box-shadow:0 0 0 1.5px var(--acc)}
+.hdl{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:2px;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--acc)}
+.lscb{position:absolute;right:2px;top:8px;width:3px;height:44px;border-radius:2px;background:var(--i20)}
+.sst{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:999px;font-size:12px;line-height:16px;white-space:nowrap;background:var(--i10);color:var(--i80)}
+.ph{color:var(--i40)}
+.est{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;flex:1;text-align:center}
+</style>
+</helmet>
+<div class="nm L board" style="width:1488px;height:1140px">
+<div class="bh">
+<h1>派生好、选层数 · 1440×900 · 中文 · 浅色</h1>
+<p>创作者在原海报的浮条点「改图 ▾ → 图层分离」：右边建好连着原图的新节点（填好、没生成、没花钱）。提示词空着，占位写清留空也能拆；点开了「图层分离 · 30 层」看参数。积分数都是示意。</p>
+</div>
+<div class="win" style="width:1440px;height:900px">
+<!-- 顶栏 -->
+<div class="abs row" style="left:76px;top:10px;gap:8px"><span class="logo"><svg class="ico" width="14" height="14" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"></rect><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"></rect><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"></polygon></svg></span><span class="row nw" style="gap:4px;font-size:14px">海边短片<svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"></path></svg></span></div>
+<div class="abs row" style="left:622px;top:5px;gap:8px"><span class="seg"><span>创作</span><span class="on">生成 <i class="num">1/2</i></span><span>预览</span></span><span class="tbi"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M4 12l16 0"></path></svg></span></div>
+<div class="abs row" style="right:8px;top:6px;gap:4px"><span class="tbi"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 5.5l1.5 1.5l2.5 -2.5"></path><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"></path><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"></path><path d="M11 6l9 0"></path><path d="M11 12l9 0"></path><path d="M11 18l9 0"></path></svg></span><span class="tbi"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10"></path><path d="M6 8h.01"></path><path d="M9 8h.01"></path></svg></span><span class="tbi"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065"></path><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path></svg></span><span class="tbi" style="background:var(--i20)"><span class="face"><b></b><b></b></span></span></div>
+<!-- 左栏 -->
+<div class="ri" style="top:54px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"></path><path d="M9 9l1 0"></path><path d="M9 13l6 0"></path><path d="M9 17l6 0"></path></svg>文稿</div>
+<div class="ri" style="top:106px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11"></path><path d="M12 12h8"></path><path d="M15 18h5"></path><path d="M5 6v.01"></path><path d="M8 12v.01"></path><path d="M11 18v.01"></path></svg>目录</div>
+<div class="ri" style="top:158px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"></path></svg>素材</div>
+<div class="ri" style="top:210px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"></path><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"></path><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"></path></svg>流程</div>
+<div class="abs" style="left:18px;top:256px;width:24px;height:1px;background:var(--line)"></div>
+<div class="ri" style="top:274px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -14"></path><path d="M9 5a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -14"></path><path d="M5 8h4"></path><path d="M9 16h4"></path><path d="M13.803 4.56l2.184 -.53c.562 -.135 1.133 .19 1.282 .732l3.695 13.418a1.02 1.02 0 0 1 -.634 1.219l-.133 .041l-2.184 .53c-.562 .135 -1.133 -.19 -1.282 -.732l-3.695 -13.418a1.02 1.02 0 0 1 .634 -1.219l.133 -.041"></path></svg>Skill</div>
+<div class="ri" style="top:326px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7"></path><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3"></path><path d="M9.7 17l4.6 0"></path></svg>提示词</div>
+<div class="ri" style="top:864px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M9 4v16"></path><path d="M15 10l-2 2l2 2"></path></svg></div>
+<!-- 画布 -->
+<div class="surf" style="left:60px;top:40px;width:1024px;height:852px">
+<!-- 原海报（没选中） -->
+<div class="lab" style="left:96px;top:106px;width:255px"><span class="kind">图片</span><span class="ttl ell">海报：海边短片</span></div>
+<div class="media" style="left:96px;top:140px;width:255px;height:340px"><div class="poster"></div><div class="ptitle" style="top:28px;font-size:30px;line-height:38px">海边短片</div><div class="psub" style="top:72px;font-size:12px;line-height:16px">一个人的夏天</div><div class="sun" style="left:166px;top:120px;width:34px;height:34px"></div><svg class="abs" style="left:52px;top:118px" width="24" height="10" viewBox="0 0 24 10" fill="none" aria-hidden="true"><path d="M2 8q5 -7 10 0q5 -7 10 0" stroke="oklch(0.30 0.02 250)" stroke-width="1.6" stroke-linecap="round"></path></svg><div class="lh" style="left:212px;top:148px;width:9px;height:46px"></div><div class="fighead" style="left:98px;top:196px;width:14px;height:14px"></div><div class="fig" style="left:94px;top:210px;width:22px;height:46px"></div></div>
+<!-- 连线：原海报 → 新节点 -->
+<div class="edge" style="left:356px;top:309px;width:109px"></div>
+<div class="hd" style="left:346px;top:305px"></div>
+<div class="hd" style="left:465px;top:305px"></div>
+<!-- 新节点（派生好、选中、没生成） -->
+<div class="ftb card" style="left:470px;top:60px"><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666"></path><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"></path></svg></span></div>
+<div class="lab" style="left:470px;top:106px;width:255px"><span class="kind">图片</span><span class="ttl ell">海报：海边短片 · 图层</span></div>
+<div class="empty" style="left:470px;top:140px;width:255px;height:340px"><span class="eic"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 8h.01"></path><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12"></path><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"></path><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"></path></svg></span><span class="w6 cap">图片</span><span class="cap c60">已备好 · 未生成</span><span class="cap c80" style="margin-top:8px">图层分离</span></div>
+<!-- 层数弹层（从「图层分离」格向上开） -->
+<div class="pop" style="left:448px;bottom:368px;width:300px;z-index:6">
+<span class="w6">拆成几层</span>
+<div class="sgc" role="group" aria-label="拆成几层"><button type="button">8</button><button type="button">16</button><button type="button" class="on" aria-pressed="true">30</button><button type="button">自定义</button></div>
+<span class="cap c60">默认 30 层，含底图。是上限，可能拆得更少。</span>
+<div class="hr"></div>
+<span class="w6">清晰度</span>
+<div class="sgc" role="group" aria-label="清晰度"><button type="button" class="on" aria-pressed="true">自动</button><button type="button">1K</button><button type="button">1.5K</button><button type="button">2K</button></div>
+<span class="cap c60">2K 价更高。</span>
+<div class="hr"></div>
+<div class="row" style="gap:10px"><span style="display:flex;flex-direction:column;flex:1;min-width:0"><span>识别文字</span><span class="cap c60">认出图里的字，文字层用它当名字</span></span><button type="button" class="sw" aria-label="识别文字" aria-pressed="false"></button></div>
+</div>
+<!-- 生成框（分离模式） -->
+<div class="cmp" style="left:297px;top:492px;height:172px"><div class="row" style="gap:8px"><span class="sq"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.904 17.563a1.2 1.2 0 0 0 2.228 .308l2.09 -3.093l4.907 4.907a1.067 1.067 0 0 0 1.509 0l1.047 -1.047a1.067 1.067 0 0 0 0 -1.509l-4.907 -4.907l3.113 -2.09a1.2 1.2 0 0 0 -.309 -2.228l-13.582 -3.904l3.904 13.563"></path></svg></span><span class="sq"><span class="poster"></span><span class="fighead" style="left:17px;top:22px;width:5px;height:5px"></span><span class="fig" style="left:16px;top:27px;width:7px;height:9px;border-radius:2px"></span></span><span class="sq"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"></path><path d="M5 12l14 0"></path></svg></span></div><div class="ph" style="flex:1;padding-top:12px;font-size:14px;line-height:22px">描述希望拆分的图层，留空将自动识别并拆分</div><div class="row" style="gap:6px"><button type="button" class="chip"><span class="brand"><svg class="ico" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.31 15.756c.172-3.75 1.883-5.999 2.549-6.739-3.26 2.058-5.425 5.658-6.358 8.308v1.12C1.501 21.513 4.226 24 7.59 24a6.590 6.590 0 002.2-.375c.353-.12.7-.248 1.039-.378.913-.899 1.65-1.910 2.243-2.992-4.877 2.431-7.974.072-7.763-4.5l.002.001z" fill-opacity=".5"></path><path d="M22.57 10.283c-1.212-.901-4.109-2.404-7.397-2.8.295 3.792.093 8.766-2.1 12.773a12.782 12.782 0 01-2.244 2.992c3.764-1.448 6.746-3.457 8.596-5.219 2.82-2.683 3.353-5.178 3.361-6.660a2.737 2.737 0 00-.216-1.084v-.002zM14.303 1.867C12.955.7 11.248 0 9.390 0 7.532 0 5.883.677 4.545 1.807 2.791 3.290 1.627 5.557 1.500 8.125v9.201c.932-2.650 3.097-6.250 6.357-8.307.5-.318 1.025-.595 1.569-.829 1.883-.801 3.878-.932 5.746-.706-.222-2.830-.718-5.002-.870-5.617h.001z"></path></svg></span>Seedream 5.5<svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"></path></svg></button><button type="button" class="chip op" aria-expanded="true" aria-label="图层分离：30 层，清晰度自动，展开设置"><svg class="ico c80" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"></path><path d="M4 12l8 4l8 -4"></path><path d="M4 16l8 4l8 -4"></path></svg>图层分离 · <span class="num">30</span> 层<svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"></path></svg></button><span class="ibg"><span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"></path><path d="M9 9l1 0"></path><path d="M9 13l6 0"></path><path d="M9 17l6 0"></path></svg></span><span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.371c0 4.418 -2.239 6.629 -5 6.629"></path><path d="M4 6.371h7"></path><path d="M5 9c0 2.144 2.252 3.908 6 4"></path><path d="M12 20l4 -9l4 9"></path><path d="M19.1 18h-6.2"></path><path d="M6.694 3l.793 .582"></path></svg></span><span class="ib"><span class="logo" style="width:16px;height:16px;border-radius:4px"><svg class="ico" width="11" height="11" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"></rect><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"></rect><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"></polygon></svg></span></span><span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M4 6l8 0"></path><path d="M16 6l4 0"></path><path d="M6 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M4 12l2 0"></path><path d="M10 12l10 0"></path><path d="M15 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M4 18l11 0"></path><path d="M19 18l1 0"></path></svg></span></span><span class="sendp"><span class="n num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>≤15.1</span><span class="go"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"></path><path d="M18 11l-6 -6"></path><path d="M6 11l6 -6"></path></svg></span></span></div></div>
+<div class="mk" style="left:400px;top:286px">1</div>
+<div class="mk" style="left:277px;top:530px">2</div>
+<div class="mk" style="left:756px;top:214px">3</div>
+<div class="mk" style="left:905px;top:632px">4</div>
+<!-- 底部（原样） -->
+<div class="zm card" style="left:16px;top:768px"><span class="i"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path><path d="M4 8v-2a2 2 0 0 1 2 -2h2"></path><path d="M4 16v2a2 2 0 0 0 2 2h2"></path><path d="M16 4h2a2 2 0 0 1 2 2v2"></path><path d="M16 20h2a2 2 0 0 0 2 -2v-2"></path></svg></span><span class="vsep"></span><span class="i"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"></path></svg></span><span class="num" style="width:44px;text-align:center">75%</span><span class="i"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"></path><path d="M5 12l14 0"></path></svg></span><span class="vsep"></span><span class="i"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path><path d="M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path></svg></span></div>
+<div class="zm card" style="left:384px;top:768px;gap:4px"><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 8h.01"></path><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12"></path><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"></path><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"></path></svg></span><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4"></path><path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8"></path></svg></span><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12h-2c-.894 0 -1.662 -.857 -1.761 -2c-.296 -3.45 -.749 -6 -2.749 -6s-2.5 3.582 -2.5 8s-.5 8 -2.5 8s-2.452 -2.547 -2.749 -6c-.1 -1.147 -.867 -2 -1.763 -2h-2"></path></svg></span><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l3 0"></path><path d="M14 20l7 0"></path><path d="M6.9 15l6.9 0"></path><path d="M10.2 6.3l5.8 13.7"></path><path d="M5 20l6 -16l2 0l7 16"></path></svg></span><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path d="M3 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path d="M8.6 8.6l10.4 10.4"></path><path d="M8.6 15.4l10.4 -10.4"></path></svg></span><span class="vsep"></span><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path><path d="M7 9l5 -5l5 5"></path><path d="M12 4l0 12"></path></svg></span><span class="i"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"></path><path d="M5 12l14 0"></path></svg></span></div>
+<div class="tl" style="left:8px;right:8px;top:812px"><svg class="ico c80" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M4 12l16 0"></path></svg><span class="w6">时间轴</span><span class="c60 num">0 段 · 0:00</span><span style="flex:1"></span><svg class="ico c60" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"></path></svg></div>
+</div>
+<!-- Nomi 停靠 -->
+<div class="dock" style="left:1092px;top:40px;width:340px;height:852px">
+<div class="dh"><span class="row" style="gap:6px"><span class="logo" style="width:16px;height:16px;border-radius:4px"><svg class="ico" width="11" height="11" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"></rect><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"></rect><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"></polygon></svg></span><span class="wm">Nomi</span></span><span class="fsw"><span><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M15 4v16"></path><path d="M9 10l2 2l-2 2"></path></svg></span><span><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4"></path><path d="M14 15a1 1 0 0 1 1 -1h5a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1l0 -3"></path></svg></span><span class="on"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M15 4l0 16"></path></svg></span></span></div>
+<div class="msgs"><div class="est"><span class="w6" style="font-size:13px;line-height:20px">Nomi 能看画布、排生成、拆一条参考片</span><div class="row" style="gap:8px"><span class="chip">拆参考片</span><span class="chip">检查画布</span></div></div><div class="mk" style="position:relative;align-self:center">5</div>
+</div>
+<div class="ac"><span class="c60" style="font-size:13px">继续告诉 Nomi 要改什么… @ 引用素材或技能</span><div class="row" style="justify-content:space-between"><span class="ib"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"></path><path d="M5 12l14 0"></path></svg></span><span class="go" style="background:var(--i20);color:var(--paper)"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"></path><path d="M18 11l-6 -6"></path><path d="M6 11l6 -6"></path></svg></span></div></div>
+</div>
+</div>
+<div class="lg">
+<div><i>1</i><span>从原海报浮条「改图 ▾ → 图层分离」（生成新图组第一项）派生：右边建好连着原图的新节点、填好，不生成、不花钱。和 LibTV「原节点就地进模式」不同：10-05 拍板改图类动作都派生。入口画在边界板 ①。</span></div>
+<div><i>2</i><span>分离模式下的生成框：参考只放 1 张；比例格和效果小胶囊收起，「图层分离 · 30 层 · 自动」（叠层图标）一格占比例那格的位置；带价的 600 宽底栏里「· 自动」差约 8px，按今天的让位规则从后往前退，只剩「30 层」（实现后按真宽再量）。提示词空着，占位照 LibTV 写，留空也能发（发送键亮着）。</span></div>
+<div><i>3</i><span>点开是参数面板：层数 8 / 16 / 30（默认）/ 自定义 2–100，含底图、是上限；清晰度只给 自动 / 1K / 1.5K / 2K（分离时走 size，比例不发）；识别文字默认关。不画框选：APIMart 没有区域输入。5.0 Pro 见边界板。</span></div>
+<div><i>4</i><span>发送键印「≤15.1」：最多按 30 张 × 单张档价 + 一次输入图费扣，结算按实际张数退补（示意；「自动」走哪档文档没写死，先按高档算上限）。钱只印在这里。</span></div>
+<div><i>5</i><span>这一步不经过 Nomi：入口在浮条，Nomi 面板照今天。创作者在聊天里说「拆成图层」时，Nomi 建的是同一个派生节点并指过去，层数还在生成框里改。</span></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1488,"height":1140}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
