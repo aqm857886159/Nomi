@@ -45,6 +45,8 @@ export type CatalogTaskActionOptions = {
   referenceContext?: { nodes?: GenerationCanvasNode[]; edges?: GenerationCanvasEdge[] }
   /** Optional bounded QA retry instruction appended to the model prompt for this one run. */
   promptSuffix?: string
+  /** 出高清：这一次只带样片号和目标清晰度（buildCatalogTaskRequest 的出高清那一支）。缺省 = 普通发送。 */
+  sampleFinal?: { draftTaskId: string; resolution: string }
   /**
    * 单镜 Run 路（发动机收敛第一刀）：交 / 查都经主进程这一次运行的单镜 Run——要花钱的节点一律走它（单节点 ↑ 的批准是这一下点击，
    * 批量的批准是那张卡）。缺省 = 不花钱的本地 / 文本路。由控制器按节点定（`generationRunController.paidNodeLedger`）。

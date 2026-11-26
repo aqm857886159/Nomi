@@ -9,7 +9,7 @@ function narrowResolution(params: ModelParameterControl[], spec: ArchetypeSample
   return params.map((param) => {
     if (param.key !== "resolution") return param;
     const options = param.options.filter((option) => String(option.value) === spec.draftResolution);
-    if (options.length !== 1) throw new Error(`${where} 的清晰度选项里没有样片档 ${spec.draftResolution}`);
+    if (options.length !== 1) throw new Error(`${where}: resolution options lack the sample tier ${spec.draftResolution}`);
     return { ...param, options: options.map((option) => ({ ...option })), defaultValue: spec.draftResolution };
   });
 }
@@ -42,8 +42,8 @@ export function deriveSampleArchetype(parent: ModelArchetype, input: {
   billedAs: { modelKey: string };
 }): ModelArchetype {
   const spec = parent.sampleMode;
-  if (!spec) throw new Error(`${parent.id} 没有声明样片规格（sampleMode）`);
-  if (!spec.finalResolutions.length) throw new Error(`${parent.id} 的样片规格没有成片清晰度`);
+  if (!spec) throw new Error(`${parent.id} declares no sample spec (sampleMode)`);
+  if (!spec.finalResolutions.length) throw new Error(`${parent.id}: sample spec has no final resolutions`);
   const { sampleMode: _parentOnly, legacyIds: _ownIds, ...shared } = parent;
   return {
     ...shared,

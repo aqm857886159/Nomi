@@ -63,6 +63,8 @@ export const COST_LABEL_EXACT = Object.freeze({
   'generationCommon.composer.sendCost.estimate': Object.freeze({ 'zh-CN': '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。', en: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.' }),
   'generationCommon.composer.sendCost.outputEstimate': Object.freeze({ 'zh-CN': '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算', en: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens' }),
   'generationCommon.composer.sendCost.priceUnknown': Object.freeze({ 'zh-CN': '暂时估不出这次用量', en: 'No usage estimate yet' }),
+  // 同一条样片第二次出高清的确认框（板 SampleMode sample.confirm-second-hd，用户 2026-11-26 拍板原文；正文不印数）：只认这一句。
+  'generationCommon.sample.secondFinal.message': Object.freeze({ 'zh-CN': '再出一次会按 {{resolution}} 全价再扣一次。', en: 'Another one charges the full {{resolution}} price again.' }),
   'modelSetup.apimartVerification.credits': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
   'modelSetup.apimartVerification.connectedBalance': Object.freeze({ 'zh-CN': ' · 余额 {{value}} 积分', en: ' · Balance {{value}} credits' }),
   'modelSetup.apimartVerification.topup': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),

@@ -62,7 +62,7 @@ const generationNodeResultSchema = z.object({
 export const generationNodeRunRecordSchema = z.object({
   id: z.string().min(1),
   status: generationNodeRunStatusSchema,
-  attempt: z.object({ vendorKey: z.string().min(1), modelKey: z.string().min(1) }).optional(),
+  attempt: z.object({ vendorKey: z.string().min(1), modelKey: z.string().min(1), draftTaskId: z.string().min(1).optional() }).optional(),
   projectId: z.string().optional(),
   taskId: z.string().optional(),
   taskKind: generationNodeTaskKindSchema.optional(),

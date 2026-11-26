@@ -79,7 +79,14 @@ export function modelCapabilityLine(archetype: ModelArchetype | null | undefined
   if (!archetype) return ''
   const resolution = maxResolution(archetype)
   const seconds = archetype.kind === 'video' ? maxSeconds(archetype) : 0
-  const items = [
+  // 样片行（样片档案）：说的是它的两步——样片档多少、满意后出到多少，都读档案的样片规格。
+  const sample = archetype.sampleOf?.spec
+  const finalResolution = sample?.finalResolutions[sample.finalResolutions.length - 1]
+  const items = sample ? [
+    tr('sampleDraft', { value: sample.draftResolution }),
+    finalResolution ? tr('sampleFinal', { value: finalResolution }) : '',
+    seconds > 0 ? tr('maxSeconds', { count: seconds }) : '',
+  ] : [
     inputPhrase(archetype),
     resolution ? tr('upTo', { value: resolution }) : '',
     seconds > 0 ? tr('maxSeconds', { count: seconds }) : '',

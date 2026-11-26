@@ -2,7 +2,7 @@ import React, { type JSX, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
-import { DecisionBar, DesignModal, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
+import { DecisionBar, DesignModal, ICON_TIERS, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
@@ -263,7 +263,19 @@ export function SpendConfirmDialog() {
       cancelLabel={pending.cancelLabel || (isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel'))}
       onCancel={() => resolvePending(false)}
       cancelProps={{ 'data-spend-confirm-action': 'cancel' }}
-      primaryLabel={incompletePolicy ? t('generationCommon.production.gate.openProductionPolicy') : (pending.confirmLabel || t('generationCommon.spend.confirm'))}
+      primaryLabel={incompletePolicy
+        ? t('generationCommon.production.gate.openProductionPolicy')
+        : pending.confirmCredits
+          ? (
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              {pending.confirmLabel || t('generationCommon.spend.confirm')}
+              <span aria-hidden>·</span>
+              <span data-spend-confirm-credits="" className="inline-flex items-center gap-0.5 tabular-nums">
+                <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden />{pending.confirmCredits}
+              </span>
+            </span>
+          )
+          : (pending.confirmLabel || t('generationCommon.spend.confirm'))}
       onPrimary={primaryAction}
       primaryProps={{ 'data-spend-confirm-action': incompletePolicy ? 'open-policy' : 'confirm' }}
       primaryHint="Enter"

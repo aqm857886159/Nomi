@@ -138,6 +138,8 @@ export type SpendConfirmRequest = {
   onBackToEdit?: () => void
   /** 明细行（节点 / 模型 / 预估），让用户一眼看懂谁要花钱、花在哪。 */
   details?: Array<{ label: string; value: string }>
+  /** 主按钮上印的价（金币 + 积分数，钱只印在按钮上、正文不写）。估不出 = 不带，按钮只写字，不印数、不写 0。 */
+  confirmCredits?: string
   /** Optional checklist for a batch whose entries are not materialized yet. */
   planRows?: readonly PlanRow[]
   /** Receives the user's checklist edits before the batch is materialized. */
@@ -294,7 +296,23 @@ export async function confirmStoryboardPlanBatch(opts: {
 export async function confirmGenerationResend(input: {
   resultUnknown: boolean
   kind: string
+  /**
+   * 同一条样片第二次出高清（第一次不问）：同一张「再发一次」卡，只换文案、主按钮印 1080p 价（估不出不印数）。
+   * 板 SampleMode：sample.confirm-second-hd。
+   */
+  secondSampleFinal?: { resolution: string; credits?: string }
 }): Promise<boolean> {
+  if (input.secondSampleFinal) {
+    const { resolution, credits } = input.secondSampleFinal
+    return useSpendConfirmStore.getState().requestConfirm({
+      kind: 'generation',
+      title: i18n.t('generationCommon.sample.secondFinal.title', { resolution }),
+      message: i18n.t('generationCommon.sample.secondFinal.message', { resolution }),
+      confirmLabel: i18n.t('generationCommon.sample.secondFinal.confirm'),
+      cancelLabel: i18n.t('common.cancel'),
+      ...(credits ? { confirmCredits: credits } : {}),
+    })
+  }
   const kind = input.kind === 'image' || input.kind === 'video' ? input.kind : 'other'
   return useSpendConfirmStore.getState().requestConfirm({
     kind: 'generation',

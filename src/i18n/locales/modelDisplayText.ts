@@ -119,6 +119,10 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   // 改图=image editing、图生视频=image-to-video、（会员）=(membership)、（免费）=(free)。
   'GPT Image 2 · 文生图': 'GPT Image 2 · Text-to-image',
   'Seedance 2.5（样片模式）': 'Seedance 2.5 (Draft mode)',
+  // 样片档案的出高清方式（不进方式菜单；参数面板 / 来历里可能读到）。
+  出高清: 'Make HD',
+  样片任务号: 'Draft task ID',
+  '用样片号出成片，不重发提示词和参考': 'Makes the final from the draft ID, without resending the prompt or references',
   'GPT Image 2 · 图生图': 'GPT Image 2 · Image-to-image',
   'MiniMax H3 · Context-IR 提示词增强': 'MiniMax H3 · Context-IR prompt enhancement',
   'Qwen-Image 改图': 'Qwen-Image editing',
