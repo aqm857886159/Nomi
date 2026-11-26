@@ -1,3 +1,5 @@
+import path from 'node:path'
+import ts from 'typescript'
 import React from 'react'
 import { MantineProvider } from '@mantine/core'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -68,4 +70,99 @@ describe('DesignModal 外壳：高度与滚动归属（§3.5）', () => {
     expect(classTokens(inner, 'data-design-modal-scroll')).toEqual(expect.arrayContaining(['flex', 'flex-col', 'min-h-0', 'overflow-y-auto']))
     expect(inner).toContain('data-design-modal-scroll="inner"')
   })
+})
+
+// 只沿名字走：classNames.title / header，以及 header(name) 中包住 name 的祖先。
+// 同一组件里的模型名、作者、副标、正文允许有各自的省略策略。
+it('DesignModal 调用方不能把标题限制为单行', () => {
+  const files = ts.sys.readDirectory('src', ['.tsx', '.jsx'], ['**/*.test.*', '**/*.spec.*'])
+    .filter(file => ts.sys.readFile(file)?.includes('DesignModal'))
+  const program = ts.createProgram(files, { jsx: ts.JsxEmit.Preserve, allowJs: true, types: [], skipLibCheck: true, moduleResolution: ts.ModuleResolutionKind.Bundler })
+  const checker = program.getTypeChecker()
+  const violations = new Set<string>()
+  const visited = new Set<ts.Node>()
+  const children = (node: ts.Node, visit: (child: ts.Node) => void) => ts.forEachChild(node, visit)
+  function declaration(node: ts.Node) {
+    let symbol = checker.getSymbolAtLocation(node)
+    if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
+    return symbol?.valueDeclaration
+  }
+  function scanClasses(node: ts.Node) {
+    if (visited.has(node)) return
+    visited.add(node)
+    if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      const token = node.text.match(/(?:^|[\s:!])(truncate|whitespace-nowrap|text-ellipsis|line-clamp-1)(?=\s|$)/)?.[1]
+      if (token) violations.add(`${path.relative(process.cwd(), node.getSourceFile().fileName)}: ${token}`)
+    } else if (ts.isIdentifier(node)) {
+      const def = declaration(node)
+      if (def && (ts.isVariableDeclaration(def) || ts.isPropertyAssignment(def)) && def.initializer) scanClasses(def.initializer)
+    } else children(node, scanClasses)
+  }
+  function scanClassMap(node: ts.Node) {
+    if (ts.isShorthandPropertyAssignment(node)) {
+      const def = checker.getShorthandAssignmentValueSymbol(node)?.valueDeclaration
+      if (['title', 'header'].includes(node.name.text) && def && ts.isVariableDeclaration(def) && def.initializer) scanClasses(def.initializer)
+    } else if (ts.isPropertyAssignment(node)) {
+      if (['title', 'header'].includes(node.name.getText().replace(/['"]/g, ''))) scanClasses(node.initializer)
+    } else if (ts.isIdentifier(node)) {
+      const def = declaration(node)
+      if (def && ts.isVariableDeclaration(def) && def.initializer) scanClassMap(def.initializer)
+    } else children(node, scanClassMap)
+  }
+  function scanSlot(fn: ts.FunctionLikeDeclaration, binding: ts.Node) {
+    const name = checker.getSymbolAtLocation(binding)
+    if (!name || !fn.body || visited.has(binding)) return
+    visited.add(binding)
+    function findName(node: ts.Node) {
+      if (node !== binding && ts.isIdentifier(node) && checker.getSymbolAtLocation(node) === name) {
+        for (let parent = node.parent; parent && parent !== fn; parent = parent.parent) {
+          if (ts.isVariableDeclaration(parent)) scanSlot(fn, parent.name)
+          if (ts.isJsxAttribute(parent)) {
+            // 例如 header={(name) => <CustomCallTitle name={name} /> }：继续检查组件中摆放 name 的那一格。
+            const tag = parent.parent.parent
+            if (!ts.isJsxOpeningElement(tag) && !ts.isJsxSelfClosingElement(tag)) continue
+            const propName = parent.name.getText()
+            const component = declaration(tag.tagName)
+            if (component && ts.isFunctionDeclaration(component)) {
+              const props = component.parameters[0]?.name
+              if (props && ts.isObjectBindingPattern(props)) {
+                const prop = props.elements.find(p => (p.propertyName ?? p.name).getText() === propName)
+                if (prop) scanSlot(component, prop.name)
+              }
+            }
+          }
+          if (ts.isJsxElement(parent)) {
+            for (const attr of parent.openingElement.attributes.properties) {
+              if (ts.isJsxAttribute(attr) && attr.name.getText() === 'className' && attr.initializer) scanClasses(attr.initializer)
+            }
+          }
+        }
+      }
+      children(node, findName)
+    }
+    findName(fn.body)
+  }
+  function scanModal(node: ts.Node) {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      const def = declaration(node.tagName)
+      if (!def || !ts.isFunctionDeclaration(def) || def.name?.text !== 'DesignModal') return
+      for (const attr of node.attributes.properties) {
+        if (!ts.isJsxAttribute(attr) || !attr.initializer || !ts.isJsxExpression(attr.initializer)) continue
+        const value = attr.initializer.expression
+        if (!value) continue
+        if (attr.name.getText() === 'classNames') scanClassMap(value)
+        if (attr.name.getText() === 'header') {
+          const def = declaration(value)
+          const fn = def && ts.isVariableDeclaration(def) ? def.initializer : def ?? value
+          if (fn && (ts.isArrowFunction(fn) || ts.isFunctionDeclaration(fn) || ts.isFunctionExpression(fn)) && fn.parameters[0]) scanSlot(fn, fn.parameters[0].name)
+        }
+      }
+    }
+    children(node, scanModal)
+  }
+  for (const file of files) {
+    const source = program.getSourceFile(file)
+    if (source) scanModal(source)
+  }
+  expect([...violations].sort()).toEqual([])
 })

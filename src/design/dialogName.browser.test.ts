@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import postcss from 'postcss'
+import tailwindcss from 'tailwindcss'
+import tailwindConfig from '../../tailwind.config'
 import { createRequire } from 'node:module'
 import { AxeBuilder } from '@axe-core/playwright'
 import { chromium, type Page } from 'playwright'
@@ -13,15 +17,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 async function bundle(contents: string): Promise<string> {
   const require = createRequire(import.meta.url)
   const { build } = createRequire(require.resolve('vite/package.json'))('esbuild')
-  const result = await build({ stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, platform: 'browser', format: 'iife', loader: { '.css': 'empty', '.svg': 'dataurl', '.png': 'dataurl', '.jpg': 'dataurl', '.webp': 'dataurl', '.mp4': 'dataurl', '.md': 'text' }, logLevel: 'error', define: { 'process.env.NODE_ENV': '"development"', 'import.meta.url': '"http://localhost/"', 'import.meta.env': '{}' } })
+  const result = await build({ stdin: { contents, resolveDir: process.cwd(), loader: 'tsx' }, jsx: 'automatic', bundle: true, write: false, platform: 'browser', format: 'iife', loader: { '.css': 'empty', '.svg': 'dataurl', '.png': 'dataurl', '.jpg': 'dataurl', '.webp': 'dataurl', '.mp4': 'dataurl', '.md': 'text' }, logLevel: 'error', define: { 'process.env.NODE_ENV': '"development"', 'import.meta.url': '"http://localhost/"', 'import.meta.env': '{}' } })
   return result.outputFiles[0].text
 }
 
 const SKILL_TITLE = 'Shot language'
+const LONG_TITLE = 'Create another high definition version of this sample draft?'
 const HOST = `
 import React from 'react'; import { createRoot } from 'react-dom/client';
 import { MantineProvider } from '@mantine/core';
 import i18n from './src/i18n';
+import { buildNomiTheme } from './src/theme/nomiTheme';
 import { DesignModal } from './src/design/overlays';
 import { SkillDetail } from './src/workbench/skillLibrary/SkillDetail';
 import { SpendConfirmDialog } from './src/workbench/generationCanvas/spend/SpendConfirmDialog';
@@ -39,7 +45,7 @@ function Scene({ scene }) {
     header={(title) => <span className="flex items-center gap-2"><span aria-hidden="true">*</span><span>{title}<span>Subtitle beside the name</span></span></span>}><p>Body</p></DesignModal>;
   if (scene === 'skill') return <SkillDetail entry={skill} onClose={nop} onAddToChat={nop} onExport={nop} onDelete={nop} />;
   if (scene === 'update') return <UpdateDialogCard view="available" version="0.25.0" digest={digest} releaseUrl={null} canAutoInstall onClose={nop} />;
-  if (scene === 'spend-agent' || scene === 'spend-user') return <SpendConfirmDialog />;
+  if (scene.startsWith('spend-')) return <SpendConfirmDialog />;
   if (scene === 'nameless') return <div role="dialog" aria-modal="true"><p>No name at all</p></div>;
   return null;
 }
@@ -47,13 +53,14 @@ window.__mount = async (scene) => {
   await i18n.changeLanguage('en');
   const agentTitle = i18n.t('runtime.capability.generationGateTitle');
   if (scene === 'spend-agent') void useSpendConfirmStore.getState().requestConfirm({ title: agentTitle, message: 'This will generate 1 image.', source: 'agent', kind: 'generation' });
+  if (scene === 'spend-long') void useSpendConfirmStore.getState().requestConfirm({ title: ${JSON.stringify(LONG_TITLE)}, message: 'Confirm this draft.', source: 'user', kind: 'generation' });
   if (scene === 'spend-user') void useSpendConfirmStore.getState().requestConfirm({ title: 'Generate reference images?', message: 'This will generate 2 reference images.', source: 'user', kind: 'reference' });
   window.__expected = { plain: 'Plain title', slot: 'Slot title', skill: ${JSON.stringify(SKILL_TITLE)},
     update: i18n.t('updateReminder.dialog.availableTitle', { version: '0.25.0' }),
     'spend-agent': agentTitle, 'spend-user': 'Generate reference images?',
     agentNotice: i18n.t('generationCommon.spend.agentNotice') }[scene] ?? null;
   window.__agentNotice = i18n.t('generationCommon.spend.agentNotice');
-  createRoot(document.getElementById('root')).render(<MantineProvider><Scene scene={scene} /></MantineProvider>);
+  createRoot(document.getElementById('root')).render(<MantineProvider theme={scene.startsWith('spend-') ? buildNomiTheme() : undefined}><Scene scene={scene} /></MantineProvider>);
 };
 `
 
@@ -138,4 +145,64 @@ describe('弹窗的读屏名字由外壳给，只是名字那一句', () => {
     await expect(page.getByRole('dialog', { name: /.+/ }).count()).resolves.toBe(0)
     await closePage(page)
   }, 60_000)
+})
+
+// 只编译挂载出的生产类（与 build-tailwind 一样：Mantine 在前，项目 Tailwind 在后）。
+async function styledSpend(scene: string) {
+  const { page } = await mount(scene)
+  const content = ['src/design/overlays.tsx', { raw: await page.content(), extension: 'html' }]
+  const css = await postcss([tailwindcss({ ...tailwindConfig, content, safelist: [] })])
+    .process('@tailwind base; @tailwind utilities;', { from: undefined })
+  const require = createRequire(import.meta.url)
+  await page.addStyleTag({ content: readFileSync(require.resolve('@mantine/core/styles.css'), 'utf8') + css.css })
+  return page
+}
+
+describe('380px 花钱确认卡的标题排版', () => {
+  it('60 字符的英文标题完整折行，关闭键和图标靠首行', async () => {
+    const page = await styledSpend('spend-long')
+    try {
+      const dialog = page.getByRole('dialog', { name: LONG_TITLE, exact: true })
+      expect((await dialog.boundingBox())?.width).toBe(380)
+      const heading = dialog.getByRole('heading', { name: LONG_TITLE })
+      const style = await heading.evaluate(el => {
+        const css = getComputedStyle(el)
+        const text = document.createRange()
+        text.selectNodeContents(el)
+        return { whiteSpace: css.whiteSpace, overflow: css.textOverflow, lines: text.getClientRects().length,
+          clipped: el.scrollWidth > el.clientWidth }
+      })
+      expect(style.whiteSpace).not.toBe('nowrap')
+      expect(style.overflow).not.toBe('ellipsis')
+      expect(style.lines).toBe(2)
+      expect(style.clipped).toBe(false)
+      const header = dialog.locator('header').first()
+      const title = await heading.boundingBox()
+      for (const item of [header.locator('svg').first().locator('..'), header.getByRole('button')]) {
+        await expect.poll(async () => (await item.boundingBox())?.y).toBe(title?.y)
+      }
+    } finally { await closePage(page) }
+  })
+
+  it('原本一行的标题仍用原有字形并与图标、关闭键垂直居中', async () => {
+    const page = await styledSpend('spend-user')
+    try {
+      const header = page.getByRole('dialog').locator('header').first()
+      const heading = header.getByRole('heading')
+      const appearance = await heading.evaluate(el => {
+        const css = getComputedStyle(el)
+        return { size: css.fontSize, weight: css.fontWeight, classes: [...el.classList] }
+      })
+      expect(appearance.size).toBe('16px')
+      expect(appearance.weight).toBe('500')
+      expect(appearance.classes).toEqual(expect.arrayContaining(['text-title', 'font-medium', 'text-nomi-ink']))
+      const center = async (item: typeof heading) => {
+        const box = (await item.boundingBox())!
+        return box.y + box.height / 2
+      }
+      const y = await center(heading)
+      expect(await center(header.getByRole('button'))).toBeCloseTo(y, 1)
+      expect(await center(header.locator('svg').first().locator('..'))).toBeCloseTo(y, 1)
+    } finally { await closePage(page) }
+  })
 })
