@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectVisible, holdAbsent, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expectAbsent, expectVisible, holdAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { addCanvasNode, canvasSetZoomPercent, canvasZoomPercent, canvasZoomStep, createBlankProject, selectOrAddCanvasNode, ensureAgentPanelOpen, nodeModelTrigger, openNodeModelMenu, openNodeParams, selectedNodeComposer, switchWorkspace } from './_shell.mjs'
@@ -357,7 +357,12 @@ for (const run of RUNS) {
     await station('sample', run, async () => {
       const node = nodeById(win, ctx.sampleNodeId)
       await fillPrompt(win, locale === 'en' ? 'Wide shot, rooftop after rain, she turns to the window' : '远景，雨后天台，人物转身看向窗外')
-      await expect(selectedNodeComposer(win).locator('[data-send-cost]'), 'board:SampleMode/sample.send-price：算不出价不印数').toHaveCount(0)
+      // 发送键按它在生成框里的位置认（data-bar-segment=generate 只有这一颗；有了结果以后读屏名会变，位置不变）。
+      const sendKey = selectedNodeComposer(win).locator('button[data-bar-segment="generate"]').first()
+      await expectAbsent(selectedNodeComposer(win).locator('[data-send-cost]'), {
+        provenBy: await proveProbe(sendKey, '生成框里的发送键在（约价记号挂在它这一处）'),
+        message: 'board:SampleMode/sample.send-price：算不出价不印数',
+      })
       const before = videoCreates(fake)
       ctx.sendAt = await win.evaluate(() => Date.now())
       await send(win, locale)
@@ -368,7 +373,10 @@ for (const run of RUNS) {
       ctx.sampleTaskId = created.taskId
       // 样片在路上：今天的等待面原样，下方这一行出了结果才出现。
       await expect(node.locator('[data-generating-placement]').first(), 'board:SampleMode/sample.generating：样片生成中用今天的等待面').toBeVisible()
-      await expect(node.locator('[data-sample-row]'), 'board:SampleMode/sample.generating：结果没出来前没有下方这一行').toHaveCount(0)
+      await expectAbsent(node.locator('[data-sample-row]'), {
+        provenBy: await proveProbe(node.locator('[data-generating-placement]'), '这张节点上样片的等待面在'),
+        message: 'board:SampleMode/sample.generating：结果没出来前没有下方这一行',
+      }, 1000)
       await win.screenshot({ path: shot('03a-sample-generating') })
       const row = node.locator('[data-sample-row]').first()
       await expect(row, 'board:SampleMode/sample.below-row：样片出完节点下方出这一行').toHaveAttribute('data-sample-state', 'ready', { timeout: LONG })
@@ -380,12 +388,13 @@ for (const run of RUNS) {
       await expect(hd, 'board:SampleMode/sample.hd-button').toHaveText(uiText(locale, 'generationCommon.sample.makeFinal'))
       await expect(hd).toHaveAttribute('aria-label', uiTextWith(locale, 'generationCommon.sample.makeFinalAria', { resolution: '1080p' }))
       // ★9-6：算不出价——不印数、不印 0；读屏那句证明约价真跑过（不是没算）。
-      await expect(hd.locator('[data-sample-cost]'), 'board:SampleMode/sample.hd-no-price：不印数').toHaveCount(0)
+      await expectAbsent(hd.locator('[data-sample-cost]'), { provenBy: await proveProbe(hd, '「出高清」钮在'), message: 'board:SampleMode/sample.hd-no-price：不印数' })
       assert(!/\d/.test(await hd.innerText()), 'board:SampleMode/sample.hd-no-price：钮上没有数字（也没有 0）')
       await expect(hd, 'board:SampleMode/sample.hd-no-price：悬停 / 读屏说估不出').toHaveAttribute('aria-description', uiText(locale, 'generationCommon.composer.sendCost.priceUnknown'))
-      await expect(selectedNodeComposer(win).locator('[data-send-cost]'), 'board:SampleMode/sample.send-price：出完样片后发送键也不印数').toHaveCount(0)
-      // 有了结果以后发送键换了读屏名（不再是「生成素材」），按它在生成框里的位置认（data-bar-segment=generate 只有这一颗）。
-      const sendKey = selectedNodeComposer(win).locator('button[data-bar-segment="generate"]').first()
+      await expectAbsent(selectedNodeComposer(win).locator('[data-send-cost]'), {
+        provenBy: await proveProbe(sendKey, '出完样片后生成框里的发送键在'),
+        message: 'board:SampleMode/sample.send-price：出完样片后发送键也不印数',
+      })
       await expect(sendKey, 'board:SampleMode/sample.send-price：发送键读屏也说估不出（约价真跑过）').toHaveAttribute('aria-description', uiText(locale, 'generationCommon.composer.sendCost.priceUnknown'))
       await expectFont(chip, 'caption', 'board:SampleMode/sample.expiry-chip')
       await expectFont(hd, 'caption', 'board:SampleMode/sample.hd-button')
@@ -405,12 +414,13 @@ for (const run of RUNS) {
       assert(Math.abs(geo.lineHeight - 28 * geo.zoom) <= 1, `board:SampleMode/sample.below-row：行高 ${geo.lineHeight}（缩放 ${geo.zoom}）不是 28`)
       await onCanvas(win, chip, 'hover expiry chip', { hover: true })
       await expect(win.locator('[data-sample-expiry-hover] [role="tooltip"]').first(), 'board:SampleMode/sample.expiry-tooltip（读屏那一份；可见那份同字）').toHaveText(uiTextWith(locale, 'generationCommon.sample.tooltip.days', { count: 2 }))
+      const tipShown = await proveProbe(win.locator('[data-sample-expiry-hover]'), '悬停时有效期提示在')
       await screenshotSettled(win, { path: shot('03-sample-ready') })
       // 指针真的移开（多步移动，像真鼠标）：一步跳走会停在 Radix 的「移向提示框」缓冲区里，提示一直开着、盖进后面的截图。
       const box = await chip.boundingBox()
       await win.mouse.move(box.x + box.width / 2, box.y + box.height + 40, { steps: 6 })
       await win.mouse.move(box.x - 60, box.y + box.height + 60, { steps: 6 })
-      await expect(win.locator('[data-sample-expiry-hover]'), '指针移开，提示收起').toHaveCount(0)
+      await expectAbsent(win.locator('[data-sample-expiry-hover]'), { provenBy: tipShown, message: '指针移开，提示收起' })
     })
 
     await station('hd', run, async () => {
@@ -428,16 +438,20 @@ for (const run of RUNS) {
       await holdAbsent(win.locator('[role="dialog"]'), '第一次出高清不弹确认框', 800)
       // 在路上：样片照常可见、可播，下方写「高清生成中」。
       await expect(row, 'board:SampleMode/sample.hd-progress').toHaveAttribute('data-sample-state', 'final-active')
+      const rowShown = await proveProbe(node.locator('[data-sample-row]'), '出高清在路上时样片那一行在')
       await expect(row.locator('[data-sample-final-progress]'), 'board:SampleMode/sample.hd-progress').toHaveText(uiText(locale, 'generationCommon.sample.finalInFlight'))
       await expectFont(row.locator('[data-sample-final-progress]'), 'caption', 'board:SampleMode/sample.hd-progress')
       // 遮罩按这次运行的事实让路（出高清 = 带 draftTaskId 的那一次）：节点上不挂生成遮罩，卡片里也不叠第二份状态。
       await expect(node.locator('video').first(), 'board:SampleMode/sample.hd-progress：出高清中样片 <video> 还在').toBeVisible()
       await holdAbsent(node.locator('[data-generating-placement]'), 'board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住', 800)
-      await expect(node.locator('[data-node-inline-status] [data-generation-status]'), 'board:SampleMode/sample.hd-progress：状态只在下方那一行写').toHaveCount(0)
+      await expectAbsent(node.locator('[data-node-inline-status] [data-generation-status]'), {
+        provenBy: await proveProbe(node.locator('video'), '出高清中样片的 <video> 在'),
+        message: 'board:SampleMode/sample.hd-progress：状态只在下方那一行写',
+      }, 1000)
       await screenshotSettled(win, { path: shot('04-hd-in-flight') })
       const badge = node.locator('[data-version-badge]').first()
       await expect(badge, 'board:SampleMode/sample.version-hd：版本角标 2').toHaveText('2', { timeout: LONG })
-      await expect(node.locator('[data-sample-row]'), '高清版当主图：下方没有样片行').toHaveCount(0)
+      await expectAbsent(node.locator('[data-sample-row]'), { provenBy: rowShown, message: '高清版当主图：下方没有样片行' })
       assert.equal(videoCreates(fake), before + 1, '出高清只建 1 个任务')
       assert.equal(videoPosts(fake), postsBefore + 1, '出高清只 POST 1 次')
       await setVersionsSpread(win, ctx.sampleNodeId, true)
@@ -500,6 +514,7 @@ for (const run of RUNS) {
     })
 
     await station('plain', run, async () => {
+      const makeFinalSeen = await proveProbe(nodeById(win, ctx.sampleNodeId).locator('[data-sample-make-final]'), '样片节点上的「出高清」在（探针认得出这颗钮）')
       await win.keyboard.press('Escape')
       await addCanvasNode(win, 'video')
       await expectVisible(selectedNodeComposer(win), 'plain node composer')
@@ -520,7 +535,7 @@ for (const run of RUNS) {
       const node = nodeById(win, plainId)
       await expect(node.locator('video').first(), '普通 2.5 出完').toBeAttached({ timeout: LONG })
       await holdAbsent(node.locator('[data-sample-row]'), 'board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行', 1500)
-      await expect(node.locator('[data-sample-make-final]'), 'board:SampleMode/sample.old-node：没有「出高清」').toHaveCount(0)
+      await expectAbsent(node.locator('[data-sample-make-final]'), { provenBy: makeFinalSeen, message: 'board:SampleMode/sample.old-node：没有「出高清」' })
       await screenshotSettled(win, { path: shot('07-plain-480p') })
     })
 
@@ -563,10 +578,11 @@ for (const run of RUNS) {
         await onCanvas(win, title.locator('span').first(), label, { keep })
         const input = title.locator('input').first()
         await expect(input, `${label}：标签变成输入框`).toBeVisible()
+        const editing = await proveProbe(title.locator('input'), `${label}：改名输入框在`)
         const previous = await input.inputValue()
         await input.fill(value)
         await input.press('Enter')
-        await expect(title.locator('input'), `${label}：回车收起`).toHaveCount(0)
+        await expectAbsent(title.locator('input'), { provenBy: editing, message: `${label}：回车收起` })
         return previous
       }
       const originalTitle = await rename(LONG_SHOT_NAME[locale], 'rename to the 28-char shot name')
@@ -657,10 +673,11 @@ for (const run of RUNS) {
       const row = node.locator('[data-sample-row]').first()
       const chip = row.locator('[data-sample-expiry]').first()
       await onCanvas(win, chip, 'bring the sample row into view', { hover: true, keep: node.locator('.generation-canvas-v2-node__preview').first() })
+      const tipShown = await proveProbe(win.locator('[data-sample-expiry-hover]'), '悬停时有效期提示在')
       const chipBox = await chip.boundingBox()
       await win.mouse.move(chipBox.x + chipBox.width / 2, chipBox.y + chipBox.height + 40, { steps: 6 })
       await win.mouse.move(chipBox.x - 60, chipBox.y + chipBox.height + 60, { steps: 6 })
-      await expect(win.locator('[data-sample-expiry-hover]'), '指针移开，提示收起').toHaveCount(0)
+      await expectAbsent(win.locator('[data-sample-expiry-hover]'), { provenBy: tipShown, message: '指针移开，提示收起' })
       await expect(row).toHaveAttribute('data-sample-state', 'ready')
       if (!ctx.clockInstalled) await win.clock.install()
       const deadline = ctx.sendAt + TTL_HOURS * HOUR
@@ -675,9 +692,10 @@ for (const run of RUNS) {
       await expect(chip, 'board:SampleMode/sample.expiry-chip：剩 48 分钟（向上取整，不说 0）').toHaveText(uiTextWith(locale, 'generationCommon.sample.expiry.minutes', { count: 48 }))
       await expect(chip).toHaveAttribute('data-sample-expiry-warning', 'true')
       await screenshotSettled(win, { path: shot('08-expiry-warning') })
+      const makeFinalBefore = await proveProbe(row.locator('[data-sample-make-final]'), '过期前「出高清」在')
       await at(-MINUTE)
       await expect(chip, 'board:SampleMode/sample.expiry-chip：过期').toHaveText(uiText(locale, 'generationCommon.sample.expiry.expired'))
-      await expect(row.locator('[data-sample-make-final]'), '过期后没有「出高清」').toHaveCount(0)
+      await expectAbsent(row.locator('[data-sample-make-final]'), { provenBy: makeFinalBefore, message: '过期后没有「出高清」' })
       const redraft = row.locator('[data-sample-redraft]').first()
       await expect(redraft, 'board:SampleMode/sample.redraft-button').toHaveText(uiText(locale, 'generationCommon.sample.redraft'))
       await expectFont(redraft, 'caption', 'board:SampleMode/sample.redraft-button')
