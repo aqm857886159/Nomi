@@ -1,0 +1,213 @@
+
+> nomi@0.24.1 test:core-smoke /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea
+> python3 scripts/with-gates-lock.py -- node tests/ux/core-smoke/run.mjs -- --fixture used
+
+
+[core-smoke:used] node-params-and-version-pill
+[walkthrough] content viewport {"width":1280,"height":800}
+[core-smoke] used 状态就位：{"fixture":"used","nodes":28,"edges":27,"groups":5,"emptyFrames":2,"multiVersionNodes":9,"clips":6,"renderedNodes":24,"viewport":{"width":1280,"height":800}}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/00-canvas-ready.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ G1 拖动平移松手：画布不再处于拖动态 — {"dragging":null}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=21; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ G2 平移后 150ms 内点卡：画布不再处于拖动态 — {"dragging":null}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ G3 平移后 150ms 内点空白：画布不再处于拖动态 — {"dragging":null}
+  ✓ G4 滚轮平移：画布不再处于拖动态 — {"dragging":null}
+  ✓ G5 触控板平移（模拟：deltaX+deltaY 的 wheel，ctrlKey=false）：画布不再处于拖动态 — {"dragging":null}
+  ✓ G6 平移后 150ms 内接滚轮：画布不再处于拖动态 — {"dragging":null}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=21; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ G7 拖动中 pointercancel（模拟）：画布不再处于拖动态 — {"dragging":null}
+  ✓ G8 拖动中窗口失焦（模拟）：画布不再处于拖动态 — {"dragging":null}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ P1 空图片卡选中后生成浮框看得见 — {}
+  ✓ P1 参数条（浮框底栏）看得见 — {}
+  ✓ P1 参数条按钮点得到（elementFromPoint 命中它自己） — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=23; new-surfaces=1; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/01-empty-image-composer.png; findings=23; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=23; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ P2 生成过的卡选中后生成浮框看得见 — {}
+  ✓ P2 卡上浮条看得见 — {}
+  ✓ P3 角标入口点得到 — {}
+  ✓ P3 点角标：版本在原地铺开（看得见） — {}
+  ✓ P3 两版铺成两张卡 — {"cards":2}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/02-version-cards.png; findings=26; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ P4 在版本卡上把第 1 版设为主图 — {}
+  ✓ P5 下载这一版写出非空文件 — {"bytes":293067}
+  ✓ P6 再点角标：版本收起 — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ F1 选中框按 Delete：框和里面的卡一起删掉 — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/03-frame-deleted.png; findings=26; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ F1 ⌘Z 一次全部回来 — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ F2 点空框：框本身被选中 — {}
+  ✓ F2 点空框：之前选中的卡不再被选着（Delete 不会误删别处） — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/04-empty-frame-selected.png; findings=26; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ F2 选中空框按 Backspace 删掉 — {}
+  ✓ F2 别的卡一张没少 — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ F2 ⌘Z 空框回来 — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=28; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/05-frame-menu-delete.png; findings=28; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=26; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ F3 框菜单「删除」：框和里面的卡一起删 — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+  ✓ F3 ⌘Z 一次全部回来 — {}
+feel record: core-smoke-node-params-pill-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+feel record: core-smoke-node-params-pill-used/06-end.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-node-params-pill-used-3fd0f1e2-75e6-4493-84a7-00af936f27b0
+
+✓ node-params-and-version-pill [used · zh-CN] 全部通过，截图：/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/tests/ux/shots/node-params-and-version-pill/run-used-zh-CN
+
+[core-smoke:used] canvas-drag-pan-gestures
+[walkthrough] content viewport {"width":1280,"height":800}
+feel record: core-smoke-canvas-drag-pan-used/waitForLoadState.png; findings=0; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/waitForLoadState.png; findings=0; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+[core-smoke] used 状态就位：{"fixture":"used","nodes":24,"edges":27,"groups":3,"emptyFrames":1,"multiVersionNodes":8,"clips":6,"renderedNodes":24,"viewport":{"width":1280,"height":800}}
+  ✓ 每张新建的卡都在 stage 里看得见（不被常驻 Agent 面板遮住）：落在屏里，或点边缘提示过去完整框住；画布从不自己挪 — [{"kind":"image","path":"in-view","hint":null,"id":"gen-v2-image-mwy19t4j-k3iw","inside":true,"seen":true,"overflowRight":-548,"overflowLeft":-180,"stage":{"w":814,"h":512},"node":{"w":86,"h":86}},{"kind":"video","path":"in-view","hint":null,"id":"gen-v2-video-mwy19ukj-bquo","inside":true,"seen":true,"overflowRight":-536,"overflowLeft":-172,"stage":{"w":814,"h":512},"node":{"w":107,"h":60}}]
+  ✓ 画布上有两个节点 — [{"id":"gen-v2-image-mwy19t4j-k3iw","kind":"image"},{"id":"gen-v2-video-mwy19ukj-bquo","kind":"video"}]
+  ✓ 找得到一块画布空白 — {"x":508,"y":142}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=25; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  ✓ 视口静止时不升合成层（will-change 不含 transform） — auto
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=21; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/01-panning.png; findings=21; new-surfaces=1; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 01-panning.png
+  ✓ 拖动中光标是 grabbing — grabbing
+  ✓ 左键平移不写 data-panning（光标交给 CSS :active）
+  ✓ 平移期间画布进入拖动态
+  ✓ 平移期间浮层也收起来了 — {"cursor":"grabbing","panningAttr":null,"draggingAttr":"true","visibleOverlays":0,"marquee":0}
+  ✓ 空白左键拖不再拉出框选矩形
+  ✓ 画布确实跟着鼠标移动了 — Δ=(-140, -90)
+  ✓ 平移不改变缩放
+  ✓ 平移前后节点是同一批 DOM 实例（没有整层重建） — {"same":true,"before":2,"after":2}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=31; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  ✓ 第一张卡上找得到真正点得到的一点 — {"x":189.20763305664062,"y":171.91937744140625}
+  ✓ 点节点会选中它
+  ✓ 点一下空白就取消选中（没拖动=不算平移）
+  ✓ 空选区下点空白：连线层 / 标签层 / 画布外壳零 DOM 变更 — {"edges":0,"labels":0,"stage":0}
+  ✓ 框选前两张卡已缩到画布的六成以内（四角才够离开自动平移带） — {"widthRatio":0.126,"heightRatio":0.326}
+  ✓ 框选起手点与终点完整落在画布空白处 — {"start":{"x":826,"y":504},"end":{"x":108,"y":88}}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=23; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/02-shift-marquee.png; findings=23; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 02-shift-marquee.png
+  ✓ Shift+左键拖会画出框选矩形
+  ✓ 实时框选使用 Nomi 中性色，不被 React Flow 蓝色或 accent 覆盖 — {"borderColor":"oklab(0.93 0.000522935 0.00597717 / 0.36)","backgroundColor":"oklab(0.93 0.000522935 0.00597717 / 0.07)","accentBorderColor":"oklch(0.7 0.13 250)"}
+  ✓ 框选把框内节点都选上了 — 26 个
+  ✓ 半扫之前先把选区清空（否则选上了也说明不了问题）
+  ✓ 找得到「只扫到一张卡一半」的框选手势 — {"id":"gen-v2-image-mwy19t4j-k3iw","start":{"x":406,"y":195},"end":{"x":465,"y":314},"coveredRatio":0.5}
+  ✓ 这一框确实只盖住这张卡的一部分（否则 Full/Partial 两种语义都会绿） — 盖住 50%
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/02a-partial-marquee.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 02a-partial-marquee.png
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/backfill-a-partial-marquee.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 证据截图 backfill-a-partial-marquee.png
+  ✓ 框只扫过卡的一半，这张卡照样被选上（相交即选，不是必须整张落进框） — {"gesture":{"id":"gen-v2-image-mwy19t4j-k3iw","start":{"x":406,"y":195},"end":{"x":465,"y":314},"coveredRatio":0.5},"selected":["gen-v2-image-mwy19t4j-k3iw","gen-v2-video-mwy19ukj-bquo"]}
+  ✓ 拖动中就已经选上了（证据截图里框与选中态同框） — ["gen-v2-image-mwy19t4j-k3iw","gen-v2-video-mwy19ukj-bquo"]
+  ✓ 向上滚轮放大画布 — 1.00 → 1.95
+  ✓ 缩放锚在光标：光标下的那个画布坐标没有跑掉 — Δ=(0.00, -0.00)
+  ✓ 按住左键时滚轮照样缩放
+  ✓ 平移中缩放也锚在光标 — Δ=(-0.00, -0.00)
+  ✓ 缩放后继续拖：位移接着缩放后的位置走，不回跳（抖动的判据） — 位移 10.00px（应 ≈10）
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  ✓ 图片卡上找得到真正点得到的一点 — {"x":223.996875,"y":125.91937744140625}
+  ✓ 选中图片节点恢复左右两个 29px 磁吸 + — [{"side":"left","hasPlus":true,"cssWidth":"29px","cssHeight":"29px","screenWidth":9.884490966796875,"screenHeight":9.88446044921875,"opacity":"0.82"},{"side":"right","hasPlus":true,"cssWidth":"29px","cssHeight":"29px","screenWidth":9.88446044921875,"screenHeight":9.88446044921875,"opacity":"0.82"}]
+  ✓ 缩放命中区保留但不显示 React Flow 小球 — [{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"1px","borderTopColor":"rgba(0, 0, 0, 0)","boxShadow":"none"},{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"0px","borderTopColor":"rgba(0, 0, 0, 0)","boxShadow":"none"},{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"0px","borderTopColor":"rgba(0, 0, 0, 0)","boxShadow":"none"},{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"0px","borderTopColor":"rgba(0, 0, 0, 0)","boxShadow":"none"},{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"0px","borderTopColor":"oklab(0.93 0.000522935 0.00597717)","boxShadow":"none"},{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"0px","borderTopColor":"oklab(0.93 0.000522935 0.00597717)","boxShadow":"none"},{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"0px","borderTopColor":"oklab(0.93 0.000522935 0.00597717)","boxShadow":"none"},{"backgroundColor":"rgba(0, 0, 0, 0)","borderTopWidth":"0px","borderTopColor":"oklab(0.93 0.000522935 0.00597717)","boxShadow":"none"}]
+  ✓ 图片节点右侧握把可点 — {"magnetic":true,"label":"generation-canvas-react-flow__handle-hit"}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  ✓ 视频卡上找得到一处露出来的松手点 — {"videoBox":{"x":483.1495666503906,"y":123.37008666992188,"width":143.15438842773438,"height":80.43911743164062}}
+  ✓ 图片节点只连到了指定的视频节点 — ["edge-gen-v2-image-mwy19t4j-k3iw::gen-v2-video-mwy19ukj-bquo::0"]
+  ✓ 连线起终点真实贴在两个节点的渲染边界 — {"sourceBoundaryError":0.17031123484548516,"targetBoundaryError":0.17044719258046825,"sourceWithinHeight":true,"targetWithinHeight":true,"stroke":"oklch(0.7 0.13 250)","accent":"oklch(0.7 0.13 250)"}
+  ✓ 连线恢复主题 accent 色 — {"sourceBoundaryError":0.17031123484548516,"targetBoundaryError":0.17044719258046825,"sourceWithinHeight":true,"targetWithinHeight":true,"stroke":"oklch(0.7 0.13 250)","accent":"oklch(0.7 0.13 250)"}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  ✓ 视频卡上找得到真正点得到的一点 — {"x":500.3280932617188,"y":133.02278076171876}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/04-edge-labels-on-selection.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 04-edge-labels-on-selection.png
+  ✓ 选中节点后其关联边点亮（data-incident）
+  ✓ 连线上找得到真正点得到的一点 — {"x":423.32253039409306,"y":169.95532854141038}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/04c-edge-disconnected.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 04c-edge-disconnected.png
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=22; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/04d-edge-disconnect-undone.png; findings=22; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 04d-edge-disconnect-undone.png
+  ✓ 断线按一次 Cmd+Z 还原，前一笔节点/连线保留
+  · 放大到细节线之上：点「+」2 次 0.425 → 0.537
+  ✓ 拖动那一段的前提：缩放在细节线（40%）之上，没选中的卡是整卡 — 缩放 0.537
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=28; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  ✓ 放大后视频卡上找得到真正点得到的一点 — {"x":524.0040356445312,"y":237.75685546875}
+  ✓ 选中节点时提示词面板可见
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=30; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  ✓ 视频卡上找得到可以起手拖动的一点 — {"x":488.215,"y":112.84700256347656}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=29; new-surfaces=1; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/05-node-drag-clean.png; findings=29; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 05-node-drag-clean.png
+  ✓ 拖动中画布发布 data-dragging（画布级，不是某张卡的私事）
+  ✓ 拖动中提示词面板隐身 — {"dragging":true,"composer":"hidden","toolbar":"hidden","visibleOverlays":0}
+  ✓ 拖动中浮动工具条不显示 — {"dragging":true,"composer":"hidden","toolbar":"hidden","visibleOverlays":0}
+  ✓ 拖动中全画布没有任何浮层露头 — {"dragging":true,"composer":"hidden","toolbar":"hidden","visibleOverlays":0}
+  ✓ 松手后提示词面板原样回来 — {"dragging":false,"composer":"visible"}
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=29; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/06-drag-other-node.png; findings=29; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 06-drag-other-node.png
+  ✓ 拖另一个节点时画布同样进入拖动态 — {"probe":{"hit":"relative h-full w-full text-center","nodeId":"gen-v2-image-mwy19t4j-k3iw","flowNodeId":"gen-v2-image-mwy19t4j-k3iw","transform":"matrix(1, 0, 0, 1, -147, 252)"},"crossDrag":{"dragging":"true","overlays":2,"visible":0,"selected":[{"id":"gen-v2-image-mwy19t4j-k3iw","transform":"matrix(1, 0, 0, 1, -284.674, 350.605)"}]},"imageMoveDistance":169.34307278716776}
+  ✓ 直接拖动未选中节点后，该节点成为当前选中节点
+  ✓ 直接拖动未选中节点时节点确实发生位移 — 位移 169.3px
+  ✓ 拖另一个节点时，画布上挂着的浮层一个都不显示 — {"dragging":"true","overlays":2,"visible":0,"selected":[{"id":"gen-v2-image-mwy19t4j-k3iw","transform":"matrix(1, 0, 0, 1, -284.674, 350.605)"}]}
+  · 一秒平移（60 次移动）期间布局重算 1 次；其中节点进出视野的帧 1 帧
+  ✓ 平移是纯合成：整段拖动几乎不重算布局（节点进出视野那几帧除外） — 1 次 / 60 帧，挂卸帧 1
+  ✓ 双击空白不缩放（误触不再突然放大一档） — 0.537 → 0.537
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=28; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/07-middle-drag-panning.png; findings=28; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 07-middle-drag-panning.png
+  ✓ 中键拖平移期间写了 data-panning — {"panningAttr":"true","cursor":"grabbing"}
+  ✓ 中键拖平移光标是 grabbing — grabbing
+  ✓ 松手后 data-panning 清干净（不留残留态）
+  ✓ 中键拖真的平移了画布 — Δx=-90
+  ✓ 空格+左键压在节点上仍然平移画布（不是拖节点） — Δx=-60
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=54; new-surfaces=1; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/backfill-a-help-modifier-zoom.png; findings=54; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 证据截图 backfill-a-help-modifier-zoom.png
+  ✓ 平移档的帮助浮层写着「滚轮/双指滑=平移、修饰键+滚轮=缩放」 — 选择 框选（追加到选区） Shift + 左拖 追加 / 移除 Shift + 单击 取消选中 空白单击 全选 ⌘ A 移动画布 平移 空白左拖 平移 Space + 左拖 平移 中键 / 右键拖 平移 滚轮 / 双指滑 缩放 缩放 ⌘ + 滚轮 缩放 双指捏合 放大 / 缩小 ⌘ + / ⌘ − 创作 在鼠标处新建节
+  ✓ 平移档：滚轮不再缩放画布（这正是设置失效时的症状） — 0.537 → 0.537
+  ✓ 平移档：滚轮纵向平移画布 — Δy=-480
+  ✓ 平移档：横向滚动（触控板左右滑）横向平移画布 — Δx=-360
+  ✓ 平移档：修饰键+滚轮仍然缩放（真值表第二行，也是这一档唯一的缩放入口） — 0.537 → 1.046
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=27; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/08-wheel-pan-scheme.png; findings=27; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 08-wheel-pan-scheme.png
+  ✓ 平移档：视口里有一张点得到的卡（松手即点的目标） — {"id":"used-gen-v2-character-mqjqjir2-vg4f","x":269.3070068359375,"y":132.74322509765625}
+  ✓ 平移档：平移松手后 150ms 内点卡，画布不卡在拖动态（浮框/浮条/托盘不会隐身） — data-dragging=null
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=69; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/backfill-a-help-wheel-zoom.png; findings=69; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 证据截图 backfill-a-help-wheel-zoom.png
+  ✓ 缩放档的帮助浮层不再列「滚轮=平移」那一行（文案跟着实物走） — 选择 框选（追加到选区） Shift + 左拖 追加 / 移除 Shift + 单击 取消选中 空白单击 全选 ⌘ A 移动画布 平移 空白左拖 平移 Space + 左拖 平移 中键 / 右键拖 缩放 缩放 滚轮 缩放 双指捏合 放大 / 缩小 ⌘ + / ⌘ − 创作 在鼠标处新建节点 Tab 连线（选中两个） ⌘
+  ✓ 缩放档：滚轮照旧缩放画布（默认档没被这次回填改坏） — 0.236 → 0.459
+feel record: core-smoke-canvas-drag-pan-used/waitForFunction.png; findings=59; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+feel record: core-smoke-canvas-drag-pan-used/09-wheel-zoom-scheme.png; findings=59; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/artifacts/feel/core-smoke-canvas-drag-pan-used-e80312ab-7080-44d4-b509-69711b702064
+  · 截图 09-wheel-zoom-scheme.png
+  ✓ 全程无页面错误
+
+✅ 画布手势走查通过：72 项断言，截图在 /Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/tests/ux/shots/canvas-drag-pan-gestures/used-zh-CN
+
+[core-smoke:used] spend-confirm--confirm
+[walkthrough] content viewport {"width":1280,"height":800}
+[core-smoke] used 状态就位：{"fixture":"used","nodes":24,"edges":27,"groups":3,"emptyFrames":1,"multiVersionNodes":8,"clips":6,"renderedNodes":24,"viewport":{"width":1280,"height":800}}
+[core-smoke] spend-confirm/confirm 通过：出站 1 次，节点 gen-v2-image-mwy1ayt4-qiq8 落成 success，画布一格未动
+
+[core-smoke:used] spend-confirm--cancel
+[walkthrough] content viewport {"width":1280,"height":800}
+[core-smoke] used 状态就位：{"fixture":"used","nodes":24,"edges":27,"groups":3,"emptyFrames":1,"multiVersionNodes":8,"clips":6,"renderedNodes":24,"viewport":{"width":1280,"height":800}}
+[core-smoke] spend-confirm/cancel 通过：节点 25 个不变，媒体请求 0 次
+
+core-smoke[used]: PASS (4/4，110s)
