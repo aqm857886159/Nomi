@@ -1,8 +1,10 @@
-// Values here exercise the reader contract. The two real #1665 captures are separate walk artifacts.
+// The small cases exercise pairing and R4. The published walk samples below cover the third acceptance review.
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import { checkBoardManifest } from './check-board-parity.mjs'
 import * as gauge from './board-diff.mjs'
+import { makeTempDir } from './_test-temp.mjs'
 
 const element = 'account'
 const candidate = '001-div'
@@ -111,7 +113,6 @@ it('repayment retires a candidate even if other candidates on the same legacy el
 it('loads walk JSON from the board directory and rejects a stale or edited receipt', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
-  const { makeTempDir } = await import('./_test-temp.mjs')
   const { boardEvidence } = await import('./board-diff-evidence.mjs')
   const dir = makeTempDir('board-diff-walk-')
   const receipt = report(sample())
@@ -127,4 +128,97 @@ it('loads walk JSON from the board directory and rejects a stale or edited recei
   assert.match(readErrors().join('\n'), /原始读数/)
   fs.writeFileSync(file, JSON.stringify({ ...receipt, sourceSha256: '0'.repeat(64) }))
   assert.match(readErrors().join('\n'), /指纹|哈希/)
+})
+
+describe('ModelSurfaces · #1665 第三轮验收的实测读数', () => {
+  const fromWalk = file => JSON.parse(readFileSync(new URL(
+    '../docs/evidence/2026-11-26-c0-board-diff/' + file + '.diff.json', import.meta.url), 'utf8'))
+  const zh = fromWalk('zh-CN.light')
+  const en = fromWalk('en.dark')
+  const replay = r => gauge.buildDiffReport(r, r.samples)
+  const rowsByTrack = { 'zh-CN.light': replay(zh).differences, 'en.dark': replay(en).differences }
+  const observed = JSON.parse(readFileSync(new URL('./fixtures/model-settings-board-diff.json', import.meta.url), 'utf8'))
+
+  function expectDelta(rows, id, property, board, screen) {
+    const found = rows.filter(row => row.candidate === id && row.property === property)
+    assert.deepEqual(found.map(row => [row.board, row.screen]), [[board, screen]], id + ' ' + property)
+  }
+
+  it('两轨的 40 个候选重算出同一份清单，9 个未配对的候选逐个保留', () => {
+    for (const [r, count] of [[zh, 277], [en, 279]]) {
+      assert.equal(r.screenRevision, 'aaedadf48f37482e55093e66312036a8bdd86feb')
+      assert.equal(r.samples.length, 40)
+      assert.equal(r.differences.length, count)
+      assert.deepEqual(replay(r).differences, r.differences)
+      const missing = r.samples.filter(s => s.screen === null).map(s => s.candidate)
+      assert.equal(missing.length, 9)
+      assert.deepEqual(r.differences.filter(d => d.property === 'pair').map(d => d.candidate), missing)
+    }
+  })
+
+  // The host walk printed these candidate/property pairs independently of replaying the saved JSON.
+  const observationCounts = [3, 1, 3, 2, 2, 2, 4, 3, 4]
+  for (const [index, count] of observationCounts.entries()) {
+    const section = '§1.' + (index + 1)
+    const { label, track, observations } = observed[section]
+    it(section + ' ' + label, () => {
+      assert.equal(observations.length, count)
+      for (const { candidate, property, board, screen } of observations) {
+        expectDelta(rowsByTrack[track], candidate, property, board, screen)
+      }
+    })
+  }
+
+  it('§1.3 横线、竖线相对账户卡的左右和底边距离', () => {
+    const cell = zh.samples.find(s => s.candidate === '060-div')
+    const card = zh.samples.find(s => s.candidate === '052-div')
+    function insets(surface) {
+      const a = card[surface], g = cell[surface]
+      return [g.x - a.x, a.x + a.width - g.x - g.width, a.y + a.height - g.y - g.height]
+    }
+    assert.deepEqual(insets('board'), [0, 0, 0])
+    assert.deepEqual(insets('screen'), [13, 13, 11])
+  })
+
+  it('两轨三格标签的字号、行高、墨色相同，18 个属性都不进差异清单', () => {
+    for (const [r, ids] of [
+      [zh, ['061-span-账户余额', '067-span-这把Key的额度', '071-span-近7天花了']],
+      [en, ['240-span-Balance', '246-span-Thiskeyslimi', '250-span-Last7days']],
+    ]) {
+      const rows = replay(r).differences
+      for (const id of ids) {
+        const s = r.samples.find(row => row.candidate === id)
+        for (const values of [s.board, s.screen]) {
+          assert.deepEqual([values.fontSize, values.lineHeight, values.color], [12, 18, 'ink-60'])
+        }
+        assert.deepEqual(rows.filter(row => row.candidate === id && ['fontSize', 'lineHeight', 'color'].includes(row.property)), [])
+      }
+    }
+  })
+
+  it('实测账户卡留一条未批准即红，补齐拍板人和理由才绿', () => {
+    const s = zh.samples.find(row => row.candidate === '052-div')
+    const r = gauge.buildDiffReport(zh, [s])
+    const check = decisions => checkBoardManifest({
+      board: r.board, candidates: [{ id: s.candidate }],
+      manifest: { board: r.board, stage: 'built', decisions, elements: [
+        { id: s.element, candidates: [s.candidate], component: 'ModelAccountCard', status: 'implemented', states: ['zh-en'] },
+      ] },
+      evidence: { reports: [r], sourceSha256: r.sourceSha256 },
+    })
+    const all = r.differences.map(d => ({ ...decision(d.property), candidate: d.candidate }))
+    const errors = check(all.filter(d => d.property !== 'radiusTopLeft'))
+    assert.equal(errors.length, 1)
+    assert.match(errors[0], /052-div radiusTopLeft 10 → 6/)
+    assert.deepEqual(check(all), [])
+  })
+
+  it('两边不读圆角时第 1 组断言必红，还原实测值即绿', () => {
+    const s = zh.samples.find(row => row.candidate === '052-div')
+    const corners = { radiusTopLeft: 0, radiusTopRight: 0, radiusBottomLeft: 0, radiusBottomRight: 0 }
+    const mutated = { ...s, board: { ...s.board, ...corners }, screen: { ...s.screen, ...corners } }
+    const checkRadius = r => expectDelta(r.differences, s.candidate, 'radiusTopLeft', 10, 6)
+    assert.throws(() => checkRadius(gauge.buildDiffReport(zh, [mutated])), assert.AssertionError)
+    checkRadius(gauge.buildDiffReport(zh, [s]))
+  })
 })

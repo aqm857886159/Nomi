@@ -1,0 +1,200 @@
+{
+  "§1.1": {
+    "label": "账户卡及两行入口圆角",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "052-div",
+        "property": "radiusTopLeft",
+        "board": 10,
+        "screen": 6
+      },
+      {
+        "candidate": "078-div",
+        "property": "radiusTopLeft",
+        "board": 10,
+        "screen": 6
+      },
+      {
+        "candidate": "083-div",
+        "property": "radiusTopLeft",
+        "board": 10,
+        "screen": 6
+      }
+    ]
+  },
+  "§1.2": {
+    "label": "其他接入图标",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "084-svg",
+        "property": "iconPath",
+        "board": "M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5",
+        "screen": "M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3"
+      }
+    ]
+  },
+  "§1.3": {
+    "label": "横线、竖线通边及格内 padding",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "060-div",
+        "property": "width",
+        "board": 532,
+        "screen": 506
+      },
+      {
+        "candidate": "067-span-这把Key的额度",
+        "property": "parentPaddingLeft",
+        "board": 14,
+        "screen": 12
+      },
+      {
+        "candidate": "067-span-这把Key的额度",
+        "property": "parentPaddingTop",
+        "board": 10,
+        "screen": 0
+      }
+    ]
+  },
+  "§1.4": {
+    "label": "Key 行等宽与墨色",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "057-span-skf3a9存在系统钥匙",
+        "property": "monospace",
+        "board": true,
+        "screen": false
+      },
+      {
+        "candidate": "057-span-skf3a9存在系统钥匙",
+        "property": "color",
+        "board": "ink-60",
+        "screen": "ink-40"
+      }
+    ]
+  },
+  "§1.5": {
+    "label": "英文 AI 行标题及页头副标题",
+    "track": "en.dark",
+    "observations": [
+      {
+        "candidate": "259-span-Connectwithm",
+        "property": "text",
+        "board": "Connect with my AI assistant",
+        "screen": "Let AI connect it for me"
+      },
+      {
+        "candidate": "229-div-APIMartconne",
+        "property": "text",
+        "board": "APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
+        "screen": "APIMart Connected · Image 26 · Video 30 · Audio 10 · Text 25"
+      }
+    ]
+  },
+  "§1.6": {
+    "label": "卡名与已连接胶囊",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "055-span-APIMart",
+        "property": "fontWeight",
+        "board": 600,
+        "screen": 700
+      },
+      {
+        "candidate": "056-span-已连接",
+        "property": "height",
+        "board": 20,
+        "screen": 16.5
+      }
+    ]
+  },
+  "§1.7": {
+    "label": "链接字重与箭头尺寸",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "065-span-去充值",
+        "property": "fontWeight",
+        "board": 500,
+        "screen": 400
+      },
+      {
+        "candidate": "066-svg",
+        "property": "width",
+        "board": 12,
+        "screen": 11
+      },
+      {
+        "candidate": "075-span-用量与单价",
+        "property": "fontWeight",
+        "board": 500,
+        "screen": 400
+      },
+      {
+        "candidate": "076-svg",
+        "property": "width",
+        "board": 12,
+        "screen": 11
+      }
+    ]
+  },
+  "§1.8": {
+    "label": "三格等宽数字",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "062-span-523积分",
+        "property": "fontVariantNumeric",
+        "board": "tabular-nums",
+        "screen": "normal"
+      },
+      {
+        "candidate": "068-span-不设上限",
+        "property": "fontVariantNumeric",
+        "board": "tabular-nums",
+        "screen": "normal"
+      },
+      {
+        "candidate": "072-span-196积分",
+        "property": "fontVariantNumeric",
+        "board": "tabular-nums",
+        "screen": "normal"
+      }
+    ]
+  },
+  "§1.9": {
+    "label": "页头高、卡后间距、入口行高",
+    "track": "zh-CN.light",
+    "observations": [
+      {
+        "candidate": "047-div",
+        "property": "height",
+        "board": 56,
+        "screen": 60
+      },
+      {
+        "candidate": "052-div",
+        "property": "gapAfter",
+        "board": 16,
+        "screen": 12
+      },
+      {
+        "candidate": "078-div",
+        "property": "height",
+        "board": 58,
+        "screen": 59.5
+      },
+      {
+        "candidate": "083-div",
+        "property": "height",
+        "board": 58,
+        "screen": 59.5
+      }
+    ]
+  }
+}
