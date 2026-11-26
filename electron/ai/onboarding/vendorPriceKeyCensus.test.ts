@@ -13,9 +13,13 @@ const wireModel = (m: { modelKey?: string; create?: unknown }) =>
 // 目录新加一个键、这里没人归类，约价会悄悄变成「不报价」——这条在 CI 先红，点名是哪个模型哪个键。
 describe('every request-body key of APIMart text-to-image / text-to-video mappings is classified for price quotes', () => {
   const catalog = applyBuiltinSeeds({ version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, '2026-11-08T00:00:00Z').state
-  const rows = catalog.mappings.filter(m => m.vendorKey === 'apimart' && (m.taskKind === 'text_to_image' || m.taskKind === 'text_to_video') && m.create)
+  // 改图里只有图层分离报价（body 读 layer_decomposition 的那几条），它们的键也必须都登记过。
+  const priced = (m: (typeof catalog.mappings)[number]) => m.taskKind === 'text_to_image' || m.taskKind === 'text_to_video'
+    || (m.taskKind === 'image_edit' && Object.keys((m.create?.body ?? {}) as object).includes('layer_decomposition'))
+  const rows = catalog.mappings.filter(m => m.vendorKey === 'apimart' && priced(m) && m.create)
   it('covers a real catalog (not an empty loop)', () => {
     expect(rows.length).toBeGreaterThan(40)
+    expect(rows.filter(m => m.taskKind === 'image_edit').map(m => m.modelKey).sort()).toEqual(['doubao-seedream-5-0-pro', 'seedream-5-5'])
   })
   it('leaves no unclassified key', () => {
     const unclassified = rows.flatMap(m => Object.keys((m.create!.body ?? {}) as object)

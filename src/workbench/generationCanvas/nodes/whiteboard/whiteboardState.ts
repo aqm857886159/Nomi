@@ -43,10 +43,16 @@ export function whiteboardDraftIdentity(node: GenerationCanvasNode): string {
   return node.result ? resultIdentity(node.result) : `board:${node.id}`
 }
 
+/**
+ * 图片节点打开画板时从哪份白板接着编：这一版结果上的草稿（meta，按结果身份认）优先；没有草稿就读这一版结果自己带的白板
+ * （「完成」存的、图层分离落地时建的，都在 `raw.whiteboardState`）；都没有 → undefined（画板把结果图导入成「原图」）。
+ */
 export function readWhiteboardEditingState(node: GenerationCanvasNode) {
   if (node.kind === 'whiteboard') return readWhiteboardState(node)
   const identity = node.result ? resultIdentity(node.result) : null
-  if (!identity || !node.meta?.whiteboardResultIdentity || node.meta.whiteboardResultIdentity === identity) return readWhiteboardState(node)
+  const draftForThisResult = !identity || !node.meta?.whiteboardResultIdentity || node.meta.whiteboardResultIdentity === identity
+  const draft = draftForThisResult ? readWhiteboardState(node) : undefined
+  if (draft) return draft
   const raw = node.result?.raw
   return raw && typeof raw === 'object' ? readWhiteboardState({ meta: { whiteboardState: (raw as Record<string, unknown>).whiteboardState } }) : undefined
 }

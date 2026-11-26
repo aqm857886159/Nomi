@@ -10,10 +10,7 @@ import {
   runWorkbenchTextTaskStream,
   submitCanvasShotRun,
 } from '../../api/taskApi'
-import type {
-  GenerationCanvasNode,
-  GenerationNodeResult,
-} from '../model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { readParameterReferenceSlots } from '../model/parameterReferenceSlots'
@@ -38,7 +35,7 @@ import {
 } from './catalogTaskResolve'
 import { promptRequiredForNode } from './promptRequirement'
 import { normalizeCatalogTaskResults, type GenerationNodeResults } from './catalogTaskResultParse'
-import { localizeRemoteResultUrl } from './resultAssetLocalization'
+import { landTaskResults } from './landTaskResults'
 import {
   LocalTaskCancelledError,
   isTaskCancelRequested,
@@ -684,10 +681,6 @@ async function runCatalogGenerationTaskWithFeedback(
     if (watchedPromptId) unwatchComfyuiProgress(watchedPromptId)
   }
   report('finalizing', initialResult.id)
-  const [first, ...rest] = normalizeCatalogTaskResults(finalResult, executableNode, options.onMediaDimensions)
-  // 结构闸：主进程漏本地化时，按运行提交时固定的项目补一次本地化（每张都补），绝不让厂商临时 URL 落进节点
-  // → 隔天过期播不了。切项目后结果仍落原项目。主进程已落地时这里判为非 http，零开销 no-op。
-  const localize = (result: GenerationNodeResult) => localizeRemoteResultUrl(result, projectId, executableNode.id, options.onMediaDimensions)
-  const [localizedFirst, ...localizedRest] = await awaitWithinPhase(Promise.all([localize(first), ...rest.map(localize)]), guard)
-  return [localizedFirst!, ...localizedRest]
+  // 规范化 → 按运行提交时固定的项目落地（切项目后结果仍落原项目）→ 图层分离收成一张白板：与找回那条路同一个函数。
+  return awaitWithinPhase(landTaskResults(finalResult, executableNode, options.projectTarget, options.onMediaDimensions), guard)
 }

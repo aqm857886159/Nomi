@@ -8,8 +8,13 @@ import { isJsonRecord } from '../../jsonUtils'
 import type { VendorPriceQuery, VendorPriceRequest } from '../../shared/contracts/vendorPricePreview'
 import { builtinVendorKeyOfKey } from '../../shared/builtinVendorIdentity'
 
-/** 请求体里会进约价查询的键：它们的值改变价格，由下面 priceQueryFromRequest 逐个读出来。 */
-export const PRICE_QUERY_KEYS: ReadonlySet<string> = new Set(['model', 'n', 'count', 'quality', 'resolution', 'duration', 'size', 'audio', 'generate_audio'])
+/**
+ * 请求体里会进约价查询的键：它们的值改变价格，由下面 priceQueryFromRequest 逐个读出来。
+ * `image_urls` 读成输入图张数（除图层分离外，带输入图一律不报价——输入图另收费，单靠输出价算不出）；
+ * `layer_decomposition` / `layer_decomposition_options` 读成图层分离的开关与层数上限（docs.apimart.ai seedream-5-5 Billing，2026-11-26）。
+ */
+export const PRICE_QUERY_KEYS: ReadonlySet<string> = new Set(['model', 'n', 'count', 'quality', 'resolution', 'duration', 'size', 'audio', 'generate_audio',
+  'image_urls', 'layer_decomposition', 'layer_decomposition_options'])
 /** 任何 APIMart 模型上都不改价、约价时直接忽略的键（内容本身、随机种子、水印、比例）。 */
 export const PRICE_IGNORED_KEYS: ReadonlySet<string> = new Set(['prompt', 'negative_prompt', 'aspect_ratio', 'seed', 'watermark'])
 /**
@@ -42,12 +47,23 @@ export function classifyPriceKey(wireModel: string, key: string): PriceKeyClass 
   return key in PRICE_UNQUOTABLE_KEYS ? 'unquotable' : 'unclassified'
 }
 
-/** Only supported text-to-media bodies can be priced without inspecting external input assets. */
+/** 图层分离请求读出的层数上限（含底图）：开关真为 true、选项里有正整数上限才算；否则 null（不是图层分离或读不清 → 不报价）。 */
+function layerSplitMaxImages(body: Record<string, unknown>): number | null | undefined {
+  if (body.layer_decomposition === undefined) return undefined
+  const options = body.layer_decomposition_options
+  const max = isJsonRecord(options) ? Number(options.max_images) : NaN
+  return body.layer_decomposition === true && Number.isSafeInteger(max) && max >= 1 ? max : null
+}
+
+/**
+ * 能报价的请求：文生图 / 文生视频（不带输入媒体），以及图层分离（改图里唯一能算的一种：
+ * 输入图费是价目上的一个公开数，层数上限在请求里，见 vendorPricePreview.publicPriceFor 的图层分离一支）。
+ */
 export function priceQueryFromRequest(payload: VendorPriceRequest, catalog: CatalogState): VendorPriceQuery | null {
   const vendorKey = payload?.vendorKey
   const request = payload?.request
   if (typeof vendorKey !== 'string' || builtinVendorKeyOfKey(vendorKey) !== 'apimart' || !request) return null
-  const kind = request.kind === 'text_to_image' ? 'image' : request.kind === 'text_to_video' ? 'video' : null
+  const kind = request.kind === 'text_to_image' || request.kind === 'image_edit' ? 'image' : request.kind === 'text_to_video' ? 'video' : null
   if (!kind || !isJsonRecord(request.extras)) return null
   const vendor = catalog.vendors.find(row => row.key === vendorKey && row.enabled)
   const model = catalog.models.find(row => row.vendorKey === vendorKey && row.modelKey === request.extras?.modelKey && row.enabled)
@@ -71,6 +87,12 @@ export function priceQueryFromRequest(payload: VendorPriceRequest, catalog: Cata
     const quotable = (key: string) => ['query', 'ignored'].includes(classifyPriceKey(body.model as string, key))
       || (key === 'background' && kind === 'image' && body.background === 'auto')
     if (!Object.keys(body).every(quotable)) return null
+    const inputs = body.image_urls
+    if (inputs !== undefined && !Array.isArray(inputs)) return null
+    const referenceCount = Array.isArray(inputs) ? inputs.length : 0
+    const layerMax = layerSplitMaxImages(body)
+    // 改图只有图层分离能算；其余带输入图的请求（含图层分离读不清的）不报价，也就不去问价目。
+    if (layerMax === null || (request.kind === 'image_edit' ? layerMax === undefined : referenceCount > 0 || layerMax !== undefined)) return null
     const count = Number(body.n ?? body.count ?? 1)
     if (!Number.isSafeInteger(count) || count < 1) return null
     const durationSec = body.duration == null ? undefined : Number(body.duration)
@@ -81,7 +103,8 @@ export function priceQueryFromRequest(payload: VendorPriceRequest, catalog: Cata
       size: typeof body.size === 'string' ? body.size : undefined,
       quality: typeof body.quality === 'string' ? body.quality : undefined,
       resolution: typeof body.resolution === 'string' ? body.resolution : undefined,
-      referenceCount: 0, hasAudio: audio ?? undefined, hasVideoInput: false }
+      referenceCount, hasAudio: audio ?? undefined, hasVideoInput: false,
+      ...(layerMax ? { layerSplit: { maxImages: layerMax } } : {}) }
   } catch {
     // Incomplete drafts, non-HTTP calls, and unrecognized templates have no public quote.
     return null
