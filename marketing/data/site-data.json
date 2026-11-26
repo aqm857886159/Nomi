@@ -565,7 +565,8 @@
         ],
         "modeTerms": [
           "文生图",
-          "改图"
+          "改图",
+          "图层分离"
         ],
         "references": {
           "image_ref": 10
@@ -2682,7 +2683,8 @@
         ],
         "modeTerms": [
           "文生图",
-          "改图"
+          "改图",
+          "图层分离"
         ],
         "references": {
           "image_ref": 10
