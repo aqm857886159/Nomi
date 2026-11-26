@@ -96,9 +96,11 @@
 
 ## 门岗
 
-走查调用 `measureBoardDiff({ boardPage, screenPage, boardDir, board, boardRoot, screenRoot, locale, theme, output })`。先打开完整的候选预览和同状态真屏，两个 root 选到对应区域，坐标相对各自区域。拼页可选 `elements` 限定本轮认领；`boardTheme` 记录源图实际主题。候选优先按显示文字配对，同文或无字的节点可用 `data-board="<候选 id>"` 定位，元素 id 可标记一组候选的共同区域。无法唯一配对需要补锚点重跑。
+走查调用 `measureBoardDiff({ boardPage, screenPage, boardDir, board, boardRoot, screenRoot, screenRevision, locale, theme, output })`。先打开完整的候选预览和同状态真屏，两个 root 选到对应区域，坐标相对各自区域。拼页可选 `elements` 限定本轮认领；`boardTheme` 记录源图实际主题。screenRevision 填运行中真屏的 7–40 位 Git SHA。候选优先按显示文字和交互角色配对，同文或无字的节点可用 `data-board="<候选 id>"` 定位，元素 id 可标记一组候选的共同区域。无法唯一配对需要补锚点重跑。
 
-走查产物提交到板目录的 `walk/<板名>/<状态>.diff.json`，每轨单独命名。清单保留覆盖样本（含一致项）、两边的值、差异和板源指纹。R4 重算差异；字号、行高、圆角、padding、相邻间距和颜色按设计系统令牌核对，盒子坐标及宽高按 CSS 像素核对。板值超出令牌表也须逐项登记。每一项批准写进本板 decisions；缺配对不能通过登记消除。R4 从引入前 main 与当前合入基线的板文件计算已有 implemented 的欠账，按日期目录、元素和候选身份扣减；新认领不能占用已消掉的名额。独立核签、逐态配图和真点击照常执行。
+走查产物提交到板目录的 `walk/<板名>/<状态>.diff.json`，每轨单独命名。R4 从 v2 收据的板源指纹、真屏提交与原始样本重算差异。每个候选要覆盖元素声明的轨道：`zh-en` 要求中英各一份，`dark` 要求有暗色实测。坐标保留给分隔线通边量取。容器随窗口变化的宽高不报；图标量宽高，设计定高、按钮、胶囊和带内边距的圆角入口行量高度。字型与文案归直接文字所有者，示例数字及打码串格式归一，大小写、标点、货币符号和附注照比。边距量盒本身；抽取清单未编号的内格以其父候选与内格第一个认领候选 `part` 定位。
+
+合法一致项不进入清单，板值超出设计令牌须登记。批准写进本板 `decisions`，填写 `candidate`、`property`、本次的 `board` 和 `screen` 原值、`reason` 与 `approvedBy`。格的读数同时写 `part`，限定语言或主题时写 `locale` 或 `theme`。值漂移或配对失败会重新报红。存量欠账按引入点、整合基线及工作树里的完整候选记录求交，新认领或同 ID 重抽后的候选须补测。独立核签、逐态配图和真点击照常执行。
 
 - `pnpm run check:board-parity`：先跑单测（`scripts/check-board-parity.node-test.mjs`，每条规则一个反例），再跑清单规则。**默认模式不起浏览器**（CI 的 Contracts job 没有 Playwright 浏览器）：
   - 每张板的 `<Board>.candidates.json` 记着抽取时板源的 sha256（`sourceSha256`，覆盖亮 / 暗预览、画板源码和 `source/canvas.json`，算法在 `scripts/board-source-hash.mjs`）。

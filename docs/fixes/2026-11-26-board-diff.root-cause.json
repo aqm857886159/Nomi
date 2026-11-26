@@ -22,7 +22,8 @@
   "external_sources": [],
   "internal_only_reason": "候选标识、板令牌、拍板记录与存量欠账都是仓库的交付合同。浏览器计算样式由原有 Playwright 提供。",
   "invariants": [
-    "新认领须覆盖每个候选，未配对或有未拍板差异不得通过；相同合法取值不报差异。"
+    "新认领须覆盖每个候选，未配对或有未拍板差异不得通过；相同合法取值不报差异。",
+    "直接文本与有尺寸意图的盒只在所属候选报告。收据绑定屏提交、板源和声明轨道；批准绑定两边实测值，历史豁免绑定完整候选记录。"
   ],
   "doors": [
     {
@@ -93,7 +94,8 @@
     "classification": "recurring",
     "reason": "同一板三轮验收量了不同维度；其他板也只证明断言名出现。",
     "same_class_scan": [
-      "door-map check-board-parity 的产品根输出为空。git grep checkBoardManifest 另查到 Director3dbox、ReferenceEntry 和 InlineWhiteboard。"
+      "door-map check-board-parity 的产品根输出为空。git grep checkBoardManifest 另查到 Director3dbox、ReferenceEntry 和 InlineWhiteboard。",
+      "审查在中浅、英暗旧 samples 复现祖先拼字、坐标跟随与重复格边距。CLI 与 Electron 走查共用 measureBoardDiff。"
     ]
   },
   "prevention": {
@@ -107,7 +109,8 @@
       "scripts/check-board-parity.mjs",
       "scripts/board-diff-evidence.mjs",
       "scripts/board-diff-page.mjs",
-      "scripts/board-diff-report.mjs"
+      "scripts/board-diff-report.mjs",
+      "scripts/board-diff.mjs"
     ]
   },
   "regression_tests": [

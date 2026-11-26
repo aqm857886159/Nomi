@@ -6,11 +6,11 @@ import { parseArgs } from 'node:util'
 import { randomUUID } from 'node:crypto'
 import { readCandidatePositions, VIEWPORT } from './board-extract.mjs'
 import { hashBoardSource } from './board-source-hash.mjs'
-import { buildDiffReport } from './board-diff-report.mjs'
+import { buildDiffReport, comparisonText, validRevision } from './board-diff-report.mjs'
 import { readSurface } from './board-diff-page.mjs'
 export { buildDiffReport }
 const tokenCSS = fs.readFileSync(new URL('../src/theme/nomi-tokens.css', import.meta.url), 'utf8')
-const folded = text => text.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim()
+const folded = text => comparisonText(text.normalize('NFKC')).toLowerCase()
 const unique = items => items.length === 1 ? items[0] : null
 
 function indexSurface(rows) {
@@ -21,7 +21,7 @@ function indexSurface(rows) {
     return result
   }
   const chains = new Map(rows.map(row => [row, ancestors(row)]))
-  return { ancestors: row => chains.get(row), inside: (row, root) => row === root || chains.get(row).includes(root) }
+  return { nodes, ancestors: row => chains.get(row), inside: (row, root) => row === root || chains.get(row).includes(root) }
 }
 
 export function pairCandidates(claims, boardRows, screenRows) {
@@ -53,10 +53,10 @@ export function pairCandidates(claims, boardRows, screenRows) {
     const { row } = claim
     if (!row.own && !row.label) continue
     const expected = folded(row.own || row.label)
-    const options = pool(claim)
+    const options = pool(claim).filter(r => (r.role ?? null) === (row.role ?? null))
     // Prefer printed text over an ancestor control repeating the same aria-label.
     const exact = options.filter(r => r.own && folded(r.own) === expected)
-    anchor(claim, exact.length ? exact : options.filter(r => (r.label && folded(r.label) === expected) || folded(r.values.text) === expected))
+    anchor(claim, exact.length ? exact : options.filter(r => (r.label && folded(r.label) === expected) || folded(r.printed ?? r.values.text) === expected))
   }
   // A box containing distinct matched text anchors corresponds to their lowest common
   // ancestor. Equal-content wrappers are ambiguous; use a candidate marker to disambiguate.
@@ -65,7 +65,7 @@ export function pairCandidates(claims, boardRows, screenRows) {
     const descendants = [...matches].filter(([c]) => design.inside(c.row, claim.row)).map(([, r]) => r)
     if (descendants.length < 2) continue
     const container = [descendants[0], ...live.ancestors(descendants[0])].find(parent => descendants.every(r => live.inside(r, parent)))
-    if (container && pool(claim).includes(container)) anchor(claim, [container])
+    if (container && (container.role ?? null) === (claim.row.role ?? null) && pool(claim).includes(container)) anchor(claim, [container])
   }
   for (const claim of auto) {
     if (matches.has(claim) || claim.row.tag !== 'svg') continue
@@ -76,12 +76,60 @@ export function pairCandidates(claims, boardRows, screenRows) {
     const actual = pool(claim).filter(r => r.tag === 'svg' && live.inside(r, matches.get(owner)))
     if (actual.length === localIcons.length) anchor(claim, [actual[localIcons.indexOf(claim.row)]])
   }
-  return claims.map(c => ({ candidate: c.candidate, element: c.element, board: c.row.values, screen: matches.get(c)?.values ?? null }))
+  const claimed = new Set(claims.map(c => c.row))
+  const byRow = new Map(claims.map(c => [c.row, c]))
+  function readings(row, surface, occupied) {
+    // An unclaimed inline formatting span can split a directly owned phrase on one
+    // surface. Keep its place in that phrase without copying another measured label.
+    const inlineText = r => r.content.map(item => {
+      if (typeof item === 'string') return item
+      const child = surface.nodes.get(item)
+      return child?.inline && !occupied.has(child) ? inlineText(child) : ''
+    }).join('')
+    if (!row.own || !row.content) return row.values
+    return { ...row.values, text: inlineText(row).replace(/\s+/g, ' ').trim() }
+  }
+  const pad = r => Object.fromEntries(['Top','Right','Bottom','Left'].map(side => ['padding' + side, r.values['padding' + side]]))
+  function insets(inner, outer) {
+    const i = inner.values, o = outer.values
+    const px = n => Math.round(n * 1000) / 1000
+    return { Top: px(i.y - o.y), Left: px(i.x - o.x), Right: px(o.x + o.width - i.x - i.width),
+      Bottom: px(o.y + o.height - i.y - i.height) }
+  }
+  return claims.map(({ candidate, element, row }) => {
+    const target = matches.get(byRow.get(row))
+    const sample = { candidate, element, board: readings(row, design, claimed),
+      screen: target ? readings(target, live, used) : null }
+    if (!target) return sample
+    const enclosing = design.ancestors(row).find(p => matches.has(byRow.get(p)))
+    if (enclosing) {
+      const parent = byRow.get(enclosing)
+      sample.edges = { relativeTo: parent.candidate, board: insets(row, enclosing), screen: insets(target, matches.get(parent)) }
+    }
+    // The published census can omit a padded layout cell. Match its own box once
+    // within its claimed parent using descendant candidate identities, never by ordinal.
+    const cells = boardRows.filter(r => r.parent === row.index && !claimed.has(r))
+      .map(cell => ({ cell, labels: claims.filter(c => design.inside(c.row, cell)) }))
+      .filter(({ labels }) => labels.length)
+    const actualCells = screenRows.filter(r => r.parent === target.index && !used.has(r))
+    const parts = cells.flatMap(({ cell, labels }) => {
+      const anchors = labels.map(c => matches.get(c)).filter(Boolean)
+      const box = anchors.length ? unique(actualCells.filter(r => anchors.every(a => live.inside(a, r)))) : null
+      // Repeated cells also own zero padding: newly added padding is a regression.
+      if (cells.length === 1 && !Object.values(pad(cell)).some(Boolean) && !(box && Object.values(pad(box)).some(Boolean))) return []
+      return [{ anchor: labels[0].candidate, cell, box }]
+    })
+    if (parts.length) sample.parts = parts.map(({ anchor, cell, box }) => ({
+      anchor, board: pad(cell), screen: box && parts.filter(p => p.box === box).length === 1 ? pad(box) : null,
+    }))
+    return sample
+  })
 }
 
 export async function measureBoardDiff({ boardPage, screenPage, boardDir, board, boardRoot, screenRoot,
   locale, theme, boardTheme = theme, elements, output, screenRevision }) {
   if (!locale || !['dark', 'light'].includes(theme) || !['dark', 'light'].includes(boardTheme)) throw new Error('需要 locale 和明确的明暗主题')
+  if (!validRevision(screenRevision)) throw new Error('需要真屏提交 screenRevision（7–40 位 Git SHA）')
   const read = suffix => JSON.parse(fs.readFileSync(path.join(boardDir, board + suffix), 'utf8'))
   const manifest = read('.board.json')
   const census = read('.candidates.json')
@@ -127,8 +175,8 @@ export async function measureBoardDiff({ boardPage, screenPage, boardDir, board,
 // For a live Electron Page use the exported function. CLI also accepts a local HTML screen.
 async function main() {
   const { values: args } = parseArgs({ options: Object.fromEntries(
-    ['dir', 'board', 'screen', 'board-root', 'screen-root', 'locale', 'theme', 'board-theme', 'out'].map(key => [key, { type: 'string' }])) })
-  for (const k of ['dir', 'board', 'screen', 'locale', 'theme', 'out']) if (!args[k]) throw new Error('缺参数 --' + k)
+    ['dir', 'board', 'screen', 'board-root', 'screen-root', 'locale', 'theme', 'board-theme', 'screen-revision', 'out'].map(key => [key, { type: 'string' }])) })
+  for (const k of ['dir', 'board', 'screen', 'locale', 'theme', 'screen-revision', 'out']) if (!args[k]) throw new Error('缺参数 --' + k)
   const { chromium } = await import('playwright')
   const browser = await chromium.launch()
   try {
@@ -139,7 +187,7 @@ async function main() {
     await boardPage.goto(pathToFileURL(path.resolve(args.dir, 'preview', args.board + '.html')).href)
     await screenPage.goto(pathToFileURL(path.resolve(args.screen)).href)
     const r = await measureBoardDiff({ boardDir: args.dir, board: args.board, boardPage, screenPage,
-      boardRoot: args['board-root'], screenRoot: args['screen-root'], locale: args.locale, theme: args.theme, boardTheme: args['board-theme'], output: args.out })
+      boardRoot: args['board-root'], screenRoot: args['screen-root'], locale: args.locale, theme: args.theme, screenRevision: args['screen-revision'], boardTheme: args['board-theme'], output: args.out })
     console.log(`${r.samples.length} 个认领候选，${r.differences.length} 条差异 → ${args.out}`)
   } finally { await browser.close() }
 }

@@ -108,13 +108,30 @@ export function readSurface({ rootSelector, tokenCSS, theme }) {
     const rect = el.getBoundingClientRect()
     if (!rect.width || !rect.height) continue
     const style = getComputedStyle(el)
-    const parentStyle = getComputedStyle(el.parentElement ?? el)
     const tag = el.localName
     const own = normalize([...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' '))
     const label = el.getAttribute('aria-label') ?? ''
-    const text = normalize(el.innerText ?? el.textContent)
+    // Only direct text owns typography. Preserve inline fragments in DOM order so a
+    // matched phrase may span an unclaimed formatting span (e.g. a masked key).
+    const content = [...el.childNodes].map(n => n.nodeType === 3 ? n.textContent : ids.get(n)).filter(n => n != null)
+    const type = el.type
+    const inputRoles = { button: 'button', submit: 'button', reset: 'button', image: 'button',
+      checkbox: 'checkbox', radio: 'radio', range: 'slider', number: 'spinbutton', search: 'searchbox' }
+    const nativeRole = { button: 'button', a: el.hasAttribute('href') ? 'link' : null,
+      input: inputRoles[type] ?? 'textbox', select: el.multiple || el.size > 1 ? 'listbox' : 'combobox',
+      textarea: 'textbox', summary: 'button', option: 'option' }[tag]
+    const role = el.getAttribute('role')?.split(/\s+/)[0] || nativeRole || null
+    const size = el.computedStyleMap().get('height')
+    const icon = ['svg', 'img', 'canvas'].includes(tag)
+    const horizontal = style.display.includes('flex') && style.flexDirection.startsWith('row')
+    const paintedRow = horizontal && parseFloat(style.borderTopLeftRadius) > 0 && parseFloat(style.paddingTop) > 0
+    // Definite design heights (including CSS classes), controls, painted action rows,
+    // pills and icons have their own height. A wrapping text/layout box grows with its contents.
+    const fixedHeight = icon || size?.unit === 'px' || paintedRow || (own && parseFloat(style.borderTopLeftRadius) >= 999)
+      || ['button', 'row', 'checkbox', 'combobox', 'textbox', 'switch', 'tab'].includes(role)
+
     const values = {
-      text, fontSize: parseFloat(style.fontSize), lineHeight: style.lineHeight === 'normal' ? 'normal' : parseFloat(style.lineHeight),
+      text: own, ownsText: Boolean(own), fixedHeight: Boolean(fixedHeight), intrinsicWidth: icon, fontSize: parseFloat(style.fontSize), lineHeight: style.lineHeight === 'normal' ? 'normal' : parseFloat(style.lineHeight),
       fontWeight: Number(style.fontWeight), monospace: monospace(style),
       color: color(style.color), backgroundColor: color(style.backgroundColor), fontVariantNumeric: style.fontVariantNumeric,
       x: rounded(rect.x - origin.x), y: rounded(rect.y - origin.y), width: rounded(rect.width), height: rounded(rect.height),
@@ -133,9 +150,8 @@ export function readSurface({ rootSelector, tokenCSS, theme }) {
     }
     for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
       values['padding' + side] = parseFloat(style['padding' + side])
-      values['parentPadding' + side] = parseFloat(parentStyle['padding' + side])
     }
-    rows.push({ index: ids.get(el) ?? -1, parent: ids.get(el.parentElement) ?? -1, tag, own, label,
+    rows.push({ index: ids.get(el) ?? -1, parent: ids.get(el.parentElement) ?? -1, tag, role, own, label, printed: normalize(el.innerText ?? el.textContent), content, inline: style.display === 'inline',
       mark: el.getAttribute('data-board'), values })
   }
   return rows

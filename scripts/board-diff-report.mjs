@@ -32,9 +32,9 @@ function designScales() {
 const sides = ['Top', 'Right', 'Bottom', 'Left']
 const properties = [
   'fontSize', 'lineHeight', 'fontWeight', 'monospace', 'color', 'backgroundColor', 'fontVariantNumeric',
-  'text', 'x', 'y', 'width', 'height', 'gapBefore', 'gapAfter', 'iconPath',
+  'text', 'width', 'height', 'gapBefore', 'gapAfter', 'iconPath',
   ...['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].map(s => 'radius' + s),
-  ...sides.flatMap(s => ['border' + s + 'Width', 'border' + s + 'Color', 'padding' + s, 'parentPadding' + s]),
+  ...sides.flatMap(s => ['border' + s + 'Width', 'border' + s + 'Color', 'padding' + s]),
 ]
 const nullable = new Set(['gapBefore', 'gapAfter', 'iconPath', ...sides.map(s => 'border' + s + 'Color')])
 const strings = new Set(['text', 'iconPath', 'color', 'backgroundColor', 'fontVariantNumeric', ...sides.map(s => 'border' + s + 'Color')])
@@ -50,6 +50,7 @@ function valid(property, value) {
 
 function snapped(property, value) {
   if (value === null) return { value }
+  if (property === 'text') return { value: comparisonText(value) }
   let group
   if (property === 'fontSize' || property === 'lineHeight') group = property
   else if (property.startsWith('radius')) group = 'radius'
@@ -63,28 +64,77 @@ function snapped(property, value) {
   return { value }
 }
 
+// Folding preserves words, punctuation, currency signs and case. Only displayed example
+// digits and the variable prefix/suffix of a visibly masked credential are placeholders.
+export function comparisonText(text) {
+  return text.replace(/(?:[a-zA-Z0-9_-]*[-_])?[•●]{2,}[a-zA-Z0-9_-]*/gu, '••••')
+    .replace(/\p{Nd}+/gu, '#').replace(/\s+/g, ' ').trim()
+}
+
+const typeProperties = new Set(['fontSize', 'lineHeight', 'monospace', 'fontWeight', 'fontVariantNumeric', 'color'])
+const padProperties = sides.map(side => 'padding' + side)
+const rawProperties = ['x', 'y', ...properties]
+
+function validateSurface(candidate, v) {
+  for (const flag of ['ownsText', 'intrinsicWidth', 'fixedHeight']) {
+    if (typeof v?.[flag] !== 'boolean') throw new Error(`差异清单 ${candidate} 缺测量意图 ${flag}`)
+  }
+  for (const property of rawProperties) {
+    if (!valid(property, v[property])) throw new Error(`差异清单 ${candidate} 缺有效读数 ${property}`)
+  }
+  if (v.ownsText !== Boolean(v.text.trim())) throw new Error(`差异清单 ${candidate} 直接文字归属不符`)
+}
+
 export function differencesOf(samples) {
   const differences = []
-  for (const { candidate, element, board, screen } of samples) {
+  for (const { candidate, element, board, screen, parts = [], edges = null } of samples) {
     if (!candidate || !element || !board) throw new Error('差异清单缺候选、元素或板值')
-    for (const property of properties) {
-      if (!valid(property, board[property]) || (screen !== null && !valid(property, screen?.[property]))) {
-        throw new Error(`差异清单 ${candidate} 缺有效读数 ${property}`)
-      }
-      if (screen === null) continue
-      const expected = snapped(property, board[property])
-      const actual = snapped(property, screen[property])
+    validateSurface(candidate, board)
+    if (screen === null) {
+      differences.push({ candidate, element, property: 'pair', board: board.text, screen: null, reason: 'unmatched' })
+      continue
+    }
+    validateSurface(candidate, screen)
+    const compare = (property, b, s, part) => {
+      const expected = snapped(property, b), actual = snapped(property, s)
       if (expected.offScale || expected.value !== actual.value) differences.push({
-        candidate, element, property, board: board[property], screen: screen[property],
-        boardToken: expected.value, screenToken: actual.value,
-        reason: expected.offScale ? 'off-scale' : 'different',
+        candidate, element, ...(part ? { part } : {}), property, board: b, screen: s,
+        boardToken: expected.value, screenToken: actual.value, reason: expected.offScale ? 'off-scale' : 'different',
       })
     }
-    if (screen === null) differences.push({ candidate, element, property: 'pair', board: board.text, screen: null, reason: 'unmatched' })
+    for (const property of properties) {
+      if (property === 'width' && !board.intrinsicWidth) continue
+      if (property === 'height' && !board.fixedHeight) continue
+      if (typeProperties.has(property) && !(board.ownsText && screen.ownsText)) continue
+      compare(property, board[property], screen[property])
+    }
+    for (const { anchor, board: cell, screen: actual } of parts) {
+      if (!anchor || !padProperties.every(p => valid(p, cell?.[p]))) throw new Error(`差异清单 ${candidate} 格读数不全`)
+      if (actual === null) {
+        differences.push({ candidate, element, part: anchor, property: 'pair', board: anchor, screen: null, reason: 'unmatched' })
+        continue
+      }
+      for (const p of padProperties) {
+        if (!valid(p, actual?.[p])) throw new Error(`差异清单 ${candidate} 格读数不全`)
+        compare(p, cell[p], actual[p], anchor)
+      }
+    }
+    // Measure a ruled box's flush edges against the same paired enclosing box on both
+    // surfaces. A viewport resize alone moves neither edge away from that enclosure.
+    if (edges) {
+      const horizontal = Boolean(board.borderTopWidth) !== Boolean(board.borderBottomWidth)
+      const vertical = Boolean(board.borderLeftWidth) !== Boolean(board.borderRightWidth)
+      for (const side of sides) {
+        if (!Number.isFinite(edges.board[side]) || !Number.isFinite(edges.screen[side])) throw new Error('差异清单缺分隔线读数')
+        const ruled = ['Left', 'Right'].includes(side) ? horizontal : vertical || (horizontal && parts.length > 1)
+        if (ruled && edges.board[side] === 0) compare('inset' + side, 0, edges.screen[side])
+      }
+    }
   }
   return differences
 }
 
+export const validRevision = sha => typeof sha === 'string' && /^[0-9a-f]{7,40}$/i.test(sha)
 export function buildDiffReport(context, samples) {
-  return { ...context, version: 1, samples, differences: differencesOf(samples) }
+  return { ...context, version: 2, samples, differences: differencesOf(samples) }
 }
