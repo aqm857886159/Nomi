@@ -87,6 +87,10 @@ export const OFFICIAL_VALUES: Record<string, Official> = {
     resolution: ["1k", "1.5k", "2k"],
     background: ["auto", "transparent", "opaque"],
     output_format: ["png", "jpeg"],
+    // 2026-11-26 图层分离（同页 layer_decomposition 段）：max_images 2–100（默认 30，含底图，是上限）；
+    // 分层时 size 只收档位「accepts only 1K / 1.5K / 2K / auto」（档案存在 layer_size，线缆写成 size）。
+    layer_count: { min: 2, max: 100 },
+    layer_size: ["auto", "1k", "1.5k", "2k"],
   },
   // ── 视频 ──
   "kling-v4": { aspect_ratio: ["16:9", "9:16", "1:1", "21:9", "auto"], resolution: ["720p", "1080p"], duration: { min: 3, max: 30 } },

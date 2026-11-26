@@ -23,7 +23,9 @@ import { referenceValueCount, validateModeConstraints, type ModeInputEvidence, t
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "../shared/modelArchetypes/types";
 import { declarationForMode } from "../shared/generationLowering/declarationForMode";
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
-import { modeInputRefusal } from "./modeInputRefusal";
+import { ModeRouteMissingError, modeInputRefusal } from "./modeInputRefusal";
+import { isLayerSplitMode, layerSplitWireReady } from "../shared/modelArchetypes/layerSplit";
+import { desktopT } from "../desktopStrings";
 import { encodeParamsForWire } from "../shared/videoCapabilities/paramValue";
 export { ModeInputMissingError } from "./modeInputRefusal";
 import { carriedReferenceUrlsByFamily, firstReferenceImage, referenceUrlsByFamily } from "./taskParamsReferences";
@@ -164,6 +166,11 @@ export function applyHeadlessParamDefaults(
   const wireArchetype = archetype ?? resolveModelArchetype({
     modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
   }, { variant });
+  // 图层分离：按 mapping body 发、而这份 body 不读开关键 = 发出去只是一次普通改图（花了钱只拿回一张图）→ 发送前拒。
+  // 自定义脚本接管 = 看不清（脚本自己读 params），与第④步同一口径不拒；入口那头只在线缆读得到开关键时才可点。
+  if (mode && isLayerSplitMode(mode) && route.sends !== "script" && !layerSplitWireReady(bodyReferencedParamKeys(createBody))) {
+    throw new ModeRouteMissingError(desktopT("modeInput.layerSplitWireMissing"));
+  }
   const encoded = encodeParamsForWire(mode ? mode.params : wireArchetype?.modes.flatMap((candidate) => candidate.params) ?? [], owned);
   const withDefaults = applyWireDefaults(encoded, mappingDefaults);
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。

@@ -339,6 +339,14 @@
    "canvas": "21772a188bdc79d4",
    "run": "21772a188bdc79d4"
   },
+  "doubao-seedream-5-0-pro|layers|n=0": {
+   "canvas": "96435f04f501341c",
+   "run": "96435f04f501341c"
+  },
+  "doubao-seedream-5-0-pro|layers|n=1": {
+   "canvas": "0dbd8cd43265b76f",
+   "run": "0dbd8cd43265b76f"
+  },
   "doubao-seedream-5-0-pro|t2i|n=0": {
    "canvas": "d910cb58f4e66274",
    "run": "d910cb58f4e66274"
@@ -950,6 +958,14 @@
   "seedream-5-5|edit|n=10": {
    "canvas": "84726bab552d4c51",
    "run": "84726bab552d4c51"
+  },
+  "seedream-5-5|layers|n=0": {
+   "canvas": "96435f04f501341c",
+   "run": "96435f04f501341c"
+  },
+  "seedream-5-5|layers|n=1": {
+   "canvas": "a0d6084db4a2ae63",
+   "run": "a0d6084db4a2ae63"
   },
   "seedream-5-5|t2i|n=0": {
    "canvas": "fd49bf90bed6ef1c",

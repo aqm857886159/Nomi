@@ -117,7 +117,8 @@ function scan(route: SendRoute): { cells: Cell[]; noMapping: number } {
 }
 
 /** 请求体真没有这个方式要的那一族素材的位置：APIMart 上 Suno V5.5 只有文生音乐那条路（续写 / 翻唱的原曲放不进去）。 */
-const ROUTE_MISSING = ["apimart/suno-v5.5/cover", "apimart/suno-v5.5/extend"];
+// 图层分离：5.0 Pro 与 Runway / fal 共用档案，那两家的线缆不读 layer_decomposition——发出去只是一次普通改图，发送前拒（taskParams 图层分离那一句）。
+const ROUTE_MISSING = ["apimart/suno-v5.5/cover", "apimart/suno-v5.5/extend", "fal/bytedance/seedream/v5/pro/layers", "runway/seedream5_pro/layers"];
 
 describe("性质：每个模型 × 每个方式，给足下限的素材，判定不许说「缺输入」", () => {
   it("按 mapping body 发（看得清）：缺输入 0 格；「这家没有这个方式」只在点名的格子", () => {

@@ -129,6 +129,14 @@ function modesAreTaskChoices(archetype: ModelArchetype): boolean {
 }
 
 /**
+ * 单个方式本身是人选的任务（图层分离：输入和改图一样是一张图，要的结果完全不同）：按输入挑方式时绝不自动落到它；
+ * 人手选了它，多放一张图也不换走——照它发，放不下的那张淡显「不会发」（taken 少于输入数）。
+ */
+function modeIsTaskChoice(mode: ArchetypeMode): boolean {
+  return Boolean(mode.layerSplit)
+}
+
+/**
  * 这一个方式能不能收下这次**全部**输入（菜单里能不能点它）：每件都落得进格子、必需格都满足。
  * 没有输入时只有文字类 / 没有必需格的方式收得下。
  */
@@ -201,11 +209,18 @@ export function modeForInputs(
     return { mode, status: fit.required ? 'ok' : 'needsInput', taken: fit.taken }
   }
 
+  // 选定的任务方式（图层分离；只有人手选 / 入口派生会存它，来历同一个规则）：有输入就照它发，放不下的淡显「不会发」；
+  // 一件都没放就要先放输入（不退成文生——人要的是拆图，不是生一张新图）。
+  if (preferred && modeIsTaskChoice(preferred)) {
+    const fit = fitInputs(preferred, inputs, options)
+    return { mode: preferred, status: fit.required ? 'ok' : 'needsInput', taken: fit.taken }
+  }
+
   // ① 没放任何东西 → 文字生成（偏好只在几个文字方式之间挑）。档案没有文字生成：挑一个不要必需格的，否则要先放输入。
   if (inputs.length === 0) {
     const textMode = textModeOf(archetype, preferred)
     if (textMode) return { mode: textMode, status: 'ok', taken: 0 }
-    const runnable = (mode: ArchetypeMode) => mode.slots.every((slot) => slot.min === 0)
+    const runnable = (mode: ArchetypeMode) => !modeIsTaskChoice(mode) && mode.slots.every((slot) => slot.min === 0)
     const empty = preferred && runnable(preferred) ? preferred : archetype.modes.find(runnable)
     if (empty) return { mode: empty, status: 'ok', taken: 0 }
     return { mode: preferred ?? fallback, status: 'needsInput', taken: 0 }
@@ -226,7 +241,7 @@ export function modeForInputs(
   let best: { mode: ArchetypeMode; fit: Fit } | null = null
   for (const mode of archetype.modes) {
     const fit = fits.get(mode.id)!
-    if (fit.taken === 0 || !fit.required) continue
+    if (fit.taken === 0 || !fit.required || modeIsTaskChoice(mode)) continue
     if (!best) { best = { mode, fit }; continue }
     const order = [
       Number(takesAll(fit)) - Number(takesAll(best.fit)),

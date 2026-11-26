@@ -7,6 +7,8 @@
  *   · 可灵 4.0 Flash：五种方式各一条；图生不发比例；「auto」不上线；没声明的清晰度（节点上残留 1080p）不发。
  *   · MiniMax H3-Max：1080P；首尾帧用 first_frame_image / last_frame_image；多模态参考三类素材各走各的字段；水印永不发。
  *   · Seedream 5.5：透明背景 + png；多图参考；不发 n / optimize_prompt_options。
+ *   · 图层分离（2026-11-26 补，设计卡 docs/plan/2026-11-26-layer-split.md ★9 第 3 条）：层数 + 识别文字进 layer_decomposition_options，
+ *     不发 background / 比例 size；普通改图的报文一个字节不变；5.0 Pro 只发开关。
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -280,5 +282,54 @@ describe("身份路由：新模型不被同家族老档案抢走", () => {
     expect(v4.model).toBe("kling-v4");
     expect(v4).toHaveProperty("resolution");
     expect(flash).not.toHaveProperty("resolution");
+  });
+});
+
+describe("图层分离（Seedream 5.5 / 5.0 Pro）", () => {
+  const K55 = { modelKey: "seedream-5-5", archetypeId: "seedream-5-5", kind: "image" as const };
+  const KPRO = { modelKey: "doubao-seedream-5-0-pro", archetypeId: "seedream-5-pro", kind: "image" as const };
+
+  it("普通改图的报文一个字节不变：没有任何图层键", async () => {
+    const params = { size: "16:9", resolution: "2K", background: "opaque", output_format: "jpeg", watermark: false, nsfw_check: false };
+    const body = await canvas({ ...K55, modeId: "edit", params, images: [IMG_A] });
+    expect(body).toEqual({
+      model: "seedream-5-5", prompt: "一个镜头", size: "16:9", resolution: "2K", background: "opaque", output_format: "jpeg",
+      watermark: false, nsfw_check: false, image_urls: [IMG_A],
+    });
+  });
+
+  it("5.5 图层分离：开关是真布尔，层数 / 识别文字进选项，清晰度写成 size 档位，不发 background / resolution / 比例", async () => {
+    // 节点上残留普通改图的比例 / 背景 / 清晰度：图层分离方式不声明它们，一个都不发。
+    const params = { size: "16:9", resolution: "2K", background: "transparent", layer_count: 8, layer_size: "1K", text_recognition: true };
+    const body = await canvas({ ...K55, modeId: "layers", params, images: [IMG_A] });
+    expect(body).toEqual({
+      model: "seedream-5-5", prompt: "一个镜头", size: "1K", image_urls: [IMG_A],
+      layer_decomposition: true, layer_decomposition_options: { max_images: 8, text_recognition: true },
+    });
+  });
+
+  it("5.5 图层分离不改任何选项：按默认 30 层、自动清晰度、不识别文字", async () => {
+    const body = await canvas({ ...K55, modeId: "layers", images: [IMG_A] });
+    expect(body).toMatchObject({ size: "auto", layer_decomposition: true, layer_decomposition_options: { max_images: 30, text_recognition: false } });
+    expect(body).not.toHaveProperty("background");
+    expect(body).not.toHaveProperty("resolution");
+  });
+
+  it("层数越界按 2–100 收（含底图，是上限）", async () => {
+    const body = await canvas({ ...K55, modeId: "layers", params: { layer_count: 500 }, images: [IMG_A] });
+    expect(body.layer_decomposition_options).toMatchObject({ max_images: 100 });
+  });
+
+  it("5.0 Pro 图层分离：只发开关，不发选项 / size / background", async () => {
+    const body = await canvas({ ...KPRO, modeId: "layers", params: { size: "16:9", background: "opaque" }, images: [IMG_A] });
+    expect(body).toMatchObject({ layer_decomposition: true, image_urls: [IMG_A] });
+    expect(body).not.toHaveProperty("layer_decomposition_options");
+    expect(body).not.toHaveProperty("size");
+    expect(body).not.toHaveProperty("background");
+  });
+
+  it("5.0 Pro 普通改图不带图层开关", async () => {
+    const body = await canvas({ ...KPRO, modeId: "edit", params: { size: "1:1", resolution: "2K", background: "opaque" }, images: [IMG_A] });
+    expect(body).not.toHaveProperty("layer_decomposition");
   });
 });

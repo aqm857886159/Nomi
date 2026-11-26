@@ -83,6 +83,21 @@ const STEPS = "{{request.params.steps}}";
 const SEED = "{{request.params.seed}}"; // 可选种子（无默认 → 未填则模板丢弃）
 const NEGATIVE_PROMPT = "{{request.params.negative_prompt}}"; // 负向提示词（可选，未填则丢弃）
 const IMAGE_URLS = "{{request.params.image_urls}}"; // 改图模式的输入图数组（档案 slot inputKey=image_urls）
+// 图层分离（Seedream 5.5 / 5.0 Pro）：只在图层分离方式里有值（固定参数开关 + 该方式的三个控件），普通改图这几个键都不存在、整键丢弃，
+// 普通改图的报文一个字节不变。档案方式见 shared/modelArchetypes/layerSplit.ts；清晰度档存 layer_size，在这里写成 wire 的 size。
+const LAYER_DECOMPOSITION = "{{request.params.layer_decomposition}}";
+const LAYER_DECOMPOSITION_OPTIONS = "{{request.params.layer_decomposition_options}}";
+const SEEDREAM_LAYER_PARAM_MAP: ParamMap = {
+  rules: [
+    { wire: "layer_decomposition", fromMany: ["layer_decomposition"], transform: "toBoolean" },
+    { wire: "layer_decomposition_options", fromMany: ["layer_count", "text_recognition"], transform: "layerDecompositionOptions" },
+    { wire: "size", from: "layer_size" },
+  ],
+};
+// 5.0 Pro 的图层分离只有开关（层数写死、不识别文字、清晰度走上游默认）。
+const SEEDREAM_PRO_LAYER_PARAM_MAP: ParamMap = {
+  rules: [{ wire: "layer_decomposition", fromMany: ["layer_decomposition"], transform: "toBoolean" }],
+};
 
 /** 一个 apimart 图片模型的 curated 定义：catalog 行（modelKey=apimart enum）+ 档案指针 + 1~2 条 mapping。 */
 export type ApimartImageModel = {
@@ -103,6 +118,8 @@ function imageModel(p: {
   editBody?: Record<string, unknown>; // 省略 = 该模型仅文生图（imagen / z-image）
   /** 中性 canonical → apimart 字段的翻译（如 gpt-image-2）。缺省 = 档案 params 键即 apimart 字段名（透传）。 */
   paramMap?: ParamMap;
+  /** 只给改图那条 mapping 的翻译（图层分离只走改图端点）；缺省用 paramMap。 */
+  editParamMap?: ParamMap;
   requestTransform?: string;
 }): ApimartImageModel {
   const mappings: ApimartImageModel["mappings"] = [
@@ -118,7 +135,7 @@ function imageModel(p: {
       id: `seed-apimart-${p.archetypeId}-image_edit`,
       taskKind: "image_edit",
       name: `${p.labelZh} · 改图`,
-      create: imageCreateOp(p.editBody, p.modelRef, p.paramMap),
+      create: imageCreateOp(p.editBody, p.modelRef, p.editParamMap ?? p.paramMap),
     });
   }
   for (const mapping of mappings) {
@@ -135,13 +152,18 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     modelKey: "doubao-seedream-5-0-pro", labelZh: "Seedream 5.0 Pro", archetypeId: "seedream-5-pro",
     requestTransform: "apimart-canonical-model-id",
     t2iBody: { size: SIZE, resolution: RESOLUTION, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK },
-    editBody: { size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK, image_urls: IMAGE_URLS },
+    editBody: { size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK, image_urls: IMAGE_URLS, layer_decomposition: LAYER_DECOMPOSITION },
+    editParamMap: SEEDREAM_PRO_LAYER_PARAM_MAP,
   }),
   // Seedream 5.5（2026-11-12 照 docs.apimart.ai seedream-5-5/generation.md 对账，能力表见 docs/models/capabilities/seedream-5-5.md）。
   imageModel({
     modelKey: "seedream-5-5", labelZh: "Seedream 5.5", archetypeId: "seedream-5-5",
     t2iBody: { size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK },
-    editBody: { size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK, image_urls: IMAGE_URLS },
+    editBody: {
+      size: SIZE, resolution: RESOLUTION, background: BACKGROUND, output_format: OUTPUT_FORMAT, watermark: WATERMARK, nsfw_check: NSFW_CHECK, image_urls: IMAGE_URLS,
+      layer_decomposition: LAYER_DECOMPOSITION, layer_decomposition_options: LAYER_DECOMPOSITION_OPTIONS,
+    },
+    editParamMap: SEEDREAM_LAYER_PARAM_MAP,
   }),
   // 共享档案（kie 已建）：Seedream / Nano Banana(Gemini) / GPT-Image-2 —— apimart 专属 params 由档案 vendorParams 提供。
   imageModel({

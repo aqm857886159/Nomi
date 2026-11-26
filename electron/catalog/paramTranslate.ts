@@ -213,9 +213,29 @@ function omitAuto(values: Array<string | undefined>): string | undefined {
   return value === "" || value.toLowerCase() === "auto" ? undefined : value;
 }
 
-/** 命名转换注册表。新增一种转换在此登记，op 用其 id 引用。值转换可返回 string 或 number
- *  （number 用于严格类型的 wire 字段,如 AGNES Go 后端的 int width/height/num_frames）。 */
-export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>, taskKind?: string) => string | number | boolean | undefined> = {
+/** 固定参数是字符串（`"true"`）：严格布尔的 wire 字段经它写成真布尔；认不出 → 不发。 */
+function toBoolean(values: Array<string | undefined>): boolean | undefined {
+  const value = (values[0] ?? "").trim().toLowerCase();
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
+/**
+ * 图层分离选项 `{ max_images, text_recognition }`（Seedream 5.5，docs.apimart.ai seedream-5-5/generation.md 2026-11-26 核）：
+ * 层数 2–100 的整数（含底图，是上限），识别文字布尔。层数读不出 → 整个对象不发（上游按默认 30 拆）。
+ */
+function layerDecompositionOptions(values: Array<string | undefined>): JsonRecord | undefined {
+  const count = Number(values[0]);
+  if (!Number.isFinite(count)) return undefined;
+  const maxImages = Math.min(100, Math.max(2, Math.round(count)));
+  const recognize = toBoolean([values[1]]);
+  return { max_images: maxImages, ...(recognize === undefined ? {} : { text_recognition: recognize }) };
+}
+
+/** 命名转换注册表。新增一种转换在此登记，op 用其 id 引用。值转换可返回 string / number / boolean，或一个对象
+ *  （number 用于严格类型的 wire 字段,如 AGNES Go 后端的 int width/height/num_frames；对象给成组的选项，如图层分离选项）。 */
+export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>, taskKind?: string) => string | number | boolean | JsonRecord | undefined> = {
   ratioResToOpenAiSize,
   ratioResToFalImageSize,
   toLowerCase,
@@ -227,6 +247,8 @@ export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>
   agnesVideoNumFrames,
   soundTypeToLoop,
   secondsToMilliseconds,
+  toBoolean,
+  layerDecompositionOptions,
 };
 
 // ── 应用翻译：渲染 body 前把 canonical 参数翻译成 wire 字段注入 params ───────────────
@@ -234,6 +256,7 @@ export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>
 function asStringOrUndefined(value: unknown): string | undefined {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return String(value);
   return undefined;
 }
 

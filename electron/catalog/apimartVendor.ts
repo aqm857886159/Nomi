@@ -96,6 +96,13 @@ export const APIMART_IMAGE_QUERY_OP: HttpOperation = {
     status: "data.status",
     image_url: ["data.result.images.0.url.0", "data.result.images.0.url"],
     error_message: "data.error.message",
+    // 图层分离（Seedream 5.5 / 5.0 Pro，2026-11-26 核 docs.apimart.ai seedream-5-5/generation.md）：layers[] 与 url[] 按下标平行，
+    // layers[0] 是底图（无框）。通用读法 tasks/taskLayerReading；普通出图响应里没有这张列表，读不到就当普通产物。
+    layers: "data.result.images.0.layers",
+    layer_z_index: "z_index",
+    layer_name: "name",
+    layer_box: "bounding_box.absolute",
+    layer_text: "text_recognition.text",
   },
 };
 
