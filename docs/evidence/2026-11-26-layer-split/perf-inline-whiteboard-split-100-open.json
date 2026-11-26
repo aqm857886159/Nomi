@@ -1,0 +1,73 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "5973ebce8",
+  "head": "5973ebce805743f6afd314ed2fa619d2fc8ad84d",
+  "dirty": false,
+  "sourceTree": "829fea0ad384ee344f00ac452b1c83a98ecea942",
+  "date": "2026-11-26",
+  "runs": 5,
+  "results": [
+    {
+      "id": "inline-whiteboard-split-100-open",
+      "metrics": {
+        "openToInteractive": {
+          "runs": 5,
+          "median": 372,
+          "p95": 373.3
+        },
+        "response": {
+          "runs": 5,
+          "median": 29.4,
+          "p95": 35.2
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "openToInteractive": [
+          372,
+          367.4,
+          372.6,
+          371.6,
+          373.5
+        ],
+        "response": [
+          21.8,
+          23.4,
+          36.2,
+          29.4,
+          31.4
+        ],
+        "frameGapP95": [],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "idleRectReadsPerSec": [],
+        "idleBusyPct": [],
+        "idleLayoutsPerSec": [],
+        "panelFramesOff": []
+      },
+      "budget": 1000,
+      "baseline": {
+        "median": 364.8,
+        "p95": 366.3,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-26",
+        "commit": "e6203b5b2",
+        "noisy": true
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

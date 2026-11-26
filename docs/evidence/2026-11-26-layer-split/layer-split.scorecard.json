@@ -89,19 +89,19 @@
         "name": "打开 100 层拆出的画板到能操作",
         "unit": "ms",
         "baseline": null,
-        "current": 364.8,
+        "current": 372,
         "n": 5,
         "basis": "measured",
-        "note": "perf:scenarios inline-whiteboard-split-100-open，中位数；p95 366.3，预算 1000，提交 e6203b5b2"
+        "note": "perf:scenarios inline-whiteboard-split-100-open，中位数；p95 373.3，预算 1000，提交 5973ebce8（工作树干净），原始结果 docs/evidence/2026-11-26-layer-split/perf-inline-whiteboard-split-100-open.json"
       },
       {
         "name": "图层面板列出 101 行",
         "unit": "ms",
         "baseline": null,
-        "current": 23.1,
+        "current": 29.4,
         "n": 5,
         "basis": "measured",
-        "note": "同一场景，中位数；p95 35.6，只打印不设预算"
+        "note": "同一场景，中位数；p95 35.2，只打印不设预算"
       }
     ]
   },

@@ -154,7 +154,7 @@
 1. 新增操作：浮条菜单多一项（点开菜单）；派生（点一次）；生成框分离格（点开参数面板）；打开拆过的画板（最多 100 层）。
 2. 最坏规模：API 上限 max_images 100（含底图）→ 底图 + 99 层，面板 101 行。
 3. 预算：打开到能操作 ≤ 1 s（同 `inline-whiteboard-open`）；交互期间 >50 ms 长任务 0 个；菜单 / 派生 / 参数面板沿用现有组件，不新增重绘路径。
-4. 场景 `inline-whiteboard-split-100-open`（tests/perf/scenarios/inline-whiteboard-split-100-open.json，探针 tests/ux/whiteboard-perf.probe.mjs `--scene split-board-open --repo-media`）：openToInteractive 中位数 364.8 ms / p95 366.3 ms / 预算 1000 ms；图层面板列出 101 行 response 中位数 23.1 ms / p95 35.6 ms（只打印）；长任务 0；5 次，Apple M5 / 24GB，commit e6203b5b2，noisy。
+4. 场景 `inline-whiteboard-split-100-open`（tests/perf/scenarios/inline-whiteboard-split-100-open.json，探针 tests/ux/whiteboard-perf.probe.mjs `--scene split-board-open --repo-media`）：openToInteractive 中位数 372 ms / p95 373.3 ms / 预算 1000 ms；图层面板列出 101 行 response 中位数 29.4 ms / p95 35.2 ms（只打印）；长任务 0；5 次，Apple M5 / 24GB，commit 5973ebce8（工作树干净），原始结果 docs/evidence/2026-11-26-layer-split/perf-inline-whiteboard-split-100-open.json。基线 364.8 / 366.3 在 e6203b5b2 上量（noisy）。
 5. 留 PR2：面板滚动、多选 20 层拖动两个场景随虚拟列表与多选一起登记（本 PR 面板未改、无多选）。
 
 ## 8 真实条件
