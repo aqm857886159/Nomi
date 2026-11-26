@@ -14,8 +14,8 @@
 // 归一的办法是**追加一个上游认得的标记**，不是替换厂商原话——用户仍然要看到供应商说了什么。
 //
 // **仓库里另外两处也在认厂商错误，为什么这里还要第三处**（R14.1 的问题，逐个答）：
-//   · `electron/vendor/vendorHttp.ts` 的 `categorizeVendorFailure` 按 **HTTP 状态码**查
-//     （生成类供应商的作业接口）；这里按**报文文本**查——文本模型的流状态码常常是 200，
+//   · `electron/shared/vendorFailure.ts` 的 `categorizeVendorFailure` 按 **HTTP 状态码 + 上游给的码 / 类型**查
+//     （三扇门共用）；这里按**报文文本**查——文本模型的流状态码常常是 200，
 //     错误写在体里，状态码那张表看不见它。
 //   · `src/workbench/observability/classifyError.ts` 的 `detectBalance` 认的是同一批中文词，
 //     但它回答的是**另一个问题**：「给用户看哪句话、指哪个动作」（充值 vs 等待），产出是
@@ -24,9 +24,15 @@
 //     消费者都拿到一个对谁都不精确的中间类别。
 //     **但词表不许各长各的**：上面那张表是 `detectBalance` 的超集，`lane-resilience.test.mts`
 //     的语料表把两边的真实样本一条条喂进来，漂了当场红（R28：防线放在最早能拦住的那层）。
+//
+// **2026-11-22（S4）余额先认结构**：服务商回了状态码（这次失败带 `LANE_VENDOR_FAILURE_DIAGNOSTIC`）时，「是不是余额」
+// 由 `categorizeVendorFailure` 按状态码 + 上游自己给的 `error.code` / `error.type` 定，标记在 `laneModelProvider` 铸载荷时
+// 就贴上（`withClassifierMarker`）；这里的余额词表只管**没有 HTTP 结构**的那几种（200 里 SSE 报错、看门狗收场）。
+// 有结构时再按文字猜余额，会把「403 + 余额词」这类形状重新说成余额、绕过那张表（协调 11-22 定 A）。
 import { AssistantMessageFrameEncoder, reduceAssistantMessageFrames, createAssistantMessageEventStream, type Api, type AssistantMessage,
   type AssistantMessageEventStream, type Model, type ProviderStreams } from '@earendil-works/pi-ai';
 import { observeNativeStream, type NativeClock } from './laneStreamObserver.mjs';
+import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
 
 /** 一条流的三个预算。**没有默认值**：忘了配就是没有看门狗，而那正是 09 月的 bug。 */
 export interface NomiStreamGuard {
@@ -69,18 +75,36 @@ export const LANE_STREAM_WATCHDOG: NomiStreamGuard = Object.freeze({
 export const MODEL_CALL_CEILING_MS = 600_000;
 
 /**
+ * 余额这一档贴的词：pi 的 `NON_RETRYABLE_PROVIDER_LIMIT_ERROR_PATTERN` 认 `insufficient_quota`，先于一切可重试词判「别重试」
+ * （`pi-ai/dist/utils/retry.js`）。pi 的重试没有开关可拨（`RetryPolicy` 只有三个数），这是它留给宿主的唯一口子。
+ */
+export const BALANCE_CLASSIFIER_MARKER = 'insufficient_quota';
+
+const CLASSIFIER_MARKER_TAIL = /\[nomi-classified: [^\]]+\]\s*$/;
+
+/**
+ * 给报文贴一个上游认得的标记——**唯一**写这个标记的地方。已经贴过（结尾已有一个）就原样返回：一条失败只带一个标记，
+ * `laneTrace` 读结尾那一个，两个标记会让它读到后贴的那个。
+ */
+export function withClassifierMarker(text: string, marker: string): string {
+  // 标记看得见、说得清是谁加的。藏起来的分类在排错时就是一个查不出来源的行为差异。
+  return CLASSIFIER_MARKER_TAIL.test(text) ? text : `${text} [nomi-classified: ${marker}]`;
+}
+
+/**
  * 厂商报文 → 上游正则认得的标记。**顺序即优先级**：余额排第一，因为它同时是
  * 「别重试」的开关（上游先跑 `NON_RETRYABLE_PROVIDER_LIMIT_ERROR_PATTERN`），
  * 而把一次确定的付费失败重试三次，用户等的是四倍的时间换同一个结果。
  */
-const VENDOR_CLASSIFICATIONS: readonly { readonly match: RegExp; readonly marker: string }[] = [
+const VENDOR_CLASSIFICATIONS: readonly { readonly match: RegExp; readonly marker: string; readonly onlyWithoutStructure?: true }[] = [
   // 余额这一档的词表**不是想出来的**，是把仓库里已有的真实样本抄齐的：
   // `src/workbench/observability/classifyError.ts:287-294` 的 `detectBalance`（渲染层
   // 已经在用这套词判生成作业的失败）、RunningHub 605 / 1620 两条原话
   // （`classifyGenerationError.test.ts:155,157`）、kie 402 的 `余额不足`
   // （`electron/vendor/vendorHttp.test.ts:47`）。两张表不合并的理由见文件头；
   // 词表**必须是那张的超集**，`lane-resilience.test.mts` 的语料表把这条钉死。
-  { marker: 'insufficient_quota',
+  // 有 HTTP 结构时不走这一行：余额由结构定（见文件头 S4 一段）。
+  { marker: BALANCE_CLASSIFIER_MARKER, onlyWithoutStructure: true,
     match: /余额不足|余额已用[尽完]|账户余额|余额为负|欠费|请充值|不支持 ?API ?调用|积分不足|额度不足|配额不足|insufficient[ _-]?balance|not enough (?:balance|credit)|please recharge|top ?up/i },
   { marker: 'timeout', match: /超时|请求超时|响应超时|等待超时/ },
   { marker: 'rate limit', match: /请求过于频繁|访问过于频繁|频率超限|并发超限|限流|触发限流/ },
@@ -97,17 +121,19 @@ const VENDOR_CLASSIFICATIONS: readonly { readonly match: RegExp; readonly marker
  * 只追加一个：两个标记同时出现时，第一条（余额）赢——那是唯一一个「重试有害」的类别。
  * 已经命中上游表的报文（英文的 `429` / `timeout` / `insufficient_quota` …）走这里也不会变差：
  * 追加同义标记不改变分类，而漏判才会。
+ * 结尾已有标记（provider 层按结构贴过余额）就原样返回；`structured`（服务商回了状态码）时余额那行不走。
  */
-export function normalizeProviderErrorText(text: string): string {
-  const hit = VENDOR_CLASSIFICATIONS.find((rule) => rule.match.test(text));
-  if (!hit) return text;
-  // 标记看得见、说得清是谁加的。藏起来的分类在排错时就是一个查不出来源的行为差异。
-  return `${text} [nomi-classified: ${hit.marker}]`;
+export function normalizeProviderErrorText(text: string, options: { readonly structured?: boolean } = {}): string {
+  if (CLASSIFIER_MARKER_TAIL.test(text)) return text;
+  const hit = VENDOR_CLASSIFICATIONS.find((rule) => !(options.structured && rule.onlyWithoutStructure) && rule.match.test(text));
+  return hit ? withClassifierMarker(text, hit.marker) : text;
 }
 
 function normalizeMessage(message: AssistantMessage): AssistantMessage {
   if (message.stopReason !== 'error' || !message.errorMessage) return message;
-  const errorMessage = normalizeProviderErrorText(message.errorMessage);
+  // 服务商回了状态码：载荷在 laneModelProvider 已铸好（同一张归类表），这里只认「有没有」。
+  const structured = (message.diagnostics ?? []).some((entry) => entry.type === LANE_VENDOR_FAILURE_DIAGNOSTIC);
+  const errorMessage = normalizeProviderErrorText(message.errorMessage, { structured });
   return errorMessage === message.errorMessage ? message : { ...message, errorMessage };
 }
 

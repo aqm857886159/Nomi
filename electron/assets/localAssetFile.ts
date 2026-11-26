@@ -4,7 +4,8 @@ import fs from "node:fs";
 import { appFetch } from "../appFetch";
 import { resolveProjectRelativePath } from "../projects/repository";
 import { resolveContentType } from "./mediaTypes";
-import { categorizeVendorFailure } from "../vendor/vendorHttp";
+import { VendorRequestError, categorizeVendorFailure } from "../vendor/vendorHttp";
+import { isJsonRecord, pickUpstreamCode, pickUpstreamType } from "../jsonUtils";
 import { maybeResolveVendorBase, rewriteVendorUrl } from "../vendor/vendorBaseFallback";
 import type { LocalAsset } from "../catalog/assetLocalization";
 
@@ -130,7 +131,7 @@ const ASSET_UPLOAD_RETRY_BASE_MS = 400;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-// 终态错误（4xx 鉴权/请求问题）包一层标记 → 立即冒泡不重试，区别于连接级瞬态错误。
+// 终态错误（4xx 鉴权/请求问题、余额不足）包一层标记 → 立即冒泡不重试，区别于连接级瞬态错误。
 class NonRetryableUploadError extends Error {
   constructor(readonly original: Error) {
     super(original.message);
@@ -152,13 +153,32 @@ function uploadErrorDetail(json: unknown): string {
 }
 
 /**
- * 跑一次上传请求并按可重试性分诊；瞬态（连接级 / 5xx / 429）有界重试，终态（4xx）立即抛。
+ * 上传端点回了非 2xx → 与媒体请求、模型调用同一种失败（`VendorRequestError`）：状态码 + 上游自己给的码 / 类型一起交
+ * `categorizeVendorFailure` 归类（余额一族认标识，不靠文字）。文案与过去逐字一样（下游 `assetLocalization` 只读 message 汇总）。
+ * 不带 `providerAnswer`：上传是免费的前置步骤，不是一次「提交有没有被受理」的事实。
+ * `url` 只留来源（origin）：签名上传地址的查询串里是凭据。
+ */
+function uploadHttpError(response: Response, json: unknown, method: string): VendorRequestError {
+  const record = isJsonRecord(json) ? json : {};
+  const upstreamCode = pickUpstreamCode(record);
+  const detail = uploadErrorDetail(json) || "(无详情)";
+  let origin = "";
+  try { origin = response.url ? new URL(response.url).origin : ""; } catch { /* 认不出就留空 */ }
+  return new VendorRequestError(`素材上传失败(HTTP ${response.status})：${detail}`, {
+    vendorKey: "", method, url: origin, httpStatus: response.status, upstreamMsg: detail.slice(0, 256),
+    ...(upstreamCode ? { upstreamCode } : {}),
+    ...categorizeVendorFailure(response.status, undefined, { code: upstreamCode, type: pickUpstreamType(record) }),
+  });
+}
+
+/**
+ * 跑一次上传请求并按可重试性分诊；瞬态（连接级 / 5xx / 429）有界重试，终态（4xx、余额不足）立即抛。
  * doFetch 是 thunk：每次重试重新构造请求体（multipart 的 FormData/Blob 重建，避免复用已被读过的流）。
  * opts.delayMs 仅供单测注 0 免真 sleep。
  */
 export async function postWithUploadRetry(
   doFetch: () => Promise<Response>,
-  opts: { maxAttempts?: number; delayMs?: number; onNetworkError?: (error: unknown) => Promise<void> } = {},
+  opts: { maxAttempts?: number; delayMs?: number; method?: string; onNetworkError?: (error: unknown) => Promise<void> } = {},
 ): Promise<unknown> {
   const maxAttempts = opts.maxAttempts ?? ASSET_UPLOAD_MAX_ATTEMPTS;
   const baseDelay = opts.delayMs ?? ASSET_UPLOAD_RETRY_BASE_MS;
@@ -170,9 +190,8 @@ export async function postWithUploadRetry(
       let json: unknown = null;
       try { json = text ? JSON.parse(text) : null; } catch { json = text; }
       if (response.ok) return json;
-      const { retryable } = categorizeVendorFailure(response.status);
-      const httpError = new Error(`素材上传失败(HTTP ${response.status})：${uploadErrorDetail(json) || "(无详情)"}`);
-      if (!retryable) throw new NonRetryableUploadError(httpError); // 4xx 鉴权/请求 → 不重试
+      const httpError = uploadHttpError(response, json, opts.method ?? "POST");
+      if (!httpError.structured.retryable) throw new NonRetryableUploadError(httpError); // 4xx 鉴权/请求、余额不足 → 不重试
       lastError = httpError; // 5xx / 429 → 可重试
     } catch (error) {
       if (error instanceof NonRetryableUploadError) throw error.original;
@@ -250,6 +269,6 @@ export async function putBinaryForAssetUpload(
         body: new Uint8Array(arrayBuffer),
       });
     },
-    { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
+    { method: "PUT", onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );
 }

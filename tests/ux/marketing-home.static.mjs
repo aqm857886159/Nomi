@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { shared } from '../../scripts/marketing/content.mjs'
+
 // 官网首页 + 快速上手 + README 的静态合同。
 // 2026-09-27 用户拍板 0.22 改版（docs/plan/2026-09-27-promo-0.22-site-readme.md）：主张换成「商业级体验，模型按原价」，
 // 功能段播放宣传片对应的秒数，README 的微信二维码从头图之前挪到「社区」一节。
@@ -17,16 +19,26 @@ const expectBefore = (document, token, boundary, message) => {
   const boundaryIndex = document.indexOf(boundary)
   expect(tokenIndex >= 0 && boundaryIndex >= 0 && tokenIndex < boundaryIndex, message)
 }
-/** README 的常青社区转化块：住在「社区」一节里，展示永不过期的维护者二维码 + 微信号进群说明 + GitHub Discussions/Issues，不再嵌 7 天必过期的微信群码。 */
+// 当前用户群码只有一个家：scripts/marketing/content.mjs 的 shared.groupQr（文件名带过期日）；README 用同一天的 docs/media 副本。
+// 群码每 7 天过期，所以右边一直挂维护者码兜底（2026-11-26 用户要求把群码重新挂上）。
+const groupQrDate = shared.groupQr.match(/group-wechat-(\d{4}-\d{2}-\d{2})\.jpg$/)?.[1]
+expect(groupQrDate, `shared.groupQr names its expiry date: ${shared.groupQr}`)
+const siteGroupQr = `marketing/assets/group-wechat-${groupQrDate}.jpg`
+const readmeGroupQr = `docs/media/nomi-canvas-group-wechat-${groupQrDate}.jpg`
+
+/** README 的社区转化块：住在「社区」一节里，用户群码大图在前，维护者码在后兜底，不用会缩小的 Markdown 表格。 */
 const expectCommunityConversion = (document, heading, nextHeading, language) => {
   const startIndex = document.indexOf(heading)
   const boundaryIndex = document.indexOf(nextHeading, startIndex + heading.length)
   expect(startIndex >= 0 && boundaryIndex > startIndex, `${language} community block is bounded`)
   const conversion = document.slice(startIndex, boundaryIndex)
+  const groupImage = conversion.match(/<img src="docs\/media\/nomi-canvas-group-wechat-[0-9]{4}-[0-9]{2}-[0-9]{2}\.jpg"[^>]*>/)?.[0]
+  expect(groupImage && /width="2\d{2}"/.test(groupImage), `${language} group QR remains prominent on mobile`)
+  expect(groupImage.includes(readmeGroupQr), `${language} group QR is the current one (${readmeGroupQr})`)
+  expectBefore(conversion, readmeGroupQr, 'docs/media/qingyang-wechat.jpg', `${language} puts the user-group QR before maintainer contact`)
   const maintainerImage = conversion.match(/<img src="docs\/media\/qingyang-wechat\.jpg"[^>]*>/)?.[0]
-  expect(maintainerImage && /width="(?:180|2\d{2})"/.test(maintainerImage), `${language} maintainer QR remains prominent on mobile`)
+  expect(maintainerImage && /width="(?:180|2\d{2})"/.test(maintainerImage), `${language} maintainer QR stays as the expired-code fallback`)
   expect(!conversion.includes('|:---'), `${language} conversion avoids a shrinking Markdown table`)
-  expect(!/nomi-canvas-group-wechat|group-wechat-/.test(conversion), `${language} community block ships no expiring 7-day group QR asset`)
   expect(conversion.includes('TZ857886159'), `${language} community block keeps the textual WeChat fallback`)
   expect(conversion.includes('github.com/aqm857886159/Nomi/discussions'), `${language} community block links GitHub Discussions`)
   expect(conversion.includes('github.com/aqm857886159/Nomi/issues'), `${language} community block links GitHub Issues`)
@@ -62,6 +74,8 @@ const files = [
   'marketing/assets/promo-0.22/film-poster-en.jpg',
   'marketing/assets/social-preview-zh.jpg',
   'marketing/assets/social-preview-en.jpg',
+  siteGroupQr,
+  readmeGroupQr,
   'marketing/assets/qingyang-wechat.jpg',
   'docs/media/qingyang-wechat.jpg',
   '.github/ISSUE_TEMPLATE/business_inquiry.yml',
@@ -118,8 +132,8 @@ for (const html of [zh, en]) {
   expect(html.includes('business_inquiry.yml'), 'business CTA destination exists')
   expect(html.includes('https://github.com/aqm857886159/Nomi/discussions'), 'community Discussions link exists')
   expect(html.includes('https://github.com/aqm857886159/Nomi/issues'), 'community Issues link exists')
-  expect(!/group-wechat-|nomi-canvas-group-wechat|日前有效|天内.*有效/.test(html), 'no expiring 7-day group QR or expiry date ships on homepage')
-  expect(html.includes('<figure class="qr" id="community-qr"><img src="/assets/qingyang-wechat.jpg"'), 'non-expiring maintainer WeChat QR is directly rendered in the community section')
+  expect(html.includes(`<figure class="qr" id="community-qr"><img src="${shared.groupQr}"`), 'current group QR is directly rendered in the community section')
+  expect(!/日前有效|天内.*有效/.test(html), 'homepage text carries no expiry date (the date lives only in the QR image)')
   expect(!html.includes('data-open-dialog="group'), 'community QR does not require a dialog trigger')
   expect(html.includes('/assets/qingyang-wechat.jpg'), 'maintainer QR destination exists')
   expect(html.includes('/assets/nomi-logo.svg'), 'official Nomi mark is used')
@@ -186,13 +200,19 @@ for (const html of [zh, en, zhQuickstart, enQuickstart]) {
 for (const relativePath of files) expect(fs.existsSync(path.join(root, relativePath)), `${relativePath} exists`)
 expect(
   fs
+    .readFileSync(path.join(root, siteGroupQr))
+    .equals(fs.readFileSync(path.join(root, readmeGroupQr))),
+  'website and README publish the identical current group QR',
+)
+expect(
+  fs
     .readFileSync(path.join(root, 'marketing/assets/qingyang-wechat.jpg'))
     .equals(fs.readFileSync(path.join(root, 'docs/media/qingyang-wechat.jpg'))),
   'website and README publish the identical non-expiring maintainer QR',
 )
 for (const dir of ['marketing/assets', 'docs/media']) {
-  const staleGroupQrs = fs.readdirSync(path.join(root, dir)).filter((name) => /group-wechat/i.test(name))
-  expect(staleGroupQrs.length === 0, `${dir} contains no 7-day expiring group QR files (found: ${staleGroupQrs.join(', ')})`)
+  const groupQrs = fs.readdirSync(path.join(root, dir)).filter((name) => /group-wechat/i.test(name))
+  expect(groupQrs.length === 1 && groupQrs[0].includes(groupQrDate), `${dir} keeps only the current group QR, expired ones are deleted (found: ${groupQrs.join(', ')})`)
 }
 expect(fs.statSync(path.join(root, `marketing${film}`)).size < 15 * 1024 * 1024, 'the web film stays small enough for the static host')
 expect(!fs.existsSync(path.join(root, 'marketing/assets/demo.gif')), 'legacy demo GIF remains removed')

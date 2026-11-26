@@ -386,9 +386,18 @@ describe('paidRunVerdict · 真付费总闸判据（按产品 decideGenerationFa
   it('delegates vendor HTTP / envelope classification to decideGenerationFailure without custom wording rules', () => {
     expect(PAID_UNVERIFIED_EXIT_CODE).toBe(3)
     expect(classifyAllowedVendorResponse(responseRow(402, { error: { message: 'Insufficient account balance for this request' } }))).toMatchObject({ kind: 'balance', vendorSide: true })
-    expect(classifyAllowedVendorResponse(responseRow(429, { error: { code: 'insufficient_quota', message: 'You exceeded your current quota' } }))).toMatchObject({ kind: 'quota', vendorSide: true })
     expect(classifyAllowedVendorResponse(responseRow(400, { error: { message: 'Invalid input: replay rejected' } }))).toMatchObject({ kind: 'input', vendorSide: true })
     expect(classifyAllowedVendorResponse(responseRow(200, { id: 'resp_1', status: 'completed' }))).toBeNull()
+  })
+
+  it.each([
+    [{ code: 'insufficient_quota', message: 'You exceeded your current quota' }, 'balance'],
+    [{ type: 'insufficient_quota', message: 'Request rejected' }, 'balance'],
+    [{ code: 'rate_limit_exceeded', message: 'Request rejected' }, 'quota'],
+  ])('classifies vendor 429 by its identifier in both HTTP and logical errors: %j', (error, kind) => {
+    const expected = { kind, vendorSide: true }
+    expect(classifyAllowedVendorResponse(responseRow(429, { error }))).toMatchObject(expected)
+    expect(classifyAllowedVendorResponse(responseRow(200, { code: 429, error }))).toMatchObject(expected)
   })
 
   it('marks授权供应商 balance / quota exhaustion as unverified, while relay 429 or product 400 stays 不过', () => {

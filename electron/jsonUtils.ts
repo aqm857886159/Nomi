@@ -128,6 +128,16 @@ export function pickUpstreamCode(record: JsonRecord): string {
 }
 
 /**
+ * 上游失败响应体里的 `error.type`（OpenAI 错误对象的第二格）。同一个「字符串标识码」的形状约束，挑不出返回 ""。
+ * 为什么要读它：有的服务商把原因只放在 `type` 里（APIMart 402 的 `payment_required`、上传 402 的 `insufficient_user_quota`；
+ * OpenAI 账单一族的 `insufficient_quota`），只读 `code` 会漏掉——归类见 `categorizeVendorFailure`。
+ */
+export function pickUpstreamType(record: JsonRecord): string {
+  const candidate = firstString(readNestedRecord(record, ["error", "type"]));
+  return /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/.test(candidate) ? candidate : "";
+}
+
+/**
  * 找出字符串里第一个无法安全放进 HTTP 头/凭证的字符，返回 null 表示安全。
  * 治本于一个真坑（kie createTask 报「Cannot convert argument to a ByteString
  * because the character at index 7 has a value of 34915」）：API 密钥里混进中文/
