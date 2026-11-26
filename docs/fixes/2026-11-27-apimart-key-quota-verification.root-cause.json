@@ -2,32 +2,80 @@
   "schema_version": 3,
   "id": "2026-11-27-apimart-key-quota-verification",
   "problem_type": "Onboarding completion ignores an explicit failed check",
-  "symptom": "A zero-quota key shows a warning and emits a connected receipt after 450 ms.",
-  "direct_cause": "The page completed verification using only accountBalance even when keyQuota explicitly reported zero. On recheck, a missing keyQuota also erased the earlier finite zero before the timer decision.",
-  "class_root": "Completion and row warnings need the same evidence about exhausted balances, including unresolved exhaustion for the credential being checked.",
+  "symptom": "A zero-quota key shows a warning and emits a connected receipt after 450 ms. After a settings key replacement, a partial recheck can also keep a funded creator on the page.",
+  "direct_cause": "The page completed verification using only accountBalance even when keyQuota explicitly reported zero. On recheck, a missing keyQuota also erased the earlier finite zero before the timer decision. The renderer associated saved-key rechecks with its last pasted key or an empty identifier.",
+  "class_root": "The completion stage and check rows depend on exhaustion evidence whose credential identity must travel with the result from the process that selected the request key.",
   "affected_population": [
     "Creators pasting or rechecking a limited key against a funded APIMart account."
   ],
   "scope_paths": [
     "src/ui/onboarding/useApimartVerification.ts",
     "src/ui/onboarding/ApimartConnectPage.tsx",
-    "src/ui/onboarding/ApimartCheckCard.tsx"
+    "src/ui/onboarding/ApimartCheckCard.tsx",
+    "electron/ai/onboarding/vendorAccountBalance.ts",
+    "electron/shared/contracts/vendorAccountBalance.ts"
   ],
   "entry_points": [
     "Paste a candidate key or recheck the saved credential when returning to the page."
   ],
   "external_sources": [],
-  "internal_only_reason": "The received IPC type already identifies both sources. Scheme B on #1586 defines the application completion policy.",
+  "internal_only_reason": "Scheme B and the round 3 dispatch on #1586 define completion and credential isolation. The checked identity belongs to the local IPC contract.",
   "invariants": [
     "A finite zero balance blocks completion. Account exhaustion takes priority over key exhaustion.",
     "A foreground recheck must be able to release either waiting state.",
-    "Within the page, a confirmed finite zero belongs to that key until positive credits or unlimited quota is explicitly reported. A different key is evaluated independently."
+    "Within the page, a confirmed finite zero belongs to that key until positive credits or unlimited quota is explicitly reported. A different key is evaluated independently.",
+    "Candidate and saved-key checks use the same trimmed credential for request authorization and its in-memory SHA-256 identifier. Only a matching identifier can reuse a confirmed zero."
   ],
   "doors": [
     {
       "kind": "read",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "VendorBalanceFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "VendorBalanceCheck"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/vendorAccountBalance.ts",
+      "symbol": "VendorBalanceFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/bridgeModelCatalogSurface.ts",
+      "symbol": "VendorBalanceCheck"
+    },
+    {
+      "kind": "read",
       "path": "src/ui/onboarding/ApimartConnectPage.tsx",
       "symbol": "ApimartCheckCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "symbol": "VendorBalanceFailure"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "symbol": "VendorBalanceCheck"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "checkVendorAccountBalance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "balanceReader"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "checkVendorAccountBalance"
     },
     {
       "kind": "write",
@@ -43,19 +91,29 @@
       "kind": "write",
       "path": "src/ui/onboarding/useApimartVerification.ts",
       "symbol": "isExhaustedBalance"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "symbol": "recheckApimartBalance"
     }
   ],
   "door_reduction": {
-    "before": 2,
-    "after": 4,
-    "why_not": "One page drives verification and renders the rows. The stage and the row presentation now call the same finite-zero predicate; the extra call sites replace inline numeric checks."
+    "before": 14,
+    "after": 14,
+    "why_not": "Candidate save and saved-key IPC recheck select distinct credential sources and use the same main-process check. The hook calls the recheck and decides the stage. The page mounts the hook and renders the card. Stage and rows share the exhaustion predicate. The request reader owns authorization and identity. The shared contract types are consumed by main, the desktop bridge and the hook."
   },
-  "generality_proof": "Both catalog calls return to the same hook. Only the passed stage schedules notification and return.",
+  "generality_proof": "Each check resolves one credential before the two endpoint requests. The hook uses the identifier on that result even when another surface changed the saved key or the page has never seen it.",
   "shared_boundaries": [
     {
       "path": "src/ui/onboarding/useApimartVerification.ts",
       "symbol": "useApimartVerification",
       "responsibility": "Own verification stage, recheck lifetime and the delayed connected receipt."
+    },
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "symbol": "checkVendorAccountBalance",
+      "responsibility": "Identify the credential selected for both request headers in candidate and saved-key diagnostics."
     }
   ],
   "same_class_entry_points": [
@@ -84,7 +142,8 @@
     "reason": "Every saved key or new key with a finite zero limit can produce the same false receipt.",
     "same_class_scan": [
       "door-map useApimartVerification locates the shared page entry.",
-      "rg keyQuota and recheckApimartBalance connects the two IPC results to the check rows and the receipt."
+      "rg keyQuota and recheckApimartBalance connects the two IPC results to the check rows and the receipt.",
+      "door-map checkVendorAccountBalance finds candidate saves in rendererCatalogMutation and saved-key checks in onboardingIpc. Both capture the request credential before awaiting the provider."
     ]
   },
   "prevention": {
@@ -93,18 +152,22 @@
     "invariant": "Only a result with no explicitly exhausted resource can schedule a connected receipt.",
     "failure_mode": "Keep the appropriate warning visible until a new check resolves it.",
     "exception_policy": "none",
-    "strategy": "Keep unresolved zero-quota snapshots by credential identity for the page lifetime. Use the effective snapshot for both the check rows and the account-first stage decision.",
+    "strategy": "Associate each confirmed zero with checkedKeyId on the main-process result. Positive credits or unlimited quota clear that key’s entry. The effective quota feeds both the stage and the visible row.",
     "artifacts": [
       "src/ui/onboarding/useApimartVerification.ts",
       "src/ui/onboarding/ApimartCheckCard.tsx",
-      "src/ui/onboarding/ApimartConnectPage.tsx"
+      "src/ui/onboarding/ApimartConnectPage.tsx",
+      "electron/ai/onboarding/vendorAccountBalance.ts",
+      "electron/shared/contracts/vendorAccountBalance.ts"
     ]
   },
   "regression_tests": [
-    "src/ui/onboarding/ApimartConnectPage.test.tsx"
+    "src/ui/onboarding/ApimartConnectPage.test.tsx",
+    "electron/ai/onboarding/vendorAccountBalance.test.ts"
   ],
   "class_regression_tests": [
-    "src/ui/onboarding/ApimartConnectPage.test.tsx"
+    "src/ui/onboarding/ApimartConnectPage.test.tsx",
+    "electron/ai/onboarding/vendorAccountBalance.test.ts"
   ],
   "invariant_owner_layer": {
     "layer": "src/ui/onboarding/useApimartVerification.ts",
@@ -122,7 +185,7 @@
       "src/ui/onboarding/useApimartVerification.ts",
       "src/ui/onboarding/ApimartCheckCard.tsx"
     ],
-    "rationale": "Replace the account-only completion rule and numeric-only row warning."
+    "rationale": "Replace the account-only completion rule and numeric-only row warning. Remove the renderer fingerprint and last-pasted identifier from rechecks."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -131,7 +194,7 @@
   },
   "migration": "Verification stages are ephemeral. Existing credentials are rechecked through the original bridge.",
   "residual_risks": [
-    "Tests provide IPC snapshots. No live account or paid generation is exercised."
+    "The settings replacement and focus event are tested with IPC fixtures. Vendor HTTP 503 is simulated in the main-process test."
   ],
   "detected_by": "review",
   "recurrence_check_on": "2026-12-24"
