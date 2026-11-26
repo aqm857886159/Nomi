@@ -28,9 +28,11 @@ export type VendorReportedBalance = {
 
 export type VendorBalanceFailure = "offline" | "invalid" | "unavailable";
 
+/** checkedKeyId is an in-memory SHA-256 fingerprint of the credential used for the check. */
 export type VendorBalanceCheck =
-  | { status: "received"; keyQuota: VendorReportedBalance | null; accountBalance: VendorReportedBalance | null }
-  | { status: VendorBalanceFailure };
+  | { status: "received"; checkedKeyId: string; keyQuota: VendorReportedBalance | null; accountBalance: VendorReportedBalance | null }
+  | { status: Exclude<VendorBalanceFailure, "unavailable">; checkedKeyId: string }
+  | { status: "unavailable" };
 
 /** Local shape check shared by the APIMart input and its main-process write boundary. */
 export function isApimartKeyCandidate(key: string): boolean {

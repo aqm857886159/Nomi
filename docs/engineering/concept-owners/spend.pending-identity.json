@@ -26,6 +26,10 @@
     {
       "path": "scripts/spend-token-doors.mjs",
       "symbol": "SPEND_TOKEN_DOORS"
+    },
+    {
+      "path": "electron/shared/contracts/pendingSpendConfirm.ts",
+      "symbol": "PendingSpendHandOverInput"
     }
   ],
   "forbidden_derivations": [
@@ -88,5 +92,5 @@
     }
   ],
   "since": "2026-09-22",
-  "notes": "「这一笔」的身份只有 ProductionRun 的 operationId（projectId + operationId）；仍走令牌的附属付费口不在这里抄：哪些门、令牌从哪来，以 SPEND_TOKEN_DOORS 登记表为准，到期日与原因以本文件的 exception_deadlines 为准。"
+  "notes": "「这一笔」的身份只有 ProductionRun 的 operationId（projectId + operationId）；仍走令牌的附属付费口不在这里抄：哪些门、令牌从哪来，以 SPEND_TOKEN_DOORS 登记表为准，到期日与原因以本文件的 exception_deadlines 为准。 卡上确认尝试的身份是 quoteId 与 handOverRevision。宿主投影从这次出价的逐镜交接记录数读版本，只有交接动作核这个版本。"
 }

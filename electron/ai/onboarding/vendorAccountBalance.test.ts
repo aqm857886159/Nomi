@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { APIMART_VENDOR_SEED } from "../../catalog/apimartVendor";
 import type { CatalogState } from "../../catalog/types";
@@ -136,6 +137,7 @@ describe("readVendorAccountBalance", () => {
 describe("onboarding balance diagnostics", () => {
   const options = { catalog: makeCatalog(undefined, false), candidateKey: "sk-fixture" };
   const request = { vendorKey: "apimart" };
+  const fixtureKeyId = createHash("sha256").update(options.candidateKey).digest("hex");
   function endpoints(account: () => Response, key: () => Response) {
     return vi.fn<typeof fetch>(async (input, init) => {
       expect(init).toMatchObject({ method: "GET", redirect: "error", headers: { Authorization: "Bearer sk-fixture" } });
@@ -146,6 +148,31 @@ describe("onboarding balance diagnostics", () => {
       return key();
     });
   }
+  it("identifies the checked Key used for both requests on candidate and saved-key checks", async () => {
+    const catalog = makeCatalog();
+    let savedKey = "sk-original-1234";
+    const resolveApiKey = vi.fn(() => savedKey);
+    const check = async (candidateKey?: string) => {
+      const expectedKey = (candidateKey ?? savedKey).trim();
+      const fetchImpl = vi.fn<typeof fetch>(async (url) => String(url).endsWith("/v1/user/balance")
+        ? Response.json({ remain_credits: 52.3 }) : new Response(null, { status: 503 }));
+      const result = await checkVendorAccountBalance(request, { catalog, candidateKey, resolveApiKey, fetchImpl });
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      for (const [, init] of fetchImpl.mock.calls) {
+        expect(new Headers(init?.headers).get("Authorization")).toBe(`Bearer ${expectedKey}`);
+      }
+      expect(result).toEqual({
+        status: "received", checkedKeyId: createHash("sha256").update(expectedKey).digest("hex"),
+        accountBalance: { remainCredits: 52.3, reportedBalance: null, unlimited: false }, keyQuota: null,
+      });
+    };
+    await check("sk-candidate-1234");
+    expect(resolveApiKey).not.toHaveBeenCalled();
+    await check();
+    savedKey = "  sk-candidate-1234  ";
+    await check();
+    expect(resolveApiKey).toHaveBeenCalledTimes(2);
+  });
   it.each([
     { funds: 0, quota: { unlimited_quota: true }, limit: null, unlimited: true },
     { funds: 52.3, quota: { remain_balance: 0 }, limit: 0, unlimited: false },
@@ -180,11 +207,11 @@ describe("onboarding balance diagnostics", () => {
   });
   it.each([401, 403])("reports an explicit key refusal (HTTP %s)", async (status) => {
     const fetchImpl = endpoints(() => Response.json({ remain_credits: 12 }), () => new Response(null, { status }));
-    expect(await checkVendorAccountBalance(request, { ...options, fetchImpl })).toEqual({ status: "invalid" });
+    expect(await checkVendorAccountBalance(request, { ...options, fetchImpl })).toEqual({ status: "invalid", checkedKeyId: fixtureKeyId });
   });
   it("reports offline only if neither endpoint responds", async () => {
     const read = (account: () => Response) => checkVendorAccountBalance(request, { ...options, fetchImpl: endpoints(account, offline) });
-    expect(await read(offline)).toEqual({ status: "offline" });
+    expect(await read(offline)).toEqual({ status: "offline", checkedKeyId: fixtureKeyId });
     expect(await read(() => Response.json({ remain_balance: 1 }))).toMatchObject({
       status: "received", accountBalance: { reportedBalance: 1 }, keyQuota: null,
     });

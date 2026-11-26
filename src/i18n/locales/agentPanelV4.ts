@@ -30,7 +30,7 @@ export const zhAgentPanelV4 = {
   dockFailed: '有一步没成',
 
   // composer
-  placeholder: '继续告诉 Nomi 要改什么… @ 引用素材或技能',
+  placeholder: '继续告诉 Nomi 要改什么…',
   placeholderRunning: '可继续输入，将排队发送…',
   placeholderAwaitingAnswer: '先回答上面的问题，或继续说别的',
   message: '给 Nomi 的消息',
@@ -603,7 +603,7 @@ export const enAgentPanelV4 = {
   dockDone: 'Just finished',
   dockFailed: 'One step failed',
 
-  placeholder: 'Tell Nomi what to change… @ to reference assets or skills',
+  placeholder: 'Tell Nomi what to change…',
   placeholderRunning: 'Keep typing — it will be queued…',
   placeholderAwaitingAnswer: 'Answer the question above, or say something else',
   message: 'Message Nomi',

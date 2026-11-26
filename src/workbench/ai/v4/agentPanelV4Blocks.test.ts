@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { collapseV4Flow } from './agentPanelV4Collapse'
+import { zhAgentResident } from '../../../i18n/locales/agentResident'
 import { zhAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
 import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4ContextRing } from './AgentPanelV4Context'
@@ -154,6 +156,15 @@ describe('② 助手文本', () => {
 
 describe('③ 一行收据 · 七态', () => {
   const base: ToolReceipt = { label: '读取时间轴', action: 'timeline', status: 'output-available' }
+
+  it('shows a static 待确认 tool row in the visible conversation while an offer waits', () => {
+    const flow = collapseV4Flow([{ kind: 'tool', receipt: { ...base, label: zhAgentResident.toolGeneration, status: 'approval-requested' } }], key => key)
+    const markup = html(el(V4FlowRow, { item: flow[0]!, darkMode: false }))
+    expect(markup).toContain(zhAgentResident.toolGeneration)
+    expect(markup).toContain(zhAgentPanelV4.toolStatus.approvalRequested)
+    expect(markup.includes('animate-spin')).toBe(false)
+    expect(markup.includes('data-v4-block="process"')).toBe(false)
+  })
 
   it.each(TOOL_STATUSES)('%s 渲得出且带自己的 data-status', (status) => {
     const markup = html(el(V4ToolReceipt, { receipt: { ...base, status }, statusLabel: '进行中' }))
