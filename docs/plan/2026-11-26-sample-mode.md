@@ -228,7 +228,7 @@
    - 点「出高清」（同一个运行入口）。
 2. **最坏规模**：200 个视频节点，其中 50 个是样片，画布平移。
 3. **预算**：平移帧间隔 p95 ≤ 33ms；交互期间 >50ms 的长任务 0 个；点「出高清」到「高清生成中」可见 ≤ 100ms。
-4. **场景**：`tests/perf/scenarios/canvas-pan-sample-rows.json`（`canvas-scale-bench.mjs --scales V200S50 --scenarios pan`）。数字见 PR 正文 `perf-scenario` 一行；基线由协调或验收线写。剩余时间不开计时器：渲染时按当前时间算，每分钟由一个共享时钟刷新。
+4. **场景**：`tests/perf/scenarios/canvas-pan-sample-rows.json`（`canvas-scale-bench.mjs --scales V200S50 --scenarios pan --gesture-zoom 0.41`：滚轮放大到不低于整卡线再平移，实测落在约 0.54、同屏约 56 张整卡、14 行样片行——适应视图下 200 个节点全是远看的轻量卡，不画样片行，量不到这一行；量之前断言 DOM 里至少 5 行样片行）。数字见 PR 正文 `perf-scenario` 一行；基线是实现线在别的线忙时量的 5 次（noisy），由协调确认（coord-approve --perf）或在安静窗口重量。剩余时间不开计时器：渲染时按当前时间算，每分钟由一个共享时钟刷新。
 
 ## 8 真实条件
 

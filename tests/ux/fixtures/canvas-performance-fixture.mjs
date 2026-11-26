@@ -390,8 +390,11 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
     }
   }
   // 样片节点：结果带样片那次的任务号和来历（档案 = Seedance 2.5 样片模式），出样片 1 小时前 → 下方那一行写「剩 2 天」。
+  // 均匀撒在视频节点里（每 N 个取一个），不挤在开头：放大到整卡线时视口里不论落在哪一片，都有一样比例的样片行（实测挤在开头时同屏只画出 1 行）。
   const sampleCreatedAt = Date.now() - 60 * 60 * 1000
-  for (const [index, node] of nodes.filter((candidate) => candidate.kind === 'video').slice(0, config.sampleCount || 0).entries()) {
+  const videoNodes = nodes.filter((candidate) => candidate.kind === 'video')
+  const sampleStride = config.sampleCount ? Math.max(1, Math.floor(videoNodes.length / config.sampleCount)) : 1
+  for (const [index, node] of videoNodes.filter((_, position) => position % sampleStride === 0).slice(0, config.sampleCount || 0).entries()) {
     node.result = {
       ...node.result,
       taskId: `perf-sample-${index}`,
