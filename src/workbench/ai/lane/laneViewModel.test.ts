@@ -61,6 +61,17 @@ function projection(parts: LanePart[], overrides: Partial<LaneProjection> = {}):
 }
 
 describe('laneViewModel', () => {
+  it('marks only the generate call with the waiting spend offer as approval-requested', () => {
+    const calls = ['other', 'waiting'].map(operationId =>
+      part({ kind: 'tool-call', toolCallId: operationId, toolName: 'generate', args: { operationId }, running: true }))
+    calls.push(part({ kind: 'tool-call', toolCallId: 'old', toolName: 'generate', args: { operationId: 'waiting' }, running: false }))
+    const view = laneViewModel(projection(calls), labels, undefined, 'waiting')
+    expect(view.items.map(item => item.kind === 'tool' && item.receipt.status))
+      .toEqual(['input-available', 'approval-requested', 'input-streaming'])
+    expect(laneViewModel(projection(calls), labels).items[1])
+      .toMatchObject({ receipt: { status: 'input-available' } })
+  })
+
   it('maps a durable aborted partial to the existing interrupted assistant card', () => {
     const partial = { ...part({ kind: 'assistant-text', text: 'Actual partial', streaming: false }), interrupted: true as const,
       continuationEntryId: 'native-stopped-entry' }
