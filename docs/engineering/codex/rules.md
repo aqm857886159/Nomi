@@ -6,7 +6,7 @@
 
 ## 绝对不做
 - **绝不按名字杀进程**：禁止 `taskkill /IM …`、`Stop-Process -Name …`、`Get-Process electron | Stop-Process`、`pkill <名>`、`killall`。这台机器上同时跑着五六条 Codex、协调会话和用户自己的程序——10-07 22:13 有一条线执行 `taskkill /F /IM node.exe /T`，把所有 node 进程连同其它 Codex 会话、合并队列一起杀了两次。只许杀**你自己启动的进程**：启动时记下 PID（PowerShell `Start-Process -PassThru`、bash `$!`、或从你自己的命令输出里拿），按 PID 杀它和它的子进程树（`taskkill /PID <pid> /T /F`）。端口被占、进程卡住而你拿不到自己的 PID → 停下写进报告，别扩大范围去杀。
-- 不 `git push`、不开 PR、不评论 PR、不合并、不 force、不碰 main 分支和 release/*；只在任务书指定的分支本地提交（验收 / 调研类不提交）。
+- 不 `git push`、不开 PR、不评论 PR、不合并、不 force、不碰 main 分支和 release/*；只在任务书指定的分支本地提交（验收 / 调研类不提交）。（例外：伙伴机按协作看板 #1586 正文派的写代码活，可以推送本任务分支并开 PR，不推 main、不 force、不合并，细则见该正文。）
 - 不用 `--no-verify`，提交钩子拦了就按提示改，改不了就停下写进报告。
 - 不读、不写、不打印任何密钥 / token；不碰 `%APPDATA%\Nomi`、`~/.nomi`、用户真实项目目录；不调任何付费模型或生成接口（任务书明说可以的除外）。
 - 不起可见窗口（Electron / 浏览器一律无界面或屏外、隔离资料目录）——**无界面 / headless 走查是允许的，验收必须真跑，不许只读旧截图代替重跑**；起的 vite / dev server / electron 用完立刻停，不许 `&` 甩后台。不用 Docker / WSL（任务书明说可以的除外）。
