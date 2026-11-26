@@ -1,7 +1,7 @@
 # 体验成绩单：图层分离 PR1：改图 ▾ → 图层分离，派生节点 → 一次花钱 → 画板里可编辑的层 → 完成成新一版
 
 - 改动：图层分离 PR1：改图 ▾ → 图层分离，派生节点 → 一次花钱 → 画板里可编辑的层 → 完成成新一版
-- 验收 head：`a28f3c313`（实现线 I-SE-layer-split；真截图与走查在提交 a28f3c313 的构建上跑（已合入 origin/main 35d9ce445），假 APIMart 替身，0 花费）
+- 验收 head：`f280a1bcd`（实现线 I-SE-layer-split；真截图与走查在提交 f280a1bcd 的构建上跑（已合入 origin/main ac7126cf9），假 APIMart 替身，0 花费）
 - 场景 id：`canvas-image-generate`
 - 谁验：I-SE-layer-split（实现线自测；独立验收线待协调指定）（实现线自测）
 - 日期：2026-11-26；成绩单整理：I-SE-layer-split，按本次走查日志、反例红绿日志与性能场景原始结果填写
@@ -20,8 +20,8 @@
 | layer-split 走查（换模型后「拆图层」没跟过去） | **失败** | 在 5.5 和 5.0 Pro 之间换模型，图层分离落成了普通改图；已修，archetypeMeta.layerSplitCarry.test.ts 守住 | src/workbench/generationCanvas/nodes/controls/archetypeMeta.layerSplitCarry.test.ts |
 | layer-split 走查（删层后画笔） | **失败** | 删掉当前层后画笔落不下去（今天所有画板都有）；已修，whiteboardStateOps.test.ts 三条守住 | src/workbench/generationCanvas/nodes/whiteboard/whiteboardStateOps.test.ts |
 | layer-split 走查 walk9 zh 浅色 / en 暗色 1100×690（「≤」之前的构建 e3fff40be） | 通过 |  | tests/ux/layer-split.walk.mjs |
-| layer-split 走查 walk10 zh 浅色（最终构建 a28f3c313） | 通过 |  | tests/ux/layer-split.walk.mjs |
-| layer-split 走查 walk10 en 暗色 1100×690（最终构建 a28f3c313） | 通过 |  | tests/ux/layer-split.walk.mjs --locale en --theme dark --size 1100x690 |
+| layer-split 走查 walk11 zh 浅色（最终构建 f280a1bcd） | 通过 |  | tests/ux/layer-split.walk.mjs |
+| layer-split 走查 walk11 en 暗色 1100×690（最终构建 f280a1bcd） | 通过 |  | tests/ux/layer-split.walk.mjs --locale en --theme dark --size 1100x690 |
 | 付费走查免费演练（no-key） | 通过 |  | tests/ux/layer-split-real.paid.mjs（NOMI_PAID_REHEARSAL=no-key） |
 
 ## 机器测的
@@ -33,8 +33,8 @@
 | --- | --- | --- | --- | --- | --- |
 | 从满意的图到派生出定好方式的节点的点击 | null → 2 | 次 | 1 | 脚本计数（真事件，非采集器） | 「改图 ▾」→「图层分离」；改前没有这个入口（只能整张重生成或去别的软件抠图） |
 | 一次图层分离发给供应商的请求 | null → 1 | 次 | 1 | 脚本计数（真事件，非采集器） | 替身记下的 POST 数（vendor-requests.json）；派生那一步 0 次 |
-| 打开 100 层拆出的画板到能操作 | null → 372 | ms | 5 | 实测（采集器） | perf:scenarios inline-whiteboard-split-100-open，中位数；p95 373.3，预算 1000，提交 5973ebce8（工作树干净），原始结果 docs/evidence/2026-11-26-layer-split/perf-inline-whiteboard-split-100-open.json |
-| 图层面板列出 101 行 | null → 29.4 | ms | 5 | 实测（采集器） | 同一场景，中位数；p95 35.2，只打印不设预算 |
+| 打开 100 层拆出的画板到能操作 | null → 370.3 | ms | 5 | 实测（采集器） | perf:scenarios inline-whiteboard-split-100-open，中位数；p95 372.7，预算 1000，提交 f280a1bcd（工作树干净），原始结果 docs/evidence/2026-11-26-layer-split/perf-inline-whiteboard-split-100-open.json |
+| 图层面板列出 101 行 | null → 30.5 | ms | 5 | 实测（采集器） | 同一场景，中位数；p95 38.1，只打印不设预算 |
 
 ## 真人给的（和上面分开记）
 

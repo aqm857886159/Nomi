@@ -2,8 +2,8 @@
   "version": 1,
   "change": {
     "title": "图层分离 PR1：改图 ▾ → 图层分离，派生节点 → 一次花钱 → 画板里可编辑的层 → 完成成新一版",
-    "headSha": "a28f3c313",
-    "headNote": "实现线 I-SE-layer-split；真截图与走查在提交 a28f3c313 的构建上跑（已合入 origin/main 35d9ce445），假 APIMart 替身，0 花费",
+    "headSha": "f280a1bcd",
+    "headNote": "实现线 I-SE-layer-split；真截图与走查在提交 f280a1bcd 的构建上跑（已合入 origin/main ac7126cf9），假 APIMart 替身，0 花费",
     "userCan": "在一张满意的图上点「改图 ▾ → 图层分离」，右边多出一个定好方式的节点；点发送花一次钱，拆出的底图和透明图层落进画板，每层能选、拖角等比缩放、删掉、接着画，点「完成」成为新一版；没有能拆图层的模型时，菜单第二行告诉你去接哪一家，点了打开接入页",
     "added": [
       "改图菜单「生成新图」组第一项「图层分离」（IconStack2）",
@@ -51,12 +51,12 @@
         "evidence": "tests/ux/layer-split.walk.mjs"
       },
       {
-        "label": "layer-split 走查 walk10 zh 浅色（最终构建 a28f3c313）",
+        "label": "layer-split 走查 walk11 zh 浅色（最终构建 f280a1bcd）",
         "result": "pass",
         "evidence": "tests/ux/layer-split.walk.mjs"
       },
       {
-        "label": "layer-split 走查 walk10 en 暗色 1100×690（最终构建 a28f3c313）",
+        "label": "layer-split 走查 walk11 en 暗色 1100×690（最终构建 f280a1bcd）",
         "result": "pass",
         "evidence": "tests/ux/layer-split.walk.mjs --locale en --theme dark --size 1100x690"
       },
@@ -89,19 +89,19 @@
         "name": "打开 100 层拆出的画板到能操作",
         "unit": "ms",
         "baseline": null,
-        "current": 372,
+        "current": 370.3,
         "n": 5,
         "basis": "measured",
-        "note": "perf:scenarios inline-whiteboard-split-100-open，中位数；p95 373.3，预算 1000，提交 5973ebce8（工作树干净），原始结果 docs/evidence/2026-11-26-layer-split/perf-inline-whiteboard-split-100-open.json"
+        "note": "perf:scenarios inline-whiteboard-split-100-open，中位数；p95 372.7，预算 1000，提交 f280a1bcd（工作树干净），原始结果 docs/evidence/2026-11-26-layer-split/perf-inline-whiteboard-split-100-open.json"
       },
       {
         "name": "图层面板列出 101 行",
         "unit": "ms",
         "baseline": null,
-        "current": 29.4,
+        "current": 30.5,
         "n": 5,
         "basis": "measured",
-        "note": "同一场景，中位数；p95 35.2，只打印不设预算"
+        "note": "同一场景，中位数；p95 38.1，只打印不设预算"
       }
     ]
   },
