@@ -117,8 +117,8 @@ function renderCommunity(content, shared) {
         </div>
       </div>
       <div class="qr-row">
-        <figure class="qr" id="community-qr"><img src="${escapeAttr(shared.authorQr)}" alt="${escapeAttr(c.authorAlt)}" width="140" height="178" /><figcaption>${escapeText(c.authorCaption)}</figcaption></figure>
-        <div class="qr-invite"><h3>${escapeText(c.groupInviteTitle)}</h3><p>${escapeText(c.groupInviteBody)}</p></div>
+        <figure class="qr" id="community-qr"><img src="${escapeAttr(shared.groupQr)}" alt="${escapeAttr(c.groupAlt)}" width="140" height="209" /><figcaption>${escapeText(c.groupCaption)}</figcaption></figure>
+        <figure class="qr"><img src="${escapeAttr(shared.authorQr)}" alt="${escapeAttr(c.authorAlt)}" width="140" height="178" /><figcaption>${escapeText(c.authorCaption)}</figcaption></figure>
       </div>
     </div>
     <div class="teams">

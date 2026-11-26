@@ -217,9 +217,6 @@ html[lang="en"] .tree .note { font-family: var(--font-ui); }
 .qr { margin: 0; background: #fff; border-radius: var(--radius); padding: 10px; width: 150px; max-width: 100%; flex-shrink: 0; }
 .qr img { width: 100%; height: auto; }
 .qr figcaption { font-size: 12px; color: #4a463f; text-align: center; margin-top: 6px; line-height: 1.4; overflow-wrap: anywhere; }
-.qr-invite { flex: 1 1 160px; min-width: 0; max-width: 100%; border: 1px solid color-mix(in srgb, var(--ground) 20%, transparent); border-radius: var(--radius); padding: 16px 18px; display: flex; flex-direction: column; justify-content: center; gap: 8px; overflow-wrap: anywhere; }
-.qr-invite h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--ground); line-height: 1.35; }
-.qr-invite p { margin: 0; font-size: 14px; line-height: 1.6; color: color-mix(in srgb, var(--ground) 80%, transparent); }
 .teams { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; padding: 24px clamp(20px, 4vw, 32px); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); }
 .teams h3 { margin: 0; font-size: 18px; }
 .teams p { margin: 4px 0 0; color: var(--ink-3); font-size: 15px; }

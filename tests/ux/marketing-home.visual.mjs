@@ -5,6 +5,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
 
+import { shared } from '../../scripts/marketing/content.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const marketingRoot = path.join(repoRoot, 'marketing')
 const shotsDir = path.join(repoRoot, 'tests/ux/_marketing')
@@ -165,12 +167,12 @@ async function auditStandardCase(browser, testCase) {
   )
   assert(facts.h1Count === 1 && facts.sections, `${testCase.name}: one H1 and complete information architecture`)
   assert(
-    facts.groupQrVisible && facts.groupQrSource === '/assets/qingyang-wechat.jpg',
-    `${testCase.name}: evergreen maintainer WeChat QR is directly visible`,
+    facts.groupQrVisible && facts.groupQrSource === shared.groupQr,
+    `${testCase.name}: current group QR is directly visible`,
   )
   assert(
-    facts.groupQrSize[0] === 888 && facts.groupQrSize[1] === 1131,
-    `${testCase.name}: evergreen WeChat QR keeps the supplied asset dimensions`,
+    facts.groupQrSize[0] === 720 && facts.groupQrSize[1] >= 1000,
+    `${testCase.name}: group QR keeps the supplied 720-wide asset`,
   )
   assert(
     facts.businessLink && facts.discussionsLink && facts.wechatText,
@@ -315,7 +317,7 @@ async function auditNoJavaScript(browser, pathName, locale, claim) {
     `${locale}: no-JS direct downloads remain without a Releases detour`,
   )
   assert(heroGithub === 1 && heroFilm === 0 && noScriptFilm === 1 && !noScriptPill, `${locale}: no-JS hero keeps the GitHub path and a playable native film`)
-  assert(qr === '/assets/qingyang-wechat.jpg' && business > 0, `${locale}: no-JS QR and project paths remain`)
+  assert(qr === shared.groupQr && business > 0, `${locale}: no-JS QR and project paths remain`)
   assert(
     installGuide.includes('xattr -dr com.apple.quarantine') && /official|官方/.test(installGuide),
     `${locale}: no-JS macOS recovery stays available and source-qualified`,
@@ -369,7 +371,7 @@ async function auditBlockedMedia(browser) {
     'blocked media: claim and primary action remain',
   )
   assert(
-    facts.qr === '/assets/qingyang-wechat.jpg' && facts.business,
+    facts.qr === shared.groupQr && facts.business,
     'blocked media: community and project paths remain',
   )
   assert(facts.overflow <= 1, 'blocked media: layout remains stable')
