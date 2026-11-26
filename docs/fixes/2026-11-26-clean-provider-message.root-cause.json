@@ -14,7 +14,9 @@
   "scope_paths": [
     "electron/ai/runtimeVendorError.ts",
     "electron/shared/generationFailureDetect.ts",
-    "electron/shared/generationFailure.ts"
+    "electron/shared/generationFailure.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/ai/lane/laneCommandFailure.ts"
   ],
   "entry_points": [
     "模型传输事实经 modelCallFailure、describeAgentError 到 Agent 和文本任务",
@@ -23,8 +25,9 @@
   "internal_only_reason": "业务说明可见、原始技术细节可查以及同语种标题是 Nomi 的展示合同。HTTP 类别和 JSON 解析继续使用已有实现。",
   "invariants": [
     "已知分类的服务商原话、未知分类的同语种标题都只展示可读业务说明。",
-    "没有状态码的服务不可用仍得到服务端失败的本地化原因。",
-    "合法中文和英文业务句都能到达创作者。"
+    "无状态码时，网关状态短语和异常名可指向服务端失败，明确的地区限制保留业务说明。",
+    "合法中文和英文业务句都能到达创作者。",
+    "共享判定标出只有通用未知原因的诊断。Agent 据此投影兜底句并按条目记录未分类日志。"
   ],
   "doors": [
     {
@@ -41,12 +44,22 @@
       "kind": "write",
       "path": "electron/shared/generationFailureDetect.ts",
       "symbol": "jsonErrorMessage"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "decideGenerationFailure"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureActions.ts",
+      "symbol": "decideGenerationFailure"
     }
   ],
   "door_reduction": {
-    "before": 3,
-    "after": 3,
-    "why_not": "运行时负责从 HTTP 正文取消息，共享判定负责过滤所有生产者和持久化错误。保存过的错误会跳过今天的运行时提取。内部 JSON 解析供原话和旧报错首行共用。"
+    "before": 5,
+    "after": 5,
+    "why_not": "运行时负责从 HTTP 正文取消息，共享判定负责过滤所有生产者和持久化错误。保存过的错误会跳过今天的运行时提取。内部 JSON 解析供原话和旧报错首行共用。 两个决定投影分别负责渲染层的本地化报告和生成失败动作。"
   },
   "generality_proof": "传输层的正文提取与共享层的展示检查各处理自己的输入。所有已分类原话和未知分类的同语种标题都经过同一个内容检查，覆盖不同服务商和旧项目。业务句通过相同入口。",
   "shared_boundaries": [
@@ -79,6 +92,12 @@
       "entry_point": "classify",
       "disposition": "enforced",
       "evidence": "同一个测试经异步任务报文触发 unknown 的同语种判断，也覆盖无来源的裸异常和机器码。"
+    },
+    {
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "entry_point": "classifiedFailure",
+      "disposition": "enforced",
+      "evidence": "双语测试同时读取最终红字、未分类判断和按条目去重的日志输入。"
     }
   ],
   "recurrence_of": null,
@@ -101,12 +120,15 @@
     "artifacts": [
       "electron/shared/generationFailureDetect.ts",
       "electron/ai/runtimeVendorError.ts",
-      "electron/shared/generationFailure.ts"
+      "electron/shared/generationFailure.ts",
+      "src/workbench/observability/classifyError.ts",
+      "src/workbench/ai/lane/laneCommandFailure.ts"
     ]
   },
   "regression_tests": [
     "electron/ai/agentError.test.ts",
-    "src/workbench/observability/vendorQuoteProvenance.test.ts"
+    "src/workbench/observability/vendorQuoteProvenance.test.ts",
+    "src/workbench/observability/failureExits.parity.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/observability/vendorQuoteProvenance.test.ts"

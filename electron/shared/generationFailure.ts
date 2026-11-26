@@ -34,6 +34,8 @@ export type GenerationFailureDecision = {
   hint: FailureText
   /** 清洗过的供应商原话（有来源证据才有）；与 reason 相同的情况由投影按翻译后的 reason 去掉。 */
   providerMessage?: string
+  /** 只有通用未知原因，无可展示的具体说明。 */
+  unknownWithoutDetail?: true
   modelKindFix?: { modelKey: string; registered: string; requested: string }
   /** 去掉 IPC 外壳 / 码标记 / 旧 `→ hint` 尾巴后的原文（空原文时为 ''，投影补占位词条）。 */
   raw: string
@@ -90,7 +92,12 @@ function reportFor(
   const providerMessage = cleanProviderMessage(upstream)
   // 存进技术详情的 raw 也把 NOMI_ERR:: 码标记剥掉——那是给分类器读的机器标记,不是给人看的。
   // 「是不是服务商那一侧的事」只有类别表一个出处（VENDOR_SIDE_BY_KIND，穷举 Record）。
-  return { kind, reason: copy.reason, hint, vendorSide: isVendorSideKind(kind), raw: stripNomiErrorCode(raw), ...actionsOfKind(kind), ...(providerMessage ? { providerMessage } : {}) }
+  return {
+    kind, reason: copy.reason, hint, vendorSide: isVendorSideKind(kind), raw: stripNomiErrorCode(raw),
+    ...actionsOfKind(kind),
+    ...(providerMessage ? { providerMessage } : {}),
+    ...(kind === 'unknown' && !providerMessage ? { unknownWithoutDetail: true } : {}),
+  }
 }
 
 /** 本机拒绝类（没有服务商参与）：自带词条与动作的一档。 */
@@ -310,9 +317,10 @@ function classify(message: string, locale: FailureLocale): Draft {
   }
   // 兜底:抠 raw 可读首行当 reason,通用建议出自 unknown 词条。
   const readable = extractReadableErrorLine(raw)
+  if (!readable || isTechnicalErrorLine(readable)) return reportFor('unknown', raw, undefined, unknownCopyParams(structured))
   return {
     kind: 'unknown',
-    reason: readable && !isTechnicalErrorLine(readable) ? { text: truncateLine(readable) } : failureCopyOf('unknown').reason,
+    reason: { text: truncateLine(readable) },
     hint: failureCopyOf('unknown', unknownCopyParams(structured)).hint,
     // 认不出来源、也没有供应商说的话：可能是我们自己的话（本机护栏 / 内部错误），不点名任何一家。
     vendorSide: false,

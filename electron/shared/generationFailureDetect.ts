@@ -8,22 +8,42 @@ import { parseTaskFailureMessage, type VendorErrorStructuredLite } from './gener
 
 /** 两个入口都可能拿到整页、内联标签或已截断的标签。 */
 export function containsHtmlMarkup(text: string): boolean {
-  return /<(?:!doctype\b|!--|\/?[a-z][\w:-]*(?=[\s/>]|$))/i.test(text)
+  if (/<!doctype\b|<!--|<\/?(?:html|head|body|title|meta|script|style|center|hr|br)(?=[\s/>]|$)/i.test(text)
+    || /<[a-z][\w:-]*(?:\s*\/>|\s+[a-z_:][\w:.-]*(?:\s*=|\s*\/?>))/i.test(text)) return true
+  if (!text.includes('</')) return false
+
+  const opened = new Set<string>()
+  for (const [, closing, name] of text.matchAll(/<(\/?)([a-z][\w:-]*)\s*>/gi)) {
+    const tag = name.toLowerCase()
+    if (!closing) opened.add(tag)
+    else if (opened.has(tag)) return true
+  }
+  return false
+}
+
+/** JSON 信封、数组或开头的裸键值。业务句中的引号字段名和 [Pro] 前缀保留。 */
+function looksLikeJsonPayload(text: string): boolean {
+  return text.startsWith('{') || /^\[\s*(?:[[{"\d\]-]|true\b|false\b|null\b|$)/.test(text)
+    || /^"(?:\\.|[^"\\])*"\s*:/.test(text)
+}
+
+function containsErrorStack(text: string): boolean {
+  if (!/^(?:[\w$]+\.)*[\w$]*(?:Error|Exception):/.test(text)) return false
+  // 换行还在时认缩进栈帧。被传输层压平时认函数调用、文件位置或省略号。
+  return /\n\s*at\s+\S/.test(text) || /\bat\s+(?:(?:(?:async|new)\s+)?[^\s(]+\s*\(|\S+:\d+\b|\.{3}|…)/.test(text)
 }
 
 export function isTechnicalErrorLine(text: string): boolean {
-  return containsHtmlMarkup(text)
-    || /^(?:[\w$]*(?:Error|Exception)|[A-Z][A-Z0-9_]+|[A-Za-z][A-Za-z0-9]*_\w+)$/.test(text)
+  return containsHtmlMarkup(text) || looksLikeJsonPayload(text) || containsErrorStack(text)
+    || /^(?:(?:[\w$]+\.)*[\w$]*(?:Error|Exception)|[A-Z][A-Z0-9_]+|[A-Za-z][A-Za-z0-9]*_\w+)$/.test(text)
     || /^HTTP\s+\d{3}(?:$|\s*:\s*provider returned\b)/i.test(text)
 }
 
 export function cleanProviderMessage(candidate: string | undefined): string {
   const source = String(candidate || '').trim()
-  const msg = (jsonErrorMessage(source) ?? source).replace(/\s+/g, ' ').trim()
-  if (!msg || msg === '(no detail from provider)' || isTechnicalErrorLine(msg)) return ''
-  // 截断的信封、数组或裸键值对。保留以 [Pro] 等业务标记开头的句子。
-  const jsonArray = /^\[\s*(?:[[{"\d-]|true\b|false\b|null\b|$)/.test(msg)
-  if (msg.startsWith('{') || jsonArray || /"[^"]+"\s*:/.test(msg)) return ''
+  const detail = jsonErrorMessage(source) ?? source
+  const msg = detail.replace(/\s+/g, ' ').trim()
+  if (!msg || msg === '(no detail from provider)' || isTechnicalErrorLine(detail)) return ''
   return msg.length > 200 ? `${msg.slice(0, 199)}…` : msg
 }
 
@@ -64,6 +84,7 @@ export function extractReadableErrorLine(raw: string): string {
   // 1) provider 常把报错塞进 JSON（与 cleanProviderMessage 共用同一个剥壳器，两处不许各写一份）
   const fromJson = jsonErrorMessage(source)
   if (fromJson) return fromJson
+  if (containsErrorStack(source)) return ''
   // 2) 纯文本：取第一行非空内容
   const firstLine = source
     .split('\n')
@@ -150,6 +171,10 @@ export function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
     return 'quota'
   // 我们自己的轮询超时(视频长任务常见)——不是网络问题,任务多半还在服务商侧跑。
   if (raw.includes('轮询超时') || lower.includes('task poll timeout')) return 'poll-timeout'
+  // 旧报文没有类别字段时，只认独立的网关状态或异常名。Gateway Timeout 优先于网络超时关键词。
+  const status = lower.trim()
+  if (/^(?:(?:http\s+)?5\d\d\s+)?(?:service\s+unavailable|bad\s+gateway|gateway\s+timeout)(?=$|[.:](?:\s|$)|\s+-\s|[\r\n])/.test(status)
+    || /^(?:[\w$]+\.)*(?:serviceunavailable|badgateway|gatewaytimeout)(?:error|exception)(?=$|:)/.test(status)) return 'server'
   // 连不上 ≠ 超时。以前这桶只认 timeout 一族，「压根没连上」的那半边全漏进 unknown，拿到
   // 「可能是服务商临时故障或额度问题，建议稍等重试」——把用户自己的网络/代理问题甩锅给一个
   // 根本没被请求到的服务商，而重试必再撞（同 output-truncated 的理由）。三处真实来源都得认：
@@ -190,8 +215,6 @@ export function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
       lower.includes('not enabled'))
   )
     return 'model-config'
-  // 旧报文可能只有状态短语或异常类名，没有 HTTP 状态字段。
-  if (/\bservice\s*unavailable(?:error|exception)?\b/.test(lower)) return 'server'
   if (lower.includes('content') && (lower.includes('policy') || lower.includes('safety') || lower.includes('filter')))
     return 'content-policy'
   return null
