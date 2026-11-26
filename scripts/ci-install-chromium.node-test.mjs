@@ -57,27 +57,78 @@ const jammyList = [
   'deb-src http://security.ubuntu.com/ubuntu jammy-security main', '',
 ].join('\n')
 
-for (const suite of ['noble', 'jammy']) {
-  test(`${suite}: 故障源移走后用官方源安装系统依赖，再下载 Chromium`, (t) => {
+const mainList = 'sources.list'
+const dropIn = 'sources.list.d/'
+const ubuntuList = dropIn + 'ubuntu.list'
+const ubuntuSources = dropIn + 'ubuntu.sources'
+const comment = '# Sources configured in sources.list.d\n'
+const vendorLine = 'deb [arch=amd64] https://archive.ubuntu.com.vendor.invalid/ubuntu jammy main # ubuntu.com\n'
+const vendorStanza = 'Types: deb\nURIs: https://repo.vendor.invalid/packages\nSuites: stable\nComponents: main\n'
+const badParts = {
+  [dropIn + 'vendor.list']: 'deb https://packages.microsoft.com/ubuntu/24.04/prod noble main\n',
+  [dropIn + 'another.sources']: vendorStanza,
+}
+const movedParts = Object.fromEntries(Object.keys(badParts).map(name => [name, null]))
+const foldedOfficial = [
+  'Types: deb', 'Uris: HTTP://PORTS.UBUNTU.COM:80/ubuntu-ports   https://canonical.com',
+  '# continuation follows the comment', `\t${mirror}  file:/etc/apt/apt-mirrors.txt`,
+  'Suites: noble', 'Components: main', '',
+].join('\n')
+const mixedSources = [
+  foldedOfficial,
+  'Types: deb\nURIs: https://archive.ubuntu.com https://repo.vendor.invalid\nSuites: noble\n',
+  'Types: deb\nURIs: https://canonical.com\n# still in URIs\n https://repo.vendor.invalid\n',
+  'Types: deb\n# URIs: https://canonical.com\nSuites: noble\n',
+  'Types: deb\nURIs:\nComponents: main\n',
+  nobleSources,
+].join('\n')
+
+for (const { name, files, changes, officialFile } of [
+  {
+    name: 'noble', files: { [mainList]: comment, [ubuntuSources]: nobleSources, ...badParts },
+    changes: movedParts, officialFile: ubuntuSources,
+  },
+  {
+    name: 'jammy', files: { [mainList]: jammyList + vendorLine, ...badParts },
+    changes: { [mainList]: jammyList, ...movedParts }, officialFile: mainList,
+  },
+  {
+    name: '官方源只在 ubuntu.list', files: { [mainList]: comment, [ubuntuList]: jammyList.trimEnd(), ...badParts },
+    changes: movedParts, officialFile: ubuntuList,
+  },
+  {
+    name: '第三方整文件改名 ubuntu.sources', files: { [mainList]: jammyList, [ubuntuSources]: vendorStanza },
+    changes: { [ubuntuSources]: null }, officialFile: mainList,
+  },
+  {
+    name: '混合 list 分片',
+    files: {
+      [mainList]: comment, [ubuntuList]: comment + vendorLine + jammyList + 'invalid entry\n',
+      [dropIn + 'empty.list']: '# disabled\n',
+    },
+    changes: { [ubuntuList]: comment + jammyList, [dropIn + 'empty.list']: null }, officialFile: ubuntuList,
+  },
+  {
+    name: 'DEB822 多 URI 和折行按整段筛选',
+    files: {
+      [mainList]: comment, [ubuntuSources]: mixedSources,
+      [dropIn + 'regional.sources']: foldedOfficial.trimEnd(),
+      [dropIn + 'disabled.sources']: '# URIs: https://archive.ubuntu.com\n',
+    },
+    changes: { [ubuntuSources]: foldedOfficial + '\n' + nobleSources, [dropIn + 'disabled.sources']: null },
+    officialFile: ubuntuSources,
+  },
+]) {
+  test(`${name}: 故障源移走后用官方源安装系统依赖，再下载 Chromium`, (t) => {
     const root = makeTempDir('ci-chromium')
     t.after(() => cleanupTestTemp(root))
     const put = (name, value, mode) => fs.writeFileSync(path.join(root, name), value, { mode })
     const read = (name) => fs.readFileSync(path.join(root, name), 'utf8')
-    const parts = 'etc/apt/sources.list.d'
-    const mainList = 'etc/apt/sources.list'
-    for (const dir of [parts, 'etc/apt/apt.conf.d', 'bin', 'backup']) {
+    for (const dir of ['etc/apt/sources.list.d', 'etc/apt/apt.conf.d', 'bin', 'backup']) {
       fs.mkdirSync(path.join(root, dir), { recursive: true })
     }
-    const official = suite === 'noble' ? '# Sources moved to ubuntu.sources\n' : jammyList
-    const mixed = 'deb [arch=amd64] https://archive.ubuntu.com.vendor.invalid/ubuntu jammy main # ubuntu.com\n'
-    put(mainList, suite === 'noble' ? official : official + mixed)
-    if (suite === 'noble') put(`${parts}/ubuntu.sources`, nobleSources)
+    for (const [name, value] of Object.entries(files)) put('etc/apt/' + name, value, 0o600)
     put('etc/apt/apt-mirrors.txt', 'https://archive.ubuntu.com/ubuntu/\tpriority:2\n')
-    const thirdParty = {
-      'vendor.list': 'deb https://packages.microsoft.com/ubuntu/24.04/prod noble main\n',
-      'another.sources': 'Types: deb\nURIs: https://repo.vendor.invalid/packages\nSuites: stable\nComponents: main\n',
-    }
-    for (const [name, value] of Object.entries(thirdParty)) put(`${parts}/${name}`, value)
 
     // The old script also reaches our fake apt without touching the host.
     put('bin/sudo', `#!/bin/sh
@@ -104,7 +155,7 @@ for f in etc/apt/sources.list etc/apt/sources.list.d/*.list etc/apt/sources.list
   fi
 done
 if [ "$1" = install ]; then
-  grep -qF '${mirror}' "$OFFICIAL_FILE" && grep -q 'archive.ubuntu.com' etc/apt/apt-mirrors.txt ||
+  [ -f "$OFFICIAL_FILE" ] && grep -qF '${mirror}' "$OFFICIAL_FILE" && grep -q 'archive.ubuntu.com' etc/apt/apt-mirrors.txt ||
     { echo 'Unable to locate package libnss3' >&2; exit 100; }
 fi
 `, 0o755)
@@ -112,17 +163,23 @@ fi
     const result = spawnSync('bash', [script, 'etc/apt', 'backup'], {
       cwd: root, encoding: 'utf8', timeout: 15000,
       env: { ...process.env, PATH: path.join(root, 'bin') + path.delimiter + process.env.PATH,
-        RUNNER_ENVIRONMENT: 'github-hosted', OFFICIAL_FILE: suite === 'noble' ? `${parts}/ubuntu.sources` : mainList },
+        RUNNER_ENVIRONMENT: 'github-hosted', OFFICIAL_FILE: 'etc/apt/' + officialFile },
     })
     assert.ifError(result.error)
     assert.equal(result.status, 0, result.stderr)
     assert.equal(read('steps'), 'update\ninstall libnss3\nbrowser\n')
-    assert.equal(read(mainList), official)
-    if (suite === 'noble') assert.equal(read(`${parts}/ubuntu.sources`), nobleSources)
-    for (const [name, value] of Object.entries(thirdParty)) {
-      assert.equal(fs.existsSync(path.join(root, parts, name)), false)
-      assert.equal(read(`backup/sources.list.d/${name}`), value)
+    for (const [name, original] of Object.entries(files)) {
+      const active = 'etc/apt/' + name
+      const backup = 'backup/' + name
+      const changed = Object.hasOwn(changes, name)
+      if (changed) assert.equal(read(backup), original, name)
+      else assert.equal(fs.existsSync(path.join(root, backup)), false, name)
+      if (changes[name] === null) {
+        assert.equal(fs.existsSync(path.join(root, active)), false, name)
+      } else {
+        assert.equal(read(active), changed ? changes[name] : original, name)
+        assert.equal(fs.statSync(path.join(root, active)).mode & 0o777, changed ? 0o644 : 0o600, name)
+      }
     }
-    if (suite === 'jammy') assert.equal(read('backup/sources.list'), official + mixed)
   })
 }
