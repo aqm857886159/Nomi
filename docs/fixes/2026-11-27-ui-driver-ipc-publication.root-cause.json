@@ -80,7 +80,7 @@
     },
     {
       "path": "tests/ux/ui.mjs",
-      "symbol": "send",
+      "symbol": "requireCurrentDriver",
       "responsibility": "普通命令发布前验证常驻驱动的协议。"
     }
   ],
