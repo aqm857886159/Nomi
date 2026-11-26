@@ -13,6 +13,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { UI_DIR } from './uiDir.mjs'
+import { writeUiIpcFile } from './uiIpcFile.mjs'
 import {
   acquireInstanceLock, buildLaunchOptions, parseDriverArgs, profileBanner, seedDataFixture, shotFileName,
 } from './uiDriverOptions.mjs'
@@ -218,7 +219,7 @@ const state = {
   readySec,
   ...(fakeVendor ? { fakeVendor: { name: options.vendor, origin: fakeVendor.origin } } : {}),
 }
-fs.writeFileSync(path.join(DIR, 'state.json'), JSON.stringify(state, null, 2))
+writeUiIpcFile(path.join(DIR, 'state.json'), JSON.stringify(state, null, 2))
 fs.writeFileSync(path.join(DIR, 'ready'), String(process.pid))
 console.log(`DRIVER READY in ${readySec}s pid=${process.pid} app=${appPid} out=${OUT} IPC=${DIR}`)
 
@@ -400,7 +401,7 @@ while (running) {
     let res
     try { res = cmd ? await run(cmd) : { error: 'bad req' } } catch (e) { res = { error: String((e && e.message) || e) } }
     fs.appendFileSync(JOURNAL, JSON.stringify({ t: new Date(t0).toISOString(), ms: Date.now() - t0, ...(cmd ?? {}), ok: !res.error, ...(res.error ? { error: String(res.error).slice(0, 300) } : {}) }) + '\n')
-    fs.writeFileSync(path.join(DIR, 'res.json'), JSON.stringify(res))
+    writeUiIpcFile(path.join(DIR, 'res.json'), JSON.stringify(res))
     if (res.quit) running = false
   }
   await new Promise((r) => setTimeout(r, 150))

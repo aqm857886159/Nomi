@@ -20,6 +20,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { UI_DIR } from './uiDir.mjs'
+import { writeUiIpcFile } from './uiIpcFile.mjs'
 import { parseDriverArgs, pidAlive, profileBanner } from './uiDriverOptions.mjs'
 
 const DIR = UI_DIR
@@ -88,13 +89,12 @@ async function send(cmd, timeoutMs = 60_000) {
   }
   const resP = path.join(DIR, 'res.json')
   fs.rmSync(resP, { force: true })
-  fs.writeFileSync(path.join(DIR, 'req.json'), JSON.stringify(cmd))
+  writeUiIpcFile(path.join(DIR, 'req.json'), JSON.stringify(cmd))
   const t0 = Date.now()
   while (!fs.existsSync(resP)) {
     if (Date.now() - t0 > timeoutMs) { console.error('超时：驱动没响应（node tests/ux/ui.mjs doctor 看看还在不在）'); process.exit(3) }
     await sleep(120)
   }
-  await sleep(60)
   const text = fs.readFileSync(resP, 'utf8')
   return { text, res: JSON.parse(text) }
 }
