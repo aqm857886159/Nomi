@@ -1,11 +1,8 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import { WorkbenchIconButton } from '../../design/actions'
+import { WorkbenchButton } from '../../design/actions'
 import { NomiLogoMark } from '../../design/identity'
-import { TooltipProvider } from '../../design'
-import { useRichTextActions } from '../common/richTextActions'
-import { RichTextActionButton } from '../common/RichTextActionButton'
 import { TEXT_ACTION_INTENT_PROPS } from '../api/textActionIntent'
 import { cn } from '../../utils/cn'
 import { canRunSelectionAction, runSelectionAction, selectionActionsIn, type SelectionAction, type SelectionActionPorts } from './selectionActions'
@@ -31,22 +28,10 @@ type SelectionPopoverPosition = {
   placement: 'top' | 'bottom'
 }
 
-const POPOVER_WIDTH = 344
-const POPOVER_HEIGHT = 40
 const POPOVER_OFFSET = 10
-/** 选区浮条只放最常用的四颗格式钮；定义与顶栏同一份（richTextActions）。 */
-const SELECTION_FORMAT_ACTION_IDS: readonly string[] = ['bold', 'italic', 'h1', 'h2']
-const ACTION_BUTTON_CLASS = cn(
-  'workbench-selection-popover__tool workbench-selection-popover__tool--action',
-  'h-[30px] w-[30px] inline-flex items-center justify-center',
-  'border border-workbench-border-soft rounded-workbench-control',
-  'bg-workbench-surface text-workbench-ink',
-  'cursor-pointer',
-  'hover:border-nomi-ink-30',
-  'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-)
-
-function resolveSelectionPosition(editor: Editor, root: HTMLElement | null): SelectionPopoverPosition | null {
+function resolveSelectionPosition(editor: Editor, root: HTMLElement | null, popover: HTMLElement | null): SelectionPopoverPosition | null {
+  const width = popover?.offsetWidth || 320
+  const height = popover?.offsetHeight || 40
   if (!root) return null
   const { from, to, empty } = editor.state.selection
   if (empty || from === to) return null
@@ -57,20 +42,20 @@ function resolveSelectionPosition(editor: Editor, root: HTMLElement | null): Sel
   const selectionRight = Math.max(start.right, end.right)
   const selectionTop = Math.min(start.top, end.top)
   const selectionBottom = Math.max(start.bottom, end.bottom)
-  const preferredLeft = selectionLeft + (selectionRight - selectionLeft) / 2 - rootRect.left - POPOVER_WIDTH / 2
-  const left = Math.max(12, Math.min(preferredLeft, Math.max(12, rootRect.width - POPOVER_WIDTH - 12)))
+  const preferredLeft = selectionLeft + (selectionRight - selectionLeft) / 2 - rootRect.left - width / 2
+  const left = Math.max(12, Math.min(preferredLeft, Math.max(12, rootRect.width - width - 12)))
   // 上方放得下的判据是「正文区」的上沿，不是整个编辑器：编辑器顶上还有一排格式工具栏，
   // 以整个编辑器为界时，选中第一行的浮条会盖在工具栏上，工具栏那几颗钮就点不到了（2026-10-23 用户实测「代码钮没反应」）。
   const contentTop = (root.querySelector('.workbench-editor__scroll')?.getBoundingClientRect().top ?? rootRect.top) - rootRect.top
   // 选区整段滚出正文可视区：浮条不跟着钉在边上（看不见选区还留着一条浮条），等滚回来再出。
   if (selectionBottom - rootRect.top <= contentTop || selectionTop >= rootRect.bottom) return null
-  const topPlacementTop = selectionTop - rootRect.top - POPOVER_HEIGHT - POPOVER_OFFSET
+  const topPlacementTop = selectionTop - rootRect.top - height - POPOVER_OFFSET
   if (topPlacementTop >= contentTop + 8) {
     return { left, top: topPlacementTop, placement: 'top' }
   }
   return {
     left,
-    top: Math.max(contentTop + 8, Math.min(selectionBottom - rootRect.top + POPOVER_OFFSET, Math.max(8, rootRect.height - POPOVER_HEIGHT - 8))),
+    top: Math.max(contentTop + 8, Math.min(selectionBottom - rootRect.top + POPOVER_OFFSET, Math.max(8, rootRect.height - height - 8))),
     placement: 'bottom',
   }
 }
@@ -88,7 +73,6 @@ export default function SelectionGeneratePopover({
   const normalizedText = selectedText.trim()
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const [position, setPosition] = React.useState<SelectionPopoverPosition | null>(null)
-  const formatActions = useRichTextActions(editor, SELECTION_FORMAT_ACTION_IDS)
   const addGenerationNode = useGenerationCanvasStore((state) => state.addNode)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
 
@@ -99,12 +83,23 @@ export default function SelectionGeneratePopover({
     }
     const root = (rootRef.current?.closest('.workbench-editor') ??
       editor.view.dom.closest('.workbench-editor')) as HTMLElement | null
-    setPosition(resolveSelectionPosition(editor, root))
+    setPosition(resolveSelectionPosition(editor, root, rootRef.current))
   }, [editor, normalizedText])
 
   React.useLayoutEffect(() => {
     updatePosition()
   }, [selectionVersion, updatePosition])
+
+  const visible = Boolean(position) && !hidden && Boolean(normalizedText)
+  React.useLayoutEffect(() => {
+    const popover = rootRef.current
+    if (!visible || !popover) return
+    updatePosition()
+    const observer = new ResizeObserver(updatePosition)
+    observer.observe(popover)
+    if (popover.parentElement) observer.observe(popover.parentElement)
+    return () => observer.disconnect()
+  }, [visible, updatePosition])
 
   React.useEffect(() => {
     if (!editor || !normalizedText) return
@@ -130,18 +125,22 @@ export default function SelectionGeneratePopover({
 
   const ports: SelectionActionPorts = { addGenerationNode, setWorkspaceMode, launchStoryboard }
   const actionButton = (action: SelectionAction) => (
-    <WorkbenchIconButton
+    <WorkbenchButton
       key={action.id}
-      className={ACTION_BUTTON_CLASS}
+      size="sm"
+      className="workbench-selection-popover__tool h-[30px] gap-1 px-1.5"
       data-selection-action={action.id}
-      label={t(action.labelKey)}
+      aria-label={t(action.labelKey)}
+      title={t(action.labelKey)}
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => {
         if (runSelectionAction(action.target, normalizedText, ports)) onCreated?.()
       }}
       disabled={!canRunSelectionAction(action.target, ports)}
-      icon={<action.Icon size={14} />}
-    />
+    >
+      <action.Icon aria-hidden="true" />
+      {t(action.labelKey)}
+    </WorkbenchButton>
   )
 
   return (
@@ -150,7 +149,7 @@ export default function SelectionGeneratePopover({
       className={cn(
         'workbench-selection-popover',
         'absolute z-20 inline-flex items-center',
-        'w-[344px] h-[40px] gap-[5px] p-1 pr-[5px]',
+        'w-max max-w-[calc(100%-24px)] min-h-[40px] flex-wrap gap-1 p-1',
         'border border-workbench-border rounded-nomi-lg',
         'bg-workbench-overlay shadow-workbench-pop',
         'backdrop-blur-[18px] backdrop-saturate-[1.06]',
@@ -161,35 +160,6 @@ export default function SelectionGeneratePopover({
       data-placement={position.placement}
       style={{ left: position.left, top: position.top }}
     >
-      <div
-        className={cn('workbench-selection-popover__format-group', 'inline-flex items-center gap-[3px] shrink-0')}
-        aria-label={t('creationAi.selection.formatting')}
-      >
-        <TooltipProvider delayDuration={250} disableHoverableContent>
-          {formatActions.map((action) => (
-            <RichTextActionButton
-              key={action.id}
-              action={action}
-              side="top"
-              className={cn(
-                'workbench-selection-popover__tool',
-                'h-[30px] w-[28px]',
-                'rounded-workbench-control text-workbench-muted',
-                'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-                '[&>svg]:size-[14px]',
-              )}
-            />
-          ))}
-        </TooltipProvider>
-      </div>
-      <div
-        className={cn(
-          'workbench-selection-popover__divider',
-          'self-stretch w-px mx-[2px] my-[3px] bg-workbench-border-soft',
-        )}
-      />
-      {/* 「AI 编辑」右边紧挨着的一簇（样张 B）：拆成镜头不是「生成一个节点」，不和图片、视频排在一起。
-          没有「AI 编辑」时这一簇照样单独夹在两条分隔线之间。 */}
       <div
         className={cn('workbench-selection-popover__ai-group', 'inline-flex items-center gap-[3px] shrink-0')}
         data-selection-cluster="beside-ai-edit"
