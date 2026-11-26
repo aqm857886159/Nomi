@@ -1,5 +1,13 @@
 import React, { type JSX } from 'react'
-import { useNodeOutsideRowsHidden } from './nodeOutsideRows'
+import { useStore } from '@xyflow/react'
+import { selectFlowZoom } from '../reactFlow/canvasViewportScale'
+import { NodeOutsideRowsHidden, useNodeOutsideRowsHidden } from './nodeOutsideRows'
+
+/** 画布宿主只在缩放跨过 40% 时通知节点的标签行和样片行。 */
+export function NodeOutsideRowsViewport({ children }: { children: React.ReactNode }): JSX.Element {
+  const hidden = useStore(state => selectFlowZoom(state) < 0.4)
+  return <NodeOutsideRowsHidden.Provider value={hidden}>{children}</NodeOutsideRowsHidden.Provider>
+}
 
 /** Persistent metadata has one bounded home outside the media, below the action toolbar. */
 export function NodeLabelRow({ children }: { children: React.ReactNode }): JSX.Element {

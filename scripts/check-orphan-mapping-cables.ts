@@ -20,10 +20,10 @@
 // ── 判据（读运行时真值，不做正则猜测）─────────────────────────────────────
 // 对 seed 后的内置目录里每条 mapping：若它带 `modelKey` 且带非空 `modeId`，
 // 找到该 (vendorKey, modelKey) 的模型行 → `resolveModelArchetype` 取档案，则
-//   • 孤儿拼写：`modeId` 在 `archetype.modes` 里找不到同名 mode → 这条线缆永远选不中；
+//   • 孤儿拼写：发送时用 `findArchetypeMode` 查不到这个 modeId → 这条线缆永远选不中；
 //   • 孤儿错桶：找得到 mode，但 `modeTransportFor(mode, archetype, vendorKey) !== mapping.taskKind`
 //     → 档案把这个模式路由去了别的桶，selectTaskMapping 在那个桶里找不到本条。
-// 两者都用**生产同一批函数**（resolveModelArchetype / modeTransportFor），不另写一份判断：
+// 两者都用**生产同一批函数**（resolveModelArchetype / findArchetypeMode / modeTransportFor），不另写一份判断：
 // 门岗用一把尺子、UI 用另一把，就是它本该拦住的那种病。
 //
 // 认不出档案的模型（resolveModelArchetype → null）**不算违规**：那是「通用回退」形状，
@@ -36,7 +36,7 @@
 import { applyBuiltinSeeds } from "../electron/catalog/seedBuiltins";
 import type { CatalogState } from "../electron/catalog/types";
 import { EVERY_VARIANT, resolveModelArchetype } from "../electron/shared/modelArchetypes";
-import { modeTransportFor } from "../electron/shared/videoCapabilities";
+import { findArchetypeMode, modeTransportFor } from "../electron/shared/videoCapabilities";
 
 type Orphan = {
   kind: "spelling" | "bucket";
@@ -70,7 +70,7 @@ export function findOrphanMappingCables(state: CatalogState): Orphan[] {
     const archetype = resolveModelArchetype(model, { variant: EVERY_VARIANT });
     if (!archetype) continue; // 通用回退形状：不做模式收窄，无闲置线缆问题。
 
-    const mode = archetype.modes.find((m) => m.id === modeId);
+    const mode = findArchetypeMode(archetype, modeId);
     if (!mode) {
       orphans.push({
         kind: "spelling",
@@ -79,7 +79,7 @@ export function findOrphanMappingCables(state: CatalogState): Orphan[] {
         modeId,
         mappingTaskKind: mapping.taskKind,
         archetypeId: archetype.id,
-        detail: `档案 modes = [${archetype.modes.map((m) => m.id).join(", ")}]`,
+        detail: `菜单 modes = [${archetype.modes.map((m) => m.id).join(", ")}]`,
       });
       continue;
     }

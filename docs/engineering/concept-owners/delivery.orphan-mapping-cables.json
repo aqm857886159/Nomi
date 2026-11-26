@@ -1,0 +1,24 @@
+{
+  "name": "内置模型线缆是否匹配可执行方式",
+  "subject": "delivery.orphan-mapping-cables",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/check-orphan-mapping-cables.ts",
+    "symbol": "findOrphanMappingCables"
+  },
+  "write_api": [
+    {
+      "path": "scripts/check-orphan-mapping-cables.ts",
+      "symbol": "findOrphanMappingCables"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/check-orphan-mapping-cables.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-27",
+  "notes": "对每条已启用的具名内置线缆，按发送路径查方式，再核验档案为该供应商声明的 transport。"
+}

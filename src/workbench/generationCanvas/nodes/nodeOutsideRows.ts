@@ -1,13 +1,11 @@
-// 节点框外那几行（上方标签行 NodeLabelRow、下方样片行 NodeSampleRow）共用的两条规矩：缩小到多少一起藏、下方那一行占多高。
+// 节点标签行和样片行从宿主读取可见性；浮框从节点外壳读取下方样片行占用的高度。
 import React from 'react'
-import { useWorkbenchStore } from '../../workbenchStore'
 
-/** 画布缩到这以下，节点上方的标签行和下方的样片行一起藏起（只是藏，位置照留）。 */
-const NODE_ROWS_MIN_ZOOM = 0.4
+// 列表详情等画布外的宿主没有视口，两行默认可见。
+export const NodeOutsideRowsHidden = React.createContext(false)
 
-/** 节点外那几行此刻藏不藏：同一条缩放规矩一个家。只在跨过门槛时重渲。 */
 export function useNodeOutsideRowsHidden(): boolean {
-  return useWorkbenchStore((state) => (state.categoryViewports[state.activeCategoryId]?.zoom ?? 1) < NODE_ROWS_MIN_ZOOM)
+  return React.useContext(NodeOutsideRowsHidden)
 }
 
 /**

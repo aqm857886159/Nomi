@@ -8,7 +8,6 @@ import { buildCatalogTaskRequest } from '../runner/catalogTaskActions'
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import { sampleBillingRequest } from '../../../../electron/shared/videoCapabilities/sampleMode'
-import type { TaskRequest } from '../../../../electron/taskTypes'
 import type { SampleFacts } from '../model/sampleFacts'
 
 /** 改参数后等这么久再问价（连着改只问最后一次）。 */
@@ -45,7 +44,7 @@ export function priceRequest(node: GenerationCanvasNode, graph: ComposerGraph): 
  * 不走公开价的那家 → null（钮上不印数）。
  */
 export function sampleFinalPriceRequest(sample: SampleFacts, resolution: string): VendorPriceRequest | null {
-  const frozen = { kind: sample.taskKind, prompt: '', extras: sample.extras } as TaskRequest
+  const frozen = { kind: sample.taskKind as VendorPriceRequest['request']['kind'], prompt: '', extras: sample.extras }
   const billed = sampleBillingRequest(frozen, sample.archetype, resolution)
   if (!billed || builtinVendorKeyOfKey(sample.vendorKey) !== 'apimart') return null
   return { vendorKey: sample.vendorKey, request: { ...billed, prompt: '' } }
