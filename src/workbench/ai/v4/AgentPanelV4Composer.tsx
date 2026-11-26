@@ -112,6 +112,8 @@ export type AgentPanelV4ComposerProps = {
   draft?: NomiEditorOwner<string>
   draftReadOnly?: boolean
   onSubmit?: (choice?: 'primary' | 'secondary') => void
+  /** Delegate plain Enter in an empty editor to this panel's waiting spend button. */
+  onEmptyEnter?: () => void
   onStop?: () => void
   onAddFile?: () => void
   onAddReference?: () => void
@@ -156,6 +158,7 @@ export function AgentPanelV4Composer({
   draft = EMPTY_DRAFT,
   draftReadOnly = false,
   onSubmit,
+  onEmptyEnter,
   onStop,
   onAddFile,
   onAddReference,
@@ -202,7 +205,8 @@ export function AgentPanelV4Composer({
   const running = mode === 'running'
   // 「有东西可发」是**一个**判据，发送钮的长相、它的 disabled、以及 Enter 那条路都从这里取，
   // 免得三处各判一次、以后有人只改了其中一处（长相灰着但 Enter 还能发＝还是在假装能发）。
-  const canSend = !admitting && Boolean(value.trim() || chips?.length)
+  const text = value.trim()
+  const canSend = !admitting && Boolean(chips?.length || (text && text !== '/'))
   /** 这颗圆钮此刻是「停止」：在跑，而且框里没有要发的东西。 */
   const stopping = running && !canSend
   return (
@@ -253,12 +257,17 @@ export function AgentPanelV4Composer({
         inputAttributes={COMPOSER_INPUT_ATTRIBUTES}
         mentionReferences={mentionReferences} mentionSearch={mentionSearch} onMentionSelect={onMentionSelect}
         onKeyDownCapture={event => {
-          if (event.defaultPrevented || (editorRef.current && SuggestionPluginKey.getState(editorRef.current.state)?.active)) return
+          if (event.nativeEvent.isComposing || event.defaultPrevented || (editorRef.current && SuggestionPluginKey.getState(editorRef.current.state)?.active)) return
           if (onPopoverKeyDown?.(event)) return
           if (shouldSubmitComposer({ key:event.key, shiftKey:event.shiftKey, isComposing:event.nativeEvent.isComposing })) {
             event.preventDefault()
             event.stopPropagation()
-            if (canSend) onSubmit?.(event.altKey ? 'secondary' : 'primary')
+            if (canSend) {
+              onSubmit?.(event.altKey ? 'secondary' : 'primary')
+            } else if (!admitting && !openPopover && !chips?.length && draft.getSnapshot() === ''
+              && !event.repeat && !event.altKey && !event.metaKey && !event.ctrlKey) {
+              onEmptyEnter?.()
+            }
           }
         }}
         placeholder={awaitingAnswer ? t('agentPanelV4.placeholderAwaitingAnswer') : running ? t('agentPanelV4.placeholderRunning') : t('agentPanelV4.placeholder')}

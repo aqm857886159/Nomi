@@ -31,6 +31,7 @@ import {
   type GenerationModelDefaultMap,
 } from '../../generationCanvas/model/generationModelDefaults'
 import { collapseV4Flow } from './agentPanelV4Collapse'
+import { useAgentPanelSpendCard, type AgentPanelSpendCard } from './useAgentPanelSpendCard'
 import { useV4Labels } from './agentPanelV4Labels'
 import { replaceEqualDeep } from './shareEqualDeep'
 import type { ContextUsage, InterventionData, QueueRowData, V4FlowItem } from './agentPanelV4Types'
@@ -78,6 +79,7 @@ export function shareFlowItems(previous: readonly V4FlowItem[], next: readonly V
 export type AgentPanelV4Data = Readonly<{
   connectionFailure: ReturnType<typeof laneClient.connectionFailure>
   snapshot: LaneWorkspaceProjection
+  spend: AgentPanelSpendCard
   activeThreadId: string | null
   flow: readonly V4FlowItem[]
   loadOlder?: () => Promise<void>
@@ -131,6 +133,9 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
   const committedProposal = React.useSyncExternalStore(subscribeCommittedProposal, getCommittedProposal, getCommittedProposal)
   const undoableToolCallId = undoableLaneToolCallId(snapshot.active.parts, committedProposal)
   const activeThreadId = snapshot.lanes.find((lane) => lane.laneName === snapshot.active.lane)?.sessionId ?? null
+  const spend = useAgentPanelSpendCard(snapshot.spend)
+  const waitingSpendOperationId = spend.slot?.kind === 'spend' && !spend.slot.progress
+    ? spend.pending?.operationId : undefined
   const primaryPending = snapshot.active.pending
   const pendingRecords = React.useMemo(() => primaryPending ? [{ call: primaryPending }] : [], [primaryPending])
   const [models, setModels] = React.useState<readonly ModelCatalogModelDto[]>([])
@@ -248,7 +253,7 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
       const found = skillForKey(skills, key)
       return found ? { cover: found.cover, preview: found.preview } : undefined
     },
-  }, undoableToolCallId), [snapshot.active, skills, skillLabel, t, toolDisplayCache, undoableToolCallId])
+  }, undoableToolCallId, waitingSpendOperationId), [snapshot.active, skills, skillLabel, t, toolDisplayCache, undoableToolCallId, waitingSpendOperationId])
   useLogUnclassifiedProviderFailures(view.items)
   const flow = React.useMemo(() => {
     const items = [...view.items]
@@ -301,6 +306,7 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
   return {
     connectionFailure,
     snapshot,
+    spend,
     activeThreadId,
     flow,
     loadOlder: snapshot.active.history?.hasMore ? async () => {

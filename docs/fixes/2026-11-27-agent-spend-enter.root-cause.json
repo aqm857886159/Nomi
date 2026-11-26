@@ -1,0 +1,237 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-agent-spend-enter",
+  "problem_type": "Editor gestures and tool receipts lose the identity of the next user action",
+  "symptom": "Empty Enter does nothing, a dismissed slash picker sends a slash, and a waiting generation receipt spins.",
+  "direct_cause": "The editor attempts only message submission. The receipt treats every unresolved call as streaming or running.",
+  "class_root": "Neither input dispatch nor tool presentation binds the waiting user action to its actual owner.",
+  "affected_population": [
+    "Creators using the resident panel in the sidebar, dock or floating shell and the shared panel in the design lab."
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/lane/laneViewModel.ts",
+    "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Icons.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
+    "src/workbench/ai/v4/agentPanelV4Collapse.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+  ],
+  "entry_points": [
+    "Composer capture in AgentPanelV4Panel",
+    "Unsettled tool calls in laneViewModel and collapsed work history"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The approved Nomi boards and design system specify the gesture and the existing tool-state vocabulary.",
+  "invariants": [
+    "Plain empty Enter activates only the mounted waiting spend action. Drafts, IME, repeated keys and library navigation cannot authorize it.",
+    "Waiting receipts remain visible with their existing localized approval label. Concurrent work keeps its own progress."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/spendCard/spendCardLabKit.tsx",
+      "symbol": "V4Intervention"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx",
+      "symbol": "V4Intervention"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/01-vocabulary.tsx",
+      "symbol": "V4Intervention"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/02-composer.tsx",
+      "symbol": "AgentPanelV4Composer"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/07-auto-mode.tsx",
+      "symbol": "V4Intervention"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/07-auto-mode.tsx",
+      "symbol": "AgentPanelV4Composer"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhAgentPanelV4"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "enAgentPanelV4"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+      "symbol": "StatusSpinner"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+      "symbol": "V4SpendBar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Icons.tsx",
+      "symbol": "StatusSpinner"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "V4Intervention"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "AgentPanelV4Composer"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Receipt.tsx",
+      "symbol": "ToolStatusIcon"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
+      "symbol": "StatusSpinner"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/v4/laneDrivenFixtures.ts",
+      "symbol": "laneViewModel"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "receiptFor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "useAgentPanelV4Data"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/agentPanelV4Collapse.ts",
+      "symbol": "groupKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "symbol": "shouldSubmitComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "laneViewModel"
+    }
+  ],
+  "door_reduction": {
+    "before": 21,
+    "after": 21,
+    "why_not": "The docks and design fixtures mount the shared cards or the whole panel. Single receipts and work history consume the same tool facts. The language resources supply the existing labels."
+  },
+  "generality_proof": "The native button is local to one panel. Unmounting or disabling it removes activation without a second authorization callback. Receipt status joins the waiting operation or approval ID before any presentation grouping.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "symbol": "AgentPanelV4Composer",
+      "responsibility": "Dispatch editor Enter to a single action. An empty editor can delegate to the waiting spend button in its own panel."
+    },
+    {
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "laneViewModel",
+      "responsibility": "Associate an unresolved tool call with its own waiting spend offer or pending tool approval."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "ProjectAgentResidentShell",
+      "disposition": "enforced",
+      "evidence": "Mounts the common panel, spend slot and draft owner in the resident shell."
+    },
+    {
+      "path": "src/devlab/designLab/spendCard/spendCardLabKit.tsx",
+      "entry_point": "AgentPanelV4Panel",
+      "disposition": "enforced",
+      "evidence": "Full-panel fixtures render the same keyboard boundary and button."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4AskCard.tsx",
+      "entry_point": "V4AskCard",
+      "disposition": "not-affected",
+      "evidence": "Question-local Enter advances answers while focus is in the question card."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every later conversation can present another offer during text composition, library navigation or parallel tool execution.",
+    "same_class_scan": [
+      "door-map V4Intervention, V4SpendBar and AgentPanelV4Composer identified the resident and design-lab surfaces.",
+      "Traced laneViewModel and collapseV4Flow through ToolStatusIcon against generate waiting in laneExtendedDesktopPorts."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "invariant": "Each editor gesture belongs to one active control.",
+    "failure_mode": "An absent, pending or disabled button cannot confirm. An unresolved picker trigger cannot be submitted as a bare message.",
+    "exception_policy": "none",
+    "strategy": "Delegate confirmation to the rendered button and project the receipt status before folding work history.",
+    "artifacts": [
+      "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
+      "src/workbench/ai/lane/laneViewModel.ts",
+      "src/workbench/ai/v4/agentPanelV4Collapse.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+    "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+    "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "src/workbench/ai/lane/laneViewModel.ts"
+    ],
+    "rationale": "Replaced unconditional send eligibility for bare slash and the running-only projection of unresolved tools."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The issue concerns application dispatch and projection. React already exposes native keyboard events and button refs.",
+    "exit_criteria": []
+  },
+  "migration": "All changes are read-time or live UI decisions. Existing drafts, settings and tool results retain their stored format.",
+  "residual_risks": [
+    "The coordinator verifies both locales in the real window. No paid request was exercised."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-11",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "tests": [
+      "src/workbench/ai/lane/laneViewModel.test.ts",
+      "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+      "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx"
+    ]
+  }
+}

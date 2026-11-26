@@ -115,7 +115,7 @@ export type AgentPanelV4PanelProps = {
   queue?: readonly QueueRowData[]
   queueHint?: string
   context: ContextUsage
-  composer?: Omit<AgentPanelV4ComposerProps, 'panelHeight'> & {
+  composer?: Omit<AgentPanelV4ComposerProps, 'panelHeight' | 'onEmptyEnter'> & {
     permission?: PermissionTier
     chips?: readonly V4ComposerReference[]
   }
@@ -395,6 +395,7 @@ export function AgentPanelV4Panel({
     if (node.scrollHeight <= node.clientHeight) onScroll()
     return () => node.removeEventListener('scroll', onScroll)
   }, [onLoadOlder, flow, historyIdentity, historyCursor, pageCompletion, scrollRef])
+  const spendConfirmButton = React.useRef<HTMLButtonElement>(null)
   const onComposerSubmit = composer?.onSubmit
   const submitAndFollow = React.useCallback((choice?: 'primary' | 'secondary') => {
     // 发出去的那句永远要看得见：他刚才翻在半路也拉回最新一条，接着跟（拍板 2）。
@@ -470,7 +471,7 @@ export function AgentPanelV4Panel({
         </div>
         {slot ? (
           <div className="shrink-0 px-2.5 pb-2">
-            <V4Intervention data={slot} labels={labels.intervention} {...(slotBody ? { body: slotBody } : {})} {...(slotWaiting === undefined ? {} : { waiting: slotWaiting })} {...slotHandlers} />
+            <V4Intervention data={slot} spendConfirmRef={spendConfirmButton} labels={labels.intervention} {...(slotBody ? { body: slotBody } : {})} {...(slotWaiting === undefined ? {} : { waiting: slotWaiting })} {...slotHandlers} />
           </div>
         ) : null}
         {queue?.length ? (
@@ -484,6 +485,7 @@ export function AgentPanelV4Panel({
           <AgentPanelV4Composer
             panelHeight={height}
             {...composer}
+            onEmptyEnter={() => spendConfirmButton.current?.click()}
             onSubmit={onComposerSubmit ? submitAndFollow : undefined}
             mode={composer?.mode ?? 'idle'}
             permission={composer?.permission ?? DEFAULT_PERMISSION_TIER}

@@ -79,7 +79,8 @@ export function StatusSpinner({ size = 12 }: { size?: number }): JSX.Element {
 }
 
 /** 行尾状态：只有 spinner / ✓ / ⚠ 三个。output-denied 是用户点的「不要」，用 ×。 */
-export function ToolStatusIcon({ status, size = 12 }: { status: V4ToolStatus; size?: number }): JSX.Element {
+export function ToolStatusIcon({ status, size = 12 }: { status: V4ToolStatus; size?: number }): JSX.Element | null {
+  if (status === 'approval-requested') return null
   if (status === 'output-error') return <IconAlertTriangle size={size} aria-hidden="true" />
   if (status === 'output-denied') return <IconX size={size} aria-hidden="true" />
   if (status === 'output-available') return <IconCheck size={size} aria-hidden="true" />

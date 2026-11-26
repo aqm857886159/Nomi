@@ -1,0 +1,27 @@
+{
+  "name": "Agent 工具收据的待确认状态",
+  "subject": "agent-panel.receipt-approval",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/lane/laneViewModel.ts",
+    "symbol": "laneViewModel"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "laneViewModel"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/lane/laneViewModel.test.ts",
+  "allowed_consumers": [
+    "src/devlab/designLab/v4/laneDrivenFixtures.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+  ],
+  "since": "2026-11-27",
+  "notes": "Associate an unresolved tool call with its own waiting spend offer or pending tool approval."
+}

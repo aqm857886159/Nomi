@@ -1,0 +1,28 @@
+{
+  "name": "Agent 编辑器的回车动作归属",
+  "subject": "agent-panel.composer-enter",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "symbol": "AgentPanelV4Composer"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "symbol": "AgentPanelV4Composer"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx",
+  "allowed_consumers": [
+    "src/devlab/designLab/v4/states/02-composer.tsx",
+    "src/devlab/designLab/v4/states/07-auto-mode.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx"
+  ],
+  "since": "2026-11-27",
+  "notes": "Dispatch editor Enter to a single action. An empty editor can delegate to the waiting spend button in its own panel."
+}
