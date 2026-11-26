@@ -5,19 +5,19 @@
       "run": "zh-CN-light",
       "station": "menu",
       "ok": true,
-      "ms": 1051
+      "ms": 944
     },
     {
       "run": "zh-CN-light",
       "station": "sample",
       "ok": true,
-      "ms": 13510
+      "ms": 17477
     },
     {
       "run": "zh-CN-light",
       "station": "hd",
       "ok": false,
-      "ms": 412,
+      "ms": 420,
       "error": "出高清请求体键集合：{\"model\":\"seedance-2.5\",\"prompt\":\"\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}\n+ actual - expected\n\n  [\n    'draft_task_id',\n    'model',"
     }
   ]

@@ -2,7 +2,7 @@
   "version": 1,
   "change": {
     "title": "Seedance 2.5 样片模式：先出 480p 样片，满意再出 1080p",
-    "headSha": "2f716b968",
+    "headSha": "c9129f473",
     "userCan": "在模型菜单选「Seedance 2.5（样片模式）」出一条 480p 样片；满意就点节点下方「出高清」，只拿样片号出 1080p，写进同一节点第 2 版「高清版」；同一条样片第二次出高清先问；过期了换「重拍样片」。",
     "added": [
       "菜单「Seedance 2.5（样片模式）」一行",
@@ -138,7 +138,7 @@
         "current": 9.8,
         "n": 5,
         "basis": "measured",
-        "note": "中位数；p95 9.8；预算 33；本机有别的线在跑（noisy）"
+        "note": "中位数；p95 9.8；预算 33；这份基线是实现线忙时量的，标了 noisy，待验收线重量"
       }
     ]
   },
@@ -197,7 +197,7 @@
     {
       "item": "英文「第二次出高清」确认框标题截断（不符拍板图 E4）：修复另开 PR #1696（弹窗外壳一处「放不下就折行」，同提交删掉 SpendConfirmDialog 的 truncate，用户 11-26 拍板）",
       "owner": "协调会话（已派伙伴机）",
-      "recheck": "#1696 合入 main 后，本分支合一次 main，重跑 sample-mode.walk.mjs second 站英文轨，日志「[量] 二次出高清标题」放得下，再把 sample.confirm-second-hd 翻成 implemented"
+      "recheck": "#1696 合入 main 后，本分支合一次 main，重跑 sample-mode.walk.mjs second 站英文轨，日志「[量] 二次出高清标题」放得下，由验收线核过再把 sample.confirm-second-hd 翻成 implemented（实现线不自己翻）"
     }
   ],
   "evidence": [

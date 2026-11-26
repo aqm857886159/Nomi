@@ -3,252 +3,252 @@
     "method": "GET",
     "url": "/models",
     "body": "",
-    "at": "2026-11-26T18:36:18.457Z"
+    "at": "2026-11-26T19:11:51.840Z"
   },
   {
     "method": "GET",
     "url": "/v1/models",
     "body": "",
-    "at": "2026-11-26T18:36:18.461Z"
+    "at": "2026-11-26T19:11:51.844Z"
   },
   {
     "method": "GET",
     "url": "/v1/user/balance",
     "body": "",
-    "at": "2026-11-26T18:36:21.744Z"
+    "at": "2026-11-26T19:11:55.051Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=kling-3.0-turbo",
     "body": "",
-    "at": "2026-11-26T18:36:21.845Z"
+    "at": "2026-11-26T19:11:55.153Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:36:22.468Z"
+    "at": "2026-11-26T19:11:55.707Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"远景，雨后天台，人物转身看向窗外\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
-    "at": "2026-11-26T18:36:23.389Z"
+    "at": "2026-11-26T19:11:57.390Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:36:25.972Z"
+    "at": "2026-11-26T19:12:01.190Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:36:28.297Z"
+    "at": "2026-11-26T19:12:03.809Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:36:31.939Z"
+    "at": "2026-11-26T19:12:06.869Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:36:34.491Z"
+    "at": "2026-11-26T19:12:10.214Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:36:34.496Z"
+    "at": "2026-11-26T19:12:10.216Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:36:34.796Z"
+    "at": "2026-11-26T19:12:10.571Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
-    "at": "2026-11-26T18:36:35.561Z"
+    "at": "2026-11-26T19:12:13.863Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:36:38.637Z"
+    "at": "2026-11-26T19:12:16.702Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:36:40.817Z"
+    "at": "2026-11-26T19:12:18.996Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:36:44.687Z"
+    "at": "2026-11-26T19:12:22.424Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:36:48.115Z"
+    "at": "2026-11-26T19:12:25.323Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:36:48.118Z"
+    "at": "2026-11-26T19:12:25.328Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:36:48.416Z"
+    "at": "2026-11-26T19:12:25.623Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
-    "at": "2026-11-26T18:36:51.370Z"
+    "at": "2026-11-26T19:12:29.359Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:36:53.776Z"
+    "at": "2026-11-26T19:12:31.646Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:36:56.239Z"
+    "at": "2026-11-26T19:12:34.544Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:36:59.125Z"
+    "at": "2026-11-26T19:12:37.356Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:37:01.942Z"
+    "at": "2026-11-26T19:12:40.906Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:37:01.947Z"
+    "at": "2026-11-26T19:12:40.909Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=kling-3.0-turbo",
     "body": "",
-    "at": "2026-11-26T18:37:02.587Z"
+    "at": "2026-11-26T19:12:41.844Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:03.181Z"
+    "at": "2026-11-26T19:12:42.398Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:03.500Z"
+    "at": "2026-11-26T19:12:42.664Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"近景，栏杆上的雨珠\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false}",
-    "at": "2026-11-26T18:37:03.688Z"
+    "at": "2026-11-26T19:12:42.927Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:37:07.514Z"
+    "at": "2026-11-26T19:12:45.441Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:37:10.453Z"
+    "at": "2026-11-26T19:12:49.127Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:37:12.879Z"
+    "at": "2026-11-26T19:12:51.393Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:37:16.786Z"
+    "at": "2026-11-26T19:12:53.653Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:37:16.789Z"
+    "at": "2026-11-26T19:12:53.655Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:17.082Z"
+    "at": "2026-11-26T19:12:54.023Z"
   },
   {
     "method": "GET",
     "url": "/v1/user/balance",
     "body": "",
-    "at": "2026-11-26T18:37:19.519Z"
+    "at": "2026-11-26T19:12:58.576Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:19.622Z"
+    "at": "2026-11-26T19:12:58.676Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:20.144Z"
+    "at": "2026-11-26T19:12:59.192Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:21.419Z"
+    "at": "2026-11-26T19:12:59.857Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:21.915Z"
+    "at": "2026-11-26T19:13:00.302Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:25.472Z"
+    "at": "2026-11-26T19:13:05.713Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"远景，雨后天台，人物转身看向窗外\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
-    "at": "2026-11-26T18:37:25.902Z"
+    "at": "2026-11-26T19:13:06.896Z"
   }
 ]

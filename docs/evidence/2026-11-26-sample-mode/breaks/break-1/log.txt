@@ -5,7 +5,7 @@ board:SampleMode/sample.below-row：样片出完节点下方出这一行
 
 expect(locator).toHaveAttribute(expected) failed
 
-Locator: locator('.react-flow__node[data-id="gen-v2-video-mwxvtzxh-rxwe"]').first().locator('[data-sample-row]').first()
+Locator: locator('.react-flow__node[data-id="gen-v2-video-mwxx36g5-jhb8"]').first().locator('[data-sample-row]').first()
 Expected: "ready"
 Timeout: 90000ms
 Error: element(s) not found

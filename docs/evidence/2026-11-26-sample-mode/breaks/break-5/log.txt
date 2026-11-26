@@ -1,12 +1,12 @@
 [walkthrough] content viewport {"width":1100,"height":690}
 ✓ zh-CN/light menu
 ✗ zh-CN/light sample
-board:SampleMode/sample.send-price：算不出价不印数
+board:SampleMode/sample.send-price：算不出价不印数（基线已证：生成框里的发送键在（约价记号挂在它这一处））
 
 expect(locator).toHaveCount(expected) failed
 
 Locator:  locator('.generation-canvas-v2-node__composer').last().locator('[data-send-cost]')
 Expected: 0
 Received: 1
-Timeout:  5000ms
+Timeout:  15000ms
 证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-5

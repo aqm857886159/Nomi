@@ -5,25 +5,25 @@
       "run": "zh-CN-light",
       "station": "menu",
       "ok": true,
-      "ms": 1044
+      "ms": 966
     },
     {
       "run": "zh-CN-light",
       "station": "sample",
       "ok": true,
-      "ms": 14489
+      "ms": 16081
     },
     {
       "run": "zh-CN-light",
       "station": "hd",
       "ok": true,
-      "ms": 15616
+      "ms": 13842
     },
     {
       "run": "zh-CN-light",
       "station": "second",
       "ok": false,
-      "ms": 5058,
+      "ms": 5048,
       "error": "board:SampleMode/sample.confirm-second-hd：第二次先弹确认\n\nexpect(locator).toBeVisible() failed\n\nLocator: locator('[role=\"dialog\"]').filter({ hasText: '这条样片已经出过 1080p 高清版' }).first()\nExpected: visible"
     }
   ]

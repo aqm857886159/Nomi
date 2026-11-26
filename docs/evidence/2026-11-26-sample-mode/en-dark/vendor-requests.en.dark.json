@@ -3,252 +3,264 @@
     "method": "GET",
     "url": "/models",
     "body": "",
-    "at": "2026-11-26T18:37:30.173Z"
+    "at": "2026-11-26T19:13:11.098Z"
   },
   {
     "method": "GET",
     "url": "/v1/models",
     "body": "",
-    "at": "2026-11-26T18:37:30.177Z"
+    "at": "2026-11-26T19:13:11.104Z"
   },
   {
     "method": "GET",
     "url": "/v1/user/balance",
     "body": "",
-    "at": "2026-11-26T18:37:33.472Z"
+    "at": "2026-11-26T19:13:14.292Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=kling-3.0-turbo",
     "body": "",
-    "at": "2026-11-26T18:37:33.571Z"
+    "at": "2026-11-26T19:13:14.394Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:34.175Z"
+    "at": "2026-11-26T19:13:14.957Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Wide shot, rooftop after rain, she turns to the window\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
-    "at": "2026-11-26T18:37:35.101Z"
+    "at": "2026-11-26T19:13:16.727Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:37:38.223Z"
+    "at": "2026-11-26T19:13:19.953Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:37:41.530Z"
+    "at": "2026-11-26T19:13:22.685Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:37:44.768Z"
+    "at": "2026-11-26T19:13:25.392Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T18:37:48.476Z"
+    "at": "2026-11-26T19:13:28.177Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:37:48.480Z"
+    "at": "2026-11-26T19:13:28.182Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:37:48.767Z"
+    "at": "2026-11-26T19:13:28.494Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
-    "at": "2026-11-26T18:37:49.897Z"
+    "at": "2026-11-26T19:13:31.814Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:37:53.388Z"
+    "at": "2026-11-26T19:13:34.932Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:37:55.760Z"
+    "at": "2026-11-26T19:13:38.588Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:37:58.904Z"
+    "at": "2026-11-26T19:13:41.476Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T18:38:02.080Z"
+    "at": "2026-11-26T19:13:44.341Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:38:02.083Z"
+    "at": "2026-11-26T19:13:44.344Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:02.349Z"
+    "at": "2026-11-26T19:13:44.638Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
-    "at": "2026-11-26T18:38:05.334Z"
+    "at": "2026-11-26T19:13:48.559Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:38:07.871Z"
+    "at": "2026-11-26T19:13:50.983Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:38:11.500Z"
+    "at": "2026-11-26T19:13:54.586Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:38:15.285Z"
+    "at": "2026-11-26T19:13:57.696Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T18:38:17.937Z"
+    "at": "2026-11-26T19:14:01.122Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:38:17.940Z"
+    "at": "2026-11-26T19:14:01.123Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T19:14:01.944Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=kling-3.0-turbo",
     "body": "",
-    "at": "2026-11-26T18:38:18.860Z"
+    "at": "2026-11-26T19:14:02.093Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:19.447Z"
+    "at": "2026-11-26T19:14:02.747Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:19.745Z"
+    "at": "2026-11-26T19:14:03.082Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Close-up, raindrops on the railing\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false}",
-    "at": "2026-11-26T18:38:19.987Z"
+    "at": "2026-11-26T19:14:03.348Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:38:22.796Z"
+    "at": "2026-11-26T19:14:06.227Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:38:26.092Z"
+    "at": "2026-11-26T19:14:10.079Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:38:28.952Z"
+    "at": "2026-11-26T19:14:13.477Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T18:38:31.956Z"
+    "at": "2026-11-26T19:14:15.817Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T18:38:31.960Z"
-  },
-  {
-    "method": "GET",
-    "url": "/api/pricing/model?model=seedance-2.5",
-    "body": "",
-    "at": "2026-11-26T18:38:32.239Z"
+    "at": "2026-11-26T19:14:15.847Z"
   },
   {
     "method": "GET",
     "url": "/v1/user/balance",
     "body": "",
-    "at": "2026-11-26T18:38:34.789Z"
+    "at": "2026-11-26T19:14:16.105Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:34.891Z"
+    "at": "2026-11-26T19:14:16.229Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/user/balance",
+    "body": "",
+    "at": "2026-11-26T19:14:20.816Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:35.413Z"
+    "at": "2026-11-26T19:14:20.926Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:36.187Z"
+    "at": "2026-11-26T19:14:21.495Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:36.690Z"
+    "at": "2026-11-26T19:14:22.295Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T18:38:40.712Z"
+    "at": "2026-11-26T19:14:22.799Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T19:14:28.872Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Wide shot, rooftop after rain, she turns to the window\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
-    "at": "2026-11-26T18:38:41.281Z"
+    "at": "2026-11-26T19:14:30.217Z"
   }
 ]
