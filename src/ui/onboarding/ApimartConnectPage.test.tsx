@@ -281,7 +281,7 @@ describe('S6 · APIMart verification', () => {
   })
 
   const balance = (remainCredits: number | null, unlimited = false) => ({ remainCredits, reportedBalance: null, unlimited })
-  const received = (accountBalance: ReturnType<typeof balance>, keyQuota: ReturnType<typeof balance>) => ({
+  const received = (accountBalance: ReturnType<typeof balance>, keyQuota: ReturnType<typeof balance> | null) => ({
     status: 'received' as const, accountBalance, keyQuota,
   })
 
@@ -331,6 +331,82 @@ describe('S6 · APIMart verification', () => {
       expect(h.state().stage).toBe('passed')
       vi.advanceTimersByTime(450)
       expect(connected).toHaveBeenCalledOnce()
+      expect(h.back).toHaveBeenCalledOnce()
+    } finally { h.close() }
+  })
+
+  it.each([
+    ['positive credits', balance(500)],
+    ['unlimited quota', balance(null, true)],
+  ] as const)('keeps a saved zero-quota Key on the page through a partial recheck until %s are confirmed', async (_label, recovered) => {
+    vi.useFakeTimers()
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    const h = mountCheck()
+    const connected = vi.fn()
+    window.addEventListener(APIMART_CONNECTED_EVENT, connected)
+    const funded = balance(52.3)
+    try {
+      h.save.mockResolvedValueOnce(received(funded, balance(0)))
+      await h.state().check('sk-original')
+      h.flush()
+      expect(h.state().stage).toBe('keyQuota')
+
+      // The bridge reports received with a null quota for Key HTTP 503 + account HTTP 200.
+      h.read.mockResolvedValueOnce(received(funded, null))
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+      h.flush()
+      expect(h.read).toHaveBeenCalledOnce()
+      expect.soft(h.state().stage).toBe('keyQuota')
+      expect.soft(renderResult(h.state())).toContain('text-nomi-warning-ink')
+      vi.advanceTimersByTime(500)
+      expect.soft(connected).not.toHaveBeenCalled()
+      expect.soft(h.back).not.toHaveBeenCalled()
+
+      h.read.mockResolvedValueOnce(received(funded, recovered))
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+      h.flush()
+      expect(h.read).toHaveBeenCalledTimes(2)
+      expect(h.save).toHaveBeenCalledOnce()
+      expect(h.state().stage).toBe('passed')
+      vi.advanceTimersByTime(449)
+      expect(connected).not.toHaveBeenCalled()
+      expect(h.back).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(1)
+      expect(connected).toHaveBeenCalledOnce()
+      expect(h.back).toHaveBeenCalledOnce()
+    } finally { h.close() }
+  })
+
+  it('prioritizes topup while retaining the zero quota for the same Key only', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    const h = mountCheck()
+    const funded = balance(52.3)
+    try {
+      h.save.mockResolvedValueOnce(received(funded, balance(0)))
+      await h.state().check('sk-original-1234')
+      h.flush()
+      expect(h.state().stage).toBe('keyQuota')
+
+      h.read.mockResolvedValueOnce(received(balance(0), null))
+      await h.state().retry()
+      h.flush()
+      expect(h.state().stage).toBe('topup')
+      h.read.mockResolvedValueOnce(received(funded, { ...balance(null), reportedBalance: 2 }))
+      await h.state().retry()
+      h.flush()
+      expect.soft(h.state().stage).toBe('keyQuota')
+
+      h.save.mockResolvedValue(received(funded, null))
+      await h.state().check('sk-original-1234')
+      h.flush()
+      expect.soft(h.state().stage).toBe('keyQuota')
+      await h.state().check('sk-replacement-1234')
+      h.flush()
+      expect(h.state().stage).toBe('passed')
+      vi.advanceTimersByTime(450)
       expect(h.back).toHaveBeenCalledOnce()
     } finally { h.close() }
   })
