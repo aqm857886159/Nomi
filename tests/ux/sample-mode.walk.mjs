@@ -27,7 +27,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, holdAbsent, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { addCanvasNode, canvasZoomStep, createBlankProject, selectOrAddCanvasNode, ensureAgentPanelOpen, nodeModelTrigger, openNodeModelMenu, openNodeParams, selectedNodeComposer, switchWorkspace } from './_shell.mjs'
+import { addCanvasNode, canvasSetZoomPercent, canvasZoomPercent, canvasZoomStep, createBlankProject, selectOrAddCanvasNode, ensureAgentPanelOpen, nodeModelTrigger, openNodeModelMenu, openNodeParams, selectedNodeComposer, switchWorkspace } from './_shell.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { encryptFixtureKey, startFakeApimartServer } from './_mcpL2Fixture.mjs'
 import { buildWorld } from './_world.mjs'
@@ -169,22 +169,24 @@ async function reachable(locator) {
  * keep：目标所属的节点。画布只画和视口有交集的节点（onlyRenderVisibleElements），铺开的版本卡长在节点里——
  * 把节点整个拖出视口，卡会跟着不画。所以拖完节点必须还露一截（≥ 40px）；做不到就回 'blocked'，由调用方先缩小一档。
  * whole：要整块露出来（生成框这种宽的东西，中心在里面但左半截在画布外也要拖）。
- * 回 'inside'（目标中心已在可见区里——whole 时是整块都在——不用拖）/ 'dragged' / 'blocked'。
+ * center：拖到画布正中（要放大看时先这样，缩放围着画布中心转，目标就不会被放大出视口）；离正中 24px 以内算到了。
+ * 回 'inside'（目标中心已在可见区里——whole 时是整块都在、center 时是在正中——不用拖）/ 'dragged' / 'blocked'。
  */
-async function dragIntoView(win, locator, keep, { whole = false } = {}) {
+async function dragIntoView(win, locator, keep, { whole = false, center = false } = {}) {
   const keepBox = keep ? await keep.boundingBox() : null
-  const plan = await locator.evaluate((el, { keepRect, whole }) => {
+  const plan = await locator.evaluate((el, { keepRect, whole, center }) => {
     const pane = document.querySelector('.react-flow__pane')
     if (!pane) return null
     const p = pane.getBoundingClientRect()
     const r = el.getBoundingClientRect()
     const cx = r.left + r.width / 2
     const cy = r.top + r.height / 2
-    if (!whole && cx > p.left + 8 && cx < p.right - 8 && cy > p.top + 8 && cy < p.bottom - 8) return { kind: 'inside' }
+    if (!whole && !center && cx > p.left + 8 && cx < p.right - 8 && cy > p.top + 8 && cy < p.bottom - 8) return { kind: 'inside' }
     const margin = 24
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
     // 最小位移：左边露出 → 右移到左缘 + 边距；右边同理；上下同理（目标比画布还大就只把中心拖进来）。
     const shift = (lo, hi, pLo, pHi) => {
+      if (center) return (pLo + pHi) / 2 - (lo + hi) / 2
       if (hi - lo > pHi - pLo - 2 * margin) return (pLo + pHi) / 2 - (lo + hi) / 2
       if (lo < pLo + margin) return pLo + margin - lo
       if (hi > pHi - margin) return pHi - margin - hi
@@ -192,7 +194,8 @@ async function dragIntoView(win, locator, keep, { whole = false } = {}) {
     }
     const dx = shift(r.left, r.right, p.left, p.right)
     const dy = shift(r.top, r.bottom, p.top, p.bottom)
-    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return { kind: 'inside' }
+    const near = center ? margin : 1
+    if (Math.abs(dx) < near && Math.abs(dy) < near) return { kind: 'inside' }
     if (keepRect) {
       const visible = 40
       const left = keepRect.x + dx
@@ -210,7 +213,7 @@ async function dragIntoView(win, locator, keep, { whole = false } = {}) {
       }
     }
     return { kind: 'no-empty' }
-  }, { keepRect: keepBox, whole })
+  }, { keepRect: keepBox, whole, center })
   if (!plan || plan.kind === 'inside' || plan.kind === 'blocked') return plan?.kind ?? 'inside'
   if (plan.kind === 'no-empty') throw new Error('画布上找不到空白处来拖')
   await win.mouse.move(plan.sx, plan.sy)
@@ -524,6 +527,15 @@ for (const run of RUNS) {
       const keep = node.locator('.generation-canvas-v2-node__preview').first()
       const row = node.locator('[data-sample-row]').first()
       await win.keyboard.press('Escape')
+      // 第一下 Esc 可能只让提示词框失焦：生成框还在就再按一下，取消选择。
+      if (await selectedNodeComposer(win).isVisible().catch(() => false)) await win.keyboard.press('Escape')
+      // 前一站给新节点的生成框让位时画布可能被缩到 40% 以下（en 实测 33%），那时节点只画远看的轻量卡，没有标签和缩放线。
+      // 真人会把样片节点拖到画布正中，再放大到 100% 看清楚——照做。
+      for (let step = 0; (await dragIntoView(win, card, null, { center: true })) === 'dragged'; step += 1) {
+        if (step >= 3) throw new Error('把样片节点拖到画布正中：拖 4 次还没到')
+      }
+      if ((await canvasZoomPercent(win)) !== 100) await canvasSetZoomPercent(win, 100, 'zoom to 100% to read the sample node')
+      await expect(keep, '放大到 100% 后样片节点画整卡').toBeAttached()
       await expect(row).toHaveAttribute('data-sample-state', 'ready')
       await win.clock.install()
       ctx.clockInstalled = true
@@ -545,8 +557,10 @@ for (const run of RUNS) {
         await onCanvas(win, keep, `${label}：把节点拖进来`, { hover: true, keep })
         if (!(await card.getAttribute('data-selected') === 'true')) await card.click({ position: { x: 8, y: 8 } })
         await expect(card, `${label}：选中才有缩放区`).toHaveAttribute('data-selected', 'true')
-        const handle = node.locator('.generation-canvas-v2-node__resize-zone--e').first()
-        await onCanvas(win, handle, `${label}：右边缩放区`, { hover: true, keep })
+        // 画布里的缩放把手归 React Flow 的 NodeResizer（唯一选中的卡才挂）；右边那条线横着拖，媒体卡按比例跟着缩。
+        await dragIntoView(win, card, keep, { whole: true })
+        const handle = node.locator('.react-flow__resize-control.line.right').first()
+        await expect(handle, `${label}：右边缩放线`).toBeAttached()
         const start = await handle.boundingBox()
         const now = await card.evaluate((el) => ({ layout: el.offsetWidth, screen: el.getBoundingClientRect().width }))
         const dx = (target - now.layout) * (now.screen / now.layout)
