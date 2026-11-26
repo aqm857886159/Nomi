@@ -95,10 +95,26 @@ export function sampleByTaskId(node: Pick<GenerationCanvasNode, 'result' | 'hist
   return null
 }
 
-/** 这个节点正在出高清的那条样片号：这次运行在路上、运行记录里记着样片号（提交那一刻从请求的 draft_task_id 记下）。 */
-export function sampleFinalInFlight(node: Pick<GenerationCanvasNode, 'runs'>): string | null {
-  const run = node.runs?.find((candidate) => (candidate.status === 'queued' || candidate.status === 'running') && text(candidate.attempt?.draftTaskId))
-  return run ? text(run.attempt?.draftTaskId) : null
+/**
+ * 节点眼下占着显示的那次是不是出高清（唯一的判断处：等待面、状态条、失败卡、节点下方那一行都读它）。
+ * - `active`：在路上。准入前只有进度带着样片号（记录还没写），准入后记录的 attempt 也记着；
+ * - `failed`：最近一次运行就是出高清、没成（节点的失败卡让给下方那一行，按钮还是「出高清」，再点即重试）。
+ * 普通发送、老记录（没有样片号）→ null：节点照今天的通用状态画。
+ */
+export type SampleFinalRun = { draftTaskId: string; phase: 'active' } | { draftTaskId: string; phase: 'failed'; error: string }
+
+export function sampleFinalRunOf(node: Pick<GenerationCanvasNode, 'status' | 'error' | 'progress' | 'runs'>): SampleFinalRun | null {
+  if (node.status === 'queued' || node.status === 'running') {
+    const live = node.runs?.find((run) => run.status === 'queued' || run.status === 'running')
+    const draftTaskId = text(node.progress?.draftTaskId) || text(live?.attempt?.draftTaskId)
+    return draftTaskId ? { draftTaskId, phase: 'active' } : null
+  }
+  if (node.status === 'error') {
+    const latest = node.runs?.[0]
+    const draftTaskId = latest?.status === 'error' ? text(latest.attempt?.draftTaskId) : ''
+    return draftTaskId ? { draftTaskId, phase: 'failed', error: node.error || latest?.error || '' } : null
+  }
+  return null
 }
 
 export type SampleExpiry =

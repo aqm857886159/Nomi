@@ -36,7 +36,10 @@ export function createRunOwnOutcomes(target: RunProjectTarget, nodeId: string, r
     admitted = true
     queue({ kind: 'run-started', run: { ...run, status: 'running', updatedAt: Date.now(), ...patch } })
   }
-  const reportProgress = (progress: NodeProgressInput): void => {
+  // 出高清的每一帧进度都盖上样片号：准入前记录里还没有这次，节点下方那一行靠它认出「高清生成中」。
+  const draftTaskId = run.attempt?.draftTaskId
+  const reportProgress = (frame: NodeProgressInput): void => {
+    const progress = draftTaskId ? { ...frame, draftTaskId } : frame
     if (paidRun && !admitted && progress.taskId) admit({ taskId: progress.taskId })
     // 前台看进度；不在前台只把首次拿到的 taskId 写进原项目（找回靠它），其余瞬态不写盘。
     if (whenRunTargetLoaded(target, () => useGenerationCanvasStore.getState().setNodeProgress(nodeId, progress))) return
@@ -55,7 +58,7 @@ export function createRunOwnOutcomes(target: RunProjectTarget, nodeId: string, r
     reportProgress,
     deliverOwn,
     async start(): Promise<void> {
-      const queuedProgress = { runId: run.id, phase: 'queued', message: narrateProgress('queued') } as const
+      const queuedProgress = { runId: run.id, phase: 'queued', message: narrateProgress('queued'), ...(draftTaskId ? { draftTaskId } : {}) } as const
       if (paidRun) await deliverRunOutcome(target, nodeId, { kind: 'attempt-started', runId: run.id, progress: queuedProgress })
       else {
         await deliverRunOutcome(target, nodeId, { kind: 'run-started', run })

@@ -108,6 +108,11 @@ export type GenerationNodeProgress = {
   phase?: string
   message?: string
   percent?: number
+  /**
+   * 这次在跑的是从这条样片出高清（样片号，和运行记录 attempt.draftTaskId 同一个值）。
+   * 花钱的那条路在主进程准入前只占显示、不写记录，那一段只有进度认得出是出高清（runOwnOutcomes 每一帧都盖上）。
+   */
+  draftTaskId?: string
   updatedAt: number
 }
 

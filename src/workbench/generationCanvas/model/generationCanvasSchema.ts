@@ -18,6 +18,7 @@ const generationNodeProgressSchema = z.object({
   phase: z.string().optional(),
   message: z.string().optional(),
   percent: z.number().optional(),
+  draftTaskId: z.string().min(1).optional(),
   updatedAt: z.number(),
 })
 
