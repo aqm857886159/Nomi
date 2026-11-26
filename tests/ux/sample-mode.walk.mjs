@@ -460,7 +460,7 @@ for (const run of RUNS) {
       await onCanvas(win, hd, 'make HD again')
       await expect(dialog, 'board:SampleMode/sample.confirm-second-hd：第二次先弹确认').toBeVisible()
       // 量具（只记不判）：标题那一句在真框里放不放得下。拍板图 E4 注「格子比真框 380 窄才折行」= 真框里应一行放下；
-      // 今天标题类是 truncate，放不下就省略。数字进日志，交协调定（花钱确认框是热点文件，不在本线改）。
+      // 今天标题类是 truncate，放不下就省略。数字进日志；修法用户 11-26 已定：弹窗外壳一处「放不下就折行」，另开 PR #1696。
       const titleFit = await dialog.evaluate((el) => {
         const title = document.getElementById(el.getAttribute('aria-labelledby') || '')
         return title ? { scrollWidth: title.scrollWidth, clientWidth: title.clientWidth, dialogWidth: Math.round(el.getBoundingClientRect().width), text: title.textContent } : null
