@@ -105,24 +105,12 @@ export {
 } from "./catalog/catalogCommit";
 // 请求与工作缓存两份形状住在 ./taskTypes（R9：runtime.ts 是编排层）；re-export 保住既有 import 面。
 export type { CachedTask, TaskRequest } from "./taskTypes";
-import type { CachedTask, TaskRequest } from "./taskTypes";
+import type { CachedTask, TaskRequest, TaskResultAsset } from "./taskTypes";
 export type TaskResult = {
   id: string;
   kind: ProfileKind;
   status: "queued" | "running" | "succeeded" | "failed";
-  assets: Array<import("./shared/canvas/canvasMediaPreview").TaskAssetPreviewFields & {
-    type: "image" | "video" | "audio" | "model3d";
-    url: string;
-    assetId?: string | null;
-    assetRefId?: string | null;
-    assetName?: string | null;
-    /** 原始 CDN URL（https://...）。供后续生成直接用，无需上传。可能过期，过期后退回本地字节。 */
-    providerUrl?: string | null;
-    durationSeconds?: number;
-    /** 落盘边界 ffprobe 出来的源像素尺寸；画布拿到它就不必解码原图才知道有多大。 */
-    width?: number;
-    height?: number;
-  }>;
+  assets: TaskResultAsset[];
   raw: unknown;
   /**
    * 这一笔是一组图层（图层分离）：与 assets 按下标平行，assets[i] 就是第 i 层的图。只由 tasks/taskLayerReading 按线缆声明读出；

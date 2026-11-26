@@ -232,7 +232,7 @@
         "446-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.entry-whiteboard-hint",
@@ -250,7 +250,7 @@
         "682-span-在画板中编辑图层"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.derived-node",
@@ -273,7 +273,7 @@
         "172-span-海报海边短片图层"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.composer-cell",
@@ -322,7 +322,7 @@
         "554-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.params-panel",
@@ -428,7 +428,7 @@
         "807-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
       "note": "清晰度小字补「自动」：「2K / 自动 价更高」/「2K / Auto cost more」，依据 APIMart 官方 1K/1.5K 低档、2K/auto 高档预扣（2026-11-26 取）；D-1126-se-auto-tier。≥50 层提醒只提醒、不拦（协调裁定）。"
     },
     {
@@ -449,7 +449,7 @@
         "200-div-描述希望拆分的图层留空将"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.send-price",
@@ -493,7 +493,7 @@
         "578-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
       "note": "约价只印在发送键上，确认卡不变（确认卡对所有模型都不印金额）；单位跟发送键，不写死 ¥；5.0 Pro 不印数。"
     },
     {
@@ -552,7 +552,7 @@
         "852-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.two-images-hint",
@@ -589,7 +589,7 @@
         "491-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.pro-fixed",
@@ -650,7 +650,7 @@
         "830-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.node-status",
@@ -695,7 +695,7 @@
         "694-span-20"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.node-composite",
@@ -718,7 +718,7 @@
         "036-svg"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.running",
@@ -737,7 +737,7 @@
         "584-span-拆图层中"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.failed",
@@ -889,7 +889,7 @@
         "726-span-无名无框铺满"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.panel-reorder",
@@ -1153,7 +1153,7 @@
         "316-span-Done"
       ],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.whiteboard-scale",
@@ -1169,7 +1169,7 @@
       "component": "whiteboardSceneRender.ts:278-283（每层 resizeable、lockRatio）；全局 WhiteboardLeaferCanvas.tsx:329 resizeable:false；自写 whiteboardCanvasGeometry.ts:336 isPointNearSingleAssetResizeHandle",
       "candidates": [],
       "status": "in-progress",
-      "owner": "I-SE-layer-split PR1"
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
       "id": "layers.base-row",

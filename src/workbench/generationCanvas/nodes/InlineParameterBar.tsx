@@ -1,4 +1,4 @@
-import { shouldReduceMotion } from '../../../design/motion'
+import { revealInScrollParent } from '../../../utils/revealInScrollParent'
 import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { createPortal, flushSync } from 'react-dom'
@@ -22,28 +22,21 @@ import type { ModelCatalogStatus } from '../../../config/modelCatalogStatus'
 import {
   type DynamicCatalogControl,
   type DynamicModelControl,
-  catalogControlInitialValue,
-  controlInitialValue,
-  controlValueToString,
   controlDiffersFromDefault,
-  isParameterControl,
-  optionValue,
   parameterPlacement,
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
-import { summaryFitCandidates } from './composerHeadlineSummary'
+import { fallbackSummaryParts, summaryFitCandidates } from './composerHeadlineSummary'
 import { nomiSelectTriggerText } from '../../../design/NomiSelect'
 import { ComposerSendButton, COMPOSER_SEND_FRAME } from './ComposerSendButton'
 import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldPick, modeHasIcon, sameComposerYieldStep, type ComposerYieldStep } from './composerBarYield'
 import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
-import { localizeAutoOption } from './parameterOptionPresentation'
 import {
   ParameterOptionGroup,
   ParameterPanelGroup,
 } from './controls/ParameterControlBody'
 import { AdvancedSettingsIconButton, AdvancedSettingsSection } from './controls/AdvancedSettings'
 import { NodePromptToolCluster } from './NodePromptToolCluster'
-import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { resolveAnchoredPopoverPlacement } from '../../../design/anchoredPopoverPlacement'
 
@@ -153,60 +146,6 @@ export type ComposerFooterSlots = {
 //   2026-09-11 02:10 曾被逐参数 chip 换掉，同日 04:30 用户纠正：**节点退回原样**。逐参数 chip 那种摆法只给过
 //   付费确认卡；D2（用户 2026-10-23 拍板）付费卡上不再有参数控件，那种摆法随旧卡一起删了。
 // 「生成方式」（文生/图生 tab）在画布上仍住 composer 顶部，不进面板（2026-07-17 用户拍板第 2 点）。
-
-/** 摘要 pill 的单参数短文本：当前值的纯 label（不带价签）。boolean=开显示参数名/关跳过；空值跳过。 */
-function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>, autoLabel: string): string {
-  if (!isParameterControl(control)) {
-    const value = catalogControlInitialValue(control, meta)
-    const matched = control.options.find((o) => optionValue(o) === value)
-    const label = matched ? (typeof matched === 'string' ? matched : matched.label) : value
-    return localizeAutoOption(value, label, autoLabel).text
-  }
-  if (control.type === 'boolean') {
-    return (controlInitialValue(control, meta) || 'false') === 'true'
-      ? translateModelDisplayText(control.label)
-      : ''
-  }
-  const value = controlInitialValue(control, meta)
-  if (!value) return ''
-  const matched = control.options.find((o) => controlValueToString(o.value) === value)
-  return localizeAutoOption(value, matched ? matched.label : value, autoLabel).text
-}
-
-/**
- * 把一段滚进离它最近的可滚容器的可视区（最近对齐）：下沿在外就往下滚刚好够；段比可视区还高就让顶对齐。
- * 不用 `scrollIntoView`：它连 overflow-hidden 的祖先（画布卡、画布本身）一起滚。
- */
-function revealInScrollParent(el: HTMLElement): void {
-  let scroller: HTMLElement | null = el.parentElement
-  while (scroller) {
-    const overflowY = getComputedStyle(scroller).overflowY
-    if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break
-    scroller = scroller.parentElement
-  }
-  if (!scroller) return
-  const box = el.getBoundingClientRect()
-  const view = scroller.getBoundingClientRect()
-  const viewTop = view.top + scroller.clientTop
-  const viewBottom = viewTop + scroller.clientHeight
-  if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
-  const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
-  const reduce = shouldReduceMotion()
-  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
-}
-
-/**
- * 没有拍板过「那几个值」的执行类（声音 / 文本 / 3D）的摘要：面板里各参数的当前值，每个值是一个整值，
- * 放不下从后往前整值地减（2026-11-14 验收条件 2：Eleven v3 曾被截成「JBFqnCBs… · … · B…」）。
- * 自由文本（音色 ID 这类）不进摘要：它在摘要里读不出意思，点开面板看全。
- */
-function fallbackSummaryParts(controls: readonly DynamicModelControl[], meta: Record<string, unknown>, autoLabel: string): { text: string; dropRank: number }[] {
-  const texts = controls
-    .filter((control) => !(isParameterControl(control) && control.type === 'text'))
-    .map((control) => summaryPart(control, meta, autoLabel))
-    .filter(Boolean)
-  return texts.map((text, index) => ({ text, dropRank: texts.length - index }))
-}
 
 export default function InlineParameterBar({
   modelOptions,

@@ -279,6 +279,17 @@ describe('图层分离入口 —— 派生一个方式已定好的节点，不�
     expect(layerSplitVendorKeys(vendorMappingsReader(undefined), KNOWN_VENDORS.map((vendor) => vendor.vendorKey))).toEqual([])
   })
 
+  it('身份按 (供应商, modelKey) 成对：别家挂了同名 seedream-5-5 的改图线缆、却不读图层开关 → 只点名 APIMart，不因同名把别家算进来', () => {
+    const sameNameElsewhere = SEEDED.mappings.flatMap((mapping) => {
+      const body = (mapping.create as { body?: Record<string, unknown> } | undefined)?.body
+      if (mapping.vendorKey !== 'apimart' || mapping.modelKey !== 'seedream-5-5' || !body || !('layer_decomposition' in body)) return [mapping]
+      const { layer_decomposition: _drop, layer_decomposition_options: _options, ...rest } = body
+      return [mapping, { ...mapping, id: `${mapping.id}-kie`, vendorKey: 'kie', create: { ...mapping.create, body: rest, paramMap: undefined } }]
+    })
+    expect(sameNameElsewhere.some((mapping) => mapping.vendorKey === 'kie' && mapping.modelKey === 'seedream-5-5')).toBe(true)
+    expect(layerSplitVendorKeys(vendorMappingsReader(sameNameElsewhere), ['kie', 'apimart'])).toEqual(['apimart'])
+  })
+
   it('挑能拆得最多的那个：目录里 5.0 Pro（最多 17 层）排在前、源图也是它，仍给 5.5（最多 100 层、可选层数）', async () => {
     const SEEDREAM_PRO: ModelOption = { value: 'doubao-seedream-5-0-pro', label: 'Seedream 5.0 Pro', vendor: 'apimart', modelKey: 'doubao-seedream-5-0-pro' }
     const source = addSource()
@@ -286,7 +297,7 @@ describe('图层分离入口 —— 派生一个方式已定好的节点，不�
     const host = layerHost({ editModelOptions: [MODEL, SEEDREAM_PRO, SEEDREAM_55] })
     expect(findLayerSplitModelOption(host.editModelOptions, host.readMappings!)?.modelKey).toBe('seedream-5-5')
     const derivedId = derivedIdOf(await derive(source, host, 'layer-split'))
-    expect(nodeOf(derivedId).meta).toMatchObject({ modelKey: 'seedream-5-5' })
+    expect(nodeOf(derivedId).meta).toMatchObject({ modelKey: 'seedream-5-5', modelVendor: 'apimart' })
     // 只有 Pro 能拆时就给 Pro（不因「拆得少」说没有）。
     const onlyPro = derivedIdOf(await derive(source, layerHost({ editModelOptions: [MODEL, SEEDREAM_PRO] }), 'layer-split'))
     expect(nodeOf(onlyPro).meta).toMatchObject({ modelKey: 'doubao-seedream-5-0-pro' })

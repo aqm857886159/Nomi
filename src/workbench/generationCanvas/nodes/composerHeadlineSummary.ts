@@ -20,6 +20,7 @@ import {
   type DynamicModelControl,
 } from './controls/parameterControlModel'
 import { localizeAutoOption } from './parameterOptionPresentation'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { LAYER_COUNT_KEY, LAYER_SIZE_KEY } from '../../../../electron/shared/modelArchetypes/layerSplit'
 
 /**
@@ -130,4 +131,39 @@ export function layerSplitHeadlineParts({ modeName, controls, meta, maxLayers, f
     ],
     fixed: false,
   }
+}
+
+/**
+ * 摘要 pill 的单参数短文本：当前值的纯 label（不带价签）。boolean=开显示参数名/关跳过；空值跳过。
+ * 从 InlineParameterBar 搬来（按职责：摘要文字都在这一处算），行为不变。
+ */
+function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>, autoLabel: string): string {
+  if (!isParameterControl(control)) {
+    const value = catalogControlInitialValue(control, meta)
+    const matched = control.options.find((o) => optionValue(o) === value)
+    const label = matched ? (typeof matched === 'string' ? matched : matched.label) : value
+    return localizeAutoOption(value, label, autoLabel).text
+  }
+  if (control.type === 'boolean') {
+    return (controlInitialValue(control, meta) || 'false') === 'true'
+      ? translateModelDisplayText(control.label)
+      : ''
+  }
+  const value = controlInitialValue(control, meta)
+  if (!value) return ''
+  const matched = control.options.find((o) => controlValueToString(o.value) === value)
+  return localizeAutoOption(value, matched ? matched.label : value, autoLabel).text
+}
+
+/**
+ * 没有拍板过「那几个值」的执行类（声音 / 文本 / 3D）的摘要：面板里各参数的当前值，每个值是一个整值，
+ * 放不下从后往前整值地减（2026-11-14 验收条件 2：Eleven v3 曾被截成「JBFqnCBs… · … · B…」）。
+ * 自由文本（音色 ID 这类）不进摘要：它在摘要里读不出意思，点开面板看全。
+ */
+export function fallbackSummaryParts(controls: readonly DynamicModelControl[], meta: Record<string, unknown>, autoLabel: string): { text: string; dropRank: number }[] {
+  const texts = controls
+    .filter((control) => !(isParameterControl(control) && control.type === 'text'))
+    .map((control) => summaryPart(control, meta, autoLabel))
+    .filter(Boolean)
+  return texts.map((text, index) => ({ text, dropRank: texts.length - index }))
 }

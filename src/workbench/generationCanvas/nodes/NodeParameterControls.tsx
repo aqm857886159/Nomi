@@ -91,11 +91,8 @@ import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
 import InlineParameterBar, { type ComposerFooterSlots } from './InlineParameterBar'
-import { composerHeadlineParts, layerSplitHeadlineParts } from './composerHeadlineSummary'
-import { IconStack2 } from '@tabler/icons-react'
-import { ICON_TIERS } from '../../../design'
-import { isLayerSplitMode, requestedLayerCount, LAYER_COUNT_COST_REMINDER_AT, LAYER_COUNT_KEY } from '../../../../electron/shared/modelArchetypes/layerSplit'
-import { layerSplitReminderAmount } from './layerSplitComposerState'
+import { composerBarSummary } from './composerBarSummary'
+import { isLayerSplitMode } from '../../../../electron/shared/modelArchetypes/layerSplit'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import { buildAspectRatioNodePatch } from './nodeSizing'
@@ -512,48 +509,17 @@ export default function NodeParameterControls({
   // section="parameters"：底栏 = 模型芯片 + 变体 + 摘要 pill + 统一参数面板（实现见 InlineParameterBar）。
   // 摘要 pill + 面板（含比例小图形）：2026-09-11 04:30 用户纠正，同日 02:10 的逐参数 chip 节点这一处退回原样。
   if (section === 'parameters') {
-    // 导入的 ComfyUI 工作流：参数名是作者随手起的（采样步数/帧率/Float (duration)…），
-    // 把当前值串成 pill（`15 · 24`）没人认得出那是自己勾的东西。改成报名字+条数。
-    // 判据取 meta.comfyWorkflowImport 是否存在——它只由导入流程写入，档案模型不会有。
-    const workflowSummary = isImportedComfyWorkflowModel(selectedModelOption?.meta) && renderedControls.length > 0
-      ? t('generationCommon.parameters.workflowParams', { count: panelRenderedControls.length })
-      : undefined
-    // v1.1 底栏：档案模型的 pill 只报「最影响结果和价格的两个值」（视频=比例+时长、图=比例+清晰度），
-    // 其余参数一个不少、仍在同一块弹层里。走 summaryOverride 这条**已有的**缝（导入工作流那支
-    // 在用同一个入口），不新造第二条摘要通路。工作流的口径优先——它连「值串出来没人认得」
-    // 这个更基本的问题都还没解决，轮不到再挑两个。
-    // 摘要按整值给出（带退让顺序）：底栏挤时只退这一格、一个值不截半截（K4）。
-    // 图层分离（板 2026-11-26-layer-split · layers.composer-cell / pro-fixed）：这一格报「图层分离 · 层数 · 清晰度」、带叠层图标；
-    // 层数写死的模型（没有层数参数）报「最多 N 层」、摆成不可点的静态格。比例不发（分离时比例返回 400），所以格里没有比例。
-    const layerSplit = archMode && isLayerSplitMode(archMode) && archMode.layerSplit ? layerSplitHeadlineParts({
-      modeName: t('generationCommon.quickActions.actions.layerSplit'),
-      controls: panelRenderedControls,
-      meta,
-      maxLayers: archMode.layerSplit.maxLayers,
-      formatLayers: (count) => t('generationCommon.layerSplitComposer.cellLayers', { count: Number(count) }),
-      formatUpTo: (count) => t('generationCommon.layerSplitComposer.cellUpTo', { count }),
-      autoLabel: t('generationCommon.parameters.auto'),
-    }) : null
-    // 层数多就贵（≥ 50 层，裁定 4）：只提醒、不拦；数随当前层数，发送键上有约价就带上（裸数，句子自己说「约」）。
-    const layerCount = layerSplit && archMode ? requestedLayerCount(archMode, meta) : null
-    const reminder = layerSplitReminderAmount(footer?.send?.cost)
-    const sendAmount = reminder
-      ? reminder.unit === 'credits' ? t('generationCommon.layerSplitComposer.creditsAmount', { value: reminder.value }) : reminder.value
-      : ''
-    const layerNotices = layerSplit && !layerSplit.fixed && layerCount !== null && layerCount >= LAYER_COUNT_COST_REMINDER_AT
-      ? { [LAYER_COUNT_KEY]: sendAmount
-        ? t('generationCommon.layerSplitComposer.costReminderEstimate', { count: layerCount, amount: sendAmount })
-        : t('generationCommon.layerSplitComposer.costReminder', { count: layerCount }) }
-      : undefined
-    const headlineParts = workflowSummary ? [] : layerSplit ? layerSplit.parts : composerHeadlineParts({
+    // 摘要那一格报什么（导入工作流 / 图层分离 / 档案模型三种口径）收在 composerBarSummary。
+    const summary = composerBarSummary({
+      t,
+      workflowParamCount: isImportedComfyWorkflowModel(selectedModelOption?.meta) && renderedControls.length > 0 ? panelRenderedControls.length : undefined,
       isImageLike,
       isVideoLike,
       controls: panelRenderedControls,
       meta,
-      formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
-      autoLabel: t('generationCommon.parameters.auto'),
+      mode: archMode,
+      sendCost: footer?.send?.cost,
     })
-    const summaryOverride = workflowSummary ?? (headlineParts.length ? headlineParts.map((part) => part.text).join(' · ') : undefined)
     return (
       <InlineParameterBar
         modelOptions={modelOptions}
@@ -567,13 +533,7 @@ export default function NodeParameterControls({
         onParameterControlChange={handleParameterControlChange}
         variantMenu={variantMenu}
         {...(footer ? { footer } : {})}
-        summaryOverride={summaryOverride}
-        {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
-        {...(layerSplit ? {
-          summaryIcon: <IconStack2 size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} data-layer-split-icon="true" />,
-          summaryStatic: layerSplit.fixed,
-          ...(layerNotices ? { controlNotices: layerNotices } : {}),
-        } : {})}
+        {...summary}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。
         {...(modeMenu ? {
           modeMenu: {

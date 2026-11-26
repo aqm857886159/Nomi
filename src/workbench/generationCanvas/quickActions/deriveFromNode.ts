@@ -8,6 +8,7 @@ import { findModelOptionByIdentifier } from '../adapters/modelOptionsAdapter'
 import { buildModeSwitchMeta, buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
 import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
 import { readModeChannelBody, type VendorMappingsReader } from '../nodes/controls/useChannelCreateBody'
+import type { Mapping } from '../../../../electron/catalog/types'
 import { layerSplitModeOf, layerSplitWireReady } from '../../../../electron/shared/modelArchetypes/layerSplit'
 import { resolveArchetypeForOption } from '../nodes/nodeModelArchetype'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
@@ -152,7 +153,8 @@ export function canLayerSplit(option: ModelOption, readMappings: VendorMappingsR
  */
 export function layerSplitVendorKeys(readMappings: VendorMappingsReader, vendorKeys: readonly string[]): string[] {
   return vendorKeys.filter((vendorKey) => (readMappings(vendorKey) ?? []).some((mapping) => {
-    const { taskKind, modelKey } = (mapping ?? {}) as { taskKind?: unknown; modelKey?: unknown }
+    // 桶里是这家的渠道线缆（Mapping 自带 vendorKey）：身份按 (这家, modelKey) 成对走，不拿裸 modelKey 去问。
+    const { taskKind, modelKey } = (mapping ?? {}) as Partial<Mapping>
     return taskKind === 'image_edit' && typeof modelKey === 'string' && modelKey !== ''
       && canLayerSplit({ value: modelKey, label: modelKey, vendor: vendorKey, modelKey }, readMappings)
   }))
