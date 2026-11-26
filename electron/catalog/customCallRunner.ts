@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 // 自定义调用脚本执行器（主进程）。脚本在独立 QuickJS/WASM realm 中运行，只能使用
 // customCallContract 声明的变量与显式桥接能力；绝不自动安装或执行远程脚本（plan §10）。
 //
@@ -207,7 +208,7 @@ export function referencesViewFromParams(params: JsonRecord): {
   };
 }
 
-function joinUrl(baseUrl: string, path: string): string {
+export function joinCustomCallUrl(baseUrl: string, path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
   const base = baseUrl.replace(/\/+$/, "");
   return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
@@ -249,6 +250,8 @@ export async function runCustomCallScript(input: {
   modeId?: string;
   signal?: AbortSignal;
   timeoutMs?: number;
+  onHttpResponse?: (call: { method: string; url: string; requestHash: string; contentType: string }, response: unknown) => void;
+  replayCreate?: { requestHash: string; response: unknown };
   /**
    * 把脚本拿到的二进制落成本地资产，返回可用的 URL（注入避免 ↔ runtime 循环依赖，同 localizeTaskAsset）。
    * 没有它，「上游只给字节流不给 URL」那类模型（Sora 的下载端点、Stability v2beta）只能转成
@@ -317,18 +320,25 @@ export async function runCustomCallScript(input: {
     query?: Record<string, unknown>;
     body?: unknown;
   }) => {
-    const url = joinUrl(baseUrl, String(init.url || ""));
+    const url = joinCustomCallUrl(baseUrl, String(init.url || ""));
     const headers = init.headers || {};
     const restoredForm = restoreSandboxFormData(init.body);
     const body = restoredForm ?? init.body;
     const method = restoredForm ? "POST" : String(init.method || "POST");
-    return record(method, url, body, async () =>
-      decodeCustomCallHttpResponse(
-        await requestBinary(vendor, apiKey, method, url, headers, init.query || {}, body, controller.signal, {
+    const requestHash = createHash("sha256").update(JSON.stringify([method.toUpperCase(), url, init.query, init.body])).digest("hex");
+    if (input.replayCreate && !["GET", "HEAD"].includes(method.toUpperCase())) {
+      if (requestHash !== input.replayCreate.requestHash) throw new Error("Script recovery requires a new write");
+      return Promise.resolve(structuredClone(input.replayCreate.response));
+    }
+    if (input.replayCreate && new URL(url).origin !== new URL(baseUrl).origin) throw new Error("Script recovery requires its original connection");
+    return record(method, url, body, async () => {
+      const wire = await requestBinary(vendor, apiKey, method, url, headers, init.query || {}, body, controller.signal, {
           maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
-        }),
-      ),
-    );
+        });
+      const response = decodeCustomCallHttpResponse(wire);
+      input.onHttpResponse?.({ method, url, requestHash, contentType: wire.contentType }, response);
+      return response;
+    });
   };
 
   const references = referencesViewFromParams(input.params);

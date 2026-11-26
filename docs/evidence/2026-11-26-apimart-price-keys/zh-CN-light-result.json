@@ -1,0 +1,43 @@
+{
+  "locale": "zh-CN",
+  "scheme": "light",
+  "seedance25": "13.5",
+  "seedance20": "1.95",
+  "standInLog": [
+    {
+      "method": "GET",
+      "path": "/models",
+      "query": "",
+      "body": "",
+      "model": null
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models",
+      "query": "",
+      "body": "",
+      "model": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model",
+      "query": "?model=kling-3.0-turbo",
+      "body": "",
+      "model": "kling-3.0-turbo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model",
+      "query": "?model=seedance-2.5",
+      "body": "",
+      "model": "seedance-2.5"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model",
+      "query": "?model=seedance-2.0",
+      "body": "",
+      "model": "seedance-2.0"
+    }
+  ]
+}

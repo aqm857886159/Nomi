@@ -51,7 +51,7 @@ describe('generation spend ETA copy', () => {
 })
 
 import i18n from '../../../i18n'
-import { confirmGenerationResend, useSpendConfirmStore, paidNodeLedger } from './spendConfirm'
+import { confirmGenerationResend, useSpendConfirmStore, generationNodeLedger } from './spendConfirm'
 it.each([
  ['zh-CN','image','image'],['zh-CN','video','video'],['zh-CN','audio','other'],
  ['en','image','image'],['en','video','video'],['en','model3d','other'],
@@ -66,8 +66,8 @@ it.each([
 
 it.each(['image','video','audio','model3d','asset'] as const)('the moved %s ledger decision retains local and remote spend semantics',kind=>{
  const node={...createGenerationNode({id:'ledger-case',kind}),meta:{modelVendor:'relay'}}
- expect(paidNodeLedger(node)).toBe('run')
- expect(paidNodeLedger({...node!,meta:{modelVendor:'comfyui-local'}})).toBeUndefined()
- expect(paidNodeLedger({...node!,meta:{modelVendor:'comfyui-local-studio'}})).toBeUndefined()
- expect(paidNodeLedger({...node!,kind:'text'})).toBeUndefined()
+ expect(generationNodeLedger(node)).toBe('run')
+ expect(generationNodeLedger({...node!,meta:{modelVendor:'comfyui-local'}})).toBe('run')
+ expect(generationNodeLedger({...node!,meta:{modelVendor:'comfyui-local-studio'}})).toBe('run')
+ expect(generationNodeLedger({...node!,kind:'text'})).toBeUndefined()
 })

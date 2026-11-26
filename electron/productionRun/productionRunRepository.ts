@@ -9,7 +9,7 @@ import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
 import { initialPlaybookStages, requireProductionPlaybook } from "./productionPlaybooks";
 import { productionRunPaths, productionRunsRoot } from "./productionRunPaths";
-import { createProductionRunLock } from "./productionRunLock";
+import { createProductionRunLock, withHostSubmissions } from "./productionRunLock";
 import { applyProductionCommand, type ProductionCommandEffect } from "./productionRunReducer";
 import { settleRunLifecycle } from "./productionRunLifecycle";
 import { settlePresentation } from "./productionGenerationPresentationEdits";
@@ -743,7 +743,7 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     return listRuns(projectId).map(summarize);
   }
 
-  return { create, createGenerationDraft, read, list, listRuns, execute, executeBatch, readEvents, readEventsReverse, readApprovals, readBudgetLedger, rebuild };
+  return withHostSubmissions({ create, createGenerationDraft, read, list, listRuns, execute, executeBatch, readEvents, readEventsReverse, readApprovals, readBudgetLedger, rebuild });
 }
 
 export type ProductionRunRepository = ReturnType<typeof createProductionRunRepository>;

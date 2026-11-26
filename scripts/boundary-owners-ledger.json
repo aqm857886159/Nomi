@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
+  "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。2026-11-24 U-2：2026-10-02-paid-submit-no-blind-resend 的 submitOnce 仍在原锚。受理后的补记和结果未知时禁止机器重交由同一出口执行，故障证据见 2026-11-24-u2-paid-submission-recovery。",
   "reanchored": [
     {
       "contract": "docs/fixes/2026-10-04-unified-undo.root-cause.json",

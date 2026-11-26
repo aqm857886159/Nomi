@@ -27,6 +27,7 @@ export type SubmissionRecordDamage =
 
 export type SubmissionIntentReceipt = SubmissionActionProjection & {
   intentId: string; attemptId: string; taskId?: string; request?: Request; result?: Result;
+  acceptance?: import("./paidSubmissionReceipt").PaidSubmissionReceipt;
   errorCode?: string; errorMessage?: string; recordDamage?: SubmissionRecordDamage;
 };
 
@@ -130,7 +131,7 @@ export function createSubmissionIntent(input: { root: string; scope: readonly st
       ...actions,
       ...(providerTaskId ? { taskId: providerTaskId } : {}),
       request: envelope?.request as Request | undefined,
-      result, errorCode: job.errorCode, errorMessage: job.errorMessage,
+      acceptance: envelope?.acceptance, result: result ?? (envelope?.acceptance ? { id: providerTaskId, status: "queued", assets: [] } : undefined), errorCode: job.errorCode, errorMessage: job.errorMessage,
       ...(damage ? { recordDamage: damage } : {}),
     };
   }

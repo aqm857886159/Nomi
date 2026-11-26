@@ -89,7 +89,7 @@ export function LibraryCategoryMenu({ groups, value, onChange, ariaLabel, extra 
       label: segmentLabel(t, group.segment),
       value,
       onValueChange: onChange,
-      options: group.entries.map((entry) => ({ id: `category:${entry.id}`, value: entry.id, label: entry.label, description: undefined, shortcut: String(entry.count) })),
+      options: group.entries.map((entry) => ({ id: `category:${entry.id}`, value: entry.id, label: entry.label, description: undefined, trailing: String(entry.count) })),
     })),
   ]
   return (
@@ -120,8 +120,7 @@ export function LibraryCategoryMenu({ groups, value, onChange, ariaLabel, extra 
           anchorRect={anchor}
           items={items}
           ariaLabel={ariaLabel}
-          className="max-w-[260px] min-w-[200px]"
-          shortcutClassName="text-micro"
+          className="max-w-[260px]"
           data-testid="library-category-menu"
         />
       ) : null}

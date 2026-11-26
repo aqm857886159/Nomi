@@ -94,11 +94,6 @@
       "count": 5
     }
   },
-  "electron/capabilityCore/canvasTransportProvider.ts": {
-    "generic-map-eviction/no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "electron/capabilityCore/hostConfigWrite.ts": {
     "main-sync-wait/no-restricted-syntax": {
       "count": 1

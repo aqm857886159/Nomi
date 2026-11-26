@@ -1,3 +1,4 @@
+import { checkpointPaidResponse, checkpointProfileCreate } from "./productionRun/paidSubmissionReceipt";
 import { profileMediaResponseHandler, profileMediaTaskResult, profileResponseReceipt } from "./capabilityCore/generationOutputMaterializer";
 import crypto from "node:crypto";
 import { assertLocalAssetTransportReady } from "./catalog/assetLocalization";
@@ -14,7 +15,6 @@ import { extractProviderCostActual, type ProviderCostActual } from "./vendor/cos
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { localizeTaskAsset, localizeTaskAssets } from "./assets/localizeTaskAsset";
 export { localizeTaskAsset };
-import { localizedTaskAssetFileName } from "./assets/localizedAsset";
 import { extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
 import { assertCanonicalAntigravityOperation, executeProcessOperation, prepareAntigravityCreateOperation } from "./catalog/processOperation"; import type { AntigravityProcessStage } from "./catalog/antigravityCatalog";
 import { executeTextTask } from "./textTaskRunner";
@@ -27,19 +27,10 @@ import { tagNomiError } from "./shared/nomiErrorCodes";
 export { taskCache, hasInFlightTasks } from "./tasks/taskCache";
 import { markTaskAdmitted } from "./tasks/taskAdmission";
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "./vendor/fingerprintCache";
-import {
-  createProject,
-  deleteProject,
-  listProjects,
-  readProject,
-  resolveProjectRelativePath,
-  saveProject,
-} from "./projects/repository";
-// 公共 API：main.ts 仍从 "./runtime" 消费这些 —— re-export 保持其 import 不变。
-export { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject };
+export { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject } from "./projects/repository";
 export { copyAssetFile, copyProjectAsset, importRemoteAsset, listProjectAssets, moveAssetFile, writeAsset, writeGeneratedAsset } from "./assets/projectAssetStore";
 // localizedTaskAssetFileName 已抽到 ./assets/localizedAsset（规则 9/12 减负 giant shell）；re-export 保持既有 import（含 runtime.assets.test）不变。
-export { localizedTaskAssetFileName };
+export { localizedTaskAssetFileName } from "./assets/localizedAsset";
 /**
  * 生产执行时**正在发哪一条 op**：create / query / result。
  *
@@ -238,6 +229,7 @@ export async function buildProfileTaskResult(input: {
   operation: HttpOperation;
   request: TaskRequest;
   taskIdFallback: string;
+  captureCreate?: { modeId?: string };
   wantedKind: BillingModelKind;
   projectId?: string;
   nodeId?: string;
@@ -246,6 +238,7 @@ export async function buildProfileTaskResult(input: {
   model?: Model;
   apiKey?: string;
 }): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string; actualCost?: ProviderCostActual }> {
+  checkpointProfileCreate(input);
   const materialized = profileMediaTaskResult(input);
   if (materialized) {
     return materialized;
@@ -311,7 +304,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, dispatchedCreateBody(sendRoute, mapping?.create?.body), modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias, model.meta), referenceSelection);
   if (guardError) throw new Error(guardError);
   if (customCallScript)
-    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, spendGate: admission.spendGate });
+    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, mapping: mapping ?? undefined, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, spendGate: admission.spendGate });
   if (usesSynchronousAudioRunner(wantedKind, mapping)) {
     await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
@@ -349,6 +342,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     }
     const normalized = await buildProfileTaskResult({
       response: executed.response,
+      captureCreate: { modeId },
       mapping,
       operation: createOperation,
       request,
@@ -415,8 +409,10 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
   // 键形状由 taskParams.NO_MAPPING_FALLBACK_BODY 声明并被测试钉死（两处必须同构）；体在装配主人里按固定形状组装。
   const providerResponse = await sendNoMappingImageFallback({ vendor, model, apiKey, request });
+  const remoteTaskId = extractTaskIdShared(providerResponse) || null;
+  checkpointPaidResponse({ vendor, model, modeId: modeId || kind, source: "profile", remoteTaskId, taskId: remoteTaskId || taskId, rawAcceptance: providerResponse });
   const assetUrls = readTaskResponse({ response: providerResponse, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(wantedKind) }).assetUrls; // 无 mapping 兜底提交也走唯一读法
-  const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
+  const upstreamTaskId = remoteTaskId || taskId;
   traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: fallbackRecipe });
   if (!assetUrls.length) {
     admitTask(upstreamTaskId, {

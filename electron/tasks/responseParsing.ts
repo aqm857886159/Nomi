@@ -1,3 +1,4 @@
+import type { HttpOperation } from "../catalog/types";
 // 厂商任务响应解析 —— 从 runtime.ts 拆出（见
 // docs/plan/2026-06-04-runtime-split-execution.md 第 2 步）。
 // 把各家 provider 返回的任意 JSON 结构按映射表抽取资产 URL / 状态 / 元数据。
@@ -214,4 +215,30 @@ export function providerMetaFromResponse(response: unknown, mapping: JsonRecord 
     meta.task_id = meta.task_id || taskId;
   }
   return meta;
+}
+
+export function profileAcceptanceIdentity(response: unknown, operation: HttpOperation, fallback: string) {
+  const { response_mapping: rawResponseMapping, provider_meta_mapping: rawMetaMapping } = operation;
+  const responseMapping = isJsonRecord(rawResponseMapping) ? rawResponseMapping : null;
+  const providerMetaMapping = isJsonRecord(rawMetaMapping) ? rawMetaMapping : null;
+  const providerMeta = providerMetaFromResponse(response, providerMetaMapping);
+
+  // 「上游到底给没给任务编号」只能有一个答案。providerMeta 只看 provider_meta_mapping 与
+  // extractTaskId 认得的那几个键（id / taskId / task_id / jobId…），**看不见 response_mapping**；
+  // 而像本机 ComfyUI 这样把编号叫 `prompt_id` 的供应商，编号只走 response_mapping 这一条路。
+  // 于是 result.id 明明已经拿到了 prompt_id，runTask 里那道「没返回任务编号就按失败处理」的闸
+  // 却问的是 providerMeta，答案是「没有」——整条 ComfyUI 认证必失败（2026-09-11 真机实锤）。
+  // 所以在这里就把「来自上游的编号」统一回填：本地兜底 id（taskIdFallback）刻意不回填，
+  // 那道闸要拦的正是「拿伪造编号去轮询」。
+  const providerTaskId = firstString(
+    firstMappedString(response, responseMapping, "task_id"),
+    providerMeta.task_id,
+    providerMeta.query_id,
+    extractTaskIdShared(response),
+  );
+  if (providerTaskId) {
+    providerMeta.task_id = providerMeta.task_id || providerTaskId;
+    providerMeta.query_id = providerMeta.query_id || providerTaskId;
+  }
+  return { taskId: firstString(providerTaskId, fallback), providerMeta, responseMapping };
 }
