@@ -155,7 +155,7 @@ test('C58 real loopback loads the installed Skill before any coding request and 
       filePath, packageDir: path.dirname(filePath), body, content: body, description: 'Split manuscripts into shots', manifest: null, origin: 'user', audience: 'internal',
       packageVersion: 'nomi-skill-v1', contentHash: 'fixture', requiresCodingTools: false }] },
   });
-  await lane.execute({ kind: 'prompt', text: '拆成分镜' });
+  await lane.execute({ kind: 'prompt', text: '规划码头场景的三个镜头' });
   const last = JSON.stringify(fixture.http.requests.at(-1)?.body);
   assert.match(last, /Skill loaded from its canonical package/);
   assert.doesNotMatch(last, /MUST_NOT_REACH_MODEL/);

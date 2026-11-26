@@ -128,6 +128,12 @@ describe('选区浮条只按动作表出钮（结构）', () => {
     expect(popover.match(/runSelectionAction\(/g)?.length).toBe(1)
   })
 
+  it('renders visible action names and leaves formatting to the document toolbar', () => {
+    expect(popover).toMatch(/<action\.Icon[^>]*\/>\s*\{t\(action\.labelKey\)\}\s*<\/WorkbenchButton>/)
+    expect(popover).not.toContain('useRichTextActions')
+    expect(popover).not.toContain('RichTextActionButton')
+  })
+
   it('浮条里没有绕开动作表的去处：不直接建节点、不直接调分镜启动器', () => {
     expect(popover).not.toMatch(/addGenerationNode\(/)
     expect(popover).not.toMatch(/launchStoryboard\(/)

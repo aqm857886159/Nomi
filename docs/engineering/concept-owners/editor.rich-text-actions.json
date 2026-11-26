@@ -18,14 +18,17 @@
     {
       "path": "src/workbench/common/RichTextActionButton.tsx",
       "symbol": "RichTextActionButton"
+    },
+    {
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "symbol": "WorkbenchEditorToolbar"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
     "src/workbench/creation/WorkbenchEditor.tsx",
-    "src/workbench/creation/SelectionGeneratePopover.tsx",
     "src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx"
   ],
   "since": "2026-10-23",
-  "notes": "用户 2026-10-23 实测：画布文本节点格式条用不了、创作区格式钮点了没反应（合同 docs/fixes/2026-10-23-rich-text-controls-single-source.root-cause.json）。编辑器为 React 19 选区稳定关了按事务重渲（editor.tiptap-entry），所以格式状态只经 useRichTextActions 里的 useEditorState 订阅读取；格式命令只在 owner 里发；三个壳经 RichTextActionButton 出钮，画布那一壳挂在 FloatingToolbarShell 里。结构测试 src/workbench/common/richTextActions.structure.test.ts。"
+  "notes": "用户 2026-10-23 实测：画布文本节点格式条用不了、创作区格式钮点了没反应（合同 docs/fixes/2026-10-23-rich-text-controls-single-source.root-cause.json）。编辑器为 React 19 选区稳定关了按事务重渲（editor.tiptap-entry），所以格式状态只经 useRichTextActions 里的 useEditorState 订阅读取；格式命令只在 owner 里发；文稿顶栏和画布格式条复用格式动作。选区浮条只显示选段操作。"
 }

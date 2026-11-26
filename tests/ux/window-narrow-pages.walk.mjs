@@ -86,6 +86,7 @@ function creationGeometry(win) {
       legacyButtons,
       trigger: box(document.querySelector(trigger)),
       undo: box(document.querySelector(`${toolbar} [data-rich-text-action="undo"]`)),
+      split: box(document.querySelector(`${toolbar} [data-document-storyboard]`)),
       redo: box(document.querySelector(`${toolbar} [data-rich-text-action="redo"]`)),
       undoInRow: Boolean(document.querySelector(`${row} [data-rich-text-action="undo"], ${row} [data-rich-text-action="redo"]`)),
     }
@@ -110,7 +111,8 @@ function assertCreationNarrow(g, round) {
   expect(g.trigger.right, `${A.overflow}（${round}）：「⋯」不压撤销`).toBeLessThanOrEqual(g.undo.left)
   // 撤销 / 重做永不让：不在可收的那一排里，钉在工具条右端（右边距 12）。
   expect(g.undoInRow, `${A.overflow}（${round}）：撤销 / 重做不在可收的那一排`).toBe(false)
-  expect(g.redo.right, `${A.overflow}（${round}）：重做钉在工具条右端`).toBeGreaterThanOrEqual(g.toolbar.right - 13)
+  expect(g.redo.right).toBeLessThanOrEqual(g.split.left)
+  expect(g.split.right, `${A.overflow}（${round}）：全文分镜钉在工具条右端`).toBeGreaterThanOrEqual(g.toolbar.right - 13)
   expect(g.redo.right, `${A.overflow}（${round}）：重做在工具条里`).toBeLessThanOrEqual(g.toolbar.right)
   expect(g.undo.right, `${A.overflow}（${round}）：撤销紧挨重做`).toBeLessThanOrEqual(g.redo.left)
 }
@@ -137,11 +139,10 @@ async function creationStation(walk, win, round) {
   if (!AFTER) return
   assertCreationNarrow(narrow, round)
 
-  // 只有一个阈值：拉宽到放得下，「⋯」消失、全部回来；再拉回 1100，收起的那一截和刚才一样。
-  const triggerProof = await proveProbe(win.locator(TRIGGER), `${A.overflow}（${round}）：1100 有收起项时「⋯」在`)
+  // 只有一个阈值：拉宽到放得下，常用项全部回来，低频项仍在菜单；再拉回 1100，收起的那一截和刚才一样。
   await walk.resizeWindow(1440, 900)
   await expect.poll(async () => (await creationGeometry(win)).items.filter((item) => item.hidden).length, { message: `${A.overflow}（${round}）：1440 放得下，一颗都不收` }).toBe(0)
-  await expectAbsent(win.locator(TRIGGER), { provenBy: triggerProof, message: `${A.overflow}（${round}）：放得下时没有「⋯」` })
+  await expect(win.locator(TRIGGER)).toBeVisible()
   report.creation1440 = await creationGeometry(win).then((g) => ({ section: g.section, visible: g.items.filter((item) => !item.hidden).length }))
   await shot(walk, win, `${round}-creation-1440x900`)
   await walk.resizeWindow(1100, 900)
@@ -163,11 +164,11 @@ async function creationStation(walk, win, round) {
   report.menu = menuFacts
   const hiddenItems = narrow.items.filter((item) => item.hidden)
   const itemRows = menuFacts.rows.filter((row) => row.kind === 'item')
-  expect(itemRows.map((row) => row.id), `${A.menu}（${round}）：菜单里正好是收起的那几项、原顺序`).toEqual(hiddenItems.map((item) => item.id))
-  expect(itemRows.map((row) => row.label), `${A.menu}（${round}）：菜单项名字 = 按钮的名字`).toEqual(hiddenItems.map((item) => item.label))
+  expect(itemRows.map((row) => row.id), `${A.menu}（${round}）：收起项按原顺序，末尾是固定低频项`).toEqual([...hiddenItems.map((item) => item.id), 'code', 'horizontal-rule', 'table'])
+  expect(itemRows.slice(0, hiddenItems.length).map((row) => row.label), `${A.menu}（${round}）：菜单项名字 = 按钮的名字`).toEqual(hiddenItems.map((item) => item.label))
   expect(itemRows.every((row) => row.icon), `${A.menu}（${round}）：每一项都有图标`).toBe(true)
   const groupOf = (id) => ['bullet-list', 'ordered-list', 'task-list'].includes(id) ? 'list' : ['table', 'link'].includes(id) ? 'insert' : ['h1', 'h2', 'h3', 'blockquote', 'horizontal-rule'].includes(id) ? 'heading' : 'text'
-  const expectedSeparators = new Set(hiddenItems.map((item) => groupOf(item.id))).size - 1
+  const expectedSeparators = new Set(hiddenItems.map((item) => groupOf(item.id))).size
   expect(menuFacts.rows.filter((row) => row.kind === 'separator').length, `${A.menu}（${round}）：按原分组画分隔线`).toBe(expectedSeparators)
   expect(Math.abs(menuFacts.menuRight - menuFacts.triggerRight), `${A.menu}（${round}）：菜单右边对齐「⋯」`).toBeLessThanOrEqual(1.5)
   expect(menuFacts.menuTop, `${A.menu}（${round}）：菜单在「⋯」下面`).toBeGreaterThanOrEqual(menuFacts.triggerBottom)
