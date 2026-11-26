@@ -139,48 +139,45 @@ describe('ModelSurfaces · #1665 第三轮验收的实测读数', () => {
   const zh = fromWalk('zh-CN.light')
   const en = fromWalk('en.dark')
   const tracks = { 'zh-CN.light': zh, 'en.dark': en }
-  // These v1 receipts predate DOM ownership metadata. Use only the named, reviewed
-  // observations in unit probes. Full v2 receipts must come from the host browser.
-  function probe(sample, { text = false, height = false, icon = false } = {}) {
-    const value = v => v && { ...v, text: text ? v.text : '', ownsText: text, intrinsicWidth: icon, fixedHeight: height || icon }
-    return { ...sample, board: value(sample.board), screen: value(sample.screen) }
-  }
   const observed = JSON.parse(readFileSync(new URL('./fixtures/model-settings-board-diff.json', import.meta.url), 'utf8'))
+  const replayed = Object.fromEntries(Object.entries(tracks).map(([track, r]) => [track, gauge.buildDiffReport(r, r.samples)]))
 
-  function expectDelta(rows, id, property, board, screen) {
-    const found = rows.filter(row => row.candidate === id && row.property === property)
-    assert.deepEqual(found.map(row => [row.board, row.screen]), [[board, screen]], id + ' ' + property)
+  function expectDelta(rows, id, property, board, screen, part) {
+    const found = rows.filter(row => row.candidate === id && row.property === property && row.part === part)
+    assert.deepEqual(found.map(row => [row.board, row.screen]), [[board, screen]], [id, part, property].filter(Boolean).join(' '))
   }
 
-  it('第一轮两轨各量 40 个候选，9 个未配对的候选逐个保留', () => {
-    for (const [r, count] of [[zh, 277], [en, 279]]) {
+  it('双轨 v2 收据可从原始样本重算，每轨保留 9 个候选与 7 个内格的配对失败', () => {
+    for (const [track, count] of [['zh-CN.light', 119], ['en.dark', 121]]) {
+      const r = tracks[track]
+      assert.equal(r.version, 2)
       assert.equal(r.screenRevision, 'aaedadf48f37482e55093e66312036a8bdd86feb')
       assert.equal(r.samples.length, 40)
+      assert.deepEqual(replayed[track], r)
       assert.equal(r.differences.length, count)
-      assert.equal(r.version, 1)
       const missing = r.samples.filter(s => s.screen === null).map(s => s.candidate)
+      const parts = r.samples.flatMap(s => (s.parts ?? []).filter(p => p.screen === null).map(p => [s.candidate, p.anchor]))
+      const pairs = r.differences.filter(d => d.property === 'pair')
       assert.equal(missing.length, 9)
-      assert.deepEqual(r.differences.filter(d => d.property === 'pair').map(d => d.candidate), missing)
+      assert.equal(parts.length, 7)
+      assert.deepEqual(pairs.filter(d => !d.part).map(d => d.candidate), missing)
+      assert.deepEqual(pairs.filter(d => d.part).map(d => [d.candidate, d.part]), parts)
     }
   })
 
-  // The host walk printed these candidate/property pairs independently of replaying the saved JSON.
-  const observationCounts = [3, 1, 3, 2, 2, 2, 4, 3, 4]
+  // The golden values come from the host walk's HIT records. §1.5 checks the approved English copy.
+  const observationCounts = [3, 1, 5, 2, 2, 2, 4, 3, 4]
   for (const [index, count] of observationCounts.entries()) {
     const section = '§1.' + (index + 1)
-    const { label, track, observations } = observed[section]
-    it(section + ' ' + label, () => {
-      assert.equal(observations.length, count)
-      for (const { candidate, property, board, screen } of observations) {
-        const trackData = tracks[track]
-        const source = trackData.samples.find(s => s.candidate === candidate)
-        if (section === '§1.3') {
-          // The old walk recorded the cell's padding on its label. Check those historical
-          // values here; the paired-grid probe below exercises the new direct measurements.
-          assert.deepEqual([source.board[property], source.screen[property]], [board, screen])
-        } else {
-          const sample = probe(source, { text: Boolean(source.board.text), height: property === 'height', icon: candidate.endsWith('-svg') })
-          expectDelta(gauge.buildDiffReport(trackData, [sample]).differences, candidate, property, board, screen)
+    const group = observed[section]
+    it(section + ' ' + group.label, () => {
+      const expectedTracks = section === '§1.5' ? ['en.dark'] : Object.keys(tracks)
+      assert.deepEqual(Object.keys(group.tracks).sort(), expectedTracks.sort())
+      for (const track of expectedTracks) {
+        const observations = group.tracks[track]
+        assert.equal(observations.length, count)
+        for (const { candidate, part, property, board, screen } of observations) {
+          expectDelta(replayed[track].differences, candidate, property, board, screen, part)
         }
       }
     })
@@ -189,10 +186,11 @@ describe('ModelSurfaces · #1665 第三轮验收的实测读数', () => {
   it('两轨保留缺少的美元额、额外本机说明；仅示例数字及打码格式不同消解', () => {
     for (const [r, ids] of [[zh, ['064-span-523', '071-span-近7天花了', '057-span-skf3a9存在系统钥匙']],
       [en, ['243-span-523', '250-span-Last7days', '236-span-skf3a9insyst']]]) {
-      const [currency, annotation, masked] = ids.map(id => probe(r.samples.find(s => s.candidate === id), { text: true }))
+      const [currency, annotation, masked] = ids.map(id => r.samples.find(s => s.candidate === id))
       const rows = gauge.buildDiffReport(r, [currency, annotation, masked]).differences
       expectDelta(rows, currency.candidate, 'pair', '$5.23', null)
-      expectDelta(rows, annotation.candidate, 'text', annotation.board.text, annotation.screen.text)
+      const suffix = r.locale === 'en' ? ' · local' : ' · 本机'
+      expectDelta(rows, annotation.candidate, 'text', annotation.board.text, annotation.board.text + suffix)
       assert.ok(!rows.some(d => d.candidate === masked.candidate && d.property === 'text'))
     }
   })
@@ -213,7 +211,7 @@ describe('ModelSurfaces · #1665 第三轮验收的实测读数', () => {
       [zh, ['061-span-账户余额', '067-span-这把Key的额度', '071-span-近7天花了']],
       [en, ['240-span-Balance', '246-span-Thiskeyslimi', '250-span-Last7days']],
     ]) {
-      const rows = gauge.buildDiffReport(r, r.samples.filter(s => ids.includes(s.candidate)).map(s => probe(s, { text: true }))).differences
+      const rows = gauge.buildDiffReport(r, r.samples.filter(s => ids.includes(s.candidate))).differences
       for (const id of ids) {
         const s = r.samples.find(row => row.candidate === id)
         for (const values of [s.board, s.screen]) {
@@ -225,7 +223,7 @@ describe('ModelSurfaces · #1665 第三轮验收的实测读数', () => {
   })
 
   it('实测账户卡留一条未批准即红，补齐拍板人和理由才绿', () => {
-    const s = probe(zh.samples.find(row => row.candidate === '052-div'))
+    const s = zh.samples.find(row => row.candidate === '052-div')
     const r = gauge.buildDiffReport(zh, [s])
     const check = decisions => checkBoardManifest({
       board: r.board, candidates: [{ id: s.candidate }],
@@ -242,7 +240,7 @@ describe('ModelSurfaces · #1665 第三轮验收的实测读数', () => {
   })
 
   it('两边不读圆角时第 1 组断言必红，还原实测值即绿', () => {
-    const s = probe(zh.samples.find(row => row.candidate === '052-div'))
+    const s = zh.samples.find(row => row.candidate === '052-div')
     const corners = { radiusTopLeft: 0, radiusTopRight: 0, radiusBottomLeft: 0, radiusBottomRight: 0 }
     const mutated = { ...s, board: { ...s.board, ...corners }, screen: { ...s.screen, ...corners } }
     const checkRadius = r => expectDelta(r.differences, s.candidate, 'radiusTopLeft', 10, 6)

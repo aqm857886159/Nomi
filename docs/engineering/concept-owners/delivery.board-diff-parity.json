@@ -1,0 +1,27 @@
+{
+  "name": "拍板图与真屏的差异对账",
+  "subject": "delivery.board-diff-parity",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/check-board-parity.mjs",
+    "symbol": "checkBoardManifest"
+  },
+  "write_api": [
+    {
+      "path": "scripts/check-board-parity.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "path": "scripts/board-diff-page.mjs",
+      "symbol": "readSurface"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-27",
+  "notes": "合同 docs/fixes/2026-11-26-board-diff.root-cause.json。readSurface 为拍板页和真屏生成同一组测量值，checkBoardManifest 的 R4 依据各轨收据和清单中的逐项拍板记录核验认领。"
+}

@@ -7,13 +7,16 @@
   "boardRoot": "#M1-en .abs.row > .col.f1:has([data-m=\"stat\"])",
   "screenRoot": "[data-model-settings-page=\"home\"]",
   "screenRevision": "aaedadf48f37482e55093e66312036a8bdd86feb",
-  "version": 1,
+  "version": 2,
   "samples": [
     {
       "candidate": "226-div",
       "element": "settings.frame-height",
       "board": {
-        "text": "Models APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -41,16 +44,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 12,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 16,
-        "parentPaddingLeft": 0
+        "paddingLeft": 16
       },
       "screen": {
-        "text": "Models APIMart Connected · Image 26 · Video 30 · Audio 10 · Text 25",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -78,20 +80,19 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 10,
-        "parentPaddingTop": 0,
         "paddingRight": 56,
-        "parentPaddingRight": 0,
         "paddingBottom": 10,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 16,
-        "parentPaddingLeft": 0
+        "paddingLeft": 16
       }
     },
     {
       "candidate": "227-div",
       "element": "settings.header",
       "board": {
-        "text": "Models APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -119,13 +120,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 16
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -134,6 +131,9 @@
       "element": "settings.header",
       "board": {
         "text": "Models",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 15,
         "lineHeight": 22,
         "fontWeight": 600,
@@ -161,16 +161,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Models",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 21,
         "fontWeight": 600,
@@ -198,13 +197,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 56,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 16
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "226-div",
+        "board": {
+          "Top": 9,
+          "Left": 16,
+          "Right": 209.937,
+          "Bottom": 25
+        },
+        "screen": {
+          "Top": 10,
+          "Left": 16,
+          "Right": 56,
+          "Bottom": 29
+        }
       }
     },
     {
@@ -212,6 +222,9 @@
       "element": "settings.header",
       "board": {
         "text": "APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 16,
         "fontWeight": 400,
@@ -239,16 +252,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "APIMart Connected · Image 26 · Video 30 · Audio 10 · Text 25",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -276,13 +288,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 56,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 16
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "226-div",
+        "board": {
+          "Top": 31,
+          "Left": 16,
+          "Right": 209.937,
+          "Bottom": 9
+        },
+        "screen": {
+          "Top": 31,
+          "Left": 16,
+          "Right": 56,
+          "Bottom": 11
+        }
       }
     },
     {
@@ -290,6 +313,9 @@
       "element": "settings.header",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -317,13 +343,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -331,7 +353,10 @@
       "candidate": "231-div",
       "element": "settings.account-card",
       "board": {
-        "text": "APIMart Connected sk-••••f3a9 · in system keychain Balance 52.3 credits $5.23 Top up This key’s limit No limit Bound by balance Last 7 days 19.6 credits 41 runs Usage & prices",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -359,16 +384,15 @@
         "radiusBottomLeft": 10,
         "radiusBottomRight": 10,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "APIMart Connected ••••-key · in system keychain Balance 52.3 credits Top up This key’s limit No limit Bound by balance Last 7 days · local 19.6 credits 41 runs · Usage & prices",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -396,20 +420,19 @@
         "radiusBottomLeft": 6,
         "radiusBottomRight": 6,
         "paddingTop": 10,
-        "parentPaddingTop": 16,
         "paddingRight": 12,
-        "parentPaddingRight": 16,
         "paddingBottom": 10,
-        "parentPaddingBottom": 16,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 16
+        "paddingLeft": 12
       }
     },
     {
       "candidate": "232-div",
       "element": "settings.account-card",
       "board": {
-        "text": "APIMart Connected sk-••••f3a9 · in system keychain",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -437,16 +460,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 12,
-        "parentPaddingTop": 0,
         "paddingRight": 8,
-        "parentPaddingRight": 0,
         "paddingBottom": 12,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 14,
-        "parentPaddingLeft": 0
+        "paddingLeft": 14
       },
       "screen": {
-        "text": "APIMart Connected ••••-key · in system keychain",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -474,20 +496,66 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 8,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
-      }
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "231-div",
+        "board": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 89
+        },
+        "screen": {
+          "Top": 11,
+          "Left": 13,
+          "Right": 85,
+          "Bottom": 88
+        }
+      },
+      "parts": [
+        {
+          "anchor": "233-div",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "237-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "238-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        }
+      ]
     },
     {
       "candidate": "233-div",
       "element": "settings.account-card",
       "board": {
-        "text": "APIMart Connected",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -515,16 +583,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "APIMart Connected",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -552,13 +619,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "232-div",
+        "board": {
+          "Top": 12,
+          "Left": 14,
+          "Right": 80,
+          "Bottom": 30
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 18.5
+        }
       }
     },
     {
@@ -566,6 +644,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "APIMart",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 600,
@@ -593,16 +674,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "APIMart",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 21,
         "fontWeight": 700,
@@ -630,13 +710,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "233-div",
+        "board": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 383.437,
+          "Bottom": 0
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 377.914,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -644,6 +735,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "Connected",
+        "ownsText": true,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 11,
         "lineHeight": 16,
         "fontWeight": 500,
@@ -671,16 +765,15 @@
         "radiusBottomLeft": 999,
         "radiusBottomRight": 999,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 7,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 7,
-        "parentPaddingLeft": 0
+        "paddingLeft": 7
       },
       "screen": {
         "text": "Connected",
+        "ownsText": true,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 11,
         "lineHeight": 16.5,
         "fontWeight": 400,
@@ -708,13 +801,24 @@
         "radiusBottomLeft": 999,
         "radiusBottomRight": 999,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 6,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 6,
-        "parentPaddingLeft": 0
+        "paddingLeft": 6
+      },
+      "edges": {
+        "relativeTo": "233-div",
+        "board": {
+          "Top": 0,
+          "Left": 62.563,
+          "Right": 302.984,
+          "Bottom": 0
+        },
+        "screen": {
+          "Top": 2.25,
+          "Left": 64.086,
+          "Right": 300.617,
+          "Bottom": 2.25
+        }
       }
     },
     {
@@ -722,6 +826,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "sk-••••f3a9 · in system keychain",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -749,16 +856,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "••••-key · in system keychain",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -786,13 +892,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "232-div",
+        "board": {
+          "Top": 32,
+          "Left": 14,
+          "Right": 80,
+          "Bottom": 12
+        },
+        "screen": {
+          "Top": 21,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -800,6 +917,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -827,13 +947,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -842,6 +958,9 @@
       "element": "settings.account-menu",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -869,13 +988,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -883,7 +998,10 @@
       "candidate": "239-div",
       "element": "settings.account-card",
       "board": {
-        "text": "Balance 52.3 credits $5.23 Top up This key’s limit No limit Bound by balance Last 7 days 19.6 credits 41 runs Usage & prices",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -911,16 +1029,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "Balance 52.3 credits Top up This key’s limit No limit Bound by balance Last 7 days · local 19.6 credits 41 runs · Usage & prices",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -948,20 +1065,81 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
-      }
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "231-div",
+        "board": {
+          "Top": 62,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 0
+        },
+        "screen": {
+          "Top": 67.5,
+          "Left": 13,
+          "Right": 13,
+          "Bottom": 11
+        }
+      },
+      "parts": [
+        {
+          "anchor": "240-span-Balance",
+          "board": {
+            "paddingTop": 10,
+            "paddingRight": 14,
+            "paddingBottom": 10,
+            "paddingLeft": 14
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 12,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          }
+        },
+        {
+          "anchor": "246-span-Thiskeyslimi",
+          "board": {
+            "paddingTop": 10,
+            "paddingRight": 14,
+            "paddingBottom": 10,
+            "paddingLeft": 14
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 12,
+            "paddingBottom": 0,
+            "paddingLeft": 12
+          }
+        },
+        {
+          "anchor": "250-span-Last7days",
+          "board": {
+            "paddingTop": 10,
+            "paddingRight": 14,
+            "paddingBottom": 10,
+            "paddingLeft": 14
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 12
+          }
+        }
+      ]
     },
     {
       "candidate": "240-span-Balance",
       "element": "settings.account-card",
       "board": {
         "text": "Balance",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -989,16 +1167,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Balance",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1026,13 +1203,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 10,
+          "Left": 14,
+          "Right": 386.172,
+          "Bottom": 61
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 377.25,
+          "Bottom": 42
+        }
       }
     },
     {
@@ -1040,6 +1228,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "52.3 credits",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 18,
         "lineHeight": 26,
         "fontWeight": 600,
@@ -1067,16 +1258,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "52.3 credits",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 16,
         "lineHeight": 24,
         "fontWeight": 600,
@@ -1104,20 +1294,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 30,
+          "Left": 14,
+          "Right": 386.172,
+          "Bottom": 33
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 0,
+          "Right": 377.25,
+          "Bottom": 18
+        }
       }
     },
     {
       "candidate": "242-div",
       "element": "settings.account-card",
       "board": {
-        "text": "$5.23 Top up",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -1145,13 +1349,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1160,6 +1360,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "$5.23",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1187,13 +1390,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1202,6 +1401,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "Top up",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1229,16 +1431,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Top up",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1266,13 +1467,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 59,
+          "Left": 55.797,
+          "Right": 422.031,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 42,
+          "Left": 0,
+          "Right": 454.445,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -1280,6 +1492,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1307,16 +1522,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1344,13 +1558,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "244-span-Topup",
+        "board": {
+          "Top": 4,
+          "Left": 42.172,
+          "Right": 0,
+          "Bottom": 4
+        },
+        "screen": {
+          "Top": 3.5,
+          "Left": 40.555,
+          "Right": 0,
+          "Bottom": 3.5
+        }
       }
     },
     {
@@ -1358,6 +1583,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "This key’s limit",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1385,16 +1613,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "This key’s limit",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1422,13 +1649,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 10,
+          "Left": 174.828,
+          "Right": 226.5,
+          "Bottom": 61
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 153.75,
+          "Right": 213.461,
+          "Bottom": 42
+        }
       }
     },
     {
@@ -1436,6 +1674,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "No limit",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 18,
         "lineHeight": 26,
         "fontWeight": 600,
@@ -1463,16 +1704,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "No limit",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 16,
         "lineHeight": 24,
         "fontWeight": 600,
@@ -1500,20 +1740,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 30,
+          "Left": 174.828,
+          "Right": 226.5,
+          "Bottom": 33
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 153.75,
+          "Right": 213.461,
+          "Bottom": 18
+        }
       }
     },
     {
       "candidate": "248-div",
       "element": "settings.account-card",
       "board": {
-        "text": "Bound by balance",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -1541,13 +1795,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1556,6 +1806,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "Bound by balance",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1583,16 +1836,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "No limit Bound by balance",
+        "text": "Bound by balance",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1620,13 +1872,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 58,
+          "Left": 174.828,
+          "Right": 256.188,
+          "Bottom": 13
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 153.75,
+          "Right": 213.461,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -1634,6 +1897,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "Last 7 days",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1661,16 +1927,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Last 7 days · local",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1698,13 +1963,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 10,
+          "Left": 334.5,
+          "Right": 14,
+          "Bottom": 61
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 317.539,
+          "Right": 0,
+          "Bottom": 42
+        }
       }
     },
     {
@@ -1712,6 +1988,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "19.6 credits",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 18,
         "lineHeight": 26,
         "fontWeight": 600,
@@ -1739,16 +2018,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "19.6 credits",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 16,
         "lineHeight": 24,
         "fontWeight": 600,
@@ -1776,20 +2054,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 30,
+          "Left": 334.5,
+          "Right": 14,
+          "Bottom": 33
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 317.539,
+          "Right": 0,
+          "Bottom": 18
+        }
       }
     },
     {
       "candidate": "252-div",
       "element": "settings.account-card",
       "board": {
-        "text": "41 runs Usage & prices",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -1817,13 +2109,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1832,6 +2120,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "41 runs",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1859,13 +2150,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1874,6 +2161,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "Usage & prices",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1901,16 +2191,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Usage & prices",
+        "ownsText": true,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1938,13 +2227,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "239-div",
+        "board": {
+          "Top": 59,
+          "Left": 385.859,
+          "Right": 43.672,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 42,
+          "Left": 369.258,
+          "Right": 37.82,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -1952,6 +2252,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1979,16 +2282,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2016,20 +2318,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "254-span-Usageprices",
+        "board": {
+          "Top": 4,
+          "Left": 90.469,
+          "Right": 0,
+          "Bottom": 4
+        },
+        "screen": {
+          "Top": 3.5,
+          "Left": 87.922,
+          "Right": 0,
+          "Bottom": 3.5
+        }
       }
     },
     {
       "candidate": "257-div",
       "element": "settings.ai-onboard-row",
       "board": {
-        "text": "Connect with my AI assistant Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2057,16 +2373,15 @@
         "radiusBottomLeft": 10,
         "radiusBottomRight": 10,
         "paddingTop": 10,
-        "parentPaddingTop": 0,
         "paddingRight": 12,
-        "parentPaddingRight": 0,
         "paddingBottom": 10,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 0
+        "paddingLeft": 12
       },
       "screen": {
-        "text": "Let AI connect it for me Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2094,20 +2409,51 @@
         "radiusBottomLeft": 6,
         "radiusBottomRight": 6,
         "paddingTop": 10,
-        "parentPaddingTop": 16,
         "paddingRight": 12,
-        "parentPaddingRight": 16,
         "paddingBottom": 10,
-        "parentPaddingBottom": 16,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 16
-      }
+        "paddingLeft": 12
+      },
+      "parts": [
+        {
+          "anchor": "258-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "259-span-Connectwithm",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "261-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        }
+      ]
     },
     {
       "candidate": "258-svg",
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2135,16 +2481,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2172,13 +2517,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "257-div",
+        "board": {
+          "Top": 30,
+          "Left": 18,
+          "Right": 498,
+          "Bottom": 30
+        },
+        "screen": {
+          "Top": 30.75,
+          "Left": 19,
+          "Right": 497,
+          "Bottom": 30.75
+        }
       }
     },
     {
@@ -2186,6 +2542,9 @@
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "Connect with my AI assistant",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 20,
         "fontWeight": 600,
@@ -2213,16 +2572,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Let AI connect it for me",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 600,
@@ -2250,13 +2608,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "257-div",
+        "board": {
+          "Top": 10,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 46
+        },
+        "screen": {
+          "Top": 11,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 47
+        }
       }
     },
     {
@@ -2264,6 +2633,9 @@
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2291,16 +2663,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2328,13 +2699,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "257-div",
+        "board": {
+          "Top": 30,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 30.5,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 11
+        }
       }
     },
     {
@@ -2342,6 +2724,9 @@
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2369,16 +2754,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2406,20 +2790,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "257-div",
+        "board": {
+          "Top": 31.5,
+          "Left": 507,
+          "Right": 12,
+          "Bottom": 31.5
+        },
+        "screen": {
+          "Top": 32.25,
+          "Left": 506,
+          "Right": 13,
+          "Bottom": 32.25
+        }
       }
     },
     {
       "candidate": "262-div",
       "element": "settings.other-ways.misc",
       "board": {
-        "text": "Other ways to connect Local models · relays · data sources · network & import/export",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2447,16 +2845,15 @@
         "radiusBottomLeft": 10,
         "radiusBottomRight": 10,
         "paddingTop": 10,
-        "parentPaddingTop": 0,
         "paddingRight": 12,
-        "parentPaddingRight": 0,
         "paddingBottom": 10,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 0
+        "paddingLeft": 12
       },
       "screen": {
-        "text": "Other ways to connect Local models · relays · data sources · network & import/export",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2484,20 +2881,61 @@
         "radiusBottomLeft": 6,
         "radiusBottomRight": 6,
         "paddingTop": 10,
-        "parentPaddingTop": 16,
         "paddingRight": 12,
-        "parentPaddingRight": 16,
         "paddingBottom": 10,
-        "parentPaddingBottom": 16,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 16
-      }
+        "paddingLeft": 12
+      },
+      "parts": [
+        {
+          "anchor": "263-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          }
+        },
+        {
+          "anchor": "264-span-Otherwaystoc",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          }
+        },
+        {
+          "anchor": "266-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        }
+      ]
     },
     {
       "candidate": "263-svg",
       "element": "settings.other-ways.misc",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2525,16 +2963,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2562,13 +2999,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "262-div",
+        "board": {
+          "Top": 21,
+          "Left": 18,
+          "Right": 498,
+          "Bottom": 21
+        },
+        "screen": {
+          "Top": 21.75,
+          "Left": 19,
+          "Right": 497,
+          "Bottom": 21.75
+        }
       }
     },
     {
@@ -2576,6 +3024,9 @@
       "element": "settings.other-ways.misc",
       "board": {
         "text": "Other ways to connect",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 20,
         "fontWeight": 600,
@@ -2603,16 +3054,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Other ways to connect",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 600,
@@ -2640,13 +3090,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "262-div",
+        "board": {
+          "Top": 10,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 28
+        },
+        "screen": {
+          "Top": 11,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 29
+        }
       }
     },
     {
@@ -2654,6 +3115,9 @@
       "element": "settings.other-ways.misc",
       "board": {
         "text": "Local models · relays · data sources · network & import/export",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2681,16 +3145,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "Local models · relays · data sources · network & import/export",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2718,13 +3181,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "262-div",
+        "board": {
+          "Top": 30,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 30.5,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 11
+        }
       }
     },
     {
@@ -2732,6 +3206,9 @@
       "element": "settings.other-ways.misc",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2759,16 +3236,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2796,47 +3272,28 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "262-div",
+        "board": {
+          "Top": 22.5,
+          "Left": 507,
+          "Right": 12,
+          "Bottom": 22.5
+        },
+        "screen": {
+          "Top": 23.25,
+          "Left": 506,
+          "Right": 13,
+          "Bottom": 23.25
+        }
       }
     }
   ],
   "differences": [
-    {
-      "candidate": "226-div",
-      "element": "settings.frame-height",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "226-div",
-      "element": "settings.frame-height",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "226-div",
-      "element": "settings.frame-height",
-      "property": "text",
-      "board": "Models APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
-      "screen": "Models APIMart Connected · Image 26 · Video 30 · Audio 10 · Text 25",
-      "boardToken": "Models APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
-      "screenToken": "Models APIMart Connected · Image 26 · Video 30 · Audio 10 · Text 25",
-      "reason": "different"
-    },
     {
       "candidate": "226-div",
       "element": "settings.frame-height",
@@ -2881,7 +3338,7 @@
       "candidate": "227-div",
       "element": "settings.header",
       "property": "pair",
-      "board": "Models APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -2906,76 +3363,6 @@
       "reason": "different"
     },
     {
-      "candidate": "228-div-Models",
-      "element": "settings.header",
-      "property": "y",
-      "board": 9,
-      "screen": 10,
-      "boardToken": 9,
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "228-div-Models",
-      "element": "settings.header",
-      "property": "width",
-      "board": 338.063,
-      "screen": 492,
-      "boardToken": 338.063,
-      "screenToken": 492,
-      "reason": "different"
-    },
-    {
-      "candidate": "228-div-Models",
-      "element": "settings.header",
-      "property": "height",
-      "board": 22,
-      "screen": 21,
-      "boardToken": 22,
-      "screenToken": 21,
-      "reason": "different"
-    },
-    {
-      "candidate": "228-div-Models",
-      "element": "settings.header",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "228-div-Models",
-      "element": "settings.header",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 56,
-      "boardToken": "spacing.0",
-      "screenToken": 56,
-      "reason": "different"
-    },
-    {
-      "candidate": "228-div-Models",
-      "element": "settings.header",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "228-div-Models",
-      "element": "settings.header",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
       "candidate": "229-div-APIMartconne",
       "element": "settings.header",
       "property": "lineHeight",
@@ -2991,68 +3378,8 @@
       "property": "text",
       "board": "APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
       "screen": "APIMart Connected · Image 26 · Video 30 · Audio 10 · Text 25",
-      "boardToken": "APIMart connected · Image 24 · Video 28 · Audio 9 · Text 24",
-      "screenToken": "APIMart Connected · Image 26 · Video 30 · Audio 10 · Text 25",
-      "reason": "different"
-    },
-    {
-      "candidate": "229-div-APIMartconne",
-      "element": "settings.header",
-      "property": "width",
-      "board": 338.063,
-      "screen": 492,
-      "boardToken": 338.063,
-      "screenToken": 492,
-      "reason": "different"
-    },
-    {
-      "candidate": "229-div-APIMartconne",
-      "element": "settings.header",
-      "property": "height",
-      "board": 16,
-      "screen": 18,
-      "boardToken": 16,
-      "screenToken": 18,
-      "reason": "different"
-    },
-    {
-      "candidate": "229-div-APIMartconne",
-      "element": "settings.header",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "229-div-APIMartconne",
-      "element": "settings.header",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 56,
-      "boardToken": "spacing.0",
-      "screenToken": 56,
-      "reason": "different"
-    },
-    {
-      "candidate": "229-div-APIMartconne",
-      "element": "settings.header",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "229-div-APIMartconne",
-      "element": "settings.header",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
+      "boardToken": "APIMart connected · Image # · Video # · Audio # · Text #",
+      "screenToken": "APIMart Connected · Image # · Video # · Audio # · Text #",
       "reason": "different"
     },
     {
@@ -3066,61 +3393,11 @@
     {
       "candidate": "231-div",
       "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
       "property": "backgroundColor",
       "board": "paper",
       "screen": "transparent",
       "boardToken": "paper",
       "screenToken": "transparent",
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "APIMart Connected sk-••••f3a9 · in system keychain Balance 52.3 credits $5.23 Top up This key’s limit No limit Bound by balance Last 7 days 19.6 credits 41 runs Usage & prices",
-      "screen": "APIMart Connected ••••-key · in system keychain Balance 52.3 credits Top up This key’s limit No limit Bound by balance Last 7 days · local 19.6 credits 41 runs · Usage & prices",
-      "boardToken": "APIMart Connected sk-••••f3a9 · in system keychain Balance 52.3 credits $5.23 Top up This key’s limit No limit Bound by balance Last 7 days 19.6 credits 41 runs Usage & prices",
-      "screenToken": "APIMart Connected ••••-key · in system keychain Balance 52.3 credits Top up This key’s limit No limit Bound by balance Last 7 days · local 19.6 credits 41 runs · Usage & prices",
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 72,
-      "screen": 76,
-      "boardToken": 72,
-      "screenToken": 76,
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 151,
-      "screen": 138.5,
-      "boardToken": 151,
-      "screenToken": 138.5,
       "reason": "different"
     },
     {
@@ -3186,31 +3463,11 @@
     {
       "candidate": "231-div",
       "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
       "property": "paddingRight",
       "board": 0,
       "screen": 12,
       "boardToken": "spacing.0",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
       "reason": "different"
     },
     {
@@ -3226,101 +3483,11 @@
     {
       "candidate": "231-div",
       "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
       "property": "paddingLeft",
       "board": 0,
       "screen": 12,
       "boardToken": "spacing.0",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "231-div",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "APIMart Connected sk-••••f3a9 · in system keychain",
-      "screen": "APIMart Connected ••••-key · in system keychain",
-      "boardToken": "APIMart Connected sk-••••f3a9 · in system keychain",
-      "screenToken": "APIMart Connected ••••-key · in system keychain",
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 16,
-      "screen": 29,
-      "boardToken": 16,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 72,
-      "screen": 87,
-      "boardToken": 72,
-      "screenToken": 87,
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 532,
-      "screen": 434,
-      "boardToken": 532,
-      "screenToken": 434,
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 62,
-      "screen": 39.5,
-      "boardToken": 62,
-      "screenToken": 39.5,
       "reason": "different"
     },
     {
@@ -3366,16 +3533,6 @@
     {
       "candidate": "232-div",
       "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 8,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.2",
-      "reason": "different"
-    },
-    {
-      "candidate": "232-div",
-      "element": "settings.account-card",
       "property": "paddingLeft",
       "board": 14,
       "screen": 0,
@@ -3384,64 +3541,31 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "233-div",
+      "candidate": "232-div",
       "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
+      "part": "233-div",
+      "property": "pair",
+      "board": "233-div",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
-      "candidate": "233-div",
+      "candidate": "232-div",
       "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
+      "part": "237-svg",
+      "property": "pair",
+      "board": "237-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
-      "candidate": "233-div",
+      "candidate": "232-div",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "233-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 84,
-      "screen": 87,
-      "boardToken": 84,
-      "screenToken": 87,
-      "reason": "different"
-    },
-    {
-      "candidate": "233-div",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 438,
-      "screen": 434,
-      "boardToken": 438,
-      "screenToken": 434,
-      "reason": "different"
-    },
-    {
-      "candidate": "233-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 21,
-      "boardToken": 20,
-      "screenToken": 21,
-      "reason": "different"
+      "part": "238-svg",
+      "property": "pair",
+      "board": "238-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "234-span-APIMart",
@@ -3464,46 +3588,6 @@
       "reason": "different"
     },
     {
-      "candidate": "234-span-APIMart",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "234-span-APIMart",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 84,
-      "screen": 87,
-      "boardToken": 84,
-      "screenToken": 87,
-      "reason": "different"
-    },
-    {
-      "candidate": "234-span-APIMart",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 54.563,
-      "screen": 56.086,
-      "boardToken": 54.563,
-      "screenToken": 56.086,
-      "reason": "different"
-    },
-    {
-      "candidate": "234-span-APIMart",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 21,
-      "boardToken": 20,
-      "screenToken": 21,
-      "reason": "different"
-    },
-    {
       "candidate": "235-span-Connected",
       "element": "settings.account-card",
       "property": "lineHeight",
@@ -3521,36 +3605,6 @@
       "screen": 400,
       "boardToken": 500,
       "screenToken": 400,
-      "reason": "different"
-    },
-    {
-      "candidate": "235-span-Connected",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 92.563,
-      "screen": 93.086,
-      "boardToken": 92.563,
-      "screenToken": 93.086,
-      "reason": "different"
-    },
-    {
-      "candidate": "235-span-Connected",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 84,
-      "screen": 89.25,
-      "boardToken": 84,
-      "screenToken": 89.25,
-      "reason": "different"
-    },
-    {
-      "candidate": "235-span-Connected",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 72.453,
-      "screen": 69.297,
-      "boardToken": 72.453,
-      "screenToken": 69.297,
       "reason": "different"
     },
     {
@@ -3604,56 +3658,6 @@
       "reason": "different"
     },
     {
-      "candidate": "236-span-skf3a9insyst",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "sk-••••f3a9 · in system keychain",
-      "screen": "••••-key · in system keychain",
-      "boardToken": "sk-••••f3a9 · in system keychain",
-      "screenToken": "••••-key · in system keychain",
-      "reason": "different"
-    },
-    {
-      "candidate": "236-span-skf3a9insyst",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "236-span-skf3a9insyst",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 104,
-      "screen": 108,
-      "boardToken": 104,
-      "screenToken": 108,
-      "reason": "different"
-    },
-    {
-      "candidate": "236-span-skf3a9insyst",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 438,
-      "screen": 434,
-      "boardToken": 438,
-      "screenToken": 434,
-      "reason": "different"
-    },
-    {
-      "candidate": "236-span-skf3a9insyst",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 18,
-      "screen": 18.5,
-      "boardToken": 18,
-      "screenToken": 18.5,
-      "reason": "different"
-    },
-    {
       "candidate": "237-svg",
       "element": "settings.account-card",
       "property": "pair",
@@ -3668,86 +3672,6 @@
       "board": "",
       "screen": null,
       "reason": "unmatched"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 12,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.caption",
-      "reason": "different"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 18,
-      "boardToken": "lineHeight.body",
-      "screenToken": "lineHeight.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "color",
-      "board": "ink",
-      "screen": "ink-60",
-      "boardToken": "ink",
-      "screenToken": "ink-60",
-      "reason": "different"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "Balance 52.3 credits $5.23 Top up This key’s limit No limit Bound by balance Last 7 days 19.6 credits 41 runs Usage & prices",
-      "screen": "Balance 52.3 credits Top up This key’s limit No limit Bound by balance Last 7 days · local 19.6 credits 41 runs · Usage & prices",
-      "boardToken": "Balance 52.3 credits $5.23 Top up This key’s limit No limit Bound by balance Last 7 days 19.6 credits 41 runs Usage & prices",
-      "screenToken": "Balance 52.3 credits Top up This key’s limit No limit Bound by balance Last 7 days · local 19.6 credits 41 runs · Usage & prices",
-      "reason": "different"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 16,
-      "screen": 29,
-      "boardToken": 16,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 134,
-      "screen": 143.5,
-      "boardToken": 134,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 532,
-      "screen": 506,
-      "boardToken": 532,
-      "screenToken": 506,
-      "reason": "different"
-    },
-    {
-      "candidate": "239-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 89,
-      "screen": 60,
-      "boardToken": 89,
-      "screenToken": 60,
-      "reason": "different"
     },
     {
       "candidate": "239-div",
@@ -3792,71 +3716,163 @@
     {
       "candidate": "239-div",
       "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
+      "part": "240-span-Balance",
+      "property": "paddingTop",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
     },
     {
       "candidate": "239-div",
       "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 0,
+      "part": "240-span-Balance",
+      "property": "paddingRight",
+      "board": 14,
       "screen": 12,
-      "boardToken": "spacing.0",
+      "boardToken": 14,
       "screenToken": "spacing.3",
-      "reason": "different"
+      "reason": "off-scale"
     },
     {
       "candidate": "239-div",
       "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
+      "part": "240-span-Balance",
+      "property": "paddingBottom",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
     },
     {
       "candidate": "239-div",
       "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 0,
+      "part": "240-span-Balance",
+      "property": "paddingLeft",
+      "board": 14,
+      "screen": 0,
+      "boardToken": 14,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "246-span-Thiskeyslimi",
+      "property": "paddingTop",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "246-span-Thiskeyslimi",
+      "property": "paddingRight",
+      "board": 14,
       "screen": 12,
-      "boardToken": "spacing.0",
+      "boardToken": 14,
       "screenToken": "spacing.3",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "246-span-Thiskeyslimi",
+      "property": "paddingBottom",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "246-span-Thiskeyslimi",
+      "property": "paddingLeft",
+      "board": 14,
+      "screen": 12,
+      "boardToken": 14,
+      "screenToken": "spacing.3",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "250-span-Last7days",
+      "property": "paddingTop",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "250-span-Last7days",
+      "property": "paddingRight",
+      "board": 14,
+      "screen": 0,
+      "boardToken": 14,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "250-span-Last7days",
+      "property": "paddingBottom",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "part": "250-span-Last7days",
+      "property": "paddingLeft",
+      "board": 14,
+      "screen": 12,
+      "boardToken": 14,
+      "screenToken": "spacing.3",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "239-div",
+      "element": "settings.account-card",
+      "property": "insetRight",
+      "board": 0,
+      "screen": 13,
+      "boardToken": 0,
+      "screenToken": 13,
       "reason": "different"
     },
     {
-      "candidate": "240-span-Balance",
+      "candidate": "239-div",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
+      "property": "insetBottom",
+      "board": 0,
+      "screen": 11,
+      "boardToken": 0,
+      "screenToken": 11,
       "reason": "different"
     },
     {
-      "candidate": "240-span-Balance",
+      "candidate": "239-div",
       "element": "settings.account-card",
-      "property": "y",
-      "board": 144,
-      "screen": 143.5,
-      "boardToken": 144,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "240-span-Balance",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 131.828,
-      "screen": 128.75,
-      "boardToken": 131.828,
-      "screenToken": 128.75,
+      "property": "insetLeft",
+      "board": 0,
+      "screen": 13,
+      "boardToken": 0,
+      "screenToken": 13,
       "reason": "different"
     },
     {
@@ -3876,46 +3892,6 @@
       "board": 2,
       "screen": 0,
       "boardToken": 2,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "240-span-Balance",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "240-span-Balance",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "240-span-Balance",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "240-span-Balance",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
       "screenToken": "spacing.0",
       "reason": "off-scale"
     },
@@ -3952,46 +3928,6 @@
     {
       "candidate": "241-span-523credits",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 164,
-      "screen": 161.5,
-      "boardToken": 164,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 131.828,
-      "screen": 128.75,
-      "boardToken": 131.828,
-      "screenToken": 128.75,
-      "reason": "different"
-    },
-    {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 26,
-      "screen": 24,
-      "boardToken": 26,
-      "screenToken": 24,
-      "reason": "different"
-    },
-    {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4010,50 +3946,10 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "241-span-523credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
       "candidate": "242-div",
       "element": "settings.account-card",
       "property": "pair",
-      "board": "$5.23 Top up",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -4088,91 +3984,11 @@
     {
       "candidate": "244-span-Topup",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 71.797,
-      "screen": 29,
-      "boardToken": 71.797,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "244-span-Topup",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 193,
-      "screen": 185.5,
-      "boardToken": 193,
-      "screenToken": 185.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "244-span-Topup",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 54.172,
-      "screen": 51.555,
-      "boardToken": 54.172,
-      "screenToken": 51.555,
-      "reason": "different"
-    },
-    {
-      "candidate": "244-span-Topup",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 18,
-      "boardToken": 20,
-      "screenToken": 18,
-      "reason": "different"
-    },
-    {
-      "candidate": "244-span-Topup",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 8,
       "screen": 0,
       "boardToken": "spacing.2",
       "screenToken": "spacing.0",
-      "reason": "different"
-    },
-    {
-      "candidate": "245-svg",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 18,
-      "boardToken": "lineHeight.body",
-      "screenToken": "lineHeight.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "245-svg",
-      "element": "settings.account-card",
-      "property": "fontWeight",
-      "board": 500,
-      "screen": 400,
-      "boardToken": 500,
-      "screenToken": 400,
-      "reason": "different"
-    },
-    {
-      "candidate": "245-svg",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 113.969,
-      "screen": 69.555,
-      "boardToken": 113.969,
-      "screenToken": 69.555,
-      "reason": "different"
-    },
-    {
-      "candidate": "245-svg",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 197,
-      "screen": 189,
-      "boardToken": 197,
-      "screenToken": 189,
       "reason": "different"
     },
     {
@@ -4203,36 +4019,6 @@
       "screen": 0,
       "boardToken": "spacing.2",
       "screenToken": "spacing.0",
-      "reason": "different"
-    },
-    {
-      "candidate": "246-span-Thiskeyslimi",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 190.828,
-      "screen": 182.75,
-      "boardToken": 190.828,
-      "screenToken": 182.75,
-      "reason": "different"
-    },
-    {
-      "candidate": "246-span-Thiskeyslimi",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 144,
-      "screen": 143.5,
-      "boardToken": 144,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "246-span-Thiskeyslimi",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 130.672,
-      "screen": 138.789,
-      "boardToken": 130.672,
-      "screenToken": 138.789,
       "reason": "different"
     },
     {
@@ -4243,46 +4029,6 @@
       "screen": 0,
       "boardToken": 2,
       "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "246-span-Thiskeyslimi",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "246-span-Thiskeyslimi",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "246-span-Thiskeyslimi",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "246-span-Thiskeyslimi",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
       "reason": "off-scale"
     },
     {
@@ -4318,46 +4064,6 @@
     {
       "candidate": "247-span-Nolimit",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 190.828,
-      "screen": 182.75,
-      "boardToken": 190.828,
-      "screenToken": 182.75,
-      "reason": "different"
-    },
-    {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 164,
-      "screen": 161.5,
-      "boardToken": 164,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 130.672,
-      "screen": 138.789,
-      "boardToken": 130.672,
-      "screenToken": 138.789,
-      "reason": "different"
-    },
-    {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 26,
-      "screen": 24,
-      "boardToken": 26,
-      "screenToken": 24,
-      "reason": "different"
-    },
-    {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4376,50 +4082,10 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "247-span-Nolimit",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
       "candidate": "248-div",
       "element": "settings.account-card",
       "property": "pair",
-      "board": "Bound by balance",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -4436,56 +4102,6 @@
     {
       "candidate": "249-span-Boundbybalan",
       "element": "settings.account-card",
-      "property": "text",
-      "board": "Bound by balance",
-      "screen": "No limit Bound by balance",
-      "boardToken": "Bound by balance",
-      "screenToken": "No limit Bound by balance",
-      "reason": "different"
-    },
-    {
-      "candidate": "249-span-Boundbybalan",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 190.828,
-      "screen": 182.75,
-      "boardToken": 190.828,
-      "screenToken": 182.75,
-      "reason": "different"
-    },
-    {
-      "candidate": "249-span-Boundbybalan",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 192,
-      "screen": 161.5,
-      "boardToken": 192,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "249-span-Boundbybalan",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 100.984,
-      "screen": 138.789,
-      "boardToken": 100.984,
-      "screenToken": 138.789,
-      "reason": "different"
-    },
-    {
-      "candidate": "249-span-Boundbybalan",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 18,
-      "screen": 42,
-      "boardToken": 18,
-      "screenToken": 42,
-      "reason": "different"
-    },
-    {
-      "candidate": "249-span-Boundbybalan",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4494,63 +4110,13 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "249-span-Boundbybalan",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "249-span-Boundbybalan",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
       "candidate": "250-span-Last7days",
       "element": "settings.account-card",
       "property": "text",
       "board": "Last 7 days",
       "screen": "Last 7 days · local",
-      "boardToken": "Last 7 days",
-      "screenToken": "Last 7 days · local",
-      "reason": "different"
-    },
-    {
-      "candidate": "250-span-Last7days",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 350.5,
-      "screen": 346.539,
-      "boardToken": 350.5,
-      "screenToken": 346.539,
-      "reason": "different"
-    },
-    {
-      "candidate": "250-span-Last7days",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 144,
-      "screen": 143.5,
-      "boardToken": 144,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "250-span-Last7days",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 183.5,
-      "screen": 188.461,
-      "boardToken": 183.5,
-      "screenToken": 188.461,
+      "boardToken": "Last # days",
+      "screenToken": "Last # days · local",
       "reason": "different"
     },
     {
@@ -4561,46 +4127,6 @@
       "screen": 0,
       "boardToken": 2,
       "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "250-span-Last7days",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "250-span-Last7days",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "250-span-Last7days",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "250-span-Last7days",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
       "reason": "off-scale"
     },
     {
@@ -4636,46 +4162,6 @@
     {
       "candidate": "251-span-196credits",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 350.5,
-      "screen": 346.539,
-      "boardToken": 350.5,
-      "screenToken": 346.539,
-      "reason": "different"
-    },
-    {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 164,
-      "screen": 161.5,
-      "boardToken": 164,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 183.5,
-      "screen": 188.461,
-      "boardToken": 183.5,
-      "screenToken": 188.461,
-      "reason": "different"
-    },
-    {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 26,
-      "screen": 24,
-      "boardToken": 26,
-      "screenToken": 24,
-      "reason": "different"
-    },
-    {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4694,50 +4180,10 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "251-span-196credits",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
       "candidate": "252-div",
       "element": "settings.account-card",
       "property": "pair",
-      "board": "41 runs Usage & prices",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -4772,46 +4218,6 @@
     {
       "candidate": "254-span-Usageprices",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 401.859,
-      "screen": 398.258,
-      "boardToken": 401.859,
-      "screenToken": 398.258,
-      "reason": "different"
-    },
-    {
-      "candidate": "254-span-Usageprices",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 193,
-      "screen": 185.5,
-      "boardToken": 193,
-      "screenToken": 185.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "254-span-Usageprices",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 102.469,
-      "screen": 98.922,
-      "boardToken": 102.469,
-      "screenToken": 98.922,
-      "reason": "different"
-    },
-    {
-      "candidate": "254-span-Usageprices",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 18,
-      "boardToken": 20,
-      "screenToken": 18,
-      "reason": "different"
-    },
-    {
-      "candidate": "254-span-Usageprices",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 8,
       "screen": 0,
@@ -4827,46 +4233,6 @@
       "screen": 12,
       "boardToken": "spacing.4",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "255-svg",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 18,
-      "boardToken": "lineHeight.body",
-      "screenToken": "lineHeight.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "255-svg",
-      "element": "settings.account-card",
-      "property": "fontWeight",
-      "board": 500,
-      "screen": 400,
-      "boardToken": 500,
-      "screenToken": 400,
-      "reason": "different"
-    },
-    {
-      "candidate": "255-svg",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 492.328,
-      "screen": 486.18,
-      "boardToken": 492.328,
-      "screenToken": 486.18,
-      "reason": "different"
-    },
-    {
-      "candidate": "255-svg",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 197,
-      "screen": 189,
-      "boardToken": 197,
-      "screenToken": 189,
       "reason": "different"
     },
     {
@@ -4907,46 +4273,6 @@
       "screen": 12,
       "boardToken": "spacing.4",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "257-div",
-      "element": "settings.ai-onboard-row",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "257-div",
-      "element": "settings.ai-onboard-row",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "257-div",
-      "element": "settings.ai-onboard-row",
-      "property": "text",
-      "board": "Connect with my AI assistant Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
-      "screen": "Let AI connect it for me Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
-      "boardToken": "Connect with my AI assistant Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
-      "screenToken": "Let AI connect it for me Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi",
-      "reason": "different"
-    },
-    {
-      "candidate": "257-div",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 271,
-      "screen": 258,
-      "boardToken": 271,
-      "screenToken": 258,
       "reason": "different"
     },
     {
@@ -5012,26 +4338,6 @@
     {
       "candidate": "257-div",
       "element": "settings.ai-onboard-row",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "257-div",
-      "element": "settings.ai-onboard-row",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "257-div",
-      "element": "settings.ai-onboard-row",
       "property": "paddingBottom",
       "board": 10,
       "screen": 10,
@@ -5042,62 +4348,29 @@
     {
       "candidate": "257-div",
       "element": "settings.ai-onboard-row",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
+      "part": "258-svg",
+      "property": "pair",
+      "board": "258-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "257-div",
       "element": "settings.ai-onboard-row",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
+      "part": "259-span-Connectwithm",
+      "property": "pair",
+      "board": "259-span-Connectwithm",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
-      "candidate": "258-svg",
+      "candidate": "257-div",
       "element": "settings.ai-onboard-row",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "258-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "258-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 34,
-      "screen": 35,
-      "boardToken": 34,
-      "screenToken": 35,
-      "reason": "different"
-    },
-    {
-      "candidate": "258-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 301,
-      "screen": 288.75,
-      "boardToken": 301,
-      "screenToken": 288.75,
-      "reason": "different"
+      "part": "261-svg",
+      "property": "pair",
+      "board": "261-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "259-span-Connectwithm",
@@ -5117,146 +4390,6 @@
       "screen": "Let AI connect it for me",
       "boardToken": "Connect with my AI assistant",
       "screenToken": "Let AI connect it for me",
-      "reason": "different"
-    },
-    {
-      "candidate": "259-span-Connectwithm",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "259-span-Connectwithm",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 281,
-      "screen": 269,
-      "boardToken": 281,
-      "screenToken": 269,
-      "reason": "different"
-    },
-    {
-      "candidate": "259-span-Connectwithm",
-      "element": "settings.ai-onboard-row",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "259-span-Connectwithm",
-      "element": "settings.ai-onboard-row",
-      "property": "height",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": 20,
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "260-span-Lettheassist",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "260-span-Lettheassist",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 301,
-      "screen": 288.5,
-      "boardToken": 301,
-      "screenToken": 288.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "260-span-Lettheassist",
-      "element": "settings.ai-onboard-row",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "261-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "261-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "261-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 523,
-      "screen": 522,
-      "boardToken": 523,
-      "screenToken": 522,
-      "reason": "different"
-    },
-    {
-      "candidate": "261-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 302.5,
-      "screen": 290.25,
-      "boardToken": 302.5,
-      "screenToken": 290.25,
-      "reason": "different"
-    },
-    {
-      "candidate": "262-div",
-      "element": "settings.other-ways.misc",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "262-div",
-      "element": "settings.other-ways.misc",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "262-div",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 359,
-      "screen": 347.5,
-      "boardToken": 359,
-      "screenToken": 347.5,
       "reason": "different"
     },
     {
@@ -5322,26 +4455,6 @@
     {
       "candidate": "262-div",
       "element": "settings.other-ways.misc",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "262-div",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "262-div",
-      "element": "settings.other-ways.misc",
       "property": "paddingBottom",
       "board": 10,
       "screen": 10,
@@ -5352,62 +4465,11 @@
     {
       "candidate": "262-div",
       "element": "settings.other-ways.misc",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "262-div",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "263-svg",
-      "element": "settings.other-ways.misc",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "263-svg",
-      "element": "settings.other-ways.misc",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "263-svg",
-      "element": "settings.other-ways.misc",
-      "property": "x",
-      "board": 34,
-      "screen": 35,
-      "boardToken": 34,
-      "screenToken": 35,
-      "reason": "different"
-    },
-    {
-      "candidate": "263-svg",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 380,
-      "screen": 369.25,
-      "boardToken": 380,
-      "screenToken": 369.25,
-      "reason": "different"
+      "part": "266-svg",
+      "property": "pair",
+      "board": "266-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "263-svg",
@@ -5427,156 +4489,6 @@
       "screen": 19.5,
       "boardToken": "lineHeight.body",
       "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "264-span-Otherwaystoc",
-      "element": "settings.other-ways.misc",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "264-span-Otherwaystoc",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 369,
-      "screen": 358.5,
-      "boardToken": 369,
-      "screenToken": 358.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "264-span-Otherwaystoc",
-      "element": "settings.other-ways.misc",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "264-span-Otherwaystoc",
-      "element": "settings.other-ways.misc",
-      "property": "height",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": 20,
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "265-span-Localmodelsr",
-      "element": "settings.other-ways.misc",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "265-span-Localmodelsr",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 389,
-      "screen": 378,
-      "boardToken": 389,
-      "screenToken": 378,
-      "reason": "different"
-    },
-    {
-      "candidate": "265-span-Localmodelsr",
-      "element": "settings.other-ways.misc",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "x",
-      "board": 523,
-      "screen": 522,
-      "boardToken": 523,
-      "screenToken": 522,
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 381.5,
-      "screen": 370.75,
-      "boardToken": 381.5,
-      "screenToken": 370.75,
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "266-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
       "reason": "different"
     }
   ]

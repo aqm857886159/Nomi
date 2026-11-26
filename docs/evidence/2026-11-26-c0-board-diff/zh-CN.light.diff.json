@@ -7,13 +7,16 @@
   "boardRoot": "#Main .abs.row > .col.f1:has([data-m=\"stat\"])",
   "screenRoot": "[data-model-settings-page=\"home\"]",
   "screenRevision": "aaedadf48f37482e55093e66312036a8bdd86feb",
-  "version": 1,
+  "version": 2,
   "samples": [
     {
       "candidate": "047-div",
       "element": "settings.frame-height",
       "board": {
-        "text": "模型 APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -41,16 +44,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 12,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 16,
-        "parentPaddingLeft": 0
+        "paddingLeft": 16
       },
       "screen": {
-        "text": "模型 APIMart 已连接 · 图片 26 · 视频 30 · 声音 10 · 文字 25",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -78,20 +80,19 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 10,
-        "parentPaddingTop": 0,
         "paddingRight": 56,
-        "parentPaddingRight": 0,
         "paddingBottom": 10,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 16,
-        "parentPaddingLeft": 0
+        "paddingLeft": 16
       }
     },
     {
       "candidate": "048-div",
       "element": "settings.header",
       "board": {
-        "text": "模型 APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -119,13 +120,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 16
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -134,6 +131,9 @@
       "element": "settings.header",
       "board": {
         "text": "模型",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 15,
         "lineHeight": 22,
         "fontWeight": 600,
@@ -161,16 +161,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "模型",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 21,
         "fontWeight": 600,
@@ -198,13 +197,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 56,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 16
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "047-div",
+        "board": {
+          "Top": 9,
+          "Left": 16,
+          "Right": 257.891,
+          "Bottom": 25
+        },
+        "screen": {
+          "Top": 10,
+          "Left": 16,
+          "Right": 56,
+          "Bottom": 29
+        }
       }
     },
     {
@@ -212,6 +222,9 @@
       "element": "settings.header",
       "board": {
         "text": "APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 16,
         "fontWeight": 400,
@@ -239,16 +252,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "APIMart 已连接 · 图片 26 · 视频 30 · 声音 10 · 文字 25",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -276,13 +288,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 56,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 16
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "047-div",
+        "board": {
+          "Top": 31,
+          "Left": 16,
+          "Right": 257.891,
+          "Bottom": 9
+        },
+        "screen": {
+          "Top": 31,
+          "Left": 16,
+          "Right": 56,
+          "Bottom": 11
+        }
       }
     },
     {
@@ -290,6 +313,9 @@
       "element": "settings.header",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -317,13 +343,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -331,7 +353,10 @@
       "candidate": "052-div",
       "element": "settings.account-card",
       "board": {
-        "text": "APIMart 已连接 sk-••••f3a9 · 存在系统钥匙串 账户余额 52.3 积分 $5.23 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 19.6 积分 41 次 用量与单价",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -359,16 +384,15 @@
         "radiusBottomLeft": 10,
         "radiusBottomRight": 10,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "APIMart 已连接 ••••-key · 存在系统钥匙串 账户余额 52.3 积分 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 · 本机 19.6 积分 41 次 · 用量与单价",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -396,20 +420,19 @@
         "radiusBottomLeft": 6,
         "radiusBottomRight": 6,
         "paddingTop": 10,
-        "parentPaddingTop": 16,
         "paddingRight": 12,
-        "parentPaddingRight": 16,
         "paddingBottom": 10,
-        "parentPaddingBottom": 16,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 16
+        "paddingLeft": 12
       }
     },
     {
       "candidate": "053-div",
       "element": "settings.account-card",
       "board": {
-        "text": "APIMart 已连接 sk-••••f3a9 · 存在系统钥匙串",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -437,16 +460,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 12,
-        "parentPaddingTop": 0,
         "paddingRight": 8,
-        "parentPaddingRight": 0,
         "paddingBottom": 12,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 14,
-        "parentPaddingLeft": 0
+        "paddingLeft": 14
       },
       "screen": {
-        "text": "APIMart 已连接 ••••-key · 存在系统钥匙串",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -474,20 +496,66 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 8,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
-      }
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "052-div",
+        "board": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 89
+        },
+        "screen": {
+          "Top": 11,
+          "Left": 13,
+          "Right": 85,
+          "Bottom": 88
+        }
+      },
+      "parts": [
+        {
+          "anchor": "054-div",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "058-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "059-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        }
+      ]
     },
     {
       "candidate": "054-div",
       "element": "settings.account-card",
       "board": {
-        "text": "APIMart 已连接",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -515,16 +583,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "APIMart 已连接",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -552,13 +619,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "053-div",
+        "board": {
+          "Top": 12,
+          "Left": 14,
+          "Right": 80,
+          "Bottom": 30
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 18.5
+        }
       }
     },
     {
@@ -566,6 +644,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "APIMart",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 600,
@@ -593,16 +674,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "APIMart",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 21,
         "fontWeight": 700,
@@ -630,13 +710,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "054-div",
+        "board": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 383.437,
+          "Bottom": 0
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 377.914,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -644,6 +735,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "已连接",
+        "ownsText": true,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 11,
         "lineHeight": 16,
         "fontWeight": 500,
@@ -671,16 +765,15 @@
         "radiusBottomLeft": 999,
         "radiusBottomRight": 999,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 7,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 7,
-        "parentPaddingLeft": 0
+        "paddingLeft": 7
       },
       "screen": {
         "text": "已连接",
+        "ownsText": true,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 11,
         "lineHeight": 16.5,
         "fontWeight": 400,
@@ -708,13 +801,24 @@
         "radiusBottomLeft": 999,
         "radiusBottomRight": 999,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 6,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 6,
-        "parentPaddingLeft": 0
+        "paddingLeft": 6
+      },
+      "edges": {
+        "relativeTo": "054-div",
+        "board": {
+          "Top": 0,
+          "Left": 62.563,
+          "Right": 327.703,
+          "Bottom": 0
+        },
+        "screen": {
+          "Top": 2.25,
+          "Left": 64.086,
+          "Right": 324.187,
+          "Bottom": 2.25
+        }
       }
     },
     {
@@ -722,6 +826,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "sk-••••f3a9 · 存在系统钥匙串",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -749,16 +856,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "••••-key · 存在系统钥匙串",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -786,13 +892,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "053-div",
+        "board": {
+          "Top": 32,
+          "Left": 14,
+          "Right": 80,
+          "Bottom": 12
+        },
+        "screen": {
+          "Top": 21,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -800,6 +917,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -827,13 +947,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -842,6 +958,9 @@
       "element": "settings.account-menu",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -869,13 +988,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -883,7 +998,10 @@
       "candidate": "060-div",
       "element": "settings.account-card",
       "board": {
-        "text": "账户余额 52.3 积分 $5.23 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 19.6 积分 41 次 用量与单价",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -911,16 +1029,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "账户余额 52.3 积分 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 · 本机 19.6 积分 41 次 · 用量与单价",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -948,20 +1065,81 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
-      }
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "052-div",
+        "board": {
+          "Top": 62,
+          "Left": 0,
+          "Right": 0,
+          "Bottom": 0
+        },
+        "screen": {
+          "Top": 67.5,
+          "Left": 13,
+          "Right": 13,
+          "Bottom": 11
+        }
+      },
+      "parts": [
+        {
+          "anchor": "061-span-账户余额",
+          "board": {
+            "paddingTop": 10,
+            "paddingRight": 14,
+            "paddingBottom": 10,
+            "paddingLeft": 14
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 12,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          }
+        },
+        {
+          "anchor": "067-span-这把Key的额度",
+          "board": {
+            "paddingTop": 10,
+            "paddingRight": 14,
+            "paddingBottom": 10,
+            "paddingLeft": 14
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 12,
+            "paddingBottom": 0,
+            "paddingLeft": 12
+          }
+        },
+        {
+          "anchor": "071-span-近7天花了",
+          "board": {
+            "paddingTop": 10,
+            "paddingRight": 14,
+            "paddingBottom": 10,
+            "paddingLeft": 14
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 12
+          }
+        }
+      ]
     },
     {
       "candidate": "061-span-账户余额",
       "element": "settings.account-card",
       "board": {
         "text": "账户余额",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -989,16 +1167,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "账户余额",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1026,13 +1203,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 10,
+          "Left": 14,
+          "Right": 377.984,
+          "Bottom": 61
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 0,
+          "Right": 377.187,
+          "Bottom": 42
+        }
       }
     },
     {
@@ -1040,6 +1228,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "52.3 积分",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 18,
         "lineHeight": 26,
         "fontWeight": 600,
@@ -1067,16 +1258,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "52.3 积分",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 16,
         "lineHeight": 24,
         "fontWeight": 600,
@@ -1104,20 +1294,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 30,
+          "Left": 14,
+          "Right": 377.984,
+          "Bottom": 33
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 0,
+          "Right": 377.187,
+          "Bottom": 18
+        }
       }
     },
     {
       "candidate": "063-div",
       "element": "settings.account-card",
       "board": {
-        "text": "$5.23 去充值",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -1145,13 +1349,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1160,6 +1360,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "$5.23",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1187,13 +1390,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1202,6 +1401,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "去充值",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1229,16 +1431,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "去充值",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1266,13 +1467,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 59,
+          "Left": 55.797,
+          "Right": 424.437,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 42,
+          "Left": 0,
+          "Right": 456.242,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -1280,6 +1492,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1307,16 +1522,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1344,13 +1558,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "065-span-去充值",
+        "board": {
+          "Top": 4,
+          "Left": 39.766,
+          "Right": 0,
+          "Bottom": 4
+        },
+        "screen": {
+          "Top": 3.5,
+          "Left": 38.758,
+          "Right": 0,
+          "Bottom": 3.5
+        }
       }
     },
     {
@@ -1358,6 +1583,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "这把 Key 的额度",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1385,16 +1613,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "这把 Key 的额度",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1422,13 +1649,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 10,
+          "Left": 183.016,
+          "Right": 204.484,
+          "Bottom": 61
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 153.813,
+          "Right": 196.273,
+          "Bottom": 42
+        }
       }
     },
     {
@@ -1436,6 +1674,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "不设上限",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 18,
         "lineHeight": 26,
         "fontWeight": 600,
@@ -1463,16 +1704,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "不设上限",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 16,
         "lineHeight": 24,
         "fontWeight": 600,
@@ -1500,20 +1740,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 30,
+          "Left": 183.016,
+          "Right": 204.484,
+          "Bottom": 33
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 153.813,
+          "Right": 196.273,
+          "Bottom": 18
+        }
       }
     },
     {
       "candidate": "069-div",
       "element": "settings.account-card",
       "board": {
-        "text": "只受账户余额限制",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -1541,13 +1795,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1556,6 +1806,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "只受账户余额限制",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1583,16 +1836,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
-        "text": "不设上限 只受账户余额限制",
+        "text": "只受账户余额限制",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1620,13 +1872,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 58,
+          "Left": 183.016,
+          "Right": 250.953,
+          "Bottom": 13
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 153.813,
+          "Right": 196.273,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -1634,6 +1897,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "近 7 天花了",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1661,16 +1927,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "近 7 天花了 · 本机",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1698,13 +1963,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 10,
+          "Left": 356.516,
+          "Right": 14,
+          "Bottom": 61
+        },
+        "screen": {
+          "Top": 0,
+          "Left": 334.727,
+          "Right": 0,
+          "Bottom": 42
+        }
       }
     },
     {
@@ -1712,6 +1988,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "19.6 积分",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 18,
         "lineHeight": 26,
         "fontWeight": 600,
@@ -1739,16 +2018,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": {
         "text": "19.6 积分",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 16,
         "lineHeight": 24,
         "fontWeight": 600,
@@ -1776,20 +2054,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 30,
+          "Left": 356.516,
+          "Right": 14,
+          "Bottom": 33
+        },
+        "screen": {
+          "Top": 18,
+          "Left": 334.727,
+          "Right": 0,
+          "Bottom": 18
+        }
       }
     },
     {
       "candidate": "073-div",
       "element": "settings.account-card",
       "board": {
-        "text": "41 次 用量与单价",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -1817,13 +2109,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 14,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 14
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1832,6 +2120,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "41 次",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1859,13 +2150,9 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": null
     },
@@ -1874,6 +2161,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "用量与单价",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1901,16 +2191,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "用量与单价",
+        "ownsText": true,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -1938,13 +2227,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "060-div",
+        "board": {
+          "Top": 59,
+          "Left": 395.266,
+          "Right": 60.468,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 42,
+          "Left": 373.844,
+          "Right": 57.89,
+          "Bottom": 0
+        }
       }
     },
     {
@@ -1952,6 +2252,9 @@
       "element": "settings.account-card",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 20,
         "fontWeight": 500,
@@ -1979,16 +2282,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2016,20 +2318,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "075-span-用量与单价",
+        "board": {
+          "Top": 4,
+          "Left": 64.265,
+          "Right": 0.001,
+          "Bottom": 4
+        },
+        "screen": {
+          "Top": 3.5,
+          "Left": 63.265,
+          "Right": 0.001,
+          "Bottom": 3.5
+        }
       }
     },
     {
       "candidate": "078-div",
       "element": "settings.ai-onboard-row",
       "board": {
-        "text": "用 AI 帮我接入 让你在用的 AI 助手（Claude Code、Codex 等）把别家模型接进 Nomi",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2057,16 +2373,15 @@
         "radiusBottomLeft": 10,
         "radiusBottomRight": 10,
         "paddingTop": 10,
-        "parentPaddingTop": 0,
         "paddingRight": 12,
-        "parentPaddingRight": 0,
         "paddingBottom": 10,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 0
+        "paddingLeft": 12
       },
       "screen": {
-        "text": "用 AI 帮我接入 让你在用的 AI 助手（Claude Code、Codex 等）把别家模型接进 Nomi",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2094,20 +2409,51 @@
         "radiusBottomLeft": 6,
         "radiusBottomRight": 6,
         "paddingTop": 10,
-        "parentPaddingTop": 16,
         "paddingRight": 12,
-        "parentPaddingRight": 16,
         "paddingBottom": 10,
-        "parentPaddingBottom": 16,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 16
-      }
+        "paddingLeft": 12
+      },
+      "parts": [
+        {
+          "anchor": "079-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "080-span-用AI帮我接入",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        },
+        {
+          "anchor": "082-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        }
+      ]
     },
     {
       "candidate": "079-svg",
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2135,16 +2481,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2172,13 +2517,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "078-div",
+        "board": {
+          "Top": 21,
+          "Left": 18,
+          "Right": 498,
+          "Bottom": 21
+        },
+        "screen": {
+          "Top": 21.75,
+          "Left": 19,
+          "Right": 497,
+          "Bottom": 21.75
+        }
       }
     },
     {
@@ -2186,6 +2542,9 @@
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "用 AI 帮我接入",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 20,
         "fontWeight": 600,
@@ -2213,16 +2572,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "用 AI 帮我接入",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 600,
@@ -2250,13 +2608,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "078-div",
+        "board": {
+          "Top": 10,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 28
+        },
+        "screen": {
+          "Top": 11,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 29
+        }
       }
     },
     {
@@ -2264,6 +2633,9 @@
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "让你在用的 AI 助手（Claude Code、Codex 等）把别家模型接进 Nomi",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2291,16 +2663,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "让你在用的 AI 助手（Claude Code、Codex 等）把别家模型接进 Nomi",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2328,13 +2699,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "078-div",
+        "board": {
+          "Top": 30,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 30.5,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 11
+        }
       }
     },
     {
@@ -2342,6 +2724,9 @@
       "element": "settings.ai-onboard-row",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2369,16 +2754,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2406,20 +2790,34 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "078-div",
+        "board": {
+          "Top": 22.5,
+          "Left": 507,
+          "Right": 12,
+          "Bottom": 22.5
+        },
+        "screen": {
+          "Top": 23.25,
+          "Left": 506,
+          "Right": 13,
+          "Bottom": 23.25
+        }
       }
     },
     {
       "candidate": "083-div",
       "element": "settings.other-ways.misc",
       "board": {
-        "text": "其他接入方式 本机模型 · 中转站 · 数据源 · 网络与导入导出",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2447,16 +2845,15 @@
         "radiusBottomLeft": 10,
         "radiusBottomRight": 10,
         "paddingTop": 10,
-        "parentPaddingTop": 0,
         "paddingRight": 12,
-        "parentPaddingRight": 0,
         "paddingBottom": 10,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 0
+        "paddingLeft": 12
       },
       "screen": {
-        "text": "其他接入方式 本机模型 · 中转站 · 数据源 · 网络与导入导出",
+        "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2484,20 +2881,61 @@
         "radiusBottomLeft": 6,
         "radiusBottomRight": 6,
         "paddingTop": 10,
-        "parentPaddingTop": 16,
         "paddingRight": 12,
-        "parentPaddingRight": 16,
         "paddingBottom": 10,
-        "parentPaddingBottom": 16,
-        "paddingLeft": 12,
-        "parentPaddingLeft": 16
-      }
+        "paddingLeft": 12
+      },
+      "parts": [
+        {
+          "anchor": "084-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          }
+        },
+        {
+          "anchor": "085-span-其他接入方式",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          }
+        },
+        {
+          "anchor": "087-svg",
+          "board": {
+            "paddingTop": 0,
+            "paddingRight": 0,
+            "paddingBottom": 0,
+            "paddingLeft": 0
+          },
+          "screen": null
+        }
+      ]
     },
     {
       "candidate": "084-svg",
       "element": "settings.other-ways.misc",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2525,16 +2963,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2562,13 +2999,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "083-div",
+        "board": {
+          "Top": 21,
+          "Left": 18,
+          "Right": 498,
+          "Bottom": 21
+        },
+        "screen": {
+          "Top": 21.75,
+          "Left": 19,
+          "Right": 497,
+          "Bottom": 21.75
+        }
       }
     },
     {
@@ -2576,6 +3024,9 @@
       "element": "settings.other-ways.misc",
       "board": {
         "text": "其他接入方式",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 20,
         "fontWeight": 600,
@@ -2603,16 +3054,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "其他接入方式",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 600,
@@ -2640,13 +3090,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "083-div",
+        "board": {
+          "Top": 10,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 28
+        },
+        "screen": {
+          "Top": 11,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 29
+        }
       }
     },
     {
@@ -2654,6 +3115,9 @@
       "element": "settings.other-ways.relay",
       "board": {
         "text": "本机模型 · 中转站 · 数据源 · 网络与导入导出",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2681,16 +3145,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "本机模型 · 中转站 · 数据源 · 网络与导入导出",
+        "ownsText": true,
+        "fixedHeight": false,
+        "intrinsicWidth": false,
         "fontSize": 12,
         "lineHeight": 18,
         "fontWeight": 400,
@@ -2718,13 +3181,24 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "083-div",
+        "board": {
+          "Top": 30,
+          "Left": 52,
+          "Right": 37,
+          "Bottom": 10
+        },
+        "screen": {
+          "Top": 30.5,
+          "Left": 53,
+          "Right": 38,
+          "Bottom": 11
+        }
       }
     },
     {
@@ -2732,6 +3206,9 @@
       "element": "settings.other-ways.misc",
       "board": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 14,
         "lineHeight": 20,
         "fontWeight": 400,
@@ -2759,16 +3236,15 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 0,
         "paddingRight": 0,
-        "parentPaddingRight": 0,
         "paddingBottom": 0,
-        "parentPaddingBottom": 0,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 0
+        "paddingLeft": 0
       },
       "screen": {
         "text": "",
+        "ownsText": false,
+        "fixedHeight": true,
+        "intrinsicWidth": true,
         "fontSize": 13,
         "lineHeight": 19.5,
         "fontWeight": 400,
@@ -2796,47 +3272,28 @@
         "radiusBottomLeft": 0,
         "radiusBottomRight": 0,
         "paddingTop": 0,
-        "parentPaddingTop": 10,
         "paddingRight": 0,
-        "parentPaddingRight": 12,
         "paddingBottom": 0,
-        "parentPaddingBottom": 10,
-        "paddingLeft": 0,
-        "parentPaddingLeft": 12
+        "paddingLeft": 0
+      },
+      "edges": {
+        "relativeTo": "083-div",
+        "board": {
+          "Top": 22.5,
+          "Left": 507,
+          "Right": 12,
+          "Bottom": 22.5
+        },
+        "screen": {
+          "Top": 23.25,
+          "Left": 506,
+          "Right": 13,
+          "Bottom": 23.25
+        }
       }
     }
   ],
   "differences": [
-    {
-      "candidate": "047-div",
-      "element": "settings.frame-height",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "047-div",
-      "element": "settings.frame-height",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "047-div",
-      "element": "settings.frame-height",
-      "property": "text",
-      "board": "模型 APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
-      "screen": "模型 APIMart 已连接 · 图片 26 · 视频 30 · 声音 10 · 文字 25",
-      "boardToken": "模型 APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
-      "screenToken": "模型 APIMart 已连接 · 图片 26 · 视频 30 · 声音 10 · 文字 25",
-      "reason": "different"
-    },
     {
       "candidate": "047-div",
       "element": "settings.frame-height",
@@ -2881,7 +3338,7 @@
       "candidate": "048-div",
       "element": "settings.header",
       "property": "pair",
-      "board": "模型 APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -2906,76 +3363,6 @@
       "reason": "different"
     },
     {
-      "candidate": "049-div-模型",
-      "element": "settings.header",
-      "property": "y",
-      "board": 9,
-      "screen": 10,
-      "boardToken": 9,
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "049-div-模型",
-      "element": "settings.header",
-      "property": "width",
-      "board": 290.109,
-      "screen": 492,
-      "boardToken": 290.109,
-      "screenToken": 492,
-      "reason": "different"
-    },
-    {
-      "candidate": "049-div-模型",
-      "element": "settings.header",
-      "property": "height",
-      "board": 22,
-      "screen": 21,
-      "boardToken": 22,
-      "screenToken": 21,
-      "reason": "different"
-    },
-    {
-      "candidate": "049-div-模型",
-      "element": "settings.header",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "049-div-模型",
-      "element": "settings.header",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 56,
-      "boardToken": "spacing.0",
-      "screenToken": 56,
-      "reason": "different"
-    },
-    {
-      "candidate": "049-div-模型",
-      "element": "settings.header",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "049-div-模型",
-      "element": "settings.header",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
       "candidate": "050-div-APIMart已连接图片",
       "element": "settings.header",
       "property": "lineHeight",
@@ -2983,76 +3370,6 @@
       "screen": 18,
       "boardToken": "lineHeight.caption",
       "screenToken": "lineHeight.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "050-div-APIMart已连接图片",
-      "element": "settings.header",
-      "property": "text",
-      "board": "APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
-      "screen": "APIMart 已连接 · 图片 26 · 视频 30 · 声音 10 · 文字 25",
-      "boardToken": "APIMart 已连接 · 图片 24 · 视频 28 · 声音 9 · 文字 24",
-      "screenToken": "APIMart 已连接 · 图片 26 · 视频 30 · 声音 10 · 文字 25",
-      "reason": "different"
-    },
-    {
-      "candidate": "050-div-APIMart已连接图片",
-      "element": "settings.header",
-      "property": "width",
-      "board": 290.109,
-      "screen": 492,
-      "boardToken": 290.109,
-      "screenToken": 492,
-      "reason": "different"
-    },
-    {
-      "candidate": "050-div-APIMart已连接图片",
-      "element": "settings.header",
-      "property": "height",
-      "board": 16,
-      "screen": 18,
-      "boardToken": 16,
-      "screenToken": 18,
-      "reason": "different"
-    },
-    {
-      "candidate": "050-div-APIMart已连接图片",
-      "element": "settings.header",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "050-div-APIMart已连接图片",
-      "element": "settings.header",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 56,
-      "boardToken": "spacing.0",
-      "screenToken": 56,
-      "reason": "different"
-    },
-    {
-      "candidate": "050-div-APIMart已连接图片",
-      "element": "settings.header",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "050-div-APIMart已连接图片",
-      "element": "settings.header",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
       "reason": "different"
     },
     {
@@ -3066,61 +3383,11 @@
     {
       "candidate": "052-div",
       "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
       "property": "backgroundColor",
       "board": "paper",
       "screen": "transparent",
       "boardToken": "paper",
       "screenToken": "transparent",
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "APIMart 已连接 sk-••••f3a9 · 存在系统钥匙串 账户余额 52.3 积分 $5.23 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 19.6 积分 41 次 用量与单价",
-      "screen": "APIMart 已连接 ••••-key · 存在系统钥匙串 账户余额 52.3 积分 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 · 本机 19.6 积分 41 次 · 用量与单价",
-      "boardToken": "APIMart 已连接 sk-••••f3a9 · 存在系统钥匙串 账户余额 52.3 积分 $5.23 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 19.6 积分 41 次 用量与单价",
-      "screenToken": "APIMart 已连接 ••••-key · 存在系统钥匙串 账户余额 52.3 积分 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 · 本机 19.6 积分 41 次 · 用量与单价",
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 72,
-      "screen": 76,
-      "boardToken": 72,
-      "screenToken": 76,
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 151,
-      "screen": 138.5,
-      "boardToken": 151,
-      "screenToken": 138.5,
       "reason": "different"
     },
     {
@@ -3186,31 +3453,11 @@
     {
       "candidate": "052-div",
       "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
       "property": "paddingRight",
       "board": 0,
       "screen": 12,
       "boardToken": "spacing.0",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
       "reason": "different"
     },
     {
@@ -3226,101 +3473,11 @@
     {
       "candidate": "052-div",
       "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
       "property": "paddingLeft",
       "board": 0,
       "screen": 12,
       "boardToken": "spacing.0",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "052-div",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "APIMart 已连接 sk-••••f3a9 · 存在系统钥匙串",
-      "screen": "APIMart 已连接 ••••-key · 存在系统钥匙串",
-      "boardToken": "APIMart 已连接 sk-••••f3a9 · 存在系统钥匙串",
-      "screenToken": "APIMart 已连接 ••••-key · 存在系统钥匙串",
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 16,
-      "screen": 29,
-      "boardToken": 16,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 72,
-      "screen": 87,
-      "boardToken": 72,
-      "screenToken": 87,
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 532,
-      "screen": 434,
-      "boardToken": 532,
-      "screenToken": 434,
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 62,
-      "screen": 39.5,
-      "boardToken": 62,
-      "screenToken": 39.5,
       "reason": "different"
     },
     {
@@ -3366,16 +3523,6 @@
     {
       "candidate": "053-div",
       "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 8,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.2",
-      "reason": "different"
-    },
-    {
-      "candidate": "053-div",
-      "element": "settings.account-card",
       "property": "paddingLeft",
       "board": 14,
       "screen": 0,
@@ -3384,64 +3531,31 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "054-div",
+      "candidate": "053-div",
       "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
+      "part": "054-div",
+      "property": "pair",
+      "board": "054-div",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
-      "candidate": "054-div",
+      "candidate": "053-div",
       "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
+      "part": "058-svg",
+      "property": "pair",
+      "board": "058-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
-      "candidate": "054-div",
+      "candidate": "053-div",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "054-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 84,
-      "screen": 87,
-      "boardToken": 84,
-      "screenToken": 87,
-      "reason": "different"
-    },
-    {
-      "candidate": "054-div",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 438,
-      "screen": 434,
-      "boardToken": 438,
-      "screenToken": 434,
-      "reason": "different"
-    },
-    {
-      "candidate": "054-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 21,
-      "boardToken": 20,
-      "screenToken": 21,
-      "reason": "different"
+      "part": "059-svg",
+      "property": "pair",
+      "board": "059-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "055-span-APIMart",
@@ -3464,46 +3578,6 @@
       "reason": "different"
     },
     {
-      "candidate": "055-span-APIMart",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "055-span-APIMart",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 84,
-      "screen": 87,
-      "boardToken": 84,
-      "screenToken": 87,
-      "reason": "different"
-    },
-    {
-      "candidate": "055-span-APIMart",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 54.563,
-      "screen": 56.086,
-      "boardToken": 54.563,
-      "screenToken": 56.086,
-      "reason": "different"
-    },
-    {
-      "candidate": "055-span-APIMart",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 21,
-      "boardToken": 20,
-      "screenToken": 21,
-      "reason": "different"
-    },
-    {
       "candidate": "056-span-已连接",
       "element": "settings.account-card",
       "property": "lineHeight",
@@ -3521,36 +3595,6 @@
       "screen": 400,
       "boardToken": 500,
       "screenToken": 400,
-      "reason": "different"
-    },
-    {
-      "candidate": "056-span-已连接",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 92.563,
-      "screen": 93.086,
-      "boardToken": 92.563,
-      "screenToken": 93.086,
-      "reason": "different"
-    },
-    {
-      "candidate": "056-span-已连接",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 84,
-      "screen": 89.25,
-      "boardToken": 84,
-      "screenToken": 89.25,
-      "reason": "different"
-    },
-    {
-      "candidate": "056-span-已连接",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 47.734,
-      "screen": 45.727,
-      "boardToken": 47.734,
-      "screenToken": 45.727,
       "reason": "different"
     },
     {
@@ -3604,56 +3648,6 @@
       "reason": "different"
     },
     {
-      "candidate": "057-span-skf3a9存在系统钥匙",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "sk-••••f3a9 · 存在系统钥匙串",
-      "screen": "••••-key · 存在系统钥匙串",
-      "boardToken": "sk-••••f3a9 · 存在系统钥匙串",
-      "screenToken": "••••-key · 存在系统钥匙串",
-      "reason": "different"
-    },
-    {
-      "candidate": "057-span-skf3a9存在系统钥匙",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "057-span-skf3a9存在系统钥匙",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 104,
-      "screen": 108,
-      "boardToken": 104,
-      "screenToken": 108,
-      "reason": "different"
-    },
-    {
-      "candidate": "057-span-skf3a9存在系统钥匙",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 438,
-      "screen": 434,
-      "boardToken": 438,
-      "screenToken": 434,
-      "reason": "different"
-    },
-    {
-      "candidate": "057-span-skf3a9存在系统钥匙",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 18,
-      "screen": 18.5,
-      "boardToken": 18,
-      "screenToken": 18.5,
-      "reason": "different"
-    },
-    {
       "candidate": "058-svg",
       "element": "settings.account-card",
       "property": "pair",
@@ -3668,86 +3662,6 @@
       "board": "",
       "screen": null,
       "reason": "unmatched"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 12,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.caption",
-      "reason": "different"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 18,
-      "boardToken": "lineHeight.body",
-      "screenToken": "lineHeight.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "color",
-      "board": "ink",
-      "screen": "ink-60",
-      "boardToken": "ink",
-      "screenToken": "ink-60",
-      "reason": "different"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "text",
-      "board": "账户余额 52.3 积分 $5.23 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 19.6 积分 41 次 用量与单价",
-      "screen": "账户余额 52.3 积分 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 · 本机 19.6 积分 41 次 · 用量与单价",
-      "boardToken": "账户余额 52.3 积分 $5.23 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 19.6 积分 41 次 用量与单价",
-      "screenToken": "账户余额 52.3 积分 去充值 这把 Key 的额度 不设上限 只受账户余额限制 近 7 天花了 · 本机 19.6 积分 41 次 · 用量与单价",
-      "reason": "different"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 16,
-      "screen": 29,
-      "boardToken": 16,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 134,
-      "screen": 143.5,
-      "boardToken": 134,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 532,
-      "screen": 506,
-      "boardToken": 532,
-      "screenToken": 506,
-      "reason": "different"
-    },
-    {
-      "candidate": "060-div",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 89,
-      "screen": 60,
-      "boardToken": 89,
-      "screenToken": 60,
-      "reason": "different"
     },
     {
       "candidate": "060-div",
@@ -3792,71 +3706,163 @@
     {
       "candidate": "060-div",
       "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
+      "part": "061-span-账户余额",
+      "property": "paddingTop",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
     },
     {
       "candidate": "060-div",
       "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 0,
+      "part": "061-span-账户余额",
+      "property": "paddingRight",
+      "board": 14,
       "screen": 12,
-      "boardToken": "spacing.0",
+      "boardToken": 14,
       "screenToken": "spacing.3",
-      "reason": "different"
+      "reason": "off-scale"
     },
     {
       "candidate": "060-div",
       "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
+      "part": "061-span-账户余额",
+      "property": "paddingBottom",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
     },
     {
       "candidate": "060-div",
       "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 0,
+      "part": "061-span-账户余额",
+      "property": "paddingLeft",
+      "board": 14,
+      "screen": 0,
+      "boardToken": 14,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "067-span-这把Key的额度",
+      "property": "paddingTop",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "067-span-这把Key的额度",
+      "property": "paddingRight",
+      "board": 14,
       "screen": 12,
-      "boardToken": "spacing.0",
+      "boardToken": 14,
       "screenToken": "spacing.3",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "067-span-这把Key的额度",
+      "property": "paddingBottom",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "067-span-这把Key的额度",
+      "property": "paddingLeft",
+      "board": 14,
+      "screen": 12,
+      "boardToken": 14,
+      "screenToken": "spacing.3",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "071-span-近7天花了",
+      "property": "paddingTop",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "071-span-近7天花了",
+      "property": "paddingRight",
+      "board": 14,
+      "screen": 0,
+      "boardToken": 14,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "071-span-近7天花了",
+      "property": "paddingBottom",
+      "board": 10,
+      "screen": 0,
+      "boardToken": 10,
+      "screenToken": "spacing.0",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "part": "071-span-近7天花了",
+      "property": "paddingLeft",
+      "board": 14,
+      "screen": 12,
+      "boardToken": 14,
+      "screenToken": "spacing.3",
+      "reason": "off-scale"
+    },
+    {
+      "candidate": "060-div",
+      "element": "settings.account-card",
+      "property": "insetRight",
+      "board": 0,
+      "screen": 13,
+      "boardToken": 0,
+      "screenToken": 13,
       "reason": "different"
     },
     {
-      "candidate": "061-span-账户余额",
+      "candidate": "060-div",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
+      "property": "insetBottom",
+      "board": 0,
+      "screen": 11,
+      "boardToken": 0,
+      "screenToken": 11,
       "reason": "different"
     },
     {
-      "candidate": "061-span-账户余额",
+      "candidate": "060-div",
       "element": "settings.account-card",
-      "property": "y",
-      "board": 144,
-      "screen": 143.5,
-      "boardToken": 144,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "061-span-账户余额",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 140.016,
-      "screen": 128.813,
-      "boardToken": 140.016,
-      "screenToken": 128.813,
+      "property": "insetLeft",
+      "board": 0,
+      "screen": 13,
+      "boardToken": 0,
+      "screenToken": 13,
       "reason": "different"
     },
     {
@@ -3876,46 +3882,6 @@
       "board": 2,
       "screen": 0,
       "boardToken": 2,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "061-span-账户余额",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "061-span-账户余额",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "061-span-账户余额",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "061-span-账户余额",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
       "screenToken": "spacing.0",
       "reason": "off-scale"
     },
@@ -3952,46 +3918,6 @@
     {
       "candidate": "062-span-523积分",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 30,
-      "screen": 29,
-      "boardToken": 30,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 164,
-      "screen": 161.5,
-      "boardToken": 164,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 140.016,
-      "screen": 128.813,
-      "boardToken": 140.016,
-      "screenToken": 128.813,
-      "reason": "different"
-    },
-    {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 26,
-      "screen": 24,
-      "boardToken": 26,
-      "screenToken": 24,
-      "reason": "different"
-    },
-    {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4010,50 +3936,10 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "062-span-523积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
       "candidate": "063-div",
       "element": "settings.account-card",
       "property": "pair",
-      "board": "$5.23 去充值",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -4088,91 +3974,11 @@
     {
       "candidate": "065-span-去充值",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 71.797,
-      "screen": 29,
-      "boardToken": 71.797,
-      "screenToken": 29,
-      "reason": "different"
-    },
-    {
-      "candidate": "065-span-去充值",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 193,
-      "screen": 185.5,
-      "boardToken": 193,
-      "screenToken": 185.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "065-span-去充值",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 51.766,
-      "screen": 49.758,
-      "boardToken": 51.766,
-      "screenToken": 49.758,
-      "reason": "different"
-    },
-    {
-      "candidate": "065-span-去充值",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 18,
-      "boardToken": 20,
-      "screenToken": 18,
-      "reason": "different"
-    },
-    {
-      "candidate": "065-span-去充值",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 8,
       "screen": 0,
       "boardToken": "spacing.2",
       "screenToken": "spacing.0",
-      "reason": "different"
-    },
-    {
-      "candidate": "066-svg",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 18,
-      "boardToken": "lineHeight.body",
-      "screenToken": "lineHeight.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "066-svg",
-      "element": "settings.account-card",
-      "property": "fontWeight",
-      "board": 500,
-      "screen": 400,
-      "boardToken": 500,
-      "screenToken": 400,
-      "reason": "different"
-    },
-    {
-      "candidate": "066-svg",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 111.563,
-      "screen": 67.758,
-      "boardToken": 111.563,
-      "screenToken": 67.758,
-      "reason": "different"
-    },
-    {
-      "candidate": "066-svg",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 197,
-      "screen": 189,
-      "boardToken": 197,
-      "screenToken": 189,
       "reason": "different"
     },
     {
@@ -4203,36 +4009,6 @@
       "screen": 0,
       "boardToken": "spacing.2",
       "screenToken": "spacing.0",
-      "reason": "different"
-    },
-    {
-      "candidate": "067-span-这把Key的额度",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 199.016,
-      "screen": 182.813,
-      "boardToken": 199.016,
-      "screenToken": 182.813,
-      "reason": "different"
-    },
-    {
-      "candidate": "067-span-这把Key的额度",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 144,
-      "screen": 143.5,
-      "boardToken": 144,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "067-span-这把Key的额度",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 144.5,
-      "screen": 155.914,
-      "boardToken": 144.5,
-      "screenToken": 155.914,
       "reason": "different"
     },
     {
@@ -4243,46 +4019,6 @@
       "screen": 0,
       "boardToken": 2,
       "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "067-span-这把Key的额度",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "067-span-这把Key的额度",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "067-span-这把Key的额度",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "067-span-这把Key的额度",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
       "reason": "off-scale"
     },
     {
@@ -4318,46 +4054,6 @@
     {
       "candidate": "068-span-不设上限",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 199.016,
-      "screen": 182.813,
-      "boardToken": 199.016,
-      "screenToken": 182.813,
-      "reason": "different"
-    },
-    {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 164,
-      "screen": 161.5,
-      "boardToken": 164,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 144.5,
-      "screen": 155.914,
-      "boardToken": 144.5,
-      "screenToken": 155.914,
-      "reason": "different"
-    },
-    {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 26,
-      "screen": 24,
-      "boardToken": 26,
-      "screenToken": 24,
-      "reason": "different"
-    },
-    {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4376,50 +4072,10 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "068-span-不设上限",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
       "candidate": "069-div",
       "element": "settings.account-card",
       "property": "pair",
-      "board": "只受账户余额限制",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -4436,56 +4092,6 @@
     {
       "candidate": "070-span-只受账户余额限制",
       "element": "settings.account-card",
-      "property": "text",
-      "board": "只受账户余额限制",
-      "screen": "不设上限 只受账户余额限制",
-      "boardToken": "只受账户余额限制",
-      "screenToken": "不设上限 只受账户余额限制",
-      "reason": "different"
-    },
-    {
-      "candidate": "070-span-只受账户余额限制",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 199.016,
-      "screen": 182.813,
-      "boardToken": 199.016,
-      "screenToken": 182.813,
-      "reason": "different"
-    },
-    {
-      "candidate": "070-span-只受账户余额限制",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 192,
-      "screen": 161.5,
-      "boardToken": 192,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "070-span-只受账户余额限制",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 98.031,
-      "screen": 155.914,
-      "boardToken": 98.031,
-      "screenToken": 155.914,
-      "reason": "different"
-    },
-    {
-      "candidate": "070-span-只受账户余额限制",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 18,
-      "screen": 42,
-      "boardToken": 18,
-      "screenToken": 42,
-      "reason": "different"
-    },
-    {
-      "candidate": "070-span-只受账户余额限制",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4494,63 +4100,13 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "070-span-只受账户余额限制",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "070-span-只受账户余额限制",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
       "candidate": "071-span-近7天花了",
       "element": "settings.account-card",
       "property": "text",
       "board": "近 7 天花了",
       "screen": "近 7 天花了 · 本机",
-      "boardToken": "近 7 天花了",
-      "screenToken": "近 7 天花了 · 本机",
-      "reason": "different"
-    },
-    {
-      "candidate": "071-span-近7天花了",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 372.516,
-      "screen": 363.727,
-      "boardToken": 372.516,
-      "screenToken": 363.727,
-      "reason": "different"
-    },
-    {
-      "candidate": "071-span-近7天花了",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 144,
-      "screen": 143.5,
-      "boardToken": 144,
-      "screenToken": 143.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "071-span-近7天花了",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 161.484,
-      "screen": 171.273,
-      "boardToken": 161.484,
-      "screenToken": 171.273,
+      "boardToken": "近 # 天花了",
+      "screenToken": "近 # 天花了 · 本机",
       "reason": "different"
     },
     {
@@ -4561,46 +4117,6 @@
       "screen": 0,
       "boardToken": 2,
       "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "071-span-近7天花了",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "071-span-近7天花了",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "071-span-近7天花了",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "071-span-近7天花了",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 12,
-      "boardToken": 14,
-      "screenToken": "spacing.3",
       "reason": "off-scale"
     },
     {
@@ -4636,46 +4152,6 @@
     {
       "candidate": "072-span-196积分",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 372.516,
-      "screen": 363.727,
-      "boardToken": 372.516,
-      "screenToken": 363.727,
-      "reason": "different"
-    },
-    {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 164,
-      "screen": 161.5,
-      "boardToken": 164,
-      "screenToken": 161.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 161.484,
-      "screen": 171.273,
-      "boardToken": 161.484,
-      "screenToken": 171.273,
-      "reason": "different"
-    },
-    {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 26,
-      "screen": 24,
-      "boardToken": 26,
-      "screenToken": 24,
-      "reason": "different"
-    },
-    {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 2,
       "screen": 0,
@@ -4694,50 +4170,10 @@
       "reason": "off-scale"
     },
     {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingTop",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingRight",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingBottom",
-      "board": 10,
-      "screen": 0,
-      "boardToken": 10,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
-      "candidate": "072-span-196积分",
-      "element": "settings.account-card",
-      "property": "parentPaddingLeft",
-      "board": 14,
-      "screen": 0,
-      "boardToken": 14,
-      "screenToken": "spacing.0",
-      "reason": "off-scale"
-    },
-    {
       "candidate": "073-div",
       "element": "settings.account-card",
       "property": "pair",
-      "board": "41 次 用量与单价",
+      "board": "",
       "screen": null,
       "reason": "unmatched"
     },
@@ -4772,46 +4208,6 @@
     {
       "candidate": "075-span-用量与单价",
       "element": "settings.account-card",
-      "property": "x",
-      "board": 411.266,
-      "screen": 402.844,
-      "boardToken": 411.266,
-      "screenToken": 402.844,
-      "reason": "different"
-    },
-    {
-      "candidate": "075-span-用量与单价",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 193,
-      "screen": 185.5,
-      "boardToken": 193,
-      "screenToken": 185.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "075-span-用量与单价",
-      "element": "settings.account-card",
-      "property": "width",
-      "board": 76.266,
-      "screen": 74.266,
-      "boardToken": 76.266,
-      "screenToken": 74.266,
-      "reason": "different"
-    },
-    {
-      "candidate": "075-span-用量与单价",
-      "element": "settings.account-card",
-      "property": "height",
-      "board": 20,
-      "screen": 18,
-      "boardToken": 20,
-      "screenToken": 18,
-      "reason": "different"
-    },
-    {
-      "candidate": "075-span-用量与单价",
-      "element": "settings.account-card",
       "property": "gapBefore",
       "board": 8,
       "screen": 0,
@@ -4827,46 +4223,6 @@
       "screen": 12,
       "boardToken": "spacing.4",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "076-svg",
-      "element": "settings.account-card",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 18,
-      "boardToken": "lineHeight.body",
-      "screenToken": "lineHeight.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "076-svg",
-      "element": "settings.account-card",
-      "property": "fontWeight",
-      "board": 500,
-      "screen": 400,
-      "boardToken": 500,
-      "screenToken": 400,
-      "reason": "different"
-    },
-    {
-      "candidate": "076-svg",
-      "element": "settings.account-card",
-      "property": "x",
-      "board": 475.531,
-      "screen": 466.109,
-      "boardToken": 475.531,
-      "screenToken": 466.109,
-      "reason": "different"
-    },
-    {
-      "candidate": "076-svg",
-      "element": "settings.account-card",
-      "property": "y",
-      "board": 197,
-      "screen": 189,
-      "boardToken": 197,
-      "screenToken": 189,
       "reason": "different"
     },
     {
@@ -4907,36 +4263,6 @@
       "screen": 12,
       "boardToken": "spacing.4",
       "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "078-div",
-      "element": "settings.ai-onboard-row",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "078-div",
-      "element": "settings.ai-onboard-row",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "078-div",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 271,
-      "screen": 258,
-      "boardToken": 271,
-      "screenToken": 258,
       "reason": "different"
     },
     {
@@ -5002,26 +4328,6 @@
     {
       "candidate": "078-div",
       "element": "settings.ai-onboard-row",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "078-div",
-      "element": "settings.ai-onboard-row",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "078-div",
-      "element": "settings.ai-onboard-row",
       "property": "paddingBottom",
       "board": 10,
       "screen": 10,
@@ -5032,62 +4338,29 @@
     {
       "candidate": "078-div",
       "element": "settings.ai-onboard-row",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
+      "part": "079-svg",
+      "property": "pair",
+      "board": "079-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "078-div",
       "element": "settings.ai-onboard-row",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
+      "part": "080-span-用AI帮我接入",
+      "property": "pair",
+      "board": "080-span-用AI帮我接入",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
-      "candidate": "079-svg",
+      "candidate": "078-div",
       "element": "settings.ai-onboard-row",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "079-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "079-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 34,
-      "screen": 35,
-      "boardToken": 34,
-      "screenToken": 35,
-      "reason": "different"
-    },
-    {
-      "candidate": "079-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 292,
-      "screen": 279.75,
-      "boardToken": 292,
-      "screenToken": 279.75,
-      "reason": "different"
+      "part": "082-svg",
+      "property": "pair",
+      "board": "082-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "080-span-用AI帮我接入",
@@ -5097,146 +4370,6 @@
       "screen": 19.5,
       "boardToken": "lineHeight.body",
       "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "080-span-用AI帮我接入",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "080-span-用AI帮我接入",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 281,
-      "screen": 269,
-      "boardToken": 281,
-      "screenToken": 269,
-      "reason": "different"
-    },
-    {
-      "candidate": "080-span-用AI帮我接入",
-      "element": "settings.ai-onboard-row",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "080-span-用AI帮我接入",
-      "element": "settings.ai-onboard-row",
-      "property": "height",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": 20,
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "081-span-让你在用的AI助手Cla",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "081-span-让你在用的AI助手Cla",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 301,
-      "screen": 288.5,
-      "boardToken": 301,
-      "screenToken": 288.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "081-span-让你在用的AI助手Cla",
-      "element": "settings.ai-onboard-row",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "082-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "082-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "082-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "x",
-      "board": 523,
-      "screen": 522,
-      "boardToken": 523,
-      "screenToken": 522,
-      "reason": "different"
-    },
-    {
-      "candidate": "082-svg",
-      "element": "settings.ai-onboard-row",
-      "property": "y",
-      "board": 293.5,
-      "screen": 281.25,
-      "boardToken": 293.5,
-      "screenToken": 281.25,
-      "reason": "different"
-    },
-    {
-      "candidate": "083-div",
-      "element": "settings.other-ways.misc",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "083-div",
-      "element": "settings.other-ways.misc",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "083-div",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 341,
-      "screen": 329.5,
-      "boardToken": 341,
-      "screenToken": 329.5,
       "reason": "different"
     },
     {
@@ -5302,26 +4435,6 @@
     {
       "candidate": "083-div",
       "element": "settings.other-ways.misc",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "083-div",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "083-div",
-      "element": "settings.other-ways.misc",
       "property": "paddingBottom",
       "board": 10,
       "screen": 10,
@@ -5332,62 +4445,11 @@
     {
       "candidate": "083-div",
       "element": "settings.other-ways.misc",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "083-div",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 16,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.4",
-      "reason": "different"
-    },
-    {
-      "candidate": "084-svg",
-      "element": "settings.other-ways.misc",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "084-svg",
-      "element": "settings.other-ways.misc",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "084-svg",
-      "element": "settings.other-ways.misc",
-      "property": "x",
-      "board": 34,
-      "screen": 35,
-      "boardToken": 34,
-      "screenToken": 35,
-      "reason": "different"
-    },
-    {
-      "candidate": "084-svg",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 362,
-      "screen": 351.25,
-      "boardToken": 362,
-      "screenToken": 351.25,
-      "reason": "different"
+      "part": "087-svg",
+      "property": "pair",
+      "board": "087-svg",
+      "screen": null,
+      "reason": "unmatched"
     },
     {
       "candidate": "084-svg",
@@ -5407,156 +4469,6 @@
       "screen": 19.5,
       "boardToken": "lineHeight.body",
       "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "085-span-其他接入方式",
-      "element": "settings.other-ways.misc",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "085-span-其他接入方式",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 351,
-      "screen": 340.5,
-      "boardToken": 351,
-      "screenToken": 340.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "085-span-其他接入方式",
-      "element": "settings.other-ways.misc",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "085-span-其他接入方式",
-      "element": "settings.other-ways.misc",
-      "property": "height",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": 20,
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "086-span-本机模型中转站数据源网络",
-      "element": "settings.other-ways.relay",
-      "property": "x",
-      "board": 68,
-      "screen": 69,
-      "boardToken": 68,
-      "screenToken": 69,
-      "reason": "different"
-    },
-    {
-      "candidate": "086-span-本机模型中转站数据源网络",
-      "element": "settings.other-ways.relay",
-      "property": "y",
-      "board": 371,
-      "screen": 360,
-      "boardToken": 371,
-      "screenToken": 360,
-      "reason": "different"
-    },
-    {
-      "candidate": "086-span-本机模型中转站数据源网络",
-      "element": "settings.other-ways.relay",
-      "property": "width",
-      "board": 443,
-      "screen": 441,
-      "boardToken": 443,
-      "screenToken": 441,
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "fontSize",
-      "board": 14,
-      "screen": 13,
-      "boardToken": "fontSize.body",
-      "screenToken": "fontSize.bodySm",
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "lineHeight",
-      "board": 20,
-      "screen": 19.5,
-      "boardToken": "lineHeight.body",
-      "screenToken": 19.5,
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "x",
-      "board": 523,
-      "screen": 522,
-      "boardToken": 523,
-      "screenToken": 522,
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "y",
-      "board": 363.5,
-      "screen": 352.75,
-      "boardToken": 363.5,
-      "screenToken": 352.75,
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingTop",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingRight",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingBottom",
-      "board": 0,
-      "screen": 10,
-      "boardToken": "spacing.0",
-      "screenToken": 10,
-      "reason": "different"
-    },
-    {
-      "candidate": "087-svg",
-      "element": "settings.other-ways.misc",
-      "property": "parentPaddingLeft",
-      "board": 0,
-      "screen": 12,
-      "boardToken": "spacing.0",
-      "screenToken": "spacing.3",
       "reason": "different"
     }
   ]
