@@ -1,7 +1,7 @@
 # 图层分离 PR1 · 拍板图 | 真截图 并排索引
 
 - 板：docs/design/boards/2026-11-26-layer-split/LayerSplit.board.json（拍板稿 S-E 第 13 版渲染图，仓库外 /Users/aoqimin/Nomi-coord/tmp/s-de-canvas/v-1126/se-*.png）
-- 真截图构建：分支源码提交 `f280a1bcd`（walk11-zh / walk11-en = tests/ux/layer-split.walk.mjs；runC2 = 同一构建上 ui.mjs 补拍），假 APIMart 替身。
+- 真截图构建：分支源码提交 `f280a1bcd`（walk11-zh / walk11-en = tests/ux/layer-split.walk.mjs；runC2 = 同一构建上 ui.mjs 补拍；runC3 = 构建 bd34af2b6 上 ui.mjs 补拍英文派生节点，之间只有不改行为的提交），假 APIMart 替身。
 - 元素状态全部保持 in-progress（待另一条线逐态核过才标 implemented）。
 
 | 元素 id | 状态 | 并排图 | 真截图来源 | 断言 / 说明 | 提交 |
@@ -11,7 +11,7 @@
 | layers.entry | 缺模型（不灰 · 点名去接） | [entry.no-model.png](entry.no-model.png) | walk11-zh/LS09-no-model-guide.zh-CN.light.png | LS09 / LS10：第二行点名 APIMart，点了打开接入页（D-1126-se-missing-model-guide 取代板上「灰 + 原因」） | f280a1bcd |
 | layers.entry-whiteboard-hint | 悬停（原生 title） | [whiteboard-hint.zh-light.png](whiteboard-hint.zh-light.png) | walk11-zh/LS04-split-landed.zh-CN.light.png | 原生 title 截图拍不到，走查断言 title =「在画板中编辑图层」/ en「Edit the layers on the whiteboard」 | f280a1bcd |
 | layers.derived-node | zh 浅色 · 已备好 · 未生成 | [derived-node.zh-light.png](derived-node.zh-light.png) | walk11-zh/LS02-derived-composer.zh-CN.light.png | LS02：1 节点 1 边，提示词空，0 次请求（vendor-requests.json） | f280a1bcd |
-| layers.derived-node | en 暗色 | [derived-node.en-dark.png](derived-node.en-dark.png) | walk11-en/LS02-derived-composer.en.dark.png | walk11-en LS02 | f280a1bcd |
+| layers.derived-node | en 暗色 | [derived-node.en-dark.png](derived-node.en-dark.png) | runC3/C14b-derived-100.en.dark.png | runC3 补拍：派生后不动画布，标题「Split layers · Image」+「Ready · not generated」整张入画（walk11-en LS02 那一轮画布停在 100%，标题在视口上沿外） | bd34af2b6 |
 | layers.composer-cell | zh 浅色 · 默认 | [composer-cell.zh-light.png](composer-cell.zh-light.png) | walk11-zh/LS02-derived-composer.zh-CN.light.png | 「图层分离 · 30 层 · 自动」；让位顺序单测 composerBarYield.layerSplit.test.ts | f280a1bcd |
 | layers.composer-cell | en 暗色 · 1100×690 | [composer-cell.en-dark.png](composer-cell.en-dark.png) | walk11-en/LS02-derived-composer.en.dark.png | 「Split layers · 30 · Auto」 | f280a1bcd |
 | layers.params-panel | zh 浅色 · 打开 | [params-panel.zh-light.png](params-panel.zh-light.png) | walk11-zh/LS03-params-panel.zh-CN.light.png | LS03：8 / 16 / 30 / 自定义、清晰度、识别文字 | f280a1bcd |
@@ -43,6 +43,6 @@
 - 面板行每个能删的层都有垃圾桶（含底图），板上行只画了眼睛：协调 C-E4 裁定「每个能删的行都有垃圾桶」；背景行不可删、没有垃圾桶。
 - 「完成」那一格：真截图是画笔刚用完的状态（多出颜色 / 粗细），板上是选择工具；工具条按节点宽度折行，板上节点窄折成三行。工具条本 PR 没改。
 - 英文暗色面板行里「标题文字」「人物」是替身返回的层名（接口 layers[i].name 原样显示），不是界面文案；真 APIMart 返回什么名字就显示什么。
-- 英文 1100×690 这一轮画布停在 100% 缩放（前几轮构建是 80%，中文轨各构建一致），派生节点的标题和状态在视口上沿外，derived-node.en-dark 只拍到节点身体：缩放由画布首次适配决定，本 PR 没改；派生节点整张看 derived-node.zh-light，走查同时断言「1 个节点 + 1 条边 + 0 次请求」。
+- 英文 1100×690 的走查轮次之间画布缩放不一样：walk8 / walk11 停在 100%，walk9 / walk10 和补拍 runC3 是 80%（中文轨各轮一致）；100% 那几轮派生节点的标题和状态在视口上沿外。缩放为什么不一样没查明（未验证）；本 PR 没碰画布首次适配的代码。derived-node.en-dark 用 runC3 补拍，派生节点整张入画；walk11-en 照样断言「1 个节点 + 1 条边 + 0 次请求」。
 
 PR2 / 后续的元素（whiteboard-panel、panel-reorder、panel-multiselect、panel-virtual、base-row；failed、extract-button、extract-result、agent-pointer）本 PR 没做，不出并排图。
