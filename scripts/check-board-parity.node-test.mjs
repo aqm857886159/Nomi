@@ -76,18 +76,10 @@ describe('R3 missing / in-progress 必须有 owner', () => {
   })
 })
 
-describe('R4 implemented 必须有真断言', () => {
-  it('反例：implemented 没有 assertion → 红', () => {
-    const m = base()
-    delete m.elements[0].assertion
-    assert.match(run(m).join('\n'), /必须写 assertion/)
+describe('R4 implemented 的认领候选必须有差异清单', () => {
+  it('只有一个到处都能搜到的断言名也不能算已量过', () => {
+    assert.match(run(base(), candidates, CORPUS).join('\n'), /差异清单/)
   })
-  it('反例：断言名在 tests/ux 里找不到（空断言）→ 红', () => {
-    const m = base()
-    m.elements[0].assertion = 'board:Main/不存在的断言'
-    assert.match(run(m).join('\n'), /不在 tests\/ux 任何走查文件里/)
-  })
-  it('正例：断言名在走查语料里 → 绿', () => assert.deepEqual(run(base()), []))
 })
 
 describe('R5 deferred / dropped 必须有用户原话和日期', () => {
