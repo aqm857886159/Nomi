@@ -5,11 +5,9 @@ import React, { type JSX } from 'react'
 import { useWhiteboardSession } from './whiteboard/whiteboardSession'
 import { NodeInlineWhiteboardHost } from './whiteboard/NodeInlineWhiteboardHost'
 import { useTranslation } from 'react-i18next'
-import { IconCopy } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
 import { resolveNodeRenderKind, isCardRenderKind, nodeHasGenerationComposer } from './resolveRenderKind'
 import ShotMountBadges from './render/ShotMountBadges'
-import { getBuiltinCategoryById } from '../../project/projectCategories'
 import { NodeCardBody } from './render/NodeCardBody'
 import ImageCropGridOverlay from './render/ImageCropGridOverlay'
 import ImageCropGridActionBar from './render/ImageCropGridActionBar'
@@ -42,7 +40,6 @@ import { NodeSampleRow } from './sampleRow/NodeSampleRow'
 import { sampleRowOwnsProgress } from '../model/sampleFacts'
 import { NodeBelowRowSpace } from './nodeOutsideRows'
 import { ProductionShotOverlays } from './ProductionShotOverlays'
-import { selectCanvasNodeById, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
 import { useHasNodeAttachedPanel } from './nodeAttachedPanel'
 import { WorkbenchButton } from '../../../design'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
@@ -51,7 +48,8 @@ import { TechnicalReviewBadge } from './TechnicalReviewBadge'
 import { DerivedReadyBadge } from '../quickActions/DerivedReadyBadge'
 import { isDerivedPromptReady } from '../quickActions/deriveFromNode'
 import { useArtifactNodeSlots } from './artifact/artifactNodeSlots'
-import { RESIZE_DIRECTIONS, getNodeResizeBounds, FOCUS_GENERATION_NODE_EVENT, resolveNodeVisualSize } from './nodeSizing'
+import { RESIZE_DIRECTIONS, getNodeResizeBounds, resolveNodeVisualSize } from './nodeSizing'
+import { NodeDerivedCopyBadge } from './NodeDerivedCopyBadge'
 import { NodeLabelRow } from './NodeLabelRow'
 import { NodeShotLabel } from '../../generation/list/CanvasListLinks'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
@@ -90,18 +88,6 @@ function BaseGenerationNodeImpl({
   const moveNode = useGenerationCanvasStore((state) => state.moveNode)
   const moveSelectedNodes = useGenerationCanvasStore((state) => state.moveSelectedNodes)
   const isMultiSelectActive = useGenerationCanvasStore((state) => selected && state.selectedNodeIds.length > 1)
-  // S3(2026-09-12)：这几条原先各扫一遍 state.nodes。每张卡都挂一份，
-  // 全选拖动时 N 张卡每帧各扫一遍全表 = O(N²)。改走 canvasNodeGenerationIndex 的
-  // 单次派生索引（每个 store 版本算一次，每张卡只读自己那一格）。
-  const sourceNodeTitle = useGenerationCanvasStore(
-    (state) => selectCanvasNodeById(state, node.derivedFrom)?.title,
-  )
-  const sourceNodeCategoryId = useGenerationCanvasStore(
-    (state) => selectCanvasNodeById(state, node.derivedFrom)?.categoryId,
-  )
-  const sourceNodeExists = useGenerationCanvasStore((state) =>
-    selectCanvasNodeExists(state, node.derivedFrom),
-  )
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const panoramaFullscreen = usePanoramaFullscreenTrigger()
   const panoramaUploadInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -113,16 +99,6 @@ function BaseGenerationNodeImpl({
   const mediaMeasurement = useNodeMediaMeasurement(node)
 
   const videoPreview = useNodeVideoPreviewIntent(node.result?.type === 'video')
-
-  const handleFocusSourceNode = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault()
-      event.stopPropagation()
-      if (!node.derivedFrom || typeof window === 'undefined') return
-      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: node.derivedFrom } }))
-    },
-    [node.derivedFrom],
-  )
 
   const status = node.status || 'idle'
   // E.2.1: shots 分类的 composer 真正 flex-inlined（不再 absolute 浮在节点下方）
@@ -159,15 +135,6 @@ function BaseGenerationNodeImpl({
   })
   const { x, y } = preview?.position ?? node.position
   const isGenerating = status === 'queued' || status === 'running'
-  // 2026-09-05：这几条的 zh+en 词条一直都在，只是渲染处写死了中文（英文界面恒显中文），现接回词条。
-  const sourceNodeLabel = sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? t('generationCommon.node.sourceMissing') : node.derivedFrom || '')
-  const sourceCategoryName = sourceNodeCategoryId ? getBuiltinCategoryById(sourceNodeCategoryId)?.name : null
-  const independentCopyLabel =
-    sourceCategoryName && sourceNodeExists
-      ? t('generationCommon.node.copyFromCategory', { category: sourceCategoryName, source: sourceNodeLabel })
-      : sourceNodeExists
-        ? t('generationCommon.node.copyFrom', { source: sourceNodeLabel })
-        : t('generationCommon.node.copySourceMissing')
   const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind)
   // L3：待生成卡给镜头序号，让未选中的占位卡也能一眼分清哪个镜头（非 shots 返回 null）。
   const shotIdentity = useShotIdentity(node.id)
@@ -265,24 +232,7 @@ function BaseGenerationNodeImpl({
         {/* 拆解收起态（视图 07）：视频节点有拆解结果且面板未占槽时，挂「已拆解 · N 镜」角标 + 可点回浮条。 */}
         {/* 锁徽标已移到 NodeGenerationComposer 底栏（编辑面板），卡片预览保持干净（用户反馈②）。 */}
         {/* E.2C-25 副本角标：跨分类独立副本永久显示（derivedFrom 仅承载此语义；同分类重生成在 regeneratedFrom）。 */}
-        {node.derivedFrom ? (
-          <button
-            type="button"
-            className="generation-canvas-v2-node__derived-badge"
-            aria-label={
-              sourceNodeExists
-                ? t('generationCommon.node.locateSource', { source: sourceNodeLabel })
-                : t('generationCommon.node.sourceNoLongerExists')
-            }
-            title={independentCopyLabel}
-            disabled={!sourceNodeExists}
-            onClick={handleFocusSourceNode}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <IconCopy size={13} stroke={1.8} aria-hidden="true" />
-            <span>{t('generationCommon.node.independentCopy')}</span>
-          </button>
-        ) : null}
+        {node.derivedFrom ? <NodeDerivedCopyBadge derivedFrom={node.derivedFrom} /> : null}
         {/* 2026-08-04 撤离卡片右上两颗常驻按钮（放大＝浮条「全屏」去重；生成记录迁进浮动工具栏，门是 selected 非 hover）——动作不压内容（§1.5）。 */}
       </NodeLabelRow>
       <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
