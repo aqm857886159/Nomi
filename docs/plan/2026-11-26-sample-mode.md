@@ -26,12 +26,12 @@
 
 | 出处 | 它怎么做 | 对我们哪个决定的影响 |
 | - | - | - |
-| LibTV 模型菜单（同一屏真截图，sha256 记在清单 `libtvCrops`，图不进仓库） | 菜单里单独一行「Seedance 2.5（样片模式）」，说明「480P 低成本试片，满意后直出高清版本」。选中后清晰度只剩 480P，价约为普通版的 70%。 | **确认了**：名字、位置（紧跟 Seedance 2.5）、图标与父模型相同。**改了**：「样片」做成目录里独立的一行（协调同意的 b 方案），不做变体轴。 |
-| TapNow Draft mode | 先出 480p 草稿，再点 Generate Final Video 出 1080p，草稿保留。 | **确认了**：出高清后样片留在版本栈里当第 1 版，高清版是第 2 版并成为主图。 |
+| LibTV 模型菜单 https://www.liblib.tv/ （同一屏真截图，sha256 记在 `docs/design/boards/2026-11-26-sample-mode/SampleMode.board.json:32` 的 priorArt，图不进仓库） | 菜单里单独一行「Seedance 2.5（样片模式）」，说明「480P 低成本试片，满意后直出高清版本」。选中后清晰度只剩 480P，价约为普通版的 70%。 | **确认了**：名字、位置（紧跟 Seedance 2.5）、图标与父模型相同。**改了**：「样片」做成目录里独立的一行（协调同意的 b 方案），不做变体轴。 |
+| TapNow Draft mode https://docs.tapnow.ai/en/docs/canvas/generate-and-edit-video | 先出 480p 草稿，再点 Generate Final Video 出 1080p，草稿保留。 | **确认了**：出高清后样片留在版本栈里当第 1 版，高清版是第 2 版并成为主图。 |
 | APIMart 文档 https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation（2026-11-26 取；能力表第 38–39 行） | `draft:true` 出 480p，样片 3 天有效。`draft_task_id` 出 1080p / 4k，「do not resend inherited fields」，「even identical values return 400」。同一样片可多次出成片，「Each is an independent task billed separately」；「Drafts are billed as normal 480p videos」，成片按所请求的清晰度计费。 | **改了**：出高清请求体只有 `model` / `draft_task_id` / `resolution`；同一样片第二次出高清先问；样片和高清都按父行（普通 2.5）对应清晰度约价。**确认了**：有效期写在档案里（72 小时），界面只读档案。 |
-| 仓库先例 `electron/catalog/apimartVideos.ts`：MiniMax-H3-Regeneration 行 | 用 `source_task_id` 拿上一条成片的任务号做第二步，请求体不带提示词。 | **确认了**：第二步请求体照它的写法，只放任务号和目标清晰度，不经 `videoCreateOp`（那里固定塞 prompt）。 |
+| 仓库先例 `electron/catalog/apimartVideos.ts:379`（MiniMax-H3-Regeneration 行，第二步请求体 `electron/catalog/apimartVideos.ts:80`） | 用 `source_task_id` 拿上一条成片的任务号做第二步，请求体不带提示词。 | **确认了**：第二步请求体照它的写法，只放任务号和目标清晰度，不经 `videoCreateOp`（那里固定塞 prompt）。 |
 
-出口：`src/workbench/generationCanvas/spend/spendConfirm.ts:294 confirmGenerationResend` · 同一笔钱第二次花之前现成的「再发一次」确认框，取消即不发、Esc 回到原按钮 · **确认了**：第二次出高清只复用它、只换文案和带价主按钮（C-D11），不新加挡人的保护。过期样片不灰掉按钮，直接换成「重拍样片」，一步可走。
+出口：`src/workbench/generationCanvas/spend/spendConfirm.ts:295 confirmGenerationResend` · 同一笔钱第二次花之前现成的「再发一次」确认框，取消即不发、Esc 回到原按钮 · **确认了**：第二次出高清只复用它、只换文案和带价主按钮（C-D11），不新加挡人的保护。过期样片不灰掉按钮，直接换成「重拍样片」，一步可走。
 
 ## ★1 用户怎么用
 
@@ -40,7 +40,7 @@
 1. 打开视频节点的模型菜单，在「Seedance 2.5」下面看到「Seedance 2.5（样片模式）」，说明写「480p 低成本试片 · 满意后出 1080p · 最长 30 秒」。
 2. 选它。生成框模型格写全名。参数面板里清晰度只有 480p 一个选项，其余参数和普通 2.5 一样。
 3. 写提示词，点发送（发送键带样片价；算不出价时不印数），等样片出来。
-4. 节点下方出现一行：左边「样片 · 剩 3 天」，右边「出高清 + 价」。
+4. 节点下方出现一行：左边「样片 · 剩 2 天」（72 小时有效期，刚出完还差几秒满 72 小时，按 C-D3 向下取整；拍板稿同样画「剩 2 天」），右边「出高清 + 价」。
 5. 不满意：改提示词，再发一次，又是一条样片（版本栈 +1）。
 6. 满意：点「出高清」，不弹框。样片照常能播，下方一行写「高清生成中」。
 7. 高清版落进同一节点第 2 版，成为主图，角标 2，铺开后第 2 张卡写「高清版」。切回第 1 版，下方那一行回来。
@@ -92,7 +92,7 @@
 
 ### ★1c 老用户
 
-- **老项目**：普通 Seedance 2.5 出的节点，`provenance.params.extras.archetype.id` 是 `seedance-2.5-apimart`，没有样片规格，下方不出现这一行，不迁移。用真实旧版数据 `tests/fixtures/old-user-data/curated/v0.24.1-apimart/` 验。
+- **老项目**：普通 Seedance 2.5 出的节点，`provenance.params.extras.archetype.id` 是 `seedance-2.5-apimart`，没有样片规格，下方不出现这一行，不迁移。走查用真窗口里普通 2.5 选 480p 真出一条验；`tests/fixtures/old-user-data/curated/v0.24.1-apimart/` 只有目录、没有项目，只验老目录；0.24.1 真实存盘的画布夹具（`tests/fixtures/old-user-data/canvas/v0.24.1-mode-nodes/`，25 个节点）按今天的打开路径打开后没有一个节点读出样片、存回不多出样片号（`src/workbench/generationCanvas/model/sampleFacts.oldUser.test.ts`）。**unverified：没有带视频结果的真实旧版项目夹具**（`projects/` 与 `canvas/v0.24.1-mode-nodes` 里的视频节点都没出过结果），没来历的视频结果由单测钉住，不手造「老节点」顶替。
 - **老目录**：升级后对账插入新行 `doubao-seedance-2.5-sample`，父行的两条映射字节不变（旧版目录夹具单测）。
 - **模型框**：
   - 已整理过模型框的人：新行按现有规则排在末尾、默认显示，不加特例（协调裁定）。
@@ -260,7 +260,7 @@
    - 参数面板清晰度恰 1 个选项 480p，`aria-pressed=true`。
    - **main 上红**：没有这一行。
 2. **下方一行**：
-   - 样片出完，节点下方一行左边「样片 · 剩 3 天」（按档案 72 小时算；造数剩 48 小时 → 「剩 2 天」，剩 48 分钟 → 「剩 48 分钟」且带 warning 档 class，剩 2 小时整 → 非提醒色）。
+   - 样片出完，节点下方一行左边「样片 · 剩 2 天」（按档案 72 小时算、C-D3 向下取整）。走查只拨渲染进程的钟（Playwright `clock`），按样片自己的时间戳取各档中间：剩 2 小时 30 分 → 「剩 2 小时」、非提醒色；剩 1 小时 30 分 → 「剩 1 小时」、提醒色；剩 47 分 30 秒 → 「剩 48 分钟」、提醒色；过 72 小时 → 「已过期」。
    - 该行顶边 ≥ 画面底边、≤ 生成框顶边，行高 28。
    - 过期后右边没有「出高清」，只有「重拍样片」。
    - 字号断言：每个带文字的元素按计算样式对 token 值（`getComputedStyle(...).fontSize` 等于 `--nomi-font-*` 的计算值），不写死 px（协调裁定 3）。
@@ -279,9 +279,9 @@
    - 点「再出高清」：POST +1，请求体同第 3 条。
 5. **反例：普通 2.5 / 老节点**：
    - 普通 Seedance 2.5 选 480p 出的节点：`[data-sample-row]` 数 0，没有「出高清」。
-   - 旧版夹具 v0.24.1-apimart 打开后，同样数 0。
+   - 老项目：unverified（没有带视频结果的真实旧版项目夹具，见 ★1c）；没来历的视频结果由 `NodeSampleRow.test.tsx` 钉住。
 6. **反例：算不出价**：
-   - 替身价目约不出价时：发送键没有 `[data-send-cost]`，「出高清」按钮没有金币节点，全文不出现 `0` 和数字价。
+   - 替身价目约不出价时：发送键没有 `[data-send-cost]`，「出高清」按钮没有金币节点，全文不出现 `0` 和数字价；同时「出高清」与发送键的读屏说明都是「暂时估不出这次用量」——证明约价真跑过、不是没算。
    - 单测：可约价夹具（样片行真实请求体去掉三个键）下，三处约价请求都走父行：样片 480p；出高清 1080p，时长和音频取样片记录。
 7. **对账**：中英、浅暗、1100×690 + 停靠 Agent，与拍板稿逐项对账；28 字镜头名和最长英文都过。并排图同一比例，附逐行索引。
 

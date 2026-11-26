@@ -62,6 +62,8 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
   const media = mediaFixture()
   const tasks = new Map()
   const hits = []
+  /** 真建成的任务（被 400 拒掉的不算）：任务号 + 请求体，按建的先后。 */
+  const created = []
   let sequence = 0
   const socketEvents = []
   const server = http.createServer((req, res) => {
@@ -103,6 +105,7 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
         const failed = failsLeft > 0
         if (failed) failsLeft -= 1
         tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body, failed, draft: parsedBody?.draft === true })
+        created.push({ taskId, url: req.url, body: parsedBody })
         json({ code: 200, data: [{ status: 'submitted', task_id: taskId }] }); return
       }
       const query = /^\/v1\/tasks\/([^/]+)$/.exec(req.url || '')
@@ -137,6 +140,7 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
   return {
     origin,
     hits,
+    created,
     socketEvents,
     /** 走查中途把某个样片号标成已过期（官方 3 天有效期，走查不真等）。 */
     expireDraft: (taskId) => { expired.add(String(taskId)) },

@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { TaskCenterRow } from './taskCenterEntries'
+import { confirmAndRunNode } from '../generationCanvas/runner/generationRunController'
 
 const calls = vi.hoisted(() => ({
   plan: [] as Array<{ nodeIds: string[]; options: Record<string, unknown> }>,
@@ -119,7 +120,6 @@ describe('retryFailedGenerationRows', () => {
   })
 
   it('某一镜没发出去：交回那一镜的号（面板挂到它那一行上）', async () => {
-    const { confirmAndRunNode } = await import('../generationCanvas/runner/generationRunController')
     vi.mocked(confirmAndRunNode).mockRejectedValueOnce(new Error('node_generation_in_flight'))
     const failures = await retryFailedGenerationRows([
       row('r1', 'sample-v', { kind: 'retry_sample_final', nodeId: 'sample-v', sampleFinal: hd }),

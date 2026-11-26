@@ -872,6 +872,12 @@ async function main() {
         }
         await ensureDpr()
         await openFixtureProject(app, page, fixture)
+        // 带样片的档（V200S50）：节点下方那一行真画出来了才量，免得夹具形状变了、量的其实是普通视频画布（防空断言）。
+        if (ALL_SCALES[scale]?.sampleCount) {
+          await page.waitForFunction(() => document.querySelectorAll('[data-sample-row]').length > 0, undefined, { timeout: 30_000 })
+            .catch(() => { throw new Error(`${scale}：画布上一行「样片 · 剩 N 天」都没有——夹具的样片来历没被认出来，量的不是样片画布`) })
+          console.log(`    · 样片行 ${await page.evaluate(() => document.querySelectorAll('[data-sample-row]').length)} 行在 DOM 里`)
+        }
         // 开完项目再核对一次，每个样本前也核对（场景里每档缩放还要核对，不对就停）。
         await ensureDpr()
         for (let runIndex = 0; runIndex < warmup + runs; runIndex += 1) {

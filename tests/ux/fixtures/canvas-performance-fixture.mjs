@@ -46,6 +46,9 @@ export const CANVAS_PERF_SCALES = Object.freeze({
   V10: { imageCount: 0, videoCount: 10, edgeCount: 5, clipCount: 0 },
   V100: { imageCount: 0, videoCount: 100, edgeCount: 50, clipCount: 0 },
   V200: { imageCount: 0, videoCount: 200, edgeCount: 100, clipCount: 0 },
+  // 2026-11-26 样片模式（docs/plan/2026-11-26-sample-mode.md ★7）：200 个视频节点里 50 个是样片——节点下方常驻一行「样片 · 剩 N 天 / 出高清」，
+  // 量平移这一行会不会拖慢帧。样片的事实全从结果来历读（sampleFacts.ts），夹具只给结果写上样片那次的来历，不另存节点字段。
+  V200S50: { imageCount: 0, videoCount: 200, sampleCount: 50, edgeCount: 100, clipCount: 0 },
   // 2026-10-18 拆解前选模型：「选中一张拆解表 → 上方浮条 + 下方拆解栏出现」。一张 200 镜的拆解表（来源 = 第一个视频节点），
   // 外加 100 张图片卡做真实画布密度。表由生产的 createDeconstructionShotTable 建，行按 schema 逐行填，不手写第二份结构。
   T200: { imageCount: 100, videoCount: 1, edgeCount: 50, clipCount: 0, shotTableRows: 200 },
@@ -384,6 +387,21 @@ export function createCanvasPerformanceFixture({ projectsDir, scale = 'M', proje
         relativePath: assets.videoUrls[index % assets.videoUrls.length],
         thumbnailPath: assets.videoPosterUrls?.[index % assets.videoPosterUrls.length],
       }))
+    }
+  }
+  // 样片节点：结果带样片那次的任务号和来历（档案 = Seedance 2.5 样片模式），出样片 1 小时前 → 下方那一行写「剩 2 天」。
+  const sampleCreatedAt = Date.now() - 60 * 60 * 1000
+  for (const [index, node] of nodes.filter((candidate) => candidate.kind === 'video').slice(0, config.sampleCount || 0).entries()) {
+    node.result = {
+      ...node.result,
+      taskId: `perf-sample-${index}`,
+      model: 'doubao-seedance-2.5-sample',
+      createdAt: sampleCreatedAt,
+      provenance: {
+        provider: 'apimart',
+        timestamp: sampleCreatedAt,
+        params: { extras: { archetype: { id: 'seedance-2.5-apimart-sample', modeId: 't2v' }, modelKey: 'doubao-seedance-2.5-sample', modelVendor: 'apimart', resolution: '480p', duration: 5 } },
+      },
     }
   }
   for (let index = 0; index < (config.emptyCount || 0); index += 1) {
