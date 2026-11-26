@@ -51,7 +51,7 @@ describe('generation spend ETA copy', () => {
 })
 
 import i18n from '../../../i18n'
-import { confirmGenerationResend, useSpendConfirmStore, paidNodeLedger } from './spendConfirm'
+import { confirmGenerationResend, useSpendConfirmStore, generationNodeLedger } from './spendConfirm'
 it.each([
  ['zh-CN','image','image'],['zh-CN','video','video'],['zh-CN','audio','other'],
  ['en','image','image'],['en','video','video'],['en','model3d','other'],
@@ -64,10 +64,25 @@ it.each([
  request.mockRestore();await i18n.changeLanguage('zh-CN')
 })
 
+it.each([
+ ['zh-CN',{resolution:'1080p',credits:'21.6',unit:'credits'},{confirmCredits:'21.6',confirmCostUnit:'credits'}],
+ ['en',{resolution:'1080p',credits:'≈¥15.6',unit:'cny'},{confirmCredits:'≈¥15.6',confirmCostUnit:'cny'}],
+ ['zh-CN',{resolution:'1080p'},{}],
+] as const)('second HD (%s): the price rides only on the primary button, in the send-pill unit; the body has no digits beyond the resolution', async (locale,secondSampleFinal,price) => {
+ await i18n.changeLanguage(locale)
+ const request=vi.spyOn(useSpendConfirmStore.getState(),'requestConfirm').mockResolvedValue(false)
+ expect(await confirmGenerationResend({kind:'video',resultUnknown:false,secondSampleFinal})).toBe(false)
+ const pending=request.mock.calls.at(-1)?.[0]
+ expect(pending).toMatchObject({kind:'generation',confirmLabel:i18n.t('generationCommon.sample.secondFinal.confirm'),...price})
+ if(!('credits' in secondSampleFinal)) expect(pending).not.toHaveProperty('confirmCredits')
+ expect(String(pending?.message).replace(/1080p/g,'')).not.toMatch(/\d|积分|credit/i)
+ request.mockRestore();await i18n.changeLanguage('zh-CN')
+})
+
 it.each(['image','video','audio','model3d','asset'] as const)('the moved %s ledger decision retains local and remote spend semantics',kind=>{
  const node={...createGenerationNode({id:'ledger-case',kind}),meta:{modelVendor:'relay'}}
- expect(paidNodeLedger(node)).toBe('run')
- expect(paidNodeLedger({...node!,meta:{modelVendor:'comfyui-local'}})).toBeUndefined()
- expect(paidNodeLedger({...node!,meta:{modelVendor:'comfyui-local-studio'}})).toBeUndefined()
- expect(paidNodeLedger({...node!,kind:'text'})).toBeUndefined()
+ expect(generationNodeLedger(node)).toBe('run')
+ expect(generationNodeLedger({...node!,meta:{modelVendor:'comfyui-local'}})).toBe('run')
+ expect(generationNodeLedger({...node!,meta:{modelVendor:'comfyui-local-studio'}})).toBe('run')
+ expect(generationNodeLedger({...node!,kind:'text'})).toBeUndefined()
 })

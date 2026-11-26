@@ -155,6 +155,7 @@ export default function PreviewSourcePanel({ collapsed, onExpand, onCollapse }: 
         icon={<IconPhoto size={16} stroke={1.7} />}
         label={t('previewSource.railLabel')}
         title={t('previewSource.expand')}
+        horizontalLabel
         onClick={onExpand}
       />
     )

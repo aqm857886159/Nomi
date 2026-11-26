@@ -77,7 +77,7 @@ export { normalizeCatalogTaskResults, type GenerationNodeResults } from './catal
 const POLL_FAILURE_GRACE_MS = 45000
 
 // 文本 kind(与 catalogTaskResultParse 的 TEXT_TASK_KINDS 同语义):一律走文本流式门(nomi:tasks:text:*)。
-// 画布文本不进 Run、不要授权(paidNodeLedger):走哪扇门只看 kind,不看调用方要不要逐字——
+// 画布文本不进 Run、不要授权(generationNodeLedger):走哪扇门只看 kind,不看调用方要不要逐字——
 // 2026-10-21 之前「没给 onTextDelta 就走一次性 nomi:tasks:run」,改写选区因此撞上令牌付费闸、每次都失败。
 const TEXT_STREAM_KINDS = new Set<TaskKind>(['chat', 'prompt_refine', 'image_to_prompt'])
 

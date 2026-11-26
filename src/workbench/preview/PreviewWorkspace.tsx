@@ -1,3 +1,4 @@
+import { selectPreviewAspectRatio } from './previewAspectRatios'
 import { registerPreviewLayoutHistoryShortcut } from '../history/historyMiddleware'
 import { AssistantPane } from '../AssistantPane'
 import { assistantDockColumns } from '../assistantWidthBounds'
@@ -119,7 +120,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const timeline = useWorkbenchStore((state) => state.timeline)
   const playheadFrame = useWorkbenchStore((state) => state.timeline.playheadFrame)
   const playing = useWorkbenchStore((state) => state.timelinePlaying)
-  const previewAspectRatio = useWorkbenchStore((state) => state.previewAspectRatio)
+  const previewAspectRatio = useWorkbenchStore(selectPreviewAspectRatio)
   const setTimelinePlaying = useWorkbenchStore((state) => state.setTimelinePlaying)
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const layout = useWorkbenchStore((state) => state.editingPanelLayout)

@@ -181,4 +181,6 @@ export type ModelArchetype = {
   sampleMode?: SharedArchetypeSampleSpec;
   /** 由父档案推出的样片档案才有（videoCapabilities/sampleMode.deriveSampleArchetype）。 */
   sampleOf?: SharedArchetypeSampleOf;
+  /** Shared model names for handle suggestions across profiles with distinct wire contracts. */
+  familyIdentifierPatterns?: readonly string[];
 };

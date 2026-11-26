@@ -61,47 +61,14 @@ export type CanvasTransport = {
    * 只走 vendorHttp.requestVendor（含自定义调用脚本、同步音频、multipart）→ appFetch；process 分支（即梦 / Antigravity CLI）是子进程，
    * 由 `child_process` 诊断通道记账——跑起来了就算可能写出去（V-1047 B1）。
    */
+  recover?: (receipt: import("../productionRun/paidSubmissionReceipt").PaidSubmissionReceipt, request: CanvasTaskRequest) => Promise<CanvasTaskResult>;
   networkTransport?: "app-fetch";
 };
 
-/**
- * 交的那一刻供应商就给了结论的任务（同步出图、自定义调用脚本、同步音频、缓存命中）：没有供应商任务号可查，
- * 查询直接回这一份。进程内、有上限；重启后查不到就照旧去问运行时（它会如实说「找不回」）。
- */
-const settledAtSubmit = new Map<string, CanvasTaskResult>();
-const SETTLED_LIMIT = 500;
-
-function rememberSettled(result: CanvasTaskResult): void {
-  if (!isTerminalTaskStatus(result.status)) return;
-  if (settledAtSubmit.size >= SETTLED_LIMIT) {
-    const oldest = settledAtSubmit.keys().next().value;
-    if (oldest !== undefined) settledAtSubmit.delete(oldest);
-  }
-  settledAtSubmit.set(result.id, structuredClone(result));
-}
-
-/** 交出去那一刻拿到的回执（受理号或同步结果）。渲染层的等待循环从它开始，和今天 `runTask` 回给它的是同一份。 */
-const receiptsAtSubmit = new Map<string, CanvasTaskResult>();
-/** 最近一次查到的那一份（含已落进项目的产物地址）：Run 的 poll 只记状态，节点要的是这一整份。 */
-const lastResults = new Map<string, CanvasTaskResult>();
-
-function remember(map: Map<string, CanvasTaskResult>, result: CanvasTaskResult): void {
-  map.delete(result.id);
-  map.set(result.id, structuredClone(result));
-  if (map.size > SETTLED_LIMIT) {
-    const oldest = map.keys().next().value;
-    if (oldest !== undefined) map.delete(oldest);
-  }
-}
-
-export function canvasSubmitReceipt(providerTaskId: string): CanvasTaskResult | undefined {
-  const receipt = receiptsAtSubmit.get(providerTaskId);
-  return receipt ? structuredClone(receipt) : undefined;
-}
-
-export function canvasLastResult(providerTaskId: string): CanvasTaskResult | undefined {
-  const result = lastResults.get(providerTaskId) ?? settledAtSubmit.get(providerTaskId);
-  return result ? structuredClone(result) : undefined;
+export function canvasResult(raw: unknown): CanvasTaskResult | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const value = raw as CanvasTaskResult;
+  return typeof value.id === "string" && typeof value.status === "string" && Array.isArray(value.assets) ? value : undefined;
 }
 
 function wire(input: Pick<GenerationProviderRequestInputV1, "parameters"> | GenerationProviderTaskContext | undefined): CanvasWireRequest {
@@ -122,8 +89,6 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
     const result = await transport.execute(payload);
     const providerTaskId = typeof result.id === "string" ? result.id.trim() : "";
     if (!providerTaskId) throw new Error("Canvas transport returned an empty task id");
-    remember(receiptsAtSubmit, result);
-    rememberSettled(result);
     return { providerTaskId, raw: result };
   };
   return {
@@ -133,10 +98,16 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
     buildRequest: (input) => structuredClone(wire(input)),
     submit,
     query: async (providerTaskId, context) => {
-      const settled = settledAtSubmit.get(providerTaskId);
-      if (settled) return { status: settled.status, raw: structuredClone(settled) };
+      const settled = canvasResult(context?.rawReceipt);
+      if (settled && isTerminalTaskStatus(settled.status)) return { status: settled.status, raw: structuredClone(settled) };
       const { vendor, request } = wire(context);
       const extras = request.extras ?? {};
+      if (context?.acceptance && transport.recover) {
+        if (context.acceptance.vendorKey !== vendor || vendor !== vendorKey || context.acceptance.taskId !== providerTaskId) throw new Error("Frozen acceptance identity differs from its Run");
+        const result = await transport.recover(context.acceptance, request);
+        if (isLocalQueryBlockedRaw(result.raw)) throw new Error(RETRIEVAL_UNAVAILABLE_MESSAGE);
+        return { status: result.status, raw: result };
+      }
       const response = await transport.fetchResult({
         taskId: providerTaskId,
         vendor,
@@ -148,8 +119,6 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
       // Nomi 这一次没法去问（模型 / Key 用不了）：供应商什么都没说，不能当成这一单的结论，也不进备忘（否则开回来还是查不到新的）。
       // 抛错走「这次没查成」那条路：窗口开着渲染层接着等，窗口不在观察者停成待取回。都不判死，也不会再下单。
       if (isLocalQueryBlockedRaw(response.result.raw)) throw new Error(RETRIEVAL_UNAVAILABLE_MESSAGE);
-      rememberSettled(response.result);
-      remember(lastResults, response.result);
       return { status: response.result.status, raw: response.result };
     },
     materialize: async ({ raw }) => {
@@ -180,6 +149,7 @@ export function lazyCanvasTransport(): CanvasTransport {
       const [{ runTask }, { RUN_APPROVED_ADMISSION }] = await Promise.all([import("../runtime"), import("../tasks/taskSpend")]);
       return runTask(payload, RUN_APPROVED_ADMISSION) as Promise<CanvasTaskResult>;
     },
+    recover: async (receipt, request) => (await import("../tasks/acceptedTaskResult")).recoverAcceptedTask(receipt, request as import("../runtime").TaskRequest),
     fetchResult: async (payload) => (await import("../runtime")).fetchTaskResult(payload) as Promise<{ result: CanvasTaskResult }>,
   };
 }

@@ -331,3 +331,17 @@ export function archetypeParameterControls(model: ArchetypeModelLike | null | un
   const mode = archetype.modes.find((m) => m.id === archetype.defaultModeId) ?? archetype.modes[0];
   return mode ? mode.params : null;
 }
+
+/**
+ * 未知模型名的同族档案 id 集合（含精确身份命中与 familyIdentifierPatterns 近似折法命中）。
+ * 收拢在档案唯一入口内，避免调用方在入口外遍历整张内置档案表。
+ */
+export function archetypeFamilyIdsFor(wanted: string, fold: (value: string) => string): ReadonlySet<string> {
+  const identity = archetypeIdForModel(wanted);
+  const folded = fold(wanted);
+  return new Set(
+    MODEL_ARCHETYPES.filter((profile) =>
+      profile.id === identity || profile.familyIdentifierPatterns?.some((pattern) => fold(pattern) === folded),
+    ).map((profile) => profile.id),
+  );
+}

@@ -166,14 +166,14 @@ function rebuildCachedTaskFromPayload(taskId: string, raw: JsonRecord): CachedTa
  * 跑一次续查（缓存命中 / 无状态重建 共用单一真相）：有 query op 走 query；无则尝试 raw 里已带的
  * 资产；两条都不成立 → **诚实报失败**（这个任务根本查不了，不是「还没好」，见函数末尾）。
  */
-async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: AbortSignal): Promise<{ vendor: string; result: TaskResult }> {
+export async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: AbortSignal, frozenConnection?: Pick<ReturnType<typeof findExecutableModel>, "vendor" | "model" | "apiKey">): Promise<{ vendor: string; result: TaskResult }> {
   const queryOperation = cached.mapping?.query;
   if (cached.mapping && queryOperation && cached.model) {
     // 不再用缓存的明文 key，轮询时按 vendor 重新派生（并重新校验 key 仍可用）。
     // ComfyUI certification intentionally keeps its candidate disabled until
     // this query has produced and decoded a real artifact. Resolve the exact
     // staged revision instead of treating that disabled model as unavailable.
-    const stagedCandidate = resolveComfyCandidateExecution(cached.request);
+    const stagedCandidate = frozenConnection ?? resolveComfyCandidateExecution(cached.request);
     // 模型解析必须可守（与 rebuildCachedTaskFromPayload 同款）。模型 / 供应商被关、Key 没了不是永久条件：
     // 开回来就能查，而且这一次根本没问过供应商，任务可能早就出片了。所以 raw 带判别码（isLocalQueryBlockedRaw），
     // 单镜 Run 和 AI 读任务据此不把它当成这一单的结论；没有 Run 的旧路径照旧读 status 和 error 那句话。

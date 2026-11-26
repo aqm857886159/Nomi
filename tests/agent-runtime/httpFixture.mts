@@ -63,6 +63,11 @@ export type FixtureReply =
   | ({ type: 'message'; parts: readonly FixturePart[] } & FixtureOutput)
   /** 非 2xx。`body` 给了就原样当响应体发（录下来的上游原文），否则发 `{ error: { message } }`。 */
   | { type: 'error'; status: number; message: string; body?: unknown }
+  /**
+   * 200 之后流里报错（中转常这么回）：没有 HTTP 失败事实，只有一段 `{ error: { message } }`。
+   * **只走 openai-compatible 那条路**（另两条协议的流内报错各有自己的事件形状，没验过就不发）。
+   */
+  | { type: 'streamError'; message: string }
   | { type: 'deferred'; beforeReply: () => Promise<FixtureReply> };
 
 /** 三种回复 → 同一串段。夹具里**只有这一个**地方知道 `text` / `tool` 是 `message` 的特例。 */
@@ -89,6 +94,14 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
     if (!reply || reply.type === 'error') {
       response.writeHead(reply?.status ?? 500, { 'content-type': 'application/json' });
       response.end(JSON.stringify(reply?.body ?? { error: { message: reply?.message ?? 'No fixture reply queued' } }));
+      return;
+    }
+    if (reply.type === 'streamError') {
+      if (new URL(request.url ?? '/', 'http://fixture').pathname !== '/v1/chat/completions') {
+        throw new Error('Fixture streamError is only wired for openai-completions');
+      }
+      response.writeHead(200, { 'content-type': 'text/event-stream', connection: 'close' });
+      response.end(`data: ${JSON.stringify({ error: { message: reply.message, type: 'upstream_error' } })}\n\n`);
       return;
     }
     response.writeHead(200, { 'content-type': 'text/event-stream', connection: 'close' });

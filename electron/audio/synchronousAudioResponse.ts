@@ -1,3 +1,4 @@
+import { checkpointAudioResponse } from "../productionRun/paidSubmissionReceipt";
 import { extensionFromContentType } from "../assets/mediaTypes";
 import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
 import type { HttpOperation, Model, Vendor } from "../catalog/types";
@@ -51,10 +52,10 @@ function decodeEncodedAudio(value: unknown, encoding: "hex" | "base64"): Buffer 
   return Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
 }
 
-function decodeAudioBody(
+export function decodeAudioBody(
   responseBytes: Buffer,
   responseContentType: string,
-  operation: HttpOperation,
+  operation: Pick<HttpOperation, "audioResponse">,
   body: unknown,
   query: Record<string, unknown>,
 ): Omit<SynchronousAudioOperationResult, "request"> {
@@ -105,6 +106,7 @@ export async function executeSynchronousAudioOperation(input: {
   apiKey: string;
   request: TaskRequest;
   operation: HttpOperation;
+  taskId?: string;
   signal?: AbortSignal;
 }): Promise<SynchronousAudioOperationResult> {
   const built = buildProfileHttpRequest(input);
@@ -119,6 +121,8 @@ export async function executeSynchronousAudioOperation(input: {
     input.signal,
     { maxResponseBytes: MAX_SYNCHRONOUS_AUDIO_BYTES },
   );
+  if (input.taskId) checkpointAudioResponse({ vendor: input.vendor, model: input.model, modeId: input.request.kind, taskId: input.taskId, bytes: response.bytes,
+    audio: { contentType: response.contentType, codec: input.operation.audioResponse, format: audioFormatFromWire(built.body, built.query) } });
   return {
     ...decodeAudioBody(response.bytes, response.contentType, input.operation, built.body, built.query),
     request: built.preview,

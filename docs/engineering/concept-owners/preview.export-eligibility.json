@@ -1,0 +1,24 @@
+{
+  "name": "预览时间轴可导出资格判据（正时长门禁）",
+  "subject": "preview.export-eligibility",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/previewExportRequest.ts",
+    "symbol": "canExportPreviewTimeline"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/previewExportRequest.ts",
+      "symbol": "canExportPreviewTimeline"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/ui/app-shell/shell/ShellTopBar.previewExport.test.tsx",
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "合同 docs/fixes/2026-11-24-preview-ux3.root-cause.json：顶栏导出按钮与预览导出请求共享同一正时长可导出判据。"
+}

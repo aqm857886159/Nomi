@@ -628,15 +628,15 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
           && current.generationPlan?.operationId === current.runId
         let changedUnknown = false
         for (const job of current.jobs) {
-          if (!isStillAtProvider(job)) continue
+          if (!isStillAtProvider(job) && job.status !== 'submit_intent_persisted') continue
           if (isSemanticSingleShot) {
             // 提交在路上时进程没了（硬杀 / 断电）：请求发没发出去、供应商收没收下，Nomi 都不知道——结果未知，
             // 和连接被重置是同一档。此前这里直接跳过，job 永远停在 submitting、画布一直写「生成中」。
             // 已经拿到任务号的（polling 等）仍由 ProductionGenerationSubmission 的恢复路径接手。
-            if (job.status === 'submitting' && !job.providerTaskId) {
+            if ((job.status === 'submitting' || job.status === 'submit_intent_persisted') && !job.providerTaskId) {
               try {
-                current = markInterruptedSingleShotUnknown(repository, safeProjectId, current.runId) ?? current
-                changedUnknown = true
+                current = markInterruptedSingleShotUnknown(repository, safeProjectId, current.runId, undefined, projectRootResolver(safeProjectId)) ?? current
+                changedUnknown ||= current.jobs.some(value => value.status === 'submission_unknown')
               } catch { /* A concurrent command may have already settled this job. */ }
             }
             continue

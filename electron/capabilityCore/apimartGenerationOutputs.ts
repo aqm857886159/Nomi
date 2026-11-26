@@ -1,7 +1,8 @@
 import path from "node:path";
 
 import type { GenerationProviderOutput } from "./generationRuntimeAdapter";
-import { mediaKindOf, readTaskResponse, type ExpectedMediaKind } from "../tasks/taskResultReading";
+import type { PaidSubmissionReceipt } from "../productionRun/paidSubmissionReceipt";
+import { expectedMediaKind, requestEchoUrls, mediaKindOf, readTaskResponse, type ExpectedMediaKind } from "../tasks/taskResultReading";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -133,4 +134,12 @@ export function readMaterializationOutputs(
 ): GenerationProviderOutput[] {
   const reading = readTaskResponse({ response: raw, responseMapping: query?.responseMapping ?? null, statusMapping: query?.statusMapping, wantedKind, echoUrls });
   return materializationOutputs(raw, reading.assetUrls, wantedKind);
+}
+
+/** A synchronous response may have a billing/request id as well as the finished media. */
+export function catalogMediaReceipt(receipt: PaidSubmissionReceipt | undefined, parameters: unknown) {
+  if (receipt?.source !== "catalog" || !receipt.mapping) return undefined;
+  const mapping = receipt.mapping;
+  const format = { responseMapping: mapping.create.response_mapping ?? null, statusMapping: mapping.statusMapping };
+  return readMaterializationOutputs(receipt.rawAcceptance, format, expectedMediaKind(receipt.model.kind), requestEchoUrls(parameters)).length ? format : undefined;
 }

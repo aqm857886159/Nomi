@@ -1,0 +1,28 @@
+{
+  "id": "USER-20261124-fc-declared-provider-and-wan-handles",
+  "since": "2026-11-24",
+  "source": "I-1 用户 issue #975（G1 免密声明适配器正式生成就绪 / G2 inline-base64 参考素材正式生成交付）与 F-C 反馈 NF-1119-0001（通义万相 wan-3.0 / wan-2.7-r2v 模型名解析）",
+  "category": "claims-and-outcomes",
+  "problem": "已发布免密声明卡在正式生成启动与发送被空 API Key 误拒 configured_provider，inline-base64 参考素材在授权封存与请求投影被只认 HTTP URL 的校验拒收 generation_reference_url_unavailable，且 Agent 点名 wan-2.7-r2v 或 wan-3.0 时漏查档案声明的线上 modes/variants 或漏给双档候选。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-24-fc-declared-provider-and-wan-handles.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/capabilityCore/modelNameModeParity.test.ts"
+  },
+  "evidence": [
+    "electron/capabilityCore/modelOnboarding/declaredProviderProduction.test.ts",
+    "electron/capabilityCore/productionReferenceUrls.test.ts",
+    "electron/capabilityCore/modelNameModeParity.test.ts",
+    "electron/shared/agentCapabilities/modelHandle.test.ts"
+  ],
+  "completionCommits": [
+    "ca6be3e8b"
+  ],
+  "fixedInPr": 1669
+}

@@ -157,7 +157,7 @@ const ROW_BUTTON_CLASS = cn(
   'transition-[box-shadow,transform] duration-nomi-micro ease-nomi-out',
 )
 
-/** 钮上的价：有数 = 硬币 + 积分数；估不出 / 忙着 = 不印数、不印 0。 */
+/** 钮上的价：和发送键同一个单位（积分带硬币、货币只写 ≈ 数）；估不出 / 忙着 = 不印数、不印 0。 */
 function RowButton({ label, ariaLabel, cost, disabled, onClick, ...attrs }: {
   label: string
   ariaLabel: string
@@ -177,8 +177,8 @@ function RowButton({ label, ariaLabel, cost, disabled, onClick, ...attrs }: {
     >
       {label}
       {cost.credits !== undefined ? (
-        <span data-sample-cost="credits" className="inline-flex items-center gap-[3px] tabular-nums text-nomi-ink-60">
-          <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden />{cost.credits}
+        <span data-sample-cost="credits" data-sample-cost-unit={cost.unit ?? 'credits'} className="inline-flex items-center gap-[3px] tabular-nums text-nomi-ink-60">
+          {(cost.unit ?? 'credits') === 'credits' ? <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden /> : null}{cost.credits}
         </span>
       ) : null}
     </button>

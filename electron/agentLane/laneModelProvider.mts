@@ -5,7 +5,7 @@
 // 会让「删旧目录」变成「顺手删掉新通路的模型装配」。搬过来之后旧位置只留一条 re-export
 // （`pi/model.mts` 仍导出 `createNomiModelRuntime`，那是旧路 `session.mts` 的专属接缝，
 // 随本目录一起死），**不是第二份实现**（P1）。
-import { clampThinkingLevel, createAssistantMessageEventStream, createProvider, InMemoryCredentialStore, type Api, type AssistantMessage,
+import { clampThinkingLevel, createAssistantMessageEventStream, createProvider, InMemoryCredentialStore, isRecoverableLength, type Api, type AssistantMessage,
   type AssistantMessageEventStream, type Model, type ProviderHeaders, type ProviderStreams, type SimpleStreamOptions,
   type StreamOptions } from '@earendil-works/pi-ai';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
@@ -13,10 +13,11 @@ import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.l
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
 import { z } from 'zod';
 import type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
-import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
-import { guardProviderStreams, type NomiStreamGuard } from './laneProviderGuard.mjs';
+import { LANE_OUTPUT_TRUNCATED_DIAGNOSTIC, LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
+import { BALANCE_CLASSIFIER_MARKER, guardProviderStreams, withClassifierMarker, type NomiStreamGuard } from './laneProviderGuard.mjs';
 import { observeModelFetch, type ModelCallRecorder } from '../ai/modelCallFetch.js';
 import { modelCallFailure } from '../ai/runtimeVendorError.js';
+import { VendorRequestError } from '../shared/vendorFailure.js';
 import { describeAgentError } from '../ai/agentError.js';
 import { logWarn } from '../logging/logger.js';
 
@@ -112,8 +113,10 @@ export async function prewarmProviderProtocols(protocols: readonly NomiModelConf
  * 一次调用以 `stopReason: 'error'` 收场、而这次调用最后一次尝试是 **HTTP 非 2xx** → 按文本任务同一个映射
  * （`modelCallFailure` → `describeAgentError`，即 `NOMI_VENDOR_ERR_B64` 载荷）铸好，挂到 pi 的 `diagnostics` 上。
  *
- * 为什么不改 `errorMessage`：pi 的重试判据是对整段 `errorMessage` 跑一条无词边界的正则（`retry.js` 里的 "429" / "500" /
+ * 为什么载荷不进 `errorMessage`：pi 的重试判据是对整段 `errorMessage` 跑一条无词边界的正则（`retry.js` 里的 "429" / "500" /
  * "502"…），上下文溢出也读它；把 base64 塞进去，随机出现的数字串就能把一次确定的 404 变成三轮重试。
+ * `errorMessage` 只多一样东西：归类是**余额**（状态码 + 上游自己给的 `error.code` / `error.type`，`categorizeVendorFailure`）时
+ * 贴上 pi「别重试」那张表认得的标记——pi 的重试没有开关，这是唯一的口子（`laneProviderGuard.withClassifierMarker`）。
  * 别的失败（200 里 SSE 报错、连不上、看门狗、断流、用户停）不挂：它们各有事实（pi 的瞬时判定、`fault`），
  * 「最后一次尝试是 HTTP 失败」才是「服务商回了状态码与原话」的证据（上一次尝试的 429 不许串到这一次，见 modelCallFetch）。
  */
@@ -122,8 +125,12 @@ function withVendorFailure(message: AssistantMessage, vendorKey: string, recorde
   const attempt = recorder.lastAttempt();
   if (attempt?.kind !== 'http') return message;
   try {
-    const payload = describeAgentError(modelCallFailure({ vendorKey, errorMessage: message.errorMessage, attempt, redact: recorder.redact }));
-    return { ...message, diagnostics: [...(message.diagnostics ?? []),
+    const failure = modelCallFailure({ vendorKey, errorMessage: message.errorMessage, attempt, redact: recorder.redact });
+    const payload = describeAgentError(failure);
+    const balance = failure instanceof VendorRequestError && failure.structured.category === 'balance';
+    return { ...message,
+      ...(balance ? { errorMessage: withClassifierMarker(message.errorMessage ?? '', BALANCE_CLASSIFIER_MARKER) } : {}),
+      diagnostics: [...(message.diagnostics ?? []),
       { type: LANE_VENDOR_FAILURE_DIAGNOSTIC, timestamp: Date.now(), details: { message: payload } }] };
   } catch (error) {
     // 铸不出载荷也不能把这条失败弄丢（终止事件推不出去，回合就一直挂着）：退回 pi 原样那条，记一笔。
@@ -132,20 +139,54 @@ function withVendorFailure(message: AssistantMessage, vendorKey: string, recorde
   }
 }
 
+const TRUNCATED_TOOL_CALL_TEXT = "Nomi stopped this reply: the model's output reached its length cap while it was writing a tool call, "
+  + 'so the incomplete tool call was not run.';
+
 /**
- * 原样、按序转交一条流，只在终止的失败事件上挂失败载荷。终止事件就是 `result()` 的来源，
- * 所以挂载发生在**推出去之前**（与 laneProviderGuard 的归一同理）；没推终止事件、只被 `end(result)` 收尾的流，按结果再挂一次。
+ * 一条回复写到一半撞了输出上限（`finish_reason: length`）、里面还有工具调用，而且输出确实写满了这次的上限 → 改成一次
+ * **不可重试的失败**，工具调用不交出去。
+ *
+ * 为什么：pi 对 `length` 只认一件事——没写满上限（`isRecoverableLength`）就当上下文太挤、压缩一次再发；写满了就当正常收场，
+ * 把那条半截的工具调用照样执行（参数是截断的 JSON 被 pi 补全成的样子）。半截参数的工具调用可能写画布、花钱。
+ * 没写满的那种留给 pi 自己的压缩路（不重复判）；只有正文、没有工具调用的 `length` 原样交出（截断的正文用户看得见）。
+ * 原因码 `output_cap_tool_call` 只进 `diagnostics`（`LANE_OUTPUT_TRUNCATED_DIAGNOSTIC`），不进 `errorMessage`、不新增失败类别；
+ * 文字不带任何可重试词，pi 不重试、也不当溢出（`lane-resilience.test.mts` 钉住）。
+ * `intendedOutputLimit` 用 pi 自己判溢出用的同一个数（这次请求的模型 `maxTokens`，`harness/runtime/drive/generation.js`）。
  */
-function annotateFailure(stream: AssistantMessageEventStream, annotate: (message: AssistantMessage) => AssistantMessage): AssistantMessageEventStream {
+function truncatedToolCallFailure(message: AssistantMessage, intendedOutputLimit: number): AssistantMessage | undefined {
+  if (message.stopReason !== 'length' || !message.content.some((block) => block.type === 'toolCall')) return undefined;
+  if (isRecoverableLength(message, intendedOutputLimit)) return undefined;
+  return {
+    ...message,
+    stopReason: 'error',
+    errorMessage: TRUNCATED_TOOL_CALL_TEXT,
+    content: message.content.filter((block) => block.type !== 'toolCall'),
+    diagnostics: [...(message.diagnostics ?? []), { type: LANE_OUTPUT_TRUNCATED_DIAGNOSTIC, timestamp: Date.now(),
+      details: { reason: 'output_cap_tool_call', outputTokens: message.usage.output, intendedOutputLimit } }],
+  };
+}
+
+/**
+ * 原样、按序转交一条流，只在终止事件上定结果（`settle`）：失败挂载荷；成功收场若被 `settle` 改成失败（截断的工具调用），
+ * 推出去的就是一条 `error` 事件而不是 `done`。终止事件就是 `result()` 的来源，所以这一步发生在**推出去之前**
+ * （与 laneProviderGuard 的归一同理）；没推终止事件、只被 `end(result)` 收尾的流，按结果再定一次。
+ */
+function settleTerminal(stream: AssistantMessageEventStream, settle: (message: AssistantMessage) => AssistantMessage): AssistantMessageEventStream {
   const output = createAssistantMessageEventStream();
   void (async () => {
-    let failed: AssistantMessage | undefined;
+    let settled: AssistantMessage | undefined;
     for await (const event of stream) {
-      if (event.type !== 'error') { output.push(event); continue; }
-      failed = annotate(event.error);
-      output.push({ ...event, error: failed });
+      if (event.type === 'error') {
+        settled = settle(event.error);
+        output.push({ ...event, error: settled });
+      } else if (event.type === 'done') {
+        settled = settle(event.message);
+        output.push(settled.stopReason === 'error' ? { type: 'error', reason: 'error', error: settled } : { ...event, message: settled });
+      } else {
+        output.push(event);
+      }
     }
-    output.end(failed ?? annotate(await stream.result()));
+    output.end(settled ?? settle(await stream.result()));
   })();
   return output;
 }
@@ -266,14 +307,15 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
   });
   // 每一次调用一份留证（最后那次尝试的事实 + 这次真正发出去的秘密）：失败收场时按它铸结构化载荷（withVendorFailure）。
   // lane 工作区、一次性提问、文本任务、编译器都经这一处出网——载荷在这里铸一次，谁都不用再各包一层。
-  const observed = (send: (fetch: typeof globalThis.fetch) => AssistantMessageEventStream): AssistantMessageEventStream => {
+  const observed = (chosen: Model<Api>, send: (fetch: typeof globalThis.fetch) => AssistantMessageEventStream): AssistantMessageEventStream => {
     const recorder = observeModelFetch(fetchRequest, { modelId: config.modelId, knownSecrets: config.apiKey ? [config.apiKey] : [] });
-    return annotateFailure(send(recorder.fetch), (message) => withVendorFailure(message, config.providerId, recorder));
+    return settleTerminal(send(recorder.fetch), (message) =>
+      withVendorFailure(truncatedToolCallFailure(message, chosen.maxTokens) ?? message, config.providerId, recorder));
   };
   const base: ProviderStreams = {
-    stream: (chosen, context, options) => observed((fetch) =>
+    stream: (chosen, context, options) => observed(chosen, (fetch) =>
       native.stream(withoutUnpickedReasoning(chosen, streamPicksReasoning(options)), context, requestOptions(options, fetch))),
-    streamSimple: (chosen, context, options) => observed((fetch) =>
+    streamSimple: (chosen, context, options) => observed(chosen, (fetch) =>
       native.streamSimple(withoutUnpickedReasoning(chosen, simplePicksReasoning(chosen, options)), context, requestOptions(options, fetch))),
   };
   const streams = guard ? guardProviderStreams(base, guard) : base;

@@ -15,6 +15,7 @@ import {
   paidBuildMarkerProblems, paidRunRefusal, paidWalkCoverageProblems, rehearsalReceiptFile, scriptFingerprint, writeRehearsalReceipt,
   REHEARSAL_ENDPOINTS, REHEARSAL_RECEIPT_VERSION, rehearsalEndpointOf,
 } from './_paidRun.mjs'
+import { isApimartKeyCandidate } from '../../electron/shared/contracts/vendorAccountBalance'
 import { REHEARSAL_STATIONS } from './_paidNetwork.mjs'
 import { finalizeRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -31,6 +32,14 @@ function walkScripts() {
 }
 const repoPaidWalks = () => walkScripts().filter((file) => /\.paid\.mjs$/.test(file))
 const read = (file) => fs.readFileSync(path.join(repoRoot, file), 'utf8')
+
+describe('rehearsal fake key · same shape check as the product', () => {
+  // 假钥匙是演练自己的一份：产品的接入页只收 isApimartKeyCandidate 认的形状（11-24 起），演练的假钥匙不合格就卡在接入页。
+  // 直接拿产品那一个判断来判它，产品再收紧格式这里先红。
+  it('passes the APIMart connect page key-shape check', () => {
+    expect(isApimartKeyCandidate(REHEARSAL_FAKE_KEY)).toBe(true)
+  })
+})
 
 describe('paid walk coverage', () => {
   it('every *.paid.mjs in the repo uses openPaidWalk or sits in the exception table (and the table has no dead entries)', () => {
@@ -709,6 +718,8 @@ describe('paid walk · 服务商余额 / 额度错误判「未验证」，产品
       apimartResponse(200, { code: 402, msg: '账户余额不足，请充值' }, '/v1/videos/generations'),
       apimartResponse(200, { errorCode: 1620, errorMessage: '当前钱包剩余金额仅为活动会员下发金额，该类型金额不支持 API 调用，请充值。' }, '/v1/images/generations'),
       { ...apimartResponse(200, { code: 200, data: { id: 'task-1', status: 'failed', error: { message: 'insufficient balance, please recharge' } } }, '/v1/tasks/task-1'), method: 'GET' },
+      // OpenAI 的 insufficient_quota 是账单一族（官方错误码页：重试不会恢复），S4 起由 vendorFailure 的 BALANCE_IDENTIFIERS 一处归成余额不足
+      apimartResponse(429, { error: { code: 'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }),
     ]
     for (const row of cases) {
       const outcome = await runRealPaidScenario({
@@ -731,10 +742,11 @@ describe('paid walk · 服务商余额 / 额度错误判「未验证」，产品
     }
   })
 
-  it('上游配额 / 额度耗尽出网记录（产品归 quota 类：HTTP 429 insufficient_quota / 200 code 429 / SSE error）→ 判「未验证：服务商额度不足」', async () => {
+  it('上游限流出网记录（产品归 quota 类：200 信封业务码 429；SSE error 事件里的 insufficient_quota 今天仍归这里）→ 判「未验证：服务商额度不足」', async () => {
     const cases = [
-      apimartResponse(429, { error: { code: 'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' } }),
       apimartResponse(200, { code: 429, msg: '请求过于频繁，请降低调用频率' }),
+      // 已知缺口（S4 第 2 刀）：SSE error 事件只走文字判定 generationFailureDetect，它仍把 insufficient_quota 判成 quota，
+      // 和 vendorFailure 的 BALANCE_IDENTIFIERS 不一致——两处判定要收成一处，收完这一行改进上面的余额不足用例
       apimartResponse(200, 'event: error\ndata: {"type":"error","error":{"code":"insufficient_quota","message":"You exceeded your current quota"}}\n\n'),
     ]
     for (const row of cases) {

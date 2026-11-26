@@ -1,4 +1,4 @@
-import { paidNodeLedger } from '../generationCanvas/spend/spendConfirm'
+import { generationNodeLedger } from '../generationCanvas/spend/spendConfirm'
 // 「这几镜交给画布，哪几镜本机就能判定发不出去」——Agent 付费卡（出卡前、渲染时）与交接那一步
 // （`production.hand-over-shots`，开同意前）读同一个判据（D2 第③步，债 a）。
 //
@@ -11,7 +11,7 @@ import { paidNodeLedger } from '../generationCanvas/spend/spendConfirm'
 // ── 判据都不是这里新写的 ──
 //
 // 每一条都读画布那一侧已有的唯一判据：节点在跑 / 要核对（节点状态）、模型选了没有（`selectedVendor` / `selectedModelKey`）、
-// 走不走单镜 Run（`paidNodeLedger`）、预演（`directorPreviewSpendBlock`）、输入齐不齐（`generationNodeInputsReady`，
+// 走不走单镜 Run（`generationNodeLedger`）、预演（`directorPreviewSpendBlock`）、输入齐不齐（`generationNodeInputsReady`，
 // 生成钮置灰与提交咽喉同一个）、提示词要不要（`promptRequiredForNode`）、交谁、依赖波次（共用主人 `generationShotScope` 的 hand-over 意图，画布批量同一个主人）。
 // 这里只把它们的结论换成交接失败的语义码（卡据此选文案与「去改镜 N」/「再试一次」）。
 import type { GenerationHandOverFailure } from '../../desktop/productionRunBridgeTypes'
@@ -51,8 +51,8 @@ function nodeHandOverFailure(node: GenerationCanvasNode | undefined, graph: Hand
   if (!node) return notSent('canvas_node_missing')
   const vendor = selectedVendor(node)
   if (!vendor || !selectedModelKey(node)) return rejected('model_not_selected')
-  // 本机模型（ComfyUI）不进单镜 Run，没有画布同意可绑：卡交不出去，去节点上自己点生成。
-  if (paidNodeLedger(node) !== 'run') return rejected('local_model_on_card')
+  // 文本走流式入口，媒体交给单镜 Run。
+  if (generationNodeLedger(node) !== 'run') return rejected('local_model_on_card')
   // 下面几个判据只读不写；按它们的参数形状借用同一份数组，不为每个节点拷一遍整张画布（卡在渲染期每次画布变都会问）。
   const context = graph as { nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[] }
   if (directorPreviewSpendBlock(node.id, graph.nodes)) return rejected('director_preview_blocked')

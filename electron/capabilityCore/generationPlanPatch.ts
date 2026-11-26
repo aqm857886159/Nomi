@@ -76,7 +76,13 @@ export function resolvePlanPatch(input: {
       { ...(typeof input.userPatch.providerId === "string" ? { providerId: input.userPatch.providerId } : {}), modelId: input.userPatch.modelId },
       baseCandidate.mode, baseCandidate.providerId)
     : undefined;
-  const userPatch = renamed ? { ...input.userPatch, providerId: renamed.providerId, modelId: renamed.modelId } : input.userPatch;
+  const userPatch = renamed ? {
+    ...(renamed.resolved?.modeId ? { modeId: renamed.resolved.modeId } : {}),
+    ...(renamed.resolved?.variantId ? { variantId: renamed.resolved.variantId } : {}),
+    ...input.userPatch,
+    providerId: renamed.providerId,
+    modelId: renamed.modelId,
+  } : input.userPatch;
   const nextProviderId = typeof userPatch.providerId === "string" ? userPatch.providerId : baseCandidate.providerId;
   const nextModelId = typeof userPatch.modelId === "string" ? userPatch.modelId : baseCandidate.modelId;
   const modelChanged = nextProviderId !== baseCandidate.providerId || nextModelId !== baseCandidate.modelId;

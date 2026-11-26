@@ -10,6 +10,7 @@ import type { AnchorCheckpointCardModel } from './anchorCheckpointView'
 import i18n from '../../../i18n'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import type { PlanRow } from '../../shared/PlanRows'
+import type { SendCostUnit } from './sendCostUnitStore'
 export type { PlanRow }
 
 type GenerationEtaBucket = {
@@ -70,14 +71,10 @@ export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
   return kinds.size === 0 ? 'image' : 'mixed'
 }
 
-/**
- * 这个节点生成一次花不花钱、走哪条口（发动机收敛第一刀）：要花钱的走单镜 Run（批准、派发、记账都在制作流程那一个口子）；
- * 文本节点与本地 ComfyUI 不进 Run（登记的例外，到期：第二刀传输合一），也不要任何授权——本地 ComfyUI 不花钱，
- * 文本走它自己的流式口。
- */
-export function paidNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
+/** Every media execution has a recoverable Run, including local ComfyUI queues. */
+export function generationNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
   if (!node || getGenerationNodeExecutionKind(node.kind) === 'text') return undefined
-  return generationSpendsCredits([node]) ? 'run' : undefined
+  return 'run'
 }
 
 
@@ -140,6 +137,8 @@ export type SpendConfirmRequest = {
   details?: Array<{ label: string; value: string }>
   /** 主按钮上印的价（金币 + 积分数，钱只印在按钮上、正文不写）。估不出 = 不带，按钮只写字，不印数、不写 0。 */
   confirmCredits?: string
+  /** 主按钮上那个价的单位（同发送键的显示单位）；积分才带硬币。缺省 = 积分。 */
+  confirmCostUnit?: SendCostUnit
   /** Optional checklist for a batch whose entries are not materialized yet. */
   planRows?: readonly PlanRow[]
   /** Receives the user's checklist edits before the batch is materialized. */
@@ -300,17 +299,17 @@ export async function confirmGenerationResend(input: {
    * 同一条样片第二次出高清（第一次不问）：同一张「再发一次」卡，只换文案、主按钮印 1080p 价（估不出不印数）。
    * 板 SampleMode：sample.confirm-second-hd。
    */
-  secondSampleFinal?: { resolution: string; credits?: string }
+  secondSampleFinal?: { resolution: string; credits?: string; unit?: SendCostUnit }
 }): Promise<boolean> {
   if (input.secondSampleFinal) {
-    const { resolution, credits } = input.secondSampleFinal
+    const { resolution, credits, unit } = input.secondSampleFinal
     return useSpendConfirmStore.getState().requestConfirm({
       kind: 'generation',
       title: i18n.t('generationCommon.sample.secondFinal.title', { resolution }),
       message: i18n.t('generationCommon.sample.secondFinal.message', { resolution }),
       confirmLabel: i18n.t('generationCommon.sample.secondFinal.confirm'),
       cancelLabel: i18n.t('common.cancel'),
-      ...(credits ? { confirmCredits: credits } : {}),
+      ...(credits ? { confirmCredits: credits, ...(unit ? { confirmCostUnit: unit } : {}) } : {}),
     })
   }
   const kind = input.kind === 'image' || input.kind === 'video' ? input.kind : 'other'

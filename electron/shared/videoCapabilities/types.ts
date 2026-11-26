@@ -151,6 +151,8 @@ export type ModelArchetype = {
   variantIdAliases?: Record<string, string>;
   transportTaskKind: ArchetypeTransportTaskKind;
   identifierPatterns: string[];
+  /** Shared model names for handle suggestions across profiles with distinct wire contracts. */
+  familyIdentifierPatterns?: readonly string[];
   /** Provider request-body reference inputs with no composer control (headless callers only); see modelArchetypes/referenceKeys. */
   headlessReferenceKeys?: string[];
   /** This model offers the draft → final two-step flow (see ArchetypeSampleSpec). Only on the parent profile. */

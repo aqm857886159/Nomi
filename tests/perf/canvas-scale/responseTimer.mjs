@@ -74,6 +74,11 @@ const INSTALL_SOURCE = `(() => {
       return document.querySelectorAll('[data-composer-host] [data-reference-row] [data-asset-tile]').length === count
         && Boolean(tail) && tail.textContent.includes(String(count))
     },
+    // 付费确认拆开：点对话里那一组的「还有 N 个镜头」→ 那一组 N 行全画出来、那颗按钮收走。
+    offerRowsShown(count) {
+      const group = document.querySelector('[data-v4-block="generation-receipt-pointers"][data-offer-open="true"]')
+      return Boolean(group) && !group.querySelector('[data-node-pointer-more]') && group.querySelectorAll('[data-node-pointer="row"]').length >= count
+    },
     // 聊天里的指向元素（D2，NodePointer 板）：悬停它 → 画布上那个节点的外壳亮起（hover）。
     pointerNodeLit(nodeId) {
       return shellOf(nodeId)?.getAttribute('data-external-highlight') === 'hover'
@@ -84,9 +89,9 @@ const INSTALL_SOURCE = `(() => {
       const viewport = document.querySelector('.react-flow__viewport')
       return shellOf(nodeId)?.getAttribute('data-external-highlight') === 'flash' && Boolean(viewport) && viewport.style.transform !== before
     },
-    // 在节点生成框里改了一个参数 → 付费卡组下方那一行摘要换了字（卡从节点现算，不留第二份）。
+    // 在节点生成框里改了一个参数 → 付费确认条那一行共同参数换了字（从节点现算，不留第二份）。
     spendSummaryChanged({ card, before }) {
-      const line = document.querySelector(card + ' [data-node-pointer-group-summary]')
+      const line = document.querySelector(card + ' [data-v4-block="spend-params"]')
       return Boolean(line) && line.textContent.trim() !== before
     },
     nodeCountAbove(count) {

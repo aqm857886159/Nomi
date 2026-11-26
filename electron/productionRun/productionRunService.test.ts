@@ -205,6 +205,8 @@ describe('production run service projection boundary', () => {
       readEvents: vi.fn(() => []),
       list: vi.fn(() => [{ runId: semanticRun.runId }]),
       readBudgetLedger: vi.fn(() => ({ reservations: {} })),
+      // 重启后的新宿主：手上没有在交的。
+      isSubmittingHere: vi.fn(() => false),
       execute: vi.fn((..._args: unknown[]) => ({ run: semanticRun })),
     }
     const service = createProductionRunService({ repository: repository as never, projectRootResolver: () => null })

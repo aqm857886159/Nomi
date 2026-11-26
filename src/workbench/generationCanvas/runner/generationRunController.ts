@@ -16,7 +16,7 @@ import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from '
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { canvasOpenRuns, canvasResendDecide, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
 import type { CanvasResendDecision } from '../../../../electron/shared/canvas/canvasResendDecide'
-import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, withGenerationEtaStats, type SpendInitiator } from '../spend/spendConfirm'
+import { confirmGenerationResend, confirmGenerationSpend, generationNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, withGenerationEtaStats, type SpendInitiator } from '../spend/spendConfirm'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { classifyGenerationError, isOpenGenerationRefusal } from '../../observability/classifyError'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
@@ -84,7 +84,7 @@ export type RunGenerationNodeOptions = {
   /** runId = 正在跑的这一次（运行自己报号，D9）。 */
   assertApprovedInputs?: (graph: RunGraph, executingNodeId: string, runId?: string) => void
   executor?: GenerationNodeExecutor
-  /** 'run' = 单镜 Run 路：这一次运行的批准、派发、记账都在主进程的单镜 Run 里（paidNodeLedger 定）。缺省 = 不花钱的本地 / 文本路。 */
+  /** 'run' = 单镜 Run 路：这一次运行的批准、派发、记账都在主进程的单镜 Run 里（generationNodeLedger 定）。缺省 = 文本路。 */
   ledger?: 'run'
   initiator?: SpendInitiator
   /** 人在重发卡上点了确认：主进程发的决定号（只放行号里那几笔，主进程认）。 */
@@ -366,7 +366,7 @@ export async function runGenerationNodesBatch(
       if (isEntryCancelled(options.batchId, nodeId)) continue
       try {
         const node = (await readRunGraph(options.target))?.nodes.find(value => value.id === nodeId)
-        if (paidNodeLedger(node) && (await canvasOpenRuns({ projectId: options.target.projectId, nodeId })).length) {
+        if (generationNodeLedger(node) && (await canvasOpenRuns({ projectId: options.target.projectId, nodeId })).length) {
           skipped.push(nodeId)
           if (options.batchId) useGenerationQueueStore.getState().markSettled(options.batchId, nodeId, 'cancelled', { countsTowardBrake: false })
           const record = options.canvasRunRecordIds?.get(nodeId)
@@ -403,7 +403,7 @@ export async function runGenerationNodesBatch(
 }
 
 /**
- * 单节点生成/重试/生成变体的轻确认 + 跑。要花钱的走单镜 Run（这一下点击就是批准，主进程记账）；文本 / 本地 ComfyUI 不进 Run、不要授权。
+ * 单节点生成/重试/生成变体的轻确认 + 跑。要花钱的走单镜 Run（这一下点击就是批准，主进程记账）；文本走流式口，本地 ComfyUI 用 Run 保存收据。
  * rerun=true 是「基于此生成变体」：先复制出新节点再跑；普通重新生成走 regenerateNodeInPlace。
  */
 const preparingSingleGeneration = new Map<string, symbol>()
@@ -442,8 +442,8 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
     ? undefined
     : captureApprovedGenerationInputs([nodeId])
   const node = opts.deferredMaterialization?.draftNode ?? useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
-  // 出高清花不花钱看样片那一行（付费那家），不看节点现在选着谁。
-  const paid = opts.sampleFinal ? 'run' as const : !opts.rerun && paidNodeLedger(node)
+  // 出高清走不走单镜 Run 看样片那一行，不看节点现在选着谁。
+  const hasRun = opts.sampleFinal ? 'run' as const : !opts.rerun && generationNodeLedger(node)
   // 要不要问、放行哪几笔只由主进程定（canvasResendDecide）；这里只报「我想再发一次」和身份，照它的判定弹现成那张卡。
   const decideResend = (resend: boolean): Promise<CanvasResendDecision> => {
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
@@ -458,7 +458,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
       ...(productionRunId ? { production: { runId: productionRunId } } : {}),
     })
   }
-  const first: CanvasResendDecision = paid || opts.resend ? await decideResend(Boolean(opts.resend)) : { action: 'send' }
+  const first: CanvasResendDecision = hasRun || opts.resend ? await decideResend(Boolean(opts.resend)) : { action: 'send' }
   if (first.action === 'refuse') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
   if (opts.prepareDependencies?.()) return 'nothing-to-run'
   let resendDecisionId: string | undefined
@@ -490,8 +490,8 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
     const sample = current ? sampleByTaskId(current, opts.sampleFinal.draftTaskId) : null
     if (current && sample && finalsMadeFrom(current, sample.draftTaskId).length > 0) {
-      const credits = await sampleFinalCredits(sample, opts.sampleFinal.resolution, i18n.language)
-      const again = await confirmGenerationResend({ resultUnknown: false, kind: 'video', secondSampleFinal: { resolution: opts.sampleFinal.resolution, ...(credits ? { credits } : {}) } })
+      const price = await sampleFinalCredits(sample, opts.sampleFinal.resolution, i18n.language)
+      const again = await confirmGenerationResend({ resultUnknown: false, kind: 'video', secondSampleFinal: { resolution: opts.sampleFinal.resolution, ...(price ? { credits: price.text, unit: price.unit } : {}) } })
       if (!again) return 'declined'
       if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     }
@@ -524,7 +524,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
   }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(opts.sampleFinal || paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, resendDecisionId, target: project.binding, ...(opts.sampleFinal ? { sampleFinal: opts.sampleFinal } : {}) })
+      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(opts.sampleFinal || generationNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, resendDecisionId, target: project.binding, ...(opts.sampleFinal ? { sampleFinal: opts.sampleFinal } : {}) })
       ready()
       const result = await work
       whenRunTargetLoaded(project.binding, () => {

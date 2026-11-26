@@ -98,6 +98,16 @@ describe('样片还在（★9-1 / ★9-2）', () => {
   it('只读画布：只说还剩多久，没有花钱的钮', () => {
     expect(render(node(), { readOnly: true })).not.toContain('<button')
   })
+
+  it('价的单位跟发送键走：积分带硬币；切到人民币只写 ≈ 数、不带硬币', () => {
+    env.cost = { credits: '21.6', unit: 'credits', description: '这次约 21.6 积分。' }
+    expect(render(node())).toMatch(/data-sample-cost-unit="credits"[^>]*><svg/)
+    env.cost = { credits: '≈¥15.6', unit: 'cny', description: '这次约 ¥15.6。' }
+    const html = render(node())
+    expect(html).toContain('data-sample-cost-unit="cny"')
+    expect(html).not.toMatch(/data-sample-cost-unit="cny"[^>]*><svg/)
+    expect(buttonText(html)).toBe('generationCommon.sample.makeFinal≈¥15.6')
+  })
 })
 
 describe('价估不出（★9-6 反例）', () => {

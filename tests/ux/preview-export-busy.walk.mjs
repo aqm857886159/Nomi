@@ -9,8 +9,8 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // （「显示」下拉 if 短路、界面不解释）的同构复发。
 //
 // 这条走查钉死四件事，每件都带阳性对照（先证明空闲态是另一副样子，断言才不恒真）：
-//   ① 阳性对照：空闲时按钮**可点**、title 是「导出 MP4」、无 loading。
-//   ② 点下去后按钮变 disabled，并且 title / aria-label 说清「为什么现在点不了」（阶段 + 百分比）。
+//   ① 阳性对照：空闲时按钮**可点**，只有一层应用提示，说明导出规格。
+//   ② 点下去后按钮变 disabled，并且 aria-label 说清「为什么现在点不了」（阶段 + 百分比）。
 //   ③ 忙态期间再点无害：在观察者里原子地真点第二下，一次导出请求都没多发，且全程只产出一个 MP4。
 //   ④ 进度条渲染阶段文案，且带 role=progressbar 的 aria-valuenow。
 // 忙态用 MutationObserver 全程采样（不是事后瞄一眼），短窗口也抓得到。
@@ -238,10 +238,15 @@ try {
     JSON.stringify(idleState),
   )
   check(
-    idleState.title === '导出 MP4' && idleState.label === '导出 MP4',
-    '阳性对照：空闲时 title / aria-label 都只是「导出 MP4」，不带忙态说明',
+    idleState.title === null && idleState.label === '导出 MP4',
+    '阳性对照：空闲时按钮可读为「导出 MP4」，没有原生 title',
     JSON.stringify(idleState),
   )
+  await exportButton.hover()
+  const tooltip = win.getByRole('tooltip')
+  await expectVisible(tooltip, '悬停只显示应用 Tooltip')
+  check((await tooltip.textContent())?.includes('16:9 · 1080p'), '空闲提示带导出画幅和分辨率')
+  await win.mouse.move(0, 100)
   await screenshotSettled(win, { path: path.join(shotsDir, '01-idle-enabled.png') })
 
   // ── 全程采样：忙态窗口可能很短，事后瞄一眼会漏 ─────────────────────────────────
@@ -330,11 +335,11 @@ try {
     JSON.stringify(busySamples[0]),
   )
   check(
-    busySamples.every((sample) => /正在导出/.test(sample.title ?? '') && /完成后才能再点/.test(sample.title ?? '')),
-    '②禁用的同时说清「为什么现在点不了」（§1.6 C1 的 title 出口）',
-    busySamples[0]?.title ?? 'null',
+    busySamples.every((sample) => sample.title === null && /正在导出/.test(sample.label ?? '') && /完成后才能再点/.test(sample.label ?? '')),
+    '②禁用的同时说清「为什么现在点不了」（§1.6 C1 的可访问名称）',
+    busySamples[0]?.label ?? 'null',
   )
-  const stages = [...new Set(busySamples.map((s) => (s.title ?? '').match(/（(.+?) ·/)?.[1]).filter(Boolean))]
+  const stages = [...new Set(busySamples.map((s) => (s.label ?? '').match(/（(.+?) ·/)?.[1]).filter(Boolean))]
   check(
     stages.length > 0 && stages.every((stage) => ['准备素材', '录制画面', '转码封装'].includes(stage)),
     '②忙态说明里带的是真实阶段名（不是笼统的「处理中」）',
@@ -372,10 +377,10 @@ try {
   const idleAfter = await exportButton.evaluate((el) => ({
     busy: el.dataset.exportBusy,
     disabled: el.disabled === true,
-    title: el.closest('span[title]')?.getAttribute('title') ?? null,
+    label: el.getAttribute('aria-label'),
   }))
   check(
-    idleAfter.busy === 'false' && !idleAfter.disabled && idleAfter.title === '导出 MP4',
+    idleAfter.busy === 'false' && !idleAfter.disabled && idleAfter.label === '导出 MP4',
     '导出结束后按钮恢复可点（忙态不会卡死）',
     JSON.stringify(idleAfter),
   )

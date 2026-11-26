@@ -1,3 +1,4 @@
+import { withPaidReceiptWriter, type PaidSubmissionReceipt } from "../productionRun/paidSubmissionReceipt";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createCatalogGenerationProvider as createProvider } from "./apimartGenerationProvider";
@@ -406,6 +407,25 @@ describe("APIMart observe-only generation provider", () => {
     const request = provider.buildRequest(input({ prompt: "x" }));
     await expect(provider.submit(structuredClone(request), "stable-key")).resolves.toMatchObject({ providerTaskId: "task-1" });
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).toMatchObject({ Authorization: "Bearer test-key" });
+  });
+
+  it.each([
+    [{ url: "https://media.example/paid.png" }, "https://media.example/paid.png"],
+    [{ b64_json: "iVBORw0KGgo=" }, "data:image/png;base64,iVBORw0KGgo="],
+  ] as const)("materializes synchronous media with a response id from the saved receipt (%j)", async (media, url) => {
+    const payload = { id: "image-request", data: [media] };
+    const fetchImpl = vi.fn(async () => Response.json(payload));
+    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test" }), fetchImpl });
+    const request = provider.buildRequest(input());
+    const receipts: PaidSubmissionReceipt[] = [];
+    const { providerTaskId } = await withPaidReceiptWriter(receipt => receipts.push(structuredClone(receipt)), () => provider.submit(request, "stable-key"));
+    const restarted = createApimartGenerationProvider({ resolveConnection: () => null, fetchImpl, catalogReader: () => catalogFixture({ models: [], mappings: [] }) });
+    const context = { acceptance: receipts[0], mode: input().mode };
+    expect(context.acceptance).toMatchObject({ remoteTaskId: "image-request", rawAcceptance: payload });
+    const result = await restarted.query!(providerTaskId, context);
+    expect(result.status).toBe("succeeded");
+    expect((await restarted.materialize!({ providerTaskId, raw: result.raw, context })).outputs).toMatchObject([{ url }]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("queries by task id and never sends the stable Nomi key as a false provider idempotency claim", async () => {

@@ -66,9 +66,14 @@
         "empty"
       ],
       "candidates": [],
-      "status": "implemented",
+      "status": "dropped",
       "assertion": "board:SpendCardQ1/card.title",
-      "note": "方案一（10-25）。现状缺「生成剩下的…？」：标题只按段数挑单复数（agentPanelSpendCard.ts 标题那一行）。"
+      "note": "方案一（10-25）。现状缺「生成剩下的…？」：标题只按段数挑单复数（agentPanelSpendCard.ts 标题那一行）。 2026-11-15 付费确认拆开后被 SpendAskSplit/ask.title 取代（docs/design/boards/2026-11-15-spend-ask-split/）。",
+      "supersededBy": "SpendAskSplit/ask.title",
+      "userDecision": {
+        "quote": "按竖排做没有问题",
+        "date": "2026-11-15"
+      }
     },
     {
       "id": "card.badge",
@@ -102,9 +107,14 @@
         "dark"
       ],
       "candidates": [],
-      "status": "implemented",
-      "note": "替掉旧卡体（整件生成框 + 翻页）。窄屏（≤320px）只留镜号 + 缩略图。",
-      "assertion": "board:SpendCardQ1/card.pointers"
+      "status": "dropped",
+      "note": "替掉旧卡体（整件生成框 + 翻页）。窄屏（≤320px）只留镜号 + 缩略图。 2026-11-15 付费确认拆开后被 SpendAskSplit/chat.rows 取代（docs/design/boards/2026-11-15-spend-ask-split/）。",
+      "assertion": "board:SpendCardQ1/card.pointers",
+      "supersededBy": "SpendAskSplit/chat.rows",
+      "userDecision": {
+        "quote": "按竖排做没有问题",
+        "date": "2026-11-15"
+      }
     },
     {
       "id": "card.pointer.exclude",
@@ -118,13 +128,14 @@
         "dark"
       ],
       "candidates": [],
-      "status": "implemented",
+      "status": "dropped",
       "userDecision": {
-        "quote": "协调 10-23 转述用户「按推荐」：Q1 选 A——多段卡里每个指向元素悬停 / 聚焦时露一颗小「不生成 ×」，点了 N 跟着减，节点显示「已去掉，不生成」；可以撤回（再点一次恢复）",
-        "date": "2026-10-23"
+        "quote": "按竖排做没有问题",
+        "date": "2026-11-15"
       },
-      "note": "方案一（10-25 按画布评论改，两个方案都做）。现状：× 贴的是格子右缘（NodePointer.tsx PointerCell），竖图时离开了竖框；标题行还按 reserveAccessory 给它让位。全部去掉时主按钮置灰、卡留着，要关卡点「取消」；恢复是宿主动作 restoreSpendShot。",
-      "assertion": "board:SpendCardQ1/card.pointer.exclude"
+      "note": "方案一（10-25 按画布评论改，两个方案都做）。现状：× 贴的是格子右缘（NodePointer.tsx PointerCell），竖图时离开了竖框；标题行还按 reserveAccessory 给它让位。全部去掉时主按钮置灰、卡留着，要关卡点「取消」；恢复是宿主动作 restoreSpendShot。 2026-11-15 付费确认拆开后被 SpendAskSplit/chat.rows.exclude 取代（docs/design/boards/2026-11-15-spend-ask-split/）。",
+      "assertion": "board:SpendCardQ1/card.pointer.exclude",
+      "supersededBy": "SpendAskSplit/chat.rows.exclude"
     },
     {
       "id": "card.pointer.status",
@@ -154,9 +165,14 @@
         "dark"
       ],
       "candidates": [],
-      "status": "implemented",
+      "status": "dropped",
       "assertion": "board:SpendCardQ1/card.summary",
-      "note": "方案一（10-25）。现状：悬停 / 聚焦时换成「镜号 · 模型 · …」（NodePointer.tsx PointerHoverSummary），带镜头名，参数一样时也换。"
+      "note": "方案一（10-25）。现状：悬停 / 聚焦时换成「镜号 · 模型 · …」（NodePointer.tsx PointerHoverSummary），带镜头名，参数一样时也换。 2026-11-15 付费确认拆开后被 SpendAskSplit/ask.params 取代（docs/design/boards/2026-11-15-spend-ask-split/）。",
+      "supersededBy": "SpendAskSplit/ask.params",
+      "userDecision": {
+        "quote": "按竖排做没有问题",
+        "date": "2026-11-15"
+      }
     },
     {
       "id": "card.total",
@@ -256,13 +272,18 @@
         "dark"
       ],
       "candidates": [],
-      "status": "implemented",
-      "note": "协调 10-23 定（Q4）。收据上的「N 段」同样不印金额。",
-      "assertion": "board:SpendCardQ1/card.done"
+      "status": "dropped",
+      "note": "协调 10-23 定（Q4）。收据上的「N 段」同样不印金额。 2026-11-15 付费确认拆开后被 SpendAskSplit/chat.receipt 取代（docs/design/boards/2026-11-15-spend-ask-split/）。",
+      "assertion": "board:SpendCardQ1/card.done",
+      "supersededBy": "SpendAskSplit/chat.receipt",
+      "userDecision": {
+        "quote": "按竖排做没有问题",
+        "date": "2026-11-15"
+      }
     },
     {
       "id": "card.failure",
-      "label": "失败留在卡里：标题「镜头 N 没有发出去」（参数被拒等同理）+ 警示图标，下面一行写原因；出问题的那一格标「失败」，别的格子标自己的状态（生成中 / 还没发……）；不再有「镜头 1 已发出；镜头 3 还没发。」那一行",
+      "label": "失败：标题「镜头 N 没有发出去」（参数被拒等同理）+ 警示图标；原因只写在出问题的那一行第二行，条上不重复（2026-11-16）；出问题的那一行标「失败」，别的行标自己的状态（生成中 / 还没发……）；不再有「镜头 1 已发出；镜头 3 还没发。」那一行",
       "change": "new",
       "states": [
         "error",
@@ -273,7 +294,7 @@
       "candidates": [],
       "status": "implemented",
       "assertion": "board:SpendCardQ1/card.failure",
-      "note": "方案一（10-25）。那一行已不再生成；i18n 里 agentPanelV4.spendCard.detail.* 已无人用，第 3 轮删掉（P1）。"
+      "note": "方案一（10-25）。那一行已不再生成；i18n 里 agentPanelV4.spendCard.detail.* 已无人用，第 3 轮删掉（P1）。 2026-11-16：条上「下面一行写原因」那一句去掉（原因在行里说过一遍，用户定「原因只说一遍」）；失败整个挪进行里见 SpendAskSplit/ask.failure（missing，另一刀）。"
     },
     {
       "id": "card.failure.decline",

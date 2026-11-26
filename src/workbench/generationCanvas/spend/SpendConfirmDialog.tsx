@@ -271,7 +271,7 @@ export function SpendConfirmDialog() {
               {pending.confirmLabel || t('generationCommon.spend.confirm')}
               <span aria-hidden>·</span>
               <span data-spend-confirm-credits="" className="inline-flex items-center gap-0.5 tabular-nums">
-                <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden />{pending.confirmCredits}
+                {(pending.confirmCostUnit ?? 'credits') === 'credits' ? <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden /> : null}{pending.confirmCredits}
               </span>
             </span>
           )

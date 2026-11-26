@@ -43,9 +43,9 @@ const SPEND = (zh, en) => ({ screen: 'spend-card', state: { 'zh-CN': zh, ...(en 
 const STATES = [
   [V4('v4-panel-question-light'), 'question', 'light'],
   [V4('v4-panel-question-light'), 'question', 'dark'],
-  // 付费卡 = **真卡**：指向元素 + 一行只读摘要 + 「生成」，数据由生产钩子 `useAgentPanelSpendCard` 从节点现读。
-  [SPEND('spend-single', 'spend-single-en'), 'spend', 'light'],
-  [SPEND('spend-single', 'spend-single-en'), 'spend', 'dark'],
+  // 付费确认 = **真条**：共同参数一行 + 「取消」/「生成」，镜头在对话里那一组；数据由生产钩子 `useAgentPanelSpendCard` 从节点现读。
+  [SPEND('spend-single'), 'spend', 'light'],
+  [SPEND('spend-single'), 'spend', 'dark'],
   // 普通确认卡（可撤销档）——同族第三张，验的是「换壳是一处改、全族生效」。
   [V4('v4-panel-approval-light'), 'approval', 'light'],
   [V4('v4-panel-approval-light'), 'approval', 'dark'],
@@ -66,8 +66,8 @@ const STATES = [
   [SPEND('spend-sending'), 'spend-sending', 'dark'],
   // 面板压窄到 300：指向元素只留镜号 + 缩略图，主按钮与页脚不被裁、不横向滚动。
   [SPEND('spend-batch-narrow'), 'spend-narrow', 'light'],
-  // 英文长文案（逐镜不同的摘要 + 逐镜明细展开）。
-  [SPEND('spend-mixed', 'spend-mixed-en'), 'spend-mixed', 'light'],
+  // 逐镜不同（不同项写在各行第二行 + 逐镜明细展开）；英文那一格是暗色（spend-mixed-en-dark），在付费确认走查里量。
+  [SPEND('spend-mixed'), 'spend-mixed', 'light'],
 ]
 
 const failures = []
@@ -194,7 +194,9 @@ try {
             .filter((member) => member.rect.width > 0 && member.rect.height > 0)
           return {
             editors: root.querySelectorAll('textarea, input, select, [data-composer-host], [data-node-composer-footer], [data-parameter-chip], [data-parameter-summary]').length,
-            pointers: root.querySelectorAll('[data-v4-block="spend-body"] [data-node-pointer]').length,
+            // 拆开后（SpendAskSplit）镜头住在对话里那一组，条上一个都不许有。
+            pointers: element.querySelectorAll('[data-v4-block="generation-receipt-pointers"] [data-node-pointer]').length,
+            barPointers: root.querySelectorAll('[data-node-pointer], [data-spend-exclusion]').length,
             outside: members.filter((member) => member.rect.left < rect.left - 0.5 || member.rect.right > rect.right + 0.5).map((member) => member.text),
             scrolls: [...root.querySelectorAll('*')].filter((node) => node.scrollWidth - node.clientWidth > 1 && ['auto', 'scroll'].includes(getComputedStyle(node).overflowX)).length,
           }
@@ -202,7 +204,8 @@ try {
         if (!card) failures.push(`${tag}/${theme}/${kind}：面板里没有付费卡`)
         else {
           if (card.editors) failures.push(`${tag}/${theme}/${kind}：付费卡里出现了 ${card.editors} 个编辑器零件（生成框 / 参数 chip / 输入框）——卡上不许有可改的东西`)
-          if (!card.pointers) failures.push(`${tag}/${theme}/${kind}：付费卡上没有指向元素`)
+          if (!card.pointers) failures.push(`${tag}/${theme}/${kind}：对话里没有这一批镜头那一组`)
+          if (card.barPointers) failures.push(`${tag}/${theme}/${kind}：输入框上方那一条确认里画了 ${card.barPointers} 个镜头 / 小钮——镜头住在对话里`)
           if (card.outside.length) failures.push(`${tag}/${theme}/${kind}：这几颗伸出了卡外：${card.outside.join(' | ')}`)
           if (card.scrolls) failures.push(`${tag}/${theme}/${kind}：卡里有 ${card.scrolls} 处要横向滚动才看得全——放不下必须换行或截断带全名`)
           measured.push({ locale: tag, theme, kind: `${kind}:card`, ...card })

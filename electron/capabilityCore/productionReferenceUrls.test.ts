@@ -4,6 +4,8 @@ import { localizeProductionReferenceUrls, resolveProductionReferenceUrls, rework
 import { AnonymousAssetConsentRequiredError, localizeAssetsForVendor, type LocalAsset } from '../catalog/assetLocalization';
 import { spendReferenceKey } from '../shared/contracts/pendingSpendConfirm';
 import { matchNomiErrorCode, tagNomiError } from '../shared/nomiErrorCodes';
+import { providerReferenceValueValidator } from './generationProviderReferenceValue';
+import { MEDIA_IMPORT_SURFACES } from '../shared/contracts/mediaImportPolicy';
 import { desktopT } from '../desktopStrings';
 const reference = { assetId: 'asset', contentHash: 'hash', version: 1, kind: 'image' as const, role: 'first_frame' as const };
 function fixture() {
@@ -83,11 +85,12 @@ it('uses the real multipart upload path against a delayed loopback endpoint', as
 // 以前一律沿用（同一份合同不重传），于是冻住的是一条临时链接时，返工发的还是那条死链接，模型再拒一次、再扣一次。
 describe('reworkReferenceUrls', () => {
   const frozen = { [spendReferenceKey(reference)]: 'https://tmp.example.com/old.png' };
+  const isDeliverable = providerReferenceValueValidator();
   const resolved = { [spendReferenceKey(reference)]: 'https://cdn.example/fresh.png' };
   const setup = (verdict: 'alive' | 'dead' | 'unknown') => {
     const probe = vi.fn(async () => verdict);
     const resolve = vi.fn(async () => resolved);
-    const policyOf = vi.fn(() => ({ channels: () => [], probe }));
+    const policyOf = vi.fn(() => ({ channels: () => [], probe, isDeliverable }));
     const run = (overrides: Partial<{ frozen: Record<string, string> | undefined; references: typeof reference[] }> = {}) => reworkReferenceUrls(
       { projectId: 'p', providerId: 'apimart', references: [reference], frozen, assertCurrent() {}, ...overrides },
       { policyOf, resolve },
@@ -114,7 +117,7 @@ describe('reworkReferenceUrls', () => {
       const resolve = vi.fn(async () => resolved);
       const out = await reworkReferenceUrls(
         { projectId: 'p', providerId: 'v', references: [reference], frozen, assertCurrent() {} },
-        { policyOf: () => ({ channels, probe: async () => 'denied' }), resolve },
+        { policyOf: () => ({ channels, probe: async () => 'denied', isDeliverable }), resolve },
       );
       expect(channels).toHaveBeenCalledWith(reference.kind);
       expect(out).toEqual(visibility === 'public-anonymous' ? undefined : resolved);
@@ -146,7 +149,7 @@ describe('reworkReferenceUrls', () => {
     const resolve = vi.fn(async () => resolved);
     const out = await reworkReferenceUrls(
       { projectId: 'p', providerId: 'apimart', references: [reference, second], frozen: both, assertCurrent() {} },
-      { policyOf: () => ({ channels: () => [], probe }), resolve },
+      { policyOf: () => ({ channels: () => [], probe, isDeliverable }), resolve },
     );
     expect(out).toEqual(resolved);
     expect(probe).toHaveBeenCalledTimes(2);
@@ -208,5 +211,51 @@ describe('localizeProductionReferenceUrls · 上传失败摘要保真与脱敏�
     if (mustNotBeBareHostingDisabled) {
       expect(caught!.message).not.toBe(tagNomiError(expectedCode, desktopT('assetUpload.hostingDisabled')));
     }
+  });
+});
+
+describe('localized provider reference values', () => {
+  const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  const vendor = { key: 'local', assetIngestion: { strategy: 'inline-base64', accepts: ['image'] } } as const;
+  const localize = (value: string, target: Parameters<typeof providerReferenceValueValidator>[0] = vendor) => localizeProductionReferenceUrls('local', ['nomi-local://asset/p/ref.png'], {
+    readCatalog: () => ({ vendors: [target] }) as never,
+    localizeForSend: async () => ({ value: { urls: [value] }, uploaded: 1 }),
+    assetIngestionResolver: () => () => [],
+    assetLocalizationOptions: () => ({}),
+  });
+
+  it('accepts inline output from the declared channel and HTTP output from an upload', async () => {
+    await expect(localize(image)).resolves.toEqual([image]);
+    await expect(localize('https://example.test/image.png', { ...vendor, assetIngestion: { strategy: 'none', accepts: [] } }))
+      .resolves.toEqual(['https://example.test/image.png']);
+  });
+
+  it.each(['data:image/png;base64,invalid!', 'data:image/png;base64,AAAA', 'data:text/plain;base64,AAAA',
+    'data:image/png;base64,AAA=====', 'data:image/made-up;base64,AAAA', 'file:///reference.png', 'https://'])('rejects %s', async value => {
+    await expect(localize(value)).rejects.toThrow('generation_reference_url_unavailable');
+  });
+
+  it('rejects inline output without a declared inline channel', async () => {
+    await expect(localize(image, { ...vendor, assetIngestion: { strategy: 'none', accepts: [] } }))
+      .rejects.toThrow('generation_reference_url_unavailable');
+  });
+
+  it.each([true, false])('reworks a sealed inline reference without probing when the channel is %s', async inline => {
+    const probe = vi.fn(async () => 'unknown' as const);
+    const resolved = { [spendReferenceKey(reference)]: 'https://cdn.example/new.png' };
+    const resolve = vi.fn(async () => resolved);
+    const isDeliverable = providerReferenceValueValidator(inline ? vendor : undefined);
+    const actual = await reworkReferenceUrls({
+      projectId: 'p', providerId: 'local', references: [reference],
+      frozen: { [spendReferenceKey(reference)]: image }, assertCurrent() {},
+    }, { policyOf: () => ({ channels: () => [], probe, isDeliverable }), resolve });
+    expect(probe).not.toHaveBeenCalled();
+    expect(actual).toEqual(inline ? undefined : resolved);
+  });
+
+  it('rejects oversized inline output before decoding', async () => {
+    const cap = MEDIA_IMPORT_SURFACES['model-image-input'].hardCapBytes!;
+    const oversized = image.slice(0, -2) + 'A'.repeat(4 * Math.ceil((cap + 1) / 3));
+    await expect(localize(oversized)).rejects.toThrow('generation_reference_url_unavailable');
   });
 });

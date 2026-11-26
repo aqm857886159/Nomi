@@ -446,6 +446,10 @@
       "reason": "付费卡的卡体（D2 SpendCardQ1 板）：指向元素 + 一行只读摘要 + 说明行——按镜头花钱的领域呈现，卡上每个字都从那几镜节点现读"
     },
     {
+      "path": "src/workbench/ai/v4/AgentPanelV4SpendBar*",
+      "reason": "付费确认条（SpendAskSplit 板）：独立的付费确认槽组件，承接所有 kind === 'spend' 的花钱确认（共同参数、进度、失败、md 档取消/生成按钮）——按镜头花钱的领域呈现"
+    },
+    {
       "path": "src/workbench/ai/v4/spendCard*",
       "reason": "付费卡上说「没成」的那几句：卡上那一下动作本身没做成、交给画布的某一镜没发出去——只认 Nomi 自己的语义码，只说发没发出去和下一步"
     },
@@ -2584,6 +2588,33 @@
       ],
       "whyNotIntegrated": "领域约束：只有 Nomi 的节点、参考关系、变体映射和最终出站请求能决定这次镜头的公开价是否可估（带参考、自定义模板、价目没写附加费时必须判未知）。网络、HTTP 模板、React 生命周期和货币格式化都复用现有实现；这几个模块只把这些领域事实接起来，不拥有第二份目录、凭据或付费授权。",
       "revisitWhen": "既有请求构造器直接提供同形的只读报价投影，或公开价读取迁入统一的模型连接领域 owner 时，合并这些适配并删掉重复入口；任何时候都不得用估价结果替代生成授权。"
+    },
+    {
+      "id": "send-cost-account-balance",
+      "capability": "发送键旁余额不足提醒的主进程余额读取：从内置供应商档案声明读取官方 /v1/balance（仅官方域名、Bearer 凭据走既有解密与出站目的地授权、失败与无限额度 -1 均退回不拦截发送），与公开价目预览彻底解耦",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-17-cost-step1-estimate.md",
+      "paths": [
+        "electron/ai/onboarding/vendorAccountBalance.ts",
+        "src/workbench/generationCanvas/spend/useVendorBalance.ts",
+        "src/workbench/generationCanvas/spend/useSendCostLowBalance.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "复用既有出站授权与备用域名回落：直接调用 authorizeSubmitDestination、findIllegalHeader、fetchVendorWithBaseFallback 与 decryptApiKeyRecord，不另写 HTTP 传输或凭据读写",
+          "source": "electron/vendor/vendorHttp.ts"
+        },
+        {
+          "name": "不合进公开价目读取 vendorPricePreview：公开价必须零凭据 GET；账户余额必须带 Bearer 且仅发往官方域名，架构测试明确禁止公开价链出现账户/余额依赖",
+          "source": "electron/ai/onboarding/vendorPricePreview.ts:1"
+        },
+        {
+          "name": "供应商档案声明驱动：端点路径与充值链接声明在 builtinVendorSeeds / apimartVendor，未声明余额能力的供应商直接返回 null，不在调用处硬编码 URL",
+          "source": "electron/catalog/apimartVendor.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：把主进程保存的 APIMart 凭据、官方域名白名单与 Nomi 按镜约价对比，输出「还差 N 积分 + 去充值」状态，且余额未知/过期/无限(-1)必须退回正常发送键；传输、重试、凭据解密和目的地授权全部复用既有模块。",
+      "revisitWhen": "未来若建立统一的供应商账户中心（覆盖额度、账单与余额订阅），将此只读查询并入该唯一 owner 并删掉独立文件。"
     },
     {
       "id": "param-value-door-eslint-rule",

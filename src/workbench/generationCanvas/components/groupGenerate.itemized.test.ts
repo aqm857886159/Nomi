@@ -24,7 +24,7 @@ vi.mock('../../api/taskApi', () => ({
 vi.mock('../spend/spendConfirm', () => ({
   spendCostKind: vi.fn(() => 'image'),
   spendCostKindForNodes: vi.fn(() => 'image'),
-  paidNodeLedger: vi.fn(() => 'run'),
+  generationNodeLedger: vi.fn(() => 'run'),
 
   confirmGenerationSpend: mocks.confirmGenerationSpend,
   describeGenerationCost: vi.fn(() => ''),
