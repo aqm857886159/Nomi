@@ -18,6 +18,17 @@ export const TEXT_RECOGNITION_KEY = "text_recognition";
 /** 层数达到这个数就提醒「层数多就贵」（只提醒，不拦）。 */
 export const LAYER_COUNT_COST_REMINDER_AT = 50;
 
+/**
+ * 一层的通用描述（主进程 `readTaskLayers` 读出、随 TaskResult.assets 按下标平行送到渲染层；渲染层只认它，不读供应商原始响应）。
+ * `box` 是底图像素坐标 [左, 上, 右, 下]；没有框 = 铺满底图（底图本身）。
+ */
+export type TaskResultLayer = {
+  zIndex: number;
+  name?: string;
+  text?: string;
+  box?: { left: number; top: number; right: number; bottom: number };
+};
+
 /** 这个方式是不是图层分离。 */
 export function isLayerSplitMode(mode: Pick<ArchetypeMode, "layerSplit"> | null | undefined): boolean {
   return Boolean(mode?.layerSplit);

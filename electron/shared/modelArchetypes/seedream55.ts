@@ -56,7 +56,7 @@ export const SEEDREAM_55_ARCHETYPE: ModelArchetype = {
       "图层分离：layer_decomposition:true，恰好 1 张 image_urls，不能带 background；size 档位 1K|1.5K|2K|auto(默认 auto，比例返回 400)；" +
       "layer_decomposition_options.max_images 2–100(默认 30，含底图，是上限)、text_recognition 布尔(默认关)；prompt 可空；" +
       "结果 data.result.images[0].url[]（0 = 底图）与 layers[] 平行：z_index(底图 0、升序叠)、name、bounding_box.absolute [l,t,r,b] 底图像素、text_recognition.text；" +
-      "按层数上限 × 档位单价 + 一次输入图预扣，按实际层数结算，失败退回。",
+      "按层数上限 × 档位单价 + 一次输入图预扣（1K / 1.5K 按低档、2K / auto 按高档），按实际层数与每张实际像素档结算，失败全退。",
   }],
   modes: [
     {

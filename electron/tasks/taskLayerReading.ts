@@ -6,14 +6,9 @@
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
 import { mappingCandidates, maybeParseJsonString, pathValues } from "./responseParsing";
 import { retrievalStageError } from "./retrievalStageError";
+import type { TaskResultLayer } from "../shared/modelArchetypes/layerSplit";
 
-/** 一层的通用描述（与 TaskResult.assets 按下标平行）。`box` 是底图像素坐标 [左, 上, 右, 下]；没有框 = 铺满底图（底图本身）。 */
-export type TaskResultLayer = {
-  zIndex: number;
-  name?: string;
-  text?: string;
-  box?: { left: number; top: number; right: number; bottom: number };
-};
+export type { TaskResultLayer };
 
 function readBox(value: unknown): TaskResultLayer["box"] | undefined {
   const parsed = maybeParseJsonString(value);

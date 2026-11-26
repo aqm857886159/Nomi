@@ -178,6 +178,22 @@ describe('方式按输入现算 · 九种状态', () => {
     expect(notice()).toBeNull()
   })
 
+  // 图层分离是人选的任务（不是图怎么摆）：画布边界不因输入变化忘掉它——多连一张、删光再连回，都还是拆图层，
+  // 不会悄悄变成一次付费的普通改图。反例：forgetUnfitModeChoices 改成按 modeTakesAllInputs 忘偏好 → 这条红。
+  it('⑩ 图层分离：连第二张不换走（第 2 张不会发）、删光输入不退成文生，偏好一直在', () => {
+    open({ modelKey: 'seedream-5-5', modelVendor: 'apimart', archetype: { id: 'seedream-5-5', modeId: 'layers', modeChosenBy: 'human' } }, 'image')
+    connect('a')
+    expect(resolved()).toMatchObject({ mode: { id: 'layers' }, status: 'ok', taken: 1 })
+    connect('b')
+    expect(resolved()).toMatchObject({ mode: { id: 'layers' }, status: 'ok', taken: 1 })
+    expect(notice()).toBeNull()
+    disconnect('a'); disconnect('b')
+    expect(resolved()).toMatchObject({ mode: { id: 'layers' }, status: 'needsInput', taken: 0 })
+    connect('c')
+    expect(resolved()).toMatchObject({ mode: { id: 'layers' }, status: 'ok', taken: 1 })
+    expect(readModePreference(archetypeForNode(node())!, node().meta as Record<string, unknown>)).toEqual({ modeId: 'layers', chosenBy: 'human' })
+  })
+
   it('⑨ 图片节点：没有方式格（菜单只给视频节点算；图片放了图就是按图改）', () => {
     open({ modelKey: 'nano-banana', archetype: { id: 'nano-banana', modeId: 't2i' } }, 'image')
     connect('a')

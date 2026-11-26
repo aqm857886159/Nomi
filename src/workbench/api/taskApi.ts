@@ -8,6 +8,7 @@ import { describeOpaqueFailure } from '../observability/opaqueFailure'
 import { trackNodeSubmit } from '../generationCanvas/runner/nodeSubmitInFlight'
 import { stripVendorErrorMarker } from '../../../electron/shared/generationFailure'
 import type { CanvasResendDecidePayload, CanvasResendDecision } from '../../../electron/shared/canvas/canvasResendDecide'
+import type { TaskResultLayer } from '../../../electron/shared/modelArchetypes/layerSplit'
 
 export type TaskKind =
   | 'chat'
@@ -53,6 +54,11 @@ export type TaskResultDto = {
    * 不再自己解析 raw 的形状（那份副本猜不到 failMsg/errorMessage 等家族专属字段）。
    */
   error?: string
+  /**
+   * 图层分离的结果：与 assets 按下标平行的每层描述（主进程按线缆声明读出，见 electron/tasks/taskLayerReading.ts）。
+   * 有它 = 这一笔落成一张白板（底图 + 各层），不是 N 张普通图（runner/layerSplitLanding.ts）。
+   */
+  layers?: TaskResultLayer[]
   /**
    * E11: Complete provenance for reproducibility. Populated by the electron
    * runtime on successful generation. Renderer copies into
