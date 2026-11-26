@@ -46,7 +46,7 @@ function listedPerImage(imageList: unknown, modelId: string): boolean {
 
 /**
  * 图层分离的预扣口径：层数上限 × 档位单价 + 一张输入图的费（首张免费的模型不收）。官方按实际层数与像素档结算、失败全退，
- * 所以这是「最多大约多少」，界面照普通约价标「约」，不写成实际扣费。数一个读不到就 null（不报 0、不猜）。
+ * 所以这是「最多大约多少」：口径标 `upper-bound`，发送键印「≤」、悬停说按层数上限估，不写成实际扣费。数一个读不到就 null（不报 0、不猜）。
  * 这个方式一次只拆 1 张（只收第 1 张），请求里恰好 1 张输入图才算；草稿里还没放图时，渲染层按「放进那一张之后」要发的请求问价
  * （useNodePricePreview.priceRequest；板 2026-11-26-layer-split · layers.no-image-hint「价照印」）。
  */
@@ -65,7 +65,7 @@ function layerSplitPriceFor(query: VendorPriceQuery, d: Record<string, unknown>,
   if (!listedPerImage(imageList, query.modelId)) return null;
   const chargedInputs = d.input_image_first_free === true ? 0 : 1;
   const usd = maxImages * rate + chargedInputs * inputRate;
-  return Number.isFinite(usd * 10) && usd > 0 ? { source, usd, credits: usd * 10 } : null;
+  return Number.isFinite(usd * 10) && usd > 0 ? { source, usd, credits: usd * 10, basis: "upper-bound" } : null;
 }
 
 export function publicPriceFor(query: VendorPriceQuery, detail: unknown, imageList: unknown, source: string): VendorPricePreview | null {

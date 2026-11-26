@@ -71,8 +71,8 @@ describe("read-only public media price", () => {
       for (const size of ["1K", "1.5K"]) expect(layerQuote(detail55, { ...layerQuery, size })?.usd).toBeCloseTo(30 * 0.016 + 0.0064, 9);
       expect(layerQuote(detail55, { ...layerQuery, layerSplit: { maxImages: 8 } })?.usd).toBeCloseTo(8 * 0.028 + 0.0064, 9);
     });
-    it("is a plain estimate (labelled 约 on the send key), not the token-billed output estimate", () => {
-      expect(layerQuote()).not.toHaveProperty("basis");
+    it("is marked as an upper bound (reserved at the layer limit, settled by actual layers) so the send key prints ≤", () => {
+      expect(layerQuote()).toMatchObject({ basis: "upper-bound" });
     });
     it("a model whose first input image is free is not charged for it", () => {
       expect(layerQuote({ ...detail55, input_image_first_free: true })?.usd).toBeCloseTo(30 * 0.028, 9);

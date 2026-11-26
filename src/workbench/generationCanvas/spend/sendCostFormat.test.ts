@@ -50,6 +50,27 @@ describe('约价怎么印（唯一一处格式化：积分恢复 M4 原稿纯数
     expect(unknown).not.toMatch(/\d/)
   })
 
+  // 板 2026-11-26-layer-split · layers.send-price：按上限预扣的约价（图层分离）键上印「≤」，换单位不丢；悬停说按层数上限估。
+  // 反例：口径 upper-bound 被当普通约价印（不带 ≤ / 悬停说「这次约」）→ 这条红。
+  it.each(['zh-CN', 'en'] as const)('%s：upper-bound 三种单位都印 ≤，悬停用上限那一句，单位菜单仍是裸数', async (locale) => {
+    const t = i18next.createInstance()
+    await t.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })
+    const tf = t.t.bind(t) as Parameters<typeof sendCostDescription>[1]
+    const q: VendorPricePreview = { ...amount, usd: 0.8464, credits: 8.464, basis: 'upper-bound' }
+    expect(sendCostPillText(q, locale, 'credits', tf)).toBe('≤8.46')
+    expect(sendCostPillText(q, locale, 'usd', tf)).toBe(`≤${publicEstimateUsd(q, locale)}`)
+    expect(sendCostPillText(q, locale, 'cny', tf)).toBe(`≤${publicEstimateCny(q, locale)}`)
+    expect(sendCostDescription(q, tf, locale, 'credits'))
+      .toBe(DICT[locale].upperBound.replace('{{value}}', '8.46').replace('{{usd}}', publicEstimateUsd(q, locale)))
+    expect(sendCostDescription(q, tf, locale, 'usd'))
+      .toBe(DICT[locale].upperBoundUsd.replace('{{usd}}', publicEstimateUsd(q, locale)).replace('{{value}}', '8.46'))
+    const cnyDesc = sendCostDescription(q, tf, locale, 'cny')
+    expect(cnyDesc.startsWith(DICT[locale].upperBoundCny.split('{{cny}}')[0])).toBe(true)
+    expect(cnyDesc).toContain(publicEstimateCny(q, locale))
+    expect(cnyDesc).toContain(BUILTIN_USD_TO_CNY_DATE)
+    expect(sendCostUnitOptions(q, tf, locale).map((option) => option.formatted)).toEqual(['8.46', publicEstimateCny(q, locale), publicEstimateUsd(q, locale)])
+  })
+
   it.each(['zh-CN', 'en'] as const)('%s：积分胶囊恢复纯数字（output-estimate 带 ≈），人民币/美元胶囊用紧凑 ≈，单位菜单列出纯净三项数值', async (locale) => {
     const t = i18next.createInstance()
     await t.init({ lng: locale, resources: { [locale]: { translation: { generationCommon: locale === 'en' ? enGenerationCommon : zhGenerationCommon } } } })

@@ -28,6 +28,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { bringButtonIntoReach } from './_generateReach.mjs'
 import { canvasFitView, collapseAgentPanel } from './_shell.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const SCRIPT = 'layer-split-real.paid.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -46,7 +47,7 @@ const paid = await openPaidWalk(SCRIPT, 'layer-split-real', [MODEL], {
   judgesBodyInRehearsal: true,
   rehearsalShots: 1,
   // 会原样进产物的字面量：线缆的分层参数键、图层分离节点浮条「画板」的说明（这次新加的界面文案）。
-  buildMarkers: ['layer_decomposition_options', '在画板中编辑图层'],
+  buildMarkers: ['layer_decomposition_options', uiText('zh-CN', 'generationCommon.imageToolbar.whiteboardLayersHint')],
 })
 const { walk } = paid
 const evidence = { script: SCRIPT, startedAt: new Date().toISOString(), model: `${MODEL.vendorKey}/${MODEL.modelKey}`, layers: LAYERS, size: SIZE }

@@ -95,6 +95,7 @@ import { composerHeadlineParts, layerSplitHeadlineParts } from './composerHeadli
 import { IconStack2 } from '@tabler/icons-react'
 import { ICON_TIERS } from '../../../design'
 import { isLayerSplitMode, requestedLayerCount, LAYER_COUNT_COST_REMINDER_AT, LAYER_COUNT_KEY } from '../../../../electron/shared/modelArchetypes/layerSplit'
+import { layerSplitReminderAmount } from './layerSplitComposerState'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import { buildAspectRatioNodePatch } from './nodeSizing'
@@ -533,11 +534,11 @@ export default function NodeParameterControls({
       formatUpTo: (count) => t('generationCommon.layerSplitComposer.cellUpTo', { count }),
       autoLabel: t('generationCommon.parameters.auto'),
     }) : null
-    // 层数多就贵（≥ 50 层，裁定 4）：只提醒、不拦；数随当前层数，发送键上有约价就带上。
+    // 层数多就贵（≥ 50 层，裁定 4）：只提醒、不拦；数随当前层数，发送键上有约价就带上（裸数，句子自己说「约」）。
     const layerCount = layerSplit && archMode ? requestedLayerCount(archMode, meta) : null
-    const sendCredits = footer?.send?.cost?.credits
-    const sendAmount = sendCredits
-      ? (footer?.send?.cost?.unit ?? 'credits') === 'credits' ? t('generationCommon.layerSplitComposer.creditsAmount', { value: sendCredits }) : sendCredits
+    const reminder = layerSplitReminderAmount(footer?.send?.cost)
+    const sendAmount = reminder
+      ? reminder.unit === 'credits' ? t('generationCommon.layerSplitComposer.creditsAmount', { value: reminder.value }) : reminder.value
       : ''
     const layerNotices = layerSplit && !layerSplit.fixed && layerCount !== null && layerCount >= LAYER_COUNT_COST_REMINDER_AT
       ? { [LAYER_COUNT_KEY]: sendAmount

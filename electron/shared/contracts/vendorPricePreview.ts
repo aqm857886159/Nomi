@@ -11,4 +11,10 @@ export type VendorPriceQuery = {
    */
   layerSplit?: { maxImages: number };
 };
-export type VendorPricePreview = { usd: number; credits: number; source: string; basis?: "output-estimate" };
+/**
+ * 约数的口径（缺省 = 按公开价的这次约数）：
+ * - `output-estimate`：只算了输出、实际按 token 结算 → 键上印「≈」；
+ * - `upper-bound`：按请求里的上限预扣、出完按实际产出结算（今天只有图层分离：上限 = 层数）→ 键上印「≤」，悬停说清按上限估。
+ */
+export type VendorPriceBasis = "output-estimate" | "upper-bound";
+export type VendorPricePreview = { usd: number; credits: number; source: string; basis?: VendorPriceBasis };

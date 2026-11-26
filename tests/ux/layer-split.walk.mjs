@@ -13,17 +13,34 @@ import { expect } from '@playwright/test'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { parseDriverArgs } from './uiDriverOptions.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
 
 const options = parseDriverArgs(['--vendor', 'fake-apimart', ...process.argv.slice(2)])
 const out = options.out
 const client = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ui.mjs')
 const env = { ...process.env, NOMI_TEST_NETWORK_GUARD: '1', NOMI_UI_DIR: path.join(makeTempDir('nomi-layer-split-walk-'), 'ipc') }
 const en = options.locale === 'en'
-const L = en
-  ? { generate: 'Generate asset', split: 'Split layers', cell: 'Split layers · 30 · Auto', readText: 'Read text', whiteboard: 'Whiteboard', base: 'Base image', del: 'Delete selected element', brushPath: 'Brush path', status: 'Layers 3 · incl. base', guide: 'connect APIMart', disconnect: 'Disconnect',
-    boardHint: 'Edit on the whiteboard and import the current image automatically', layersHint: 'Edit the layers on the whiteboard' }
-  : { generate: '生成素材', split: '图层分离', cell: '图层分离 · 30 层 · 自动', readText: '识别文字', whiteboard: '画板', base: '底图', del: '删除选中元素', brushPath: '画笔路径', status: '3 层', guide: '接入 APIMart', disconnect: '断开',
-    boardHint: '在画板中编辑（自动导入当前图片）', layersHint: '在画板中编辑图层' }
+const locale = en ? 'en' : 'zh-CN'
+// 界面原话一律按键从词典取（check:test-copy-literals）；只有词典外的拼法（格子三段的连接、状态行）在这里拼。
+const T = (key, values) => (values ? uiTextWith(locale, key, values) : uiText(locale, key))
+const split = T('generationCommon.quickActions.actions.layerSplit')
+const L = {
+  generate: T('generationCommon.composer.generateAsset'),
+  split,
+  cell: `${split} · ${T('generationCommon.layerSplitComposer.cellLayers', { count: 30 })} · ${T('generationCommon.parameters.auto')}`,
+  readText: en ? 'Read text' : '识别文字',
+  whiteboard: en ? 'Whiteboard' : '画板',
+  base: T('generationCommon.whiteboard.baseImage'),
+  del: T('generationCommon.whiteboard.deleteSelected'),
+  brushPath: T('generationCommon.whiteboard.brushPath').split('{{')[0].trim(), // 「画笔路径 {{index}}」的前缀
+  status: T('generationCommon.layerSplitComposer.nodeStatus', { count: 3 }),
+  guide: en ? 'connect APIMart' : '接入 APIMart',
+  disconnect: en ? 'Disconnect' : '断开',
+  boardHint: T('generationCommon.imageToolbar.whiteboardHint'),
+  layersHint: T('generationCommon.imageToolbar.whiteboardLayersHint'),
+  // 发送键悬停：按层数上限估的那一句（口径 upper-bound）。
+  upperBound: new RegExp(uiTextPattern(T('generationCommon.composer.sendCost.upperBound'), { anchored: true })),
+}
 fs.mkdirSync(out, { recursive: true })
 
 function ui(...args) {
@@ -100,7 +117,10 @@ try {
   clickNodeCenter(derived.id)
   await until(`${summaryExpr}.includes(${JSON.stringify(L.cell)})`, `composer cell reads「${L.cell}」`)
   const sendText = read(`document.querySelector('[aria-label=${JSON.stringify(L.generate)}]')?.closest('[data-composer-host]')?.innerText || ''`)
-  assert.match(sendText, /8\.46/, `send key prints the estimate (30 layers × high tier + input image): ${sendText}`)
+  // 板 layers.send-price：硬币 +「≤数」（按层数上限预扣，出完按实际层数结算）；悬停是上限那一句。
+  assert.match(sendText, /≤\s*8\.46/, `send key prints the upper-bound estimate (30 layers × high tier + input image): ${sendText}`)
+  const sendHover = read(`document.querySelector('[aria-label=${JSON.stringify(L.generate)}]')?.getAttribute('aria-description') || ''`)
+  assert.match(sendHover, L.upperBound, `send key hover explains the layer-limit estimate: ${sendHover}`)
   shot('LS02-derived-composer')
 
   // ④ 参数面板：识别文字默认关，打开它。

@@ -68,6 +68,8 @@ function rawAmountForUnit(quote: VendorPricePreview, locale: string, unit: SendC
  * - 积分（`credits`）：对齐 M4-cost 拍板稿，印紧凑纯数字（配左侧硬币图标，悬停首句「这次约…」说明预估性质），
  *   节省底栏宽度避免无故挤缩左侧方式芯片；仅 `output-estimate` 按第一步规则带 `≈`。
  * - 人民币 / 美元（`cny` / `usd`）：统一用紧凑数学约号 `≈¥1.31` / `≈$0.195`。
+ * - 口径 `upper-bound`（按上限预扣、按实际产出结算，今天只有图层分离）：三种单位都印 `≤`（板 2026-11-26-layer-split · layers.send-price），
+ *   换单位不丢这个号。
  */
 export function sendCostPillText(
   quote: VendorPricePreview,
@@ -76,6 +78,7 @@ export function sendCostPillText(
   _t?: TFunction,
 ): string {
   const value = rawAmountForUnit(quote, locale, unit)
+  if (quote.basis === 'upper-bound') return `≤${value}`
   if (unit === 'credits') {
     return quote.basis === 'output-estimate' ? `≈${value}` : value
   }
@@ -117,8 +120,11 @@ export function sendCostDescription(
   const value = formatCreditValue(quote.credits, locale)
   const usd = publicEstimateUsd(quote, locale)
   const outputOnly = quote.basis === 'output-estimate'
+  const upperBound = quote.basis === 'upper-bound'
   if (unit === 'cny') {
-    return t(outputOnly
+    return t(upperBound
+      ? 'generationCommon.composer.sendCost.upperBoundCny'
+      : outputOnly
       ? 'generationCommon.composer.sendCost.outputEstimateCny'
       : 'generationCommon.composer.sendCost.estimateCny', {
       cny: publicEstimateCny(quote, locale),
@@ -128,14 +134,18 @@ export function sendCostDescription(
     })
   }
   if (unit === 'usd') {
-    return t(outputOnly
+    return t(upperBound
+      ? 'generationCommon.composer.sendCost.upperBoundUsd'
+      : outputOnly
       ? 'generationCommon.composer.sendCost.outputEstimateUsd'
       : 'generationCommon.composer.sendCost.estimateUsd', {
       usd,
       value,
     })
   }
-  return t(outputOnly
+  return t(upperBound
+    ? 'generationCommon.composer.sendCost.upperBound'
+    : outputOnly
     ? 'generationCommon.composer.sendCost.outputEstimate'
     : 'generationCommon.composer.sendCost.estimate', {
     value,

@@ -32,3 +32,20 @@ export function layerSplitComposerState(node: Pick<GenerationCanvasNode, 'id' | 
     maxLayers: mode.layerSplit.maxLayers,
   }
 }
+
+type ReminderUnit = 'credits' | 'cny' | 'usd'
+
+/**
+ * 「层数多就贵」那句里的数：发送键当前单位的裸数（单位菜单那一项，和键上同一个格式化出口），不带键上的「≤ / ≈」号——
+ * 句子自己说了「约」。键上没印数（算不出 / 忙着）→ null，句子退成不带数的那一版。
+ */
+export function layerSplitReminderAmount(cost: {
+  credits?: string
+  unit?: ReminderUnit
+  unitOptions?: readonly { unit: ReminderUnit; formatted: string }[]
+} | null | undefined): { unit: ReminderUnit; value: string } | null {
+  if (!cost?.credits) return null
+  const unit = cost.unit ?? 'credits'
+  const value = cost.unitOptions?.find((option) => option.unit === unit)?.formatted
+  return value ? { unit, value } : null
+}
