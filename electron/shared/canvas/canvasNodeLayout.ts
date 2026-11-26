@@ -44,6 +44,11 @@ function collidesAny(pos: Point, size: Size, existing: readonly NodeBox[], footp
  * 为什么不直接用螺旋：螺旋一步跨一整张卡（足迹 + GAP），窄画布上第一圈候选就出了屏——2026-09-25 真机：
  * 重置到 100% 后点「新建图片」，可见区中心被已有卡占着，新卡被推到屏幕下方外面。用户拍板「新建尽量直接落在
  * 当前可见区域」，所以落点本来就在可见区里时，先在可见区里按小步距找空位。
+ *
+ * 两把尺子各管一件事：「整张卡在不在区域里」按新节点**自己的最终大小**（`newSize`，调用方从造好的节点量出来，必给）；
+ * 「压不压别人」按足迹（自带的安全余量就是卡与卡的间距）。足迹的余量不是卡的一部分，拿它判装不装得下，
+ * 一张本来放得下的卡会被判成放不下、挪到离 base 远的地方——2026-11-27 真窗口：1280×800 下图层分离的新节点
+ * 本该贴在原图右边（右侧空地比卡宽 7px），被多算的 64px 判成放不下，落到了原图左边（同类：2026-11-15 新建落点借足迹）。
  */
 export function resolveInsertionPositionInAreaWith(
   footprint: FootprintResolver,
@@ -51,22 +56,22 @@ export function resolveInsertionPositionInAreaWith(
   base: Point,
   existing: readonly NodeBox[],
   area: { x: number; y: number; width: number; height: number },
-  newSize?: Size,
+  newSize: Size,
 ): Point | null {
-  const size = footprint(newKind, newSize)
-  if (size.width > area.width || size.height > area.height) return null
-  const inArea = (pos: Point) => pos.x >= area.x && pos.y >= area.y && pos.x + size.width <= area.x + area.width && pos.y + size.height <= area.y + area.height
-  if (inArea(base) && !collidesAny(base, size, existing, footprint)) return base
+  const spacing = footprint(newKind, newSize)
+  if (newSize.width > area.width || newSize.height > area.height) return null
+  const inArea = (pos: Point) => pos.x >= area.x && pos.y >= area.y && pos.x + newSize.width <= area.x + area.width && pos.y + newSize.height <= area.y + area.height
+  if (inArea(base) && !collidesAny(base, spacing, existing, footprint)) return base
   // 步距取足迹的 1/4：够细能钻进卡与卡之间的空当，又不至于在大可见区里算上万个点。
-  const step = Math.max(16, Math.round(Math.min(size.width, size.height) / 4))
+  const step = Math.max(16, Math.round(Math.min(spacing.width, spacing.height) / 4))
   let best: Point | null = null
   let bestDistance = Infinity
-  for (let y = area.y; y + size.height <= area.y + area.height; y += step) {
-    for (let x = area.x; x + size.width <= area.x + area.width; x += step) {
+  for (let y = area.y; y + newSize.height <= area.y + area.height; y += step) {
+    for (let x = area.x; x + newSize.width <= area.x + area.width; x += step) {
       const distance = (x - base.x) ** 2 + (y - base.y) ** 2
       if (distance >= bestDistance) continue
       const candidate = { x: Math.round(x), y: Math.round(y) }
-      if (collidesAny(candidate, size, existing, footprint)) continue
+      if (collidesAny(candidate, spacing, existing, footprint)) continue
       best = candidate
       bestDistance = distance
     }

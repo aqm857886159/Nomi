@@ -142,6 +142,27 @@ try {
   assert.ok(derivedProject.payload.generationCanvas.edges.some((edge) => edge.source === sourceId && edge.target === derived.id), 'edge links source → derived')
   assert.equal(nonGet(vendorHits()).length, before.hits, 'deriving sends zero non-GET requests (no spend)')
   console.log('✓ derive: 1 node + 1 edge, 0 requests')
+  // 板 layers.derived-node：新节点建在原图右边、同一行；右边放得下整张卡时整张都在可见区里（不平移画布，D-0925）。
+  // 「放得下」按新节点自己量出来的宽判（D-1115），不按窗宽分档。
+  const landing = read(`(() => {
+    const rect = (sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width } : null }
+    const zoom = Number((document.querySelector('.react-flow__viewport')?.style.transform.match(/scale\\(([^)]+)\\)/) || [])[1] || 1)
+    return { source: rect('.generation-canvas-v2-node[data-node-id=${JSON.stringify(sourceId)}]'), derived: rect('.generation-canvas-v2-node[data-node-id=${JSON.stringify(derived.id)}]'), stage: rect('.react-flow'), zoom, window: [innerWidth, innerHeight] }
+  })()`)
+  fs.writeFileSync(path.join(out, 'derived-landing.json'), JSON.stringify(landing, null, 2))
+  assert.ok(landing.derived.left >= landing.source.right - 1 && Math.abs(landing.derived.top - landing.source.top) <= 2, `derived node lands right of the source on the same row: ${JSON.stringify(landing)}`)
+  const fitsRight = landing.source.right + 64 * landing.zoom + landing.derived.width <= landing.stage.right
+  const fullyInView = landing.derived.left >= landing.stage.left && landing.derived.right <= landing.stage.right && landing.derived.top >= landing.stage.top && landing.derived.bottom <= landing.stage.bottom
+  assert.ok(!fitsRight || fullyInView, `derived node that fits on the right is fully in view: ${JSON.stringify(landing)}`)
+  console.log(`✓ derived node lands right of the source (${landing.window.join('×')}, zoom ${landing.zoom}, ${fullyInView ? 'fully in view' : 'right side wider than the view'})`)
+  shot('LS01b-derived-landed')
+  if ((landing.derived.left + landing.derived.right) / 2 > landing.stage.right) {
+    // 右边装不下、新节点中心落在可见区外：落点规则是不挪画布、在边缘提示（09-25），创作者点提示过去。
+    await until(visible('[data-canvas-arrival-hint="right"]'), 'an off-view derived node gets the「new node on the right」edge hint')
+    shot('LS01c-arrival-hint')
+    ui('click', 'css:[data-canvas-arrival-hint="right"]')
+    await until(`(() => { const r = document.querySelector('.generation-canvas-v2-node[data-node-id=${JSON.stringify(derived.id)}]')?.getBoundingClientRect(); const s = document.querySelector('.react-flow').getBoundingClientRect(); return !!r && r.left >= s.left && r.right <= s.right })()`, 'the edge hint brings the derived node into view', 3)
+  }
 
   // ③ 生成框：一格「图层分离 · 30 层 · 自动」、发送键带约价。
   clickNodeCenter(derived.id)

@@ -104,6 +104,34 @@ describe('resolveInsertionPosition × visible area（2026-09-25「新建尽量�
   })
 })
 
+describe('resolveInsertionPosition × 可见区按新节点自己的大小判装不装得下（2026-11-27 图层分离新节点落到原图左边）', () => {
+  // 真窗口 1280×800、100%：可见区 1212 宽；原图 340×340 在 (461, 70)；派生节点要贴在它右边 461 + 340 + 64 = 865，
+  // 右边缘 865 + 340 = 1205 ≤ 1212，放得下。旧算法拿足迹（+64）判，1269 > 1212 判成放不下，扫到了原图左边。
+  const view1280 = { x: 0, y: 0, width: 1212, height: 656 }
+  const source1280 = box('image', 461, 70, { width: 340, height: 340 })
+
+  it('1280×800 字面量：右边放得下 → 就落在原图右边那一格（不被足迹余量挤到左边）', () => {
+    expect(resolveInsertionPosition('image', { x: 865, y: 70 }, [source1280], 6, view1280, { width: 340, height: 340 })).toEqual({ x: 865, y: 70 })
+  })
+
+  it('不给 newSize：按这一种的名义大小判，结果同上（不拿带间距的足迹顶替）', () => {
+    expect(resolveInsertionPosition('image', { x: 865, y: 70 }, [source1280], 6, view1280)).toEqual({ x: 865, y: 70 })
+  })
+
+  it('间距照旧按足迹：右边空地比卡宽、但离原图不到 64 的那一格不算空位', () => {
+    const placed = resolveInsertionPosition('image', { x: 830, y: 70 }, [source1280], 6, view1280, { width: 340, height: 340 })
+    const tooClose = placed.x < 461 + 340 + 64 && placed.x + 340 + 64 > 461 && placed.y < 70 + 340 + 64 && placed.y + 340 + 64 > 70
+    expect(tooClose).toBe(false)
+  })
+
+  it('真放不下（卡比右侧空地宽，别处也没空位）→ 不扫到左边去，留在 base（原图右边，越出可见区那一截由边缘提示说）', () => {
+    // 真窗口 700×720、80%：可见区 790×670（画布单位），原图在 (202, 0)；右边、左边、上下都装不下一张 340 的卡。
+    const view700 = { x: -79, y: -80, width: 790, height: 670 }
+    const source700 = box('image', 202, 0, { width: 340, height: 340 })
+    expect(resolveInsertionPosition('image', { x: 606, y: 0 }, [source700], 6, view700, { width: 340, height: 340 })).toEqual({ x: 606, y: 0 })
+  })
+})
+
 describe('resolveInsertionPosition × 渲染占位（2026-10-18：避让不能只认名义 node.size）', () => {
   const tallImage = (x: number, y: number): NodeBox => ({
     kind: 'image', position: { x, y }, size: { width: 320, height: 180 },
