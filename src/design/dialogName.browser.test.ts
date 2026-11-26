@@ -150,7 +150,8 @@ describe('弹窗的读屏名字由外壳给，只是名字那一句', () => {
 // 只编译挂载出的生产类（与 build-tailwind 一样：Mantine 在前，项目 Tailwind 在后）。
 async function styledSpend(scene: string) {
   const { page } = await mount(scene)
-  const content = ['src/design/overlays.tsx', { raw: await page.content(), extension: 'html' }]
+  const classes = await page.locator('[class]').evaluateAll(nodes => nodes.map(el => el.getAttribute('class')).join(' '))
+  const content = ['src/design/overlays.tsx', { raw: classes, extension: 'html' }]
   const css = await postcss([tailwindcss({ ...tailwindConfig, content, safelist: [] })])
     .process('@tailwind base; @tailwind utilities;', { from: undefined })
   const require = createRequire(import.meta.url)
@@ -170,7 +171,7 @@ describe('380px 花钱确认卡的标题排版', () => {
         const text = document.createRange()
         text.selectNodeContents(el)
         return { whiteSpace: css.whiteSpace, overflow: css.textOverflow, lines: text.getClientRects().length,
-          clipped: el.scrollWidth > el.clientWidth }
+          clipped: el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight }
       })
       expect(style.whiteSpace).not.toBe('nowrap')
       expect(style.overflow).not.toBe('ellipsis')

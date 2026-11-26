@@ -76,7 +76,6 @@ describe('DesignModal 外壳：高度与滚动归属（§3.5）', () => {
 // 同一组件里的模型名、作者、副标、正文允许有各自的省略策略。
 it('DesignModal 调用方不能把标题限制为单行', () => {
   const files = ts.sys.readDirectory('src', ['.tsx', '.jsx'], ['**/*.test.*', '**/*.spec.*'])
-    .filter(file => ts.sys.readFile(file)?.includes('DesignModal'))
   const program = ts.createProgram(files, { jsx: ts.JsxEmit.Preserve, allowJs: true, types: [], skipLibCheck: true, moduleResolution: ts.ModuleResolutionKind.Bundler })
   const checker = program.getTypeChecker()
   const violations = new Set<string>()
@@ -98,16 +97,24 @@ it('DesignModal 调用方不能把标题限制为单行', () => {
       if (def && (ts.isVariableDeclaration(def) || ts.isPropertyAssignment(def)) && def.initializer) scanClasses(def.initializer)
     } else children(node, scanClasses)
   }
-  function scanClassMap(node: ts.Node) {
-    if (ts.isShorthandPropertyAssignment(node)) {
+  // JSX 属性和对象展开共用同一个入口；只跟进关心的属性，不把 body/actions 当成标题。
+  type Visitors = Record<string, (value: ts.Node) => void>
+  function scanProps(node: ts.Node, visitors: Visitors) {
+    if (ts.isJsxAttribute(node) || ts.isPropertyAssignment(node)) {
+      const visit = visitors[node.name.getText().replace(/['"]/g, '')]
+      if (visit && node.initializer) visit(node.initializer)
+    } else if (ts.isShorthandPropertyAssignment(node)) {
       const def = checker.getShorthandAssignmentValueSymbol(node)?.valueDeclaration
-      if (['title', 'header'].includes(node.name.text) && def && ts.isVariableDeclaration(def) && def.initializer) scanClasses(def.initializer)
-    } else if (ts.isPropertyAssignment(node)) {
-      if (['title', 'header'].includes(node.name.getText().replace(/['"]/g, ''))) scanClasses(node.initializer)
-    } else if (ts.isIdentifier(node)) {
+      if (def && ts.isVariableDeclaration(def) && def.initializer) visitors[node.name.text]?.(def.initializer)
+    } else if (ts.isIdentifier(node) || ts.isPropertyAccessExpression(node)) {
       const def = declaration(node)
-      if (def && ts.isVariableDeclaration(def) && def.initializer) scanClassMap(def.initializer)
-    } else children(node, scanClassMap)
+      if (def && (ts.isVariableDeclaration(def) || ts.isPropertyAssignment(def)) && def.initializer) scanProps(def.initializer, visitors)
+    } else children(node, child => scanProps(child, visitors))
+  }
+  function slotFunction(value: ts.Node) {
+    const def = declaration(value)
+    const fn = def && ts.isVariableDeclaration(def) ? def.initializer : def ?? value
+    if (fn && (ts.isArrowFunction(fn) || ts.isFunctionDeclaration(fn) || ts.isFunctionExpression(fn))) return fn
   }
   function scanSlot(fn: ts.FunctionLikeDeclaration, binding: ts.Node) {
     const name = checker.getSymbolAtLocation(binding)
@@ -122,8 +129,8 @@ it('DesignModal 调用方不能把标题限制为单行', () => {
             const tag = parent.parent.parent
             if (!ts.isJsxOpeningElement(tag) && !ts.isJsxSelfClosingElement(tag)) continue
             const propName = parent.name.getText()
-            const component = declaration(tag.tagName)
-            if (component && ts.isFunctionDeclaration(component)) {
+            const component = slotFunction(tag.tagName)
+            if (component) {
               const props = component.parameters[0]?.name
               if (props && ts.isObjectBindingPattern(props)) {
                 const prop = props.elements.find(p => (p.propertyName ?? p.name).getText() === propName)
@@ -132,9 +139,7 @@ it('DesignModal 调用方不能把标题限制为单行', () => {
             }
           }
           if (ts.isJsxElement(parent)) {
-            for (const attr of parent.openingElement.attributes.properties) {
-              if (ts.isJsxAttribute(attr) && attr.name.getText() === 'className' && attr.initializer) scanClasses(attr.initializer)
-            }
+            scanProps(parent.openingElement.attributes, { className: scanClasses })
           }
         }
       }
@@ -145,17 +150,14 @@ it('DesignModal 调用方不能把标题限制为单行', () => {
   function scanModal(node: ts.Node) {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       const def = declaration(node.tagName)
-      if (!def || !ts.isFunctionDeclaration(def) || def.name?.text !== 'DesignModal') return
-      for (const attr of node.attributes.properties) {
-        if (!ts.isJsxAttribute(attr) || !attr.initializer || !ts.isJsxExpression(attr.initializer)) continue
-        const value = attr.initializer.expression
-        if (!value) continue
-        if (attr.name.getText() === 'classNames') scanClassMap(value)
-        if (attr.name.getText() === 'header') {
-          const def = declaration(value)
-          const fn = def && ts.isVariableDeclaration(def) ? def.initializer : def ?? value
-          if (fn && (ts.isArrowFunction(fn) || ts.isFunctionDeclaration(fn) || ts.isFunctionExpression(fn)) && fn.parameters[0]) scanSlot(fn, fn.parameters[0].name)
-        }
+      if (def && ts.isFunctionDeclaration(def) && def.name?.text === 'DesignModal') {
+        scanProps(node.attributes, {
+          classNames: value => scanProps(value, { title: scanClasses, header: scanClasses }),
+          header: value => {
+            const fn = slotFunction(ts.isJsxExpression(value) && value.expression ? value.expression : value)
+            if (fn?.parameters[0]) scanSlot(fn, fn.parameters[0].name)
+          },
+        })
       }
     }
     children(node, scanModal)

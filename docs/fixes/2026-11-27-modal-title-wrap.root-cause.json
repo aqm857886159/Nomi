@@ -1,0 +1,235 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-modal-title-wrap",
+  "problem_type": "Modal title wrapping and first-line alignment",
+  "symptom": "The English HD confirmation question loses its ending in the 380px card.",
+  "direct_cause": "The spend title truncates and the custom call name forbids soft wraps.",
+  "class_root": "The dialog shell owns the name but leaves its wrapping policy to each header.",
+  "affected_population": [
+    "Creators reviewing English or dynamic titles in a narrow dialog"
+  ],
+  "scope_paths": [
+    "src/design/overlays.tsx",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+    "src/ui/onboarding/CustomCallTitle.tsx",
+    "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+    "src/workbench/onboarding/HandbookPanel.tsx"
+  ],
+  "entry_points": [
+    "DesignModal title and header slots",
+    "SpendConfirmDialog",
+    "CustomCallEditor via CustomCallTitle"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The application owns the title contract and utility classes; the installed Mantine ModalBase stylesheet already permits native text wrapping.",
+  "invariants": [
+    "The visible title can wrap in its allocation; controls align with a wrapped title at its top.",
+    "A title that fits keeps its existing typography and alignment."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/design/overlays.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/confirmDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/UpdateDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/community/FeedbackShareHost.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "symbol": "CUSTOM_CALL_NAME_CLASS"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallTitle.tsx",
+      "symbol": "CUSTOM_CALL_NAME_CLASS"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsDetailDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/WorkflowLibraryContent.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/HandbookPanel.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+      "symbol": "DesignModal"
+    }
+  ],
+  "door_reduction": {
+    "before": 23,
+    "after": 23,
+    "why_not": "Each read door represents a separate dialog or lab sample with its own workflow and content. All render the title through DesignModal. The registered owner writes the rule; the custom-call editor and page read the shared name class."
+  },
+  "generality_proof": "Every audited caller hands the name to Modal.Title. Standard wrapping and the alignment of the header row are decided by the shell; icon slots reuse its row alignment.",
+  "shared_boundaries": [
+    {
+      "path": "src/design/overlays.tsx",
+      "symbol": "DesignModal",
+      "responsibility": "Own title wrapping and header alignment while preserving caller typography."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "entry_point": "SpendConfirmDialog",
+      "disposition": "enforced",
+      "evidence": "The 380px confirmation uses the shell title next to its icon."
+    },
+    {
+      "path": "src/ui/onboarding/CustomCallTitle.tsx",
+      "entry_point": "CUSTOM_CALL_NAME_CLASS",
+      "disposition": "enforced",
+      "evidence": "CustomCallEditor passes this shared name class to DesignModal.title; the adjacent model label has separate overflow behavior."
+    },
+    {
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "entry_point": "OnboardingWizard page presentation",
+      "disposition": "not-affected",
+      "evidence": "The custom gateway h2 belongs to ModelSettingsPageSurface in page mode; the modal presentation passes a string to the shell."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Two independent callers imposed a one-line constraint and new callers can pass header classes.",
+    "same_class_scan": [
+      "door-map DesignModal: 19 production files plus one design lab file.",
+      "Reviewed classNames.title/header, inline and extracted header callbacks, and the imported CustomCallTitle name class."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/design/overlays.tsx",
+    "invariant": "All shell titles wrap and every icon row can use the shell alignment.",
+    "failure_mode": "Long names break across lines and a source guard rejects caller-side truncation.",
+    "exception_policy": "none",
+    "strategy": "Manage the visible name at Modal.Title, retain caller typography and remove the two single-line overrides.",
+    "artifacts": [
+      "src/design/overlays.tsx",
+      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "src/ui/onboarding/CustomCallTitle.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/design/overlays.structure.test.tsx",
+    "src/design/dialogName.browser.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/design/overlays.structure.test.tsx",
+    "src/design/dialogName.browser.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "src/ui/onboarding/CustomCallTitle.tsx"
+    ],
+    "rationale": "Remove the title truncate and whitespace-nowrap overrides at their source."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "This repair uses the existing Mantine composition, native wrapping, ResizeObserver and Tailwind utilities.",
+    "exit_criteria": []
+  },
+  "migration": "Only renderer layout changes. Saved projects, settings, confirmation payloads and title strings need no migration.",
+  "residual_risks": [
+    "Desktop sample-mode and platform font comparison are pending coordinator screenshots."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-11",
+  "invariant_owner_layer": {
+    "layer": "src/design/overlays.tsx",
+    "tests": [
+      "src/design/overlays.structure.test.tsx",
+      "src/design/dialogName.browser.test.ts"
+    ]
+  }
+}

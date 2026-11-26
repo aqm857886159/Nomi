@@ -24,9 +24,10 @@ export type DesignModalProps = Omit<ModalProps, 'title' | 'stackId' | '__staticS
   /**
    * 标题栏插槽：标题栏里除了名字还有别的东西（图标、副标、封面、来源链接）时用。外壳把名字元素（`Modal.Title`）交给它，
    * 它把名字和这些东西摆在一起返回；返回的东西放在 `Modal.Header` 里、关闭键前面。名字元素必须原样放进去。
+   * 第二个参数给带前置图标的行：名字折行后与首行顶齐，单行沿用居中。
    * 不传 = 标题栏里只有名字。
    */
-  header?: (title: ReactNode) => ReactNode
+  header?: (title: ReactNode, rowAlignment: 'items-center' | 'items-start') => ReactNode
   /** 给测试找这张卡用（落在对话框本体上的 `data-testid`）。先用角色 + 名字找；名字会变、同名卡并存时才用它。 */
   testId?: string
   /**
@@ -91,13 +92,27 @@ export function DesignModal(designProps: DesignModalProps): JSX.Element {
   // 所有走 DesignModal 的弹层在这里一次登记：开着时工作区面不接键盘、粘贴、指针手势。
   useModalInputLayer(Boolean(rootProps.opened))
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  // 标题栏还可能有副标或封面，不能用整栏高度判断名字是否折行。
+  const [titleWrapped, setTitleWrapped] = React.useState(false)
+  const observeTitle = React.useCallback((element: HTMLHeadingElement | null) => {
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight)
+      setTitleWrapped(entry.contentRect.height > Math.ceil(lineHeight))
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  const rowAlignment = titleWrapped ? 'items-start' : 'items-center'
   const rootClassName = cn('font-nomi-sans text-nomi-ink', className)
   const callerClassNames = (typeof classNames === 'object' && classNames ? classNames : {}) as ClassNamesObject
   const mergedClassNames: ClassNamesObject = {
     ...callerClassNames,
     // 纵向三段：标题栏（不缩）· 中间（吃掉剩下的高度）· 决定栏（不缩）。整块不滚，滚动只在中间那块。
     content: cn('flex flex-col overflow-hidden', callerClassNames.content),
-    header: cn('shrink-0', callerClassNames.header),
+    header: cn('shrink-0', callerClassNames.header, '*:min-w-0', titleWrapped && 'items-start'),
+    title: cn(callerClassNames.title, 'min-w-0 whitespace-normal break-words'),
+    close: cn(callerClassNames.close, 'shrink-0'),
     body: cn('flex min-h-0 flex-1 flex-col overflow-hidden', callerClassNames.body),
   }
 
@@ -116,14 +131,14 @@ export function DesignModal(designProps: DesignModalProps): JSX.Element {
     }
   }, [rootProps.opened, initialFocus])
 
-  const titleElement = title ? <Modal.Title>{title}</Modal.Title> : null
+  const titleElement = title ? <Modal.Title ref={observeTitle}>{title}</Modal.Title> : null
   return (
     <Modal.Root {...rootProps} className={rootClassName} classNames={mergedClassNames} radius={radius} zIndex={zIndex}>
       {withOverlay ? <Modal.Overlay {...overlayProps} /> : null}
       <Modal.Content radius={radius} data-testid={testId} {...frozenAnchors}>
         {title || withCloseButton ? (
           <Modal.Header>
-            {header ? header(titleElement) : titleElement}
+            {header ? header(titleElement, rowAlignment) : titleElement}
             {withCloseButton ? <Modal.CloseButton {...closeButtonProps} /> : null}
           </Modal.Header>
         ) : null}
