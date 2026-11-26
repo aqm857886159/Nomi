@@ -1,12 +1,13 @@
-有条件通过：空框回车唯一确认付费条、输入有字与组字防误花钱、工具行静态「待确认」不转圈、裸斜杠不误发及回退必红反例全部实测通过；中英真窗截图按派活单由协调审查补截确认。
+有条件通过：第 2 轮 4 项审查问题（`keyCode 229` 选字回车拦截、按出价身份消费单次回车及 500ms 换卡审阅保护、带芯片裸斜杠 Esc 后拦截、真实 Pi `before_tool` 宿主 `heldToolCallIds` 投影）与 ★9 验收项及回退必红反例全部独立实测通过；禁区零改动、零真付费调用；中英真窗截图按派活单留交协调审查补截确认。
 
-- 验收线：v-fg3-2-r2
-- 验收 HEAD：1e1a6b7a34fe24899c17cd32ca8e2e87d1308049
+- 验收线：v-fg3-2-r3
+- 验收 HEAD：b11c696601e7c785fcbebbca77328ef4580123d5
 - 阻断：无
-- 上一轮盲验 HEAD：042cfec75cf607fa32ca32e83708d2b58920e1f3（v-fg3-2）
-- 基线提交：a05ca5219
-- 仅测试提交：fd6a60bac
-- 验证方式：盲验独立源码审计 + 门禁脚本 + 定向单测 + 破坏必红反例（未读取任何实现线自报/交付材料，未触发真付费调用）
+- 上一轮盲验 HEAD：1e1a6b7a34fe24899c17cd32ca8e2e87d1308049（v-fg3-2-r2）；首轮盲验 HEAD：042cfec75cf607fa32ca32e83708d2b58920e1f3（v-fg3-2）
+- 第 2 轮测试提交：7505ee8ce
+- 第 2 轮实现提交：cd456aad4
+- 首轮基线与仅测试提交：a05ca5219 / fd6a60bac
+- 验证方式：盲验独立源码审计（`git diff origin/main..b11c696601e7c785fcbebbca77328ef4580123d5`、`7505ee8ce`、`cd456aad4`）+ 门禁脚本 + 轻量定向 Vitest 与 `agent-runtime` 宿主 `node --test` + 第 2 轮回退必红反例（未读取任何实现线自报材料，未触发真付费调用）
 
 ## 1. 范围与禁区核查
 
@@ -102,3 +103,45 @@
   - `columns-current.png`、`columns-specimen.png`、`columns-specimen-dark.png`：像素差异**仅限于**右下角停靠 Agent 输入框占位词末尾移去 `@ 引用素材或技能`（从 `继续告诉 Nomi 要改什么... @ 引用素材或技能` 收紧为 `继续告诉 Nomi 要改什么...`，符合 `LibraryPointers` 拍板），明暗两套界面均无破版、裁切或遮挡。
   - `columns-storyboard-tree.png`：右下角 Agent 输入框占位词同样仅移去 `@ 引用素材或技能`；另见右上角 `Nomi` 标题右侧原空态上下文胶囊 `— ⌄`（`V4ContextRing`）在旧基线 `6484cf76f` 时尚存在、现已隐藏——核查归因系主线已合入提交 `4e8ed701b`（空用量时隐藏 `V4ContextRing`）所致，与本分支无关且与其余 3 张 `creation-columns` 顶栏一致，无任何破版或遮挡。
 - **定向回归复跑**：在 `1e1a6b7a34fe24899c17cd32ca8e2e87d1308049` 上复跑 `VITEST_MAX_WORKERS=2 pnpm exec vitest run src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx`，**21 / 21 全部通过**（1 test file passed, 58ms）。
+
+## 7. 第 2 轮修复独立盲验（`b11c696601e7c785fcbebbca77328ef4580123d5` · `v-fg3-2-r3`）
+
+### 7.1 全分支范围与禁区复核（`origin/main..b11c696601e7c785fcbebbca77328ef4580123d5`）
+
+核对 `git diff --stat origin/main..b11c696601e7c785fcbebbca77328ef4580123d5`（共 35 个文件，+972/-62 行）：
+
+| 禁区项 | 核查结果 | 依据 |
+|---|---|---|
+| `SpendConfirmDialog.tsx` | 未触碰（通过） | `git diff --name-only origin/main..b11c696601e7c785fcbebbca77328ef4580123d5` 零命中 |
+| `src/workbench/generationCanvas/` | 未触碰（通过） | 变更文件清单零命中 |
+| `docs/design/boards/` | 未触碰（通过） | 变更文件清单零命中 |
+| 真实付费调用 / 密钥逻辑 | 未触碰（通过） | 仅涉及审批闸 `holds` 投影、面板回车消费与审阅保护、输入框分流及对应测试/治理文件 |
+
+### 7.2 第 1 轮审查 4 项问题独立核查表
+
+| 编号 | 审查问题 | 核查结果 | 源码与行为依据 |
+|---|---|---|---|
+| [P1-1] | 输入法选字回车（`key === 'Enter'`、`isComposing === false`、`keyCode === 229`）是否在发送/确认分流前统一拦下 | **通过** | `src/workbench/ai/v4/AgentPanelV4Composer.tsx:260` 在 `onKeyDownCapture` 第一行即拦截 `event.nativeEvent.isComposing \|\| event.nativeEvent.keyCode === 229`，早于 `onPopoverKeyDown`、`onSubmit` 与 `onEmptyEnter` 分流；空框（`""`）与带草稿（`"pin"`）均既不发送也不确认花钱（`agentPanelV4SpendEnter.test.tsx:101-106`）。 |
+| [P1-2] | 第二下独立非 `repeat` 回车：按出价/审批身份消费一次、失败重试态不触发、换卡露出下一笔时有审阅保护窗口 | **通过** | `agentPanelSpendCard.ts:347` 仅在待决出价态挂 `spendConfirmationId: pending.quoteId`（`progress` 与 `attention`/重试态均不带该身份）；`useAgentPanelV4Data.ts:314-316` 对普通付费审批挂 `JSON.stringify([workspaceId, lane, primaryPending.toolCallId])`；`AgentPanelV4Panel.tsx:52,401-416` 用 `confirmedByEnter`（每笔身份仅消费一次）与 `useLayoutEffect` 在新 `confirmationId` 实际渲染起设 `SPEND_CARD_REVIEW_MS = 500` ms 审阅保护窗；覆盖同笔、重试、立刻换卡、延迟 2000ms 换卡（40ms 拦下、1000ms 后新卡放行而同笔/重试仍拦截，`agentPanelV4SpendEnter.test.tsx:108-125`）；且按钮直点不受限。 |
+| [P2-1] | 挂有技能/素材芯片时输入裸 `/`，按 Esc 关掉斜杠菜单后按回车是否仍拦下不发送、不确认 | **通过** | `AgentPanelV4Composer.tsx:208-209` 将 `canSend` 收紧为 `!admitting && text !== '/' && Boolean(chips?.length \|\| text)`，优先否决裸 `/` 而不被芯片长度覆盖；按 Esc 关闭 `V4SkillPopover` 后按回车，`canSend` 为 `false` 且 `!chips?.length && draft.getSnapshot() === ''` 为 `false`，消息发送与付费确认均不触发（`agentPanelV4SpendEnter.test.tsx:127-142`）；表单 `onSubmit` 与发送按钮 `disabled` 共用同一 `canSend`。 |
+| [P2-2] | 真实 Pi 宿主 `before_tool` 等待审批期间（`part.running === false`），宿主是否投影实际挂起的 `heldToolCallIds`，静态显示「待确认」不转圈不折叠，且不影响无关并行工具 | **通过** | `electron/agentLane/laneApprovalGate.ts:89,321,384,396,406,430` 在 `hold` 注册、释放、取消时通过 `onChange` 通知宿主并暴露 `heldToolCallIds()`；`laneHost.mts:367-373` 将非空 `heldToolCallIds` 投影进 `LaneProjection`（清空即省略）；`laneWorkspace.mts:103` 在关闭态清空 `heldToolCallIds: undefined`；`trimLaneProjectionForIpc` 原样透传该字段；`laneViewModel.ts:421-423` 移除旧的 `part.running && operationId` 推断，改为精确按 `projection.heldToolCallIds?.includes(part.toolCallId)`（或普通付费审批 `projection.pending.toolCallId`）标为 `approval-requested`；`AgentPanelV4Icons.tsx:83` 返回 `null` 无 `animate-spin`，`agentPanelV4Collapse.ts:9` 不折叠进过程行；`laneExtendedDesktopPorts.test.ts:345-393` 经真实 `openLane` + HTTP fixture 验证 `part.running === false` 且 `pending === undefined` 时 `held` 显示静态「待确认」且并行 `read_timeline` 不受影响，关卡后 `heldToolCallIds` 消失。 |
+
+### 7.3 第 2 轮亲手实跑命令与通过数（HEAD `b11c696601e7c785fcbebbca77328ef4580123d5`）
+
+| 命令 | 退出码 | 实测结果 |
+|---|---|---|
+| `VITEST_MAX_WORKERS=2 npx vitest run src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx src/workbench/ai/lane/laneViewModel.test.ts src/workbench/ai/v4/agentPanelV4Blocks.test.ts src/workbench/ai/v4/agentPanelV4Collapse.test.ts src/workbench/ai/resident/agentSlashMenu.test.tsx electron/agentLane/laneExtendedDesktopPorts.test.ts` | 0 | **6 文件，234 / 234 全部通过**（`agentPanelV4SpendEnter` 28/28、`laneViewModel` 46/46、`agentPanelV4Blocks` 76/76、`agentPanelV4Collapse` 25/25、`agentSlashMenu` 6/6、`laneExtendedDesktopPorts` 53/53） |
+| `VITEST_MAX_WORKERS=2 npx vitest run src/workbench/ai/v4/agentPanelSpendCard.test.ts src/workbench/ai/v4/agentPanelV4Logic.test.ts` | 0 | **2 文件，50 / 50 全部通过**（`agentPanelSpendCard` 40/40、`agentPanelV4Logic` 10/10） |
+| `npx tsc -p tests/agent-runtime/tsconfig.json && node --test --test-concurrency=1 --test-timeout=60000 .tmp/agent-runtime-tests/tests/agent-runtime/lane-approval-gate.test.mjs .tmp/agent-runtime-tests/tests/agent-runtime/lane-native-approval.test.mjs .tmp/agent-runtime-tests/tests/agent-runtime/stage3-probe-p1-approval-wait.test.mjs .tmp/agent-runtime-tests/tests/agent-runtime/lane-workspace-lifecycle.test.mjs .tmp/agent-runtime-tests/tests/agent-runtime/lane-close-resources.test.mjs` | 0 | **5 套件，37 / 37 全部通过**（含 `before_tool` 预检等待、abort/crash、workspace 关闭与资源回收） |
+| `node ./scripts/check-concept-owners.mjs` | 0 | 通过（431 个概念，converged 427 / pending 4，第二写口 0 新增，未登记共享边界维持基线 31） |
+| `node ./scripts/check-root-cause-contracts.mjs` | 0 | 通过（无高风险生产路径违规） |
+
+### 7.4 第 2 轮回退必红反例实测（不移动 HEAD）
+
+在不移动 `HEAD` 前提下，将 `cd456aad4` 涉及的 10 个生产源码文件临时 `git restore --source=7505ee8ce --worktree` 后运行 3 份核心测试，随后完整还原至 `HEAD`：
+
+- **回退结果**：**3 / 3 文件失败（9 failed / 118 passed，共 127）**：
+  - `src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx`：7 failed（`keyCode 229` 空框与 `"pin"` 2 项、同笔/重试/立刻换卡/延迟换卡 4 项、带技能芯片裸 `/` Esc 后回车 1 项）；
+  - `src/workbench/ai/lane/laneViewModel.test.ts`：1 failed（`heldToolCallIds` 未被投影为 `approval-requested`）；
+  - `electron/agentLane/laneExtendedDesktopPorts.test.ts`：1 failed（真实 Pi `before_tool` 预检挂起未被投影为静态「待确认」）。
+- **还原核对**：`git restore --source=HEAD --worktree -- electron/ src/` 后 `git status --short` 零改动，`git rev-parse HEAD` 维持 `b11c696601e7c785fcbebbca77328ef4580123d5`。
