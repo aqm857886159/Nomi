@@ -189,7 +189,7 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       for (let i = 0; i < runs; i++) {
         await expect(account).toContainText(labelFor('runs', { count: 41 }))
         await armResponse(win, { predicate: 'modelUsageReady' })
-        await account.getByRole('button', { name: labelFor('usage') }).click()
+        await account.getByRole('button', { name: labelFor('usageTitle') }).click()
         samples.push((await takeResponse(win)).ms)
         await back()
       }
@@ -304,11 +304,38 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
         [account.locator('dl dd'), 'text-caption', 'stat secondary rows (board .cap 12)'],
         [account.locator('dl strong'), 'text-title', 'stat numbers (board 18, off the type scale → title 16)'],
         [loc('[data-model-settings-page="home"] h3'), 'text-body-sm', 'section heading (board .sec-h 13)'],
-        [loc('[data-model-home-assisted-onboarding] summary .min-w-0 > div:first-child'), 'text-body-sm', 'AI row title (board .bs 13)'],
-        [loc('[data-model-home-assisted-onboarding] summary .min-w-0 > div:last-child'), 'text-caption', 'AI row subtitle (board .cap 12)'],
-        [loc('[data-model-home-action="other-ways"] strong'), 'text-body-sm', 'other ways title (board .bs 13)'],
-        [loc('[data-model-home-action="other-ways"] .min-w-0 > span'), 'text-caption', 'other ways subtitle (board .cap 12)'],
+        [loc('[data-model-home-assisted-onboarding] [data-model-entry-title]'), 'text-body-sm', 'AI row title (board .bs 13)'],
+        [loc('[data-model-home-assisted-onboarding] [data-model-entry-hint]'), 'text-caption', 'AI row subtitle (board .cap 12)'],
+        [loc('[data-model-home-action="other-ways"] [data-model-entry-title]'), 'text-body-sm', 'other ways title (board .bs 13)'],
+        [loc('[data-model-home-action="other-ways"] [data-model-entry-hint]'), 'text-caption', 'other ways subtitle (board .cap 12)'],
       ])
+      // 首页两行入口同一套行结构（板 .card.row.g12）：图标块左边距相等、行高相等、图标块有描边、箭头颜色与尺寸相同。
+      const entryRows = await win.evaluate(() => {
+        const rows = [document.querySelector('[data-model-home-assisted-onboarding] summary'), document.querySelector('[data-model-home-action="other-ways"]')]
+        return rows.map(row => {
+          const card = row.closest('details') ?? row
+          const icon = row.querySelector('[data-model-entry-icon]')
+          const chevron = row.querySelector('[data-model-entry-chevron]')
+          const rect = el => el.getBoundingClientRect()
+          const style = getComputedStyle(icon)
+          return {
+            iconLeft: rect(icon).left - rect(card).left, cardHeight: rect(card).height, textHeight: rect(row.querySelector('[data-model-entry-title]').parentElement).height, iconWidth: rect(icon).width,
+            iconBorder: parseFloat(style.borderTopWidth), chevronColor: getComputedStyle(chevron).color, chevronWidth: rect(chevron).width,
+            right: rect(card).right - rect(chevron).right,
+          }
+        })
+      })
+      assert.equal(entryRows[0].iconLeft, entryRows[1].iconLeft, 'entry rows: icon blocks start at the same left edge')
+      // 行高 = 文字块高 + 同一份内边距：文字折行（英文说明在 1280 下会折）时两行高度可以不同，但行壳多出来的部分必须一样。
+      assert.equal(entryRows[0].cardHeight - entryRows[0].textHeight, entryRows[1].cardHeight - entryRows[1].textHeight, 'entry rows: same row chrome ' + JSON.stringify(entryRows))
+      if (entryRows[0].textHeight === entryRows[1].textHeight) assert.equal(entryRows[0].cardHeight, entryRows[1].cardHeight, 'entry rows: same row height')
+      assert(entryRows.every(r => r.iconBorder > 0 && r.iconWidth > 0), 'entry rows: icon block has a border')
+      assert.equal(entryRows[0].chevronColor, entryRows[1].chevronColor, 'entry rows: same chevron color')
+      assert.equal(entryRows[0].chevronWidth, entryRows[1].chevronWidth, 'entry rows: same chevron size')
+      assert.equal(entryRows[0].right, entryRows[1].right, 'entry rows: chevrons end at the same right edge')
+      // 两处入口文案照板（D-1126-1665-entry-labels）：卡内导航链接「用量与单价」、列表行标题「其他接入方式」。
+      await expect(account.getByRole('button', { name: labelFor('usageTitle') }), 'board: usage link label').toHaveText(new RegExp('^' + labelFor('usageTitle')))
+      await expect(loc('[data-model-home-action="other-ways"] [data-model-entry-title]'), 'board: other ways row title').toHaveText(labelFor('waysTitle'))
       await expect(account).toContainText(labelFor('credits', { amount: 19.6 }))
       await expect(account.getByRole('link')).toHaveAttribute('href', 'https://apimart.ai/billing')
       await expect(loc('[data-model-settings-page="home"] header').first(), 'board:ModelSurfaces/settings.header').toContainText(zh ? /图片 \d+/ : /Image \d+/)
@@ -324,7 +351,16 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       if (theme === 'dark') await shot(win, 'M1-dark')
       await win.keyboard.press('Escape')
       await expectAbsent(win.getByRole('menuitem'), { provenBy: menuProof, message: 'Escape closes the account menu' })
-      await expect(menu).toBeFocused()
+      // 主线 WorkbenchMenu 的约定：鼠标打开的菜单关闭后不强拉焦点（免出伪 focus-visible 框），键盘开关才回到触发器。两条都量。
+      await expect(menu).not.toBeFocused()
+      await account.getByRole('button', { name: labelFor('refresh') }).focus()
+      await win.keyboard.press('Tab')
+      await expect(menu, 'Tab reaches the account menu trigger').toBeFocused()
+      await win.keyboard.press('Enter')
+      await expect(win.getByRole('menuitem')).toHaveCount(3)
+      await win.keyboard.press('Escape')
+      await expectAbsent(win.getByRole('menuitem'), { provenBy: menuProof, message: 'Escape closes the keyboard-opened account menu' })
+      await expect(menu, 'keyboard-opened menu returns focus to its trigger').toBeFocused()
       await win.evaluate(() => document.activeElement?.blur())
       await expect(menu).not.toBeFocused()
       await win.mouse.move(0, 0)
@@ -341,7 +377,10 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       }), true, 'divided balance columns fit the secondary row in full')
       if (theme !== 'dark') await shot(win, !zh ? 'M1-en' : width === 700 ? 'M1-narrow' : 'Main')
       await checkNames(win)
-      await account.getByRole('button', { name: labelFor('usage') }).click()
+      await account.getByRole('button', { name: labelFor('usageTitle') }).click()
+      // 点「用量与单价」真的进用量页：页面标记是 usage，且看得到「今天」页签（驱动里取错元素点到「重试」曾被误判成没反应）。
+      await expect(loc('[data-model-settings-page="usage"]'), 'usage link opens the usage page').toBeVisible()
+      await expect(loc('[data-model-settings-page="usage"]').getByText(labelFor('today'), { exact: true }), 'usage page shows the Today tab').toBeVisible()
       await expect(loc('[data-usage-model="gpt-image-2"]'), 'board:ModelSurfaces/settings.usage-page').toContainText('19.6')
       // Each row shows its own recorded rate, or the listing's reason for having none; never 0 and never a neighbour's rate.
       const price = key => loc('[data-unit-price="' + key + '"]')
@@ -493,7 +532,7 @@ async function runWalkthrough() {
     ...measurements.map(m => '| ' + [m.locale + ' / ' + m.theme + ' / ' + m.width, m.home, m.policy, m.top].join(' | ') + ' |'),
     '', '旧用户场景保留了发布版 Relay One 目录和原始加密字段，并加入 KIE 和同模型中转，分别验证四个连接不显示搜索、五个连接可搜索及排序。新装、旧版与只读目录各自收到零次供应商请求。',
     '', '调试记录：启动器起初拒绝未由测试世界签发的目录。随后实窗发现模型整理入口缺失；改用各媒体目录后复测通过。上传开关由键盘空格操作，读回持久偏好。新版只读场景显式保留超前版本夹具，以便走到产品的保护逻辑。',
-    '', '样张差异：积分展示遵循金额格式冻结，余额格和单价页脚不印美元；菜单依 D-account-default 延后更换 Key。账户卡「用量」与首页「其他接入」保持控件短标签（协调 11-26 定，待用户拍板入口算不算按钮）。Key 只读得到尾号，不印「sk-」前缀（印前缀要改余额读取文件，见方向复盘 §7）。用量只有本机记录，页面与账户卡都标「本机」。样张里的 Midjourney、Seedance 2.0 Fast 两行不在内置目录（前者未接入，后者是 Seedance 2.0 的变体），单价区只列目录里有的四个模型。公共临时托管开关开启对应先询问，通道及有效期由实际解析器提供。模型页折叠既有 AI 接入指引，MCP 安装仍归自动化页。已删除的 settings.drop.test-connection 的 component 为空，沿用 D-1117。',
+    '', '样张差异：积分展示遵循金额格式冻结，余额格和单价页脚不印美元；菜单依 D-account-default 延后更换 Key。账户卡「用量与单价」与首页「其他接入方式」已按板（D-1126-1665-entry-labels：一个是卡内导航链接、一个是列表行标题，不算动作按钮）。Key 只读得到尾号，不印「sk-」前缀（印前缀要改余额读取文件，见方向复盘 §7）。用量只有本机记录，页面与账户卡都标「本机」。样张里的 Midjourney、Seedance 2.0 Fast 两行不在内置目录（前者未接入，后者是 Seedance 2.0 的变体），单价区只列目录里有的四个模型。公共临时托管开关开启对应先询问，通道及有效期由实际解析器提供。模型页折叠既有 AI 接入指引，MCP 安装仍归自动化页。已删除的 settings.drop.test-connection 的 component 为空，沿用 D-1117。',
     '', '截图左侧为已批样张，右侧为实窗。后台项目、模型目录、回执次数和余额使用隔离数据；七张原图与同名对照图一起保存。', '']
   fs.writeFileSync(path.join(output, 'walkthrough.md'), report.join('\n'))
   console.log('Seven board comparisons. Provider requests', requests.length, 'paid submissions 0, split quoted names 0.')

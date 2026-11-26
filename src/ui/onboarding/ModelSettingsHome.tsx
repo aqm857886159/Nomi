@@ -5,11 +5,13 @@ import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridge
 import { getDesktopBridge } from '../../desktop/bridge'
 import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
 import { confirmDialog, DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage, WORKBENCH_BUTTON_PRIMARY_CLASS } from '../../design'
+import { cn } from '../../utils/cn'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import type { ModelCatalogReadOnlyDto } from '../../workbench/api/modelCatalogApi'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
 import { openApimartConnect } from './apimartConnectRoute'
 import { ModelAccountCard } from './ModelAccountCard'
+import { MODEL_ENTRY_HEAD_CLASS, MODEL_ENTRY_ROW_CLASS, ModelEntryChevron, ModelEntryIcon, ModelEntryText } from './ModelEntryRow'
 import { CatalogStatusNotices } from './ModelCatalogNotices'
 import type { ChipModel } from './ModelChipGroups'
 import { ModelStatusMark } from './ModelStatusMark'
@@ -148,10 +150,11 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
           {taskCount > 0 && <section data-model-home-task-strip>{taskContent}</section>}
           <h3 className="text-body-sm font-semibold">{t('settings.modelsHome.others')}</h3>
           <AiAssistedOnboardingSection connections={connections} runs={adapterRuns} />
-          <button type="button" data-model-home-action="other-ways" aria-label={t('settings.modelsHome.ways')}
-            className="flex items-center gap-3 rounded-nomi-sm border border-nomi-line p-3 text-left hover:bg-nomi-ink-05" onClick={onWays}>
-            <IconServerBolt size={18} /><span className="min-w-0 flex-1"><strong className="block text-body-sm">{t('settings.modelsHome.waysAction')}</strong>
-              <span className="text-caption text-nomi-ink-60">{t('settings.modelsHome.waysHint')}</span></span><IconChevronRight size={14} />
+          <button type="button" data-model-home-action="other-ways" aria-label={t('settings.modelsHome.waysTitle')}
+            className={cn(MODEL_ENTRY_ROW_CLASS, MODEL_ENTRY_HEAD_CLASS, 'hover:bg-nomi-ink-05')} onClick={onWays}>
+            <ModelEntryIcon><IconServerBolt size={16} stroke={1.7} aria-hidden="true" /></ModelEntryIcon>
+            <ModelEntryText title={t('settings.modelsHome.waysTitle')} hint={t('settings.modelsHome.waysHint')} />
+            <ModelEntryChevron />
           </button>
         </>}
     </div>

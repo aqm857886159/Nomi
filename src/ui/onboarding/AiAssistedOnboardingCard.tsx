@@ -14,7 +14,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  IconCheck, IconChevronDown, IconChevronRight, IconCopy, IconExternalLink, IconRobot,
+  IconCheck, IconChevronDown, IconCopy, IconExternalLink, IconRobot,
 } from '@tabler/icons-react'
 
 import { DesignSegmentedControl } from '../../design'
@@ -31,6 +31,7 @@ import {
   type AssistedOnboardingHost,
 } from './aiAssistedOnboardingContent'
 import { genericMcpSnippet } from './mcpGenericSnippet'
+import { MODEL_ENTRY_HEAD_CLASS, MODEL_ENTRY_ROW_CLASS, ModelEntryChevron, ModelEntryIcon, ModelEntryText } from './ModelEntryRow'
 import { AssistedIntegrationProgress } from './AssistedIntegrationProgress'
 import type { AssistedProgressView } from './assistedProgressProjection'
 
@@ -97,24 +98,18 @@ export function AiAssistedOnboardingCard({
   return (
     <details open={progress ? true : undefined}
       data-model-home-assisted-onboarding={host}
-      className={cn(
-        'group rounded-nomi-sm border px-3 py-2',
-        firstSeen ? 'border-nomi-line' : 'border-nomi-line-soft',
-      )}
+      data-first-seen={firstSeen ? 'true' : undefined}
+      className={cn('group', MODEL_ENTRY_ROW_CLASS)}
     >
-      <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
-        <span className="grid size-7 shrink-0 place-items-center rounded-nomi-sm bg-nomi-paper text-nomi-accent">
+      <summary className={cn('cursor-pointer list-none [&::-webkit-details-marker]:hidden', MODEL_ENTRY_HEAD_CLASS)}>
+        <ModelEntryIcon>
           <IconRobot size={16} stroke={1.7} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-body-sm font-semibold text-nomi-ink">
-            {t('onboardingProviders.assistedOnboarding.title')}
-          </div>
-          <div className="mt-0.5 text-caption leading-snug text-nomi-ink-40">
-            {t('onboardingProviders.assistedOnboarding.subtitle')}
-          </div>
-        </div>
-        <IconChevronRight size={14} className="text-nomi-ink-40 transition-transform group-open:rotate-90" aria-hidden="true" />
+        </ModelEntryIcon>
+        <ModelEntryText
+          title={t('onboardingProviders.assistedOnboarding.title')}
+          hint={t('onboardingProviders.assistedOnboarding.subtitle')}
+        />
+        <ModelEntryChevron className="transition-transform group-open:rotate-90" />
       </summary>
 
       {/* <details> 展开后内容进的是浏览器内置槽，外层 gap 不再作用到它们之间——间距由这一层自己带。 */}

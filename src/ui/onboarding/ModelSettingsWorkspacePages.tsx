@@ -354,7 +354,7 @@ export function OtherConnectionWays({ local, onBack, onCustomApi, onDirectScript
   React.useEffect(() => { if (section === 'network') networkRef.current?.scrollIntoView({ block: 'start' }) }, [section])
   const row = 'flex min-h-10 w-full items-center border-b border-nomi-line-soft text-left text-caption hover:text-nomi-accent'
   return <div className="min-h-0 overflow-y-auto" data-model-settings-page="otherWays">
-    <ModelSettingsPageHeader title={t('settings.modelsHome.ways')} backLabel={t('common.back')} onBack={onBack} />
+    <ModelSettingsPageHeader title={t('settings.modelsHome.waysTitle')} backLabel={t('common.back')} onBack={onBack} />
     <div className="space-y-4 p-4">
       <section><h3 className="text-caption font-semibold">{t('settings.modelsHome.local')}</h3>
         {local.map(c => <button className={row} key={c.vendorKey} onClick={c.onOpen} data-local-connection={c.vendorKey}>
@@ -391,7 +391,7 @@ export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name:
     : <><span className="text-micro text-nomi-ink-60">{t(p.gap === 'token' ? 'settings.modelsHome.gapToken' : p.gap === 'tiered' ? 'settings.modelsHome.gapTiered' : 'settings.modelsHome.unavailable')}</span> —</>
   const row = 'grid grid-cols-[minmax(0,1fr)_auto_4rem] items-center gap-2 border-b border-nomi-line-soft px-2 py-1.5 text-caption'
   return <div className="min-h-0 overflow-y-auto" data-model-settings-page="usage">
-    <ModelSettingsPageHeader title={t('settings.modelsHome.usage')} subtitle={name} backLabel={t('common.back')} onBack={onBack} />
+    <ModelSettingsPageHeader title={t('settings.modelsHome.usageTitle')} subtitle={name} backLabel={t('common.back')} onBack={onBack} />
     <div className="space-y-3 p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="text-caption font-semibold">{t('settings.modelsHome.spent')}</h3>
         <NomiSegmented ariaLabel={t('settings.modelsHome.spent')} density="compact" fit="content" value={String(period)}

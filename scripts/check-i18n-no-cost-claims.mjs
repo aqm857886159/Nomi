@@ -61,7 +61,7 @@ export const COST_LABEL_EXACT = Object.freeze({
   // Approved ModelSurfaces account and usage labels. Only these exact localized facts are permitted.
   'settings.modelsHome.credits': Object.freeze({ 'zh-CN': '{{amount}} 积分', en: '{{amount}} credits' }),
   'settings.modelsHome.topup': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
-  'settings.modelsHome.usage': Object.freeze({ 'zh-CN': '用量与单价', en: 'Usage & prices' }),
+  'settings.modelsHome.usageTitle': Object.freeze({ 'zh-CN': '用量与单价', en: 'Usage & prices' }),
   'settings.modelsHome.receipt': Object.freeze({ 'zh-CN': '仅统计本机项目中的成功生成。缺少积分收据时显示待结算。', en: 'Includes successful generations in local projects. Missing credit receipts appear as pending.' }),
   'settings.modelsHome.imageUnit': Object.freeze({ 'zh-CN': '≈{{amount}} 积分/张', en: '≈{{amount}} credits/image' }),
   'settings.modelsHome.videoUnit': Object.freeze({ 'zh-CN': '≈{{amount}} 积分/秒', en: '≈{{amount}} credits/second' }),

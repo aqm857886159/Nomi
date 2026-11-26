@@ -89,6 +89,8 @@ grep -rhoE 'font-size: ?[0-9.]+px' docs/design/boards/*/source/*.dc.html | grep 
 
 另外，`ModelAccountCard.tsx` 这个文件本身就是热点，不属于「只因口径命中」的代批例外，要交用户拍板。
 
+自写登记 gate-family：本 PR 对 scripts/check-i18n-no-cost-claims.mjs 只做一处键名改名（usage→usageTitle，键名收成一个家），不新增逻辑或特例；换不了现成方案的理由与重看时间按登记原文 revisitWhen。
+
 ### 6. 三条路对比表 + 推荐
 
 | 选项 | 做什么 | 代价 | 同类还会不会出现 | 风险 | 推荐 |
