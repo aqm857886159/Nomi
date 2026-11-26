@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectAbsent, expectVisible, holdAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { addCanvasNode, canvasSetZoomPercent, canvasZoomPercent, canvasZoomStep, createBlankProject, selectOrAddCanvasNode, ensureAgentPanelOpen, nodeModelTrigger, openNodeModelMenu, openNodeParams, selectedNodeComposer, switchWorkspace } from './_shell.mjs'
@@ -373,8 +373,10 @@ for (const run of RUNS) {
       ctx.sampleTaskId = created.taskId
       // 样片在路上：今天的等待面原样，下方这一行出了结果才出现。
       await expect(node.locator('[data-generating-placement]').first(), 'board:SampleMode/sample.generating：样片生成中用今天的等待面').toBeVisible()
+      // 这份基线 hd 站还要用：出高清在路上时同一个遮罩探针要证「不在」。
+      ctx.generatingSeen = await proveProbe(node.locator('[data-generating-placement]'), '这张节点上样片的等待面在')
       await expectAbsent(node.locator('[data-sample-row]'), {
-        provenBy: await proveProbe(node.locator('[data-generating-placement]'), '这张节点上样片的等待面在'),
+        provenBy: ctx.generatingSeen,
         message: 'board:SampleMode/sample.generating：结果没出来前没有下方这一行',
       }, 1000)
       await win.screenshot({ path: shot('03a-sample-generating') })
@@ -430,12 +432,12 @@ for (const run of RUNS) {
       const postsBefore = videoPosts(fake)
       await onCanvas(win, row.locator('[data-sample-make-final]').first(), 'make HD')
       // 请求体先断（落地前）：改成重发提示词时这里就是断言红，不是等超时。
+      // 「第一次出高清不问」也由这次 POST 证：先弹确认的话没人点，POST 发不出去，这里就红。
       const sent = await nthVideoPost(fake, postsBefore + 1, 'HD POST')
       assert.deepEqual(Object.keys(sent).sort(), SAMPLE_FINAL_KEYS, `出高清请求体键集合：${JSON.stringify(sent)}`)
       assert.equal(sent.draft_task_id, ctx.sampleTaskId, '出高清带的是这条样片的任务号')
       assert.equal(sent.resolution, '1080p', '出高清目标清晰度 1080p')
       await nthVideoCreate(fake, before + 1, 'HD task created')
-      await holdAbsent(win.locator('[role="dialog"]'), '第一次出高清不弹确认框', 800)
       // 在路上：样片照常可见、可播，下方写「高清生成中」。
       await expect(row, 'board:SampleMode/sample.hd-progress').toHaveAttribute('data-sample-state', 'final-active')
       const rowShown = await proveProbe(node.locator('[data-sample-row]'), '出高清在路上时样片那一行在')
@@ -443,7 +445,10 @@ for (const run of RUNS) {
       await expectFont(row.locator('[data-sample-final-progress]'), 'caption', 'board:SampleMode/sample.hd-progress')
       // 遮罩按这次运行的事实让路（出高清 = 带 draftTaskId 的那一次）：节点上不挂生成遮罩，卡片里也不叠第二份状态。
       await expect(node.locator('video').first(), 'board:SampleMode/sample.hd-progress：出高清中样片 <video> 还在').toBeVisible()
-      await holdAbsent(node.locator('[data-generating-placement]'), 'board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住', 800)
+      await expectAbsent(node.locator('[data-generating-placement]'), {
+        provenBy: ctx.generatingSeen,
+        message: 'board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住',
+      }, 1000)
       await expectAbsent(node.locator('[data-node-inline-status] [data-generation-status]'), {
         provenBy: await proveProbe(node.locator('video'), '出高清中样片的 <video> 在'),
         message: 'board:SampleMode/sample.hd-progress：状态只在下方那一行写',
@@ -514,6 +519,7 @@ for (const run of RUNS) {
     })
 
     await station('plain', run, async () => {
+      const sampleRowSeen = await proveProbe(nodeById(win, ctx.sampleNodeId).locator('[data-sample-row]'), '样片节点下方那一行在（探针认得出这一行）')
       const makeFinalSeen = await proveProbe(nodeById(win, ctx.sampleNodeId).locator('[data-sample-make-final]'), '样片节点上的「出高清」在（探针认得出这颗钮）')
       await win.keyboard.press('Escape')
       await addCanvasNode(win, 'video')
@@ -534,7 +540,7 @@ for (const run of RUNS) {
       assert.equal(created.body?.draft, undefined, '普通 2.5 不带 draft')
       const node = nodeById(win, plainId)
       await expect(node.locator('video').first(), '普通 2.5 出完').toBeAttached({ timeout: LONG })
-      await holdAbsent(node.locator('[data-sample-row]'), 'board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行', 1500)
+      await expectAbsent(node.locator('[data-sample-row]'), { provenBy: sampleRowSeen, message: 'board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行' })
       await expectAbsent(node.locator('[data-sample-make-final]'), { provenBy: makeFinalSeen, message: 'board:SampleMode/sample.old-node：没有「出高清」' })
       await screenshotSettled(win, { path: shot('07-plain-480p') })
     })
