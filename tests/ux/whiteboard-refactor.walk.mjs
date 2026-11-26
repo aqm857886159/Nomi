@@ -301,7 +301,8 @@ try {
   await expectAbsent(editor, { provenBy: editorProbe })
   await expect.poll(() => readNode('image').history.length).toBe(2)
   check('unchanged reopen and Done does not duplicate result history', true)
-  await canvasSetZoomPercent(page, 35)
+  // 525feeacb / 9b49d3a40 起未选中卡片在 <40% 缩放走轻量渲染（仅标题与缩略图），40%–55% 全局视口段保留版本徽标。
+  await canvasSetZoomPercent(page, 45)
   await node.locator('[data-version-badge]').click()
   await expect(page.locator('[data-version-grid="image"] [data-version-card]').first()).toBeVisible()
   check('existing version cards remain available', true)

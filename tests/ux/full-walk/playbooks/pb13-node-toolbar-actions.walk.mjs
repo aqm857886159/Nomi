@@ -120,7 +120,7 @@ async function readPage() {
     }
     return {
       dialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).map((element) => element.getAttribute('aria-label') || element.getAttribute('data-testid') || 'dialog'),
-      whiteboard: visible(document.querySelector('[data-nomi-whiteboard-modal="true"]')),
+      whiteboard: visible(document.querySelector('[data-nomi-inline-whiteboard="true"]')),
       modelSettingsPages: [...document.querySelectorAll('[data-model-settings-page]')].filter(visible).map((element) => element.getAttribute('data-model-settings-page')),
       menus: [...document.querySelectorAll('[role="menu"]')].filter(visible).length,
       feedback: [...document.querySelectorAll('[role="status"], [data-node-feedback], [data-canvas-toast]')].filter(visible).map((element) => element.textContent?.trim()).filter(Boolean).slice(0, 4),
@@ -330,14 +330,15 @@ try {
     observe: readPage,
     act: async () => {
       await clickOrFail(toolbar().getByRole('button', { name: text('generationCommon.imageToolbar.whiteboard'), exact: true }).first(), '画板')
-      await expect(win().locator('[data-nomi-whiteboard-modal="true"]').first(), '画板打开').toBeVisible({ timeout: stationTimeout() }).catch(() => undefined)
-      await win().waitForTimeout(600)
+      await expect(win().locator('[data-nomi-inline-whiteboard="true"]').first(), '画板打开').toBeVisible({ timeout: stationTimeout() }).catch(() => undefined)
+      await expect(win().locator('[data-toolbar-action="whiteboard-importImage"]').first(), '图在').toBeEnabled({ timeout: stationTimeout() }).catch(() => undefined)
     },
     judge: (_before, after) => ({ ok: after.whiteboard, actual: after.whiteboard ? '画板打开了' : '画板没打开' }),
   })
   await monitor.step('关上画板（复原）', async () => {
-    await win().keyboard.press('Escape')
-    await expect(win().locator('[data-nomi-whiteboard-modal="true"]'), '画板关上').toHaveCount(0, { timeout: stationTimeout() })
+    const done = win().locator('[data-toolbar-action="whiteboard-done"]').first()
+    if (await done.isVisible().catch(() => false)) await clickOrFail(done, 'whiteboard-done')
+    await expect(win().locator('[data-nomi-inline-whiteboard="true"]'), '画板关上').toHaveCount(0, { timeout: stationTimeout() })
   }, { surfaces: ['*'] })
   await reselect()
 

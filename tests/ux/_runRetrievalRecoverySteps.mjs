@@ -1,13 +1,13 @@
 // 「钱花了、任务号还在的单子只取回」零费用走查和真付费走查共用的一段步骤：
 // 提交 → 中断（关窗或重启）+ 取回出故障 → 重开，观察者第一次查询失败 → 点重新取回又失败 → 老项目的错误卡 → 故障好了 → 重新取回落地。
 // 全程只下过一单。差别只在 ctx 给的几个零件：怎么中断、怎么造故障、怎么数请求。
-// 另外三段只给零费用演练：本机查不了（模型被关）时卡上写真实原因；这单不要了就标记失败，这时才给重试；
-// 窗口一直开着、单还在跑时渲染层放手给观察者（windowOpenJourney）。
+// 另外三段只给零费用演练：本机查不了（原连接停用）时卡上写真实原因；这单不要了就标记失败，这时才给重试；
+// 窗口一直开着、单还在跑时渲染层放手给观察者（windowOpenJourney：3797fde0c 再发弹确认卡，c05ac86b4 观察者收完自动按号落回镜头）。
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect, expectAbsent, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
 import { readProductionRuns } from './_paidRun.mjs'
-import { canvasFitView, closeRailDrawer, openRailDrawer } from './_shell.mjs'
+import { closeRailDrawer, openRailDrawer } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -24,7 +24,8 @@ function labelsFor(locale) {
     markFailed: text('generationCommon.recoverable.dismiss'),
     timedOut: text('generationCommon.recoverable.title'),
     unavailable: text('generationCommon.recoverable.unavailableTitle'),
-    stillRunning: text('generationCommon.observability.error.nodeInFlight.hint'),
+    stillRunningTitle: text('generationCommon.spend.resend.title.image'),
+    stillRunning: text('generationCommon.spend.resend.waiting').split('\n')[0],
     projectAssets: text('assetLibrary.projectAssets'),
   }
 }
@@ -64,17 +65,18 @@ export async function waitStoppedForRetrieval(projectRoot, runRecordId) {
 }
 
 /** 建一个节点、点生成，等到它带着任务号落盘：用户关窗时这一笔已经在项目里。 */
-async function submitShot({ page, posts, projectRoot, node: spec, position }) {
+async function submitShot({ page, posts, projectRoot, node: spec, position, title = 'Retrieve me' }) {
   const postsBefore = posts()
-  const id = await page.evaluate(({ spec, position }) => {
+  const id = await page.evaluate(({ spec, position, title }) => {
     const store = window.__nomiCanvasStore.getState()
-    const node = store.addNode({ kind: spec.kind, categoryId: 'shots', title: 'Retrieve me', prompt: spec.prompt, position, exactPosition: true,
+    const node = store.addNode({ kind: spec.kind, categoryId: 'shots', title, prompt: spec.prompt, position, exactPosition: true,
       size: { width: 480, height: 320 }, meta: { modelVendor: spec.vendor, modelKey: spec.modelKey, previewHeight: 320 } })
     store.selectNode(node.id)
     return node.id
-  }, { spec, position })
-  // 窗口重开时画布已经缩放适配了上一个节点，新节点可能在屏幕外、根本没渲染：像人一样先看全。
-  await canvasFitView(page)
+  }, { spec, position, title })
+  // 用产品自己的节点对焦（保留底栏与时间轴余量），避免单节点 fitView 放大后把生成框顶到时间轴条下。
+  await page.evaluate(nodeId => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId, select: true } })), id)
+  await waitForVisualQuiescence(page)
   await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click()
   await expect.poll(async () => (await nodeFact(page, id)).taskId, { timeout: stationTimeout({ operations: 4 }) }).toBeTruthy()
   await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(postsBefore + 1)
@@ -202,19 +204,19 @@ export async function unavailableJourney(ctx) {
 
 /**
  * 窗口一直开着、供应商还在跑（图片模型渲染层等 2 分钟）：节点落可找回，观察者接着查。三个节点一起等，只等一次：
- * - a：标记失败再重试被挡，卡上说这一单还在跑，不露错误码。跑完才放行，这时算第二单。
- * - b：单跑完了，结果先落进项目，节点还是可找回；点一下重新取回即现，这一下没有 GET、没有 POST。
- * - c：单跑完了，没点重新取回而是标记失败：产物还在素材里；重试算第二单。
+ * - a：标记失败再点重试，弹「上一次还没结束」确认卡（3797fde0c），不露错误码、取消前 0 新单；取消后观察者收完照常落回镜头。
+ * - b：单跑完了，观察者写进项目并经 canvas.run-settled 自动按号落回镜头（c05ac86b4），不额外下单。
+ * - c：单还在跑时标记失败并确认再发，这才发第二单；观察者收完第一单后原单产物仍在项目与素材抽屉里。
  */
 export async function windowOpenJourney(ctx) {
   const { locale, page, imageNode, finishJobs, posts, gets, shot, projectRoot, scenario } = ctx
   const labels = labelsFor(locale)
   const report = { scenario }
   const postsAtStart = posts()
-  const submit = position => submitShot({ ...ctx, node: imageNode, position })
+  const submit = (position, title) => submitShot({ ...ctx, node: imageNode, position, title })
   const a = await submit({ x: 40, y: 40 })
   const b = await submit({ x: 620, y: 40 })
-  const c = await submit({ x: 1200, y: 40 })
+  const c = await submit({ x: 1200, y: 40 }, 'Retrieve c')
   const status = async node => (await nodeFact(page, node.id)).status
   const card = node => page.locator(`.react-flow__node[data-id="${node.id}"]`)
   const button = (node, name) => card(node).getByRole('button', { name, exact: true })
@@ -232,60 +234,51 @@ export async function windowOpenJourney(ctx) {
   const getsWhenRendererStopped = gets()
   await expect.poll(gets, { timeout: stationTimeout({ operations: 4 }) }).toBeGreaterThan(getsWhenRendererStopped)
 
+  const resendDialog = page.getByRole('dialog').filter({ has: page.locator('[data-spend-confirm-action="confirm"]') })
   await focus(a)
   await button(a, labels.markFailed).click()
   await expect(button(a, labels.retry)).toBeVisible({ timeout: stationTimeout() })
   await button(a, labels.retry).click()
-  const stillRunning = card(a).getByText(labels.stillRunning)
-  await expect(stillRunning).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
-  const proof = await proveProbe(stillRunning, 'the card says this task is still running')
-  await expectAbsent(card(a).getByText('node_generation_in_flight'), { provenBy: proof, message: 'the raw error code never reaches the card' })
+  await expect(resendDialog).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+  await expect(resendDialog).toContainText(labels.stillRunningTitle)
+  await expect(resendDialog).toContainText(labels.stillRunning)
+  const proof = await proveProbe(resendDialog, 'the resend dialog warns this task is still running')
+  await expectAbsent(page.getByText('node_generation_in_flight'), { provenBy: proof, message: 'the raw error code never reaches the UI' })
   expect(posts()).toBe(postsAtStart + 3)
-  await settledShot(`${scenario}-1-still-running`, card(a))
-
-  finishJobs()
-  for (const node of [a, b, c]) await expect.poll(() => runOf(projectRoot, node.runRecordId)?.status, { timeout: stationTimeout({ operations: 8 }) }).toBe('completed')
+  await settledShot(`${scenario}-1-still-running`, resendDialog)
+  await resendDialog.locator('[data-spend-confirm-action="cancel"]').click()
+  await expect(resendDialog).toHaveCount(0, { timeout: stationTimeout() })
   expect(posts()).toBe(postsAtStart + 3)
 
-  // b：结果已经在项目里，节点没变；点一下即现，这一下不联网。
-  await focus(b)
-  await expect(button(b, labels.retrieve)).toBeVisible()
-  expect(await status(b)).toBe('recoverable')
-  await settledShot(`${scenario}-2-finished-still-recoverable`, card(b))
-  const getsAtClick = gets()
-  const clickedAt = Date.now()
-  await button(b, labels.retrieve).click()
-  await expect.poll(() => status(b), { timeout: stationTimeout({ operations: 2 }) }).toBe('success')
-  report.clickToLandedMs = Date.now() - clickedAt
-  report.getsOnClick = gets() - getsAtClick
-  expect(gets()).toBe(getsAtClick)
-  expect(posts()).toBe(postsAtStart + 3)
-  expect((await nodeFact(page, b.id)).versions).toBe(1)
-  await settledShot(`${scenario}-3-landed`, card(b))
-
-  // c：跑完了，用户选了标记失败：产物不丢，素材里找得到。
+  // c：人在确认卡上明确选再发才发第二单；第一单仍由主进程观察者盯到收尾，产物不丢。
   await focus(c)
   await button(c, labels.markFailed).click()
   await expect(button(c, labels.retry)).toBeVisible({ timeout: stationTimeout() })
   await settledShot(`${scenario}-4-finished-marked-failed`, card(c))
+  await button(c, labels.retry).click()
+  await expect(resendDialog).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+  await resendDialog.locator('[data-spend-confirm-action="confirm"]').click()
+  await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(postsAtStart + 4)
+
+  finishJobs()
+  for (const node of [a, b, c]) await expect.poll(() => runOf(projectRoot, node.runRecordId)?.status, { timeout: stationTimeout({ operations: 8 }) }).toBe('completed')
+  for (const node of [a, b, c]) await expect.poll(() => status(node), { timeout: stationTimeout({ operations: 8 }) }).toBe('success')
+  expect(posts()).toBe(postsAtStart + 4)
+
+  // b：观察者收完后经 canvas.run-settled 自动落回镜头，仍是 1 版，没有第二单。
+  await focus(b)
+  expect((await nodeFact(page, b.id)).versions).toBe(1)
+  await settledShot(`${scenario}-3-landed`, card(b))
+
+  // c：确认再发后的第二单与观察者盯完的第一单都按各自 runNumber 落回 c（共 2 版），项目素材抽屉里两张都在。
+  await expect.poll(async () => (await nodeFact(page, c.id)).versions, { timeout: stationTimeout({ operations: 4 }) }).toBe(2)
   const artifact = runOf(projectRoot, c.runRecordId).artifacts.find(item => item.status === 'ready')
-  const assets = await openRailDrawer(page, 'assets', 'open the assets drawer after marking failed')
+  const assets = await openRailDrawer(page, 'assets', 'open the assets drawer after confirmed resend')
   await page.locator('[role="tab"]', { hasText: labels.projectAssets }).first().click()
-  await expect(page.locator(`[role="button"][aria-label="${path.basename(artifact.projectRelativePath)}"]`).first()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+  await expect(assets.locator('[role="button"][aria-label="Retrieve c"]')).toHaveCount(2, { timeout: stationTimeout({ operations: 2 }) })
   await settledShot(`${scenario}-5-in-assets`, assets)
   await closeRailDrawer(page, 'assets', 'close the assets drawer')
 
-  // 重试才算第二单，这是用户明确选的。
-  const retryLands = async (node) => {
-    const before = posts()
-    await focus(node)
-    await button(node, labels.retry).click()
-    await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(before + 1)
-    finishJobs()
-    await expect.poll(() => status(node), { timeout: stationTimeout({ operations: 8 }) }).toBe('success')
-  }
-  await retryLands(c)
-  await retryLands(a)
   expect(fs.existsSync(path.join(projectRoot, artifact.projectRelativePath))).toBe(true)
   report.posts = posts() - postsAtStart
   return { report, page }
