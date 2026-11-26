@@ -1,10 +1,10 @@
-有条件通过：外壳折行契约、20 扇调用门核查、真 Chromium 380px 排版与回退必红反例全部实测通过；样片模式英文深色 1100×690 等桌面对照截图按派活单由协调审查补截确认。
+有条件通过：第 2 轮独立盲验确认 `DesignModal` 运行时对对象与回调形式 `classNames.title` / `styles.title` 截断覆写的剥离与合法排版类保留、20 个弹窗调用方真实挂载断言（断言辅助已迁至 `tests/setup/modalTitleAssertions.ts`，无 `devlab/` 生产引用）、旧 AST 扫描彻底删除、零真付费调用，以及 4 个测试文件 34 条用例与 `check-design-lab --mirrors-only` 全绿；样片模式英文深色 1100×690 等桌面对照截图仍按约定由协调审查补截确认。
 
-- 验收线：v-fmodal-title
-- 验收 HEAD：da738062bb660af20a6a7dbf0f0738a3045a2c42
+- 验收线：v-fmodal-title-r3
+- 验收 HEAD：2cab3c1f99c079cfee9ba08983c228264b92839b
 - 阻断：无
-- 基线提交：`a05ca5219`（仅测试提交：`6d8059b1683c9ed27a0cd43ea267e56339db1079`）
-- 盲验依据：派活单、`docs/plan/2026-11-26-direction-check-spend-confirm-title.md`、分支源码与实跑输出（未读任何实现线交付文档）
+- 上轮验收基线：`da738062bb660af20a6a7dbf0f0738a3045a2c42`（`v-fmodal-title`）；初始基线提交：`a05ca5219`（仅测试提交：`6d8059b1683c9ed27a0cd43ea267e56339db1079`）
+- 盲验依据：派活单、`git diff origin/main..2cab3c1f99c079cfee9ba08983c228264b92839b` 分支源码与实跑输出（严禁且未读任何实现线自报材料）
 
 ## 1. 范围与禁区核查
 
@@ -76,3 +76,24 @@
 
 - **待协调审查补截（按派活单范围约定）**：样片模式「第二次出高清」英文深色 1100×690、短标题弹窗、自定义调用标题三处桌面端改前改后对照截图，由协调审查补截后交用户确认再合入。
 - **非阻断观察**：按派活单「不改任何弹窗标题字号/行高/外观、单行一像素不变」的明确边界，13 扇未传 `classNames.title` 的弹窗仍沿用 Mantine 默认 `line-height: 1`；后续统一弹窗标题字号与行高出样张拍板时一并收口即可。
+
+## 6. 第 2 轮独立盲验（`v-fmodal-title-r3` · HEAD `2cab3c1f99c079cfee9ba08983c228264b92839b`）
+
+直接对照 `git diff origin/main..2cab3c1f99c079cfee9ba08983c228264b92839b`（共 14 个文件，`+1021 / -36`）逐项核查：
+
+| 核查项 | 结论 | 实证 |
+|---|---|---|
+| `DesignModal` 运行时剥离对象与回调形式截断类/内联样式，且保留合法排版类 | 通过 | `src/design/overlays.tsx` 通过 Mantine `useResolvedStylesApi<ModalFactory>({ classNames, styles, props })` 统一解析对象与函数回调形式的 `classNames` / `styles`；按 `titleTruncation` 与 `titleFlowDeclaration` 剥离 `caller.title` 中的截断及流式声明类（含变体前缀、`!` 重要修饰符及任意 CSS 属性），保留调用方合法排版类并追加 `min-w-0`；按 `titleFlowStyles` 过滤 `resolvedStyles.title` 中的截断内联属性，保留 `letterSpacing` 等排版属性及其他插槽样式，并固定落盘 `whiteSpace: 'normal'` 与 `overflowWrap: 'anywhere'`。 |
+| 真实挂载渲染 20 个弹窗调用方并断言 `h2` 及弹窗内祖先节点无截断 | 通过 | `src/design/__tests__/DesignModal.test.tsx`（6 条用例）覆盖对象展开、Mantine `classNames` 回调、对象 `styles`、Mantine `styles` 回调、类与内联同时覆写及 `slots.header` 间接包裹 `h2` 的反例自检；`src/design/__tests__/modalTitleCallers.test.tsx`（20 条用例）在 jsdom 中真实挂载 20 个弹窗调用方（14 个表格用例含 `DesignModalDefault` + 6 个交互/store 触发用例：`ConfirmDialogHost`、`FeedbackShareHost`、`SpendConfirmDialog`、`WorkflowEditDialog`、`SelectionPromptSaveController`、`ProjectAgentResidentShell`）；公共断言辅助位于 `tests/setup/modalTitleAssertions.ts`，逐层检查 `aria-labelledby` 指向的弹窗内 `h2` 及至 `[role="dialog"]` 全部祖先节点无截断类/内联样式，并校验合法排版类保留；生产代码与相关测试中 `devlab/` 引用为 0。 |
+| 第 1 轮旧 AST 扫描已删除且零真付费调用 | 通过 | `src/design/overlays.structure.test.tsx` 已删除 `node:path`、`typescript` 引入与 97 行 AST 全仓扫描用例，仅保留 6 条外壳结构测试；全部新增/修改源码与单测均在本地 jsdom/Node 运行，零外部网络或真付费 API 调用。 |
+
+### 第 2 轮实跑结果
+
+1. `VITEST_MAX_WORKERS=2 npx vitest run src/design/__tests__/DesignModal.test.tsx src/design/__tests__/modalTitleCallers.test.tsx src/design/overlays.structure.test.tsx scripts/viteOptimizeDeps.test.mjs`
+   - 结果：**4 个测试文件 / 34 条用例全部通过**（总耗时 10.01s）：
+     - `src/design/__tests__/DesignModal.test.tsx`：6/6 通过（272ms）
+     - `src/design/__tests__/modalTitleCallers.test.tsx`：20/20 通过（962ms）
+     - `src/design/overlays.structure.test.tsx`：6/6 通过（73ms）
+     - `scripts/viteOptimizeDeps.test.mjs`：2/2 通过（446ms）
+2. `node scripts/check-design-lab.mjs --mirrors-only`
+   - 结果：**通过**（`设计实验室结构 + mirrors 行号检查通过`）。
