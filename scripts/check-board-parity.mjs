@@ -672,7 +672,9 @@ export function checkPrBoardClaims(body, manifests, { pending } = {}) {
       }
       const decided = (el.status === 'deferred' || el.status === 'dropped') && el.userDecision?.quote && el.userDecision?.date
       if (el.status !== 'implemented' && !decided) {
-        ;(pending ?? errors).push(`[${board}] 认领的元素 ${id} 还是 ${el.status}：合并前必须 implemented，或带用户原话的 deferred / dropped`)
+        // 只有「还在等验收」的合法状态能进 pending；非法状态、缺用户原话的 deferred / dropped 不是在等验收，推送档也红
+        const awaiting = el.status === 'missing' || el.status === 'in-progress'
+        ;(awaiting && pending ? pending : errors).push(`[${board}] 认领的元素 ${id} 还是 ${el.status}：合并前必须 implemented，或带用户原话的 deferred / dropped`)
       }
     }
   }

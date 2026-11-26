@@ -222,4 +222,9 @@ test('拍板图认领还没 implemented：推送档只提醒，合并档判红�
   assert.equal(checkBoardClaim(body, { boards }).ok, false)
   // 推送档也只放过「还没翻」这一种：认领了清单里没有的元素照样红
   assert.equal(checkBoardClaim('## 拍板图\n- Main: 不存在的元素', { boards, stage: 'push' }).ok, false)
+  // 缺用户原话的 deferred、非法状态都不是「在等验收」，推送档照样红
+  const odd = { Main: { elements: [{ id: 'a', status: 'deferred' }, { id: 'b', status: 'half-done' }] } }
+  const oddPush = checkBoardClaim('## 拍板图\n- Main: a, b', { boards: odd, stage: 'push' })
+  assert.equal(oddPush.ok, false)
+  assert.match(oddPush.lines.join('\n'), /a 还是 deferred[\s\S]*b 还是 half-done/)
 })
