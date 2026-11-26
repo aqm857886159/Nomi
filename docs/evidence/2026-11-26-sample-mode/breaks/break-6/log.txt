@@ -2,9 +2,12 @@
 ✓ zh-CN/light menu
 ✓ zh-CN/light sample
 ✗ zh-CN/light hd
-board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住
-→ 它先是不在，随后在 800ms 的保持窗口内又冒出来了（count=1）。
-  这正是旧版 expectAbsent 放过去的那一族：toHaveCount(0) 的期望值就是 0，
-  第一次取样撞上「还没挂载」就当场判绿，timeout 一秒都没用上。
-  别把窗口调小来让它变绿——报红的是被测物晚到了，不是这把尺子太严。
-证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-6
+board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住（基线已证：这张节点上样片的等待面在）
+
+expect(locator).toHaveCount(expected) failed
+
+Locator:  locator('.react-flow__node[data-id="gen-v2-video-mwxy03z2-xz8p"]').first().locator('[data-generating-placement]')
+Expected: 0
+Received: 1
+Timeout:  1000ms
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks-46/break-6

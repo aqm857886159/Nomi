@@ -3,264 +3,258 @@
     "method": "GET",
     "url": "/models",
     "body": "",
-    "at": "2026-11-26T19:13:11.098Z"
+    "at": "2026-11-26T19:28:08.952Z"
   },
   {
     "method": "GET",
     "url": "/v1/models",
     "body": "",
-    "at": "2026-11-26T19:13:11.104Z"
+    "at": "2026-11-26T19:28:08.964Z"
   },
   {
     "method": "GET",
     "url": "/v1/user/balance",
     "body": "",
-    "at": "2026-11-26T19:13:14.292Z"
+    "at": "2026-11-26T19:28:12.830Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=kling-3.0-turbo",
     "body": "",
-    "at": "2026-11-26T19:13:14.394Z"
+    "at": "2026-11-26T19:28:12.954Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:13:14.957Z"
+    "at": "2026-11-26T19:28:13.982Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Wide shot, rooftop after rain, she turns to the window\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
-    "at": "2026-11-26T19:13:16.727Z"
+    "at": "2026-11-26T19:28:16.022Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T19:13:19.953Z"
+    "at": "2026-11-26T19:28:19.917Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T19:13:22.685Z"
+    "at": "2026-11-26T19:28:22.657Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T19:13:25.392Z"
+    "at": "2026-11-26T19:28:25.743Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-1",
     "body": "",
-    "at": "2026-11-26T19:13:28.177Z"
+    "at": "2026-11-26T19:28:28.086Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T19:13:28.182Z"
+    "at": "2026-11-26T19:28:28.090Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:13:28.494Z"
+    "at": "2026-11-26T19:28:28.440Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
-    "at": "2026-11-26T19:13:31.814Z"
+    "at": "2026-11-26T19:28:31.826Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T19:13:34.932Z"
+    "at": "2026-11-26T19:28:35.101Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T19:13:38.588Z"
+    "at": "2026-11-26T19:28:38.745Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T19:13:41.476Z"
+    "at": "2026-11-26T19:28:41.818Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-2",
     "body": "",
-    "at": "2026-11-26T19:13:44.341Z"
+    "at": "2026-11-26T19:28:44.377Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T19:13:44.344Z"
+    "at": "2026-11-26T19:28:44.382Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:13:44.638Z"
+    "at": "2026-11-26T19:28:44.726Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
-    "at": "2026-11-26T19:13:48.559Z"
+    "at": "2026-11-26T19:28:48.829Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T19:13:50.983Z"
+    "at": "2026-11-26T19:28:50.995Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T19:13:54.586Z"
+    "at": "2026-11-26T19:28:53.675Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T19:13:57.696Z"
+    "at": "2026-11-26T19:28:56.614Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-3",
     "body": "",
-    "at": "2026-11-26T19:14:01.122Z"
+    "at": "2026-11-26T19:28:59.980Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T19:14:01.123Z"
-  },
-  {
-    "method": "GET",
-    "url": "/api/pricing/model?model=seedance-2.5",
-    "body": "",
-    "at": "2026-11-26T19:14:01.944Z"
+    "at": "2026-11-26T19:28:59.982Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=kling-3.0-turbo",
     "body": "",
-    "at": "2026-11-26T19:14:02.093Z"
+    "at": "2026-11-26T19:29:00.859Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:02.747Z"
+    "at": "2026-11-26T19:29:01.422Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:03.082Z"
+    "at": "2026-11-26T19:29:01.720Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Close-up, raindrops on the railing\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false}",
-    "at": "2026-11-26T19:14:03.348Z"
+    "at": "2026-11-26T19:29:01.860Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T19:14:06.227Z"
+    "at": "2026-11-26T19:29:04.378Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T19:14:10.079Z"
+    "at": "2026-11-26T19:29:07.551Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T19:14:13.477Z"
+    "at": "2026-11-26T19:29:11.412Z"
   },
   {
     "method": "GET",
     "url": "/v1/tasks/mcp-l2-4",
     "body": "",
-    "at": "2026-11-26T19:14:15.817Z"
+    "at": "2026-11-26T19:29:13.838Z"
   },
   {
     "method": "GET",
     "url": "/fixture/video.mp4",
     "body": "",
-    "at": "2026-11-26T19:14:15.847Z"
+    "at": "2026-11-26T19:29:13.841Z"
   },
   {
     "method": "GET",
     "url": "/v1/user/balance",
     "body": "",
-    "at": "2026-11-26T19:14:16.105Z"
+    "at": "2026-11-26T19:29:13.993Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:16.229Z"
+    "at": "2026-11-26T19:29:14.117Z"
   },
   {
     "method": "GET",
     "url": "/v1/user/balance",
     "body": "",
-    "at": "2026-11-26T19:14:20.816Z"
+    "at": "2026-11-26T19:29:17.589Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:20.926Z"
+    "at": "2026-11-26T19:29:17.690Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:21.495Z"
+    "at": "2026-11-26T19:29:18.245Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:22.295Z"
+    "at": "2026-11-26T19:29:18.999Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:22.799Z"
+    "at": "2026-11-26T19:29:19.468Z"
   },
   {
     "method": "GET",
     "url": "/api/pricing/model?model=seedance-2.5",
     "body": "",
-    "at": "2026-11-26T19:14:28.872Z"
+    "at": "2026-11-26T19:29:24.734Z"
   },
   {
     "method": "POST",
     "url": "/v1/videos/generations",
     "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Wide shot, rooftop after rain, she turns to the window\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
-    "at": "2026-11-26T19:14:30.217Z"
+    "at": "2026-11-26T19:29:25.882Z"
   }
 ]

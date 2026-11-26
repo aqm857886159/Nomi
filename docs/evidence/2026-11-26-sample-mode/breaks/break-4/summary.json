@@ -1,36 +1,36 @@
 {
-  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-4",
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks-46/break-4",
   "stations": [
     {
       "run": "zh-CN-light",
       "station": "menu",
       "ok": true,
-      "ms": 919
+      "ms": 907
     },
     {
       "run": "zh-CN-light",
       "station": "sample",
       "ok": true,
-      "ms": 15443
+      "ms": 17719
     },
     {
       "run": "zh-CN-light",
       "station": "hd",
       "ok": true,
-      "ms": 15694
+      "ms": 13404
     },
     {
       "run": "zh-CN-light",
       "station": "second",
       "ok": true,
-      "ms": 14856
+      "ms": 14732
     },
     {
       "run": "zh-CN-light",
       "station": "plain",
       "ok": false,
-      "ms": 15240,
-      "error": "board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行\n→ 它先是不在，随后在 1500ms 的保持窗口内又冒出来了（count=1）。\n  这正是旧版 expectAbsent 放过去的那一族：toHaveCount(0) 的期望值就是 0，\n  第一次取样撞上「还没挂载」就当场判绿，timeout 一秒都没用上。\n  别把窗口调小来让它变绿——报红的是被测物晚到了，不是这把尺子太严。"
+      "ms": 26603,
+      "error": "board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行（基线已证：样片节点下方那一行在（探针认得出这一行））\n\nexpect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.react-flow__node[data-id=\"gen-v2-video-mwxxye5z-fpsa\"]').first().locator('[data-sample-row]')\nExpected: 0"
     }
   ]
 }
