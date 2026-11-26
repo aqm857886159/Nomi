@@ -187,7 +187,7 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   识别文字: 'Read text',
   '默认 30 层，含底图。是上限，可能拆得更少。': 'Default 30 layers, incl. base. It is a maximum; you may get fewer.',
   '2K / 自动 价更高': '2K / Auto cost more',
-  '认出图里的字，文字层用它当名字': 'Recognize text and use it to name text layers',
+  '认出图里的字，文字层用它当名字': 'Read the text in the image and use it to name text layers',
   图层分离: 'Split layers',
   要拆的图: 'Image to split',
   '把一张图拆成底图 + 透明图层': 'Split one image into a base image plus transparent layers',

@@ -2611,7 +2611,7 @@ export const enGenerationCommon = {
     needImage: 'Add one image to split first',
     onlyFirstOne: 'Split layers takes 1 image at a time: the 1st is split, the 2nd is not used this time.',
     onlyFirstRest: 'Split layers takes 1 image at a time: the 1st is split, the other {{rest}} are not used this time.',
-    fixedModel: '{{model}} gives one base image plus up to {{layers}} transparent layers. No layer count, no text reading.',
+    fixedModel: '{{model}} gives one base image plus up to {{layers}} transparent layers. You can\'t pick the layer count, and it doesn\'t read text.',
     costReminder: 'More layers cost more: up to {{count}} images are charged.',
     costReminderEstimate: 'More layers cost more: up to {{count}} images are charged, about {{amount}}.',
     creditsAmount: '{{value}} credits',

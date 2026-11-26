@@ -163,7 +163,7 @@
     },
     {
       "where": "5.0 Pro 写死格",
-      "max": "格「Split layers · up to 17」；换模型一句「Seedream 5.0 Pro gives one base image plus up to 16 transparent layers. No layer count, no text reading.」",
+      "max": "格「Split layers · up to 17」；换模型一句「Seedream 5.0 Pro gives one base image plus up to 16 transparent layers. You can't pick the layer count, and it doesn't read text.」（第 10 项改成整句，板上原画是旧短句）",
       "source": "src/i18n layerSplitComposer.cellUpTo / fixedModel；E2 英文最长",
       "layout": "与带价一行同一让位规则：从后往前退",
       "board": "LayerSplit",
