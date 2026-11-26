@@ -1,11 +1,21 @@
 import React from 'react'
-import { isApimartKeyCandidate, type VendorBalanceCheck, type VendorBalanceFailure } from '../../../electron/shared/contracts/vendorAccountBalance'
+import { isApimartKeyCandidate, type VendorBalanceCheck, type VendorBalanceFailure, type VendorReportedBalance } from '../../../electron/shared/contracts/vendorAccountBalance'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { refreshOnboardingModelAvailability } from './onboardingModelAvailability'
 import { APIMART_CONNECTED_EVENT, persistApimartOpenedAt } from './apimartConnectRoute'
 
-type LocalStage = 'idle' | 'checking' | 'format' | 'keychain' | 'topup' | 'passed'
+type LocalStage = 'idle' | 'checking' | 'format' | 'keychain' | 'topup' | 'keyQuota' | 'passed'
 type Stage = LocalStage | VendorBalanceFailure
+
+export function isExhaustedBalance(snapshot?: VendorReportedBalance | null): boolean {
+  return snapshot?.remainCredits === 0 && !snapshot.unlimited
+}
+
+function receivedStage(result: Extract<VendorBalanceCheck, {status: 'received'}>) {
+  if (isExhaustedBalance(result.accountBalance)) return 'topup'
+  if (isExhaustedBalance(result.keyQuota)) return 'keyQuota'
+  return 'passed'
+}
 
 export function useApimartVerification(onSaved: () => void) {
   const [stage, setStage] = React.useState<Stage>('idle')
@@ -50,7 +60,7 @@ export function useApimartVerification(onSaved: () => void) {
       if (!mounted.current) return
       if (result?.status === 'received') {
         setReceived(result)
-        setStage(result.accountBalance?.remainCredits === 0 && !result.accountBalance.unlimited ? 'topup' : 'passed')
+        setStage(receivedStage(result))
       } else {
         setStage(result?.status ?? 'unavailable')
       }
@@ -71,7 +81,7 @@ export function useApimartVerification(onSaved: () => void) {
       window.addEventListener('online', retry)
       return () => window.removeEventListener('online', retry)
     }
-    if (stage === 'topup') {
+    if (stage === 'topup' || stage === 'keyQuota') {
       const onVisible = () => { if (document.visibilityState === 'visible') retry() }
       window.addEventListener('focus', retry)
       document.addEventListener('visibilitychange', onVisible)

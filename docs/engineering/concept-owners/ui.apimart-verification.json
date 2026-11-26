@@ -1,0 +1,26 @@
+{
+  "name": "接入页 APIMart 核查阶段",
+  "subject": "ui.apimart-verification",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/onboarding/useApimartVerification.ts",
+    "symbol": "useApimartVerification"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "symbol": "useApimartVerification"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/ui/onboarding/ApimartConnectPage.tsx"
+  ],
+  "parity_test": "src/ui/onboarding/ApimartConnectPage.test.tsx",
+  "since": "2026-11-27",
+  "notes": "保存与前台回查在同一处消费主进程的双快照。账户归零优先提示充值，有限 Key 额度为零时停在四行检查；通过阶段独占延迟返回。"
+}

@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-apimart-key-quota-verification",
+  "problem_type": "Onboarding completion ignores an explicit failed check",
+  "symptom": "A zero-quota key shows a warning and emits a connected receipt after 450 ms.",
+  "direct_cause": "The page completed verification using only accountBalance even when keyQuota explicitly reported zero.",
+  "class_root": "The completion decision and its row warnings used different conditions for exhausted balances.",
+  "affected_population": [
+    "Creators pasting or rechecking a limited key against a funded APIMart account."
+  ],
+  "scope_paths": [
+    "src/ui/onboarding/useApimartVerification.ts",
+    "src/ui/onboarding/ApimartConnectPage.tsx",
+    "src/ui/onboarding/ApimartCheckCard.tsx"
+  ],
+  "entry_points": [
+    "Paste a candidate key or recheck the saved credential when returning to the page."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The received IPC type already identifies both sources. Scheme B on #1586 defines the application completion policy.",
+  "invariants": [
+    "A finite zero balance blocks completion. Account exhaustion takes priority over key exhaustion.",
+    "A foreground recheck must be able to release either waiting state."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ApimartConnectPage.tsx",
+      "symbol": "ApimartCheckCard"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ApimartCheckCard.tsx",
+      "symbol": "isExhaustedBalance"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ApimartConnectPage.tsx",
+      "symbol": "useApimartVerification"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "symbol": "isExhaustedBalance"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 4,
+    "why_not": "One page drives verification and renders the rows. The stage and the row presentation now call the same finite-zero predicate; the extra call sites replace inline numeric checks."
+  },
+  "generality_proof": "Both catalog calls return to the same hook. Only the passed stage schedules notification and return.",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "symbol": "useApimartVerification",
+      "responsibility": "Own verification stage, recheck lifetime and the delayed connected receipt."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "entry_point": "upsertVendorApiKey",
+      "disposition": "enforced",
+      "evidence": "First paste consumes both fields of the received result."
+    },
+    {
+      "path": "src/ui/onboarding/useApimartVerification.ts",
+      "entry_point": "recheckApimartBalance",
+      "disposition": "enforced",
+      "evidence": "Refresh of the saved credential flows through the same stage decision."
+    },
+    {
+      "path": "electron/ai/onboarding/vendorAccountBalance.ts",
+      "entry_point": "readVendorAccountBalance",
+      "disposition": "not-affected",
+      "evidence": "The send-side account reader does not complete onboarding."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every saved key or new key with a finite zero limit can produce the same false receipt.",
+    "same_class_scan": [
+      "door-map useApimartVerification locates the shared page entry.",
+      "rg keyQuota and recheckApimartBalance connects the two IPC results to the check rows and the receipt."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/onboarding/useApimartVerification.ts",
+    "invariant": "Only a result with no explicitly exhausted resource can schedule a connected receipt.",
+    "failure_mode": "Keep the appropriate warning visible until a new check resolves it.",
+    "exception_policy": "none",
+    "strategy": "Compare account first, then key, with one finite-zero predicate shared with the rows.",
+    "artifacts": [
+      "src/ui/onboarding/useApimartVerification.ts",
+      "src/ui/onboarding/ApimartCheckCard.tsx",
+      "src/ui/onboarding/ApimartConnectPage.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/onboarding/ApimartConnectPage.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/ui/onboarding/ApimartConnectPage.test.tsx"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/ui/onboarding/useApimartVerification.ts",
+    "tests": [
+      "src/ui/onboarding/ApimartConnectPage.test.tsx"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "rewrite",
+    "characterization_test": "src/ui/onboarding/ApimartConnectPage.test.tsx"
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/ui/onboarding/useApimartVerification.ts",
+      "src/ui/onboarding/ApimartCheckCard.tsx"
+    ],
+    "rationale": "Replace the account-only completion rule and numeric-only row warning."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React manages effects. The onboarding completion decision belongs to Nomi.",
+    "exit_criteria": []
+  },
+  "migration": "Verification stages are ephemeral. Existing credentials are rechecked through the original bridge.",
+  "residual_risks": [
+    "Tests provide IPC snapshots. No live account or paid generation is exercised."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-24"
+}
