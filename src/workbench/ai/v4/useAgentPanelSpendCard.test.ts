@@ -75,7 +75,7 @@ const IDENTITY_A = { quoteId: 'q-1', presentationId: 'op-1:presentation:2', pres
 const IDENTITY_B = { quoteId: 'q-2', presentationId: 'op-1:presentation:3', presentationEpoch: 3, planVersion: 4 } as const
 
 const offer = (shots: readonly PendingSpendShot[], patch: Partial<PendingSpendConfirm> = {}): PendingSpendConfirm => ({
-  projectId: PROJECT, runId: 'op-1', operationId: 'op-1', currency: 'CNY', ...IDENTITY_A, shots, ...patch,
+  projectId: PROJECT, runId: 'op-1', operationId: 'op-1', currency: 'CNY', ...IDENTITY_A, handOverRevision: 0, shots, ...patch,
 })
 const ready = (...rows: PendingSpendConfirm[]): PendingSpendRead => ({ surface: 'ready', rows })
 

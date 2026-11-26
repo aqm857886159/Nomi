@@ -189,7 +189,7 @@ describe("回合等的是这一次出价真的落定", () => {
     const world = spendWorld();
     await shotsDraft(world, [{}, {}]);
     const turn = watchCardForTurn(world);
-    expect(await world.card.handOverShots({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: "stale", shotIds: ["shot-1"] })).toMatchObject({ ok: false });
+    expect(await world.card.handOverShots({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: "stale", handOverRevision: 0, shotIds: ["shot-1"] })).toMatchObject({ ok: false });
     await world.remove("shot-1");
     await settleMicrotasks();
     expect(turn.closed()).toBe(false);

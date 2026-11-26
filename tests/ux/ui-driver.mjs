@@ -13,6 +13,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { UI_DIR } from './uiDir.mjs'
+import { UI_IPC_VERSION, reclaimUiIpcFiles, writeUiIpcFile } from './uiIpcFile.mjs'
 import {
   acquireInstanceLock, buildLaunchOptions, parseDriverArgs, profileBanner, seedDataFixture, shotFileName,
 } from './uiDriverOptions.mjs'
@@ -35,6 +36,7 @@ try {
   console.error(error.message)
   process.exit(error.code === 'INSTANCE_RUNNING' ? 3 : 1)
 }
+reclaimUiIpcFiles(DIR)
 for (const name of ['req.json', 'res.json', 'ready', 'state.json']) fs.rmSync(path.join(DIR, name), { force: true })
 const releaseLock = () => {
   for (const name of ['ready', 'state.json']) fs.rmSync(path.join(DIR, name), { force: true })
@@ -218,8 +220,8 @@ const state = {
   readySec,
   ...(fakeVendor ? { fakeVendor: { name: options.vendor, origin: fakeVendor.origin } } : {}),
 }
-fs.writeFileSync(path.join(DIR, 'state.json'), JSON.stringify(state, null, 2))
-fs.writeFileSync(path.join(DIR, 'ready'), String(process.pid))
+writeUiIpcFile(path.join(DIR, 'state.json'), JSON.stringify(state, null, 2))
+writeUiIpcFile(path.join(DIR, 'ready'), JSON.stringify({ ipcVersion: UI_IPC_VERSION, driverPid: process.pid }))
 console.log(`DRIVER READY in ${readySec}s pid=${process.pid} app=${appPid} out=${OUT} IPC=${DIR}`)
 
 async function shot(name) {
@@ -400,7 +402,7 @@ while (running) {
     let res
     try { res = cmd ? await run(cmd) : { error: 'bad req' } } catch (e) { res = { error: String((e && e.message) || e) } }
     fs.appendFileSync(JOURNAL, JSON.stringify({ t: new Date(t0).toISOString(), ms: Date.now() - t0, ...(cmd ?? {}), ok: !res.error, ...(res.error ? { error: String(res.error).slice(0, 300) } : {}) }) + '\n')
-    fs.writeFileSync(path.join(DIR, 'res.json'), JSON.stringify(res))
+    writeUiIpcFile(path.join(DIR, 'res.json'), JSON.stringify(res))
     if (res.quit) running = false
   }
   await new Promise((r) => setTimeout(r, 150))

@@ -44,7 +44,6 @@ import { useShotFocusTag } from '../generationCanvas/nodes/director/panels/shotS
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
 import { LaneCommandFailure, laneFailureText } from './lane/laneCommandFailure'
-import { useAgentPanelSpendCard } from './v4/useAgentPanelSpendCard'
 import { AgentPanelV4SpendCardBody } from './v4/AgentPanelV4SpendCardBody'
 import { assertAnnouncedCardRendered } from './v4/missingInterventionCard'
 import { useAgentPanelAutoMode } from './v4/useAgentPanelAutoMode'
@@ -149,7 +148,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 「要不要花这笔钱」——后者住在 ProductionRun 域里，`LanePendingApproval` 上根本没有报价字段。
   // 两张卡读的是**同一份推过来的投影**（2026-10-05 起付费卡不再轮询：`data.snapshot.spend`）。
   // 两者同时在时钱优先：钱撤不回来。
-  const spend = useAgentPanelSpendCard(data.snapshot.spend)
+  const { spend } = data
   // 卡体 = 指向元素 + 一行只读摘要 + 说明行（D2 第③步，SpendCardQ1 板）。卡上没有可改的东西：
   // 想改点指向元素去节点里改，按「生成」就是照节点此刻的样子交给画布（和节点上点 ↑ 同一条路）。
   // 面板拖到最窄（320px）时指向元素标题行只留镜号（NodePointer 板 A4）。

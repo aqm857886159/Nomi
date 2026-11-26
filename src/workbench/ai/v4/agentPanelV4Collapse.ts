@@ -5,7 +5,8 @@ type Translate = (key: string, options?: Record<string, unknown>) => string
 
 /** 一段「工作」的边界：用户气泡、任务卡、介入相关的任何东西都会把它截断。 */
 function isWorkItem(item: V4FlowItem): boolean {
-  return item.kind === 'tool' || item.kind === 'assistant' || item.kind === 'thinking'
+  // A waiting tool stays visible beside its decision, outside the folded work history.
+  return (item.kind === 'tool' && item.receipt.status !== 'approval-requested') || item.kind === 'assistant' || item.kind === 'thinking'
 }
 
 /**

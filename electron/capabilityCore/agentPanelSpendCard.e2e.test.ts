@@ -63,13 +63,13 @@ describe("任务 A：三张纸船，卡上「全部生成（3）」", () => {
     expect(cardReceipt?.decidedBy).toBe(nodeReceipt?.decidedBy);
   });
 
-  it("「生成」连按两下：这一镜只交一次（第二下原样回成功，不再记第二笔）", async () => {
+  it("「生成」连按两下：这一镜只交一次（宿主拒收同时到达的第二下）", async () => {
     const world = spendWorld({ holdDispatch: true });
     await shotsDraft(world, [{}]);
     const shown = world.pending()!;
     const [first, second] = await Promise.all([world.generate(undefined, shown), world.generate(undefined, shown)]);
     expect(first).toMatchObject({ ok: true });
-    expect(second.ok === true || second.message === "generation_quote_changed").toBe(true);
+    expect(second).toMatchObject({ ok: false, message: "generation_quote_changed" });
     world.renderer.releaseDispatch();
     await world.renderer.drain();
     expect(world.sentShots()).toEqual(["shot-1"]);

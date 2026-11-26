@@ -208,6 +208,25 @@ describe("答了、本机没落下：交接写回「交到了」，不是结果�
 });
 
 describe("「再试一次」是一次新的尝试：新的交接、新的画布 Run、新的幂等键", () => {
+  it("第一次重试也没发出去：重放那张重试卡拒收，刚看到的新重试才交一次", async () => {
+    const world = spendWorld();
+    await shotsDraft(world, [{}]);
+    world.renderer.setHandOverFailing(true);
+    await world.generate();
+    const firstRetry = world.pending()!;
+    await world.generate(undefined, firstRetry);
+    const nextRetry = world.pending()!;
+    expect(nextRetry.quoteId).toBe(firstRetry.quoteId);
+    expect(nextRetry.handOverRevision).toBeGreaterThan(firstRetry.handOverRevision);
+    expect(await world.generate(undefined, firstRetry)).toMatchObject({ ok: false, message: "generation_quote_changed" });
+    expect(world.renderer.handOverCalls).toHaveLength(2);
+    world.renderer.setHandOverFailing(false);
+    expect(await world.generate(undefined, nextRetry)).toMatchObject({ ok: true });
+    await world.renderer.drain();
+    expect(world.renderer.handOverCalls).toHaveLength(3);
+    expect(world.sentShots()).toEqual(["shot-1"]);
+  });
+
   it("没发出去的那一镜再试一次：账本记第二笔交接，供应商收到的是另一个幂等键", async () => {
     const world = spendWorld();
     await shotsDraft(world, [{}]);
