@@ -218,11 +218,11 @@ docs/design/boards/2026-11-26-layer-split/LayerSplit.board.json（`pnpm run chec
 ### 功能分类
 - [x] 新界面 / 改交互
 - [x] 花钱
-- [ ] 长跑 / 可打断
+- [x] 长跑 / 可打断
 - [ ] Agent 行为
 - [x] 大数据量 / 画布 / 长列表
 - [ ] 生成效果
-- [ ] 数据格式
+- [x] 数据格式
 - [x] 新增功能 / 性能
 
 ## 留给 PR2 的定案
