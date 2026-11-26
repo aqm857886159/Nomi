@@ -34,6 +34,7 @@ const L = {
   del: T('generationCommon.whiteboard.deleteSelected'),
   brushPath: T('generationCommon.whiteboard.brushPath').split('{{')[0].trim(), // 「画笔路径 {{index}}」的前缀
   status: T('generationCommon.layerSplitComposer.nodeStatus', { count: 3 }),
+  placeholder: T('generationCommon.layerSplitComposer.placeholder'),
   guide: en ? 'connect APIMart' : '接入 APIMart',
   disconnect: en ? 'Disconnect' : '断开',
   boardHint: T('generationCommon.imageToolbar.whiteboardHint'),
@@ -172,6 +173,11 @@ try {
   assert.match(sendText, /≤\s*8\.46/, `send key prints the upper-bound estimate (30 layers × high tier + input image): ${sendText}`)
   const sendHover = read(`document.querySelector('[aria-label=${JSON.stringify(L.generate)}]')?.getAttribute('aria-description') || ''`)
   assert.match(sendHover, L.upperBound, `send key hover explains the layer-limit estimate: ${sendHover}`)
+  // 板 layers.prompt-placeholder：提示词可空——空框里是图层分离那一句占位，发送键照样亮。
+  const promptFace = read(`(() => { const host = document.querySelector('[aria-label=${JSON.stringify(L.generate)}]')?.closest('[data-composer-host]'); const p = host?.querySelector('.ProseMirror p[data-placeholder]'); return { placeholder: p?.getAttribute('data-placeholder') ?? null, empty: !(host?.querySelector('.ProseMirror')?.textContent || '').trim(), sendDisabled: host?.querySelector('[aria-label=${JSON.stringify(L.generate)}]')?.disabled ?? null } })()`)
+  assert.equal(promptFace.placeholder, L.placeholder, `prompt box shows the layer-split placeholder: ${JSON.stringify(promptFace)}`)
+  assert.ok(promptFace.empty && promptFace.sendDisabled === false, `an empty prompt still lets the send key go: ${JSON.stringify(promptFace)}`)
+  console.log(`✓ prompt placeholder「${promptFace.placeholder}」, send enabled with an empty prompt`)
   shot('LS02-derived-composer')
 
   // ④ 参数面板：识别文字默认关，打开它。
