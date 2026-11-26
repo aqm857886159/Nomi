@@ -27,8 +27,8 @@ function stillHandingOver(plan: ProductionGenerationPlan | undefined, key: strin
 }
 
 /**
- * 回合在等的那一次出价关了没有。调用那一刻它应当开着（刚 present 完）；之后只要账本里这一笔的当前出价
- * 不再是**同一次、开着的**，而且那一次出价里交给画布的镜都落定了（或等满 `SETTLING_GRACE_MS`），就兑现。
+ * closed 在账本关卡时兑现，宿主随即撤下「待确认」。settled 等这次交接落定或宽限期结束，
+ * 回合这时才读逐镜结局。停止回合也会结束等待、释放订阅。
  * 读和订阅都是同步的，中间插不进一次账本写入。
  * 这一笔读不出来（Run 没了）也算关了：回合随后问逐镜结局，读不到就照实说「结果要去核对」，不在这里干等。
  */
@@ -36,26 +36,41 @@ export function watchSpendCardClose(source: Readonly<{
   read(): ProductionGenerationPlan | undefined
   subscribe(listener: (plan: ProductionGenerationPlan | undefined) => void): () => void
   settlingGraceMs?: number
-}>): Readonly<{ closed: Promise<void>; dispose: () => void }> {
-  let watching: string | undefined
-  try { watching = openPresentationKey(source.read()) } catch { watching = undefined }
-  if (!watching) return { closed: Promise.resolve(), dispose: () => undefined }
-  const key = watching
+  signal?: AbortSignal
+}>): Readonly<{ closed: Promise<void>; settled: Promise<void>; dispose: () => void }> {
+  let initial: ProductionGenerationPlan | undefined
+  try { initial = source.read() } catch { initial = undefined }
+  const presentation = currentPresentation(initial)
+  if (!presentation || source.signal?.aborted) {
+    return { closed: Promise.resolve(), settled: Promise.resolve(), dispose: () => undefined }
+  }
+  const key = keyOf(presentation)
+  let close!: () => void
   let settle!: () => void
-  const closed = new Promise<void>((resolve) => { settle = resolve })
+  const closed = new Promise<void>((resolve) => { close = resolve })
+  const settled = new Promise<void>((resolve) => { settle = resolve })
   let grace: ReturnType<typeof setTimeout> | undefined
-  let done = false
-  const finish = (): void => {
-    if (done) return
-    done = true
+  let disposed = false
+  const dispose = (): void => {
+    if (disposed) return
+    disposed = true
     if (grace) clearTimeout(grace)
     unsubscribe()
+    source.signal?.removeEventListener('abort', finish)
+  }
+  const finish = (): void => {
+    dispose()
+    close()
     settle()
   }
-  const unsubscribe = source.subscribe((plan) => {
+  const update = (plan: ProductionGenerationPlan | undefined): void => {
     if (openPresentationKey(plan) === key) return
+    close()
     if (!stillHandingOver(plan, key)) { finish(); return }
     grace ??= setTimeout(finish, source.settlingGraceMs ?? SETTLING_GRACE_MS)
-  })
-  return { closed, dispose: () => { done = true; if (grace) clearTimeout(grace); unsubscribe() } }
+  }
+  const unsubscribe = source.subscribe(update)
+  source.signal?.addEventListener('abort', finish, { once: true })
+  update(initial)
+  return { closed, settled, dispose }
 }

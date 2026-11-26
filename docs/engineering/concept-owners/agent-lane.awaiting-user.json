@@ -22,6 +22,10 @@
     {
       "path": "electron/shared/agentLane/laneApproval.ts",
       "symbol": "laneApprovalGrantable"
+    },
+    {
+      "path": "electron/agentLane/laneSpendCardClose.ts",
+      "symbol": "watchSpendCardClose"
     }
   ],
   "forbidden_derivations": [],
@@ -30,8 +34,9 @@
     "electron/agentLane/laneRuntimePort.ts",
     "electron/agentLane/laneHost.mts",
     "electron/agentLane/laneTools.mts",
-    "electron/agentLane/laneExtendedTools.ts"
+    "electron/agentLane/laneExtendedTools.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.ts"
   ],
   "since": "2026-09-22",
-  "notes": "「一次调用停在 before_tool 里等人」的运行时那一半住这里；判据（纯函数）在 electron/shared/agentLane/laneApproval.ts，两者是同一个概念的判据面与运行面，不是两个 owner。渲染层只做只读投影，不许自己判断等不等、也不许替它补偿。"
+  "notes": "「一次调用停在 before_tool 里等人」的运行时那一半住这里；判据（纯函数）在 electron/shared/agentLane/laneApproval.ts，两者是同一个概念的判据面与运行面，不是两个 owner。渲染层只做只读投影，不许自己判断等不等、也不许替它补偿。 账本关卡时立即释放这次等待。交接继续收尾，宿主在落定或宽限期结束后读逐镜回执。"
 }
