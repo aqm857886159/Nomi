@@ -201,6 +201,56 @@ describe("上游 HTTP 失败：按这一次调用的传输事实铸结构化载�
   });
 });
 
+// S4（docs/plan/2026-11-22-gen-chain-s4.md ★9 第 1 / 13a 行，经文本任务那扇门）：余额不足按上游自己给的码 / 类型认，不按状态码猜。
+/** new-api 预扣模板（`i18n/locales/en.yaml:30`）：403 + `insufficient_user_quota`，「需要」那个数里碰巧有子串 500。 */
+const NEW_API_PRE_CONSUME = { error: { message: "Not enough quota to pre-consume for this request: ＄0.004000 remaining, ＄0.015000 required",
+  type: "new_api_error", param: "", code: "insufficient_user_quota" } };
+/** OpenAI 现行错误码文档里「额度用完 / 账单」那一类：429，但重试不会恢复。 */
+const OPENAI_QUOTA_EXHAUSTED = { error: { message: "You exceeded your current quota, please check your plan and billing details.",
+  type: "insufficient_quota", param: null, code: "credit_balance_exhausted" } };
+
+describe("S4 · 余额不足经文本任务那扇门", () => {
+  it("403 + insufficient_user_quota：载荷类别是余额不足（不是 Key 无效），只发一次", async () => {
+    await withUpstream("openai-compatible", () => reply.http(403, NEW_API_PRE_CONSUME), async (model, server) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", maxRetries: 2, signal: new AbortController().signal });
+      expect(parseVendorErrorFromMessage(laneVendorFailureText(message)!)).toMatchObject({ httpStatus: 403, category: "balance", retryable: false,
+        upstreamCode: "insufficient_user_quota" });
+      expect(classifyGenerationError(laneVendorFailureText(message)!).kind).toBe("balance");
+      expect(server.requests).toHaveLength(1);
+    });
+  });
+
+  it("429 + type insufficient_quota：载荷类别是余额不足、不可重试（这扇门仍发 3 次：已知残留，挂 S7）", async () => {
+    await withUpstream("openai-compatible", () => reply.http(429, OPENAI_QUOTA_EXHAUSTED), async (model, server) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", maxRetries: 2, signal: new AbortController().signal });
+      expect(parseVendorErrorFromMessage(laneVendorFailureText(message)!)).toMatchObject({ httpStatus: 429, category: "balance", retryable: false });
+      expect(classifyGenerationError(laneVendorFailureText(message)!).kind).toBe("balance");
+      // 残留（协调 11-22 定①，本刀不改 modelCallFetch.ts）：重试的是 SDK 那一层（pi-ai `utils/provider-retry.js` 按状态码重试 429），
+      // 不读我们的归类。被拒不扣钱、多等约 1–2 秒；标准开关是响应头 `x-should-retry: false`。改它要碰 electron/ai/（14 天第 6 个 fix），
+      // 先做方向检查，挂 S7。这里钉住今天的次数：哪天这扇门不再重试了，这一行会红，提醒把残留从卡里划掉。
+      expect(server.requests).toHaveLength(3);
+    });
+  });
+
+  it("阳性对照 · 429 rate_limit_exceeded 仍是限流、可重试（maxRetries 2 → 3 次）", async () => {
+    const limited = () => reply.http(429, { error: { message: "Rate limit reached for requests", type: "requests", param: null, code: "rate_limit_exceeded" } },
+      { "retry-after-ms": "10" });
+    await withUpstream("openai-compatible", limited, async (model, server) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", maxRetries: 2, signal: new AbortController().signal });
+      expect(parseVendorErrorFromMessage(laneVendorFailureText(message)!)).toMatchObject({ category: "quota", retryable: true });
+      expect(server.requests).toHaveLength(3);
+    });
+  });
+
+  it("只有文字、撞了输出上限：仍是 length 收场的成功（截断转失败只管带工具调用的回复）", async () => {
+    await withUpstream("openai-compatible", () => ({ type: "stream", steps: [{ kind: "text", text: "写到一半" }, { kind: "finish", reason: "length" }] }), async (model) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", signal: new AbortController().signal });
+      expect(message.stopReason).toBe("length");
+      expect(textOf(message)).toBe("写到一半");
+    });
+  });
+});
+
 describe("请求体与地址：一处规矩", () => {
   it("只存了根地址的 Anthropic 接入：请求打到 /v1/messages（不是 404 的 /messages）", async () => {
     await withUpstream("anthropic", () => reply.text("好。"), async (model, server) => {

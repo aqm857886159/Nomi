@@ -14,8 +14,10 @@ import { projectLaneSnapshot, type LaneModelFacts } from '../../electron/shared/
 import { normalizeProviderErrorText } from '../../electron/agentLane/laneProviderGuard.mjs';
 import type { LaneProjection, LaneRetry } from '../../electron/shared/agentLane/laneContracts.js';
 import { LANE_READ_TOOL_TIMEOUT_MS } from '../../electron/shared/agentLane/laneToolContract.js';
-import { createLaneFixture, FIXTURE_DESCRIBE, mustConfirm } from './laneFixture.mjs';
-import { parseVendorErrorFromMessage } from '../../electron/shared/generationFailure.js';
+import { createLaneFixture, FIXTURE_DESCRIBE, mustConfirm, readFixtureNativeEntries } from './laneFixture.mjs';
+import { decideGenerationFailure, parseVendorErrorFromMessage } from '../../electron/shared/generationFailure.js';
+import { isContextOverflow, isRetryableAssistantError, type AssistantMessage } from '@earendil-works/pi-ai';
+import { LANE_OUTPUT_TRUNCATED_DIAGNOSTIC, laneAssistantFaultOf } from '../../electron/shared/agentLane/laneAssistantFault.js';
 
 /** 一个永不回复、但连上了的供应商。**首字节永不到达**——今天的 lane 会永远转圈。 */
 const NEVER_REPLIES = { type: 'deferred' as const, beforeReply: () => new Promise<never>(() => {}) };
@@ -173,12 +175,11 @@ test('G-12 · real vendor wording maps onto the upstream classifier without repl
   }
 });
 
-test('G-12 · a 5xx that actually says “balance exhausted” is not retried three times', async (t) => {
-  // 这是归一真正买到的东西：HTTP 500 命中上游的 `500` 正则 → 本该重试三次，
-  // 而报文里写着「余额不足」——重试只是把一次确定的付费失败拖成四次，用户等四倍的时间
-  // 换同一个结果。归一让 `insufficient_quota` 先命中不可重试表。
+test('G-12 · a 5xx whose body carries a balance code is not retried three times', async (t) => {
+  // 带 HTTP 结构的失败按**结构**认（S4，协调 11-22 定 A）：上游自己给的码是余额一族 → 不可重试，
+  // 不管它把状态码写成了什么。重试只是把一次确定的付费失败拖成四次，用户等四倍的时间换同一个结果。
   const fixture = await createLaneFixture(t, [
-    { type: 'error', status: 500, message: '账户余额不足，请充值后重试' },
+    { type: 'error', status: 500, message: 'recorded', body: { error: { message: '账户余额不足，请充值后重试', code: 'insufficient_user_quota' } } },
     { type: 'text', text: 'Must not be reached.' },
   ]);
   const lane = await fixture.openLane(fixture.options);
@@ -188,6 +189,23 @@ test('G-12 · a 5xx that actually says “balance exhausted” is not retried th
 
   assert.equal(retries.length, 0, 'a billing failure is terminal, however the vendor spelled its status code');
   assert.equal(fixture.http.requests.length, 1);
+});
+
+test('G-12 · a 5xx that only says “balance” in words, with no code, is retried like any 5xx', async (t) => {
+  // 带 HTTP 结构的失败不再读正文认余额（协调 11-22 定 A）：这种「500 + 只有文字」的形状是手编的、没见过真样本，
+  // 多重试 3 次也不花钱。渲染层 `generationFailure.ts:208` 的 detectBalance 仍会按文字把这一行说成余额不足——
+  // 两处口径不一，残留挂 S7、和那处文字判读同一刀删（docs/plan/2026-11-22-gen-chain-s4.md）。
+  const fixture = await createLaneFixture(t, [
+    { type: 'error', status: 500, message: '账户余额不足，请充值后重试' },
+    { type: 'text', text: 'Recovered.' },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  const retries = collectRetries(lane);
+
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+
+  assert.equal(retries.length, 1, 'structure decides; the words alone no longer demote a 5xx');
+  assert.equal(fixture.http.requests.length, 2);
 });
 
 test('G-12 阳性对照 · a 5xx with no billing wording is still retried', async (t) => {
@@ -238,6 +256,182 @@ test('阳性对照 · a failure without an HTTP status (connection ends before a
   for (const part of lane.projection().parts.filter((candidate) => candidate.kind === 'error')) {
     assert.equal(parseVendorErrorFromMessage(part.text), null, 'the watchdog sentence stays our own fact, not a vendor payload');
   }
+});
+
+// ── S4 · 余额不足不重试、按结构认（docs/plan/2026-11-22-gen-chain-s4.md ★9 第 16–19 行）──────────
+
+/** new-api 预扣模板原样（`i18n/locales/en.yaml:30`）：403 + `insufficient_user_quota`；「需要」0.015000 里碰巧有子串 500。 */
+const NEW_API_PRE_CONSUME = { error: {
+  message: 'Not enough quota to pre-consume for this request: ＄0.004000 remaining, ＄0.015000 required',
+  type: 'new_api_error', param: '', code: 'insufficient_user_quota' } };
+/** APIMart 文档的 402 形状（`type` 里放标识、正文让人充值）。 */
+const APIMART_PAYMENT_REQUIRED = { error: { message: 'Insufficient balance, please top up your account', type: 'payment_required' } };
+/** OpenAI 现行错误码文档：429 + `insufficient_quota`——账单 / 限额，重试不会恢复。 */
+const OPENAI_QUOTA_EXHAUSTED = { error: { message: 'You exceeded your current quota, please check your plan and billing details.',
+  type: 'insufficient_quota', param: null, code: 'credit_balance_exhausted' } };
+
+function errorParts(projection: LaneProjection) {
+  return projection.parts.filter((part) => part.kind === 'error');
+}
+
+test('S4 #16 · a 403 balance code whose amount happens to contain “500” is sent once, and the panel line is the balance one', async (t) => {
+  // 改之前：pi 的重试判据按文字认 `500`（无词边界）→ 再发 3 次；面板按 403 说成「API Key 无效」。
+  const balance = { type: 'error' as const, status: 403, message: 'recorded', body: NEW_API_PRE_CONSUME };
+  const fixture = await createLaneFixture(t, [balance, balance, balance, balance]);
+  const lane = await fixture.openLane(fixture.options);
+  const retries = collectRetries(lane);
+
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+
+  assert.equal(fixture.http.requests.length, 1, 'a balance failure is sent exactly once');
+  assert.equal(retries.length, 0);
+  const errors = errorParts(lane.projection());
+  assert.equal(errors.length, 1);
+  assert.equal(parseVendorErrorFromMessage(errors[0]!.text)?.category, 'balance');
+  assert.equal(decideGenerationFailure({ message: errors[0]!.text, locale: 'zh-CN' }).kind, 'balance',
+    'the one decision the panel reads says balance, not “API Key invalid”');
+});
+
+test('S4 #17 · a 402 with the documented body is sent once (already true before; kept as a pin, not as the red)', async (t) => {
+  const balance = { type: 'error' as const, status: 402, message: 'recorded', body: APIMART_PAYMENT_REQUIRED };
+  const fixture = await createLaneFixture(t, [balance, balance, balance, balance]);
+  const lane = await fixture.openLane(fixture.options);
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+  assert.equal(fixture.http.requests.length, 1);
+  assert.equal(parseVendorErrorFromMessage(errorParts(lane.projection())[0]!.text)?.category, 'balance');
+});
+
+test('S4 #13a · a 429 whose type is insufficient_quota is balance and is sent once', async (t) => {
+  const exhausted = { type: 'error' as const, status: 429, message: 'recorded', body: OPENAI_QUOTA_EXHAUSTED };
+  const fixture = await createLaneFixture(t, [exhausted, exhausted, exhausted, exhausted]);
+  const lane = await fixture.openLane(fixture.options);
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+  assert.equal(fixture.http.requests.length, 1);
+  const text = errorParts(lane.projection())[0]!.text;
+  assert.deepEqual([parseVendorErrorFromMessage(text)?.category, parseVendorErrorFromMessage(text)?.retryable], ['balance', false]);
+  assert.equal(decideGenerationFailure({ message: text, locale: 'zh-CN' }).kind, 'balance');
+});
+
+test('S4 #18 阳性对照 · a 429 rate_limit_error is still throttling and is still retried', async (t) => {
+  const fixture = await createLaneFixture(t, [
+    { type: 'error', status: 429, message: 'recorded', body: { type: 'error', error: { type: 'rate_limit_error', message: 'Number of request tokens has exceeded your per-minute rate limit' } } },
+    { type: 'text', text: 'Recovered after one throttle.' },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  const retries = collectRetries(lane);
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+  assert.equal(retries.length, 1, 'throttling stays retryable: the balance rule must not swallow it');
+  assert.equal(fixture.http.requests.length, 2);
+});
+
+test('S4 #19 · a balance sentence inside a 200 stream (no HTTP structure) is still caught by the text row, and not retried', async (t) => {
+  // 流里报错没有状态码、没有码，只有文字：余额那一行正则只为这一种留着（协调 11-22 定 A）。
+  const fixture = await createLaneFixture(t, [
+    { type: 'streamError', message: '账户余额不足，请充值后重试' },
+    { type: 'text', text: 'Must not be reached.' },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  const retries = collectRetries(lane);
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+  assert.equal(retries.length, 0);
+  assert.equal(fixture.http.requests.length, 1);
+});
+
+// ── S4 · 带工具调用的回复被输出上限截断：不执行半截调用 ─────────────────────────────
+
+const READ_CALL = [{ id: 'read-1', name: 'read_script', arguments: {} }];
+/** 没声明上限的大脑：pi 的 descriptor 记 16,384（`laneModelProvider.mts` 的 `createNomiModelDescriptor`），请求体不带上限。 */
+const UNDECLARED_LIMIT = 16_384;
+
+function toolCalls(projection: LaneProjection) {
+  return projection.parts.filter((part) => part.kind === 'tool-call');
+}
+
+async function truncationDiagnostics(projectDir: string) {
+  const entries = await readFixtureNativeEntries(projectDir);
+  return entries.flatMap((entry) => {
+    const message = entry.message as (AssistantMessage & { role: string }) | undefined;
+    return message?.role === 'assistant'
+      ? (message.diagnostics ?? []).filter((diagnostic) => diagnostic.type === LANE_OUTPUT_TRUNCATED_DIAGNOSTIC) : [];
+  });
+}
+
+test('S4 截断 · a tool call cut off at the output cap is not run, and the turn ends with one non-retryable error', async (t) => {
+  const fixture = await createLaneFixture(t, [
+    { type: 'tool', calls: READ_CALL, finishReason: 'length', usage: { input: 10, output: UNDECLARED_LIMIT } },
+    { type: 'text', text: 'Must not be reached.' },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  const retries = collectRetries(lane);
+  await lane.execute({ kind: 'prompt', text: 'Read the script.' });
+
+  const projection = lane.projection();
+  assert.equal(toolResults(projection).length, 0, 'the half-written call never ran');
+  assert.equal(toolCalls(projection).length, 0, 'and it is not shown as a call that is about to run');
+  assert.equal(fixture.http.requests.length, 1);
+  assert.equal(retries.length, 0);
+  const errors = errorParts(projection);
+  assert.equal(errors.length, 1);
+  const text = errors[0]!.text;
+  // 这句话不许被任何一个判据接走：重试（再写一遍同样长的调用）、上下文溢出（去压缩一份没溢出的上下文）、
+  // 本机的看门狗 / 断流事实、生成域的任何一个已知类别（不新增界面种类，面板落「没见过的错误」那一句）。
+  const message = { stopReason: 'error', errorMessage: text, usage: { input: 10, output: UNDECLARED_LIMIT, cacheRead: 0 } } as AssistantMessage;
+  assert.equal(isRetryableAssistantError(message), false);
+  assert.equal(isContextOverflow(message, 128_000), false);
+  assert.equal(laneAssistantFaultOf(text), undefined);
+  assert.equal(decideGenerationFailure({ message: text, locale: 'zh-CN' }).kind, 'unknown');
+  assert.equal(errors[0]!.transient, undefined);
+  await lane.close();
+  const diagnostics = await truncationDiagnostics(fixture.projectDir);
+  assert.equal(diagnostics.length, 1, 'the internal reason rides on the message, not in its text');
+  assert.deepEqual(diagnostics[0]!.details, { reason: 'output_cap_tool_call', outputTokens: UNDECLARED_LIMIT, intendedOutputLimit: UNDECLARED_LIMIT });
+});
+
+test('S4 截断 阳性对照 · the same call with a normal finish runs', async (t) => {
+  const fixture = await createLaneFixture(t, [
+    { type: 'tool', calls: READ_CALL, usage: { input: 10, output: UNDECLARED_LIMIT } },
+    { type: 'text', text: 'Read it.' },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  await lane.execute({ kind: 'prompt', text: 'Read the script.' });
+  assert.equal(toolResults(lane.projection()).length, 1);
+  assert.equal(errorParts(lane.projection()).length, 0);
+});
+
+test('S4 截断 · a declared output cap is the limit the cut is measured against', async (t) => {
+  const fixture = await createLaneFixture(t, [
+    { type: 'tool', calls: READ_CALL, finishReason: 'length', usage: { input: 10, output: 4000 } },
+    { type: 'text', text: 'Must not be reached.' },
+  ]);
+  const lane = await fixture.openLane({ ...fixture.options, model: { ...fixture.options.model, maxOutputTokens: 4000 } });
+  await lane.execute({ kind: 'prompt', text: 'Read the script.' });
+  assert.equal(toolResults(lane.projection()).length, 0);
+  assert.equal(fixture.http.requests.length, 1);
+  await lane.close();
+  assert.deepEqual((await truncationDiagnostics(fixture.projectDir))[0]?.details,
+    { reason: 'output_cap_tool_call', outputTokens: 4000, intendedOutputLimit: 4000 });
+});
+
+test('S4 截断 · a text-only reply cut at the cap is left to pi (still a length finish, text kept)', async (t) => {
+  const fixture = await createLaneFixture(t, [
+    { type: 'text', text: 'A long answer that was cut', finishReason: 'length', usage: { input: 10, output: UNDECLARED_LIMIT } },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  await lane.execute({ kind: 'prompt', text: 'Say something long.' });
+  const texts = lane.projection().parts.filter((part) => part.kind === 'assistant-text').map((part) => part.text);
+  assert.deepEqual(texts, ['A long answer that was cut']);
+  assert.equal(errorParts(lane.projection()).length, 0);
+});
+
+test('S4 截断 · Anthropic default cap: the cut tool call never runs (records which path pi took)', async (t) => {
+  // Anthropic 协议没声明上限时请求体发 4096，而 descriptor 记 16,384：pi 认为「还没到上限」→ 走它的压缩那条路，
+  // 不经本机的截断判定。这里只钉「半截调用从不执行」，走了哪条路记进诊断，上限对齐归 S4-上限。
+  const cut = { type: 'tool' as const, calls: READ_CALL, finishReason: 'length' as const, usage: { input: 10, output: 4096 } };
+  const fixture = await createLaneFixture(t, [cut, { type: 'text', text: 'Summary.' }, cut, { type: 'text', text: 'Summary.' }, cut]);
+  const lane = await fixture.openLane({ ...fixture.options, model: { ...fixture.options.model, kind: 'anthropic' } });
+  await lane.execute({ kind: 'prompt', text: 'Read the script.' });
+  assert.equal(toolResults(lane.projection()).length, 0);
+  t.diagnostic(`anthropic default cap: requests=${fixture.http.requests.length}; errors=${JSON.stringify(errorParts(lane.projection()).map((part) => part.text.slice(0, 120)))}`);
 });
 
 // ── 工具级超时 ───────────────────────────────────────────────────────────────
