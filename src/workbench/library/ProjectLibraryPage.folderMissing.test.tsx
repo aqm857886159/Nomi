@@ -60,6 +60,7 @@ function render(): Record<string, string> {
         onDeleteProject: () => undefined,
         onNewProject: () => undefined,
         onRevealProjectFolder: () => undefined,
+        onRenameProject: () => undefined,
       }),
     ),
   )
@@ -102,6 +103,12 @@ describe('项目库卡片：文件夹找不到 vs 文件夹在但清单读不下
     expect(broken).not.toContain('library.folderMissingBadge')
     expect(broken).not.toContain('data-project-folder-missing')
     expect(broken).toContain('aria-label="library.openProjectFolder"')
+  })
+
+  it('offers a rename action only for available projects', () => {
+    const { fine, gone } = render()
+    expect(fine).toContain('data-project-rename="fine"')
+    expect(gone).not.toContain('data-project-rename=')
   })
 
   it('正常的卡一个字没变：同步角标在、打开文件夹的钮在、没有"找不到"那句', () => {

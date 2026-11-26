@@ -43,10 +43,15 @@ async function liveJourney(page, record) {
     await page.evaluate(() => { window.__popoverSettle = undefined })
   }
 
-  // ① 选中：浮条上出现「AI 编辑」。
+  // ① 选中后，浮条提供 AI 编辑、拆成镜头、生成图、生成视频。格式按钮留在文稿工具栏。
   await selectParagraph()
-  await page.locator('.workbench-selection-popover__tool--ai').waitFor({ state: 'visible' })
-  expect(record, await page.locator('.workbench-selection-popover [aria-label]').count() >= 4, '浮条上原有的加粗 / 斜体 / 标题等按钮被挤没了')
+  const popover = page.locator('.workbench-selection-popover')
+  await pwExpect(popover.locator('.workbench-selection-popover__tool--ai')).toBeVisible()
+  await pwExpect(popover.locator('[data-selection-action]')).toHaveCount(3)
+  await pwExpect(popover.locator('button[data-selection-action="storyboard"]')).toBeVisible()
+  await pwExpect(popover.locator('button[data-selection-action="image"]')).toBeVisible()
+  await pwExpect(popover.locator('button[data-selection-action="video"]')).toBeVisible()
+  await pwExpect(popover.locator('[data-rich-text-action]')).toHaveCount(0)
   await shot('live-01-selected')
 
   // ② 点 AI 编辑 → 输入框 + 常用改法 + 用户已有的写作 Skill。
@@ -162,7 +167,6 @@ async function expectSelectionBarState(page, state, record) {
     if (!bar) return null
     const slot = (node) => {
       if (node.classList.contains('workbench-selection-popover__divider')) return 'divider'
-      if (node.classList.contains('workbench-selection-popover__format-group')) return 'format'
       const cluster = node.getAttribute('data-selection-cluster')
       if (!cluster) return node.className
       const items = [...node.children].map((child) => (
@@ -175,6 +179,7 @@ async function expectSelectionBarState(page, state, record) {
       slots: [...bar.children].map(slot),
       storyboardIcon: storyboard?.querySelector('svg')?.getAttribute('class') ?? '',
       storyboardDisabled: storyboard ? storyboard.disabled : null,
+      storyboardText: storyboard?.textContent?.trim(),
       storyboardName: storyboard?.getAttribute('aria-label') ?? '',
       storyboardTitle: storyboard?.getAttribute('title') ?? '',
     }
@@ -185,14 +190,14 @@ async function expectSelectionBarState(page, state, record) {
   }
   const scene = state.id.includes('no-ai-edit') ? 'no-ai-edit' : state.id.includes('unavailable') ? 'unavailable' : 'ready'
   const besideAi = scene === 'no-ai-edit' ? 'beside-ai-edit[storyboard]' : 'beside-ai-edit[ai-edit,storyboard]'
-  const expected = ['format', 'divider', besideAi, 'divider', 'generate[image,video]']
+  const expected = [besideAi, 'divider', 'generate[image,video]']
   // board:SelectionStoryboard/bar.shell board:SelectionStoryboard/bar.storyboard-beside-ai-edit board:SelectionStoryboard/bar.generate-pair
   expect(record, JSON.stringify(layout.slots) === JSON.stringify(expected), `${state.id} 浮条从左到右应是 ${expected.join(' | ')}，实际 ${layout.slots.join(' | ')}`)
   // board:SelectionStoryboard/bar.storyboard-icon
   expect(record, layout.storyboardIcon.includes('tabler-icon-layout-rows'), `${state.id} 「拆成镜头」图标不是分镜 IconLayoutRows：${layout.storyboardIcon}`)
   // board:SelectionStoryboard/bar.storyboard-name
   const name = uiText(state.id.includes('-en-') ? 'en' : 'zh-CN', 'creationAi.selection.storyboard')
-  expect(record, layout.storyboardName === name && layout.storyboardTitle === name, `${state.id} 「拆成镜头」悬停名字不对：${layout.storyboardName} / ${layout.storyboardTitle}`)
+  expect(record, layout.storyboardText === name && layout.storyboardName === name && layout.storyboardTitle === name, `${state.id} 「拆成镜头」悬停名字不对：${layout.storyboardName} / ${layout.storyboardTitle}`)
   // board:SelectionStoryboard/bar.storyboard-unavailable
   expect(record, layout.storyboardDisabled === (scene === 'unavailable'), `${state.id} 「拆成镜头」置灰状态不对：disabled=${layout.storyboardDisabled}`)
   // board:SelectionStoryboard/bar.no-ai-edit

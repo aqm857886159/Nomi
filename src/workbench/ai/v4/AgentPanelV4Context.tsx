@@ -21,12 +21,7 @@ function contextPercent(usage: ContextUsage): number | undefined {
   return Math.min(100, Math.round((usage.used / usage.max) * 100))
 }
 
-export function V4ContextRing({
-  usage,
-  labels,
-  expanded = false,
-  onToggle,
-}: {
+type ContextRingProps = {
   usage: ContextUsage
   labels: {
     context: string
@@ -42,6 +37,25 @@ export function V4ContextRing({
   }
   expanded?: boolean
   onToggle?: (open: boolean) => void
+}
+
+export function V4ContextRing(props: ContextRingProps): JSX.Element | null {
+  const { usage, labels, expanded } = props
+  const rows = ([
+    [labels.input, usage.input],
+    [labels.output, usage.output],
+    [labels.reasoning, usage.reasoning],
+    [labels.cache, usage.cache],
+  ] as const).filter((row): row is readonly [string, string] => Boolean(row[1]))
+  // The live lane formats its empty cumulative counters as zero and unknown metrics with the localized placeholder.
+  const hasBreakdown = rows.some(([, value]) => value !== formatV4Tokens(0) && value !== labels.unknown)
+  const hasCost = Boolean(usage.cost && usage.cost !== labels.unknown)
+  if (!expanded && !usage.used && !hasBreakdown && !hasCost) return null
+  return <ContextDetails {...props} rows={rows} />
+}
+
+function ContextDetails({ usage, labels, expanded = false, onToggle, rows }: ContextRingProps & {
+  rows: readonly (readonly [string, string])[]
 }): JSX.Element {
   const percent = contextPercent(usage)
   // 画布写的是「62.4K / 200K」不是「62,400 / 200,000」——230px 宽的卡里，
@@ -70,12 +84,6 @@ export function V4ContextRing({
     window.addEventListener('resize', update)
     return () => { observer.disconnect(); window.removeEventListener('resize', update) }
   }, [open])
-  const rows = ([
-    [labels.input, usage.input],
-    [labels.output, usage.output],
-    [labels.reasoning, usage.reasoning],
-    [labels.cache, usage.cache],
-  ] as const).filter((row): row is readonly [string, string] => Boolean(row[1]))
   return (
     <details
       ref={anchorRef}
