@@ -4,6 +4,9 @@ import '../../../i18n'
 import { zhAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
 import type { PromptEditorProps } from '../../assets/PromptEditor'
 import { AgentPanelV4Panel, type AgentPanelV4PanelProps } from './AgentPanelV4Panel'
+import { V4SkillPopover } from './AgentPanelV4Composer'
+import type { LibraryPickerHandle } from '../../library/LibraryPicker'
+import { projectSpendCard } from './agentPanelSpendCard'
 import { createReactTestRenderer } from './testReactRenderer'
 
 let editor: PromptEditorProps
@@ -25,27 +28,42 @@ beforeAll(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
 })
 let renderer: ReturnType<typeof createReactTestRenderer> | undefined
-afterEach(() => renderer?.close())
+afterEach(() => {
+  renderer?.close()
+  vi.useRealTimers()
+})
+
+function offer(quoteId: string, retry = false) {
+  return projectSpendCard({
+    projectId: 'project', operationId: 'plan', runId: 'run', planVersion: 1, quoteId, currency: 'CNY',
+    shots: [{ shotId: 'shot', index: 1, kind: 'video', nodeId: 'node', draftedModel: { providerId: 'p', modelId: 'model' }, offer: retry ? 'not_sent' : 'undecided' }],
+  }, [{
+    present: true, shotRef: '1', model: 'model', aspect: null, durationSec: 4, resolution: null,
+    selected: null, price: { known: false },
+  }], { busy: false, stopping: false }, key => key, { locale: 'zh-CN' })!.slot
+}
 
 function mount(text = '', composer: AgentPanelV4PanelProps['composer'] = {}, panel: Partial<AgentPanelV4PanelProps> = {}) {
   const onConfirm = vi.fn()
   const onSubmit = vi.fn()
-  renderer = createReactTestRenderer({
+  const root = createReactTestRenderer({
     createInstance: (_type, props) => ({
-      props, addEventListener() {}, removeEventListener() {},
+      props, get disabled() { return this.props.disabled === true }, addEventListener() {}, removeEventListener() {},
       click() {
-        if (!props.disabled && typeof props.onClick === 'function') props.onClick()
+        if (!this.disabled && typeof this.props.onClick === 'function') this.props.onClick()
       },
     }),
   })
-  renderer.render(<AgentPanelV4Panel
+  renderer = root
+  const render = (nextPanel = panel, nextComposer = composer) => root.render(<AgentPanelV4Panel
     flow={[]} context={{}} emptyOverride={<span />}
-    slot={{ kind: 'spend', title: '' }}
+    slot={offer('first')}
     slotHandlers={{ onConfirm, onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
-    composer={{ draft: { subscribe: () => () => {}, getSnapshot: () => text, write: () => {} }, onSubmit, ...composer }}
-    {...panel}
+    composer={{ draft: { subscribe: () => () => {}, getSnapshot: () => text, write: () => {} }, onSubmit, ...nextComposer }}
+    {...nextPanel}
   />)
-  return { onConfirm, onSubmit }
+  render()
+  return { onConfirm, onSubmit, render }
 }
 
 function enter(overrides: Partial<React.KeyboardEvent> = {}, isComposing = false) {
@@ -78,6 +96,49 @@ describe('Agent spend bar and composer share Enter', () => {
     expect(onConfirm).not.toHaveBeenCalled()
     expect(onSubmit).not.toHaveBeenCalled()
     expect(onPopoverKeyDown).not.toHaveBeenCalled()
+  })
+
+  it.each(['', 'pin'])('leaves keyCode 229 Enter to the IME after compositionend (draft %j)', text => {
+    const { onSubmit, onConfirm } = mount(text)
+    enter({ nativeEvent: { keyCode: 229, isComposing: false } as KeyboardEvent })
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it.each(['same quote', 'retry', 'next quote', 'delayed next quote'])('a second independent Enter after handoff cannot authorize the %s', next => {
+    vi.useFakeTimers()
+    const { onConfirm, render } = mount()
+    enter({ repeat: false })
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    render({ slot: undefined })
+    if (next === 'delayed next quote') vi.advanceTimersByTime(2000)
+    const newQuote = next.endsWith('next quote')
+    const nextSlot = offer(newQuote ? 'second' : 'first', next === 'retry')
+    if (next === 'retry') expect(nextSlot.confirmLabel).toBe('agentPanelV4.spendCard.retry')
+    render({ slot: nextSlot })
+    vi.advanceTimersByTime(40)
+    enter({ repeat: false })
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1000)
+    enter({ repeat: false })
+    expect(onConfirm).toHaveBeenCalledTimes(newQuote ? 2 : 1)
+  })
+
+  it('keeps a bare slash with a skill chip out of both actions after Escape', () => {
+    const chips = [{ id: 's', kind: 'skill' as const, label: '分镜规划', onRemove: vi.fn() }]
+    const picker = React.createRef<LibraryPickerHandle>()
+    const { onConfirm, onSubmit, render } = mount('/', { chips })
+    const closePicker = vi.fn(() => render({}, { chips }))
+    render({}, {
+      chips, openPopover: 'skill',
+      popover: <V4SkillPopover rows={[]} categories={[]} pickerRef={picker} onClose={closePicker} />,
+      onPopoverKeyDown: event => picker.current!.handleKeyDown(event),
+    })
+    enter({ key: 'Escape' })
+    expect(closePicker).toHaveBeenCalledOnce()
+    enter()
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 
   it.each(['dismissed', 'no selection', 'selected'])('reserves bare slash for the picker (%s)', state => {

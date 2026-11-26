@@ -8,34 +8,14 @@ import type {
   LaneMetric, LaneMetricUnknownReason, LanePart, LaneProjection, LaneTaskFacts, LaneUsage,
 } from '../../../../electron/shared/agentLane/laneContracts'
 import { LANE_APPROVAL_NOTE_TYPE, LANE_TASK_STATUSES } from '../../../../electron/shared/agentLane/laneContracts'
-import { laneInterventionSource, laneViewModel, type LaneViewModelLabels } from './laneViewModel'
+import { laneInterventionSource, laneViewModel } from './laneViewModel'
 import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from './laneToolFailureText'
 import type { SkillListItemDto } from '../../api/skillApi'
 import { STORYBOARD_PLANNER_SKILL } from '../../generationCanvas/agent/storyboardLauncher'
 import { skillLabelForKey } from '../../skillLibrary/skillDisplay'
 
-const labels: LaneViewModelLabels = {
-  toolLabel: (name) => `[${name}]`,
-  toolSummary: () => undefined,
-  toolFailure: () => undefined,
-  toolFailureDetail: (failure) => failure.code,
-  assistantFailure: (text) => text,
-  assistantRecovered: '[已自动重试]',
-  thinkingLabel: '[thinking]',
-  formatTokens: (value) => `${value}t`,
-  formatCost: (usd) => `$${usd.toFixed(4)}`,
-  retryLabel: (attempt, maxAttempts) => `[retry ${attempt}/${maxAttempts}]`,
-  // 这一句在生产里是 i18n 的 `contextUnknown`。测试里写成醒目的假串，
-  // 是为了让「本层自己编了一个字」当场露馅——占位符长什么样是调用方的事，不是这一层的。
-  unknown: '[unknown]',
-  taskTitle: '[task]',
-  formatStages: (done, total) => `${done}/${total} stages`,
-  taskUnknown: '[task-unknown]',
-  attachmentUnavailable: '[attachment-unavailable]',
-  answered: '[answered]',
-  skillLabel: (key) => `[skill:${key}]`,
-}
+import { laneViewTestLabels as labels } from '../../../../tests/fixtures/laneViewTestLabels'
 
 /** 三态的常用取值。写成构件是因为下面几乎每条都要摆一次。 */
 const UNKNOWN = (reason: LaneMetricUnknownReason): LaneMetric => ({ state: 'unknown', reason })
@@ -61,15 +41,15 @@ function projection(parts: LanePart[], overrides: Partial<LaneProjection> = {}):
 }
 
 describe('laneViewModel', () => {
-  it('marks only the generate call with the waiting spend offer as approval-requested', () => {
-    const calls = ['other', 'waiting'].map(operationId =>
-      part({ kind: 'tool-call', toolCallId: operationId, toolName: 'generate', args: { operationId }, running: true }))
-    calls.push(part({ kind: 'tool-call', toolCallId: 'old', toolName: 'generate', args: { operationId: 'waiting' }, running: false }))
-    const view = laneViewModel(projection(calls), labels, undefined, 'waiting')
+  it('keeps only the held preflight call visible as a static approval row', () => {
+    const calls = ['parallel', 'held', 'earlier'].map(toolCallId => part({
+      kind: 'tool-call', toolCallId, toolName: 'generate', args: { operationId: 'one-plan' }, running: toolCallId === 'parallel',
+    }))
+    const snapshot = { ...projection(calls), running: true, heldToolCallIds: ['held'] }
+    const view = laneViewModel(snapshot, labels)
     expect(view.items.map(item => item.kind === 'tool' && item.receipt.status))
       .toEqual(['input-available', 'approval-requested', 'input-streaming'])
-    expect(laneViewModel(projection(calls), labels).items[1])
-      .toMatchObject({ receipt: { status: 'input-available' } })
+    expect(laneViewModel(projection(calls), labels).items[1]).toMatchObject({ receipt: { status: 'input-streaming' } })
   })
 
   it('maps a durable aborted partial to the existing interrupted assistant card', () => {
