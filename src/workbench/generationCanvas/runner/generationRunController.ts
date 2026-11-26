@@ -49,7 +49,7 @@ import {
   type UnmetReferenceDependency,
 } from '../nodes/controls/referenceDependency'
 import { dispatchedAttempt, resolveTaskArchetype } from './catalogTaskResolve'
-import { finalsMadeFrom, sampleByTaskId, sampleFinalExecutionNode, type SampleFinalRequest } from '../model/sampleFacts'
+import { failedSampleFinalOf, finalsMadeFrom, sampleByTaskId, sampleFinalExecutionNode, type SampleFinalRequest } from '../model/sampleFacts'
 import { sampleFinalCredits } from '../spend/useSendCost'
 import i18n from '../../../i18n'
 
@@ -153,7 +153,8 @@ export async function runGenerationNode(
   // 队列登记：批量路径由 runGenerationNodesByPlan 预先整批登记（含后续波次），单发路径自建 1 节点批次。
   // markRunning 只把 queued 翻成 running（幂等），所以两条路都能安全调。
   const ownsBatch = !options.batchId
-  const batchId = options.batchId ?? beginSingletonBatch(id, target.projectId)
+  // 出高清只走单发（confirmAndRunNode 不传 batchId），自建批次那一行带上样片号：任务中心按它认出高清、重试只带样片号。
+  const batchId = options.batchId ?? beginSingletonBatch(id, target.projectId, sample?.draftTaskId)
   const queue = useGenerationQueueStore.getState()
   for (const entry of queue.entries) {
     if (entry.nodeId === id && entry.batchId !== batchId && entry.state === 'queued'
@@ -449,7 +450,11 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
     const productionRunId = productionMetaOf({ meta: current?.meta })?.runId
     return canvasResendDecide({
       projectId, nodeId, resend, initiator: opts.initiator ?? '',
-      resultUnknown: Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate'),
+      // 出高清没成时节点照成功画、原因只在记录上（failedSampleFinalOf），也要按它判「结果不明」。
+      resultUnknown: (() => {
+        const failure = current?.error || failedSampleFinalOf(current?.runs)?.error
+        return Boolean(failure && classifyGenerationError(failure).primary === 'release-regenerate')
+      })(),
       ...(productionRunId ? { production: { runId: productionRunId } } : {}),
     })
   }

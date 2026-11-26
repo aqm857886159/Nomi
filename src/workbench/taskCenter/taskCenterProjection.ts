@@ -11,6 +11,8 @@
  * 导出：exportJobTaskCenter），组件只按 `group` 摆放，不自己判状态。分组名也只有 `taskCenter.groups.*`
  * 一套文案：区段标题和制作卡上的状态签用的是同一个词，结构上说不出两种话。
  */
+import type { SampleFinalRequest } from '../generationCanvas/model/sampleFacts'
+
 export const TASK_CENTER_GROUPS = ['attention', 'running', 'queued', 'done'] as const
 export type TaskCenterGroup = typeof TASK_CENTER_GROUPS[number]
 export type TaskCenterOutcome = 'success' | 'error' | 'cancelled'
@@ -39,6 +41,8 @@ export type GenerationTaskCenterProjection = TaskCenterProjectionBase & {
     | { kind: 'cancel_generation_queue'; batchId: string; nodeId: string }
     | { kind: 'interrupt_generation'; nodeId: string }
     | { kind: 'retry_generation'; nodeId: string }
+    /** 出高清没成：再出一次高清（只带样片号和清晰度），不是照节点设置重新生成一条样片；「全部重试」里也按它走。 */
+    | { kind: 'retry_sample_final'; nodeId: string; sampleFinal: SampleFinalRequest }
     /** 等待超时（上游可能已出片）：查询、不是重新生成——不铸付费令牌、不弹确认。 */
     | { kind: 'recover_generation'; nodeId: string }
     | null

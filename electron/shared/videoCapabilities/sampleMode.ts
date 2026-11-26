@@ -14,6 +14,11 @@ function narrowResolution(params: ModelParameterControl[], spec: ArchetypeSample
   });
 }
 
+/** 出高清出的那一档：样片规格里声明的第一个成片清晰度（出高清方式的默认值、菜单说明、节点下方的按钮都读它）。 */
+export function sampleFinalResolution(spec: ArchetypeSampleSpec): string {
+  return spec.finalResolutions[0];
+}
+
 function finalMode(spec: ArchetypeSampleSpec): ArchetypeMode {
   return {
     id: SAMPLE_FINAL_MODE_ID,
@@ -25,7 +30,7 @@ function finalMode(spec: ArchetypeSampleSpec): ArchetypeMode {
     slots: [],
     params: [
       { key: "draft_task_id", label: "样片任务号", type: "text", options: [] },
-      { key: "resolution", label: "清晰度", type: "select", options: spec.finalResolutions.map((value) => ({ value, label: value })), defaultValue: spec.finalResolutions[0] },
+      { key: "resolution", label: "清晰度", type: "select", options: spec.finalResolutions.map((value) => ({ value, label: value })), defaultValue: sampleFinalResolution(spec) },
     ],
   };
 }

@@ -3,8 +3,8 @@
 // 老项目、普通模型出的结果读不出样片档案 → 不是样片（没有节点下方那一行）。
 import { getArchetypeById } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 import type { ModelArchetype } from '../../../../electron/shared/modelArchetypes/types'
-import { SAMPLE_FINAL_MODE_ID } from '../../../../electron/shared/videoCapabilities/sampleMode'
-import type { GenerationCanvasNode, GenerationNodeResult } from './generationCanvasTypes'
+import { SAMPLE_FINAL_MODE_ID, sampleFinalResolution } from '../../../../electron/shared/videoCapabilities/sampleMode'
+import type { GenerationCanvasNode, GenerationNodeResult, GenerationNodeRunRecord } from './generationCanvasTypes'
 
 type SampleArchetype = ModelArchetype & { sampleOf: NonNullable<ModelArchetype['sampleOf']> }
 
@@ -96,25 +96,63 @@ export function sampleByTaskId(node: Pick<GenerationCanvasNode, 'result' | 'hist
 }
 
 /**
- * 节点眼下占着显示的那次是不是出高清（唯一的判断处：等待面、状态条、失败卡、节点下方那一行都读它）。
- * - `active`：在路上。准入前只有进度带着样片号（记录还没写），准入后记录的 attempt 也记着；
- * - `failed`：最近一次运行就是出高清、没成（节点的失败卡让给下方那一行，按钮还是「出高清」，再点即重试）。
+ * 最近一次运行是不是出高清、而且没成（只读记录）。出高清没成不算节点失败：样片还在，节点显示照成功画
+ * （projectNodeDisplay 据此不把节点翻成失败；批量重试、分镜行、失败卡因此都看不到它，再出只走节点下方那一行的按钮）。
+ * 老记录、普通发送（没有样片号）→ null。
+ */
+export function failedSampleFinalOf(runs: readonly GenerationNodeRunRecord[] | undefined): { draftTaskId: string; error: string } | null {
+  const latest = runs?.[0]
+  const draftTaskId = latest?.status === 'error' ? text(latest.attempt?.draftTaskId) : ''
+  return draftTaskId ? { draftTaskId, error: latest?.error || '' } : null
+}
+
+/**
+ * 节点眼下这次是不是出高清（唯一的判断处：等待面、状态条、节点下方那一行都读它）。
+ * - `active`：在路上。准入前只有进度带着样片号（记录还没写），准入后按进度的运行号找到记录、记录的 attempt 也记着；
+ * - `failed`：最近一次运行就是出高清、没成（failedSampleFinalOf）。
  * 普通发送、老记录（没有样片号）→ null：节点照今天的通用状态画。
  */
 export type SampleFinalRun = { draftTaskId: string; phase: 'active' } | { draftTaskId: string; phase: 'failed'; error: string }
 
-export function sampleFinalRunOf(node: Pick<GenerationCanvasNode, 'status' | 'error' | 'progress' | 'runs'>): SampleFinalRun | null {
+export function sampleFinalRunOf(node: Pick<GenerationCanvasNode, 'status' | 'progress' | 'runs'>): SampleFinalRun | null {
   if (node.status === 'queued' || node.status === 'running') {
-    const live = node.runs?.find((run) => run.status === 'queued' || run.status === 'running')
-    const draftTaskId = text(node.progress?.draftTaskId) || text(live?.attempt?.draftTaskId)
+    // 占着显示的是进度那个号的那次；没有号才退到在跑的那条记录（别让早先一条挂着的记录把这次普通发送认成出高清）。
+    const runId = node.progress?.runId
+    const owner = runId
+      ? node.runs?.find((run) => run.id === runId)
+      : node.runs?.find((run) => run.status === 'queued' || run.status === 'running')
+    const draftTaskId = (runId ? text(node.progress?.draftTaskId) : '') || text(owner?.attempt?.draftTaskId)
     return draftTaskId ? { draftTaskId, phase: 'active' } : null
   }
-  if (node.status === 'error') {
-    const latest = node.runs?.[0]
-    const draftTaskId = latest?.status === 'error' ? text(latest.attempt?.draftTaskId) : ''
-    return draftTaskId ? { draftTaskId, phase: 'failed', error: node.error || latest?.error || '' } : null
-  }
-  return null
+  const failed = failedSampleFinalOf(node.runs)
+  return failed ? { ...failed, phase: 'failed' } : null
+}
+
+/** 节点下方那一行：当前这一版是样片才有；出高清在路上 / 没成、且是这条样片的，归这一行画。 */
+export type SampleRowFacts = { sample: SampleFacts; run: SampleFinalRun | null }
+
+export function sampleRowOf(node: Pick<GenerationCanvasNode, 'status' | 'progress' | 'runs' | 'result'>): SampleRowFacts | null {
+  const sample = sampleFactsOf(node, node.result)
+  if (!sample) return null
+  const run = sampleFinalRunOf(node)
+  return { sample, run: run && run.draftTaskId === sample.draftTaskId ? run : null }
+}
+
+/** 这次在路上的出高清归节点下方那一行画（等待面、节点上方状态条让位：样片照常能看能播）。 */
+export function sampleRowOwnsProgress(node: Pick<GenerationCanvasNode, 'status' | 'progress' | 'runs' | 'result'>): boolean {
+  return sampleRowOf(node)?.run?.phase === 'active'
+}
+
+/**
+ * 再出一次没成的那次出高清要发的（任务中心那一行的「重试」、「全部重试」里出高清那几行）：只带样片号和清晰度。
+ * 样片已不在版本栈里 / 已过期 → null：如实留着失败，不退回按节点设置重新出样片（D-1126-sd-hd-retry-route）。
+ */
+export function sampleFinalRetryOf(node: Pick<GenerationCanvasNode, 'result' | 'history' | 'runs'>, draftTaskId: string, now: number): SampleFinalRequest | null {
+  const sample = draftTaskId ? sampleByTaskId(node, draftTaskId) : null
+  if (!sample) return null
+  const spec = sample.archetype.sampleOf.spec
+  if (sampleExpiry(sample.createdAt, spec.ttlHours, now)?.kind === 'expired') return null
+  return { draftTaskId, resolution: sampleFinalResolution(spec) }
 }
 
 export type SampleExpiry =
