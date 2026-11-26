@@ -2,7 +2,7 @@ import { getKnownVendor } from '../../config/knownVendors'
 import { ApimartTopUpNotice } from './ApimartTopUpNotice'
 import { ApimartCheckCard } from './ApimartCheckCard'
 import { ApimartStatusNotice } from './ApimartStatusNotice'
-import { useApimartVerification } from './useApimartVerification'
+import * as verification from './useApimartVerification'
 import { createReactTestRenderer } from '../../workbench/ai/v4/testReactRenderer'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -16,6 +16,7 @@ import { LibraryOnboardingHeroCard } from '../../workbench/library/LibraryOnboar
 import { ApimartConnectPage } from './ApimartConnectPage'
 import { ApimartFineprintPopover } from './ApimartFineprintPopover'
 import {
+  APIMART_CONNECTED_EVENT,
   APIMART_MIRROR_DOMAINS,
   APIMART_REGISTER_URL,
   NOMI_OPEN_APIMART_CONNECT_EVENT,
@@ -223,8 +224,8 @@ describe('S6 · APIMart verification', () => {
     })
     vi.stubGlobal('window', windowEvents)
     const renderer = createReactTestRenderer()
-    let state: ReturnType<typeof useApimartVerification>
-    function Harness() { state = useApimartVerification(back); return null }
+    let state: ReturnType<typeof verification.useApimartVerification>
+    function Harness() { state = verification.useApimartVerification(back); return null }
     const flush = () => renderer.render(<Harness />)
     flush()
     return { save, read, back, flush, state: () => state, close: () => renderer.close() }
@@ -276,6 +277,93 @@ describe('S6 · APIMart verification', () => {
       expect(h.back).not.toHaveBeenCalled()
       vi.advanceTimersByTime(450)
       expect(h.back).toHaveBeenCalledOnce()
+    } finally { h.close() }
+  })
+
+  const balance = (remainCredits: number | null, unlimited = false) => ({ remainCredits, reportedBalance: null, unlimited })
+  const received = (accountBalance: ReturnType<typeof balance>, keyQuota: ReturnType<typeof balance>) => ({
+    status: 'received' as const, accountBalance, keyQuota,
+  })
+
+  // Render the full page against the state produced by the mounted verification hook.
+  function renderResult(state: ReturnType<typeof verification.useApimartVerification>) {
+    const hook = vi.spyOn(verification, 'useApimartVerification').mockReturnValueOnce(state)
+    try {
+      return renderWithTheme(<ApimartConnectPage originLabel={origin} onSaved={vi.fn()} onBack={vi.fn()} />)
+    } finally { hook.mockRestore() }
+  }
+
+  it('keeps the four checks open for zero Key quota until a foreground recheck succeeds', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    const h = mountCheck()
+    const connected = vi.fn()
+    window.addEventListener(APIMART_CONNECTED_EVENT, connected)
+    const emptyKey = received(balance(52.3), balance(0))
+    try {
+      h.save.mockResolvedValue(emptyKey)
+      await h.state().check('sk-loopback')
+      h.flush()
+      expect.soft(h.state().stage).toBe('keyQuota')
+      const markup = renderResult(h.state())
+      const rows = markup.match(/<li\b[^>]*>[\s\S]*?<\/li>/g) ?? []
+      expect(rows).toHaveLength(4)
+      expect(stripTags(rows[2])).toContain(i18n.t('modelSetup.apimartVerification.limit'))
+      expect(stripTags(rows[2])).toContain(i18n.t('modelSetup.apimartVerification.credits', { value: 0 }))
+      expect(rows[2]).toContain('text-nomi-warning-ink')
+      expect(markup).not.toContain('data-apimart-topup')
+      expect.soft(stripTags(markup).includes(i18n.t('modelSetup.apimartVerification.afterPaste'))).toBe(false)
+      vi.advanceTimersByTime(450)
+      expect.soft(connected).not.toHaveBeenCalled()
+      expect.soft(h.back).not.toHaveBeenCalled()
+
+      h.read.mockResolvedValueOnce(emptyKey).mockResolvedValueOnce(received(balance(52.3), balance(50)))
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+      h.flush()
+      expect(h.read).toHaveBeenCalledTimes(1)
+      expect(h.state().stage).toBe('keyQuota')
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+      h.flush()
+      expect(h.read).toHaveBeenCalledTimes(2)
+      expect(h.save).toHaveBeenCalledOnce()
+      expect(h.state().stage).toBe('passed')
+      vi.advanceTimersByTime(450)
+      expect(connected).toHaveBeenCalledOnce()
+      expect(h.back).toHaveBeenCalledOnce()
+    } finally { h.close() }
+  })
+
+  it.each([
+    ['unlimited Key with numeric zero', balance(52.3), balance(0, true), 'passed'],
+    ['unlimited Key with unknown credits', balance(52.3), balance(null, true), 'passed'],
+    ['positive Key quota', balance(52.3), balance(50), 'passed'],
+    ['unlimited account with numeric zero', balance(0, true), balance(50), 'passed'],
+    ['both balances zero', balance(0), balance(0), 'topup'],
+  ] as const)('honors %s when choosing whether to return', async (_name, account, key, stage) => {
+    vi.useFakeTimers()
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    const h = mountCheck()
+    const connected = vi.fn()
+    window.addEventListener(APIMART_CONNECTED_EVENT, connected)
+    try {
+      h.save.mockResolvedValue(received(account, key))
+      await h.state().check('sk-loopback')
+      h.flush()
+      expect(h.state().stage).toBe(stage)
+      const markup = renderResult(h.state())
+      if (stage === 'passed') {
+        expect(markup.includes('text-nomi-warning-ink')).toBe(false)
+        expect(stripTags(markup)).toContain(i18n.t('modelSetup.apimartVerification.afterPaste'))
+      } else {
+        expect(markup).toContain('data-apimart-topup')
+        expect(stripTags(markup)).not.toContain(i18n.t('modelSetup.apimartVerification.afterPaste'))
+      }
+      vi.advanceTimersByTime(450)
+      const expectedReturns = stage === 'passed' ? 1 : 0
+      expect(connected).toHaveBeenCalledTimes(expectedReturns)
+      expect(h.back).toHaveBeenCalledTimes(expectedReturns)
     } finally { h.close() }
   })
 
