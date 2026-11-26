@@ -79,6 +79,36 @@ function clickNodeCenter(nodeId) {
   assert.ok(rect, `node ${nodeId} is on screen`)
   ui('click', `xy:${Math.round(rect[0])},${Math.round(rect[1])}`)
 }
+/** 画布上一处点下去只碰到空白画布的点（点它 = 取消选择）。 */
+function blankCanvasPoint() {
+  const point = read(`(() => { const pane = document.querySelector('.react-flow__pane')?.getBoundingClientRect(); if (!pane) return null; for (let y = pane.top + 48; y < pane.bottom - 48; y += 32) for (let x = pane.left + 48; x < pane.right - 48; x += 32) { const hit = document.elementFromPoint(x, y); if (hit && hit.classList.contains('react-flow__pane')) return [Math.round(x), Math.round(y)] } return null })()`)
+  assert.ok(point, 'the canvas has a blank point to click')
+  return point
+}
+const zoomPercent = () => Number.parseFloat(read('document.querySelector(".generation-canvas-v2__zoom-bar [data-canvas-zoom-percent]")?.textContent || "NaN"'))
+/**
+ * 「N 层」此刻的样子（裁定 C-D12：住在节点上方的标签行）：在不在标签行里、看不看得见、屏幕框和生成框相不相交、
+ * 角标中心点下去碰到的是不是生成框。
+ */
+function statusFace(nodeId) {
+  return read(`(() => {
+    const badge = document.querySelector('.generation-canvas-v2-node[data-node-id=${JSON.stringify(nodeId)}] [data-node-layer-split-status]')
+    const composer = document.querySelector('[data-composer-host]')
+    const box = (e) => { const r = e?.getBoundingClientRect(); return r && r.width > 0 ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : null }
+    const b = box(badge), c = box(composer)
+    const hit = b ? document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2) : null
+    return {
+      present: !!badge,
+      shown: !!b && getComputedStyle(badge).visibility !== 'hidden',
+      inLabelRow: !!badge?.closest('[data-node-label-row]'),
+      text: badge?.textContent?.trim() ?? '',
+      composerOpen: !!c,
+      intersectsComposer: !!b && !!c && !(b.right <= c.left || c.right <= b.left || b.bottom <= c.top || c.bottom <= b.top),
+      centerHitsComposer: !!hit?.closest('[data-composer-host]'),
+      readyBadge: !!document.querySelector('.generation-canvas-v2-node[data-node-id=${JSON.stringify(nodeId)}] [data-derived-ready-badge]'),
+    }
+  })()`)
+}
 const layerRowsExpr = '[...document.querySelectorAll(\'[data-whiteboard-panel="layers"] > div > div\')].map(row => row.querySelector("button")?.textContent?.trim() || "")'
 const summaryExpr = '[...document.querySelectorAll("[data-parameter-summary]")].map(e => e.getAttribute("data-parameter-summary"))'
 
@@ -142,6 +172,32 @@ try {
   assert.equal(sent.layer_decomposition_options?.text_recognition, true, 'text_recognition follows the switch')
   fs.writeFileSync(path.join(out, 'layer-split-request.json'), JSON.stringify({ method: splitPosts[0].method, url: splitPosts[0].url, body: sent }, null, 2))
   shot('LS04-split-landed')
+
+  // ⑤b 「N 层」在节点上方的标签行（裁定 C-D12）：选中时生成框钉在节点正下方，角标不能被它盖住；
+  // 和「已备好 · 未生成」是同一处的前后两态，不同时出现；未选中照样在；缩放 < 40% 随标签行一起隐藏。
+  const selectedFace = statusFace(derived.id)
+  assert.ok(selectedFace.composerOpen, `the derived node is still selected with its composer open: ${JSON.stringify(selectedFace)}`)
+  assert.ok(selectedFace.shown && selectedFace.inLabelRow, `layer status sits in the label row above the node: ${JSON.stringify(selectedFace)}`)
+  assert.equal(selectedFace.text, L.status, 'layer status reads the dictionary line')
+  assert.ok(!selectedFace.intersectsComposer && !selectedFace.centerHitsComposer, `layer status is not covered by the composer when selected: ${JSON.stringify(selectedFace)}`)
+  assert.equal(selectedFace.readyBadge, false, 'layer status and the ready badge never show together')
+  console.log(`✓ layer status「${selectedFace.text}」in the label row, clear of the composer`)
+  ui('click', `xy:${blankCanvasPoint().join(',')}`)
+  await until('!document.querySelector("[data-composer-host]")', 'clicking blank canvas deselects the node')
+  const unselectedFace = statusFace(derived.id)
+  assert.ok(unselectedFace.shown && unselectedFace.inLabelRow, `layer status stays in the label row when unselected: ${JSON.stringify(unselectedFace)}`)
+  shot('LS04b-split-unselected')
+  const zoomOutButton = `css:.generation-canvas-v2__zoom-bar button[aria-label="${T('generationCommon.navigation.zoomOut')}"]`
+  const zoomInButton = `css:.generation-canvas-v2__zoom-bar button[aria-label="${T('generationCommon.navigation.zoomIn')}"]`
+  let zoomSteps = 0
+  for (; zoomSteps < 12 && !(zoomPercent() < 40); zoomSteps += 1) ui('click', zoomOutButton)
+  assert.ok(zoomPercent() < 40, `zoomed out below 40%: ${zoomPercent()}%`)
+  const farFace = statusFace(derived.id)
+  assert.equal(farFace.shown, false, `layer status hides with the label row below 40% zoom: ${zoomPercent()}% ${JSON.stringify(farFace)}`)
+  console.log(`✓ layer status hidden at ${zoomPercent()}%`)
+  shot('LS04c-split-far-zoom')
+  for (let i = 0; i < zoomSteps; i += 1) ui('click', zoomInButton)
+  await until(`Number.parseFloat(document.querySelector(".generation-canvas-v2__zoom-bar [data-canvas-zoom-percent]")?.textContent || "0") >= 40`, 'zoom back to where it was')
 
   // ⑥ 画板：图层面板列出底图与两层；拖「人物」右下角，等比放大。
   const landed = nodesOf(readProject()).find((node) => node.id === derived.id)

@@ -660,7 +660,7 @@
     {
       "id": "layers.node-status",
       "artboard": "Main / Boundary",
-      "region": "节点下方；板上依据：canvas ask ①；§4.1",
+      "region": "节点上方的标签行，紧跟标题（协调裁定 C-D12 覆盖 C-D8 的「节点下方」）；板上依据：canvas ask ①；§4.1",
       "label": "拆完：节点下方一行状态「20 层」/「Layers 100 · incl. base」（叠层图标），只是状态不是开关；缩放 <40% 随标签行隐藏",
       "change": "added",
       "states": [
@@ -670,7 +670,7 @@
         "narrow"
       ],
       "source": "D-1126-sdse-libtv",
-      "component": "新建一行；标签行 NodeLabelRow.tsx:5 在节点上方，位置见 conflicts C-D8（同类）",
+      "component": "NodeLayerSplitStatus.tsx 作为 NodeLabelRow 的子元素，排在标题与「已备好 · 未生成」（DerivedReadyBadge）之后，两者是同一处状态的前后两态、不同时出现；缩放 <40% 随标签行隐藏；位置见 C-D12",
       "candidates": [
         "668-div",
         "669-svg",
@@ -1671,6 +1671,11 @@
       "what": "GroupFrame §4.4：拆出 ≥4 层收进组框",
       "source": "canvas prior",
       "stillValid": "待实现线核 §4.4 原文"
+    },
+    {
+      "what": "C-D12 协调裁定 11-27：层数状态放进节点上方的标签行（本元素覆盖 C-D8 的位置）；依据：用户 09-25 生成框钉在节点正下方，选中时会盖住下方一行",
+      "source": "协调裁定 2026-11-27（依据用户 2026-09-25 生成框位置拍板）",
+      "stillValid": "算数：layers.node-status 的 region / component 照此改，status 不动"
     }
   ],
   "unverified": [
