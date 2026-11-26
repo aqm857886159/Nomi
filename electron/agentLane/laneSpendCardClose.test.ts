@@ -50,15 +50,29 @@ describe('watchSpendCardClose', () => {
     const book = ledger(plan(card))
     const watch = watchSpendCardClose(book.source)
     book.write(plan(closed(card, 'user_closed')))
-    expect(await settled(watch.closed)).toBe(false)
-    book.write(plan(closed({ ...card, handOvers: [{ ...card.handOvers![0], settled: { at: 't3', outcome: 'accepted' } }] }, 'user_closed')))
     expect(await settled(watch.closed)).toBe(true)
+    expect(await settled(watch.settled)).toBe(false)
+    book.write(plan(closed({ ...card, handOvers: [{ ...card.handOvers![0], settled: { at: 't3', outcome: 'accepted' } }] }, 'user_closed')))
+    expect(await settled(watch.settled)).toBe(true)
     expect(book.listeners.size).toBe(0)
 
     const stuck = ledger(plan(card))
     const late = watchSpendCardClose({ ...stuck.source, settlingGraceMs: 5 })
     stuck.write(plan(closed(card, 'user_closed')))
-    expect(await settled(late.closed)).toBe(true)
+    expect(await settled(late.settled)).toBe(true)
+  })
+
+  it('关卡后按停止立即结束收尾并退订', async () => {
+    const controller = new AbortController()
+    const card: GenerationPresentation = { ...open(), handOvers: [{ shotId: 'shot-1', by: 'gesture', at: 't2', canvasRunId: 'canvas-1' }] }
+    const book = ledger(plan(card))
+    const watch = watchSpendCardClose({ ...book.source, signal: controller.signal })
+    book.write(plan(closed(card, 'user_closed')))
+    await watch.closed
+    expect(book.listeners.size).toBe(1)
+    controller.abort()
+    await watch.settled
+    expect(book.listeners.size).toBe(0)
   })
 
   it('不看了（回合被停 / 打了字）→ 退订，之后关卡不再惊动它', async () => {

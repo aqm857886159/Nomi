@@ -19,7 +19,7 @@
 import { logWarn } from "../logging/logger";
 import type { GenerationHandOverFailure, ProductionRun, RunCommand } from "../productionRun/productionRunTypes";
 import { admitShotsForDispatch, landedNodeOf, type LandShotsOnCanvas } from "../productionRun/shotLandingAdmission";
-import { currentPresentation, latestHandOver, offerShots, type OfferShot } from "../shared/productionGenerationPresentation";
+import { currentPresentation, offerShots, type OfferShot } from "../shared/productionGenerationPresentation";
 import { HAND_OVER_SHOTS_OP, type HandOverShotsReply, type HandOverShotsRequest } from "../shared/contracts/canvasHandOver";
 
 /** 渲染层开同意那一步最多等多久（它只读节点、问素材托管、开同意，不等生成）。 */
@@ -90,15 +90,15 @@ export function createCanvasHandOver(deps: CanvasHandOverDeps) {
   const now = deps.now ?? (() => new Date().toISOString());
 
   /** 对制作 Run 落一条命令（revision 冲突重读一次再来）。`build` 回 null = 不用写了。 */
-  function executeOn(projectId: string, runId: string, build: (current: ProductionRun) => Omit<RunCommand, "expectedRevision"> | null): void {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+  function executeOn(projectId: string, runId: string, build: (current: ProductionRun) => Omit<RunCommand, "expectedRevision"> | null): ProductionRun {
+    for (let attempt = 0; ; attempt += 1) {
       const current = deps.runs.read(projectId, runId);
       if (!current) throw Object.assign(new Error(`generation_operation_not_found: ${runId}`), { code: "generation_operation_not_found" });
       const command = build(current);
-      if (!command) return;
+      if (!command) return current;
       try {
         deps.runs.execute(projectId, runId, { ...command, expectedRevision: current.revision });
-        return;
+        return current;
       } catch (error) {
         if (attempt === 1 || !/revision conflict/i.test(error instanceof Error ? error.message : String(error))) throw error;
       }
@@ -106,14 +106,20 @@ export function createCanvasHandOver(deps: CanvasHandOverDeps) {
   }
 
   /** 还没绑上画布那一份同意的那几镜：当场记成没发出去（一下都没交）。 */
-  function settleUnbound(projectId: string, runId: string, failures: ReadonlyMap<string, GenerationHandOverFailure>, fallback: GenerationHandOverFailure, shotIds: readonly string[]): void {
-    for (const shotId of shotIds) {
+  function settleUnbound(before: ProductionRun, failures: ReadonlyMap<string, GenerationHandOverFailure>, fallback: GenerationHandOverFailure, shotIds: readonly string[]): void {
+    const { projectId, runId, generationPlan } = before;
+    const presentationCount = generationPlan?.presentations?.length;
+    const firstEntry = currentPresentation(generationPlan)?.handOvers?.length ?? 0;
+    for (const [offset, shotId] of shotIds.entries()) {
+      const entry = firstEntry + offset;
       try {
         executeOn(projectId, runId, (current) => {
-          const handOver = latestHandOver(currentPresentation(current.generationPlan), shotId);
-          if (!handOver || handOver.settled || handOver.canvasRunId) return null;
+          // A late renderer reply belongs to the entries this dispatch appended, including across retries.
+          if (current.generationPlan?.presentations?.length !== presentationCount) return null;
+          const handOver = currentPresentation(current.generationPlan)?.handOvers?.[entry];
+          if (!handOver || handOver.shotId !== shotId || handOver.settled || handOver.canvasRunId) return null;
           return {
-            commandId: `generation.handover.unbound:${runId}:${shotId}:${handOver.at}`,
+            commandId: `generation.handover.unbound:${runId}:${presentationCount}:${entry}`,
             type: "generation.handover.settle",
             payload: { shotId, outcome: "not_sent", failure: failures.get(shotId) ?? fallback },
             issuedAt: now(),
@@ -132,7 +138,7 @@ export function createCanvasHandOver(deps: CanvasHandOverDeps) {
   async function handOver(input: CanvasHandOverInput): Promise<void> {
     const { projectId, runId } = input;
     const shotIds = [...new Set(input.shotIds)];
-    executeOn(projectId, runId, (current) => {
+    const before = executeOn(projectId, runId, (current) => {
       const presentation = currentPresentation(current.generationPlan);
       return {
         commandId: `generation.handover:${runId}:${presentation?.presentationId ?? "none"}:${presentation?.handOvers?.length ?? 0}:${shotIds.join(",")}`.slice(0, 480),
@@ -163,7 +169,7 @@ export function createCanvasHandOver(deps: CanvasHandOverDeps) {
       logWarn("production-run", "canvas-hand-over-renderer-failed", { runId, code: fallback.code }, error);
     }
     // ④ 还没绑上的当场收尾。
-    settleUnbound(projectId, runId, failures, fallback, shotIds);
+    settleUnbound(before, failures, fallback, shotIds);
   }
 
   /** 交出去的这几镜此刻的样子（只看这一次出价）。读不到 Run = 全算没交到。 */

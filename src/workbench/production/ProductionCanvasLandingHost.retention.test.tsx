@@ -223,7 +223,7 @@ describe('落地缓存：画布上有节点的每一份 Run 都在，只重读�
 
 function card(runId: string, quoteId: string, offer: PendingSpendConfirm['shots'][number]['offer']): PendingSpendConfirm {
   return {
-    projectId: 'project-a', runId, operationId: runId, planVersion: 1, quoteId, currency: 'CNY',
+    projectId: 'project-a', runId, operationId: runId, planVersion: 1, quoteId, handOverRevision: 0, currency: 'CNY',
     shots: SHOTS.map((shotId, index) => ({ shotId, nodeId: `node-${index + 1}`, index: index + 1, kind: 'video', draftedModel: { providerId: 'apimart', modelId: 'video' }, offer })),
   }
 }

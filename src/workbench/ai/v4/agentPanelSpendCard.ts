@@ -344,6 +344,7 @@ export function projectSpendCard(
   return {
     slot: Object.freeze({
       kind: 'spend' as const,
+      spendConfirmationId: pending.quoteId,
       // 等人决定时不画标题问话（板 2026-11-15 ask.title）：按钮已经说了要做什么、几段。一段都不剩要交的才说那一句（现行「没有要生成的了」）。
       title: asked > 0 ? '' : t('agentPanelV4.spendCard.titleNothing'),
       ...brake,

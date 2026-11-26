@@ -175,6 +175,8 @@ export type { PlanRow }
 
 export type InterventionData = Readonly<{
   kind: V4InterventionKind
+  /** Concrete quote or gate approval that empty-editor Enter can consume. */
+  spendConfirmationId?: string
   title: string
   /** 槽头右端的小字（「不可逆」「可撤销」「付费」「≈ ¥0.48」）。 */
   badge?: string
