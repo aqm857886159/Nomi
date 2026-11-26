@@ -7,7 +7,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import { classifyGenerationError } from './classifyError'
-import { formatTaskFailureMessage } from '../../../electron/shared/generationFailure'
+import { providerFailureText } from '../ai/lane/laneCommandFailure'
+import { decideGenerationFailure, formatTaskFailureMessage } from '../../../electron/shared/generationFailure'
 import { encodeVendorErrorMessage, requestJson, VendorRequestError } from '../../../electron/vendor/vendorHttp'
 import { describeAgentError } from '../../../electron/ai/agentError'
 import { modelCallFailure } from '../../../electron/ai/runtimeVendorError'
@@ -133,5 +134,69 @@ describe('服务商回了话：原话照旧进「服务商原话」（反例，�
   it.each(cases)('%s', async (_label, build) => {
     const { message, said } = await build()
     expect(classifyGenerationError(message).providerMessage).toBe(said)
+  })
+})
+
+describe('服务商回复里的诊断和业务说明', () => {
+  const page = '<!DOCTYPE html><html><body>Sign in</body></html>'
+
+  it('401 网页经过模型调用和 Agent 文案投影，只显示鉴权原因', () => {
+    const message = describeAgentError(modelCallFailure({ vendorKey: 'relay',
+      attempt: { kind: 'http', status: 401, url: SUBMIT_URL, body: page } }))
+    const report = classifyGenerationError(message)
+    const shown = providerFailureText(message, (key, params) => i18n.t(key, params))
+    expect(report.kind).toBe('auth')
+    expect.soft(report.providerMessage).toBeUndefined()
+    expect.soft(shown).toBe(report.reason)
+    expect(shown).not.toContain('<')
+  })
+
+  it.each([
+    ['zh-CN', '官方算力限制，请稍后再试', page],
+    ['en', 'Daily quota exceeded for this model', 'ServiceUnavailableError'],
+  ] as const)('%s 已存的 503 保留业务原话，隐藏技术报文', async (locale, business, diagnostic) => {
+    await i18n.changeLanguage(locale)
+    const reports = [business, diagnostic].map(upstreamMsg => classifyGenerationError(overIpc(
+      new VendorRequestError(upstreamMsg, { vendorKey: 'relay', method: 'POST', url: SUBMIT_URL,
+        httpStatus: 503, category: 'server', retryable: true, upstreamMsg }))))
+    expect(reports.map(report => report.kind)).toEqual(['server', 'server'])
+    expect(reports[1].raw).toContain(diagnostic)
+    expect(reports.map(report => report.providerMessage)).toEqual([business, undefined])
+  })
+
+  it.each([
+    ['zh-CN', '本模型仅支持方图', '<b>仅支持方图</b>'],
+    ['en', 'This model only supports square images.', 'RenderPipelineException'],
+  ] as const)('%s 未知分类只让同语种业务句当标题', async (locale, business, diagnostic) => {
+    await i18n.changeLanguage(locale)
+    const reportForTask = (said: string) => classifyGenerationError(formatTaskFailureMessage(said, { taskId: 't-1' }, locale))
+    expect(reportForTask(business).reason).toBe(business)
+    const report = reportForTask(diagnostic)
+    expect(report.kind).toBe('unknown')
+    expect(report.providerMessage).toBeUndefined()
+    expect(report.reason).toBe(i18n.t('generationCommon.observability.error.unknown.reason'))
+  })
+
+  it.each([
+    ['inline HTML', 'Upstream reply: <title>Gateway</title>'],
+    ['truncated JSON', '{"error":{"message":"Overloaded"'],
+    ['JSON member', '"detail":"Temporarily offline"}'],
+    ['array', '[{"status":503}]'],
+    ['nested class', JSON.stringify({ error: { message: 'RenderPipelineException' } })],
+    ['HTTP template', 'HTTP 503: provider returned no usable error message. Next: retry.'],
+  ])('%s 不进入服务商原话', (_shape, diagnostic) => {
+    const message = formatTaskFailureMessage(diagnostic, { taskId: 't-1' }, 'zh-CN')
+    expect(classifyGenerationError(message).providerMessage).toBeUndefined()
+  })
+
+  it.each(['ServiceUnavailableError', 'Service Unavailable'])('没有状态码也没有瞬时标记的 %s 按服务端失败处理', message => {
+    const decision = decideGenerationFailure({ message, locale: 'en', transient: false })
+    expect(decision).toMatchObject({ kind: 'server', reason: { key: 'generationCommon.observability.error.server.reason' }, raw: message })
+    expect(decision.providerMessage).toBeUndefined()
+  })
+
+  it.each(['RenderPipelineException', 'RENDER_BACKEND_FAULT'])('无来源的 %s 只留在技术详情', message => {
+    const decision = decideGenerationFailure({ message, locale: 'en' })
+    expect(decision).toMatchObject({ kind: 'unknown', reason: { key: 'generationCommon.observability.error.unknown.reason' }, raw: message })
   })
 })
