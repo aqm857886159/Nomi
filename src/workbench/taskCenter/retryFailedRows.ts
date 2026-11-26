@@ -46,6 +46,9 @@ export type RetryFailure = { nodeId: string; error: unknown }
  * 出高清的身份照样片那一行（不看节点现在选着谁），卡上的花不花钱、名词也按它算。
  */
 export async function retryFailedGenerationRows(rows: readonly TaskCenterProjection[]): Promise<RetryFailure[]> {
+  // 项目身份在点击这一刻签发（函数第一行，签发前没有任何 await）；卡开着时换了项目 = 出高清那几镜什么都不发。
+  // 只有普通失败时用不到它：原来那条批量卡自己签发。
+  const project = withProjectAction((issued) => issued)
   const { regenerate, sampleFinals } = splitFailedRetries(rows)
   const graph = useGenerationCanvasStore.getState()
   const plan = planCanvasGenerationScope('retry-failed', regenerate, graph)
@@ -53,8 +56,6 @@ export async function retryFailedGenerationRows(rows: readonly TaskCenterProject
     await confirmAndRunPlan(plan, { initiator: 'user' })
     return []
   }
-  // 项目身份在点击这一刻签发（签发前不许有任何 await）；卡开着时换了项目 = 什么都不发。
-  const project = withProjectAction((issued) => issued)
   if (!project) return []
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]))
   const finalNodes = sampleFinals.flatMap(({ nodeId, sampleFinal }): GenerationCanvasNode[] => {

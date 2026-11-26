@@ -1,7 +1,7 @@
 // 样片（先出低清样片、满意再拿样片号出成片）在节点上的事实：全部从结果的来历现算，节点上不另存一份。
 // 「这一版是不是样片、样片号是多少、什么时候出的、出过几次高清」都读结果自己的来历（provenance）和运行记录；
 // 老项目、普通模型出的结果读不出样片档案 → 不是样片（没有节点下方那一行）。
-import { getArchetypeById } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
+import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import type { ModelArchetype } from '../../../../electron/shared/modelArchetypes/types'
 import { SAMPLE_FINAL_MODE_ID, sampleFinalResolution } from '../../../../electron/shared/videoCapabilities/sampleMode'
 import type { GenerationCanvasNode, GenerationNodeResult, GenerationNodeRunRecord } from './generationCanvasTypes'
@@ -54,11 +54,12 @@ export function sampleFactsOf(node: Pick<GenerationCanvasNode, 'runs'>, result: 
   const extras = frozenExtras(result)
   const selection = frozenSelection(extras)
   if (!draftTaskId || !extras || !selection || selection.modeId === SAMPLE_FINAL_MODE_ID) return null
-  const archetype = getArchetypeById(selection.id)
-  if (!archetype?.sampleOf) return null
   const vendorKey = text(result.provenance?.provider) || text(extras.modelVendor) || text(extras.vendor)
   const modelKey = text(extras.modelKey) || text(result.model)
   if (!vendorKey || !modelKey) return null
+  // 档案只从唯一入口拿（冻结的 extras.archetype.id 就是入口认的显式 id）。
+  const archetype = resolveModelArchetype({ modelKey, vendorKey, meta: extras }, { variant: variantRecordedInMeta(extras, modelKey) })
+  if (!archetype?.sampleOf) return null
   const run = node.runs?.find((candidate) => candidate.resultId === result.id)
   const moments = [run?.startedAt, result.provenance?.timestamp, result.createdAt]
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)

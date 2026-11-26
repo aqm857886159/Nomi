@@ -6,7 +6,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ComposerGraph } from '../nodes/composerGraphSnapshot'
 import { buildCatalogTaskRequest } from '../runner/catalogTaskActions'
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
-import { getArchetypeById } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
+import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import { sampleBillingRequest } from '../../../../electron/shared/videoCapabilities/sampleMode'
 import type { TaskRequest } from '../../../../electron/taskTypes'
 import type { SampleFacts } from '../model/sampleFacts'
@@ -28,8 +28,11 @@ export function priceRequest(node: GenerationCanvasNode, graph: ComposerGraph): 
     const { vendor, request } = buildCatalogTaskRequest(draft, { references })
     if (builtinVendorKeyOfKey(vendor) !== 'apimart') return null
     // 样片行按它声明的那一行约价（sampleBillingRequest 是唯一的家）；别的行原样。
-    const selection = request.extras?.archetype as { id?: unknown } | undefined
-    const priced = sampleBillingRequest(request, getArchetypeById(typeof selection?.id === 'string' ? selection.id : null)) ?? request
+    // 档案只从唯一入口拿（发送那一刻的 extras 带着 archetype.id 与 modelKey）。
+    const extras = request.extras ?? {}
+    const modelKey = typeof extras.modelKey === 'string' ? extras.modelKey : null
+    const archetype = resolveModelArchetype({ modelKey, vendorKey: vendor, meta: extras }, { variant: variantRecordedInMeta(extras, modelKey) })
+    const priced = sampleBillingRequest(request, archetype) ?? request
     return { vendorKey: vendor, request: { ...priced, prompt: '', negativePrompt: undefined } }
   } catch {
     return null
