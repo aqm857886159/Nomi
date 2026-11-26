@@ -1,5 +1,5 @@
 import React, { type JSX, type ReactNode } from 'react'
-import { Modal, useProps, type ModalProps } from '@mantine/core'
+import { Modal, useProps, useResolvedStylesApi, type ModalFactory, type ModalProps } from '@mantine/core'
 import { cn } from '../utils/cn'
 import { useModalInputLayer } from './modalInputLayer'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
@@ -53,7 +53,13 @@ export type DesignModalProps = Omit<ModalProps, 'title' | 'stackId' | '__staticS
   innerScroll?: boolean
 }
 
-type ClassNamesObject = Partial<Record<'root' | 'overlay' | 'inner' | 'content' | 'header' | 'title' | 'close' | 'body', string>>
+// 只看变体前缀后的工具类，同时识别重要修饰符和任意 CSS 属性。
+const titleTruncation = /(?:^|:)!?(?:truncate|text-(?:ellipsis|nowrap)|whitespace-(?:nowrap|pre)|line-clamp-(?!none!?$).+|overflow(?:-[xy])?-(?:hidden|clip)|break-normal)!?$/
+const titleFlowDeclaration = /(?:^|:)!?\[(?:white-space|text-wrap(?:-mode)?|text-overflow|overflow(?:-[xy]|-wrap)?|word-wrap|(?:-webkit-)?line-clamp):[^\]]+\]!?$/
+const titleFlowStyles = new Set([
+  'whiteSpace', 'textWrap', 'textWrapMode', 'textOverflow', 'overflow', 'overflowX', 'overflowY',
+  'overflowWrap', 'wordWrap', 'lineClamp', 'WebkitLineClamp',
+])
 
 /** Mantine `Modal` 自己的默认（Modal.mjs 的 defaultProps 里 Root 不重复给的那两项）；其余默认 Root 与 Modal 相同。 */
 const MODAL_ONLY_DEFAULTS = { withOverlay: true, withCloseButton: true }
@@ -66,9 +72,15 @@ const MODAL_ONLY_DEFAULTS = { withOverlay: true, withCloseButton: true }
  */
 export function DesignModal(designProps: DesignModalProps): JSX.Element {
   // 主题里给 Modal 的默认（nomiTheme 的 components.Modal：阴影等）照旧生效：组合组件各自只读自己的默认，所以按 Modal 的名字取一次。
+  const props = useProps('Modal', MODAL_ONLY_DEFAULTS, {
+    ...designProps,
+    radius: designProps.radius ?? 'sm',
+    zIndex: designProps.zIndex ?? NOMI_OVERLAY_Z_INDEX.dialog,
+  })
   const {
     className,
     classNames,
+    styles,
     radius,
     zIndex,
     title,
@@ -84,11 +96,7 @@ export function DesignModal(designProps: DesignModalProps): JSX.Element {
     innerScroll = false,
     children,
     ...rootProps
-  } = useProps('Modal', MODAL_ONLY_DEFAULTS, {
-    ...designProps,
-    radius: designProps.radius ?? 'sm',
-    zIndex: designProps.zIndex ?? NOMI_OVERLAY_Z_INDEX.dialog,
-  })
+  } = props
   // 所有走 DesignModal 的弹层在这里一次登记：开着时工作区面不接键盘、粘贴、指针手势。
   useModalInputLayer(Boolean(rootProps.opened))
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
@@ -105,15 +113,21 @@ export function DesignModal(designProps: DesignModalProps): JSX.Element {
   }, [])
   const rowAlignment = titleWrapped ? 'items-start' : 'items-center'
   const rootClassName = cn('font-nomi-sans text-nomi-ink', className)
-  const callerClassNames = (typeof classNames === 'object' && classNames ? classNames : {}) as ClassNamesObject
-  const mergedClassNames: ClassNamesObject = {
-    ...callerClassNames,
-    // 纵向三段：标题栏（不缩）· 中间（吃掉剩下的高度）· 决定栏（不缩）。整块不滚，滚动只在中间那块。
-    content: cn('flex flex-col overflow-hidden', callerClassNames.content),
-    header: cn('shrink-0', callerClassNames.header, '*:min-w-0', titleWrapped && 'items-start'),
-    title: cn(callerClassNames.title, 'min-w-0 whitespace-normal break-words'),
-    close: cn(callerClassNames.close, 'shrink-0'),
-    body: cn('flex min-h-0 flex-1 flex-col overflow-hidden', callerClassNames.body),
+  const { resolvedClassNames: caller, resolvedStyles } = useResolvedStylesApi<ModalFactory>({ classNames, styles, props })
+  const titleClasses = caller.title?.split(/\s+/).filter(token => !titleTruncation.test(token) && !titleFlowDeclaration.test(token))
+  const mergedClassNames: ModalProps['classNames'] = {
+    ...caller,
+    // 纵向三段：标题栏不缩，只有中间区滚动。
+    content: cn('flex flex-col overflow-hidden', caller.content),
+    header: cn('shrink-0', caller.header, '*:min-w-0', titleWrapped && 'items-start'),
+    title: cn(titleClasses, 'min-w-0'),
+    close: cn(caller.close, 'shrink-0'),
+    body: cn('flex min-h-0 flex-1 flex-col overflow-hidden', caller.body),
+  }
+  const typography = Object.entries(resolvedStyles.title ?? {}).filter(([property]) => !titleFlowStyles.has(property))
+  const mergedStyles: ModalProps['styles'] = {
+    ...resolvedStyles,
+    title: { ...Object.fromEntries(typography), whiteSpace: 'normal', overflowWrap: 'anywhere' },
   }
 
   // Mantine 的焦点陷阱打开时把焦点放到第一个控件上；要落在对话框本体的，等它放完再挪一次（父级效果晚于子级，再隔一拍更稳）。
@@ -133,7 +147,7 @@ export function DesignModal(designProps: DesignModalProps): JSX.Element {
 
   const titleElement = title ? <Modal.Title ref={observeTitle}>{title}</Modal.Title> : null
   return (
-    <Modal.Root {...rootProps} className={rootClassName} classNames={mergedClassNames} radius={radius} zIndex={zIndex}>
+    <Modal.Root {...rootProps} className={rootClassName} classNames={mergedClassNames} styles={mergedStyles} radius={radius} zIndex={zIndex}>
       {withOverlay ? <Modal.Overlay {...overlayProps} /> : null}
       <Modal.Content radius={radius} data-testid={testId} {...frozenAnchors}>
         {title || withCloseButton ? (

@@ -34,9 +34,17 @@ const badStyles = {
   header: { paddingTop: 12 },
 } as const
 
+// Modal.Root 的 TS 类型只接受对象；JS 调用方仍能传 Mantine 的样式回调。
+const jsCallbacks: Partial<DesignModalProps> = {
+  // @ts-expect-error Exercise the runtime classNames callback.
+  classNames: badClasses,
+  // @ts-expect-error Exercise the runtime styles callback.
+  styles: () => badStyles,
+}
+
 it.each([
   ['展开函数结果', { classNames: { ...badClasses() } }],
-  ['Mantine classNames 回调', { classNames: badClasses }],
+  ['Mantine classNames 回调', { classNames: jsCallbacks.classNames }],
 ] as const)('%s：去掉截断类并保留排版和其他插槽', (_, props) => {
   mount(props)
   const heading = expectWrappingTitle('text-lg font-semibold')
@@ -45,7 +53,7 @@ it.each([
 
 it.each([
   ['对象', badStyles],
-  ['Mantine styles 回调', () => badStyles],
+  ['Mantine styles 回调', jsCallbacks.styles],
 ] as const)('%s：内联样式不能覆盖折行，字距与标题栏内边距照常生效', (_, styles) => {
   mount({ styles })
   const heading = expectWrappingTitle()

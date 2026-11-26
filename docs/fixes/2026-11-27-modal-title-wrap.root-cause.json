@@ -182,16 +182,17 @@
     "reason": "Two independent callers imposed a one-line constraint and new callers can pass header classes.",
     "same_class_scan": [
       "door-map DesignModal: 19 production files plus one design lab file.",
-      "Reviewed classNames.title/header, inline and extracted header callbacks, and the imported CustomCallTitle name class."
+      "Reviewed classNames.title/header, inline and extracted header callbacks, and the imported CustomCallTitle name class.",
+      "Review #1696: function-returned classes, styles.title, and indirect header wrappers can bypass the source scan. Render all 20 callers and inspect the labelled heading and its ancestors."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/design/overlays.tsx",
     "invariant": "All shell titles wrap and every icon row can use the shell alignment.",
-    "failure_mode": "Long names break across lines and a source guard rejects caller-side truncation.",
+    "failure_mode": "The shell removes title truncation overrides at render time. A caller that wraps the name in a truncating header fails its DOM regression test.",
     "exception_policy": "none",
-    "strategy": "Manage the visible name at Modal.Title, retain caller typography and remove the two single-line overrides.",
+    "strategy": "Resolve Mantine styling inputs, retain typography, and reserve title wrapping and clipping for DesignModal. Check custom header ancestors after React renders them.",
     "artifacts": [
       "src/design/overlays.tsx",
       "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
@@ -199,11 +200,13 @@
     ]
   },
   "regression_tests": [
-    "src/design/overlays.structure.test.tsx",
+    "src/design/__tests__/DesignModal.test.tsx",
+    "src/design/__tests__/modalTitleCallers.test.tsx",
     "src/design/dialogName.browser.test.ts"
   ],
   "class_regression_tests": [
-    "src/design/overlays.structure.test.tsx",
+    "src/design/__tests__/DesignModal.test.tsx",
+    "src/design/__tests__/modalTitleCallers.test.tsx",
     "src/design/dialogName.browser.test.ts"
   ],
   "legacy_paths": {
@@ -228,7 +231,8 @@
   "invariant_owner_layer": {
     "layer": "src/design/overlays.tsx",
     "tests": [
-      "src/design/overlays.structure.test.tsx",
+      "src/design/__tests__/DesignModal.test.tsx",
+      "src/design/__tests__/modalTitleCallers.test.tsx",
       "src/design/dialogName.browser.test.ts"
     ]
   }

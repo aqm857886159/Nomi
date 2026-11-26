@@ -81,7 +81,7 @@ const [skill] = galleryEntries([{ name: 'storyboard', label: LONG_TITLE, directo
 const mobile = { available: false, dialogOpen: true, setDialogOpen: noop, status: null, starting: false,
   speeds: { moveMetersPerSecond: 1, elevationMetersPerSecond: 1 }, setSpeeds: noop, start: async () => false, stop: async () => {} }
 
-const cases = [
+const cases: [string, React.ReactElement, string?][] = [
   ['UpdateDialog', <UpdateDialogCard view="available" version="1" canAutoInstall releaseUrl={null}
     digest={{ title: '发行说明', groups: [], hiddenGroups: 0 }} />, 'block m-0 text-title font-semibold text-nomi-ink'],
   ['CustomCallEditor', <CustomCallEditor target={{ vendorKey: 'custom', modelKey: 'model', label: '模型', script: '' }}
@@ -101,7 +101,7 @@ const cases = [
   ['SettingsDialog', <SettingsDialog onClose={noop} />],
   ['TimelineShortcutsDialog', <TimelineShortcutsDialog onClose={noop} />],
   ['ps-07-modal', OVERLAY_STATES.find(state => state.id === 'ps-07-modal')!.render()],
-] as const
+]
 
 it.each(cases)('%s 的超长标题', async (_, element, typography) => {
   await mount(element)
