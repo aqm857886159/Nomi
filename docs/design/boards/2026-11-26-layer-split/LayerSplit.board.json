@@ -505,7 +505,7 @@
       "id": "layers.no-image-hint",
       "artboard": "Boundary",
       "region": "② / E3；板上依据：Boundary ② E3",
-      "label": "0 张图（参考被拿掉）：发送键灰，悬停说缺什么：「先放一张要拆的图」/「Add one image to split first」",
+      "label": "0 张图（参考被拿掉）：发送键灰、键上约价照印；悬停先说缺什么「先放一张要拆的图」/「Add one image to split first」，下一行接发送键通用的约价说明（C-D13）",
       "change": "changed",
       "states": [
         "disabled",
@@ -513,7 +513,7 @@
         "zh-en"
       ],
       "source": "D-1126-sdse-libtv",
-      "component": "复用现有发送键悬停原因",
+      "component": "ComposerSendButton 的通用规则：禁用时悬停先说为什么点不了、再说约价（出处 3d96e7254 花费显示第一步，清单 cost.hover）；原因句来自生成框的禁用原因，本板不另画、不改共用发送键（C-D13）",
       "candidates": [
         "449-div-先放一张要拆的图",
         "450-div",
@@ -1676,6 +1676,11 @@
       "what": "C-D12 协调裁定 11-27：层数状态放进节点上方的标签行（本元素覆盖 C-D8 的位置）；依据：用户 09-25 生成框钉在节点正下方，选中时会盖住下方一行",
       "source": "协调裁定 2026-11-27（依据用户 2026-09-25 生成框位置拍板）",
       "stillValid": "算数：layers.node-status 的 region / component 照此改，status 不动"
+    },
+    {
+      "what": "C-D13 协调裁定 11-27：没放图时悬停沿用发送键通用规则（先说为什么点不了，再说约价；出处 3d96e7254 / cost.hover），本板不另画、不改共用发送键",
+      "source": "协调裁定 2026-11-27（依据用户批过的发送键约价 3d96e7254，ModelSurfaces 清单 cost.hover）",
+      "stillValid": "算数：layers.no-image-hint 的 label / component 照此改，status 不动；英文跟着通用规则走"
     }
   ],
   "unverified": [
