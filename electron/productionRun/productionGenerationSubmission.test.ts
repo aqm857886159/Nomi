@@ -15,6 +15,8 @@ import {
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { landedAdmission } from "./landFirstTestUtils";
+import { createProductionRunService } from "./productionRunService";
+import { productionRunPaths } from "./productionRunPaths";
 
 const roots: string[] = [];
 const registry = createModuleRegistry([{
@@ -151,54 +153,25 @@ describe("Run-owned semantic generation submission", () => {
     expect(restartedSubmit).not.toHaveBeenCalled();
   });
 
-  it("turns a lost provider receipt into reconcile-only state and never retries", async () => {
+  it("polls the durable receipt after a delivery failure with one generation submit", async () => {
     const { root, repository } = setup();
-    const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
-    const first = createProductionGenerationSubmission({
-      repository,
-      beforeDispatch: () => undefined,
-      projectRoot: root,
-      immutableProjectUuid: "project-uuid-1",
-      projectGeneration: 1,
-      intentMacKey: "test-intent-key",
-      provider: {
-        providerId: "fixture-provider",
-        capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
-        buildRequest: (input) => input,
-        submit,
-      },
-      afterProviderAcceptance: () => { throw new Error("crash after provider accepted"); },
+    const submit = vi.fn(async () => ({ providerTaskId: "original", raw: { task_id: "original" } }));
+    const query = vi.fn(async () => ({ status: "succeeded", raw: { task_id: "original" } }));
+    const options = {
+      repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+      intentMacKey: "test-intent-key", beforeDispatch: () => undefined,
+      provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
+        buildRequest: (input: unknown) => input, submit, query },
       now: () => "2026-08-23T00:00:00.000Z",
-    });
-
-    await expect(first.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
-    expect(repository.read("project-1", "op-1")).toMatchObject({ jobs: [{ status: "submission_unknown" }] });
-    const unknownRun = repository.read("project-1", "op-1")!;
-    // 点名重摆这一镜：它上一笔结果未知，先得核对（不点名时它已送过、不在可摆的里，范围规则先拒）。
-    expect(() => repository.execute("project-1", "op-1", { commandId: "unknown-next-batch", expectedRevision: unknownRun.revision,
-      type: "generation.present", payload: { shotIds: ["candidate-1"] }, issuedAt: "2026-08-23T00:00:00.000Z" })).toThrow(/reconciliation_required/);
-    expect(repository.read("project-1", "op-1")).toEqual(unknownRun);
-
-
-    const restartedSubmit = vi.fn(async () => ({ providerTaskId: "provider-task-2" }));
-    const restarted = createProductionGenerationSubmission({
-      repository,
-      beforeDispatch: () => undefined,
-      projectRoot: root,
-      immutableProjectUuid: "project-uuid-1",
-      projectGeneration: 1,
-      intentMacKey: "test-intent-key",
-      registry,
-      provider: {
-        providerId: "fixture-provider",
-        capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
-        buildRequest: (input) => input,
-        submit: restartedSubmit,
-      },
-      now: () => "2026-08-23T00:01:00.000Z",
-    });
-    await expect(restarted.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
-    expect(restartedSubmit).not.toHaveBeenCalled();
+    };
+    const input = { projectId: "project-1", operationId: "op-1" };
+    const first = createProductionGenerationSubmission({ ...options, afterProviderAcceptance: () => { throw new Error("lost IPC"); } });
+    await first.start({ ...input, admission: await landedAdmission(repository, input.projectId, input.operationId) }).catch(() => undefined);
+    const restarted = createProductionGenerationSubmission(options);
+    expect(restarted.observeAccepted(input)?.providerTaskId).toBe("original");
+    expect((await restarted.poll(input)).providerStatus).toBe("succeeded");
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 
   it("submits an observe-only provider once; observing the accepted job answers with the same provider task id (no token, no second submit)", async () => {
@@ -471,7 +444,7 @@ describe("Run-owned semantic generation submission", () => {
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
-  it("an older build's stop between the submit intent and submitting dispatches exactly once", async () => {
+  it("an older build's stop between the submit intent and submitting remains unknown without another dispatch", async () => {
     const { root, repository } = setup();
     const run = repository.read("project-1", "op-1")!;
     const job = run.jobs[0]!;
@@ -487,9 +460,9 @@ describe("Run-owned semantic generation submission", () => {
       beforeDispatch: () => undefined,
       now: () => "2026-08-23T00:01:00.000Z",
     });
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
-    expect(runner.observeAccepted({ projectId: "project-1", operationId: "op-1" })).toMatchObject({ providerTaskId: "provider-task-1" });
-    expect(submit).toHaveBeenCalledTimes(1);
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
+    expect(repository.read("project-1", "op-1")?.jobs[0].status).toBe("submission_unknown");
+    expect(submit).not.toHaveBeenCalled();
   });
 
   // 受理之后原来是三次整份落盘（已受理 → 计划已交 → 单镜 Run 进行中，后两次由各个调用方各自补）；现在是一次，
@@ -544,7 +517,7 @@ describe("Run-owned semantic generation submission", () => {
 
   it("keeps an unknown provider submission reconcile-only instead of creating another paid attempt", async () => {
     const { root, repository } = setup();
-    const firstSubmit = vi.fn(async () => ({ providerTaskId: "provider-task-unknown" }));
+    const firstSubmit = vi.fn(async () => { throw new Error("socket closed before response"); });
     const provider: GenerationProvider = {
       providerId: "fixture-provider",
       capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
@@ -559,7 +532,6 @@ describe("Run-owned semantic generation submission", () => {
       projectGeneration: 1,
       intentMacKey: "test-intent-key",
       provider,
-      afterProviderAcceptance: () => { throw new Error("receipt lost after acceptance"); },
       now: () => "2026-08-23T00:00:00.000Z",
     });
     await expect(first.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
@@ -574,6 +546,93 @@ describe("Run-owned semantic generation submission", () => {
     })).toThrow("previous generation attempt is not safely reworkable");
     expect(run.jobs).toEqual([expect.objectContaining({ status: "submission_unknown", attempt: 1 })]);
     expect(firstSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  // 服务那扇恢复门（resumeUnfinishedRuns，打开 / 切回项目时跑）：同一个进程里 POST 还在路上，不许把它判成结果未知。
+  // 判成未知之后 submission_unknown → provider_accepted 不是合法转移，供应商随后答的任务号就落不进账本。
+  it("leaves a live in-process POST submitting when the same host reopens the project", async () => {
+    const { root, repository } = setup();
+    let answer!: (value: { providerTaskId: string }) => void;
+    const submit = vi.fn(() => new Promise<{ providerTaskId: string }>((resolve) => { answer = resolve; }));
+    const submission = createProductionGenerationSubmission({
+      repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+      intentMacKey: "test-intent-key", now: () => "2026-08-23T00:00:00.000Z",
+      provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false }, buildRequest: (input) => input, submit },
+    });
+    const started = submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
+    await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submitting" });
+
+    await createProductionRunService({ repository, projectRootResolver: () => root }).resumeUnfinishedRuns("project-1");
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submitting" });
+
+    answer({ providerTaskId: "late-answer" });
+    await expect(started).resolves.toMatchObject({ providerTaskId: "late-answer" });
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "provider_accepted", providerTaskId: "late-answer" });
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  // 另一半：POST 是「另一个进程」（例如 MCP 宿主）在交。这一进程的仓库没有它的内存记录（isSubmittingHere 为假），
+  // 只剩真锁文件上的租约能证明它还活着。租约和持有进程都用真的：持有者是真起的子进程，锁文件是真交付流程写下的。
+  describe("a different process holds the run lock while it submits", () => {
+    const children: import("node:child_process").ChildProcess[] = [];
+    afterEach(() => { for (const child of children.splice(0)) child.kill("SIGKILL"); });
+
+    async function inFlightElsewhere(holderAlive: boolean) {
+      const { spawn } = await import("node:child_process");
+      const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" });
+      children.push(child);
+      await new Promise<void>((resolve, reject) => { child.once("spawn", () => resolve()); child.once("error", reject); });
+      if (!holderAlive) {
+        const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+        child.kill("SIGKILL");
+        await exited;
+      }
+      const { root, repository } = setup();
+      let answer!: (value: { providerTaskId: string }) => void;
+      const submit = vi.fn(() => new Promise<{ providerTaskId: string }>((resolve) => { answer = resolve; }));
+      const submission = createProductionGenerationSubmission({
+        repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+        intentMacKey: "test-intent-key", now: () => "2026-08-23T00:00:00.000Z",
+        provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false }, buildRequest: (input) => input, submit },
+      });
+      const started = submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
+      await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+      // 把真锁文件上的持有者改成那个子进程，就是「别的进程在交」。本进程仓库的内存表里本来就没有它。
+      const lockFile = productionRunPaths(root, "op-1").lock;
+      const lease = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+      const rewrite = (patch: Record<string, unknown>) => fs.writeFileSync(lockFile, `${JSON.stringify({ ...lease, pid: child.pid, ...patch })}\n`);
+      // 开项目的是另一份仓库：没有 trackSubmission 记录，isSubmittingHere 恒为假。
+      const reopened = createProductionRunRepository({ projectDirResolver: (projectId) => projectId === "project-1" ? root : null, now: () => "2026-08-23T00:00:00.000Z" });
+      expect(reopened.isSubmittingHere("project-1", "op-1")).toBe(false);
+      return { root, repository, reopened, rewrite, submit, started, answer: (value: { providerTaskId: string }) => answer(value) };
+    }
+
+    it("leaves the job submitting while that process holds a live lease", async () => {
+      const world = await inFlightElsewhere(true);
+      world.rewrite({});
+      await createProductionRunService({ repository: world.reopened, projectRootResolver: () => world.root }).resumeUnfinishedRuns("project-1");
+      expect(world.reopened.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submitting" });
+      expect(world.submit).toHaveBeenCalledTimes(1);
+      world.answer({ providerTaskId: "late-answer" });
+      await world.started;
+      expect(world.repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "provider_accepted", providerTaskId: "late-answer" });
+      expect(world.submit).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["the lease has expired", true, { expiresAt: "2000-01-01T00:00:00.000Z" }],
+      ["the holding process is gone", false, {}],
+    ] as const)("calls it unknown without any POST when %s", async (_name, holderAlive, patch) => {
+      const world = await inFlightElsewhere(holderAlive);
+      world.rewrite(patch);
+      await createProductionRunService({ repository: world.reopened, projectRootResolver: () => world.root }).resumeUnfinishedRuns("project-1");
+      expect(world.reopened.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "submission_unknown" });
+      expect(world.submit).toHaveBeenCalledTimes(1);
+      world.answer({ providerTaskId: "too-late" });
+      await world.started.catch(() => undefined);
+      expect(world.submit).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

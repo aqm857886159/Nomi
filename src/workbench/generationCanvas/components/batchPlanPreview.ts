@@ -1,4 +1,4 @@
-import { paidNodeLedger, spendCostKind, spendCostKindForNodes } from '../spend/spendConfirm'
+import { generationNodeLedger, spendCostKind, spendCostKindForNodes } from '../spend/spendConfirm'
 import { classifyGenerationError } from '../../observability/classifyError'
 import { generationFailureActions } from '../../observability/generationFailureActions'
 import { declareStoreLifetime } from '../../project/storeLifetime'
@@ -90,15 +90,15 @@ export function describeBlockedNotice(plan: Pick<GenerationScopePlan, 'blocked'>
 }
 
 /**
- * 卡上点了确认之后，把这一批里要花钱的每一个节点在主进程开一份出价（一镜一个单镜 Run，出价开着 = 这一镜他同意了）。
- * 不花钱的本地 / 文本节点不在里面。返回节点 → 运行记录号与主进程的 Run 号；一个要花钱的都没有时都是空的。
+ * 卡上点了确认之后，把这一批里的每一个媒体节点在主进程开一份出价（一镜一个单镜 Run，出价开着 = 这一镜他同意了）。
+ * 文本节点不在里面。返回节点 → 运行记录号与主进程的 Run 号；没有媒体节点时都是空的。
  */
-async function consentPaidNodes(ids: readonly string[], projectId: string): Promise<{ recordIds: Map<string, string>; runIds: string[] }> {
+async function consentMediaNodes(ids: readonly string[], projectId: string): Promise<{ recordIds: Map<string, string>; runIds: string[] }> {
   const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
   const shots: CanvasConsentShot[] = []
   for (const id of ids) {
     const node = nodesById.get(id)
-    if (!node || paidNodeLedger(node) !== 'run') continue
+    if (!node || generationNodeLedger(node) !== 'run') continue
     shots.push({ nodeId: id, runRecordId: createRunId(id), vendor: selectedVendor(node), modelKey: selectedModelKey(node), kind: node.kind })
   }
   if (shots.length === 0) return { recordIds: new Map(), runIds: [] }
@@ -108,7 +108,7 @@ async function consentPaidNodes(ids: readonly string[], projectId: string): Prom
 
 /**
  * 用户直发批量（框选「生成 N 个」）：轻确认 + 卡上这一批开出价 + 跑。取消则零调用零扣费。
- * 一张批量卡 = 一份授权，盖住卡上列出的节点（发动机收敛第一刀第 3 步）：点了确认，主进程为其中要花钱的每一个节点
+ * 一张批量卡 = 一份授权，盖住卡上列出的节点（发动机收敛第一刀第 3 步）：点了确认，主进程为其中的每一个媒体节点
  * 开一份出价；排队里被去掉的、整批 × 掉的，主进程收回出价、再也交不出去。
  * 抽到此处而非内联进 GenerationCanvas（巨壳 800 行顶格，不喂）。
  *
@@ -194,7 +194,7 @@ export async function confirmAndRunPlan(
     ids = executionPlan.waves.flat()
     assertApprovedInputs = captureApprovedGenerationInputs(ids)
   }
-  const consented = await consentPaidNodes(ids, project.binding.projectId)
+  const consented = await consentMediaNodes(ids, project.binding.projectId)
   const consentNodeIds = [...consented.recordIds.keys()]
   const canvasRunRecordIds = consented.recordIds
   // 开出价那一下（一次 IPC）里换了项目：还没交任何东西，收回刚开的出价，这一批算没开始（与提交前换项目 = 取消同一条）。

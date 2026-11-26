@@ -1,5 +1,6 @@
 import { artifactFromMaterializationReceipt, type GenerationMaterializationReceipt, catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, polledFailureMessage, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
-import { readGenerationExecution } from "./productionGenerationHistory";
+import { addressedGenerationAttempt, readGenerationExecution, requiredGenerationContract } from "./productionGenerationHistory";
+export { addressedGenerationAttempt } from "./productionGenerationHistory";
 import path from "node:path";
 
 import {
@@ -14,7 +15,6 @@ import {
   productionGenerationJobId,
   productionGenerationProviderIdempotencyKey,
 } from "./productionGenerationAuthorization";
-import { nextGenerationAttempt } from "./prepareProductionGenerationAuthorization";
 import { authorizationGateForJob } from "../shared/productionSpendAuthority";
 import { DispatchConsentLapsedError, dispatchConsentOpen } from "../shared/productionDispatchConsent";
 import { prepareProviderOrLandRefusal, type JobRefusalPatch } from "./productionProviderPreparation";
@@ -23,7 +23,7 @@ import { createProductionRunIntentLog } from "./productionRunIntentLog";
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunLock } from "./productionRunLock";
 import type { ProductionRunRepository } from "./productionRunRepository";
-import { isTransportLevelFailure, observeSubmissionHandoffs } from "../outboundDispatchEvidence";
+import { observeSubmissionHandoffs } from "../outboundDispatchEvidence";
 import {
   SubmissionNotDispatchedError,
   SubmissionReceiptUnknownError,
@@ -36,7 +36,7 @@ import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, t
 import { tagNomiError } from "../shared/nomiErrorCodes";
 import { isReferenceFetchRefusal } from "../shared/assets/referenceFetchRefusal";
 import { taskFailureMessageFromResponse } from "../tasks/responseParsing";
-import { singleShotRunningCommand } from "./singleShotRunLifecycle";
+import { restoreEnvelopeAcceptance, singleShotRunningCommand } from "./singleShotRunLifecycle";
 import { assertShotAdmission, type LandedShotAdmission } from "./shotLandingAdmission";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
 
@@ -68,6 +68,7 @@ export type GenerationSubmissionResult = {
   jobId: string;
   providerTaskId: string;
   attempt: number;
+  rawReceipt?: unknown;
   nextAction: "observe";
 };
 
@@ -77,6 +78,7 @@ export type GenerationSubmissionPollResult = {
   jobId: string;
   providerTaskId: string;
   providerStatus: string;
+  raw?: unknown;
   nextAction: "poll" | "materialize" | "attention";
 };
 
@@ -120,42 +122,6 @@ function requiredRun(repository: ProductionRunRepository, projectId: string, run
   return run;
 }
 
-/**
- * P4 S1: resolve the sub-contract this call addresses.
- * - No shotId → the default (single) shot: the top-level plan contract.
- * - shotId → that shot's sealed sub-contract.
- * 批没批准不在这里判：派发前 `prepareAuthorizedSubmission` 核「批这个 job 的那道门」（唯一判据），这里只要合同在。
- */
-function requiredContract(run: ProductionRun, shotId?: string): ExecutionContractV1 {
-  const plan = run.generationPlan;
-  if (!plan || (plan.state !== "sealed" && plan.state !== "submitted")) {
-    throw new Error("Seal and confirm the generation plan before starting");
-  }
-  if (shotId) {
-    const shot = (plan.shots ?? []).find((candidate) => candidate.shotId === shotId);
-    if (!shot?.contract) throw new Error("Seal and confirm the generation plan before starting");
-    return shot.contract;
-  }
-  if (!plan.contract) throw new Error("Seal and confirm the generation plan before starting");
-  return plan.contract;
-}
-
-/**
- * 「这次提交要发的是第几次尝试」**只有一个 owner**：`nextGenerationAttempt`（按 `metadata.shotId`
- * 数这一镜已有的 attempt）。授权在 job 落盘**之前**问它，拿到 `max + 1`；提交在 job 落盘**之后**问，
- * 要的就是那一条，于是 `- 1`。
- *
- * 这里原本另有一份 `latestGenerationAttempt`，按 jobId 前缀（含 contractHash）去数。它今天给的答案
- * 和这条一样，但口径不同：换了参数就换 contractHash，于是它对「同一镜的第几次」这个问题的回答
- * 会从头开始。一个语义两个推导式、两边都不报错 —— 那正是要收掉的形状（P1/R14.1）。
- *
- * P4 S1 identity: shotId is part of the jobId so two shots with identical parameters (equal contract
- * hash) never collide. The default shot keeps the legacy prefix (`generation-<run>-<hash16>`) so
- * durable Runs and single-shot callers are byte-compatible; a named shot inserts `-<shotId>` after it.
- */
-export function addressedGenerationAttempt(run: ProductionRun, shotId?: string): number {
-  return Math.max(1, nextGenerationAttempt(run, shotId) - 1);
-}
 
 export function createProductionGenerationSubmission(deps: ProductionGenerationSubmissionDependencies) {
   const now = deps.now ?? (() => new Date().toISOString());
@@ -179,7 +145,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
   }
 
   function envelope(runId: string, jobId: string) {
-    return createProductionRunRuntimeEnvelope({ filePath: path.join(deps.projectRoot, envelopeRefFor(runId, jobId)) });
+    return createProductionRunRuntimeEnvelope({ filePath: path.join(deps.projectRoot, envelopeRefFor(runId, jobId)), receiptKey: deps.intentMacKey });
   }
 
   function command(run: ProductionRun, type: string, payload: Record<string, unknown>, suffix: string): ProductionRun {
@@ -331,7 +297,14 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     const attempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
     if (!Number.isInteger(attempt) || attempt < 1) return null;
     const jobId = productionGenerationJobId(run.runId, contract.contractHash, attempt, shotId);
-    const existingJob = run.jobs.find((job) => job.jobId === jobId);
+    let existingJob = run.jobs.find((job) => job.jobId === jobId);
+    if (existingJob?.status === "submitting") {
+      const stored = envelope(run.runId, jobId).read();
+      if (stored) {
+        run = restoreEnvelopeAcceptance(deps.repository, run, existingJob, stored, now);
+        existingJob = run.jobs.find((job) => job.jobId === jobId);
+      }
+    }
     if (existingJob?.status !== "provider_accepted" || !existingJob.providerTaskId) return null;
     if (run.generationPlan?.state !== "submitted") run = command(run, "generation.submit", {}, `plan-submit:v${run.planVersion}`);
     return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: existingJob.providerTaskId, attempt, nextAction: "observe" };
@@ -345,7 +318,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     const shotId = input.shotId;
     let run = requiredRun(deps.repository, input.projectId, input.operationId);
     assertShotAdmission(run, shotId, input.admission);
-    const contract = requiredContract(run, shotId);
+    const contract = requiredGenerationContract(run, shotId);
     const attempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
     if (!Number.isInteger(attempt) || attempt < 1) throw new Error("Generation attempt is invalid");
     let jobId = productionGenerationJobId(run.runId, contract.contractHash, attempt, shotId);
@@ -354,7 +327,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     if (existingJob && !authorizationGateForJob(run, existingJob)) {
       throw new Error("Historical generation execution is observation-only");
     }
-    if (existingJob?.status === "provider_accepted" && existingJob.providerTaskId) {
+    if (existingJob && (existingJob.providerTaskId || existingJob.status === "submitting" && observeAccepted(input))) {
       throw Object.assign(new Error("generation_already_accepted: observe it with observeAccepted"), { code: "generation_already_accepted" });
     }
     if (existingJob && ["submission_unknown", "reconciling", "needs_attention", "cancel_requested"].includes(existingJob.status)) {
@@ -365,7 +338,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       run = requiredRun(deps.repository, input.projectId, input.operationId);
       // 锁里再按最新的耐久 Run 复核一次：等锁期间节点可能被删（detached）。
       assertShotAdmission(run, shotId, input.admission);
-      const lockedContract = requiredContract(run, shotId);
+      const lockedContract = requiredGenerationContract(run, shotId);
       if (lockedContract.contractHash !== contract.contractHash) throw new Error("Generation contract changed while waiting for the Run lock");
       const lockedAttempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
       jobId = productionGenerationJobId(run.runId, lockedContract.contractHash, lockedAttempt, shotId);
@@ -383,11 +356,6 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           await deps.beforeDispatch?.({ run: dispatchInput.run, job: dispatchInput.job });
           assertShotCanDispatch({ run: dispatchInput.run, job: dispatchInput.job });
         },
-        // 供应商档案真声明了幂等（并把键带到请求上）才允许在「结果未知」后用同一个键重发一次；
-        // 目前没有任何生产供应商声明（APIMart 明确 false），所以生产里这条恒为 false。
-        canResendAfterUnknown: (error, dispatchInput) =>
-          providers.some((provider) => provider.providerId === dispatchInput.job.provider && provider.capabilities.submitIdempotency === true)
-          && isTransportLevelFailure(error),
         dispatch: async (dispatchInput) => {
           const currentBinding = dispatchInput.job.executionBinding;
           if (!currentBinding) throw new Error("Generation job is missing its sealed execution binding");
@@ -416,14 +384,9 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           prepared.envelope.markSubmittedUnknown();
           throw error;
         },
-        afterDispatch: async (result, dispatchInput) => {
+        persistAcceptance: (receipt) => { prepared.envelope.markProviderAccepted({ providerTaskId: receipt.taskId, acceptance: receipt }); },
+        afterDispatch: (result) => {
           prepared.envelope.markProviderAccepted({ providerTaskId: result.providerTaskId, rawReceipt });
-          try {
-            await deps.afterProviderAcceptance?.({ providerTaskId: result.providerTaskId, run: dispatchInput.run });
-          } catch (error) {
-            prepared.envelope.markSubmittedUnknown();
-            throw error;
-          }
         },
       });
       const result = await outbox.submit({
@@ -446,19 +409,26 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
         ],
       });
       run = result.run;
+      await deps.afterProviderAcceptance?.({ providerTaskId: result.providerTaskId, run });
       if (run.generationPlan?.state !== "submitted") run = command(run, "generation.submit", {}, `plan-submit:v${run.planVersion}`);
-      return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: result.providerTaskId, attempt: lockedAttempt, nextAction: "observe" };
+      return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: result.providerTaskId, attempt: lockedAttempt, rawReceipt, nextAction: "observe" };
     });
   }
 
   async function poll(input: GenerationSubmissionStartInput): Promise<GenerationSubmissionPollResult> {
-    const run = requiredRun(deps.repository, input.projectId, input.operationId);
-    const { job, contract } = readGenerationExecution(deps.repository, run, input);
-    if (!job?.providerTaskId) throw new SubmissionReconciliationRequiredError("A provider task id is required before polling");
-
-    // A completed immutable execution is read from its receipt; do not poll or rewrite it again.
+    let run = requiredRun(deps.repository, input.projectId, input.operationId);
+    const execution = readGenerationExecution(deps.repository, run, input);
+    const { contract } = execution;
+    let job = execution.job;
     const stored = envelope(run.runId, job.jobId).read();
-    if (stored?.state === "materialized") return {
+    if (stored && stored.contractHash !== contract.contractHash) throw new SubmissionReconciliationRequiredError("Run contract differs from the receipt");
+    if (!job.providerTaskId && stored) {
+      run = restoreEnvelopeAcceptance(deps.repository, run, job, stored, now);
+      job = run.jobs.find(candidate => candidate.jobId === job.jobId)!;
+    }
+    if (!job.providerTaskId) throw new SubmissionReconciliationRequiredError("A provider task id is required before polling");
+    if (!stored) throw new SubmissionReconciliationRequiredError("A runtime envelope is required before polling");
+    if (stored.state === "materialized") return {
       operationId: run.runId, runId: run.runId, jobId: job.jobId, providerTaskId: job.providerTaskId,
       providerStatus: stored.lastPoll?.status ?? "succeeded", nextAction: "materialize",
     };
@@ -467,10 +437,9 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     const envelopeStore = envelope(run.runId, job.jobId);
     let observation: { status: string; raw?: unknown } | { error: unknown };
     try {
-      const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
+      const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters, acceptance: stored?.acceptance, rawReceipt: stored?.rawReceipt } });
       observation = { status: result.providerStatus, raw: result.raw };
     } catch (error) { observation = { error }; }
-    if (!stored) throw new SubmissionReconciliationRequiredError("A runtime envelope is required before polling");
     const settled = await envelopeStore.markPolled({ observed: stored, ...observation }, (next) => {
       const current = requiredRun(deps.repository, input.projectId, input.operationId);
       const currentJob = current.jobs.find((candidate) => candidate.jobId === job.jobId)!;
@@ -496,7 +465,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       runId: run.runId,
       jobId: job.jobId,
       providerTaskId: job.providerTaskId,
-      providerStatus,
+      providerStatus, raw: settled.lastPoll?.raw,
       nextAction: statusClass === "pending" ? "poll" : statusClass === "succeeded" ? "materialize" : "attention",
     };
   }
@@ -531,7 +500,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       // 账上已有几份也照样读一遍上游交回了几份：崩在两份之间时，按序号补齐没落的那几份（已落的不再取、不再落盘）。
       let extraction: { outputs: readonly GenerationProviderOutput[] } | undefined;
       let extractionError: unknown;
-      try { extraction = await adapter.materialize({ providerId: job.provider, providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } }); }
+      try { extraction = await adapter.materialize({ providerId: job.provider, providerTaskId, raw: polled.raw, context: { acceptance: observed.acceptance, modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } }); }
       catch (error) { extractionError = error; }
       const settled = await store.withMaterialization(observed, async (currentEnvelope, complete, assertOwned) => {
         let current = requiredRun(deps.repository, input.projectId, input.operationId);

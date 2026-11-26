@@ -55,6 +55,23 @@ describe("ProductionRunRuntimeEnvelope", () => {
     expect(envelope.read()).toEqual(accepted);
   });
 
+  it("rejects a project-edited recovery route before it can reach a provider", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-runtime-envelope-"));
+    tempDirs.push(dir);
+    const filePath = path.join(dir, "envelope.json");
+    const envelope = createProductionRunRuntimeEnvelope({ filePath, receiptKey: "local-fixture" });
+    envelope.seal({ runId: "run-1", jobId: "job-1", runtimeTaskId: "task-1", contractHash: "a", providerIdempotencyKey: "key", requestFingerprint: "b", request: {} });
+    const saved = envelope.markProviderAccepted({ providerTaskId: "remote-1", acceptance: {
+      vendorKey: "original", modelKey: "m", modeId: "text_to_image", baseUrl: "https://original.example",
+      model: { vendorKey: "original", modelKey: "m", kind: "image", labelZh: "Fixture", enabled: true, createdAt: "", updatedAt: "" },
+      acceptedAt: "now", rawAcceptance: { id: "remote-1" }, remoteTaskId: "remote-1", taskId: "remote-1", source: "profile",
+    } });
+    expect(envelope.read()?.acceptance).toEqual(saved.acceptance);
+    saved.acceptance!.baseUrl = "https://changed.example";
+    fs.writeFileSync(filePath, JSON.stringify(saved));
+    expect(() => envelope.read()).toThrow(RuntimeEnvelopeConflictError);
+  });
+
   it("persists the latest provider observation without changing the sealed request", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-runtime-envelope-"));
     tempDirs.push(dir);

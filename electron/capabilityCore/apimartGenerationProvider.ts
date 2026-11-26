@@ -8,11 +8,11 @@
  * 那是一次应该自己被审的机械改名，不该混在这刀行为变更里。
  */
 import { providerReferenceValueValidator } from "./generationProviderReferenceValue";
-import type { GenerationProvider, GenerationProviderRequestInputV1 } from "./generationRuntimeAdapter";
+import type { GenerationProvider, GenerationProviderRequestInputV1, GenerationProviderTaskContext } from "./generationRuntimeAdapter";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { appFetch } from "../appFetch";
 import { VendorRequestError } from "../vendor/vendorHttp";
-import { readMaterializationOutputs } from "./apimartGenerationOutputs";
+import { catalogMediaReceipt, readMaterializationOutputs } from "./apimartGenerationOutputs";
 import { expectedMediaKind, readProviderStatusWord, requestEchoUrls } from "../tasks/taskResultReading";
 import { productionGenerationPayloadHash } from "../productionRun/productionGenerationAuthorization";
 import { readCatalog } from "../catalog/catalogStore";
@@ -28,9 +28,11 @@ import { imageEditGuardError } from "../catalog/taskParamsGuard";
 import { modelReferenceSelection } from "../catalog/modelCatalogListing";
 import { resolveCustomCallExecution } from "../catalog/customCallMode";
 import { extractVendorExtraHeaders } from "../catalog/catalogStore";
-import { isJsonRecord, firstString } from "../jsonUtils";
-import { firstMappedString, providerMetaFromResponse, taskFailureMessageFromResponse } from "../tasks/responseParsing";
-import { extractTaskId as extractTaskIdShared } from "../ai/requestPipeline";
+import { isJsonRecord } from "../jsonUtils";
+import { taskFailureMessageFromResponse } from "../tasks/responseParsing";
+import { checkpointPaidResponse, vendorForReceipt } from "../productionRun/paidSubmissionReceipt";
+import { profileAcceptanceIdentity } from "../tasks/responseParsing";
+import { randomUUID } from "node:crypto";
 import type { TaskRequest } from "../runtime";
 import "../catalog/apimartMinimaxH3";
 import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
@@ -49,7 +51,7 @@ import { standardizeExplicitRunReferences } from "../shared/generationLowering/r
 import { bodyReferencedParamKeys } from "../catalog/paramTranslate";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { ApimartGenerationProviderError as CatalogGenerationProviderError } from "./apimartGenerationErrors";
-import { catalogFingerprint } from "./apimartGenerationIdentity";
+import { catalogFingerprint, strictBaseUrl, preparedForSelection, findPrepared, type CatalogSelection, type PreparedRequest } from "./apimartGenerationIdentity";
 
 export type {
   ApimartImageReferenceWithRole,
@@ -88,23 +90,6 @@ export type CatalogGenerationProviderOptions = {
 
 type JsonRecord = Record<string, unknown>;
 
-type CatalogSelection = Readonly<{
-  vendor: Vendor;
-  model: Model;
-  mapping: Mapping;
-  /** 计费族（image / video / audio / model3d）。**不再是「两条 APIMart 路径二选一」。** */
-  endpoint: BillingModelKind;
-  fingerprint: string;
-}>;
-
-type PreparedRequest = Readonly<{
-  modelKey: string;
-  mappingId: string;
-  taskKind: ProfileKind;
-  endpoint: BillingModelKind;
-  fingerprint: string;
-}>;
-
 /** 一次批准：拿去算哈希的副本、封存体（提交时发的就是它）、目录身份、渲染用的请求。 */
 type Approval = { body: JsonRecord; sealed: ProfileRequestBody; prepared: PreparedRequest; request: TaskRequest };
 
@@ -137,18 +122,6 @@ const MODE_TO_TASK_KIND: Record<string, ProfileKind> = {
 function record(value: unknown, vendorKey: string, label: string): JsonRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new CatalogGenerationProviderError(`${vendorKey} ${label} response is invalid`);
   return value as JsonRecord;
-}
-
-function strictBaseUrl(value: unknown, vendorKey: string): string {
-  if (typeof value !== "string" || !value.trim()) throw new CatalogGenerationProviderError(`${vendorKey} catalog vendor base URL is missing`);
-  const candidate = value.trim().replace(/\/+$/, "");
-  try {
-    const parsed = new URL(candidate);
-    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error("invalid URL");
-    return candidate;
-  } catch {
-    throw new CatalogGenerationProviderError(`${vendorKey} catalog vendor base URL is invalid`);
-  }
 }
 
 function normalizedMode(value: unknown): string {
@@ -383,28 +356,6 @@ function applyCatalogRequestTransform(
   }
 }
 
-function preparedForSelection(selection: CatalogSelection): PreparedRequest {
-  return {
-    modelKey: selection.model.modelKey,
-    mappingId: selection.mapping.id,
-    taskKind: selection.mapping.taskKind,
-    endpoint: selection.endpoint,
-    fingerprint: selection.fingerprint,
-  };
-}
-
-function findPrepared(
-  entries: readonly PreparedRequest[] | undefined,
-  selection: CatalogSelection,
-): PreparedRequest | undefined {
-  return entries?.find((entry) => entry.modelKey === selection.model.modelKey
-    && entry.mappingId === selection.mapping.id
-    && entry.taskKind === selection.mapping.taskKind
-    && entry.endpoint === selection.endpoint
-    && entry.fingerprint === selection.fingerprint);
-}
-
-/** 这家的 mapping 里有没有可用的轮询 op —— 恢复能力**由声明决定**，不按 vendor 写死。 */
 function vendorHasQueryOperation(state: CatalogState, vendorKey: string): boolean {
   return state.mappings.some((mapping) => mapping.vendorKey === vendorKey && mapping.enabled !== false && Boolean(mapping.query));
 }
@@ -524,8 +475,16 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
    */
   const queryTargetFor = (
     taskId: string,
-    context?: { modelId?: string; mode?: string },
+    context?: GenerationProviderTaskContext,
   ): { vendor: Vendor; model: Model; mapping: Mapping; operation: HttpOperation } => {
+    const receipt = context?.acceptance;
+    if (receipt) {
+      if (!receipt.mapping?.query) throw sealMissing();
+      if (receipt.taskId !== taskId || receipt.vendorKey !== vendorKey) throw sealMissing();
+      const live = catalogReader().vendors.find((candidate) => candidate.key === vendorKey && candidate.enabled);
+      if (!live && receipt.authType !== "none") throw sealMissing();
+      return { vendor: vendorForReceipt(receipt, live && networkVendor(live)), model: receipt.model, mapping: receipt.mapping, operation: receipt.mapping.query };
+    }
     const remembered = selectionByTaskId.get(taskId);
     const modelKey = context?.modelId?.trim() || remembered?.modelKey || "";
     const taskKind = context?.mode ? taskKindForMode(context.mode, vendorKey) : remembered?.taskKind;
@@ -553,9 +512,12 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     return { vendor, model, mapping: first, operation: first.query! };
   };
 
-  const queryTask = async (providerTaskId: string, context?: { modelId?: string; mode?: string }) => {
+  const queryTask = async (providerTaskId: string, context?: GenerationProviderTaskContext) => {
     const taskId = providerTaskId.trim();
     if (!taskId) throw new CatalogGenerationProviderError(`${vendorKey} task id is missing`);
+    const receipt = context?.acceptance;
+    if (receipt && (receipt.taskId !== taskId || receipt.vendorKey !== vendorKey)) throw sealMissing();
+    if (catalogMediaReceipt(receipt, context?.parameters) && receipt) return { status: "succeeded", raw: receipt.rawAcceptance };
     const target = queryTargetFor(taskId, context);
     const queryOperation = target.operation;
     const providerMeta: JsonRecord = { task_id: taskId, query_id: taskId, id: taskId };
@@ -599,22 +561,15 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     // 才是这一刻按真 key 现渲染的。两者分开，正是「批准的是 A、发出去的是 B」的反面。
     const payload = await send(selection.vendor, apiKey, built, sealed, `${selection.endpoint} submission`);
     const createMapping = isJsonRecord(selection.mapping.create.response_mapping) ? selection.mapping.create.response_mapping : null;
-    const metaMapping = isJsonRecord(selection.mapping.create.provider_meta_mapping) ? selection.mapping.create.provider_meta_mapping : null;
-    // 任务编号从**声明**里取（与引擎 A 的 `buildProfileTaskResult` 同一条链），
-    // 不再写死 `data[0].task_id` —— 那是 APIMart 的信封形状，别家一律取不到。
-    const meta = providerMetaFromResponse(payload, metaMapping);
-    const taskId = firstString(
-      firstMappedString(payload, createMapping, "task_id"),
-      meta.task_id,
-      meta.query_id,
-      extractTaskIdShared(payload),
-    );
-    if (!taskId.trim()) {
+    const remote = profileAcceptanceIdentity(payload, selection.mapping.create, "").taskId;
+    if (!remote && !readMaterializationOutputs(payload, { responseMapping: createMapping, statusMapping: selection.mapping.statusMapping },
+      expectedMediaKind(selection.endpoint), requestEchoUrls(body)).length) {
       const failure = taskFailureMessageFromResponse(payload, createMapping);
-      throw new CatalogGenerationProviderError(
-        `${vendorKey} submission did not return a task id${failure ? `: ${failure}` : ""}`,
-      );
+      throw new CatalogGenerationProviderError(`${vendorKey} submission did not return a task id${failure ? `: ${failure}` : ""}`);
     }
+    const taskId = remote || randomUUID();
+    checkpointPaidResponse({ vendor: networkVendor(selection.vendor), model: selection.model, mapping: selection.mapping, modeId: requestInput?.mode,
+      source: "catalog", taskId, remoteTaskId: remote || null, rawAcceptance: payload });
     selectionByTaskId.set(taskId.trim(), { modelKey: prepared.modelKey, taskKind: prepared.taskKind, echoUrls: requestEchoUrls(body) });
     while (selectionByTaskId.size > 512) {
       const oldest = selectionByTaskId.keys().next().value;
@@ -735,8 +690,9 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
       // 期望类型只信「确实知道是哪条任务」的记录（内存里的提交 / 账本冻结合同的 mode）：③「每条 query 都一样」选出的
       // mapping 说明不了要图还是要视频。生产入口（适配器）必带 context，不带上下文的取产物只剩直调 provider 的测试。
       const id = input.providerTaskId.trim(), remembered = selectionByTaskId.get(id), context = input.context;
-      const target = (() => { try { return queryTargetFor(id, context); } catch { return null; } })();
-      const query = target ? { responseMapping: isJsonRecord(target.operation.response_mapping) ? target.operation.response_mapping : null, statusMapping: target.mapping.statusMapping } : null;
+      const direct = catalogMediaReceipt(context?.acceptance, context?.parameters);
+      const target = direct ? null : (() => { try { return queryTargetFor(id, context); } catch { return null; } })();
+      const query = direct ?? (target ? { responseMapping: isJsonRecord(target.operation.response_mapping) ? target.operation.response_mapping : null, statusMapping: target.mapping.statusMapping } : null);
       const taskKind = remembered?.taskKind ?? ((normalizedMode(context?.mode) || undefined) as ProfileKind | undefined);
       const echoUrls = new Set([...(remembered?.echoUrls ?? []), ...requestEchoUrls(context?.parameters)]);
       return { outputs: readMaterializationOutputs(input.raw, query, taskKind ? expectedMediaKind(billingKindForTaskKind(taskKind)) : null, echoUrls), raw: input.raw };

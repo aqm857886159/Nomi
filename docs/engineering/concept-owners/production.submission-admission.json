@@ -38,6 +38,10 @@
     {
       "path": "electron/shared/productionSubmissionActions.ts",
       "symbol": "submissionActions"
+    },
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "createSubmissionOutbox"
     }
   ],
   "forbidden_derivations": [],

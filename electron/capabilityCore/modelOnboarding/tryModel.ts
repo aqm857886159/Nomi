@@ -266,7 +266,14 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
     const polled = deps.fetchTaskResult
       ? await pollTaskToTerminal({
           initial: result,
-          fetch: (payload) => { queries += 1; return deps.fetchTaskResult!(payload); },
+          fetch: async (payload) => {
+            queries += 1;
+            if (!receipt.acceptance) return deps.fetchTaskResult!(payload);
+            const { recoverAcceptedTask } = await import("../../tasks/acceptedTaskResult");
+            return { vendor: vendorKey, result: await recoverAcceptedTask(receipt.acceptance, {
+              kind: taskKind as ProfileKind, prompt, extras: { ...receipt.request?.params, modelKey },
+            }) };
+          },
           vendor: vendorKey,
           taskKind,
           prompt,
