@@ -3,7 +3,7 @@
 // 出高清没成时下面多一行原因。高清版、普通视频、老项目节点读不出样片事实 → 这一行不存在。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertCircle, IconClock, IconCoin } from '../../../../vendor/tablerIcons'
+import { IconAlertCircle, IconClock } from '../../../../vendor/tablerIcons'
 import { ICON_TIERS } from '../../../../design'
 import { TEXT_BUTTON_PRESS } from '../../../../design/motion'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../design/tooltip'
@@ -15,6 +15,7 @@ import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { sampleExpiry, sampleRowOf, type SampleExpiry, type SampleFacts, type SampleRowFacts } from '../../model/sampleFacts'
 import { confirmAndRunNode } from '../../runner/generationRunController'
 import { useSampleFinalCost, useSendCost, type SendCost } from '../../spend/useSendCost'
+import { SendCostAmount } from '../../spend/SendCostAmount'
 import { useComposerGraph } from '../composerGraphSnapshot'
 import { startGenerationFromComposer } from '../composerRun'
 import { NODE_BELOW_ROW_GAP } from '../nodeSizing'
@@ -178,7 +179,7 @@ function RowButton({ label, ariaLabel, cost, disabled, onClick, ...attrs }: {
       {label}
       {cost.credits !== undefined ? (
         <span data-sample-cost="credits" data-sample-cost-unit={cost.unit ?? 'credits'} className="inline-flex items-center gap-[3px] tabular-nums text-nomi-ink-60">
-          {(cost.unit ?? 'credits') === 'credits' ? <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden /> : null}{cost.credits}
+          <SendCostAmount text={cost.credits} unit={cost.unit} />
         </span>
       ) : null}
     </button>

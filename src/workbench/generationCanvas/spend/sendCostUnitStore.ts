@@ -51,7 +51,8 @@ export function subscribeSendCostUnit(listener: () => void): () => void {
 
 /** Shared user display unit for the send-button estimate (credits / CNY / USD). */
 export function useSendCostUnit(): readonly [SendCostUnit, (unit: SendCostUnit) => void] {
-  const unit = React.useSyncExternalStore<SendCostUnit>(subscribeSendCostUnit, getSendCostUnit, () => 'credits')
+  // 第三参同样是 getSendCostUnit：本应用没有服务端渲染 / 注水，静态渲染（renderToStaticMarkup）也按这份偏好此刻的值出字。
+  const unit = React.useSyncExternalStore<SendCostUnit>(subscribeSendCostUnit, getSendCostUnit, getSendCostUnit)
   return [unit, setSendCostUnit] as const
 }
 

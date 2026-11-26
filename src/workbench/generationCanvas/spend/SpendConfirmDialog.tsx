@@ -2,9 +2,10 @@ import React, { type JSX, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
-import { DecisionBar, DesignModal, ICON_TIERS, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
+import { DecisionBar, DesignModal, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
+import { SendCostAmount } from './SendCostAmount'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
 import { AnchorCheckpointCard } from './AnchorCheckpointCard'
 import type { MultiShotContractProjection } from './productionContractView'
@@ -271,7 +272,7 @@ export function SpendConfirmDialog() {
               {pending.confirmLabel || t('generationCommon.spend.confirm')}
               <span aria-hidden>·</span>
               <span data-spend-confirm-credits="" className="inline-flex items-center gap-0.5 tabular-nums">
-                {(pending.confirmCostUnit ?? 'credits') === 'credits' ? <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden /> : null}{pending.confirmCredits}
+                <SendCostAmount text={pending.confirmCredits} unit={pending.confirmCostUnit} />
               </span>
             </span>
           )
