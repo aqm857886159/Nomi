@@ -100,8 +100,8 @@ describe('还剩多久（C-D3）', () => {
     expect(at(1)).toEqual({ kind: 'minutes', count: 1, warning: true })
   })
   it('不到 2 小时换提醒色；到点就是已过期；档案没写有效期 = 不显示剩余（C-D4）', () => {
-    expect(at(2 * HOUR).warning).toBe(false)
-    expect(at(2 * HOUR - 1).warning).toBe(true)
+    expect(at(2 * HOUR)?.warning).toBe(false)
+    expect(at(2 * HOUR - 1)?.warning).toBe(true)
     expect(at(0)).toEqual({ kind: 'expired', warning: false })
     expect(sampleExpiry(T0, undefined, T0)).toBeNull()
   })

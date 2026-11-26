@@ -38,6 +38,9 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
 import { NodeGenerationStatus } from './NodeGenerationStatus'
+import { NodeSampleRow } from './sampleRow/NodeSampleRow'
+import { sampleRowOwnsProgress } from '../model/sampleFacts'
+import { NodeBelowRowSpace } from './nodeOutsideRows'
 import { ProductionShotOverlays } from './ProductionShotOverlays'
 import { selectCanvasNodeById, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
 import { useHasNodeAttachedPanel } from './nodeAttachedPanel'
@@ -185,6 +188,8 @@ function BaseGenerationNodeImpl({
   const attachedPanelOpen = useHasNodeAttachedPanel(node.id) // 贴着本节点的面板（剪辑面板……）开着时生成面板收起，规矩在 nodeAttachedPanel
   const composerWanted = selected && !isMultiSelectActive && !readOnly && !versionGridOpen && !attachedPanelOpen && nodeHasGenerationComposer(node.kind)
   const composerMounted = React.useDeferredValue(composerWanted)
+  // 节点下方那一行（样片行）占多高：只在要挂生成框时量（浮框接在它下面），别的时候不为它重渲。
+  const [belowRowSpace, setBelowRowSpace] = React.useState(0)
   // 被别的节点铺开的版本宫格压住时，标题先藏起来（不然会从卡片缝里漏出来，读着像哪张版本卡的标题）。选中的、自己铺开的在上面，不藏。
   const labelCovered = useLabelCoveredByVersionGrid(node.id, { x: node.position.x, y: node.position.y, width: visualSize.width, height: visualSize.height }, !selected && !node.resultStackOpen)
 
@@ -281,7 +286,8 @@ function BaseGenerationNodeImpl({
         {/* 2026-08-04 撤离卡片右上两颗常驻按钮（放大＝浮条「全屏」去重；生成记录迁进浮动工具栏，门是 selected 非 hover）——动作不压内容（§1.5）。 */}
       </NodeLabelRow>
       <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
-        <NodeGenerationStatus node={node} summaryInCard />
+        {/* 出高清在路上：样片照常能看能播，状态只在节点下方那一行写「高清生成中」。 */}
+        {sampleRowOwnsProgress(node) ? null : <NodeGenerationStatus node={node} summaryInCard />}
       </div>
 
       <ProvenancePanel node={node} open={provenanceOpen} onClose={() => setProvenanceOpen(false)} />
@@ -392,6 +398,10 @@ function BaseGenerationNodeImpl({
         ) : null}
       </div>
       <ImageCropGridActionBar editing={imageEditing} />
+      {/* 节点下方那一行（板 sample.below-row）：只有当前这一版是样片时才有；高清版、普通视频、老项目节点没有。 */}
+      {!isCardKind && !isTextKind ? (
+        <NodeSampleRow node={node} onFeedback={reportFeedback} readOnly={readOnly} onSpace={composerWanted ? setBelowRowSpace : undefined} />
+      ) : null}
       {showVersionCards ? (
         <NodeVersionCardsHost onFeedback={reportFeedback} node={node} readOnly={readOnly} nodeSize={visualSize} entryHidden={imageEditing.editGrid !== null} />
       ) : null}
@@ -409,7 +419,9 @@ function BaseGenerationNodeImpl({
           ① 只读时挂上去会多浮出一张「只读画布」提示卡，那是一张没出过样张的新 UI；
           ② 藏不等于卸载：宫格铺开时浮框的编辑器、参考区订阅都还在跑，不挂才是不跑。 */}
       {composerWanted && composerMounted ? (
-        <NodeGenerationComposer onFeedback={reportFeedback} node={node} visualSize={visualSize} readOnly={readOnly} />
+        <NodeBelowRowSpace.Provider value={belowRowSpace}>
+          <NodeGenerationComposer onFeedback={reportFeedback} node={node} visualSize={visualSize} readOnly={readOnly} />
+        </NodeBelowRowSpace.Provider>
       ) : null}
       {selected && !readOnly && !flowManagedLayout
         ? RESIZE_DIRECTIONS.map((direction) => (

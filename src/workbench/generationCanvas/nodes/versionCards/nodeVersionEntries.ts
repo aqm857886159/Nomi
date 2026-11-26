@@ -4,6 +4,7 @@ import { listNodeResultVersions, resultIdentity } from '../../model/nodeResultLi
 import { isCardRenderKind, resolveNodeRenderKind } from '../resolveRenderKind'
 import type { VersionCardEntry } from './NodeVersionCards'
 import { canvasImageSourceOf, canvasVideoPosterOf } from '../canvasImageSource'
+import { isSampleFinalResult } from '../../model/sampleFacts'
 
 /**
  * 这个节点有没有版本卡片：图 / 视频结果、可视的版本 ≥ 2 才有（1 版没有角标，也就没有入口）。
@@ -24,5 +25,6 @@ export function nodeVersionEntries(node: GenerationCanvasNode): VersionCardEntry
     // 卡上只挂画布预览：图片走 canvasImageSource（原图只经被计数的缺失分支），视频只认独立封面。
     previewUrl: (entry.type === 'video' ? canvasVideoPosterOf(entry) : canvasImageSourceOf(entry)) ?? '',
     ...(entry.url ? { url: entry.url } : {}),
+    ...(isSampleFinalResult(entry) ? { sampleFinal: true as const } : {}),
   }))
 }

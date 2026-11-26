@@ -884,6 +884,8 @@ export const zhGenerationCommon = {
   },
   // 样片（先出 480p 样片、满意再出高清）。板 docs/design/boards/2026-11-26-sample-mode/；按钮字 ≤4 字，「高清生成中」是状态字。
   sample: {
+    // 档案没写有效期（C-D4）：只说是样片，不说剩多久。
+    badge: '样片',
     expiry: {
       days_one: '样片 · 剩 {{count}} 天',
       days_other: '样片 · 剩 {{count}} 天',
@@ -2694,6 +2696,7 @@ export const enGenerationCommon = {
     deleteFailed: 'Delete failed',
   },
   sample: {
+    badge: 'Draft',
     expiry: {
       days_one: 'Draft · {{count}} day left',
       days_other: 'Draft · {{count}} days left',

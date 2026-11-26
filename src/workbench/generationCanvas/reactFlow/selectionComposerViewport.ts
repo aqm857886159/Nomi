@@ -37,8 +37,14 @@ export function selectedEditor(host: HTMLElement, node: GenerationCanvasNode | u
     toolbarHeight: toolbar ? (toolbar.offsetTop < 0 ? toolbar.offsetHeight : 0) : initialAbove.toolbarHeight,
   }
   return { node: { ...node.position, ...size }, above, composer: {
-    width: measured?.width || placement.width, height: measured?.height || footprint.height, initialHeight: footprint.height, gap: footprint.gap,
+    width: measured?.width || placement.width, height: measured?.height || footprint.height, initialHeight: footprint.height, gap: footprint.gap + belowRowSpace(card, size.height),
   } }
+}
+
+/** 节点下方那一行（样片行）占的画布高度（含缝）：读同一行的 DOM，offsetTop / offsetHeight 不受画布缩放影响。没有这一行 = 0。 */
+function belowRowSpace(card: Element | null | undefined, nodeHeight: number): number {
+  const row = card?.querySelector<HTMLElement>('[data-sample-row]')
+  return row ? Math.max(0, row.offsetTop + row.offsetHeight - nodeHeight) : 0
 }
 
 /** Screen-pixel union at the proposed zoom, before viewport translation. */
