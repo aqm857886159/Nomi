@@ -49,6 +49,23 @@ const origin = 'http://127.0.0.1:' + server.address().port
 const { buildWorld } = requireTs('../world/index.ts', import.meta.url)
 fs.mkdirSync(output, { recursive: true })
 
+// 期望字号 = 字号令牌类名的计算值（页面里放一个探针量出来），断言走 Playwright 的 toHaveCSS；每个匹配到的元素都量，匹配不到算失败。
+async function expectFontSizes(win, rows) {
+  for (const [locator, tokenClass, label] of rows) {
+    const px = await win.evaluate(cls => {
+      const probe = document.createElement('span')
+      probe.className = cls
+      document.body.appendChild(probe)
+      const size = getComputedStyle(probe).fontSize
+      probe.remove()
+      return size
+    }, tokenClass)
+    const count = await locator.count()
+    assert(count > 0, 'no element measured for ' + label)
+    for (let i = 0; i < count; i++) await expect(locator.nth(i), label + ' · ' + tokenClass).toHaveCSS('font-size', px)
+  }
+}
+
 async function shot(win, name) {
   const file = path.join(output, name + '.png')
   await screenshotSettled(win, { path: file })
@@ -192,6 +209,28 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       await expect(assisted.locator('summary'), 'board:ModelSurfaces/settings.ai-onboard-row').toBeVisible()
       await assisted.locator('summary').click()
       await expect(assisted.getByText(uiText(locale, 'onboardingProviders.assistedOnboarding.copy'), { exact: true })).toBeVisible()
+      // 展开态里状态行与「复制指引」之间必须有间距，且和分段控件到状态行的节奏一致（<details> 里外层 gap 不作用于展开内容，曾为 0）。
+      const rhythm = await assisted.evaluate(el => {
+        const body = el.querySelector('[data-assisted-onboarding-body]')
+        const kids = [...body.children]
+        const copy = el.querySelector('[data-assisted-onboarding-copy]')
+        const at = kids.indexOf(copy)
+        const gap = (x, y) => y.getBoundingClientRect().top - x.getBoundingClientRect().bottom
+        return { statusToCopy: gap(kids[at - 1], copy), segmentedToStatus: gap(kids[at - 2], kids[at - 1]), count: at }
+      })
+      assert.equal(rhythm.count, 2, 'segmented control and status line precede the copy button')
+      assert(rhythm.statusToCopy > 0, 'status line and copy button must not touch: ' + rhythm.statusToCopy)
+      assert.equal(rhythm.statusToCopy, rhythm.segmentedToStatus, 'status-to-copy gap follows the card rhythm')
+      // 板上卡内块间距是 .g12（12px）；展开态板上没画，取同卡间距令牌 3（探针 w-3 的计算宽度），不写字面 px。
+      const space3 = await win.evaluate(() => {
+        const probe = document.createElement('span')
+        probe.className = 'block w-3'
+        document.body.appendChild(probe)
+        const width = probe.getBoundingClientRect().width
+        probe.remove()
+        return width
+      })
+      assert.equal(rhythm.statusToCopy, space3, 'status-to-copy gap equals the board g12 spacing token')
       await assisted.locator('summary').click()
       await loc('[data-model-home-action="other-ways"]').click()
       await checkNames(win)
@@ -254,6 +293,22 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       await expect(account, 'board:ModelSurfaces/settings.account-card').toContainText(labelFor('credits', { amount: 52.3 }))
       probes.account = await proveProbe(account, 'The connected profile shows the APIMart account card')
       await expect(account).toContainText(labelFor('unlimited'))
+      // 这一屏所有带文字的元素量一遍字号（板：.cap 12 / .bs 13 / .b 14 / .sec-h 13，大数字板 18 → title 16，页头标题板 15 → body 14，
+      // 见 D-1126-1665-type-scale）。期望值是字号令牌的计算值（探针），不写字面 px。
+      await expectFontSizes(win, [
+        [loc('[data-model-settings-page="home"] > header h2'), 'text-body', 'page title (board 15, off the type scale → body like sibling headers)'],
+        [loc('[data-model-settings-page="home"] > header p'), 'text-caption', 'page subtitle (board .cap 12)'],
+        [account.locator('header strong'), 'text-body', 'card name (board .b 14)'],
+        [account.locator('[data-model-key-storage]'), 'text-caption', 'key line (board .cap 12)'],
+        [account.locator('dl dt'), 'text-caption', 'stat labels (board .cap 12)'],
+        [account.locator('dl dd'), 'text-caption', 'stat secondary rows (board .cap 12)'],
+        [account.locator('dl strong'), 'text-title', 'stat numbers (board 18, off the type scale → title 16)'],
+        [loc('[data-model-settings-page="home"] h3'), 'text-body-sm', 'section heading (board .sec-h 13)'],
+        [loc('[data-model-home-assisted-onboarding] summary .min-w-0 > div:first-child'), 'text-body-sm', 'AI row title (board .bs 13)'],
+        [loc('[data-model-home-assisted-onboarding] summary .min-w-0 > div:last-child'), 'text-caption', 'AI row subtitle (board .cap 12)'],
+        [loc('[data-model-home-action="other-ways"] strong'), 'text-body-sm', 'other ways title (board .bs 13)'],
+        [loc('[data-model-home-action="other-ways"] .min-w-0 > span'), 'text-caption', 'other ways subtitle (board .cap 12)'],
+      ])
       await expect(account).toContainText(labelFor('credits', { amount: 19.6 }))
       await expect(account.getByRole('link')).toHaveAttribute('href', 'https://apimart.ai/billing')
       await expect(loc('[data-model-settings-page="home"] header').first(), 'board:ModelSurfaces/settings.header').toContainText(zh ? /图片 \d+/ : /Image \d+/)

@@ -162,6 +162,11 @@
       "id": "D-account-default",
       "text": "菜单里的更换 Key 留到下一轮。",
       "source": "协调交接 ★46 的默认项。"
+    },
+    {
+      "id": "D-1126-1665-type-scale",
+      "text": "板上字号表外的两处取最近一档令牌：账户卡三个大数字板 18px → title 16px；页头标题「模型」板 15px → body 14px（和同对话框里其它页头一致）。表内的 9 处（页头副标题、卡名、Key 行、三格标签、「接别家的模型」、AI 行标题和副标题、「其他接入方式」标题和副标题）照板，只换令牌类名。走查 tests/ux/t6a-model-settings.walk.mjs 用 toHaveCSS 逐处量。",
+      "source": "2026-11-26 协调裁定 D-1126-1665-type-scale / D-1126-1665-measure-all（用户选「甲：先量全再收」）。方向检查 docs/plan/2026-11-26-direction-check-model-settings-surface.md。"
     }
   ],
   "constraints": [

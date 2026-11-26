@@ -104,7 +104,7 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
   return <div className="min-h-0 overflow-y-auto" data-model-settings-page="home">
     <header className="border-b border-nomi-line px-4 py-2.5 pr-14">
       <h2 className="text-body font-semibold">{t('onboardingProviders.drawer.home.title')}</h2>
-      {loaded && !loadError && <p className="text-micro text-nomi-ink-60">{subtitle}</p>}
+      {loaded && !loadError && <p className="text-caption text-nomi-ink-60">{subtitle}</p>}
     </header>
     <div className="grid gap-3 p-4">
       <CatalogStatusNotices readOnly={readOnly} loadError={loadError} onRetry={onReload} />
@@ -146,12 +146,12 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
             </section>
           </>}
           {taskCount > 0 && <section data-model-home-task-strip>{taskContent}</section>}
-          <h3 className="text-caption font-semibold">{t('settings.modelsHome.others')}</h3>
+          <h3 className="text-body-sm font-semibold">{t('settings.modelsHome.others')}</h3>
           <AiAssistedOnboardingSection connections={connections} runs={adapterRuns} />
           <button type="button" data-model-home-action="other-ways" aria-label={t('settings.modelsHome.ways')}
             className="flex items-center gap-3 rounded-nomi-sm border border-nomi-line p-3 text-left hover:bg-nomi-ink-05" onClick={onWays}>
-            <IconServerBolt size={18} /><span className="min-w-0 flex-1"><strong className="block text-caption">{t('settings.modelsHome.waysAction')}</strong>
-              <span className="text-micro text-nomi-ink-60">{t('settings.modelsHome.waysHint')}</span></span><IconChevronRight size={14} />
+            <IconServerBolt size={18} /><span className="min-w-0 flex-1"><strong className="block text-body-sm">{t('settings.modelsHome.waysAction')}</strong>
+              <span className="text-caption text-nomi-ink-60">{t('settings.modelsHome.waysHint')}</span></span><IconChevronRight size={14} />
           </button>
         </>}
     </div>

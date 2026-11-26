@@ -98,7 +98,7 @@ export function AiAssistedOnboardingCard({
     <details open={progress ? true : undefined}
       data-model-home-assisted-onboarding={host}
       className={cn(
-        'group flex flex-col gap-3 rounded-nomi-sm border px-3 py-2',
+        'group rounded-nomi-sm border px-3 py-2',
         firstSeen ? 'border-nomi-line' : 'border-nomi-line-soft',
       )}
     >
@@ -107,16 +107,18 @@ export function AiAssistedOnboardingCard({
           <IconRobot size={16} stroke={1.7} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-caption font-semibold text-nomi-ink">
+          <div className="text-body-sm font-semibold text-nomi-ink">
             {t('onboardingProviders.assistedOnboarding.title')}
           </div>
-          <div className="mt-0.5 text-micro leading-snug text-nomi-ink-40">
+          <div className="mt-0.5 text-caption leading-snug text-nomi-ink-40">
             {t('onboardingProviders.assistedOnboarding.subtitle')}
           </div>
         </div>
         <IconChevronRight size={14} className="text-nomi-ink-40 transition-transform group-open:rotate-90" aria-hidden="true" />
       </summary>
 
+      {/* <details> 展开后内容进的是浏览器内置槽，外层 gap 不再作用到它们之间——间距由这一层自己带。 */}
+      <div data-assisted-onboarding-body className="mt-3 flex flex-col gap-3">
       {progress ? (
         <AssistedIntegrationProgress
           view={progress.view}
@@ -276,6 +278,7 @@ export function AiAssistedOnboardingCard({
           ) : null}
         </>
       )}
+      </div>
     </details>
   )
 }

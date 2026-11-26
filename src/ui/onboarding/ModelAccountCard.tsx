@@ -43,10 +43,10 @@ export function ModelAccountCard({ vendor, name, onAddress, onManage, onDisconne
   return <section data-model-account={vendor} className="rounded-nomi-sm border border-nomi-line px-3 py-2.5">
     <header className="flex items-center gap-2 border-b border-nomi-line-soft pb-2">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2"><strong className="truncate text-body-sm">{translateModelDisplayText(name)}</strong>
+        <div className="flex items-center gap-2"><strong className="truncate text-body">{translateModelDisplayText(name)}</strong>
           <span className="rounded-pill bg-workbench-success-soft px-1.5 text-micro text-workbench-success-ink">{t('settings.modelsHome.connected')}</span></div>
         {/* The card only renders for a key the OS secure storage decrypted (onboardingDrawerConnections), so the storage line is always true here. */}
-        <div data-model-key-storage className="text-micro text-nomi-ink-40">{balance?.keySuffix && <><span className="font-nomi-mono">••••{balance.keySuffix}</span> · </>}{t('settings.modelsHome.keychain')}</div>
+        <div data-model-key-storage className="text-caption text-nomi-ink-40">{balance?.keySuffix && <><span className="font-nomi-mono">••••{balance.keySuffix}</span> · </>}{t('settings.modelsHome.keychain')}</div>
       </div>
       <WorkbenchIconButton size="sm" icon={<IconRefresh />} label={t('settings.modelsHome.refresh')} disabled={loading} onClick={reload} />
       <WorkbenchMenu align="end" escapeLayer="menu" trigger={<WorkbenchIconButton size="sm" icon={<IconDots />} label={t('settings.modelsHome.more')} />}
@@ -56,7 +56,7 @@ export function ModelAccountCard({ vendor, name, onAddress, onManage, onDisconne
           { id: 'disconnect', label: t('settings.modelsHome.disconnect'), onSelect: onDisconnect, danger: true, disabled: readOnly },
         ]} />
     </header>
-    <dl className="mt-2 grid grid-cols-[auto_auto_auto] divide-x divide-nomi-line-soft [&>div:not(:first-child)]:pl-3 [&>div:not(:last-child)]:pr-3 max-sm:[&>div:not(:first-child)]:pl-2 max-sm:[&>div:not(:last-child)]:pr-2 text-micro text-nomi-ink-60 [&_dd]:whitespace-nowrap [&_strong]:block [&_strong]:text-body-sm [&_strong]:text-nomi-ink">
+    <dl className="mt-2 grid grid-cols-[auto_auto_auto] divide-x divide-nomi-line-soft [&>div:not(:first-child)]:pl-3 [&>div:not(:last-child)]:pr-3 max-sm:[&>div:not(:first-child)]:pl-2 max-sm:[&>div:not(:last-child)]:pr-2 text-caption text-nomi-ink-60 [&_dd]:whitespace-nowrap [&_strong]:block [&_strong]:text-title [&_strong]:font-semibold [&_strong]:text-nomi-ink">
       <div><dt>{t('settings.modelsHome.balance')}</dt><dd><strong>{balance?.accountCredits != null ? credits(balance.accountCredits) : unknown}</strong>
         {balance?.accountStaleSince && stale(balance.accountStaleSince)}
         {!loading && (balance?.accountCredits == null || balance.accountStaleSince) ? retry : <a className={link} href="https://apimart.ai/billing" target="_blank" rel="noopener noreferrer">{t('settings.modelsHome.topup')} <IconExternalLink size={11} /></a>}</dd></div>
