@@ -25,5 +25,5 @@
     ".github/workflows/quality-gate.yml"
   ],
   "since": "2026-11-27",
-  "notes": "GitHub 托管 Ubuntu 机器在 Playwright 更新 apt 索引之前隔离镜像附带的第三方源。"
+  "notes": "GitHub 托管 Ubuntu 在更新 apt 索引前仅按条目 URI 判定官方源，文件名只区分格式。主列表及 .list 分片逐行取 URI；DEB822 每段至少有一个 URI 且全部为官方才保留。"
 }

@@ -3,8 +3,8 @@
   "id": "2026-11-27-ci-apt-third-party-source",
   "problem_type": "CI 系统依赖安装与无关软件仓库的可用性耦合",
   "symptom": "运行 45902550876 的 E2E 分片 4 和 45903980638 的分片 2 在浏览器安装前失败。",
-  "direct_cause": "运行 45902550876 在 apt-get update 收到 Microsoft 源的 403 与签名错误。运行 45903980638 下载 Microsoft 索引成功，只见该源，随后 apt-get install 找不到多个字体包。两次 apt 均退出 100。",
-  "class_root": "共享安装步骤没有限定软件源范围，安装 Ubuntu 提供的库要求镜像上的全部源都在线。",
+  "direct_cause": "运行 45902550876 在 apt-get update 收到 Microsoft 源的 403 与签名错误。运行 45903980638 下载 Microsoft 索引成功，只见该源，随后 apt-get install 找不到多个字体包。两次 apt 均退出 100。 第 1 轮按分片文件名筛选，把 ubuntu.list 中的官方源移走，同时放过命名为 ubuntu.sources 的第三方源。",
+  "class_root": "安装器缺少适用于所有 apt 条目的官方来源判据；文件位置或名称不能说明 apt 将访问哪些 URI。",
   "affected_population": [
     "使用 GitHub 托管 Ubuntu 镜像安装 Playwright Chromium 的工作流和分片"
   ],
@@ -32,10 +32,17 @@
       "url": "https://github.com/actions/runner-images/blob/main/images/ubuntu/scripts/build/configure-apt-sources.sh",
       "checked_at": "2026-11-27",
       "purpose": "核实两版官方源文件及 mirror+file URI。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://manpages.debian.org/trixie/apt/sources.list.5.en.html",
+      "checked_at": "2026-11-27",
+      "purpose": "核实传统格式的选项位置，以及 DEB822 段落、注释和多值字段的边界。"
     }
   ],
   "invariants": [
-    "镜像预装的独立第三方源离线时仍能从官方源安装库；Ubuntu 的镜像列表、套件、签名设置均可继续使用。"
+    "镜像预装的独立第三方源离线时仍能从官方源安装库；Ubuntu 的镜像列表、套件、签名设置均可继续使用。",
+    "官方来源只由条目 URI 决定。更改分片名不改变归属；DEB822 的 URIs 字段至少含一个 URI 且全为官方才启用整段。"
   ],
   "doors": [
     {
@@ -64,7 +71,7 @@
     "after": 4,
     "why_not": "Quality Gate、夜间走查、发布候选和手动全体验各有独立触发时机，均经同一个安装脚本。"
   },
-  "generality_proof": "所有 Linux 调用都在同一安装器处理；按 runner 发行版布局保留官方源并检查传统主列表的 URI，供应商数量、名称和错误码无关。",
+  "generality_proof": "主列表与 .list 分片逐行取选项后的 URI，.sources 分片收集段落内的单行和折行 URI。两种格式共用官方 URI 谓词，适用于所有分片名。",
   "shared_boundaries": [
     {
       "path": "scripts/ci-install-chromium.sh",
@@ -110,10 +117,10 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "scripts/ci-install-chromium.sh",
-    "invariant": "托管 runner 的 apt 只加载 ubuntu.sources 及主列表中指向 Ubuntu 的条目。",
+    "invariant": "托管 runner 的 apt 只从 Ubuntu/Canonical 的 HTTP(S) 域名及指定的本机镜像清单获取索引。",
     "failure_mode": "隔离写入出错即终止；真实 apt 或安装失败按原退出码终止并保留备份。",
     "exception_policy": "none",
-    "strategy": "将第三方源备份到 apt 搜索目录之外；保留官方定义和签名配置，再执行一次 install-deps。",
+    "strategy": "按条目 URI 分类；无官方来源的分片整文件移走，混合文件先备份原件再按行或整段写回，全官方文件保持原样。",
     "artifacts": [
       "scripts/ci-install-chromium.sh"
     ]
@@ -140,7 +147,7 @@
   },
   "migration": "每个作业使用独立临时镜像，下一次作业重新读取当时的镜像配置。",
   "residual_risks": [
-    "官方镜像自身离线仍可能导致失败。runner 改变官方源文件位置时须复核布局。",
+    "官方镜像自身离线仍可能导致失败。若托管镜像采用新的官方域名或镜像清单 URI，须复核判据。",
     "运行 45903980638 缺少官方包索引的成因未证实；本修复保留镜像现有官方源，未覆盖镜像本身缺失官方源的情况。"
   ],
   "invariant_owner_layer": {

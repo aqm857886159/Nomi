@@ -14,37 +14,84 @@ set -euo pipefail
 attempts=3
 per_attempt_seconds=240
 
-# runner-images keeps the distribution's DEB822 entries in ubuntu.sources.
-# On Jammy the main list can contain both archive entries and vendor entries.
+# The extension selects the apt syntax. Only entry URIs determine provenance.
 isolate_ubuntu_apt_sources() {
-  local apt_dir=${1:-/etc/apt} backup=$2 part elevate=
+  local apt_dir=${1:-/etc/apt} backup=$2 part original filtered counts kept removed elevate=
   local main="$apt_dir/sources.list"
   if [[ ! -w "$apt_dir" ]]; then elevate=sudo; fi
   mkdir -p "$backup/sources.list.d"
-  for part in "$apt_dir"/sources.list.d/*.{list,sources}; do
-    [[ -f "$part" && ${part##*/} != ubuntu.sources ]] || continue
-    $elevate mv -- "$part" "$backup/sources.list.d/"
+  filtered=$(mktemp "$backup/filtered.XXXXXX")
+  for part in "$main" "$apt_dir"/sources.list.d/*.{list,sources}; do
+    [[ -f "$part" ]] || continue
+    : > "$filtered"
+    counts=$(LC_ALL=C awk -v format="${part##*.}" -v out="$filtered" '
+      function official(uri) {
+        return (tolower(uri) ~ /^https?:\/\/([a-z0-9-]+\.)*(ubuntu|canonical)\.com(:[0-9]+)?(\/|$)/ ||
+                uri ~ /^(mirror\+)?file:\/etc\/apt\/apt-mirrors\.txt$/)
+      }
+      function finish_stanza() {
+        if (stanza == "") return
+        if (has_fields && (!has_uri || bad_uri)) {
+          removed = 1
+        } else {
+          printf "%s%s", separator, stanza > out
+          separator = "\n"
+          if (has_uri) kept = 1
+        }
+        stanza = ""
+        has_fields = has_uri = bad_uri = in_uris = 0
+      }
+      format == "list" {
+        if ($0 ~ /^[[:space:]]*(#|$)/) {
+          print > out
+          next
+        }
+        if ($1 == "deb" || $1 == "deb-src") {
+          entry = $0
+          sub(/#.*/, "", entry)
+          sub(/^[[:space:]]*[^[:space:]]+[[:space:]]+/, "", entry)
+          sub(/^\[[^]]*\][[:space:]]+/, "", entry)
+          split(entry, fields, /[[:space:]]+/)
+          if (official(fields[1])) {
+            print > out
+            kept = 1
+            next
+          }
+        }
+        removed = 1
+        next
+      }
+      /^[[:space:]]*$/ { finish_stanza(); next }
+      {
+        stanza = stanza $0 "\n"
+        if ($0 ~ /^#/) next
+        has_fields = 1
+        value = $0
+        if ($0 !~ /^[ \t]/) {
+          in_uris = (tolower($0) ~ /^uris:/)
+          sub(/^[^:]*:/, "", value)
+        }
+        if (in_uris) {
+          n = split(value, fields, /[[:space:]]+/)
+          for (i = 1; i <= n; i++) {
+            if (fields[i] == "") continue
+            has_uri = 1
+            if (!official(fields[i])) bad_uri = 1
+          }
+        }
+      }
+      END { finish_stanza(); print kept+0, removed+0 }
+    ' "$part")
+    read -r kept removed <<< "$counts"
+    original="$backup/${part#"$apt_dir"/}"
+    if [[ "$part" != "$main" && "$kept" == 0 ]]; then
+      $elevate mv -- "$part" "$original"
+    elif [[ "$removed" == 1 ]]; then
+      cp -- "$part" "$original"
+      $elevate install -m 644 "$filtered" "$part"
+    fi
   done
-
-  [[ -f "$main" ]] || return 0
-  # Match the URI field after any [options]. Comments, suites and key paths can
-  # also contain a host name and must never decide which repository is active.
-  awk '
-    $1 == "deb" || $1 == "deb-src" {
-      entry = $0
-      sub(/^[[:space:]]*[^[:space:]]+[[:space:]]+/, "", entry)
-      sub(/^\[[^]]*\][[:space:]]+/, "", entry)
-      split(entry, fields, /[[:space:]]+/)
-      uri = tolower(fields[1])
-      if (uri !~ /^https?:\/\/([a-z0-9-]+\.)*(ubuntu|canonical)\.com(:[0-9]+)?(\/|$)/ &&
-          fields[1] !~ /^(mirror\+)?file:\/etc\/apt\/apt-mirrors\.txt$/) next
-    }
-    { print }
-  ' "$main" > "$backup/official.list"
-  if ! cmp -s "$main" "$backup/official.list"; then
-    cp "$main" "$backup/sources.list"
-    $elevate install -m 644 "$backup/official.list" "$main"
-  fi
+  rm -- "$filtered"
 }
 
 if command -v apt-get >/dev/null 2>&1; then
