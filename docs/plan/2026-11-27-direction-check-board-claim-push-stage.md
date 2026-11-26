@@ -44,7 +44,7 @@
 | 选项 | 做什么 | 代价 | 选了以后同一类还会不会出现、从哪出现 | 风险 | 推荐 |
 |---|---|---|---|---|---|
 | 沿原方向修 | 实现线推送前自己翻 implemented，验收不过再翻回去 | 每条照板实现线都自盖章 | 会，每条照板实现线都会 | 没核过的元素以 implemented 进 main | |
-| 换一种做法 | `checkBoardClaim` 收 `stage`：推送档把「还没 implemented」收进提醒，合并档（PR Body 检查、合并前扫描）照旧判红；其余认领错误（不在清单、空认领、板不存在）推送档照旧红 | 推送档少一道红，CI 的 PR Body 检查红到验收线翻状态为止 | 不会：所有判据都按同一个分档口径 | 低：合并前仍判红 | ✅ |
+| 换一种做法 | `checkBoardClaim` 收 `stage`：推送档只把「还在等验收」的 `missing` / `in-progress` 收进提醒，合并档（PR Body 检查、合并前扫描）照旧判红；其余认领错误（不在清单、空认领、板不存在、缺用户原话的 deferred / dropped、非法状态）推送档照旧红 | 推送档少一道红，CI 的 PR Body 检查红到验收线翻状态为止 | 不会：所有判据都按同一个分档口径 | 低：合并前仍判红 | ✅ |
 | 删掉 | 最小能删的单位：删掉推送档的拍板图认领核对，只在合并前扫描查 | 写错元素 id、认领不存在的板要到合并前才发现 | 不会，但早发现的价值丢了 | 中 | |
 
 ### 7. 用户要权衡的核心
@@ -53,5 +53,6 @@
 
 ## 特征测试清单（动结构前先锁住）
 
-- `scripts/check-board-parity.node-test.mjs`「R8 PR 认领的拍板图元素必须有去处」：不传收集器时 missing → 红、不在清单 → 红、implemented → 绿、带原话的 deferred → 绿（现状钉住）；新加「pending 收集器」一条。
-- `scripts/pr-body-criteria.node-test.mjs`「拍板图认领还没 implemented：推送档只提醒，合并档判红」：推送档 ok、合并档红、不传 stage 按合并档、推送档认领不存在的元素照样红。
+- `scripts/check-board-parity.node-test.mjs`「R8 PR 认领的拍板图元素必须有去处」：不传收集器时 missing → 红、不在清单 → 红、implemented → 绿、带原话的 deferred → 绿（现状钉住）；新加「pending 收集器」两条（收 missing / in-progress；缺原话的 deferred、非法状态照样进 errors）。
+- `scripts/pr-body-criteria.node-test.mjs`「拍板图认领还没 implemented：推送档只提醒，合并档判红」：推送档 ok、合并档红、不传 stage 按合并档、推送档认领不存在的元素照样红、推送档缺原话的 deferred 和非法状态照样红。
+- 审查第 1 轮 P2（只放过合法的待验收状态）在第 2 轮提交 `ea25485f2` 收口。
