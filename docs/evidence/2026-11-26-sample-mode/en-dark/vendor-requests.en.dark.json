@@ -1,0 +1,254 @@
+[
+  {
+    "method": "GET",
+    "url": "/models",
+    "body": "",
+    "at": "2026-11-26T18:37:30.173Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/models",
+    "body": "",
+    "at": "2026-11-26T18:37:30.177Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/user/balance",
+    "body": "",
+    "at": "2026-11-26T18:37:33.472Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=kling-3.0-turbo",
+    "body": "",
+    "at": "2026-11-26T18:37:33.571Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:37:34.175Z"
+  },
+  {
+    "method": "POST",
+    "url": "/v1/videos/generations",
+    "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Wide shot, rooftop after rain, she turns to the window\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
+    "at": "2026-11-26T18:37:35.101Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-1",
+    "body": "",
+    "at": "2026-11-26T18:37:38.223Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-1",
+    "body": "",
+    "at": "2026-11-26T18:37:41.530Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-1",
+    "body": "",
+    "at": "2026-11-26T18:37:44.768Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-1",
+    "body": "",
+    "at": "2026-11-26T18:37:48.476Z"
+  },
+  {
+    "method": "GET",
+    "url": "/fixture/video.mp4",
+    "body": "",
+    "at": "2026-11-26T18:37:48.480Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:37:48.767Z"
+  },
+  {
+    "method": "POST",
+    "url": "/v1/videos/generations",
+    "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
+    "at": "2026-11-26T18:37:49.897Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-2",
+    "body": "",
+    "at": "2026-11-26T18:37:53.388Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-2",
+    "body": "",
+    "at": "2026-11-26T18:37:55.760Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-2",
+    "body": "",
+    "at": "2026-11-26T18:37:58.904Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-2",
+    "body": "",
+    "at": "2026-11-26T18:38:02.080Z"
+  },
+  {
+    "method": "GET",
+    "url": "/fixture/video.mp4",
+    "body": "",
+    "at": "2026-11-26T18:38:02.083Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:02.349Z"
+  },
+  {
+    "method": "POST",
+    "url": "/v1/videos/generations",
+    "body": "{\"model\":\"seedance-2.5\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}",
+    "at": "2026-11-26T18:38:05.334Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-3",
+    "body": "",
+    "at": "2026-11-26T18:38:07.871Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-3",
+    "body": "",
+    "at": "2026-11-26T18:38:11.500Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-3",
+    "body": "",
+    "at": "2026-11-26T18:38:15.285Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-3",
+    "body": "",
+    "at": "2026-11-26T18:38:17.937Z"
+  },
+  {
+    "method": "GET",
+    "url": "/fixture/video.mp4",
+    "body": "",
+    "at": "2026-11-26T18:38:17.940Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=kling-3.0-turbo",
+    "body": "",
+    "at": "2026-11-26T18:38:18.860Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:19.447Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:19.745Z"
+  },
+  {
+    "method": "POST",
+    "url": "/v1/videos/generations",
+    "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Close-up, raindrops on the railing\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false}",
+    "at": "2026-11-26T18:38:19.987Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-4",
+    "body": "",
+    "at": "2026-11-26T18:38:22.796Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-4",
+    "body": "",
+    "at": "2026-11-26T18:38:26.092Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-4",
+    "body": "",
+    "at": "2026-11-26T18:38:28.952Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/tasks/mcp-l2-4",
+    "body": "",
+    "at": "2026-11-26T18:38:31.956Z"
+  },
+  {
+    "method": "GET",
+    "url": "/fixture/video.mp4",
+    "body": "",
+    "at": "2026-11-26T18:38:31.960Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:32.239Z"
+  },
+  {
+    "method": "GET",
+    "url": "/v1/user/balance",
+    "body": "",
+    "at": "2026-11-26T18:38:34.789Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:34.891Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:35.413Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:36.187Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:36.690Z"
+  },
+  {
+    "method": "GET",
+    "url": "/api/pricing/model?model=seedance-2.5",
+    "body": "",
+    "at": "2026-11-26T18:38:40.712Z"
+  },
+  {
+    "method": "POST",
+    "url": "/v1/videos/generations",
+    "body": "{\"model\":\"seedance-2.5\",\"prompt\":\"Wide shot, rooftop after rain, she turns to the window\",\"size\":\"16:9\",\"resolution\":\"480p\",\"duration\":5,\"generate_audio\":true,\"return_last_frame\":false,\"watermark\":false,\"output_format\":\"mp4\",\"nsfw_check\":false,\"draft\":true}",
+    "at": "2026-11-26T18:38:41.281Z"
+  }
+]

@@ -1,0 +1,13 @@
+diff --git a/electron/catalog/apimartVideos.ts b/electron/catalog/apimartVideos.ts
+index d1f7274eb..28ced6c51 100644
+--- a/electron/catalog/apimartVideos.ts
++++ b/electron/catalog/apimartVideos.ts
+@@ -95,7 +95,7 @@ const SEEDANCE_2_5_SAMPLE_FINAL_CREATE_OP: HttpOperation = {
+   method: "POST",
+   path: "/v1/videos/generations",
+   headers: CREATE_HEADERS,
+-  body: { model: "{{model.modelKey}}", draft_task_id: "{{request.params.draft_task_id}}", resolution: RESOLUTION },
++  body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", draft_task_id: "{{request.params.draft_task_id}}", resolution: RESOLUTION },
+   response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+   provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+   request_transform: "apimart-canonical-model-id",

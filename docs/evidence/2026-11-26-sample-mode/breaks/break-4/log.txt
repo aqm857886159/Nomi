@@ -1,0 +1,13 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ zh-CN/light menu
+✓ zh-CN/light sample
+✓ zh-CN/light hd
+  [量] 二次出高清标题：{"scrollWidth":281,"clientWidth":281,"dialogWidth":380,"text":"这条样片已经出过 1080p 高清版"} → 放得下
+✓ zh-CN/light second
+✗ zh-CN/light plain
+board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行
+→ 它先是不在，随后在 1500ms 的保持窗口内又冒出来了（count=1）。
+  这正是旧版 expectAbsent 放过去的那一族：toHaveCount(0) 的期望值就是 0，
+  第一次取样撞上「还没挂载」就当场判绿，timeout 一秒都没用上。
+  别把窗口调小来让它变绿——报红的是被测物晚到了，不是这把尺子太严。
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-4

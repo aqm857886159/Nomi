@@ -1,0 +1,89 @@
+{
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/walk-final",
+  "stations": [
+    {
+      "run": "zh-CN-light",
+      "station": "menu",
+      "ok": true,
+      "ms": 1084
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "sample",
+      "ok": true,
+      "ms": 12429
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "hd",
+      "ok": true,
+      "ms": 14108
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "second",
+      "ok": true,
+      "ms": 12909
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "plain",
+      "ok": true,
+      "ms": 16508
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "narrow",
+      "ok": true,
+      "ms": 3180
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "expiry",
+      "ok": true,
+      "ms": 5205
+    },
+    {
+      "run": "en-dark",
+      "station": "menu",
+      "ok": true,
+      "ms": 1074
+    },
+    {
+      "run": "en-dark",
+      "station": "sample",
+      "ok": true,
+      "ms": 15055
+    },
+    {
+      "run": "en-dark",
+      "station": "hd",
+      "ok": true,
+      "ms": 13643
+    },
+    {
+      "run": "en-dark",
+      "station": "second",
+      "ok": true,
+      "ms": 15272
+    },
+    {
+      "run": "en-dark",
+      "station": "plain",
+      "ok": true,
+      "ms": 15516
+    },
+    {
+      "run": "en-dark",
+      "station": "narrow",
+      "ok": true,
+      "ms": 2713
+    },
+    {
+      "run": "en-dark",
+      "station": "expiry",
+      "ok": true,
+      "ms": 5800
+    }
+  ]
+}

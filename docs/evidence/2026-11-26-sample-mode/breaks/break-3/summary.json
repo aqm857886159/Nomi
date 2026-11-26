@@ -1,0 +1,30 @@
+{
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-3",
+  "stations": [
+    {
+      "run": "zh-CN-light",
+      "station": "menu",
+      "ok": true,
+      "ms": 1044
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "sample",
+      "ok": true,
+      "ms": 14489
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "hd",
+      "ok": true,
+      "ms": 15616
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "second",
+      "ok": false,
+      "ms": 5058,
+      "error": "board:SampleMode/sample.confirm-second-hd：第二次先弹确认\n\nexpect(locator).toBeVisible() failed\n\nLocator: locator('[role=\"dialog\"]').filter({ hasText: '这条样片已经出过 1080p 高清版' }).first()\nExpected: visible"
+    }
+  ]
+}

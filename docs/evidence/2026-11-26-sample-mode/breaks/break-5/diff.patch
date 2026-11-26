@@ -1,0 +1,13 @@
+diff --git a/src/workbench/generationCanvas/spend/useSendCost.ts b/src/workbench/generationCanvas/spend/useSendCost.ts
+index f0ba4103d..cb3593f25 100644
+--- a/src/workbench/generationCanvas/spend/useSendCost.ts
++++ b/src/workbench/generationCanvas/spend/useSendCost.ts
+@@ -70,6 +70,8 @@ function useCostOf(preview: NodePricePreview, { idle }: { idle: boolean }): Send
+   if (state.kind === 'unknown') {
+     return {
+       vendorKey: preview.vendorKey,
++      credits: '0',
++      unit,
+       description: sendCostDescription(null, t, i18n.language, unit),
+     }
+   }

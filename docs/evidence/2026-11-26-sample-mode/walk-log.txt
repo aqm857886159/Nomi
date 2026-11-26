@@ -1,0 +1,24 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ zh-CN/light menu
+✓ zh-CN/light sample
+✓ zh-CN/light hd
+  [量] 二次出高清标题：{"scrollWidth":281,"clientWidth":281,"dialogWidth":380,"text":"这条样片已经出过 1080p 高清版"} → 放得下
+✓ zh-CN/light second
+✓ zh-CN/light plain
+  [量] 240 宽：{"card":{"left":281.9470520019531,"right":521.947021484375},"label":{"text":"雨后清晨的海边栈道上少女缓缓转身回望远处灯塔慢推近景特写","truncated":true,"left":331.9470520019531,"right":521.947021484375},"row":{"text":"样片 · 剩 21 小时 出高清","left":281.9470520019531,"right":521.947021484375,"height":28,"clipped":[]}}
+✓ zh-CN/light narrow
+  重拍样片：没问，直接发
+✓ zh-CN/light expiry
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ en/dark menu
+✓ en/dark sample
+✓ en/dark hd
+  [量] 二次出高清标题：{"scrollWidth":310,"clientWidth":281,"dialogWidth":380,"text":"This draft already has a 1080p HD version"} → 被截断
+✓ en/dark second
+✓ en/dark plain
+  [量] 240 宽：{"card":{"left":282.11639404296875,"right":522.1163940429688},"label":{"text":"Rainy dawn on the seaside boardwalk, the girl slowly turns back toward the distant lighthouse","truncated":true,"left":340.48358154296875,"right":522.1163940429688},"row":{"text":"Draft · 21 h left Make HD","left":282.11639404296875,"right":522.1163940429688,"height":28,"clipped":[]}}
+✓ en/dark narrow
+  重拍样片：没问，直接发
+✓ en/dark expiry
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/walk-final
+exit 0

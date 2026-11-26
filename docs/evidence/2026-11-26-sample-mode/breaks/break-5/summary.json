@@ -1,0 +1,18 @@
+{
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-5",
+  "stations": [
+    {
+      "run": "zh-CN-light",
+      "station": "menu",
+      "ok": true,
+      "ms": 1025
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "sample",
+      "ok": false,
+      "ms": 5016,
+      "error": "board:SampleMode/sample.send-price：算不出价不印数\n\nexpect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.generation-canvas-v2-node__composer').last().locator('[data-send-cost]')\nExpected: 0"
+    }
+  ]
+}

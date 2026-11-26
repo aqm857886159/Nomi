@@ -1,0 +1,24 @@
+{
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-2",
+  "stations": [
+    {
+      "run": "zh-CN-light",
+      "station": "menu",
+      "ok": true,
+      "ms": 1051
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "sample",
+      "ok": true,
+      "ms": 13510
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "hd",
+      "ok": false,
+      "ms": 412,
+      "error": "出高清请求体键集合：{\"model\":\"seedance-2.5\",\"prompt\":\"\",\"draft_task_id\":\"mcp-l2-1\",\"resolution\":\"1080p\"}\n+ actual - expected\n\n  [\n    'draft_task_id',\n    'model',"
+    }
+  ]
+}
