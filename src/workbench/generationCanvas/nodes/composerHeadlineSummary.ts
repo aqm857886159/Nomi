@@ -21,7 +21,7 @@ import {
 } from './controls/parameterControlModel'
 import { localizeAutoOption } from './parameterOptionPresentation'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
-import { LAYER_COUNT_KEY, LAYER_SIZE_KEY } from '../../../../electron/shared/modelArchetypes/layerSplit'
+import { LAYER_COUNT_KEY, LAYER_SIZE_KEY } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 
 /**
  * 各执行类的「头两个值」按**控件 key** 挑，不按下标。

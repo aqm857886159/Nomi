@@ -66,7 +66,7 @@
 
 | 概念 | 唯一 owner | 消费者 |
 |---|---|---|
-| 「图层分离」这件能力（方式、层数 / 清晰度 / 识别文字键、线缆发不发得出） | electron/shared/modelArchetypes/layerSplit.ts（`LAYER_SPLIT_MODE_ID`、`layerSplitWireReady`、`requestedLayerCount`）；声明在 seedream55.ts / seedream5Pro.ts 的 `layerSplit` 方式 | 入口可用判断（deriveFromNode）、生成框（composerHeadlineSummary / ParameterControlBody）、发送口拒绝（taskParams.ts）、约价（vendorPriceRequest.ts） |
+| 「图层分离」这件能力（方式、层数 / 清晰度 / 识别文字键、线缆发不发得出） | electron/shared/modelArchetypes/modeForInputs.ts 的图层分离段（`LAYER_SPLIT_MODE_ID`、`layerSplitWireReady`、`requestedLayerCount`；一层的形状 `TaskResultLayer` 在 electron/shared/contracts/taskResultLayer.ts）；声明在 seedream55.ts / seedream5Pro.ts 的 `layerSplit` 方式 | 入口可用判断（deriveFromNode）、生成框（composerHeadlineSummary / ParameterControlBody）、发送口拒绝（taskParams.ts）、约价（vendorPriceRequest.ts） |
 | 请求翻译（层数、识别文字进选项） | electron/catalog/paramTranslate.ts `layerDecompositionOptions` | apimartImages.ts 线缆 op |
 | 「这笔结果是一组图层」的读法 | electron/tasks/taskLayerReading.ts `readTaskLayers` / `layersForLandedResult`（runtime.ts:257 唯一调用） | TaskResult.assets 按下标平行送到渲染层，渲染层只认 `TaskResultLayer` |
 | 图层落成白板 | layerSplitBoard.ts `buildLayerSplitBoard`（landTaskResults.ts 唯一调用） | landTaskResults ← catalogTaskActions.ts、recoverTaskActions.ts（发送与找回同一条落地） |

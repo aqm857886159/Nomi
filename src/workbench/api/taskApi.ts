@@ -8,7 +8,7 @@ import { describeOpaqueFailure } from '../observability/opaqueFailure'
 import { trackNodeSubmit } from '../generationCanvas/runner/nodeSubmitInFlight'
 import { stripVendorErrorMarker } from '../../../electron/shared/generationFailure'
 import type { CanvasResendDecidePayload, CanvasResendDecision } from '../../../electron/shared/canvas/canvasResendDecide'
-import type { TaskResultLayer } from '../../../electron/shared/modelArchetypes/layerSplit'
+import type { TaskResultLayer } from '../../../electron/shared/contracts/taskResultLayer'
 
 export type TaskKind =
   | 'chat'

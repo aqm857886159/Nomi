@@ -128,7 +128,7 @@ export type ArchetypeMode = {
   /**
    * 图层分离方式（一张图 → 底图 + 透明图层，结果落成画板里的一组层）。`maxLayers` 含底图。
    * 有它的方式是**人选的任务**、不是图的摆法：按输入挑方式时绝不自动落到它，人手选了也不因多放一张图就被换走
-   * （modeForInputs）。名字与判据见 modelArchetypes/layerSplit.ts。
+   * （modeForInputs）。名字与判据也在 modelArchetypes/modeForInputs.ts 的图层分离段。
    */
   layerSplit?: { maxLayers: number };
 };

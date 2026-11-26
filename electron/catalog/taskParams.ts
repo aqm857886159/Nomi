@@ -24,7 +24,7 @@ import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "
 import { declarationForMode } from "../shared/generationLowering/declarationForMode";
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
 import { ModeRouteMissingError, modeInputRefusal } from "./modeInputRefusal";
-import { isLayerSplitMode, layerSplitWireReady } from "../shared/modelArchetypes/layerSplit";
+import { isLayerSplitMode, layerSplitWireReady } from "../shared/modelArchetypes/modeForInputs";
 import { desktopT } from "../desktopStrings";
 import { encodeParamsForWire } from "../shared/videoCapabilities/paramValue";
 export { ModeInputMissingError } from "./modeInputRefusal";

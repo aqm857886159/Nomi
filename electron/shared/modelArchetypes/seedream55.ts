@@ -1,6 +1,6 @@
 import type { ModelParameterControl } from "../videoCapabilities/types";
 import type { ModelArchetype } from "./types";
-import { LAYER_COUNT_KEY, LAYER_SIZE_KEY, LAYER_SPLIT_MODE_ID, LAYER_SPLIT_WIRE_KEY, TEXT_RECOGNITION_KEY } from "./layerSplit";
+import { LAYER_COUNT_KEY, LAYER_SIZE_KEY, LAYER_SPLIT_MODE_ID, LAYER_SPLIT_WIRE_KEY, TEXT_RECOGNITION_KEY } from "./modeForInputs";
 
 // Seedream 5.5（APIMart 官方页 docs.apimart.ai/en/api-reference/images/seedream-5-5/generation.md，2026-11-12 核）。
 // 单 model id `seedream-5-5`；文生图与改图同端点（image_urls 有无决定），≤10 张参考图，单图输出（n 必须为 1）。

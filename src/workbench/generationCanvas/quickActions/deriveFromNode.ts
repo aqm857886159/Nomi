@@ -8,8 +8,7 @@ import { findModelOptionByIdentifier } from '../adapters/modelOptionsAdapter'
 import { buildModeSwitchMeta, buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
 import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
 import { readModeChannelBody, type VendorMappingsReader } from '../nodes/controls/useChannelCreateBody'
-import type { Mapping } from '../../../../electron/catalog/types'
-import { layerSplitModeOf, layerSplitWireReady } from '../../../../electron/shared/modelArchetypes/layerSplit'
+import { layerSplitModeOf, layerSplitWireReady } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 import { resolveArchetypeForOption } from '../nodes/nodeModelArchetype'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -137,7 +136,7 @@ export function findUpscaleModelOption(options: readonly ModelOption[]): ModelOp
 
 /**
  * 这个模型能不能做图层分离：档案里有「图层分离」方式，**并且**它所接渠道的线缆真读这个开关（与发送口同一句话，
- * 见 shared/modelArchetypes/layerSplit.ts）。渠道查不到（还没载 / 无 bridge）就当不能——入口点了要花一次钱，
+ * 见 shared/modelArchetypes/modeForInputs.ts 的图层分离段）。渠道查不到（还没载 / 无 bridge）就当不能——入口点了要花一次钱，
  * 宁可说「没有」，也不派生出一个发出去只是普通改图的节点。
  */
 export function canLayerSplit(option: ModelOption, readMappings: VendorMappingsReader): boolean {
@@ -154,7 +153,7 @@ export function canLayerSplit(option: ModelOption, readMappings: VendorMappingsR
 export function layerSplitVendorKeys(readMappings: VendorMappingsReader, vendorKeys: readonly string[]): string[] {
   return vendorKeys.filter((vendorKey) => (readMappings(vendorKey) ?? []).some((mapping) => {
     // 桶里是这家的渠道线缆（Mapping 自带 vendorKey）：身份按 (这家, modelKey) 成对走，不拿裸 modelKey 去问。
-    const { taskKind, modelKey } = (mapping ?? {}) as Partial<Mapping>
+    const { taskKind, modelKey } = (mapping ?? {}) as { taskKind?: unknown; modelKey?: unknown }
     return taskKind === 'image_edit' && typeof modelKey === 'string' && modelKey !== ''
       && canLayerSplit({ value: modelKey, label: modelKey, vendor: vendorKey, modelKey }, readMappings)
   }))

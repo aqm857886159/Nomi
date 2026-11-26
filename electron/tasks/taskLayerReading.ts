@@ -6,7 +6,7 @@
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
 import { mappingCandidates, maybeParseJsonString, pathValues } from "./responseParsing";
 import { retrievalStageError } from "./retrievalStageError";
-import type { TaskResultLayer } from "../shared/modelArchetypes/layerSplit";
+import type { TaskResultLayer } from "../shared/contracts/taskResultLayer";
 
 export type { TaskResultLayer };
 

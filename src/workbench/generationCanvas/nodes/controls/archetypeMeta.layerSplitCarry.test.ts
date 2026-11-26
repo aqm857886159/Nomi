@@ -3,7 +3,7 @@
 // 发出去就是一次付费的普通改图、只回一张图。图层分离只能带到新档案的图层分离方式；新档案没有就不带。
 import { describe, expect, it } from 'vitest'
 import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes/builtInCatalog'
-import { LAYER_SPLIT_MODE_ID } from '../../../../../electron/shared/modelArchetypes/layerSplit'
+import { LAYER_SPLIT_MODE_ID } from '../../../../../electron/shared/modelArchetypes/modeForInputs'
 import { carryHumanModePreference } from './archetypeMeta'
 import { readModePreference } from './modePreference'
 

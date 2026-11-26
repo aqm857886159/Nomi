@@ -2,7 +2,7 @@
 // 都问这一处（设计卡 docs/plan/2026-11-26-layer-split.md；板 2026-11-26-layer-split）。
 // 方式只由 effectiveArchetypeMode 现算（唯一 owner）；这里不另判方式，只把结论收成生成框要用的几件。
 import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
-import { isLayerSplitMode, LAYER_COUNT_KEY } from '../../../../electron/shared/modelArchetypes/layerSplit'
+import { isLayerSplitMode, LAYER_COUNT_KEY } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { collectModeInputs, effectiveArchetypeMode, type ModeGraph } from './controls/archetypeMeta'
 

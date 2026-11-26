@@ -5,7 +5,7 @@
 // 「和底图一样大的整幅透明图」：一层的图和底图一样大就当整幅铺满（缩进框会把整幅压扁），否则缩进框——两种都落对位置，
 // 真形状等付费核对定案（设计卡 ★6）。画布按底图原比例、长边 1280（与新建白板同一个长边），
 // 不贴最近的标准比例——贴了会留白、各层对不齐。图层面板只有「背景」+「底图」+ 各层：不预建空的「图层 1」（C-E3，第一次落笔时才建）。
-import type { TaskResultLayer } from '../../../../../electron/shared/modelArchetypes/layerSplit'
+import type { TaskResultLayer } from '../../../../../electron/shared/contracts/taskResultLayer'
 import { getDefaultLayers, type CanvasAsset, type CanvasDimensions, type LayerItem } from './lib/canvas'
 import { WHITEBOARD_EXPORT_PIXEL_BUDGET } from './whiteboardCanvasExport'
 import { createWhiteboardId, inferWhiteboardAspectRatio } from './whiteboardState'

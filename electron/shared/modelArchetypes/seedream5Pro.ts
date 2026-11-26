@@ -1,7 +1,7 @@
 import type { ModelParameterControl } from "../videoCapabilities/types";
 import type { ModelArchetype } from "./types";
 import { runwayImageParams } from "../imageCapabilities/runwayImageWireFacts";
-import { LAYER_SPLIT_MODE_ID, LAYER_SPLIT_WIRE_KEY } from "./layerSplit";
+import { LAYER_SPLIT_MODE_ID, LAYER_SPLIT_WIRE_KEY } from "./modeForInputs";
 
 // Seedream 5.0 Pro（apimart，字节 Seed 2026-07-08 发布）——照 docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation.md 对账。
 // 与 seedream(4.5) 档案分开建：参数域不同——resolution 仅 1K/1.5K/2K（3K/4K 会 400；1.5K 与 1K 同价、画质更好，文档 2026-11-12 页面新增）、size 8 档 + auto

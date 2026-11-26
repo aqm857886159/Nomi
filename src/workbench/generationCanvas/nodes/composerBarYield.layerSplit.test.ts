@@ -3,7 +3,7 @@
 // 拿档案里真实的控件（seedream55 / seedream5Pro 的图层分离方式）验，不手搓理想控件。
 import { describe, expect, it } from 'vitest'
 import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
-import { layerSplitModeOf } from '../../../../electron/shared/modelArchetypes/layerSplit'
+import { layerSplitModeOf } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 import { buildDynamicControls } from './controls/parameterControlModel'
 import { layerSplitHeadlineParts, summaryFitCandidates } from './composerHeadlineSummary'
 import { composerYieldPick } from './composerBarYield'

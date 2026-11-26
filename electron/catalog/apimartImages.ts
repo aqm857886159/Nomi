@@ -84,7 +84,7 @@ const SEED = "{{request.params.seed}}"; // 可选种子（无默认 → 未填�
 const NEGATIVE_PROMPT = "{{request.params.negative_prompt}}"; // 负向提示词（可选，未填则丢弃）
 const IMAGE_URLS = "{{request.params.image_urls}}"; // 改图模式的输入图数组（档案 slot inputKey=image_urls）
 // 图层分离（Seedream 5.5 / 5.0 Pro）：只在图层分离方式里有值（固定参数开关 + 该方式的三个控件），普通改图这几个键都不存在、整键丢弃，
-// 普通改图的报文一个字节不变。档案方式见 shared/modelArchetypes/layerSplit.ts；清晰度档存 layer_size，在这里写成 wire 的 size。
+// 普通改图的报文一个字节不变。档案方式见 shared/modelArchetypes/modeForInputs.ts 的图层分离段；清晰度档存 layer_size，在这里写成 wire 的 size。
 const LAYER_DECOMPOSITION = "{{request.params.layer_decomposition}}";
 const LAYER_DECOMPOSITION_OPTIONS = "{{request.params.layer_decomposition_options}}";
 const SEEDREAM_LAYER_PARAM_MAP: ParamMap = {
