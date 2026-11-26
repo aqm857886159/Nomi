@@ -8,7 +8,7 @@
 //  R1 每个候选恰好被一个元素引用或列进 decor（板改了出新候选 → 红；重抽的候选与仓库里的 candidates.json 不一致也红）
 //  R2 status 只能是 implemented / in-progress / missing / deferred / dropped；元素 id 不重复；引用的候选必须存在
 //  R3 missing / in-progress 必须有 owner（PR 号或交接任务名）
-//  R4 implemented 必须有 assertion，且该字符串必须出现在 tests/ux 某个走查文件里（没有就不许写空断言）
+//  R4 implemented 的认领候选须有实测差异清单，所有差异经拍板；历史缺口按板只减不增
 //  R5 deferred / dropped 必须有 userDecision {quote, date}（用户原话 + 日期）
 //  R6 functionCensus 每项的 after 必须是存在的元素 id（旧功能必须有去处）
 //  R7 states 非空，取值只能来自状态词表
@@ -43,7 +43,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 // 默认模式只用常量和哈希：不 import 抽取（抽取要浏览器），抽取在 --reextract 里动态加载。
 import { BOARD_NAMES, BOARDS_DIR, REPO_ROOT } from './board-extract.mjs'
+import { boardEvidence, checkMeasuredCandidates, loadDiffBaseline } from './board-diff-evidence.mjs'
 import { hashBoardSource } from './board-source-hash.mjs'
+
+export { boardEvidence }
 
 export const BOARD_STATUSES = Object.freeze(['implemented', 'in-progress', 'missing', 'deferred', 'dropped'])
 export const BOARD_STATES = Object.freeze(['empty', 'loading', 'error', 'selected', 'disabled', 'hover', 'narrow', 'long-text', 'zh-en', 'dark', 'max-count'])
@@ -539,12 +542,12 @@ export function makeReferrerScanner(root = REPO_ROOT, roots = ['src', 'electron'
 
 /**
  * 单张板的清单校验。纯函数、可测。
- * @param {{board:string, manifest:object, candidates:Array<{id:string}>, assertionCorpus:string, date?:string, boardNames?:string[], referrersOf?:(file:string)=>string[]|null}} input
+ * @param {{board:string, manifest:object, candidates:Array<{id:string}>, evidence?:object, date?:string, boardNames?:string[], referrersOf?:(file:string)=>string[]|null}} input
  *   date = 板所在日期目录名（YYYY-MM-DD），不给就用清单的 approvedOn
  *   referrersOf = R12 用的引用方扫描（runBoardParity 传 makeReferrerScanner 的结果；不传时声明了 components 的新板会报「找不到」）
  * @returns {string[]} 错误列表（空 = 通过）
  */
-export function checkBoardManifest({ board, manifest, candidates, assertionCorpus, date, boardNames, referrersOf, peerRegistry, legacyComponentCounts }) {
+export function checkBoardManifest({ board, manifest, candidates, evidence, onDebt, date, boardNames, referrersOf, peerRegistry, legacyComponentCounts }) {
   const errors = []
   const tag = (msg) => `[${board}] ${msg}`
   if (!manifest || typeof manifest !== 'object') return [tag('清单缺失或不是对象')]
@@ -596,11 +599,6 @@ export function checkBoardManifest({ board, manifest, candidates, assertionCorpu
     if ((el.status === 'missing' || el.status === 'in-progress') && !isNonEmptyString(el.owner)) {
       errors.push(tag(`${where} 是 ${el.status}，必须写 owner（PR 号或交接任务名）`))
     }
-    // R4：implemented 必须有走查断言，且断言名真在 tests/ux 里
-    if (el.status === 'implemented') {
-      if (!isNonEmptyString(el.assertion)) errors.push(tag(`${where} 是 implemented，必须写 assertion（走查断言名）`))
-      else if (!assertionCorpus.includes(el.assertion)) errors.push(tag(`${where} 的断言 ${el.assertion} 不在 tests/ux 任何走查文件里`))
-    }
     // R5：推迟 / 放弃必须有用户原话和日期
     if (el.status === 'deferred' || el.status === 'dropped') {
       const decision = el.userDecision
@@ -612,6 +610,8 @@ export function checkBoardManifest({ board, manifest, candidates, assertionCorpu
     if (!Array.isArray(el.states) || el.states.length === 0) errors.push(tag(`${where} 缺 states（要列出它需要覆盖的状态）`))
     else for (const s of el.states) if (!BOARD_STATES.includes(s)) errors.push(tag(`${where} 的状态 ${s} 不在状态词表里`))
   }
+
+  errors.push(...checkMeasuredCandidates({ board, manifest, evidence, onDebt }))
 
   // R6：旧功能普查的去处必须是存在的元素
   for (const item of census) {
@@ -675,21 +675,6 @@ export function checkPrBoardClaims(body, manifests) {
     }
   }
   return errors
-}
-
-/** 走查断言语料：tests/ux 下所有脚本的拼接文本（断言名只要在里面出现过即算「有走查」）。 */
-export function loadAssertionCorpus(root = REPO_ROOT) {
-  const dir = path.join(root, 'tests/ux')
-  const chunks = []
-  const walk = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const full = path.join(current, entry.name)
-      if (entry.isDirectory()) walk(full)
-      else if (/\.(mjs|cjs|js|ts|tsx)$/.test(entry.name)) chunks.push(fs.readFileSync(full, 'utf8'))
-    }
-  }
-  if (fs.existsSync(dir)) walk(dir)
-  return chunks.join('\n')
 }
 
 /**
@@ -965,10 +950,10 @@ export function formatBoardDebtReport(summary, { color = false } = {}) {
  * 默认模式：只看哈希与清单，不起浏览器（CI 的 Contracts job 没有 Playwright 浏览器）。
  * reextract = true（显式 --reextract，只在本机或装了浏览器的环境）：再真抽一遍，比对候选文件全文。
  */
-export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), reextract = false, peerRegistry, legacyComponentCounts } = {}) {
+export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), reextract = false, onDebt, peerRegistry, legacyComponentCounts } = {}) {
   const errors = []
   const manifests = loadManifests(dir, root)
-  const corpus = loadAssertionCorpus()
+  const baseline = loadDiffBaseline()
   if (legacyComponentCounts === undefined) {
     legacyComponentCounts = loadLegacyComponentBaseline()
   }
@@ -1000,7 +985,7 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
     }
     // 读这张板自己目录里的清单，不按板名查表——同名板不能互相顶替（V-1203 复验 R1）。
     const manifest = JSON.parse(fs.readFileSync(path.join(boardDir, `${board}.board.json`), 'utf8'))
-    errors.push(...checkBoardManifest({ board, manifest, candidates, assertionCorpus: corpus, date: path.basename(boardDir), boardNames: boardNamesIn(boardDir), referrersOf, peerRegistry, legacyComponentCounts }))
+    errors.push(...checkBoardManifest({ board, manifest, candidates, evidence: boardEvidence(boardDir, board, baseline), onDebt, date: path.basename(boardDir), boardNames: boardNamesIn(boardDir), referrersOf, peerRegistry, legacyComponentCounts }))
   }
   // 重名本身就红：PR 正文按板名认领，重名就分不清认的是哪一张。
   const dated = findDatedBoards(root, dir)
@@ -1022,7 +1007,7 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
       errors.push(`[${board}] 缺清单 ${board}.board.json`)
       continue
     }
-    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, assertionCorpus: corpus, date: path.basename(dir), boardNames: boardNamesIn(dir), referrersOf, peerRegistry, legacyComponentCounts }))
+    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, evidence: boardEvidence(dir, board, baseline), onDebt, date: path.basename(dir), boardNames: boardNamesIn(dir), referrersOf, peerRegistry, legacyComponentCounts }))
   }
   if (reextract) {
     // 显式开关：动态加载抽取（会起 Playwright 浏览器），逐字节比对候选文件。
@@ -1046,7 +1031,9 @@ async function main() {
     if (process.argv.includes('--fail-on-overdue') && summary.overdueBoards > 0) process.exit(1)
     return
   }
-  const errors = await runBoardParity({ reextract: process.argv.includes('--reextract') })
+  const debt = new Map()
+  const errors = await runBoardParity({ reextract: process.argv.includes('--reextract'), onDebt: (board, count) => debt.set(board, count) })
+  console.log('R4 实测欠账（元素，按板）', Object.fromEntries(debt), '合计', [...debt.values()].reduce((a, b) => a + b, 0))
   if (errors.length) {
     console.error(`拍板图对账未通过（${errors.length} 条）：`)
     for (const e of errors) console.error(`  ✗ ${e}`)

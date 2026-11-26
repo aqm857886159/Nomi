@@ -66,7 +66,7 @@ export function buildCandidates(rows) {
 }
 
 /** 在页面里跑：采集可见候选的原始行。只读 DOM，不改页面。 */
-function collectRowsInPage(structuralSrc) {
+function collectRowsInPage({ structuralSrc, positions }) {
   const STRUCT = new RegExp(structuralSrc, 'i')
   const INTERACTIVE_TAGS_L = ['button', 'a', 'input', 'select', 'textarea', 'label']
   const INTERACTIVE_ROLE_RE = /^(button|tab|menuitem|switch|checkbox|option|link|radio|combobox|slider|textbox)$/
@@ -93,7 +93,7 @@ function collectRowsInPage(structuralSrc) {
   const rows = []
   const rowOfEl = new Map()
   const all = Array.from(document.body.querySelectorAll('*'))
-  for (const el of all) {
+  for (const [index, el] of all.entries()) {
     const tag = el.tagName.toLowerCase()
     if (SKIP.includes(tag) || el.closest('helmet, template')) continue
     if (!visible(el)) continue
@@ -126,6 +126,7 @@ function collectRowsInPage(structuralSrc) {
       text: text.slice(0, 60),
       bbox: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)],
       region: regionOf(el),
+      ...(positions ? { index } : {}),
       _el: el,
     })
   }
@@ -144,13 +145,20 @@ function collectRowsInPage(structuralSrc) {
   return rows.map(({ _el, ...rest }) => rest)
 }
 
+// Live DOM indexes join a scoped measurement to the original full-board census.
+// They never enter candidates.json, whose IDs and bytes stay stable.
+export async function readCandidatePositions(page) {
+  const rows = await page.evaluate(collectRowsInPage, { structuralSrc: STRUCTURAL_CLASS.source, positions: true })
+  return rows.map((row, i) => ({ index: row.index, id: candidateId(i + 1, row.tag, row.text) }))
+}
+
 /** 抽一张板的候选（需要 Playwright 的 page；只读）。 */
 export async function extractBoard(page, htmlFile) {
   await page.route(/^https?:/, (route) => route.abort())
   await page.setViewportSize(VIEWPORT)
   await page.goto(pathToFileURL(htmlFile).href, { waitUntil: 'load' })
   await page.evaluate(() => document.fonts && document.fonts.ready)
-  const rows = await page.evaluate(collectRowsInPage, STRUCTURAL_CLASS.source)
+  const rows = await page.evaluate(collectRowsInPage, { structuralSrc: STRUCTURAL_CLASS.source })
   return buildCandidates(rows)
 }
 

@@ -38,7 +38,7 @@
    不许悄悄去掉。
 3. **清单**：探索图一拍板就生成清单（见下面格式），第 2 步逐态对照表随清单核准。每个元素的状态从组件登记的状态表带出（阶段 B 自动化，阶段 A 手填），核对空、加载、失败、选中、禁用、悬停、窄窗、长文字、中英、暗色及边界表条件。第 1 步的普查转进清单 `functionCensus`，每项必须有去处（保留、归位，或经拍板删除），否则清单红。
 4. **实现与交回**：清单是实现合同。实现线按对照表自验；交回时，本轮每个认领元素、每种状态都交同一次实现提交的「拍板图 | 真截图」并排图及索引，图的语言、主题、窗口、数据和交互状态按表对应。索引逐行指到两边的区域、构建提交、图文件、断言结果与核对结论；同一张同态图可被多行引用，不重拍相同证据，不用总览顶替未出现的状态。截图留足宿主上下文；悬停、点击、聚焦由真实输入产生，不把预置状态当真操作。
-   由不写本轮实现的另一条线逐态核图、核断言量的是不是图上那个东西，核过且无未批准差异后才能把该元素标 `implemented`；缺状态、缺证据或有偏差就保留原状态和责任人。起表线可兼验收线，不得兼实现线；没有完成的元素不因邻项通过而标已实现。差异沿用下面的偏差拍板方式，不自行改图或断言刷绿。
+   由不写本轮实现的另一条线逐态看走查产出的差异清单及对应截图。核对候选配对、各语言的文字、图标和实测样式；每个认领候选都有测量、每条差异都已拍板后才能把该元素标 `implemented`；缺状态、缺证据或有偏差就保留原状态和责任人。起表线可兼验收线，不得兼实现线；没有完成的元素不因邻项通过而标已实现。差异沿用下面的偏差拍板方式，不自行改图或断言刷绿。
    验收时每个控件真点一次，并写下点完之后创作者看见什么。（2026-11-14 用户拍板）并排图不替代真实任务闭环、旧数据、时序与花钱验证。
    小改（只改一个元素的样子，或修 bug 带出可见差异）仍走上述核对，只补该元素和受影响各处的状态行，可引用原表、原图和原断言，不重出整张表/整套图；共享组件须先数清受影响各处。未认领、明确未实现的项不追交实现图。没有可见差异沿用设计卡原分档，不能自称小改来免核。
 
@@ -64,10 +64,10 @@
     "candidates": ["046-span-..."],       // 认领的候选（板上的文字 / 按钮 / 图标 / 条 / 卡）
     "status": "implemented" | "in-progress" | "missing" | "deferred" | "dropped",
     "owner": "I-groupheader",             // missing / in-progress 必填（PR 号或交接任务名）
-    "assertion": "board:Main/group.header.title-inside",  // implemented 必填，且断言名要在 tests/ux 走查里出现
     "states": ["empty", "narrow", "dark", ...],
     "userDecision": { "quote": "...", "date": "..." }      // deferred / dropped 必填
   }],
+  "decisions": [{ "candidate": "046-span-...", "property": "radiusTopLeft", "reason": "拍板理由", "approvedBy": "拍板人" }],
   "decor": ["..."],                       // 纯装饰候选（说明文字、占位框），不算产品元素
   "functionCensus": [{ "function": "...", "before": "...", "after": "<元素 id>",
     "placement": "direct" | "menu" | "dropped",     // 2026-11-15 起：直接摆 / 收进菜单或二级入口 / 删掉
@@ -96,16 +96,18 @@
 
 ## 门岗
 
-逐态对照表、并排图的关联与独立核签按第 2–4 步执行；当前 `check:board-parity` 仍只查下面已实现的结构规则，不会判断断言与源图的意思是否一致。机器关联检查接入前由协调在派工和交回时核索引完整、同版与独立核签，不把“断言名存在”当作逐态核过。
+走查调用 `measureBoardDiff({ boardPage, screenPage, boardDir, board, boardRoot, screenRoot, locale, theme, output })`。先打开完整的候选预览和同状态真屏，两个 root 选到对应区域，坐标相对各自区域。拼页可选 `elements` 限定本轮认领；`boardTheme` 记录源图实际主题。候选优先按显示文字配对，同文或无字的节点可用 `data-board="<候选 id>"` 定位，元素 id 可标记一组候选的共同区域。无法唯一配对需要补锚点重跑。
+
+走查产物提交到板目录的 `walk/<板名>/<状态>.diff.json`，每轨单独命名。清单保留覆盖样本（含一致项）、两边的值、差异和板源指纹。R4 重算差异；字号、行高、圆角、padding、相邻间距和颜色按设计系统令牌核对，盒子坐标及宽高按 CSS 像素核对。板值超出令牌表也须逐项登记。每一项批准写进本板 decisions；缺配对不能通过登记消除。R4 从引入前 main 与当前合入基线的板文件计算已有 implemented 的欠账，按日期目录、元素和候选身份扣减；新认领不能占用已消掉的名额。独立核签、逐态配图和真点击照常执行。
 
 - `pnpm run check:board-parity`：先跑单测（`scripts/check-board-parity.node-test.mjs`，每条规则一个反例），再跑清单规则。**默认模式不起浏览器**（CI 的 Contracts job 没有 Playwright 浏览器）：
   - 每张板的 `<Board>.candidates.json` 记着抽取时板源的 sha256（`sourceSha256`，覆盖亮 / 暗预览、画板源码和 `source/canvas.json`，算法在 `scripts/board-source-hash.mjs`）。
-  - 默认模式只比哈希：板源哈希 ≠ 记录的哈希，或文件里缺哈希，就红，提示「板改了，重跑 `node scripts/board-extract.mjs`」。
+  - 默认模式先核板源哈希：板源哈希 ≠ 记录的哈希，或文件里缺哈希，就红，提示「板改了，重跑 `node scripts/board-extract.mjs`」。
   - 候选 id 与清单的认领关系，照 `candidates.json` 里的候选检查。
   - 真重抽比对是显式开关 `node scripts/check-board-parity.mjs --reextract`：会动态加载 Playwright 真抽一遍、逐字节比对候选文件。只在本机或装了浏览器的环境跑，**不进 gates**。
   - 改了板源：本机跑 `node scripts/board-extract.mjs` 重抽，把新的候选和哈希一起提交。
   - 已挂进 `gates:contracts`，并在推送前门（`scripts/pre-push-contracts.mjs`）里跑默认模式。
-- 清单规则（R1–R8，外加 `priorArt`：日期目录 ≥ 2026-10-19 的板必须有 ≥3 项 `{url, takeaway, decisionImpact}`，三个字段都非空，更早的板不查）：每个候选恰好被一个元素或 decor 认领；status 合法；missing / in-progress 有 owner；implemented 的断言名真在走查里；deferred / dropped 有用户原话和日期；旧功能的去处是存在的元素；states 来自词表；PR 认领的元素在合并前有去处。
+- 清单规则（R1–R8，外加 `priorArt`：日期目录 ≥ 2026-10-19 的板必须有 ≥3 项 `{url, takeaway, decisionImpact}`，三个字段都非空，更早的板不查）：每个候选恰好被一个元素或 decor 认领；status 合法；missing / in-progress 有 owner；implemented 的候选受 R4 差异清单和存量棘轮核验；deferred / dropped 有用户原话和日期；旧功能的去处是存在的元素；states 来自词表；PR 认领的元素在合并前有去处。
 - 边界表 R10（`boundarySheet`）：日期目录 ≥ 2026-11-13 的板必须有。是数组时至少 1 行，每行 `where / max / source / layout / board / element` 六个字段都非空，`board` 是同目录里存在的板名，`element` 是本清单里存在的元素 id；是 `{ none }` 时原因非空。更早的板不查，但写了就按同样的规则查。状态词表加了 `max-count`（元素要覆盖「最大数量」时用）。
 - 设计流程输入 R11–R15（2026-11-14 用户拍板的几句的执行）：只查日期目录 ≥ 2026-11-15 的板（目录名带后缀按开头日期算，取不到看 `approvedOn`），更早的板不追溯、写了也不查。
   - R11 同类产品先例：`priorArt` 第一项是上面的 `same-surface` 一项。

@@ -6,14 +6,14 @@ import { expect, screenshotSettled, proveProbe, expectAbsent, expectOverlayReach
 import { buildInlineWhiteboardProject } from './_whiteboardFixture.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { collapseAgentPanel, canvasSetZoomPercent, canvasResetView, canvasZoomPercent } from './_shell.mjs'
-import { checkBoardManifest } from '../../scripts/check-board-parity.mjs'
+import { checkBoardManifest, boardEvidence } from '../../scripts/check-board-parity.mjs'
 import { hashBoardSource } from '../../scripts/board-source-hash.mjs'
 
 const boardDir = path.resolve('docs/design/boards/2026-10-12')
 const boardManifest = JSON.parse(fs.readFileSync(path.join(boardDir, 'InlineWhiteboard.board.json'), 'utf8'))
 const boardCandidates = JSON.parse(fs.readFileSync(path.join(boardDir, 'InlineWhiteboard.candidates.json'), 'utf8'))
 expect(hashBoardSource(boardDir, 'InlineWhiteboard')).toBe(boardCandidates.sourceSha256)
-expect(checkBoardManifest({ board: 'InlineWhiteboard', manifest: boardManifest, candidates: boardCandidates.candidates, assertionCorpus: fs.readFileSync(new URL(import.meta.url), 'utf8') })).toEqual([])
+expect(checkBoardManifest({ board: 'InlineWhiteboard', manifest: boardManifest, candidates: boardCandidates.candidates, evidence: boardEvidence(boardDir, 'InlineWhiteboard') })).toEqual([])
 
 const locale = process.argv.includes('--en') ? 'en' : 'zh-CN'
 const dark = process.argv.includes('--dark')

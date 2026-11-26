@@ -12,7 +12,7 @@ import { makeTempDir } from './_test-temp.mjs'
 import { BOARD_NAMES } from './board-extract.mjs'
 import { hashBoardSourceFiles } from './board-source-hash.mjs'
 
-const CORPUS = "it('board:Main/topbar.title', () => {})"
+const legacyEvidence = { legacy: new Map([['topbar.title', new Set(['001-text-A', '002-icon'])]]) }
 const candidates = [{ id: '001-text-A' }, { id: '002-icon' }, { id: '003-text-B' }]
 const base = () => ({
   board: 'Main',
@@ -24,7 +24,7 @@ const base = () => ({
   decor: [],
   functionCensus: [{ function: '标题', before: '顶栏标题', after: 'topbar.title' }],
 })
-const run = (manifest, cands = candidates, corpus = CORPUS) => checkBoardManifest({ board: 'Main', manifest, candidates: cands, assertionCorpus: corpus })
+const run = (manifest, cands = candidates, evidence = legacyEvidence) => checkBoardManifest({ board: 'Main', manifest, candidates: cands, evidence })
 
 describe('R1 候选恰好被认领一次', () => {
   it('正例：每个候选都有去处', () => assert.deepEqual(run(base()), []))
@@ -78,7 +78,7 @@ describe('R3 missing / in-progress 必须有 owner', () => {
 
 describe('R4 implemented 的认领候选必须有差异清单', () => {
   it('只有一个到处都能搜到的断言名也不能算已量过', () => {
-    assert.match(run(base(), candidates, CORPUS).join('\n'), /差异清单/)
+    assert.match(run(base(), candidates, {}).join('\n'), /差异清单/)
   })
 })
 
@@ -130,7 +130,7 @@ describe('R7 states 非空且来自词表', () => {
 describe('R9 priorArt：2026-10-19 起的板必须带 ≥3 项先例（更早的板不追溯）', () => {
   const item = (n) => ({ url: `https://example.com/${n}`, takeaway: '它怎么做', decisionImpact: '改了：底栏位置' })
   const withPrior = (items, date = '2026-10-19') => ({ manifest: { ...base(), priorArt: items }, date })
-  const runDated = ({ manifest, date }) => checkBoardManifest({ board: 'Main', manifest, candidates, assertionCorpus: CORPUS, date })
+  const runDated = ({ manifest, date }) => checkBoardManifest({ board: 'Main', manifest, candidates, evidence: legacyEvidence, date })
   it('正例：3 项齐全 → 绿', () => assert.deepEqual(runDated(withPrior([item(1), item(2), item(3)])), []))
   it('正例：更早的板（2026-10-18）没有 priorArt → 绿，不追溯', () => assert.deepEqual(runDated({ manifest: base(), date: '2026-10-18' }), []))
   it('反例：2026-10-19 的板缺 priorArt → 红', () => assert.match(runDated({ manifest: base(), date: '2026-10-19' }).join('\n'), /必须有 priorArt/))
@@ -237,7 +237,7 @@ describe('R11–R15：2026-11-15 起的板要带设计流程输入（2026-11-14 
     m.priorDecisions = [{ what: '顶栏只放标题', source: '用户 2026-10-10 拍板', stillValid: '算数' }]
     return m
   }
-  const runNew = (manifest, date = '2026-11-15') => checkBoardManifest({ board: 'Main', manifest, candidates, assertionCorpus: CORPUS, date, boardNames: ['Main'], referrersOf })
+  const runNew = (manifest, date = '2026-11-15') => checkBoardManifest({ board: 'Main', manifest, candidates, evidence: legacyEvidence, date, boardNames: ['Main'], referrersOf })
   const red = (manifest, pattern, date) => assert.match(runNew(manifest, date).join('\n'), pattern)
 
   it('正例：每条都齐 → 绿', () => assert.deepEqual(runNew(full()), []))
@@ -549,12 +549,12 @@ describe('其它日期目录的板（2026-10-16：新板对门岗和合并前扫
     assert.deepEqual(checkPrBoardClaims('## 拍板图\n- TextOnly: tier.popover', manifests), [])
     fs.rmSync(root, { recursive: true, force: true })
   })
-  it('反例：只有清单的新板也按 R4 查——断言名不在走查里 → 红', async () => {
+  it('反例：只有清单的新板也按 R4 查——没量过 → 红', async () => {
     const root = tmpRoot()
     const main = path.join(root, 'main-day'); fs.mkdirSync(main)
     writeBoard(root, 'later-day', 'TextOnly', textOnly({ assertion: 'board:TextOnly/never-written-anywhere' }))
     const errors = await runBoardParity({ dir: main, root })
-    assert.ok(errors.some((e) => /\[TextOnly\].*never-written-anywhere/.test(e)), errors.join('\n'))
+    assert.ok(errors.some((e) => /\[TextOnly\].*差异清单/.test(e)), errors.join('\n'))
     fs.rmSync(root, { recursive: true, force: true })
   })
 })
@@ -562,7 +562,7 @@ describe('其它日期目录的板（2026-10-16：新板对门岗和合并前扫
 describe('V-1203 F2：发现到的每张新日期板都跑完整规则（带候选文件的也不例外）', () => {
   const tmpRoot = () => fs.mkdtempSync(path.join(process.env.TMPDIR || process.env.TEMP || '.', 'bp-v1203-'))
   const bad = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', status: 'implemented', assertion: 'NEVER_EXISTS_V1203', states: [] }], functionCensus: [{ function: 'old', after: 'missing' }] }
-  it('反例：带人工候选文件、内容坏的新板 → 红（断言不在走查、states 空、旧功能没去处、候选未认领）', async () => {
+  it('反例：带人工候选文件、内容坏的新板 → 红（缺差异清单、states 空、旧功能没去处、候选未认领）', async () => {
     const root = tmpRoot()
     const main = path.join(root, 'main-day'); fs.mkdirSync(main)
     const day = path.join(root, '2099-01-01'); fs.mkdirSync(day)
@@ -570,7 +570,7 @@ describe('V-1203 F2：发现到的每张新日期板都跑完整规则（带候�
     fs.writeFileSync(path.join(day, 'ReviewProbe.candidates.json'), JSON.stringify({ board: 'ReviewProbe', extractor: 'manual-domain-census@1', candidates: [{ id: 'unclaimed' }] }))
     const errors = (await runBoardParity({ dir: main, root })).filter((e) => e.includes('ReviewProbe'))
     fs.rmSync(root, { recursive: true, force: true })
-    for (const pattern of [/NEVER_EXISTS_V1203/, /缺 states/, /没有去处/, /候选未认领.*unclaimed/]) assert.ok(errors.some((e) => pattern.test(e)), `${pattern}\n${errors.join('\n')}`)
+    for (const pattern of [/R4.*probe.*差异清单/, /缺 states/, /没有去处/, /候选未认领.*unclaimed/]) assert.ok(errors.some((e) => pattern.test(e)), `${pattern}\n${errors.join('\n')}`)
   })
   it('反例：抽取出来的候选文件（board-extract）板源哈希对不上 → 红', async () => {
     const root = tmpRoot()
@@ -613,7 +613,7 @@ describe('V-1203 复验 R1：跨日期同名板——校验按「日期目录 + 
       const { root, main } = setup(withCandidates)
       const errors = (await runBoardParity({ dir: main, root })).filter((e) => e.includes('ReviewProbe'))
       fs.rmSync(root, { recursive: true, force: true })
-      for (const pattern of [/NEVER_EXISTS_V1203_R1/, /缺 states/, /没有去处/, /同名/]) assert.ok(errors.some((e) => pattern.test(e)), `${pattern}\n${errors.join('\n')}`)
+      for (const pattern of [/R4.*probe.*差异清单/, /缺 states/, /没有去处/, /同名/]) assert.ok(errors.some((e) => pattern.test(e)), `${pattern}\n${errors.join('\n')}`)
     })
   }
   it('反例：PR 按板名认领一张重名板 → 红（认领有歧义，不能挑第一份当真）', () => {
@@ -727,7 +727,7 @@ describe('R16 同类产品登记表：先例按 Nomi 的定位选，不按好不
   })
   it('接进整张板的校验：checkBoardManifest 带上登记表才会查 R16', () => {
     const manifest = { ...base(), ...thisCase() }
-    const errors = checkBoardManifest({ board: 'Main', manifest, candidates, assertionCorpus: CORPUS, date: PEER_REGISTRY_REQUIRED_FROM, peerRegistry: registry })
+    const errors = checkBoardManifest({ board: 'Main', manifest, candidates, evidence: legacyEvidence, date: PEER_REGISTRY_REQUIRED_FROM, peerRegistry: registry })
     assert.ok(errors.some((line) => /用了 TypingMind/.test(line)))
   })
 })
@@ -767,7 +767,7 @@ describe('R17 元素 component 必填（非 dropped 且非 change=remove 必须�
       validElement({ id: 'ask.cost', status: 'missing', change: 'new' }),
       validElement({ id: 'ask.params', status: 'implemented', change: 'changed', assertion: 'board:Main/topbar.title', owner: undefined }),
     ])
-    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], assertionCorpus: CORPUS, date: '2026-11-15-spend-ask-split' })
+    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], evidence: { legacy: new Map([['ask.title', new Set([null])], ['ask.params', new Set([null])]]) }, date: '2026-11-15-spend-ask-split' })
     const joined = errors.join('\n')
     assert.match(joined, /ask\.cost.*component/)
     assert.match(joined, /ask\.params.*component/)
@@ -782,7 +782,7 @@ describe('R17 元素 component 必填（非 dropped 且非 change=remove 必须�
       validElement({ id: 'ask.cost', status: 'missing', change: 'new', component: 'src/workbench/ai/v4/SpendConfirmBar.tsx' }),
       validElement({ id: 'ask.params', status: 'implemented', change: 'changed', assertion: 'board:Main/topbar.title', owner: undefined, component: { file: 'src/workbench/ai/v4/SpendConfirmBar.tsx', action: '改' } }),
     ])
-    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], assertionCorpus: CORPUS, date: '2026-11-15-spend-ask-split' })
+    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], evidence: { legacy: new Map([['ask.title', new Set([null])], ['ask.params', new Set([null])]]) }, date: '2026-11-15-spend-ask-split' })
     assert.deepEqual(errors, [])
   })
 
@@ -791,7 +791,7 @@ describe('R17 元素 component 必填（非 dropped 且非 change=remove 必须�
       validElement({ id: 'a.empty', component: '   ' }),
       validElement({ id: 'b.emptyObj', component: { file: '  ', action: '新' } }),
     ])
-    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], assertionCorpus: CORPUS, date: '2026-11-15-spend-ask-split' })
+    const errors = checkBoardManifest({ board: 'SpendAskSplit', manifest, candidates: [], evidence: { legacy: new Map([['ask.title', new Set([null])], ['ask.params', new Set([null])]]) }, date: '2026-11-15-spend-ask-split' })
     assert.match(errors.join('\n'), /a\.empty.*component/)
     assert.match(errors.join('\n'), /b\.emptyObj.*component/)
   })

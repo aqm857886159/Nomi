@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-26-board-diff",
+  "problem_type": "拍板认领可绕过可见属性验收",
+  "symptom": "#1665 第三轮发现 11 处差异时，拍板图对账仍然通过。",
+  "direct_cause": "R4 接受走查文本中的断言名，期望值与量取维度由实现线自行选择。",
+  "class_root": "认领完成没有绑定独立板源和同形状的真屏读数。",
+  "affected_population": [
+    "从拍板图搭建的所有产品面及其语言、主题和交互状态"
+  ],
+  "scope_paths": [
+    "scripts/check-board-parity.mjs",
+    "scripts/board-diff.mjs",
+    "scripts/board-diff-evidence.mjs",
+    "scripts/board-diff-page.mjs",
+    "scripts/board-diff-report.mjs",
+    "scripts/board-extract.mjs"
+  ],
+  "entry_points": [
+    "默认及重抽门岗、直接调用 checkBoardManifest 的走查与测试"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "候选标识、板令牌、拍板记录与存量欠账都是仓库的交付合同。浏览器计算样式由原有 Playwright 提供。",
+  "invariants": [
+    "新认领须覆盖每个候选，未配对或有未拍板差异不得通过；相同合法取值不报差异。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/board-diff.node-test.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-board-parity.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-board-parity.node-test.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/directorFunctionCensus.test.ts",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/reference-entry-board.test.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/whiteboard-refactor.walk.mjs",
+      "symbol": "checkBoardManifest"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 6,
+    "why_not": "三个既有板专用读者、门岗、规则测试均须核对各自的输入，新量具测试覆盖未配对和超令牌反例；它们共用 R4。"
+  },
+  "generality_proof": "单一页面读取器测量两边。每份收据含板源指纹和两边原值，所有门岗入口重算差异并按候选、属性查询同一板决定。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-board-parity.mjs",
+      "symbol": "checkBoardManifest",
+      "responsibility": "所有认领的状态与 R4 在同一处判定。"
+    },
+    {
+      "path": "scripts/board-diff-page.mjs",
+      "symbol": "readSurface",
+      "responsibility": "在两种运行页面上读取同一组视觉属性。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/reference-entry-board.test.mjs",
+      "entry_point": "checkBoardManifest",
+      "disposition": "enforced",
+      "evidence": "独立读取 ReferenceEntry 板及其走查收据。"
+    },
+    {
+      "path": "tests/ux/whiteboard-refactor.walk.mjs",
+      "entry_point": "checkBoardManifest",
+      "disposition": "enforced",
+      "evidence": "InlineWhiteboard 开屏前按相同 R4 核验本板。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一板三轮验收量了不同维度；其他板也只证明断言名出现。",
+    "same_class_scan": [
+      "door-map check-board-parity 的产品根输出为空。git grep checkBoardManifest 另查到 Director3dbox、ReferenceEntry 和 InlineWhiteboard。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/check-board-parity.mjs",
+    "invariant": "新 implemented 认领只有真实测量覆盖且逐项拍板才通过。",
+    "failure_mode": "按板、候选、属性报告未测或未批准项；缺读数、缺配对和过期板源报错。",
+    "exception_policy": "none",
+    "strategy": "同一读取器产生独立板与屏的样本。R4 消费可重算收据；历史欠账按引入点与合入基线的身份交集只减不增。",
+    "artifacts": [
+      "scripts/check-board-parity.mjs",
+      "scripts/board-diff-evidence.mjs",
+      "scripts/board-diff-page.mjs",
+      "scripts/board-diff-report.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/board-diff.node-test.mjs",
+    "scripts/check-board-parity.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/board-diff.node-test.mjs",
+    "scripts/check-board-parity.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-board-parity.mjs"
+    ],
+    "rationale": "删除拼接走查源码与查 assertion 名的旧 R4。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "比较边界与既有库版本无关。使用现有 Playwright 与 DOM/CSSOM。",
+    "exit_criteria": []
+  },
+  "migration": "由 Git 文件计算引入日已认领元素的未测数；每个补测的候选从下个合入基线退出，新元素不能借用旧名额。",
+  "residual_risks": [
+    "多状态需要走查逐态打开；未量的悬停、窄窗与真实操作由验收索引继续跟进。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-03",
+  "invariant_owner_layer": {
+    "layer": "scripts/board-diff-evidence.mjs",
+    "tests": [
+      "scripts/board-diff.node-test.mjs",
+      "scripts/check-board-parity.node-test.mjs"
+    ]
+  }
+}

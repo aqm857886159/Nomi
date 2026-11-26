@@ -53,5 +53,7 @@
 | `pnpm run check:escape-ledger` | 逃逸账本结账门岗（P2：账本格式不合法 → 红；条目改成 `fixed` 必须同时有根因合同、类级检查（铁律 ⑩ ⑪ ⑫ / inv:N 或矩阵 / 普查测试）、合入 PR 号；`candidate` 超 14 天警告。细则见 `docs/engineering/experience-system.md`） |
 | `pnpm run perf:scenarios` | 性能场景统一跑法（需先 `pnpm run build`）：按 `tests/perf/scenarios/` 登记表逐个跑，每个 ≥5 次取中位数和 p95，对照预算和基线出表；`--id` / `--runs` / `--list` / `--smoke` / `--update-baseline [--noisy]` / `--out`。规矩与登记流程 `docs/engineering/perf-scenarios.md` |
 | `pnpm run check:perf-scenarios` | 性能场景登记表结构门岗（id 唯一、script 存在且是现有量具、budget / baseline 齐全且是数字）；PR 里的 `perf-scenario` 证据行由 `check:pr-judgement` 判 |
+| `pnpm run board:diff --dir <板目录> --board <板名> --screen <本地真屏HTML> --board-root <选择器> --screen-root <选择器> --locale <语言> --theme <light或dark> --out <板目录>/walk/<板名>/<状态>.diff.json` | 用 Playwright 量同状态的两边。真应用走查直接传 Page 给 `scripts/board-diff.mjs` 的 `measureBoardDiff`。源图主题可用 `--board-theme` 指定。 |
+| `pnpm run check:board-parity` | 校验认领及实测差异，按板打印未偿还的历史元素数。 |
 | `pnpm run check:pr-judgement` | PR 正文判据（CI Contracts + push 前）：按功能分类推路由——设计卡 `### 功能分类` 必须覆盖路径推出的类别、`## 验收证据` 逐项有证据或「未验证：原因」；并判规则与门岗改动范围（`## 碰到的规则与门岗` 逐个点名）。路由表 `docs/engineering/test-routing.json`；`--gaps` 列出工具缺口 |
 `pnpm run test:mcp-real-client` builds the app, runs the unit contract, then uses the locally authenticated Codex CLI against isolated temporary Nomi directories; it may consume Codex quota. Use `node tests/system/mcp-real-client.mjs --client claude --dry-run` to inspect the manual Claude command without spending Claude quota.
