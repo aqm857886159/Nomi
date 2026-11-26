@@ -10,6 +10,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { cleanupTestTemp, makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import { createHttpFixture, type FixtureReply } from '../../tests/agent-runtime/httpFixture.mjs'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
+import { watchSpendCardClose } from './laneSpendCardClose'
+import type { GenerationPresentation, ProductionGenerationPlan } from '../productionRun/productionRunTypes'
 import { openLane } from './laneHost.mjs'
 import { createLaneExtendedDesktopPorts, type LaneExtendedDesktopPortsInput } from './laneExtendedDesktopPorts'
 import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs'
@@ -342,8 +344,15 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
   }
   const untilHolding = async (gate: ReturnType<typeof createLaneApprovalGate>) => { await vi.waitFor(() => expect(gate.holding()).toBeDefined()) }
 
-  it('projects the exact generate call while the desktop preflight holds the spend card', async () => {
+  it('projects the exact generate call until cancel closes the card even while handoff settlement is outstanding', async () => {
     const f = setup()
+    const handOver = { by: 'gesture' as const, shotId: 'shot-1', at: 't1', canvasRunId: 'canvas-1' }
+    let presentation: GenerationPresentation = { openedAt: 't0', fromGate: 0, shotIds: ['shot-1'], handOvers: [handOver] }
+    const read = () => ({ presentations: [presentation] }) as ProductionGenerationPlan
+    let notify = () => {}
+    const watch = vi.spyOn(f.input.spendCard, 'whenCardCloses').mockImplementation(() => watchSpendCardClose({
+      read, subscribe: listener => { notify = () => listener(read()); return () => { notify = () => {} } },
+    }))
     vi.mocked(f.input.generation).mockReturnValue({
       tryExecute: vi.fn(async () => presentedCard), withdrawPresentation: vi.fn(),
       readPresentationOutcome: vi.fn(async () => resolvedOutcome), dispose: vi.fn(),
@@ -366,7 +375,7 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
       try {
         const turn = lane.execute({ kind: 'prompt', text: 'Generate the shot.' })
         try {
-          await vi.waitFor(() => expect(f.card.watched).toEqual(['op-1']))
+          await vi.waitFor(() => expect(watch).toHaveBeenCalled())
           const snapshot = lane.projection()
           expect(snapshot.pending).toBeUndefined()
           expect(snapshot.parts).toEqual(expect.arrayContaining([
@@ -382,9 +391,20 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
           expect(markup).not.toContain('animate-spin')
           expect(view.items.find(item => item.kind === 'tool' && item.receipt.toolCallId === 'parallel'))
             .not.toMatchObject({ receipt: { status: 'approval-requested' } })
+          presentation = { ...presentation, closed: { by: 'user_closed', at: 't2' } }
+          notify()
+          await vi.waitFor(() => {
+            const settling = lane.projection()
+            expect(settling.running).toBe(true)
+            expect(settling.parts.some(part => part.kind === 'tool-result' && part.toolCallId === 'held')).toBe(false)
+            const receipt = laneViewModel(settling, laneViewTestLabels).items.find(item => item.kind === 'tool' && item.receipt.toolCallId === 'held')
+            expect(receipt?.kind).toBe('tool')
+            expect(receipt?.kind === 'tool' && receipt.receipt.status, 'closed card still asks for approval').not.toBe('approval-requested')
+          })
         } finally {
-          f.card.close()
-          if (!f.card.watched.length) await lane.execute({ kind: 'abort' })
+          presentation = { ...presentation, closed: { by: 'user_closed', at: 't2' }, handOvers: [{ ...handOver, settled: { at: 't3', outcome: 'accepted' } }] }
+          notify()
+          if (!watch.mock.calls.length) await lane.execute({ kind: 'abort' })
           await turn
         }
         expect(lane.projection()).not.toHaveProperty('heldToolCallIds')

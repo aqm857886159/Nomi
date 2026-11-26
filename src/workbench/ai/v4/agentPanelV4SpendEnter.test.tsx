@@ -1,4 +1,8 @@
 import React from 'react'
+import { productionRunApi } from '../../production/productionRunApi'
+import { useAgentPanelSpendCard, type AgentPanelSpendCard } from './useAgentPanelSpendCard'
+import type { PendingSpendConfirm } from '../../../desktop/productionRunBridgeTypes'
+import { spendWorld, shotsDraft, resetSpendFixture, settleMicrotasks } from '../../../../electron/capabilityCore/agentPanelSpendConfirmTestUtils'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../../../i18n'
 import { zhAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
@@ -9,6 +13,8 @@ import type { LibraryPickerHandle } from '../../library/LibraryPicker'
 import { projectSpendCard } from './agentPanelSpendCard'
 import { createReactTestRenderer } from './testReactRenderer'
 
+vi.mock('../../generation/list/generationListModelLabels', () => ({ useNodeModelOption: () => () => undefined }))
+vi.mock('../../../ui/toast', async (original) => ({ ...await original<object>(), toast: vi.fn() }))
 let editor: PromptEditorProps
 vi.mock('../../assets/PromptEditor', () => ({
   default: (props: PromptEditorProps) => { editor = props; return null },
@@ -46,13 +52,18 @@ function offer(quoteId: string, retry = false) {
 function mount(text = '', composer: AgentPanelV4PanelProps['composer'] = {}, panel: Partial<AgentPanelV4PanelProps> = {}) {
   const onConfirm = vi.fn()
   const onSubmit = vi.fn()
+  let primaryButton: { click(): void } | undefined
   const root = createReactTestRenderer({
-    createInstance: (_type, props) => ({
-      props, get disabled() { return this.props.disabled === true }, addEventListener() {}, removeEventListener() {},
-      click() {
-        if (!this.disabled && typeof this.props.onClick === 'function') this.props.onClick()
-      },
-    }),
+    createInstance: (_type, props) => {
+      const instance = {
+        props, get disabled() { return this.props.disabled === true }, addEventListener() {}, removeEventListener() {},
+        click() {
+          if (!this.disabled && typeof this.props.onClick === 'function') this.props.onClick()
+        },
+      }
+      if (props['data-v4-control'] === 'confirm') primaryButton = instance
+      return instance
+    },
   })
   renderer = root
   const render = (nextPanel = panel, nextComposer = composer) => root.render(<AgentPanelV4Panel
@@ -63,7 +74,7 @@ function mount(text = '', composer: AgentPanelV4PanelProps['composer'] = {}, pan
     {...nextPanel}
   />)
   render()
-  return { onConfirm, onSubmit, render }
+  return { onConfirm, onSubmit, render, clickPrimary: () => primaryButton!.click() }
 }
 
 function enter(overrides: Partial<React.KeyboardEvent> = {}, isComposing = false) {
@@ -79,6 +90,55 @@ describe('Agent spend bar and composer share Enter', () => {
     enter({ repeat: true })
     expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('rejects stale Enter after a clicked generation was not sent and accepts the explicit retry click', async () => {
+    const world = spendWorld()
+    const ipc = vi.spyOn(productionRunApi, 'handOverSpend').mockImplementation(world.card.handOverShots)
+    const hook = createReactTestRenderer()
+    let card!: AgentPanelSpendCard
+    function ProjectCard({ shown }: { shown: PendingSpendConfirm }) {
+      card = useAgentPanelSpendCard({ surface: 'ready', rows: [shown] })
+      return null
+    }
+    try {
+      await shotsDraft(world, [{}])
+      world.renderer.setHandOverFailing(true)
+      const display = () => hook.render(<ProjectCard shown={world.pending()!} />)
+      display()
+      const handlers = { onConfirm: () => card.primary(), onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }
+      const panel = mount('', {}, { slot: card.slot, slotHandlers: handlers })
+      panel.clickPrimary()
+      const initial = ipc.mock.results[0]!.value
+      await initial
+      await settleMicrotasks()
+      hook.flushPassiveEffects()
+      expect(world.pending()?.shots[0]?.offer).toBe('not_sent')
+      expect(world.renderer.handOverCalls).toHaveLength(1)
+
+      // IPC has unlocked. Keep the old card painted until its replacement snapshot arrives.
+      enter()
+      expect(ipc).toHaveBeenCalledTimes(2)
+      const replay = await ipc.mock.results[1]!.value
+      await settleMicrotasks()
+      expect(world.renderer.handOverCalls, 'stale Enter started a second handoff').toHaveLength(1)
+      expect(replay).toMatchObject({ ok: false })
+      display()
+      expect(card.slot?.confirmLabel).toBe(zhAgentPanelV4.spendCard.retry)
+      panel.render({ slot: card.slot, slotHandlers: handlers })
+      enter()
+      expect(ipc).toHaveBeenCalledTimes(2)
+      world.renderer.setHandOverFailing(false)
+      panel.clickPrimary()
+      await ipc.mock.results[2]!.value
+      await world.renderer.drain()
+      expect(world.renderer.handOverCalls).toHaveLength(2)
+      expect(world.sentShots()).toEqual(['shot-1'])
+    } finally {
+      hook.close()
+      ipc.mockRestore()
+      resetSpendFixture()
+    }
   })
 
   it.each(['text', 'chip'])('sends a %s draft without confirming', kind => {
