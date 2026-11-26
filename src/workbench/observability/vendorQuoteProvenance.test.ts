@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import { classifyGenerationError } from './classifyError'
-import { providerFailureText } from '../ai/lane/laneCommandFailure'
+import { providerFailureIsUnclassified, providerFailureText, takeUnclassifiedProviderFailures } from '../ai/lane/laneCommandFailure'
 import { decideGenerationFailure, formatTaskFailureMessage } from '../../../electron/shared/generationFailure'
 import { encodeVendorErrorMessage, requestJson, VendorRequestError } from '../../../electron/vendor/vendorHttp'
 import { describeAgentError } from '../../../electron/ai/agentError'
@@ -179,6 +179,9 @@ describe('服务商回复里的诊断和业务说明', () => {
 
   it.each([
     ['inline HTML', 'Upstream reply: <title>Gateway</title>'],
+    ['HTML attribute', '<section class="gateway">'],
+    ['paired tags', '<strong>Unavailable</strong>'],
+    ['HTML break', 'Upstream reply:<br/>Unavailable'],
     ['truncated JSON', '{"error":{"message":"Overloaded"'],
     ['JSON member', '"detail":"Temporarily offline"}'],
     ['array', '[{"status":503}]'],
@@ -189,14 +192,62 @@ describe('服务商回复里的诊断和业务说明', () => {
     expect(classifyGenerationError(message).providerMessage).toBeUndefined()
   })
 
-  it.each(['ServiceUnavailableError', 'Service Unavailable'])('没有状态码也没有瞬时标记的 %s 按服务端失败处理', message => {
+  it.each(['ServiceUnavailableError', 'Service Unavailable', '503 Service Unavailable', 'Bad Gateway', 'Gateway Timeout'])('没有状态码也没有瞬时标记的 %s 按服务端失败处理', message => {
     const decision = decideGenerationFailure({ message, locale: 'en', transient: false })
     expect(decision).toMatchObject({ kind: 'server', reason: { key: 'generationCommon.observability.error.server.reason' }, raw: message })
     expect(decision.providerMessage).toBeUndefined()
   })
 
-  it.each(['RenderPipelineException', 'RENDER_BACKEND_FAULT'])('无来源的 %s 只留在技术详情', message => {
+  it.each(['RenderPipelineException', 'RENDER_BACKEND_FAULT', 'com.vendor.RenderPipelineException',
+    'io.grpc.StatusRuntimeException', '{"code":500}', 'TypeError: Failed to render\n  at render (worker.js:4:2)'])('无来源的 %s 只留在技术详情', message => {
     const decision = decideGenerationFailure({ message, locale: 'en' })
     expect(decision).toMatchObject({ kind: 'unknown', reason: { key: 'generationCommon.observability.error.unknown.reason' }, raw: message })
+  })
+})
+
+describe('审查回归：业务动作、技术详情和 Agent 未分类日志', () => {
+  const ratio = 'Invalid value for "aspect_ratio": choose 16:9 or 9:16.'
+  const stack = 'TypeError: Failed to render\n  at render (worker.js:4:2)'
+
+  it.each([
+    ...['image', 'video', 'prompt'].map(field => {
+      const text = `Replace <${field}> with an uploaded image before generating.`
+      return [text, text]
+    }),
+    [JSON.stringify({ error: { message: ratio } }), ratio],
+  ])('HTTP 400 在画布和 Agent 保留具体改法 %s', (body, said) => {
+    const message = describeAgentError(modelCallFailure({ vendorKey: 'relay',
+      attempt: { kind: 'http', status: 400, body, url: SUBMIT_URL } }))
+    expect(classifyGenerationError(message)).toMatchObject({ kind: 'input', providerMessage: said })
+    expect(providerFailureText(message, (key, params) => i18n.t(key, params))).toContain(said)
+  })
+
+  it('旧节点保留服务地区限制和下一步', () => {
+    const message = 'Service unavailable in your region. Select a different region.'
+    expect(decideGenerationFailure({ message, locale: 'en' })).toMatchObject({ kind: 'unknown', reason: { text: message } })
+  })
+
+  it.each([stack, stack.replace(/\s+/g, ' '), 'com.vendor.RenderPipelineException'])(
+    'HTTP 503 将 %s 留在技术详情', diagnostic => {
+      const message = describeAgentError(modelCallFailure({ vendorKey: 'relay',
+        attempt: { kind: 'http', status: 503, body: JSON.stringify({ error: { message: diagnostic } }), url: SUBMIT_URL } }))
+      const report = classifyGenerationError(message)
+      expect(report.kind).toBe('server')
+      expect(report.raw).toContain(diagnostic)
+      expect.soft(report.providerMessage).toBeUndefined()
+      expect(providerFailureText(message, (key, params) => i18n.t(key, params))).toBe(report.reason)
+    })
+
+  it.each(['zh-CN', 'en'])('%s 未知技术行使用 Agent 原兜底，每个条目只记一次', async locale => {
+    await i18n.changeLanguage(locale)
+    const messages = ['unknown_model_identity', 'not_node_not_found_extra', 'asset_not_localized', '{"code":500}']
+    for (const raw of messages) {
+      expect.soft(providerFailureIsUnclassified(raw)).toBe(true)
+      expect.soft(providerFailureText(raw, (key, params) => i18n.t(key, params))).toBe(i18n.t('agentResident.providerUnknownError'))
+    }
+    const items = messages.map(raw => ({ kind: 'error', identity: raw, raw }))
+    const seen = new Set<string>()
+    expect(takeUnclassifiedProviderFailures(items, seen)).toEqual(messages)
+    expect(takeUnclassifiedProviderFailures(items, seen)).toEqual([])
   })
 })

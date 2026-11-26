@@ -316,7 +316,7 @@
       "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：unknown_model_identity",
       "canRetry": true
     },
-    "builtinAssistant": "生成失败",
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
     "externalAssistant": {
       "errorCode": "unknown_model_identity",
       "message": "目录里没有这个模型，或它的类型挂不到这个节点上",
@@ -347,7 +347,7 @@
       "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：not_node_not_found_extra",
       "canRetry": true
     },
-    "builtinAssistant": "生成失败",
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
     "externalAssistant": {
       "errorCode": null,
       "message": "not_node_not_found_extra",
@@ -438,7 +438,7 @@
       "hint": "Nomi 没能认出这次失败的原因，所以不去猜。完整的原始报文留在错误卡的「技术详情」里；可以重试一次，或换一个模型。\n\n技术详情：asset_not_localized",
       "canRetry": true
     },
-    "builtinAssistant": "生成失败",
+    "builtinAssistant": "服务商返回了一个没见过的错误。可以重试一次，或在模型设置里换一个模型；详情留在日志里。",
     "externalAssistant": {
       "errorCode": "asset_not_localized",
       "message": "参考素材还没落到本地，生成端拿不到它",
@@ -594,6 +594,66 @@
       "message": "The catalog has no such model, or its kind does not fit this node",
       "recoveryActions": [
         "Call nomi_read{target:\"models\"} for the thin list, then target:\"model\" for that one's detail"
+      ],
+      "nextActions": null
+    }
+  },
+  "U1 码是别的词的一部分 [en]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "Generation failed",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "storyboard": {
+      "reason": "Generation failed",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model.\n\nTechnical details: not_node_not_found_extra",
+      "canRetry": true
+    },
+    "builtinAssistant": "The provider returned an error we do not recognize. Try once more, or switch to another model in Model settings; the details are kept in the log.",
+    "externalAssistant": {
+      "errorCode": null,
+      "message": "not_node_not_found_extra",
+      "recoveryActions": [],
+      "nextActions": null
+    }
+  },
+  "U3b 同一个码塞回正文 [en]": {
+    "canvas": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "vendorSide": false,
+      "reason": "Generation failed",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "taskCenter": {
+      "kind": "unknown",
+      "primary": "retry",
+      "secondary": "switch-model",
+      "canRetry": true,
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model."
+    },
+    "storyboard": {
+      "reason": "Generation failed",
+      "hint": "Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model.\n\nTechnical details: asset_not_localized",
+      "canRetry": true
+    },
+    "builtinAssistant": "The provider returned an error we do not recognize. Try once more, or switch to another model in Model settings; the details are kept in the log.",
+    "externalAssistant": {
+      "errorCode": "asset_not_localized",
+      "message": "A referenced asset is not localized yet, so the generator cannot read it",
+      "recoveryActions": [
+        "Open the node in Nomi to finish localizing the asset, then retry"
       ],
       "nextActions": null
     }
