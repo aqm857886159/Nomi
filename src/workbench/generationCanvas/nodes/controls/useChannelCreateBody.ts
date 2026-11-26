@@ -45,6 +45,11 @@ export function vendorMappingsReader(list: readonly unknown[] | undefined): Vend
   return reader
 }
 
+/** 这个读取器有没有证据（全表已载进内存）。没有 = 每家都「查不到」；要按「真没有」下结论的入口先问它，免得加载中闪一下「没有」。 */
+export function mappingsEvidenceLoaded(reader: VendorMappingsReader): boolean {
+  return reader !== NO_EVIDENCE
+}
+
 /**
  * 订阅内存里的渠道 mapping 全表。还没载过（应用刚起、预热还没回来）就载一次，载好之前一律「查不到」→ 不收窄；
  * 载好后订阅通知重渲。读取器按全表身份记住：同一份全表 = 同一个读取器引用，下游 memo 不会白算。

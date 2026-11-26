@@ -12,7 +12,7 @@ import type { TaskResultDto } from '../../api/taskApi'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { persistNodeMediaFile } from '../adapters/persistNodeImage'
 import { buildLayerSplitBoard, layerSplitBaseIndex, layerSplitCompositePixelRatio } from '../nodes/whiteboard/layerSplitBoard'
-import { loadImageSize, serializeWhiteboardState } from '../nodes/whiteboard/whiteboardState'
+import { LAYER_SPLIT_RAW_KEY, loadImageSize, serializeWhiteboardState, type LayerSplitResultMark } from '../nodes/whiteboard/whiteboardState'
 import { renderWhiteboardStatePreview } from '../nodes/whiteboard/whiteboardStatePreview'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 import { normalizeCatalogTaskResults, type GenerationNodeResults } from './catalogTaskResultParse'
@@ -76,7 +76,7 @@ async function foldLayerSplit(
     type: 'image',
     taskKind: 'image',
     ...persisted,
-    raw: { whiteboardState: serializeWhiteboardState(board) },
+    raw: { whiteboardState: serializeWhiteboardState(board), [LAYER_SPLIT_RAW_KEY]: { layers: layers.length } satisfies LayerSplitResultMark },
   }]
 }
 

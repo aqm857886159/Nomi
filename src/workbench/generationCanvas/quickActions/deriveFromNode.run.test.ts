@@ -11,7 +11,14 @@ import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
-import { deriveFromNode, isDerivedPromptReady, QUICK_ACTION_META_KEY, readQuickActionMeta, type DeriveHost } from './deriveFromNode'
+import { deriveFromNode, isDerivedPromptReady, layerSplitVendorKeys, QUICK_ACTION_META_KEY, readQuickActionMeta, type DeriveHost } from './deriveFromNode'
+import { KNOWN_VENDORS } from '../../../config/knownVendors'
+import { applyBuiltinSeeds } from '../../../../electron/catalog/seedBuiltins'
+import type { CatalogState } from '../../../../electron/catalog/types'
+import { vendorMappingsReader } from '../nodes/controls/useChannelCreateBody'
+import { readModePreference } from '../nodes/controls/modePreference'
+import { readWhiteboardState } from '../nodes/whiteboard/whiteboardState'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes/builtInCatalog'
 
 type SubmitInput = { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: TaskRequestDto }
 
@@ -97,7 +104,7 @@ function hostWith(over: Partial<DeriveHost> = {}): DeriveHost {
   }
 }
 
-const derive = (sourceNodeId: string, host: DeriveHost, actionId: 'multi-angle-grid' | 'next-moment' | 'upscale' = 'multi-angle-grid') =>
+const derive = (sourceNodeId: string, host: DeriveHost, actionId: 'multi-angle-grid' | 'next-moment' | 'upscale' | 'layer-split' = 'multi-angle-grid') =>
   deriveFromNode({ sourceNodeId, actionId }, host)
 const derivedIdOf = (outcome: Awaited<ReturnType<typeof derive>>): string => {
   if (outcome.status !== 'prepared') throw new Error('expected prepared')
@@ -213,5 +220,68 @@ describe('一键派生 —— 点不了的时候一个节点都不建', () => {
     }
     expect(calls.runTask).not.toHaveBeenCalled()
     expect(store().nodes).toHaveLength(2)
+  })
+})
+
+// ── 图层分离（设计卡 docs/plan/2026-11-26-layer-split.md ★9 第 1、8 条）──────────────────────────────────────────
+// 模型与渠道线缆都是内置目录种下的真东西（applyBuiltinSeeds），不手写目录。
+const SEEDED = applyBuiltinSeeds({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} } as unknown as CatalogState, '2026-11-26T00:00:00.000Z').state
+const SEEDREAM_55: ModelOption = { value: 'seedream-5-5', label: 'Seedream 5.5', vendor: 'apimart', modelKey: 'seedream-5-5' }
+const layerHost = (over: Partial<DeriveHost> = {}): DeriveHost => hostWith({ editModelOptions: [MODEL, SEEDREAM_55], readMappings: vendorMappingsReader(SEEDED.mappings), ...over })
+
+describe('图层分离入口 —— 派生一个方式已定好的节点，不花钱', () => {
+  it('★9-1：1 个节点 + 1 条边、0 次请求；方式 = 图层分离（人手选的），提示词空，「已备好 · 未生成」；不带画板数据', async () => {
+    const source = addSource()
+
+    const derivedId = derivedIdOf(await derive(source, layerHost(), 'layer-split'))
+
+    expect(calls.runTask).not.toHaveBeenCalled()
+    expect(calls.mint).not.toHaveBeenCalled()
+    expect(store().nodes).toHaveLength(2)
+    expect(store().edges.filter((edge) => edge.target === derivedId).map((edge) => edge.source)).toEqual([source])
+    const derived = nodeOf(derivedId)
+    expect(derived.prompt ?? '').toBe('')
+    expect(derived.meta).toMatchObject({ modelKey: 'seedream-5-5', modelVendor: 'apimart' })
+    const archetype = MODEL_ARCHETYPES.find((candidate) => candidate.id === 'seedream-5-5')!
+    expect(readModePreference(archetype, derived.meta)).toEqual({ modeId: 'layers', chosenBy: 'human' })
+    expect(readQuickActionMeta(derived)).toMatchObject({ id: 'layer-split', sourceNodeId: source, promptReady: true })
+    expect(isDerivedPromptReady(derived)).toBe(true)
+    expect(readWhiteboardState(derived)).toBeUndefined()
+    expect(derived.result).toBeUndefined()
+  })
+
+  it('★9-8 反例：目录里没有能拆图层的模型 → 不建、不发，原因是「没有图层分离模型」', async () => {
+    const source = addSource()
+    const outcome = await derive(source, layerHost({ editModelOptions: [MODEL] }), 'layer-split')
+    expect(outcome).toEqual({ status: 'blocked', reason: 'no-layer-split-model' })
+    expect(store().nodes).toHaveLength(1)
+    expect(calls.runTask).not.toHaveBeenCalled()
+  })
+
+  it('★9-8 反例：渠道线缆查不到 / 线缆不读图层开关 → 当没有（宁可说没有，也不派生一个发出去只是普通改图的节点）', async () => {
+    const source = addSource()
+    expect(await derive(source, layerHost({ readMappings: undefined }), 'layer-split')).toEqual({ status: 'blocked', reason: 'no-layer-split-model' })
+    expect(await derive(source, layerHost({ readMappings: vendorMappingsReader(undefined) }), 'layer-split')).toEqual({ status: 'blocked', reason: 'no-layer-split-model' })
+    const withoutSwitch = SEEDED.mappings.map((mapping) => {
+      const body = (mapping.create as { body?: Record<string, unknown> } | undefined)?.body
+      if (mapping.vendorKey !== 'apimart' || !body || !('layer_decomposition' in body)) return mapping
+      const { layer_decomposition: _drop, layer_decomposition_options: _options, ...rest } = body
+      return { ...mapping, create: { ...mapping.create, body: rest, paramMap: undefined } }
+    })
+    expect(await derive(source, layerHost({ readMappings: vendorMappingsReader(withoutSwitch) }), 'layer-split')).toEqual({ status: 'blocked', reason: 'no-layer-split-model' })
+    expect(store().nodes).toHaveLength(1)
+    // 缺模型时「去接哪一家」从目录算：线缆不读开关的那份目录里一家都算不出 → 菜单退回通用的「去添加」。
+    expect(layerSplitVendorKeys(vendorMappingsReader(withoutSwitch), KNOWN_VENDORS.map((vendor) => vendor.vendorKey))).toEqual([])
+  })
+
+  it('D-1126-se-missing-model-guide：谁能拆图层由内置目录算出（今天只有 APIMart），不写死厂商名', () => {
+    expect(layerSplitVendorKeys(vendorMappingsReader(SEEDED.mappings), KNOWN_VENDORS.map((vendor) => vendor.vendorKey))).toEqual(['apimart'])
+    expect(layerSplitVendorKeys(vendorMappingsReader(undefined), KNOWN_VENDORS.map((vendor) => vendor.vendorKey))).toEqual([])
+  })
+
+  it('源图自己的模型能拆就沿用；不能拆就挑目录里第一个能拆的', async () => {
+    const source = addSource()
+    const derivedId = derivedIdOf(await derive(source, layerHost({ editModelOptions: [MODEL, SEEDREAM_55] }), 'layer-split'))
+    expect(nodeOf(derivedId).meta).toMatchObject({ modelKey: 'seedream-5-5' })
   })
 })

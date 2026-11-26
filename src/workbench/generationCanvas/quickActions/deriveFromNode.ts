@@ -5,8 +5,10 @@ import { withCanvasGestureContext } from '../events/canvasGestureContext'
 import { getGenerationModelDefaults } from '../model/generationModelDefaults'
 import type { GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { findModelOptionByIdentifier } from '../adapters/modelOptionsAdapter'
-import { buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
+import { buildModeSwitchMeta, buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
 import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
+import { readModeChannelBody, type VendorMappingsReader } from '../nodes/controls/useChannelCreateBody'
+import { layerSplitModeOf, layerSplitWireReady } from '../../../../electron/shared/modelArchetypes/layerSplit'
 import { resolveArchetypeForOption } from '../nodes/nodeModelArchetype'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -33,7 +35,10 @@ export type QuickActionNodeMeta = Readonly<{
   id: QuickActionId
   sourceNodeId: string
   grid?: QuickActionGrid
-  /** 派生时填进了效果库模板提示词（高清这类没有模板的不带）。「已备好 · 未生成」只认它。 */
+  /**
+   * 派生时就备好了、点 ↑ 即可生成：填进了效果库模板提示词，或（图层分离）方式已定好、提示词留空即自动识别。
+   * 高清这类既没模板也没定方式的不带。「已备好 · 未生成」只认它。
+   */
   promptReady?: true
 }>
 
@@ -106,6 +111,8 @@ export type DeriveHost = Readonly<{
   editModelOptions: readonly ModelOption[]
   /** 效果库里这一条的正文；取不到（库缺条目 / 拉取失败）返回 null。 */
   resolveEffectPrompt: (effectId: string) => Promise<string | null>
+  /** 渠道 mapping（按供应商取）：图层分离要问「所接渠道的线缆真发不发得出」。不给 = 查不到 = 没有能拆的模型。 */
+  readMappings?: VendorMappingsReader
 }>
 
 /** 一次派生的结局：建好了（`derivedNodeId`），或一个节点都没建（`blocked`）。 */
@@ -114,6 +121,7 @@ export type DeriveBlockReason =
   | 'source-not-referenceable'
   | 'no-image-model'
   | 'no-upscale-model'
+  | 'no-layer-split-model'
   | 'missing-effect'
   | 'connect-failed'
 
@@ -126,21 +134,59 @@ export function findUpscaleModelOption(options: readonly ModelOption[]): ModelOp
   return options.find((option) => resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey })?.modes.some((mode) => mode.id === 'upscale')) ?? null
 }
 
-/** 点这一项时派生用哪个模型：源图自己的（可改图的话）→ 用户的改图默认 → 目录第一个可改图的。 */
+/**
+ * 这个模型能不能做图层分离：档案里有「图层分离」方式，**并且**它所接渠道的线缆真读这个开关（与发送口同一句话，
+ * 见 shared/modelArchetypes/layerSplit.ts）。渠道查不到（还没载 / 无 bridge）就当不能——入口点了要花一次钱，
+ * 宁可说「没有」，也不派生出一个发出去只是普通改图的节点。
+ */
+export function canLayerSplit(option: ModelOption, readMappings: VendorMappingsReader): boolean {
+  const mode = layerSplitModeOf(resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey }))
+  if (!mode) return false
+  const wire = readModeChannelBody(option.vendor, option.modelKey || option.value, 'image_edit', mode.id, readMappings)
+  return Boolean(wire && layerSplitWireReady(wire.wireParamKeys))
+}
+
+/**
+ * 候选供应商里哪几家能做图层分离（它渠道上某条改图线缆、对应的模型档案都过 `canLayerSplit`）。
+ * 缺模型时「去接哪一家」由它从目录算出来，不写死厂商名：以后别家也能拆了，这句话自动跟着变。
+ */
+export function layerSplitVendorKeys(readMappings: VendorMappingsReader, vendorKeys: readonly string[]): string[] {
+  return vendorKeys.filter((vendorKey) => (readMappings(vendorKey) ?? []).some((mapping) => {
+    const { taskKind, modelKey } = (mapping ?? {}) as { taskKind?: unknown; modelKey?: unknown }
+    return taskKind === 'image_edit' && typeof modelKey === 'string' && modelKey !== ''
+      && canLayerSplit({ value: modelKey, label: modelKey, vendor: vendorKey, modelKey }, readMappings)
+  }))
+}
+
+/** 目录里第一个能做图层分离的模型（按偏好 / 健康排好的顺序）。 */
+export function findLayerSplitModelOption(options: readonly ModelOption[], readMappings: VendorMappingsReader): ModelOption | null {
+  return options.find((option) => canLayerSplit(option, readMappings)) ?? null
+}
+
+/**
+ * 点这一项时派生用哪个模型：源图自己的（能做这件事的话）→ 用户的改图默认（同上）→ 目录第一个能做的。
+ * 「能做」：普通改图 = 不是放大档；图层分离 = `canLayerSplit`；放大 = 目录里的放大档。
+ */
 export function pickDerivedModel(
   source: GenerationCanvasNode,
   options: readonly ModelOption[],
-  requires: 'image-edit' | 'upscale',
+  requires: 'image-edit' | 'upscale' | 'layer-split',
+  readMappings?: VendorMappingsReader,
 ): ModelOption | null {
   if (requires === 'upscale') return findUpscaleModelOption(options)
+  const fits = requires === 'layer-split'
+    ? (option: ModelOption) => (readMappings ? canLayerSplit(option, readMappings) : false)
+    : (option: ModelOption) => !findUpscaleModelOption([option])
   const own = nodeSelectedModelAddress((source.meta ?? {}) as Record<string, unknown>)
   const sourceOption = source.kind === 'image' && own.modelKey ? findModelOptionByIdentifier(options, own.modelKey, own.vendorKey) : null
-  if (sourceOption && !findUpscaleModelOption([sourceOption])) return sourceOption
+  if (sourceOption && fits(sourceOption)) return sourceOption
   const preferred = getGenerationModelDefaults().image_edit
   const preferredOption = preferred ? findModelOptionByIdentifier(options, preferred.modelKey, preferred.vendorKey) : null
-  if (preferredOption) return preferredOption
-  return options.find((option) => !findUpscaleModelOption([option])) ?? null
+  if (preferredOption && (requires === 'image-edit' || fits(preferredOption))) return preferredOption
+  return options.find(fits) ?? null
 }
+
+const BLOCKED_WITHOUT_MODEL = { 'image-edit': 'no-image-model', upscale: 'no-upscale-model', 'layer-split': 'no-layer-split-model' } as const satisfies Record<'image-edit' | 'upscale' | 'layer-split', DeriveBlockReason>
 
 export async function deriveFromNode(request: DeriveRequest, host: DeriveHost): Promise<DeriveOutcome> {
   return derive(request, host)
@@ -152,8 +198,8 @@ async function derive(request: DeriveRequest, host: DeriveHost): Promise<DeriveO
   if (!source) return { status: 'blocked', reason: 'source-missing' }
   // 派生要的是「一张出过图的图片」当参考：文本 / 没出图的节点不是（浮条本来也只在有图时出现）。
   if (source.result?.type !== 'image' || !source.result.url || !connectionCreateVerdictsForSource(source, ['image'] as const)[0]?.ok) return { status: 'blocked', reason: 'source-not-referenceable' }
-  const model = pickDerivedModel(source, host.editModelOptions, action.requires)
-  if (!model) return { status: 'blocked', reason: action.requires === 'upscale' ? 'no-upscale-model' : 'no-image-model' }
+  const model = pickDerivedModel(source, host.editModelOptions, action.requires, host.readMappings)
+  if (!model) return { status: 'blocked', reason: BLOCKED_WITHOUT_MODEL[action.requires] }
   let template = ''
   if (action.effectId) {
     const body = await host.resolveEffectPrompt(action.effectId)
@@ -182,7 +228,7 @@ async function derive(request: DeriveRequest, host: DeriveHost): Promise<DeriveO
     prompt,
     position: plan.position,
     ...(plan.categoryId ? { categoryId: plan.categoryId } : {}),
-    meta: { [QUICK_ACTION_META_KEY]: { ...plan.meta, ...(template ? { promptReady: true } : {}) } },
+    meta: { [QUICK_ACTION_META_KEY]: { ...plan.meta, ...(template || action.requires === 'layer-split' ? { promptReady: true } : {}) } },
     select: false,
   }))
   const connected = inTxn(() => {
@@ -204,7 +250,14 @@ async function derive(request: DeriveRequest, host: DeriveHost): Promise<DeriveO
       node, nodes: latest.nodes, edges: latest.edges, modelOptions: host.editModelOptions,
       value: model.modelKey || model.value, vendor: model.vendor,
     })
-    latest.updateNode(created.id, { meta })
+    // 图层分离：用户在菜单里点的就是「这一种方式」——和底栏方式菜单手点同一扇门（buildModeSwitchMeta 写人手偏好）。
+    // 偏好只定方式，参数（层数 30 / 清晰度自动）仍按方式声明的默认读，派生不另写一份。
+    const archetype = action.requires === 'layer-split' ? resolveArchetypeForOption(model, { variantId: undefined, modelId: model.modelKey }) : null
+    const layerMode = layerSplitModeOf(archetype)
+    const nextMeta = archetype && layerMode
+      ? buildModeSwitchMeta({ ...node, meta }, archetype, layerMode.id, { nodes: latest.nodes, edges: latest.edges }, model)
+      : meta
+    latest.updateNode(created.id, { meta: nextMeta })
   })
 
   // 到此为止：不提交、不批准、不扣费。用户在新节点上点 ↑ 才生成。
