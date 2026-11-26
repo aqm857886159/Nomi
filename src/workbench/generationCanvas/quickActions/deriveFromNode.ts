@@ -153,7 +153,7 @@ export function canLayerSplit(option: ModelOption, readMappings: VendorMappingsR
 export function layerSplitVendorKeys(readMappings: VendorMappingsReader, vendorKeys: readonly string[]): string[] {
   return vendorKeys.filter((vendorKey) => (readMappings(vendorKey) ?? []).some((mapping) => {
     // 桶里是这家的渠道线缆（Mapping 自带 vendorKey）：身份按 (这家, modelKey) 成对走，不拿裸 modelKey 去问。
-    const { taskKind, modelKey } = (mapping ?? {}) as { taskKind?: unknown; modelKey?: unknown }
+    const { taskKind, modelKey } = (mapping ?? {}) as { vendorKey?: unknown; taskKind?: unknown; modelKey?: unknown }
     return taskKind === 'image_edit' && typeof modelKey === 'string' && modelKey !== ''
       && canLayerSplit({ value: modelKey, label: modelKey, vendor: vendorKey, modelKey }, readMappings)
   }))
