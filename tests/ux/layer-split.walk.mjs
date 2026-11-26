@@ -14,6 +14,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { parseDriverArgs } from './uiDriverOptions.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
+import { CANVAS_ZOOM_BAR } from './_shell.mjs'
 
 const options = parseDriverArgs(['--vendor', 'fake-apimart', ...process.argv.slice(2)])
 const out = options.out
@@ -86,7 +87,11 @@ function blankCanvasPoint() {
   assert.ok(point, 'the canvas has a blank point to click')
   return point
 }
-const zoomPercent = () => Number.parseFloat(read('document.querySelector(".generation-canvas-v2__zoom-bar [data-canvas-zoom-percent]")?.textContent || "NaN"'))
+// 左下缩放簇：百分数读 data-canvas-zoom-percent；− / + 是百分数左右两侧那两颗（外壳位置只经 _shell.mjs 的 CANVAS_ZOOM_BAR）。
+const ZOOM_PERCENT = `${CANVAS_ZOOM_BAR} [data-canvas-zoom-percent]`
+const zoomPercent = () => Number.parseFloat(read(`document.querySelector(${JSON.stringify(ZOOM_PERCENT)})?.textContent || "NaN"`))
+const zoomOutButton = `css:${CANVAS_ZOOM_BAR} span:has(+ [data-canvas-zoom-percent]) button`
+const zoomInButton = `css:${ZOOM_PERCENT} + span button`
 /**
  * 「N 层」此刻的样子（裁定 C-D12：住在节点上方的标签行）：在不在标签行里、看不看得见、屏幕框和生成框相不相交、
  * 角标中心点下去碰到的是不是生成框。
@@ -214,8 +219,6 @@ try {
   const unselectedFace = statusFace(derived.id)
   assert.ok(unselectedFace.shown && unselectedFace.inLabelRow, `layer status stays in the label row when unselected: ${JSON.stringify(unselectedFace)}`)
   shot('LS04b-split-unselected')
-  const zoomOutButton = `css:.generation-canvas-v2__zoom-bar button[aria-label="${T('generationCommon.navigation.zoomOut')}"]`
-  const zoomInButton = `css:.generation-canvas-v2__zoom-bar button[aria-label="${T('generationCommon.navigation.zoomIn')}"]`
   let zoomSteps = 0
   for (; zoomSteps < 12 && !(zoomPercent() < 40); zoomSteps += 1) ui('click', zoomOutButton)
   assert.ok(zoomPercent() < 40, `zoomed out below 40%: ${zoomPercent()}%`)
@@ -224,7 +227,7 @@ try {
   console.log(`✓ layer status hidden at ${zoomPercent()}%`)
   shot('LS04c-split-far-zoom')
   for (let i = 0; i < zoomSteps; i += 1) ui('click', zoomInButton)
-  await until(`Number.parseFloat(document.querySelector(".generation-canvas-v2__zoom-bar [data-canvas-zoom-percent]")?.textContent || "0") >= 40`, 'zoom back to where it was')
+  await until(`Number.parseFloat(document.querySelector(${JSON.stringify(ZOOM_PERCENT)})?.textContent || "0") >= 40`, 'zoom back to where it was')
 
   // ⑥ 画板：图层面板列出底图与两层；拖「人物」右下角，等比放大。
   const landed = nodesOf(readProject()).find((node) => node.id === derived.id)
