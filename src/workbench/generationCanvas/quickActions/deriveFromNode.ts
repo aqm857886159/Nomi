@@ -141,7 +141,7 @@ export function findUpscaleModelOption(options: readonly ModelOption[]): ModelOp
  */
 export function canLayerSplit(option: ModelOption, readMappings: VendorMappingsReader): boolean {
   const mode = layerSplitModeOf(resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey }))
-  if (!mode) return false
+  if (!mode || !option.vendor) return false
   const wire = readModeChannelBody(option.vendor, option.modelKey || option.value, 'image_edit', mode.id, readMappings)
   return Boolean(wire && layerSplitWireReady(wire.wireParamKeys))
 }

@@ -52,7 +52,7 @@ describe('landTaskResults', () => {
     // 合成按底图清晰度（2560 宽 / 1280 画布 = 2）。
     expect(d.renderBoard).toHaveBeenCalledWith(expect.anything(), { pixelRatio: 2 })
     // 存进任务自己的项目。
-    expect(d.persist.mock.calls[0]![2]).toMatchObject({ binding: project })
+    expect(vi.mocked(d.persist!).mock.calls[0]![2]).toMatchObject({ binding: project })
     // 打开画板读到的就是这份白板：底图 + 两层，名字照规则。
     const state = readWhiteboardEditingState({ ...node, result })!
     expect(state.layers.map((layer) => layer.name)).toEqual(['背景', '底图', '标题', '图层 2'])
