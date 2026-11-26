@@ -23,5 +23,5 @@
     "src/workbench/ai/v4/useAgentPanelV4Data.ts"
   ],
   "since": "2026-11-27",
-  "notes": "A receipt reads heldToolCallIds from the host approval gate or the pending spend approval toolCallId. It never infers a wait from an operation or Pi runningTools."
+  "notes": "A receipt reads awaitingDecisionToolCallIds from the host approval gate or the pending spend approval toolCallId. It never infers a wait from an operation or Pi runningTools."
 }

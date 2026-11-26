@@ -418,7 +418,7 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
     }
     if (part.kind === 'tool-call') {
       slots.set(part.toolCallId, { index: items.length, toolName: part.toolName, args: part.args })
-      const waitingOnOffer = projection.heldToolCallIds?.includes(part.toolCallId) === true
+      const waitingOnOffer = projection.awaitingDecisionToolCallIds?.includes(part.toolCallId) === true
       const waitingOnApproval = projection.pending?.effectClass === 'spend' && projection.pending.toolCallId === part.toolCallId
       push({ kind: 'tool', receipt: receiptFor(part, labels, waitingOnOffer || waitingOnApproval) })
       continue

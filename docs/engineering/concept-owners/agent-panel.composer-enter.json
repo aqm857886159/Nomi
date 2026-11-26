@@ -16,7 +16,7 @@
       "symbol": "AgentPanelV4Composer"
     },
     {
-      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "path": "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
       "symbol": "confirmDisplayedSpend"
     }
   ],
@@ -28,5 +28,5 @@
     "src/workbench/ai/v4/AgentPanelV4Panel.tsx"
   ],
   "since": "2026-11-27",
-  "notes": "The composer owns IME, picker and send eligibility. Its panel consumes the displayed quote or approval identity once for empty Enter and protects the handoff to the next card."
+  "notes": "The composer dispatches IME, picker and send. Empty Enter targets a visible primary button. The panel restarts its review window after a hidden document, collapsed panel or clipped button."
 }

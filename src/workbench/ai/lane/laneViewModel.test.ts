@@ -45,7 +45,7 @@ describe('laneViewModel', () => {
     const calls = ['parallel', 'held', 'earlier'].map(toolCallId => part({
       kind: 'tool-call', toolCallId, toolName: 'generate', args: { operationId: 'one-plan' }, running: toolCallId === 'parallel',
     }))
-    const snapshot = { ...projection(calls), running: true, heldToolCallIds: ['held'] }
+    const snapshot = { ...projection(calls), running: true, awaitingDecisionToolCallIds: ['held'] }
     const view = laneViewModel(snapshot, labels)
     expect(view.items.map(item => item.kind === 'tool' && item.receipt.status))
       .toEqual(['input-available', 'approval-requested', 'input-streaming'])

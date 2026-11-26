@@ -24,6 +24,7 @@ type ProbeNode = TestHostNode & {
   type: string
   props: Record<string, unknown>
   nodeType: 1
+  ownerDocument: Document
   clientWidth: number
   clientHeight: number
   /** 量自己（画布那一格里的东西读它；探针里没有排版，量出来是 0，那些 hook 自己就跳过摆放）。 */
@@ -102,7 +103,7 @@ export async function bootProbe(input: {
   const renderer = createReactTestRenderer<ProbeNode>({
     createInstance: (type, props) => {
       const node: ProbeNode = {
-        type, props, nodeType: 1, clientWidth: 1200, clientHeight: 800,
+        type, props, nodeType: 1, ownerDocument: document, clientWidth: 1200, clientHeight: 800,
         getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }),
         addEventListener() {}, removeEventListener() {},
         click() { if (!this.props.disabled && typeof this.props.onClick === 'function') this.props.onClick() },

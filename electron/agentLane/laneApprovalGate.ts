@@ -86,7 +86,7 @@ export interface LaneApprovalGate {
   /** 用户在卡上点了什么。答的不是当前那张卡就返回 `false`（卡已经翻篇了，别把答案落到新的一张上）。 */
   answer(toolCallId: string, action: LaneApprovalAction, reason?: string): boolean;
   pending(): LanePendingApproval | undefined;
-  heldToolCallIds(): readonly string[];
+  awaitingDecisionToolCallIds(): readonly string[];
   /**
    * 这一次调用**真的**是怎么过闸的（2026-09-18 · T-ED-02）。工具回执据此说人话：
    * `auto-granted` = 用户这一档下压根没出过卡，`granted-once` / `granted-session` = 他点过。
@@ -318,7 +318,7 @@ export function createLaneApprovalGate(options: LaneApprovalGateOptions): LaneAp
 
   return {
     pending: currentPending,
-    heldToolCallIds: () => [...holds.keys()],
+    awaitingDecisionToolCallIds: () => [...holds.keys()],
     decisionFor: (toolCallId) => decisions.get(toolCallId),
     answerFor: (toolCallId) => answers.get(toolCallId),
     forget: (toolCallId) => { answers.delete(toolCallId); decisions.delete(toolCallId); },

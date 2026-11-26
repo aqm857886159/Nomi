@@ -51,7 +51,8 @@ export function createDesktopLaneSpend(projectId: string, refresh: () => void) {
     subscribeProductionRunChanges((run) => { if (relevant(run)) invalidate() }),
     subscribeResidentSurfaceLifecycle(invalidate),
   ]
-  const whenCardCloses = (operationId: string) => watchSpendCardClose({
+  const whenCardCloses = (operationId: string, signal: AbortSignal) => watchSpendCardClose({
+    signal,
     read: () => getProductionRunService().readFull(projectId, operationId).generationPlan,
     subscribe: (listener) => subscribeProductionRunChanges((run) => {
       if (run.projectId === projectId && run.runId === operationId) listener(run.generationPlan)

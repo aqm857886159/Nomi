@@ -249,7 +249,7 @@ export function useAgentPanelSpendCard(read: PendingSpendRead | undefined): Agen
     }
     act(target, () => productionRunApi.handOverSpend({
       projectId: target.projectId, operationId: target.operationId, quoteId: target.quoteId,
-      shotIds: action.shotIds, ...cardIdentity(target),
+      handOverRevision: target.handOverRevision, shotIds: action.shotIds, ...cardIdentity(target),
     }).then((result) => {
       if (!result.ok) unpress()
       return result

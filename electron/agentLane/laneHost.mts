@@ -365,11 +365,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 「这次投影为什么和上次不一样」的可能来源就多一个。这里摊进去，投影层一个字都不用改。
   const sandboxFacts = native?.sandboxInactive ? { sandboxInactive: native.sandboxInactive.code } : {};
   const currentProjection = (): LaneProjection => {
-    const heldToolCallIds = gate?.heldToolCallIds();
+    const awaitingDecisionToolCallIds = gate?.awaitingDecisionToolCallIds();
     return {
       ...projectLaneSnapshot(snapshot, modelFacts, gate?.pending(), options.tasks, history.entries(), history.previousInputId(), options.attachments),
       history: history.state(), ...sandboxFacts,
-      ...(heldToolCallIds?.length ? { heldToolCallIds } : {}),
+      ...(awaitingDecisionToolCallIds?.length ? { awaitingDecisionToolCallIds } : {}),
     };
   };
   let projection = currentProjection();

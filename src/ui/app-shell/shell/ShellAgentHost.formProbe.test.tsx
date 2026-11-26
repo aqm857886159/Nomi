@@ -78,9 +78,13 @@ function pickReferenceOnCanvas(p: Probe): void {
   p.goto('generation')
 }
 
-it('starts the 500ms review after Mod+J reveals the new quote in the viewport', async () => {
+it.each([true, false])('starts the 500ms review after Mod+J (button in viewport on expansion: %s)', async visibleOnOpen => {
   vi.useFakeTimers()
   const onConfirm = vi.fn()
+  const events = new EventTarget()
+  const page = { ...document, visibilityState: 'visible',
+    addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events) }
+  vi.stubGlobal('document', page)
   let intersects = true
   const notify = new Set<() => void>()
   vi.stubGlobal('IntersectionObserver', class {
@@ -120,16 +124,31 @@ it('starts the 500ms review after Mod+J reveals the new quote in the viewport', 
     setQuote('second')
     probe.settle()
     vi.advanceTimersByTime(1000)
+    intersects = visibleOnOpen
     probe.key('j')
     expect(probe.shown()).toBe('dock')
     expect(focusEditor).toHaveBeenCalled()
     pressEnter()
     expect(onConfirm, 'immediate Enter after Mod+J').toHaveBeenCalledTimes(1)
-    vi.advanceTimersByTime(1000)
-    pressEnter()
-    expect(onConfirm, 'expanded but outside the viewport').toHaveBeenCalledTimes(1)
-    intersects = true
-    for (const publish of notify) publish()
+    if (!visibleOnOpen) {
+      vi.advanceTimersByTime(1000)
+      pressEnter()
+      expect(onConfirm, 'expanded but outside the viewport').toHaveBeenCalledTimes(1)
+      intersects = true
+      for (const publish of notify) publish()
+      vi.advanceTimersByTime(499)
+      probe.key('\\')
+      vi.advanceTimersByTime(1000)
+      probe.key('j')
+      pressEnter()
+      expect(onConfirm, 'reopening the same quote restarts review').toHaveBeenCalledTimes(1)
+      vi.advanceTimersByTime(499)
+      page.visibilityState = 'hidden'
+      events.dispatchEvent(new Event('visibilitychange'))
+      vi.advanceTimersByTime(1000)
+      page.visibilityState = 'visible'
+      events.dispatchEvent(new Event('visibilitychange'))
+    }
     vi.advanceTimersByTime(499)
     pressEnter()
     expect(onConfirm).toHaveBeenCalledTimes(1)

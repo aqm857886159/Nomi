@@ -2,8 +2,8 @@
   "schema_version": 3,
   "id": "2026-11-27-agent-spend-enter",
   "problem_type": "Editor gestures and tool receipts lose the identity of the next user action",
-  "symptom": "Composition-end Enter and slash with a chip submit unintended actions. Two presses can confirm two offers. A generate call waiting in preflight is folded as streaming.",
-  "direct_cause": "Capture treated keyCode 229 as plain Enter, chip eligibility overrode slash, and an unscoped button ref could activate each new primary. The receipt joined the operation ID to Pi runningTools, which excludes before_tool.",
+  "symptom": "Composition-end Enter and slash with a chip submit unintended actions. Two presses can confirm two offers. A generate call waiting in preflight is folded as streaming. A stale Generate gesture can replay a failed handoff, a hidden quote ages into keyboard eligibility, and a closed card still requests approval during settlement.",
+  "direct_cause": "Capture treated keyCode 229 as plain Enter, chip eligibility overrode slash, and an unscoped button ref could activate each new primary. The receipt joined the operation ID to Pi runningTools, which excludes before_tool. Handoff admission compared only the quote, review time started at render, and the user wait ended only at settlement.",
   "class_root": "Neither input dispatch nor tool presentation binds the waiting user action to its actual owner.",
   "affected_population": [
     "Creators using the resident panel in the sidebar, dock or floating shell and the shared panel in the design lab."
@@ -23,7 +23,22 @@
     "electron/agentLane/laneWorkspace.mts",
     "electron/shared/agentLane/laneContracts.ts",
     "src/workbench/ai/v4/agentPanelSpendCard.ts",
-    "src/workbench/ai/v4/agentPanelV4Types.ts"
+    "src/workbench/ai/v4/agentPanelV4Types.ts",
+    "electron/agentLane/laneDesktopSpend.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "electron/agentLane/laneSpendCardClose.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/productionRun/productionPendingSpend.ts",
+    "electron/shared/contracts/pendingSpendConfirm.ts",
+    "src/desktop/productionRunBridgeTypes.ts",
+    "src/devlab/designLab/spendCard/spendCardLabKit.tsx",
+    "src/ui/app-shell/shell/ShellAgentHost.tsx",
+    "src/ui/app-shell/shell/agentPanelHeaderSlot.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
+    "src/workbench/production/productionRunApi.ts",
+    "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
+    "electron/capabilityCore/canvasHandOver.ts"
   ],
   "entry_points": [
     "Composer capture in AgentPanelV4Panel",
@@ -35,7 +50,8 @@
     "Plain empty Enter activates only the mounted waiting spend action. Drafts, IME, repeated keys and library navigation cannot authorize it.",
     "Waiting receipts remain visible with their existing localized approval label. Concurrent work keeps its own progress.",
     "A quote may be confirmed from the composer once. A retry requires direct interaction. A subsequent quote accepts Enter after it has been visible for 500 ms.",
-    "An external card hold and a gate approval remain distinct. Only the held toolCallIds enter the receipt projection."
+    "The host projects approval only during the creator decision phase of a call. Settlement can outlive that phase.",
+    "The host admits the pair of quote identity and displayed handover revision at most once. The next retry comes from the updated card."
   ],
   "doors": [
     {
@@ -181,12 +197,12 @@
     {
       "kind": "read",
       "path": "electron/agentLane/laneHost.mts",
-      "symbol": "heldToolCallIds"
+      "symbol": "awaitingDecisionToolCallIds"
     },
     {
       "kind": "read",
       "path": "src/workbench/ai/lane/laneViewModel.ts",
-      "symbol": "heldToolCallIds"
+      "symbol": "awaitingDecisionToolCallIds"
     },
     {
       "kind": "read",
@@ -201,7 +217,7 @@
     {
       "kind": "write",
       "path": "electron/agentLane/laneHost.mts",
-      "symbol": "heldToolCallIds"
+      "symbol": "awaitingDecisionToolCallIds"
     },
     {
       "kind": "write",
@@ -217,14 +233,144 @@
       "kind": "read",
       "path": "src/workbench/ai/v4/agentPanelV4Types.ts",
       "symbol": "V4InterventionKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopSpend.ts",
+      "symbol": "whenCardCloses"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "watchSpendCardClose"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "whenCardCloses"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "PendingSpendHandOverInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "handOverRevision"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "symbol": "PendingSpendHandOverInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "symbol": "handOverRevision"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/productionRunBridgeTypes.ts",
+      "symbol": "PendingSpendHandOverInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/agentPanelHeaderSlot.ts",
+      "symbol": "AgentPanelHeaderSlot"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "symbol": "AgentPanelHeaderSlot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "confirmDisplayedSpend"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "AgentPanelHeaderSlot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
+      "symbol": "handOverRevision"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
+      "symbol": "confirmDisplayedSpend"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunApi.ts",
+      "symbol": "PendingSpendHandOverInput"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopSpend.ts",
+      "symbol": "watchSpendCardClose"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "whenCardCloses"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "projectPendingSpendConfirm"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "symbol": "handOverPendingSpendShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "projectPendingSpendConfirm"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "useSpendEnterConfirmation"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendCard.ts",
+      "symbol": "handOverSpend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionRunApi.ts",
+      "symbol": "handOverSpend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/contracts/pendingSpendConfirm.ts",
+      "symbol": "PendingSpendHandOverInput"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSpendCardClose.ts",
+      "symbol": "watchSpendCardClose"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasHandOver.ts",
+      "symbol": "settleUnbound"
     }
   ],
   "door_reduction": {
-    "before": 36,
-    "after": 36,
-    "why_not": "The docks and design fixtures mount the shared cards or the whole panel. Single receipts and work history consume the same tool facts. The language resources supply the existing labels. The desktop host owns the actual wait. The card hook reads the quote and each mounted panel consumes the displayed identity."
+    "before": 40,
+    "after": 62,
+    "why_not": "The docks and design fixtures mount the shared cards or the whole panel. Single receipts and work history consume the same tool facts. The language resources supply the existing labels. The desktop host owns the actual wait. The card hook reads the quote and each mounted panel consumes the displayed identity. The handover request crosses the existing renderer, IPC and host boundary. The quote projection owns the ledger revision, the shell and document supply visibility, and the run watcher reports close before settlement."
   },
-  "generality_proof": "All resident layouts use the same panel. The displayed spend quoteId covers the project, operation, presentation and shot revisions independently of handoff progress. Lane approvals use the pending toolCallId. The gate publishes all active holds by call ID so concurrent calls and old calls on the same plan keep their own statuses.",
+  "generality_proof": "All resident layouts use the same panel. The displayed spend quoteId covers the project, operation, presentation and shot revisions independently of handoff progress. Lane approvals use the pending toolCallId. The gate publishes all active holds by call ID so concurrent calls and old calls on the same plan keep their own statuses. All handoffs append synchronously to the presentation before dispatch. Its append count and the quote identify the next attempt across windows and reloads. The review clock follows the visible primary button in each layout.",
   "shared_boundaries": [
     {
       "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
@@ -237,14 +383,24 @@
       "responsibility": "Associate an unresolved tool call with its own waiting spend offer or pending tool approval."
     },
     {
-      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "path": "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
       "symbol": "confirmDisplayedSpend",
-      "responsibility": "Consume a displayed confirmation identity once and protect the transition to a subsequent offer."
+      "responsibility": "Consume the displayed offer after continuous visibility of the primary button."
     },
     {
       "path": "electron/agentLane/laneApprovalGate.ts",
       "symbol": "createLaneApprovalGate",
-      "responsibility": "Publish and clear the call IDs of outside-card waits with the lifetime of the holds."
+      "responsibility": "Publish outside-card waits by call identity while the creator decision is open."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "handOverShots",
+      "responsibility": "Compare the displayed handover revision to the current ledger before dispatch."
+    },
+    {
+      "path": "electron/agentLane/laneSpendCardClose.ts",
+      "symbol": "watchSpendCardClose",
+      "responsibility": "Separate closing the decision from settling outstanding handovers."
     }
   ],
   "same_class_entry_points": [
@@ -274,7 +430,8 @@
     "same_class_scan": [
       "door-map V4Intervention, V4SpendBar and AgentPanelV4Composer identified the resident and design-lab surfaces.",
       "Traced laneViewModel and collapseV4Flow through ToolStatusIcon against generate waiting in laneExtendedDesktopPorts.",
-      "The desktop generate preflight borrows a hold from the gate. The ordinary spend approval stays in pending. The pending quote and lane approval are the two identities consumed by the panel."
+      "The desktop generate preflight borrows a hold from the gate. The ordinary spend approval stays in pending. The pending quote and lane approval are the two identities consumed by the panel.",
+      "Round 3 door-map traced handOverSpend, handOverPendingSpendShots, spendConfirmationId and watchSpendCardClose from the resident panel through the host."
     ]
   },
   "prevention": {
@@ -283,7 +440,7 @@
     "invariant": "Each editor gesture belongs to one active control.",
     "failure_mode": "Composition and slash stay in the editor. A consumed quote, a retry, or a freshly switched quote cannot spend through accidental Enter. Direct interaction with an enabled button remains available.",
     "exception_policy": "none",
-    "strategy": "Capture composition before picker/send/confirm, veto bare slash before chip eligibility, and bind empty Enter to a consumable quote on the rendered button. Read call identity from the gate before folding the receipt.",
+    "strategy": "Capture composition before picker/send/confirm, veto bare slash before chip eligibility, and bind empty Enter to a consumable quote on the rendered button. Read call identity from the gate before folding the receipt. Compare the displayed revision before handoff, observe the button in the visible document, and release the creator decision independently of ledger settlement. Unbound settlement addresses the exact appended row even if another retry has the same timestamp.",
     "artifacts": [
       "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
       "src/workbench/ai/v4/AgentPanelV4SpendBar.tsx",
@@ -292,20 +449,30 @@
       "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
       "electron/agentLane/laneApprovalGate.ts",
       "electron/agentLane/laneHost.mts",
-      "src/workbench/ai/v4/agentPanelSpendCard.ts"
+      "src/workbench/ai/v4/agentPanelSpendCard.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "electron/productionRun/productionPendingSpend.ts",
+      "electron/agentLane/laneSpendCardClose.ts",
+      "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "src/workbench/ai/v4/useSpendEnterConfirmation.ts",
+      "electron/capabilityCore/canvasHandOver.ts"
     ]
   },
   "regression_tests": [
     "src/workbench/ai/lane/laneViewModel.test.ts",
     "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
     "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx",
-    "electron/agentLane/laneExtendedDesktopPorts.test.ts"
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "src/ui/app-shell/shell/ShellAgentHost.formProbe.test.tsx",
+    "electron/capabilityCore/agentPanelSpendCardFailures.e2e.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/ai/lane/laneViewModel.test.ts",
     "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
     "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx",
-    "electron/agentLane/laneExtendedDesktopPorts.test.ts"
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "src/ui/app-shell/shell/ShellAgentHost.formProbe.test.tsx",
+    "electron/capabilityCore/agentPanelSpendCardFailures.e2e.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -320,9 +487,9 @@
     "rationale": "The issue concerns application dispatch and projection. React already exposes native keyboard events and button refs.",
     "exit_criteria": []
   },
-  "migration": "All changes are read-time or live UI decisions. Existing drafts, settings and tool results retain their stored format.",
+  "migration": "Old presentations derive the handover revision from existing handOvers entries. Existing quotes and cancellation keep their identity. The review window and lane wait phase are transient.",
   "residual_risks": [
-    "The coordinator verifies both locales in the real window. No paid request was exercised."
+    "The coordinator verifies both locales in a desktop window. Behavioral fixtures execute no paid vendor requests."
   ],
   "detected_by": "review",
   "recurrence_check_on": "2026-12-11",
@@ -332,7 +499,9 @@
       "src/workbench/ai/lane/laneViewModel.test.ts",
       "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
       "src/workbench/ai/v4/agentPanelV4SpendEnter.test.tsx",
-      "electron/agentLane/laneExtendedDesktopPorts.test.ts"
+      "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+      "src/ui/app-shell/shell/ShellAgentHost.formProbe.test.tsx",
+      "electron/capabilityCore/agentPanelSpendCardFailures.e2e.test.ts"
     ]
   }
 }

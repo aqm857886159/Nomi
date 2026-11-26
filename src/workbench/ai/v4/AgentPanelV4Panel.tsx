@@ -1,3 +1,4 @@
+import { useSpendEnterConfirmation } from './useSpendEnterConfirmation'
 import { NomiBrand } from '../../../design/identity'
 // Agent 面板 v4 · 整块面板的装配壳
 //
@@ -48,8 +49,6 @@ import type {
 import { DEFAULT_PERMISSION_TIER } from './agentPanelV4Types'
 
 export type { V4FlowItem }
-
-const SPEND_CARD_REVIEW_MS = 500
 
 /** 对话流里某一条的动作。`index` 是流内序号——调用方用它换回宿主的 itemId。 */
 export type V4FlowHandlers = Readonly<{
@@ -249,6 +248,9 @@ export function AgentPanelV4Panel({
   const { t } = useTranslation()
   const workspaceFrame = useWorkspacePanelFrame()
   const headerSlot = React.useContext(AgentPanelHeaderSlotContext)
+  const { buttonRef: spendConfirmButton, confirmDisplayedSpend } = useSpendEnterConfirmation(
+    slot?.spendConfirmationId, !headerSlot?.collapsed,
+  )
   const labels = useV4Labels()
   const flowHandlersRef = React.useRef(flowHandlers)
   flowHandlersRef.current = flowHandlers
@@ -397,23 +399,6 @@ export function AgentPanelV4Panel({
     if (node.scrollHeight <= node.clientHeight) onScroll()
     return () => node.removeEventListener('scroll', onScroll)
   }, [onLoadOlder, flow, historyIdentity, historyCursor, pageCompletion, scrollRef])
-  const spendConfirmButton = React.useRef<HTMLButtonElement>(null)
-  const confirmedByEnter = React.useRef(new Set<string>())
-  const reviewUntil = React.useRef(0)
-  const confirmationId = slot?.spendConfirmationId
-  React.useLayoutEffect(() => {
-    // Measure from the new card's appearance, even if the previous handoff was slow.
-    if (confirmationId && confirmedByEnter.current.size) {
-      reviewUntil.current = performance.now() + SPEND_CARD_REVIEW_MS
-    }
-  }, [confirmationId])
-  const confirmDisplayedSpend = () => {
-    const button = spendConfirmButton.current
-    if (!confirmationId || !button || button.disabled || confirmedByEnter.current.has(confirmationId)
-      || performance.now() < reviewUntil.current) return
-    confirmedByEnter.current.add(confirmationId)
-    button.click()
-  }
   const onComposerSubmit = composer?.onSubmit
   const submitAndFollow = React.useCallback((choice?: 'primary' | 'secondary') => {
     // 发出去的那句永远要看得见：他刚才翻在半路也拉回最新一条，接着跟（拍板 2）。

@@ -37,7 +37,7 @@ function fakeSpendCard() {
   const dispose = vi.fn()
   return {
     watched, dispose, close: () => close(),
-    port: { whenCardCloses: (operationId: string) => { watched.push(operationId); return { closed: new Promise<void>((resolve) => { close = resolve }), dispose } } },
+    port: { whenCardCloses: (operationId: string) => { watched.push(operationId); return { closed: new Promise<void>((resolve) => { close = resolve }), settled: Promise.resolve(), dispose } } },
   }
 }
 
@@ -407,7 +407,7 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
           if (!watch.mock.calls.length) await lane.execute({ kind: 'abort' })
           await turn
         }
-        expect(lane.projection()).not.toHaveProperty('heldToolCallIds')
+        expect(lane.projection()).not.toHaveProperty('awaitingDecisionToolCallIds')
       } finally { await lane.close() }
     } finally {
       f.assembly.dispose()
@@ -440,7 +440,7 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
     const f = setup()
     const generation = { tryExecute: vi.fn(async () => presentedCard), withdrawPresentation: vi.fn(async () => undefined), readPresentationOutcome: vi.fn(async () => resolvedOutcome), dispose: vi.fn() }
     const { host } = withGate(f, generation)
-    const assembly = createLaneExtendedDesktopPorts({ ...f.input, spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), dispose: vi.fn() }) } })
+    const assembly = createLaneExtendedDesktopPorts({ ...f.input, spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), settled: Promise.resolve(), dispose: vi.fn() }) } })
     await assembly.toolLifecycle.prepare(generateCall, signal)
     await assembly.toolLifecycle.approved(generateCall, f.record, host)
     const outcome = await assembly.tools.find(tool => tool.name === 'generate')!.execute(generateCall.args, { toolCallId: generateCall.toolCallId, signal }) as { ok: boolean; details?: { userDecision?: unknown } }

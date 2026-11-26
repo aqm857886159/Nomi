@@ -21,7 +21,7 @@ import { logWarn } from "../logging/logger";
 import type { GenerationOperationStore } from "./mcpGenerationTools";
 import type { ProductionActionResult, ProductionRun } from "../productionRun/productionRunTypes";
 import { assertPendingSpendIdentity, listPendingSpendConfirms, projectPendingSpendConfirm } from "../productionRun/productionPendingSpend";
-import type { PendingSpendConfirm, PendingSpendRead } from "../shared/contracts/pendingSpendConfirm";
+import type { PendingSpendConfirm, PendingSpendHandOverInput, PendingSpendRead } from "../shared/contracts/pendingSpendConfirm";
 import type { CanvasHandOver } from "./canvasHandOver";
 
 type RunReader = Readonly<{
@@ -110,7 +110,7 @@ export function readInstalledPendingSpend(projectId: string): Extract<PendingSpe
 }
 
 /** 卡上「生成」/「全部生成（N）」/「生成剩下 N 段」/「再试一次」：把这几镜交给画布。 */
-export async function handOverPendingSpendShots(input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> {
+export async function handOverPendingSpendShots(input: PendingSpendHandOverInput): Promise<ProductionActionResult> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.handOverShots(input);
 }
@@ -177,16 +177,15 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     return run ? projectPendingSpendConfirm(run, (runId) => deps.runs.read(projectId, runId)) : undefined;
   };
 
-  const handOverShots = async (input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> => {
+  const handOverShots = async (input: PendingSpendHandOverInput): Promise<ProductionActionResult> => {
     if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
     const pending = pendingFor(input.projectId, input.operationId);
     if (!pending) return { ok: false, code: "failed", message: "no pending generation to hand over" };
-    if (!cardIsCurrent(pending, input)) return quoteChanged();
+    // canvasHandOver appends to the ledger synchronously, before landing nodes or contacting the renderer.
+    if (!cardIsCurrent(pending, input) || input.handOverRevision !== pending.handOverRevision) return quoteChanged();
     const requested = [...new Set(input.shotIds)];
     const onCard = new Map(pending.shots.map((shot) => [shot.shotId, shot]));
     if (requested.length === 0 || requested.some((shotId) => !onCard.has(shotId))) return failed(Object.assign(new Error("generation_scope_invalid"), { code: "generation_scope_invalid" }));
-    // 连点两下 / 连按回车：前一下已经把这几镜交出去了 → 原样回成功，不再记第二笔。
-    if (requested.every((shotId) => onCard.get(shotId)!.offer === "handing_over")) return { ok: true, code: "handed_over" };
     // 只交还在等卡上决定的镜（还没决定 / 确定没发出去）；结果未知的不许再交一次（钱可能已经花了）。
     if (requested.some((shotId) => onCard.get(shotId)!.offer !== "undecided" && onCard.get(shotId)!.offer !== "not_sent")) return quoteChanged();
     try {

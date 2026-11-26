@@ -31,6 +31,11 @@ vi.mock('use-stick-to-bottom', () => ({
 }))
 
 beforeAll(() => {
+  vi.stubGlobal('IntersectionObserver', class {
+    constructor(private readonly emit: (entries: Partial<IntersectionObserverEntry>[]) => void) {}
+    observe(target: Element) { this.emit([{ target, isIntersecting: true, intersectionRatio: 1 }]) }
+    disconnect() {}
+  })
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
 })
 let renderer: ReturnType<typeof createReactTestRenderer> | undefined
@@ -41,7 +46,7 @@ afterEach(() => {
 
 function offer(quoteId: string, retry = false) {
   return projectSpendCard({
-    projectId: 'project', operationId: 'plan', runId: 'run', planVersion: 1, quoteId, currency: 'CNY',
+    projectId: 'project', operationId: 'plan', runId: 'run', planVersion: 1, quoteId, handOverRevision: 0, currency: 'CNY',
     shots: [{ shotId: 'shot', index: 1, kind: 'video', nodeId: 'node', draftedModel: { providerId: 'p', modelId: 'model' }, offer: retry ? 'not_sent' : 'undecided' }],
   }, [{
     present: true, shotRef: '1', model: 'model', aspect: null, durationSec: 4, resolution: null,
@@ -56,6 +61,7 @@ function mount(text = '', composer: AgentPanelV4PanelProps['composer'] = {}, pan
   const root = createReactTestRenderer({
     createInstance: (_type, props) => {
       const instance = {
+        ownerDocument: { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} },
         props, get disabled() { return this.props.disabled === true }, addEventListener() {}, removeEventListener() {},
         click() {
           if (!this.disabled && typeof this.props.onClick === 'function') this.props.onClick()
