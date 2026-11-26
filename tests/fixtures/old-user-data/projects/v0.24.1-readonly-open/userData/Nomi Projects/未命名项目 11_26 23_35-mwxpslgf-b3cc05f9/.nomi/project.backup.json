@@ -1,0 +1,427 @@
+{
+  "id": "project-1795707353246-y9ww0a",
+  "name": "项目B-赛博夜市未收尾",
+  "version": 2,
+  "createdAt": 1795707353259,
+  "updatedAt": 1795707366156,
+  "savedAt": 1795707366156,
+  "revision": 13,
+  "immutableProjectUuid": "f88ae973-d6b9-4752-a4bd-b9e7a843f552",
+  "projectGeneration": 1,
+  "lastKnownRootPath": "/tmp/nomi-s-upgrade/v0241-profile/projects/未命名项目 11_26 23_35-mwxpslgf-b3cc05f9",
+  "payload": {
+    "workbenchDocuments": [
+      {
+        "id": "doc-5df082ec-aa18-4de7-b5e7-8af3204c3ae6",
+        "version": 1,
+        "title": "",
+        "contentJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "霓虹全息招牌在潮湿的赛博夜市上空闪烁，机械摊主递出一碗热气腾腾的面。"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "穿银灰夹克的少女戴上护目镜，准备追逐穿过巷口的无人机信使。"
+                }
+              ]
+            }
+          ]
+        },
+        "updatedAt": 1795707354661
+      }
+    ],
+    "activeDocumentId": "doc-5df082ec-aa18-4de7-b5e7-8af3204c3ae6",
+    "timeline": {
+      "version": 1,
+      "fps": 30,
+      "scale": 1,
+      "playheadFrame": 0,
+      "tracks": [
+        {
+          "id": "imageTrack",
+          "type": "image",
+          "label": "图片轨",
+          "clips": []
+        },
+        {
+          "id": "videoTrack",
+          "type": "video",
+          "label": "视频轨",
+          "clips": []
+        },
+        {
+          "id": "audioTrack",
+          "type": "audio",
+          "label": "音频轨",
+          "clips": []
+        }
+      ],
+      "textClips": []
+    },
+    "generationCanvas": {
+      "nodes": [
+        {
+          "id": "gen-v2-image-mwxpspll-xn8o",
+          "kind": "image",
+          "title": "图片",
+          "position": {
+            "x": 460.56,
+            "y": 160.16000000000003
+          },
+          "size": {
+            "width": 340,
+            "height": 340
+          },
+          "prompt": "赛博夜市雨后霓虹街道，全息灯牌与机械面摊",
+          "references": [],
+          "history": [
+            {
+              "id": "gen-v2-image-mwxpspll-xn8o-s-walk-image-7",
+              "type": "image",
+              "url": "nomi-local://asset/project-1795707353246-y9ww0a/assets/generated/2026-11-26/image-1795707363515.png",
+              "previewState": "source",
+              "providerUrl": "http://127.0.0.1:64319/fixture/image-2.png",
+              "model": "doubao-seedream-5-0-pro",
+              "taskId": "s-walk-image-7",
+              "taskKind": "image",
+              "assetId": "asset-b6d3dd657dc53b37f6d3",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-image-7",
+                  "status": "completed",
+                  "result": {
+                    "images": [
+                      {
+                        "id": "s-walk-image-7",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/image-2.png"
+                        ],
+                        "filename": "fixture-image-2.png"
+                      }
+                    ]
+                  }
+                }
+              },
+              "createdAt": 1795707363625,
+              "provenance": {
+                "timestamp": 1795707363539,
+                "provider": "apimart",
+                "modelKey": "doubao-seedream-5-0-pro",
+                "prompt": "赛博夜市雨后霓虹街道，全息灯牌与机械面摊",
+                "params": {
+                  "extras": {
+                    "size": "1:1",
+                    "resolution": "2K",
+                    "modelKey": "doubao-seedream-5-0-pro",
+                    "modelAlias": "doubao-seedream-5-0-pro",
+                    "modelVendor": "apimart",
+                    "vendor": "apimart",
+                    "modelLabel": "Seedream 5.0 Pro",
+                    "imageModel": "doubao-seedream-5-0-pro",
+                    "imageModelVendor": "apimart",
+                    "archetype": {
+                      "id": "seedream-5-pro",
+                      "modeId": "t2i"
+                    },
+                    "nodeId": "gen-v2-image-mwxpspll-xn8o",
+                    "nodeKind": "image",
+                    "idempotencyKey": "run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5",
+                    "archetypeInput": {},
+                    "projectId": "project-1795707353246-y9ww0a"
+                  }
+                },
+                "vendorRequestId": "s-walk-image-7"
+              },
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "doubao-seedream-5-0-pro",
+            "modelAlias": "doubao-seedream-5-0-pro",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "Seedream 5.0 Pro",
+            "size": "1:1",
+            "resolution": "2K",
+            "imageModel": "doubao-seedream-5-0-pro",
+            "imageModelVendor": "apimart",
+            "archetype": {
+              "id": "seedream-5-pro",
+              "modeId": "t2i"
+            },
+            "previewHeight": 340,
+            "imageWidth": 640,
+            "imageHeight": 360,
+            "imageAspectRatio": 1.7777777777777777,
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "undecodable",
+                  "suspect": false,
+                  "detail": "640×360"
+                }
+              ],
+              "checkedAt": 1795707363645
+            }
+          },
+          "categoryId": "shots",
+          "shotIndex": 1,
+          "runs": [
+            {
+              "id": "run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5",
+              "status": "success",
+              "startedAt": 1795707360276,
+              "updatedAt": 1795707363625,
+              "projectId": "project-1795707353246-y9ww0a",
+              "attempt": {
+                "vendorKey": "apimart",
+                "modelKey": "doubao-seedream-5-0-pro"
+              },
+              "durationSeconds": 3.349,
+              "taskId": "s-walk-image-7",
+              "taskKind": "image",
+              "completedAt": 1795707363625,
+              "assetId": "asset-b6d3dd657dc53b37f6d3",
+              "resultId": "gen-v2-image-mwxpspll-xn8o-s-walk-image-7",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-image-7",
+                  "status": "completed",
+                  "result": {
+                    "images": [
+                      {
+                        "id": "s-walk-image-7",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/image-2.png"
+                        ],
+                        "filename": "fixture-image-2.png"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "result": {
+            "id": "gen-v2-image-mwxpspll-xn8o-s-walk-image-7",
+            "type": "image",
+            "url": "nomi-local://asset/project-1795707353246-y9ww0a/assets/generated/2026-11-26/image-1795707363515.png",
+            "previewState": "source",
+            "providerUrl": "http://127.0.0.1:64319/fixture/image-2.png",
+            "model": "doubao-seedream-5-0-pro",
+            "taskId": "s-walk-image-7",
+            "taskKind": "image",
+            "assetId": "asset-b6d3dd657dc53b37f6d3",
+            "raw": {
+              "code": 200,
+              "data": {
+                "id": "s-walk-image-7",
+                "status": "completed",
+                "result": {
+                  "images": [
+                    {
+                      "id": "s-walk-image-7",
+                      "url": [
+                        "http://127.0.0.1:64319/fixture/image-2.png"
+                      ],
+                      "filename": "fixture-image-2.png"
+                    }
+                  ]
+                }
+              }
+            },
+            "createdAt": 1795707363625,
+            "provenance": {
+              "timestamp": 1795707363539,
+              "provider": "apimart",
+              "modelKey": "doubao-seedream-5-0-pro",
+              "prompt": "赛博夜市雨后霓虹街道，全息灯牌与机械面摊",
+              "params": {
+                "extras": {
+                  "size": "1:1",
+                  "resolution": "2K",
+                  "modelKey": "doubao-seedream-5-0-pro",
+                  "modelAlias": "doubao-seedream-5-0-pro",
+                  "modelVendor": "apimart",
+                  "vendor": "apimart",
+                  "modelLabel": "Seedream 5.0 Pro",
+                  "imageModel": "doubao-seedream-5-0-pro",
+                  "imageModelVendor": "apimart",
+                  "archetype": {
+                    "id": "seedream-5-pro",
+                    "modeId": "t2i"
+                  },
+                  "nodeId": "gen-v2-image-mwxpspll-xn8o",
+                  "nodeKind": "image",
+                  "idempotencyKey": "run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5",
+                  "archetypeInput": {},
+                  "projectId": "project-1795707353246-y9ww0a"
+                }
+              },
+              "vendorRequestId": "s-walk-image-7"
+            },
+            "versionNo": 1
+          },
+          "resultVersionMax": 1
+        },
+        {
+          "id": "gen-v2-video-mwxpstwo-iz0y",
+          "kind": "video",
+          "title": "视频",
+          "position": {
+            "x": 993,
+            "y": 160
+          },
+          "size": {
+            "width": 420,
+            "height": 340
+          },
+          "prompt": "银灰夹克少女戴上护目镜穿过赛博巷口追逐无人机",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "modelKey": "kling-3.0-turbo",
+            "modelAlias": "kling-3.0-turbo",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "可灵 3.0 Turbo",
+            "aspect_ratio": "16:9",
+            "resolution": "720p",
+            "duration": 5,
+            "videoModel": "kling-3.0-turbo",
+            "videoModelVendor": "apimart",
+            "archetype": {
+              "id": "kling-3.0-turbo",
+              "modeId": "t2v"
+            }
+          },
+          "categoryId": "shots",
+          "shotIndex": 2
+        }
+      ],
+      "edges": [],
+      "selectedNodeIds": [],
+      "groups": [],
+      "workflowTemplates": []
+    },
+    "categories": [
+      {
+        "id": "shots",
+        "name": "分镜",
+        "icon": "🎬",
+        "iconName": "IconLayoutRows",
+        "defaultNodeRenderKind": "shot-frame",
+        "order": 1,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "cast",
+        "name": "角色",
+        "icon": "👥",
+        "iconName": "IconUser",
+        "defaultNodeRenderKind": "character-card",
+        "order": 2,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "scene",
+        "name": "场景",
+        "icon": "🌍",
+        "iconName": "IconPhoto",
+        "defaultNodeRenderKind": "scene-card",
+        "order": 3,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "prop",
+        "name": "道具",
+        "icon": "🧰",
+        "iconName": "IconBox",
+        "defaultNodeRenderKind": "prop-card",
+        "order": 4,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "audio",
+        "name": "声音",
+        "icon": "🎵",
+        "iconName": "IconChartBar",
+        "defaultNodeRenderKind": "audio-strip",
+        "order": 5,
+        "isBuiltin": true,
+        "isHidden": false
+      }
+    ],
+    "generationCanvasLastSeq": 14,
+    "editingPanelLayout": {
+      "sourceWidth": 300,
+      "inspectorWidth": 240,
+      "assistantWidth": 390,
+      "timelineHeight": 260,
+      "visibility": {
+        "source": true,
+        "inspector": true,
+        "assistant": false
+      },
+      "preset": "default"
+    },
+    "storyboardDesignsByDocumentId": {
+      "doc-5df082ec-aa18-4de7-b5e7-8af3204c3ae6": [
+        {
+          "id": "starter-doc-5df082ec-aa18-4de7-b5e7-8af3204c3ae6",
+          "documentId": "doc-5df082ec-aa18-4de7-b5e7-8af3204c3ae6",
+          "title": "",
+          "plan": {
+            "title": "",
+            "anchors": [],
+            "shots": [
+              {
+                "index": 1,
+                "shotId": "shot-1",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "全景，霓虹赛博夜市雨后街道，全息灯牌与蒸腾热气",
+                "promptSegments": []
+              },
+              {
+                "index": 2,
+                "shotId": "shot-2",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "跟拍，银灰夹克少女穿过赛博巷口追逐无人机信使",
+                "promptSegments": []
+              }
+            ]
+          },
+          "committed": false,
+          "status": "draft",
+          "sourceDocumentUpdatedAt": 1795707353246,
+          "createdAt": 1795707353246,
+          "updatedAt": 1795707356487
+        }
+      ]
+    }
+  }
+}

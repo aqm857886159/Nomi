@@ -1,0 +1,148 @@
+{
+  "runId": "canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5",
+  "jobId": "generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87",
+  "runtimeTaskId": "runtime-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87-attempt-1",
+  "contractHash": "2ed9f5142bdfda87029b08434081361d7b3a7d91bb5fcfac677e7f40dca1879a",
+  "providerIdempotencyKey": "generation:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87:2ed9f5142bdfda87029b08434081361d7b3a7d91bb5fcfac677e7f40dca1879a:attempt-1",
+  "requestFingerprint": "f33fe9be27e95d4a5d5f5fb53c8aefd4b4ce012387866da6baf9fbd9d50e347e",
+  "request": {
+    "moduleId": "generation.canvas",
+    "providerId": "canvas:apimart",
+    "modelId": "doubao-seedream-5-0-pro",
+    "mode": "text_to_image",
+    "prompt": "赛博夜市雨后霓虹街道，全息灯牌与机械面摊",
+    "parameters": {
+      "vendor": "apimart",
+      "request": {
+        "kind": "text_to_image",
+        "prompt": "赛博夜市雨后霓虹街道，全息灯牌与机械面摊",
+        "extras": {
+          "modelKey": "doubao-seedream-5-0-pro",
+          "modelAlias": "doubao-seedream-5-0-pro",
+          "modelVendor": "apimart",
+          "vendor": "apimart",
+          "modelLabel": "Seedream 5.0 Pro",
+          "size": "1:1",
+          "resolution": "2K",
+          "imageModel": "doubao-seedream-5-0-pro",
+          "imageModelVendor": "apimart",
+          "archetype": {
+            "id": "seedream-5-pro",
+            "modeId": "t2i"
+          },
+          "nodeId": "gen-v2-image-mwxpspll-xn8o",
+          "nodeKind": "image",
+          "idempotencyKey": "run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5",
+          "archetypeInput": {},
+          "projectId": "project-1795707353246-y9ww0a"
+        }
+      }
+    },
+    "references": [],
+    "contractHash": "2ed9f5142bdfda87029b08434081361d7b3a7d91bb5fcfac677e7f40dca1879a",
+    "idempotencyKey": "generation:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87:2ed9f5142bdfda87029b08434081361d7b3a7d91bb5fcfac677e7f40dca1879a:attempt-1",
+    "requestFingerprint": "f33fe9be27e95d4a5d5f5fb53c8aefd4b4ce012387866da6baf9fbd9d50e347e",
+    "executionBinding": {
+      "immutableProjectUuid": "f88ae973-d6b9-4752-a4bd-b9e7a843f552",
+      "projectGeneration": 1,
+      "runId": "canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5",
+      "shotId": "generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87",
+      "contractHash": "2ed9f5142bdfda87029b08434081361d7b3a7d91bb5fcfac677e7f40dca1879a",
+      "runtimeTaskId": "runtime-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87-attempt-1",
+      "providerNamespace": "canvas:apimart",
+      "providerIdempotencyKey": "generation:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87:2ed9f5142bdfda87029b08434081361d7b3a7d91bb5fcfac677e7f40dca1879a:attempt-1",
+      "requestFingerprint": "f33fe9be27e95d4a5d5f5fb53c8aefd4b4ce012387866da6baf9fbd9d50e347e",
+      "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5/jobs/generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87/runtime-envelope.json",
+      "fencingEpoch": 1
+    }
+  },
+  "schemaVersion": 1,
+  "state": "materialized",
+  "updatedAt": "2026-11-26T15:36:03.590Z",
+  "providerTaskId": "s-walk-image-7",
+  "rawReceipt": {
+    "id": "s-walk-image-7",
+    "kind": "text_to_image",
+    "status": "queued",
+    "assets": [],
+    "raw": {
+      "code": 200,
+      "data": [
+        {
+          "status": "submitted",
+          "task_id": "s-walk-image-7"
+        }
+      ]
+    }
+  },
+  "lastPoll": {
+    "status": "succeeded",
+    "revision": 2,
+    "raw": {
+      "id": "s-walk-image-7",
+      "kind": "text_to_image",
+      "status": "succeeded",
+      "assets": [
+        {
+          "type": "image",
+          "url": "nomi-local://asset/project-1795707353246-y9ww0a/assets/generated/2026-11-26/image-1795707363515.png",
+          "thumbnailUrl": null,
+          "previewState": "source",
+          "assetId": "asset-b6d3dd657dc53b37f6d3",
+          "assetName": "image-1795707363515.png",
+          "width": 640,
+          "height": 360,
+          "providerUrl": "http://127.0.0.1:64319/fixture/image-2.png"
+        }
+      ],
+      "raw": {
+        "code": 200,
+        "data": {
+          "id": "s-walk-image-7",
+          "status": "completed",
+          "result": {
+            "images": [
+              {
+                "id": "s-walk-image-7",
+                "url": [
+                  "http://127.0.0.1:64319/fixture/image-2.png"
+                ],
+                "filename": "fixture-image-2.png"
+              }
+            ]
+          }
+        }
+      },
+      "provenance": {
+        "provider": "apimart",
+        "modelKey": "doubao-seedream-5-0-pro",
+        "prompt": "赛博夜市雨后霓虹街道，全息灯牌与机械面摊",
+        "params": {
+          "extras": {
+            "size": "1:1",
+            "resolution": "2K",
+            "modelKey": "doubao-seedream-5-0-pro",
+            "modelAlias": "doubao-seedream-5-0-pro",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "Seedream 5.0 Pro",
+            "imageModel": "doubao-seedream-5-0-pro",
+            "imageModelVendor": "apimart",
+            "archetype": {
+              "id": "seedream-5-pro",
+              "modeId": "t2i"
+            },
+            "nodeId": "gen-v2-image-mwxpspll-xn8o",
+            "nodeKind": "image",
+            "idempotencyKey": "run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5",
+            "archetypeInput": {},
+            "projectId": "project-1795707353246-y9ww0a"
+          }
+        },
+        "vendorRequestId": "s-walk-image-7",
+        "timestamp": 1795707363539
+      }
+    },
+    "observedAt": "2026-11-26T15:36:03.540Z"
+  }
+}
