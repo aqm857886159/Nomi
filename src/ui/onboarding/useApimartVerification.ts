@@ -17,11 +17,18 @@ function receivedStage(result: Extract<VendorBalanceCheck, {status: 'received'}>
   return 'passed'
 }
 
+async function keyFingerprint(key: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))
+  return Array.from(new Uint8Array(digest)).join('.')
+}
+
 export function useApimartVerification(onSaved: () => void) {
   const [stage, setStage] = React.useState<Stage>('idle')
   const [suffix, setSuffix] = React.useState('')
   const [received, setReceived] = React.useState<Extract<VendorBalanceCheck, {status: 'received'}> | null>(null)
   const candidate = React.useRef('')
+  const savedKeyId = React.useRef('')
+  const exhaustedQuotas = React.useRef(new Map<string, VendorReportedBalance>())
   const inFlight = React.useRef(false)
   const mounted = React.useRef(true)
   React.useEffect(() => {
@@ -48,19 +55,25 @@ export function useApimartVerification(onSaved: () => void) {
     setStage('checking')
     inFlight.current = true
     try {
+      const keyId = key ? await keyFingerprint(key) : savedKeyId.current
       const result = key
         ? await catalog.upsertVendorApiKey('apimart', { apiKey: key, enabled: false, source: 'apimart-connect' }) as VendorBalanceCheck
         : await catalog.recheckApimartBalance?.()
       candidate.current = ''
       if (key) {
+        savedKeyId.current = keyId
         window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed'))
         void refreshOnboardingModelAvailability().catch(() => {})
       }
       if (result?.status === 'received') persistApimartOpenedAt(0)
       if (!mounted.current) return
       if (result?.status === 'received') {
-        setReceived(result)
-        setStage(receivedStage(result))
+        const quota = result.keyQuota
+        if (quota && isExhaustedBalance(quota)) exhaustedQuotas.current.set(keyId, quota)
+        else if (quota?.unlimited || (quota?.remainCredits ?? 0) > 0) exhaustedQuotas.current.delete(keyId)
+        const verified = { ...result, keyQuota: exhaustedQuotas.current.get(keyId) ?? quota }
+        setReceived(verified)
+        setStage(receivedStage(verified))
       } else {
         setStage(result?.status ?? 'unavailable')
       }

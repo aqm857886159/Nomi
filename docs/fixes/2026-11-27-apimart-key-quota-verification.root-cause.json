@@ -3,8 +3,8 @@
   "id": "2026-11-27-apimart-key-quota-verification",
   "problem_type": "Onboarding completion ignores an explicit failed check",
   "symptom": "A zero-quota key shows a warning and emits a connected receipt after 450 ms.",
-  "direct_cause": "The page completed verification using only accountBalance even when keyQuota explicitly reported zero.",
-  "class_root": "The completion decision and its row warnings used different conditions for exhausted balances.",
+  "direct_cause": "The page completed verification using only accountBalance even when keyQuota explicitly reported zero. On recheck, a missing keyQuota also erased the earlier finite zero before the timer decision.",
+  "class_root": "Completion and row warnings need the same evidence about exhausted balances, including unresolved exhaustion for the credential being checked.",
   "affected_population": [
     "Creators pasting or rechecking a limited key against a funded APIMart account."
   ],
@@ -20,7 +20,8 @@
   "internal_only_reason": "The received IPC type already identifies both sources. Scheme B on #1586 defines the application completion policy.",
   "invariants": [
     "A finite zero balance blocks completion. Account exhaustion takes priority over key exhaustion.",
-    "A foreground recheck must be able to release either waiting state."
+    "A foreground recheck must be able to release either waiting state.",
+    "Within the page, a confirmed finite zero belongs to that key until positive credits or unlimited quota is explicitly reported. A different key is evaluated independently."
   ],
   "doors": [
     {
@@ -92,7 +93,7 @@
     "invariant": "Only a result with no explicitly exhausted resource can schedule a connected receipt.",
     "failure_mode": "Keep the appropriate warning visible until a new check resolves it.",
     "exception_policy": "none",
-    "strategy": "Compare account first, then key, with one finite-zero predicate shared with the rows.",
+    "strategy": "Keep unresolved zero-quota snapshots by credential identity for the page lifetime. Use the effective snapshot for both the check rows and the account-first stage decision.",
     "artifacts": [
       "src/ui/onboarding/useApimartVerification.ts",
       "src/ui/onboarding/ApimartCheckCard.tsx",
