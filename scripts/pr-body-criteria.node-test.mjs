@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { checkEscapeContract, checkIndependentAcceptance, englishHeadingHint, evaluatePrBody, isGrandfathered, mergeReport } from './pr-body-criteria.mjs'
+import { checkBoardClaim, checkEscapeContract, checkIndependentAcceptance, englishHeadingHint, evaluatePrBody, isGrandfathered, mergeReport } from './pr-body-criteria.mjs'
 
 const STAR = [
   '## 设计卡',
@@ -205,4 +205,21 @@ test('推送档只警告不判红；生效日之前开的 PR 只警告；代码�
   const fenced = evaluatePrBody({ body: PROMISE_BODY('```\n后续提交再补\n```'), files: docsChange, createdAt: FRESH, stage: 'merge' })
   assert.equal(fenced.blocked, false)
   assert.equal(evaluatePrBody({ body: PROMISE_BODY('- 全部做完，没有遗留。'), files: docsChange, createdAt: FRESH, stage: 'merge' }).blocked, false)
+})
+
+test('拍板图认领还没 implemented：推送档只提醒，合并档判红（翻 implemented 是验收线的事）', () => {
+  const boards = { Main: { elements: [{ id: 'topbar.title', status: 'implemented' }, { id: 'group.header', status: 'in-progress' }] } }
+  const body = '## 拍板图\n- Main: topbar.title, group.header'
+  const push = checkBoardClaim(body, { boards, stage: 'push' })
+  assert.equal(push.ok, true)
+  assert.match(push.lines.join('\n'), /⚠ 拍板图认领还没验收（1 条/)
+  assert.match(push.lines.join('\n'), /group\.header 还是 in-progress/)
+  assert.doesNotMatch(push.lines.join('\n'), /✅ 拍板图/)
+  const merge = checkBoardClaim(body, { boards, stage: 'merge' })
+  assert.equal(merge.ok, false)
+  assert.match(merge.lines.join('\n'), /✖ 拍板图认领未过（1 条）[\s\S]*group\.header 还是 in-progress/)
+  // 不传 stage 当合并档（默认严）
+  assert.equal(checkBoardClaim(body, { boards }).ok, false)
+  // 推送档也只放过「还没翻」这一种：认领了清单里没有的元素照样红
+  assert.equal(checkBoardClaim('## 拍板图\n- Main: 不存在的元素', { boards, stage: 'push' }).ok, false)
 })
