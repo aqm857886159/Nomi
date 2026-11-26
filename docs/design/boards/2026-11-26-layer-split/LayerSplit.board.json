@@ -231,7 +231,8 @@
         "445-span-垂直翻转",
         "446-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "is in the refine menu and enabled",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
@@ -249,7 +250,8 @@
       "candidates": [
         "682-span-在画板中编辑图层"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "whiteboard hint says it edits the layers",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
@@ -321,7 +323,8 @@
         "553-svg",
         "554-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "composer cell reads",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
@@ -427,7 +430,8 @@
         "806-svg",
         "807-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "params panel shows the read-text switch",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
       "note": "清晰度小字补「自动」：「2K / 自动 价更高」/「2K / Auto cost more」，依据 APIMart 官方 1K/1.5K 低档、2K/auto 高档预扣（2026-11-26 取）；D-1126-se-auto-tier。≥50 层提醒只提醒、不拦（协调裁定）。"
     },
@@ -492,7 +496,8 @@
         "577-span",
         "578-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "send key prints the upper-bound estimate",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
       "note": "约价只印在发送键上，确认卡不变（确认卡对所有模型都不印金额）；单位跟发送键，不写死 ¥；5.0 Pro 不印数。"
     },
