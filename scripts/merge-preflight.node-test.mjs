@@ -558,11 +558,16 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
     `- 验收 HEAD：${repo.headSha}`,
   ].join('\n')
 
-  // 正例 1：本仓 PR 评论链接（#1712 形状）→ 调 gh api 读出报告并核对通过
+  // 正例 1：本仓 PR 评论链接（#1712 形状）→ 调 gh api 读出报告并核对讨论串归属通过
   const prOk = runPreflight(repo, {
     createdAt: '2026-11-27T00:00:00Z',
     body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
-    comments: { 'repos/o/r/issues/comments/7224317666': pr1712CommentBody },
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody,
+        html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+      },
+    },
   })
   assert.equal(prOk.code, 0, prOk.out)
   assert.deepEqual(prOk.calls, [...ONLY_PR_VIEW, 'api repos/o/r/issues/comments/7224317666'])
@@ -571,7 +576,12 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
   const issueOk = runPreflight(repo, {
     createdAt: '2026-11-27T00:00:00Z',
     body: makeFourClassBody('https://github.com/o/r/issues/1586#issuecomment-7224317666'),
-    comments: { 'repos/o/r/issues/comments/7224317666': pr1712CommentBody },
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody,
+        html_url: 'https://github.com/o/r/issues/1586#issuecomment-7224317666',
+      },
+    },
   })
   assert.equal(issueOk.code, 0, issueOk.out)
 
@@ -589,12 +599,17 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
   const mismatchFail = runPreflight(repo, {
     createdAt: '2026-11-27T00:00:00Z',
     body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
-    comments: { 'repos/o/r/issues/comments/7224317666': pr1712CommentBody.replace('有条件通过', '不通过') },
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody.replace('有条件通过', '不通过'),
+        html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+      },
+    },
   })
   assert.equal(mismatchFail.code, 1)
   assert.match(mismatchFail.out, /对不上|不通过/)
 
-  // 反例 3：同仓库评论 ID 存在，但链接里的讨论串编号与 API 返回的 html_url 不符 → 按无效引用判红
+  // 反例 3：同仓库评论 ID 存在，但链接里的讨论串编号与 API 返回的 html_url 不符（或缺 html_url 无法核验）→ 按无效引用判红
   const wrongThreadFail = runPreflight(repo, {
     createdAt: '2026-11-27T00:00:00Z',
     body: makeFourClassBody('https://github.com/o/r/pull/999#issuecomment-7224317666'),
@@ -607,6 +622,14 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
   })
   assert.equal(wrongThreadFail.code, 1)
   assert.match(wrongThreadFail.out, /独立验收的报告读不到/)
+
+  const missingHtmlUrlFail = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
+    comments: { 'repos/o/r/issues/comments/7224317666': pr1712CommentBody },
+  })
+  assert.equal(missingHtmlUrlFail.code, 1)
+  assert.match(missingHtmlUrlFail.out, /独立验收的报告读不到/)
 })
 
 // ── 花钱类合并前要有真付费证据（2026-10-16，#1203 写「未验证」被合进来）：端到端走一遍 main()，只看真付费那一行 ──

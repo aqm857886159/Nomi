@@ -92,30 +92,37 @@ export function repoSlugOfOrigin(remoteUrl) {
   return match ? match[1] : null
 }
 
-/** 同仓库 PR / issue 评论链接 → `{ endpoint, number, commentId }`；外仓、非评论链接一律 null。 */
-export function sameRepoCommentEndpoint(ref, repoSlug) {
+/** 同仓库 PR / issue 评论链接 → `{ endpoint, expectedPath }`；外仓、非评论链接一律 null。 */
+function sameRepoCommentTarget(ref, repoSlug) {
   if (!repoSlug) return null
   try {
     const parsed = new URL(String(ref ?? '').trim().replace(/\)+$/, ''))
     if (parsed.protocol !== 'https:' || parsed.hostname.toLowerCase() !== 'github.com' || parsed.search !== '') return null
-    const pathMatch = /^\/([^/]+\/[^/]+)\/(?:pull|issues)\/([1-9]\d*)\/?$/.exec(parsed.pathname)
+    const pathMatch = /^\/([^/]+\/[^/]+)\/(pull|issues)\/([1-9]\d*)\/?$/.exec(parsed.pathname)
     const commentMatch = /^#issuecomment-([1-9]\d*)$/.exec(parsed.hash)
     if (!pathMatch || !commentMatch) return null
     if (pathMatch[1].toLowerCase() !== String(repoSlug).toLowerCase()) return null
-    return `repos/${pathMatch[1]}/issues/comments/${commentMatch[1]}`
+    return {
+      endpoint: `repos/${pathMatch[1]}/issues/comments/${commentMatch[1]}`,
+      expectedPath: `/${pathMatch[1]}/${pathMatch[2]}/${pathMatch[3]}`,
+    }
   } catch {
     return null
   }
 }
 
-/** 合并前扫描读验收报告：本机绝对路径直接读；仓库内相对路径从 PR 头读；同仓库 PR/issue 评论走 gh api 读并核对讨论串编号；别的外链一律 null（判据按红处理）。 */
+/** 同仓库 PR / issue 评论链接 → `repos/<owner>/<name>/issues/comments/<id>`；外仓、非评论链接一律 null。 */
+export function sameRepoCommentEndpoint(ref, repoSlug) {
+  return sameRepoCommentTarget(ref, repoSlug)?.endpoint ?? null
+}
+
+/** 合并前扫描读验收报告：本机绝对路径直接读；仓库内相对路径从 PR 头读；同仓库 PR/issue 评论走 gh api 读并核对讨论串归属；别的外链一律 null（判据按红处理）。 */
 export function readReportRef(ref, readRepoFile, readLocal = (file) => fs.readFileSync(file, 'utf8'), { repoSlug = null, readComment = null } = {}) {
   try {
     if (/^https?:/i.test(ref)) {
-      const endpoint = sameRepoCommentEndpoint(ref, repoSlug)
-      if (!endpoint || typeof readComment !== 'function') return null
-      const expectedNumber = /\/(?:pull|issues)\/([1-9]\d*)\/?#issuecomment-/i.exec(String(ref).trim())?.[1] ?? null
-      return readComment(endpoint, expectedNumber) ?? null
+      const target = sameRepoCommentTarget(ref, repoSlug)
+      if (!target || typeof readComment !== 'function') return null
+      return readComment(target.endpoint, target.expectedPath) ?? null
     }
     if (isRepoRef(ref)) return readRepoFile(ref) ?? null
     return readLocal(ref)
@@ -245,10 +252,12 @@ function run(argv, exec, git, root) {
     try { return repoSlugOfOrigin(git(['remote', 'get-url', 'origin']).trim()) } catch { return null }
   })()
   const sameRepo = originRepo && repo && originRepo.toLowerCase() !== repo.toLowerCase() ? null : (originRepo ?? repo ?? null)
-  const readComment = (endpoint, expectedNumber) => {
+  const readComment = (endpoint, expectedPath) => {
     const payload = JSON.parse(gh(['api', endpoint]))
-    if (expectedNumber && typeof payload?.html_url === 'string' && !new RegExp(`/(?:pull|issues)/${expectedNumber}#issuecomment-`, 'i').test(payload.html_url)) return null
-    return typeof payload?.body === 'string' ? payload.body : null
+    if (!expectedPath || typeof payload?.html_url !== 'string' || typeof payload?.body !== 'string') return null
+    const actualPath = new URL(payload.html_url).pathname.replace(/\/+$/, '')
+    if (actualPath.toLowerCase() !== expectedPath.toLowerCase()) return null
+    return payload.body
   }
   const judged = evaluatePrBody({
     table,
