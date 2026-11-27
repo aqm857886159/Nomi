@@ -91,7 +91,8 @@
     {
       "id": "Q5",
       "text": "新节点默认 =「跟上次一样」，没选过用列表第一个",
-      "source": "2026-11-07 协调记录，17 题按推荐项确定。板 2 定稿见本清单 approval。"
+      "source": "2026-11-07 协调记录，17 题按推荐项确定。板 2 定稿见本清单 approval。",
+      "supersededBy": "2026-11-27 D-1127-new-card-default：新卡写「自动（实际模型名）」，不随上一张卡变；见 AutoModel 清单 SG-2"
     },
     {
       "id": "Q6",
@@ -773,8 +774,12 @@
       ],
       "component": "DefaultGenerationModelsSection（src/workbench/settings/DefaultGenerationModelsSection.tsx），NomiSelect",
       "anchor": "未定",
-      "status": "missing",
-      "owner": "S2 画布模型选择器"
+      "status": "dropped",
+      "userDecision": {
+        "quote": "然后那些东西都按你的推荐走就好了。",
+        "date": "2026-11-27"
+      },
+      "note": "被 2026-11-27-auto-model/AutoModel 取代：4 行收成图片、视频 2 行（policy.default-image-row / policy.default-video-row），新卡写「自动（实际模型名）」，不再「跟上次一样」（D-1127-new-card-default）。"
     },
     {
       "id": "policy.vendor-order",
