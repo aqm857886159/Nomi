@@ -18,6 +18,7 @@ import {
   assertWorkspaceFolderBindable,
   backfillWorkspaceOrigins,
   bindWorkspaceLocation,
+  bindWorkspaceLocationAsync,
   findRecentWorkspace,
   listRecentWorkspaces,
   listRecentWorkspacesAsync,
@@ -33,7 +34,7 @@ import {
   type WorkspaceProjectRecordV2,
 } from "./workspaceTypes";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
-import { writeWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
+import { writeWorkspaceSyncBaseline, writeWorkspaceSyncBaselineAsync } from "./workspaceSyncBaseline";
 import { WorkspaceManifestLockBusyError, releaseWorkspaceManifestLock, tryAcquireWorkspaceManifestLock } from "./workspaceManifestLock";
 import { logWarn } from "../logging/logger";
 
@@ -404,13 +405,13 @@ export async function saveWorkspaceProject(
     context.replaceBackup(backupCandidate);
     return context.replace(next);
   });
-  bindWorkspaceLocation(deps.settingsRoot, { id: written.id, name: written.name, rootPath: entry.rootPath });
+  await bindWorkspaceLocationAsync(deps.settingsRoot, { id: written.id, name: written.name, rootPath: entry.rootPath });
   const manifestPath = workspaceProjectFile(entry.rootPath);
   // 刚在锁里核过编号写下的这一份：就地换目录解析的凭据，保存不让下一次「找目录」重读整份项目文件。
   const savedStamp = manifestStamp(entry.rootPath);
-  const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
+  const contentHash = crypto.createHash("sha256").update(await fs.promises.readFile(manifestPath)).digest("hex");
   rememberResolvedProjectDir(resolvedProjectDirKey(projectId, deps), entry.rootPath, savedStamp);
-  writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash });
+  await writeWorkspaceSyncBaselineAsync(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash });
   return written;
 }
 

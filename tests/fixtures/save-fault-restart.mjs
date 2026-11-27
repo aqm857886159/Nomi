@@ -13,11 +13,12 @@ if (!root.startsWith(temp + path.sep)) throw new Error('save restart fixture mus
 const marker = JSON.parse(fs.readFileSync(path.join(root, '.save-fault-fixture.json'), 'utf8'))
 if (marker.id !== input.id) throw new Error('save restart fixture identity mismatch')
 const deps = { settingsRoot: path.join(root, 'settings'), defaultProjectsRoot: path.join(root, 'projects') }
+mock.method(fs, 'fsyncSync', () => {})
+mock.method(fs, 'fsync', (_fd, callback) => { callback(null) })
 const { saveWorkspaceProject } = await import('../../electron/workspace/workspaceRepository.ts')
 const { setDurabilityMode } = await import('../../electron/durability.ts')
 const { tryAcquireWorkspaceManifestLock } = await import('../../electron/workspace/workspaceManifestLock.ts')
 setDurabilityMode('durable')
-mock.method(fs, 'fsyncSync', () => {})
 mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(input.nowMs) })
 mock.method(Atomics, 'wait', (_array, _index, _value, timeout) => {
   if (!Number.isFinite(timeout) || timeout <= 0) throw new Error('unbounded sync wait in restart fixture')

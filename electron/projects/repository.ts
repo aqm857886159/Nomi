@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureExportDirs } from "../export/exportPaths";
-import { writeJsonFileAtomic } from "../jsonFile";
+import { writeJsonFileAtomicAsync } from "../jsonFile";
 import type { JsonRecord } from "../jsonUtils";
 import { PROJECT_FILE, ensureDir, getProjectLocationState, getProjectsRoot, getWorkspaceRepositoryDeps, readJson } from "../runtimePaths";
 import { logWarn } from "../logging/logger";
@@ -239,7 +239,7 @@ export async function saveProject(projectId: string, input: unknown): Promise<Pr
   if (!projectDir) throw new Error("Cannot save unknown workspace project");
   const record = normalizeProjectRecord({ ...(input as JsonRecord), id });
   ensureProjectFolders(projectDir);
-  writeJsonFileAtomic(path.join(projectDir, PROJECT_FILE), record);
+  await writeJsonFileAtomicAsync(path.join(projectDir, PROJECT_FILE), record);
   return record;
 }
 

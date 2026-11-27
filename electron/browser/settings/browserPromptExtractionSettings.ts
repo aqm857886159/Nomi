@@ -2,7 +2,7 @@ import { ipcMain } from "electron";
 import { assertTrustedUiSender } from "../../ipcSenderGuard";
 import fs from "node:fs";
 import path from "node:path";
-import { writeJsonFileAtomic } from "../../jsonFile";
+import { readJsonFileAsync, writeJsonFileAtomicAsync } from "../../jsonFile";
 import { readProject } from "../../projects/repository";
 import { workspaceNomiDir } from "../../workspace/workspacePaths";
 import { issueWindowProject } from "../../assets/windowProjectCapture";
@@ -10,14 +10,14 @@ import { getOwnerWindowForSender } from "../overlay/browserViewOverlay";
 
 const SETTINGS_FILE_NAME = "browser-prompt-extraction.json";
 
-function browserPromptExtractionSettingsFile(projectId: string): string {
+async function browserPromptExtractionSettingsFile(projectId: string): Promise<string> {
   const id = String(projectId || "").trim();
   if (!id) throw new Error("projectId is required");
   const project = readProject(id) as { lastKnownRootPath?: unknown } | null;
   const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
   if (!rootPath) throw new Error("Project folder is unavailable");
   const dir = workspaceNomiDir(rootPath);
-  fs.mkdirSync(dir, { recursive: true });
+  await fs.promises.mkdir(dir, { recursive: true });
   return path.join(dir, SETTINGS_FILE_NAME);
 }
 
@@ -35,10 +35,14 @@ export function registerBrowserPromptExtractionSettingsIpc(): void {
     assertTrustedUiSender(event);
     const project = issueWindowProject(getOwnerWindowForSender(event.sender));
     if (!project) return { ok: true, settings: null };
-    const filePath = browserPromptExtractionSettingsFile(project.binding.projectId);
-    if (!fs.existsSync(filePath)) return { ok: true, settings: null };
-    const raw = fs.readFileSync(filePath, "utf8");
-    return { ok: true, settings: normalizeSettingsPayload(JSON.parse(raw)) };
+    const filePath = await browserPromptExtractionSettingsFile(project.binding.projectId);
+    try {
+      const parsed = await readJsonFileAsync(filePath, { retrySharingViolation: true });
+      return { ok: true, settings: normalizeSettingsPayload(parsed) };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return { ok: true, settings: null };
+      throw error;
+    }
   });
 
   ipcMain.handle("browser:prompt-extraction-settings:write", async (event, payload: { settings?: unknown }) => {
@@ -46,9 +50,9 @@ export function registerBrowserPromptExtractionSettingsIpc(): void {
     const project = issueWindowProject(getOwnerWindowForSender(event.sender));
     if (!project) throw Object.assign(new Error("project_identity_unavailable"), { code: "project_identity_unavailable" });
     const settings = normalizeSettingsPayload(payload?.settings);
-    const filePath = browserPromptExtractionSettingsFile(project.binding.projectId);
+    const filePath = await browserPromptExtractionSettingsFile(project.binding.projectId);
     project.assertCurrent();
-    writeJsonFileAtomic(filePath, settings);
+    await writeJsonFileAtomicAsync(filePath, settings);
     return { ok: true, settings };
   });
 }

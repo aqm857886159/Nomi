@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
+import { retryOnSharingViolation, retryOnSharingViolationAsync, writeJsonFileAtomic, writeJsonFileAtomicAsync } from "../jsonFile";
 import { workspaceFolderCopyError } from "../shared/contracts/projectLocation";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import {
@@ -22,8 +22,28 @@ function readRecentWorkspaceEntries(settingsRoot: string): RecentWorkspaceEntry[
   return raw.map((entry) => normalizeRecentWorkspaceEntry(entry));
 }
 
+async function readRecentWorkspaceEntriesAsync(settingsRoot: string): Promise<RecentWorkspaceEntry[]> {
+  const registryPath = recentWorkspacesPath(settingsRoot);
+  let text: string;
+  try {
+    text = await fsp.readFile(registryPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return [];
+    throw error;
+  }
+  const raw = JSON.parse(text);
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.map((entry) => normalizeRecentWorkspaceEntry(entry));
+}
+
 function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEntry[]): void {
   writeJsonFileAtomic(recentWorkspacesPath(settingsRoot), entries);
+}
+
+function writeRecentWorkspacesAsync(settingsRoot: string, entries: RecentWorkspaceEntry[]): Promise<void> {
+  return writeJsonFileAtomicAsync(recentWorkspacesPath(settingsRoot), entries);
 }
 
 /**
@@ -66,6 +86,43 @@ function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
         // 杀毒 / 同步盘短暂开着这个目录时 Windows 删不掉（EPERM/EBUSY）：先短退避重试，
         // 否则留下的 .lock 会让下一次注册表读写在主线程上干等 3 秒才夺锁。
         retryOnSharingViolation(() => fs.rmdirSync(lockDir));
+      } catch {
+        /* 已释放 */
+      }
+    }
+  }
+}
+
+async function withRegistryLockAsync<T>(settingsRoot: string, fn: () => Promise<T>): Promise<T> {
+  const lockDir = `${recentWorkspacesPath(settingsRoot)}.lock`;
+  const deadline = Date.now() + 3000;
+  let locked = false;
+  for (;;) {
+    try {
+      await fsp.mkdir(lockDir);
+      locked = true;
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") break;
+      if (Date.now() > deadline) {
+        try {
+          await fsp.rm(lockDir, { recursive: true, force: true });
+          await fsp.mkdir(lockDir);
+          locked = true;
+        } catch {
+          /* 夺锁失败也继续（最坏=退化回原行为，不卡死） */
+        }
+        break;
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    if (locked) {
+      try {
+        await retryOnSharingViolationAsync(() => fsp.rmdir(lockDir));
       } catch {
         /* 已释放 */
       }
@@ -276,6 +333,22 @@ export function bindWorkspaceLocation(settingsRoot: string, binding: WorkspaceLo
     if (conflict) throw workspaceFolderCopyError({ projectName: conflict.boundName, originalRootPath: conflict.boundRootPath });
     const next = sortRecentWorkspaces(mergeWorkspaceBinding(entries, binding));
     writeRecentWorkspaces(settingsRoot, next);
+    return next;
+  });
+}
+
+/** 异步保存热路径用的单条登记：同一份合并与冲突判据，锁等待与原子写均走异步定时器，不占主线程。 */
+export function bindWorkspaceLocationAsync(
+  settingsRoot: string,
+  binding: WorkspaceLocationBinding,
+): Promise<RecentWorkspaceEntry[]> {
+  assertExplicitBinding(binding);
+  return withRegistryLockAsync(settingsRoot, async () => {
+    const entries = await readRecentWorkspaceEntriesAsync(settingsRoot);
+    const conflict = liveBindingConflict(entries, binding);
+    if (conflict) throw workspaceFolderCopyError({ projectName: conflict.boundName, originalRootPath: conflict.boundRootPath });
+    const next = sortRecentWorkspaces(mergeWorkspaceBinding(entries, binding));
+    await writeRecentWorkspacesAsync(settingsRoot, next);
     return next;
   });
 }

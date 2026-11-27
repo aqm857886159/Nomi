@@ -1,5 +1,5 @@
 import path from "node:path";
-import { readJsonFile, writeJsonFileAtomic } from "../jsonFile";
+import { readJsonFile, readJsonFileAsync, writeJsonFileAtomic, writeJsonFileAtomicAsync } from "../jsonFile";
 
 const SCHEMA_VERSION = 1;
 const BASELINE_FILE = "workspace-sync-baseline.json";
@@ -19,29 +19,40 @@ function baselinePath(settingsRoot: string): string {
   return path.join(path.resolve(settingsRoot), BASELINE_FILE);
 }
 
+function normalizeStore(raw: Partial<BaselineStore> | null | undefined): BaselineStore {
+  if (!raw || raw.schemaVersion !== SCHEMA_VERSION || !raw.projects || typeof raw.projects !== "object") {
+    return { schemaVersion: SCHEMA_VERSION, projects: {} };
+  }
+  const projects: Record<string, WorkspaceSyncBaseline> = {};
+  for (const [projectId, value] of Object.entries(raw.projects)) {
+    if (!value || typeof value !== "object") continue;
+    const item = value as Partial<WorkspaceSyncBaseline>;
+    const revision = item.revision;
+    if (
+      typeof item.rootPath === "string" &&
+      typeof revision === "number" &&
+      Number.isInteger(revision) &&
+      revision >= 0 &&
+      typeof item.contentHash === "string" &&
+      item.contentHash.length > 0
+    ) {
+      projects[projectId] = { rootPath: path.resolve(item.rootPath), revision, contentHash: item.contentHash };
+    }
+  }
+  return { schemaVersion: SCHEMA_VERSION, projects };
+}
+
 function readStore(settingsRoot: string): BaselineStore {
   try {
-    const raw = readJsonFile(baselinePath(settingsRoot)) as Partial<BaselineStore>;
-    if (raw.schemaVersion !== SCHEMA_VERSION || !raw.projects || typeof raw.projects !== "object") {
-      return { schemaVersion: SCHEMA_VERSION, projects: {} };
-    }
-    const projects: Record<string, WorkspaceSyncBaseline> = {};
-    for (const [projectId, value] of Object.entries(raw.projects)) {
-      if (!value || typeof value !== "object") continue;
-      const item = value as Partial<WorkspaceSyncBaseline>;
-      const revision = item.revision;
-      if (
-        typeof item.rootPath === "string" &&
-        typeof revision === "number" &&
-        Number.isInteger(revision) &&
-        revision >= 0 &&
-        typeof item.contentHash === "string" &&
-        item.contentHash.length > 0
-      ) {
-        projects[projectId] = { rootPath: path.resolve(item.rootPath), revision, contentHash: item.contentHash };
-      }
-    }
-    return { schemaVersion: SCHEMA_VERSION, projects };
+    return normalizeStore(readJsonFile(baselinePath(settingsRoot)) as Partial<BaselineStore>);
+  } catch {
+    return { schemaVersion: SCHEMA_VERSION, projects: {} };
+  }
+}
+
+async function readStoreAsync(settingsRoot: string): Promise<BaselineStore> {
+  try {
+    return normalizeStore((await readJsonFileAsync(baselinePath(settingsRoot))) as Partial<BaselineStore>);
   } catch {
     return { schemaVersion: SCHEMA_VERSION, projects: {} };
   }
@@ -79,4 +90,20 @@ export function writeWorkspaceSyncBaseline(settingsRoot: string, projectId: stri
   const store = readStore(settingsRoot);
   store.projects[id] = { rootPath: path.resolve(baseline.rootPath), revision: baseline.revision, contentHash: baseline.contentHash };
   writeJsonFileAtomic(baselinePath(settingsRoot), store);
+}
+
+export async function writeWorkspaceSyncBaselineAsync(
+  settingsRoot: string,
+  projectId: string,
+  baseline: WorkspaceSyncBaseline,
+): Promise<void> {
+  const id = String(projectId || "").trim();
+  if (!id) throw new Error("projectId is required");
+  const store = await readStoreAsync(settingsRoot);
+  store.projects[id] = {
+    rootPath: path.resolve(baseline.rootPath),
+    revision: baseline.revision,
+    contentHash: baseline.contentHash,
+  };
+  await writeJsonFileAtomicAsync(baselinePath(settingsRoot), store);
 }
