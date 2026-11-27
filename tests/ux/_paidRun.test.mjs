@@ -413,7 +413,12 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     const standIn = deps.startStandIn.mock.calls[0][0]
     expect(standIn.origin).toBe('https://api.apimart.ai')
     expect(standIn.role).toBe('vendor')
-    expect(standIn.freeAnswers).toEqual({ 'GET /v1/balance': { remain_balance: 0 } })
+    expect(standIn.freeAnswers).toEqual({
+      'GET /v1/balance': { remain_balance: 1 },
+      'GET /v1/user/balance': { remain_balance: 1 },
+      'GET /api/pricing/models/all': { data: [] },
+      'GET /api/pricing/model': { data: [] },
+    })
     // 供应商自己的上传口也由替身答（路径、回链字段取产品的声明）
     expect(standIn.uploadAnswers).toEqual({ 'POST /v1/uploads/images': 'url' })
     expect(deps.startStandIn).toHaveBeenCalledTimes(1) // 没带本地素材：不起中转替身
@@ -492,9 +497,19 @@ describe('rehearsal · openPaidWalk 接线（假 App）', () => {
     expect(deps.startStandIn).not.toHaveBeenCalled()
   })
 
-  it('免费探测的回答从种子声明派生：成功判据那个字段 = 0，嵌套路径也对', () => {
-    expect(rehearsalFreeAnswers({ request: { method: 'get', path: '/v1/balance' }, successPath: 'remain_balance' })).toEqual({ 'GET /v1/balance': { remain_balance: 0 } })
-    expect(rehearsalFreeAnswers({ request: { method: 'POST', path: '/estimate' }, successPath: 'data.credits' })).toEqual({ 'POST /estimate': { data: { credits: 0 } } })
+  it('免费探测的回答从种子声明派生：成功判据字段 > 0（不卡接入页充值拦截），并覆盖账户余额与公开询价只读口', () => {
+    expect(rehearsalFreeAnswers({ request: { method: 'get', path: '/v1/balance' }, successPath: 'remain_balance' })).toEqual({ 'GET /v1/balance': { remain_balance: 1 } })
+    expect(rehearsalFreeAnswers({ request: { method: 'POST', path: '/estimate' }, successPath: 'data.credits' })).toEqual({ 'POST /estimate': { data: { credits: 1 } } })
+    expect(rehearsalFreeAnswers({
+      credentialProbe: { request: { method: 'GET', path: '/v1/balance' }, successPath: 'remain_balance' },
+      accountBalance: { userBalancePath: '/v1/user/balance', path: '/v1/balance' },
+      publicPricing: { listPath: '/api/pricing/models/all', modelPath: '/api/pricing/model' },
+    })).toEqual({
+      'GET /v1/balance': { remain_balance: 1 },
+      'GET /v1/user/balance': { remain_balance: 1 },
+      'GET /api/pricing/models/all': { data: [] },
+      'GET /api/pricing/model': { data: [] },
+    })
   })
 
   it('收尾关掉替身', async () => {

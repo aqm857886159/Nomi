@@ -53,17 +53,31 @@ export const REHEARSAL_TIERS = Object.freeze({
 export const REHEARSAL_FAKE_KEY = 'sk-nomi-rehearsal-fake-key-not-a-secret'
 
 /**
- * 替身供应商要答的免费探测：从产品种子里代码拥有的 `credentialProbe` 派生（不手抄第二份），答成「成功判据那个字段 = 0」。
- * 产品拿它判「key 能用」：网络被挡时它记待定、模型不放出来，假钥匙演练就卡在接入页（2026-11-15 真窗实测）。
+ * 替身供应商要答的免费探测：全部从产品种子（`APIMART_VENDOR_SEED`）代码拥有的声明派生，不手抄第二份：
+ *   · `credentialProbe` 与 `accountBalance`（`GET /v1/balance`、`GET /v1/user/balance`）：可见接入页同时查账户余额与 Key 额度，
+ *     且 `remainCredits === 0` 会停在充值提示页（stage = 'topup'）不放行；成功字段答 `1` 让接入页通过并自动收起；
+ *   · `publicPricing`（`GET /api/pricing/models/all`、`GET /api/pricing/model`）：画布发送键公开询价只读请求，答空列表。
  */
-export function rehearsalFreeAnswers(probe) {
-  const body = {}
-  let node = body
-  const keys = String(probe.successPath).split('.')
-  keys.forEach((key, index) => { node[key] = index === keys.length - 1 ? 0 : {}; node = node[key] })
-  return { [`${String(probe.request.method).toUpperCase()} ${probe.request.path}`]: body }
+export function rehearsalFreeAnswers(seedOrProbe) {
+  const probe = seedOrProbe?.credentialProbe ?? seedOrProbe
+  const makeBody = (successPath, leaf = 1) => {
+    const body = {}
+    let node = body
+    const keys = String(successPath).split('.')
+    keys.forEach((key, index) => { node[key] = index === keys.length - 1 ? leaf : {}; node = node[key] })
+    return body
+  }
+  const probeBody = makeBody(probe.successPath, 1)
+  const answers = { [`${String(probe.request.method).toUpperCase()} ${probe.request.path}`]: probeBody }
+  const accountBalance = seedOrProbe?.accountBalance
+  if (accountBalance?.userBalancePath) answers[`GET ${accountBalance.userBalancePath}`] = makeBody(probe.successPath, 1)
+  if (accountBalance?.path) answers[`GET ${accountBalance.path}`] = makeBody(probe.successPath, 1)
+  const publicPricing = seedOrProbe?.publicPricing
+  if (publicPricing?.listPath) answers[`GET ${publicPricing.listPath}`] = { data: [] }
+  if (publicPricing?.modelPath) answers[`GET ${publicPricing.modelPath}`] = { data: [] }
+  return answers
 }
-const apimartCredentialProbe = () => tsxRequire('../../electron/catalog/apimartVendor.ts', import.meta.url).APIMART_VENDOR_SEED.credentialProbe
+const apimartVendorSeed = () => tsxRequire('../../electron/catalog/apimartVendor.ts', import.meta.url).APIMART_VENDOR_SEED
 
 /**
  * 替身要答的上传（r2）：供应商自己的上传口、App 的托管上传中转，都从产品代码拥有的声明派生（不手抄第二份）：
@@ -403,7 +417,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
   if (rehearsal === 'no-key') {
     try {
       const apimartUpload = apimartUploadIngestion()
-      standIns.push(await startStandIn({ origin: ENV_KEY_ALLOW_CATALOG.vendors[0].baseUrlHint, netLog, role: 'vendor', freeAnswers: rehearsalFreeAnswers(apimartCredentialProbe()), uploadAnswers: rehearsalUploadAnswers(apimartUpload) }))
+      standIns.push(await startStandIn({ origin: ENV_KEY_ALLOW_CATALOG.vendors[0].baseUrlHint, netLog, role: 'vendor', freeAnswers: rehearsalFreeAnswers(apimartVendorSeed()), uploadAnswers: rehearsalUploadAnswers(apimartUpload) }))
       if (hostedUploadOrigin) standIns.push(await startStandIn({ origin: hostedUploadOrigin, netLog, role: 'relay', uploadAnswers: rehearsalUploadAnswers(relayUploadIngestion(hostedUploadOrigin, env)) }))
     } catch (error) { await closeStandIns(); throw error }
   }
