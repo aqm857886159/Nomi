@@ -575,7 +575,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
           if (leaferCanvasRef.current?.handleKeyDown(event.nativeEvent)) { event.preventDefault(); event.stopPropagation() }
         }}
         onPointerDownCapture={(event) => { if ((event.target as HTMLElement).closest('[data-whiteboard-stage]')) event.currentTarget.focus({ preventScroll: true }) }}>
-        <div data-whiteboard-stage="true" className={cn('absolute inset-0 overflow-hidden rounded-nomi bg-nomi-paper', assetDragOver && 'ring-2 ring-inset ring-nomi-ink-40', initialImageStatus !== 'ready' && 'pointer-events-none')}
+        <div data-whiteboard-stage="true" data-board="layers.whiteboard-scale" className={cn('absolute inset-0 overflow-hidden rounded-nomi bg-nomi-paper', assetDragOver && 'ring-2 ring-inset ring-nomi-ink-40', initialImageStatus !== 'ready' && 'pointer-events-none')}
           onDragOver={handleCanvasAssetDragOver} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAssetDragOver(false) }} onDrop={handleCanvasAssetDrop}>
           <LeaferCanvas ref={leaferCanvasRef} ratio={state.activeRatio} dimensions={canvasDimensions} fitMode="inline"
             activeTool={activeTool} activeLayerId={activeLayerId} layers={state.layers} assets={state.canvasAssets} texts={state.texts}

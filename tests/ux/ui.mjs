@@ -25,7 +25,7 @@ import { parseDriverArgs, pidAlive, profileBanner } from './uiDriverOptions.mjs'
 
 const DIR = UI_DIR
 const DRIVER = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ui-driver.mjs')
-const ACTIONS = ['up', 'down', 'stop', 'doctor', 'features', 'goto', 'snap', 'shot', 'click', 'fill', 'press', 'hover', 'setfile', 'read', 'drag', 'move', 'wait', 'quit', 'probe-latency', 'fps-start', 'fps-stop', 'density', 'contrast']
+const ACTIONS = ['up', 'down', 'stop', 'restart', 'doctor', 'features', 'goto', 'snap', 'shot', 'click', 'fill', 'press', 'hover', 'setfile', 'read', 'drag', 'move', 'wait', 'quit', 'probe-latency', 'fps-start', 'fps-stop', 'density', 'contrast']
 const [action, ...rest] = process.argv.slice(2)
 if (!action || !ACTIONS.includes(action)) {
   console.error(`用法: node tests/ux/ui.mjs <${ACTIONS.join('|')}> ...（详见文件头）`)
@@ -157,7 +157,7 @@ else {
   else if (action === 'wait') cmd.ms = Number(rest[0] || 500)
   else if (action === 'probe-latency') { cmd.target = rest[0]; cmd.name = rest[1]; cmd.wait = Number(rest[2] || 1800) }
   else if (action === 'contrast') cmd.sel = rest.join(' ')
-  const { text, res } = await send(cmd, action === 'goto' ? 180_000 : 60_000)
+  const { text, res } = await send(cmd, action === 'goto' || action === 'restart' ? 180_000 : 60_000)
   if (action === 'doctor' && res.doctor?.fakeVendor) console.log(`假供应商：${res.doctor.fakeVendor.name} @ ${new URL(res.doctor.fakeVendor.origin).host}`)
   console.log(action === 'doctor' || action === 'features' ? JSON.stringify(res, null, 2) : text)
   if (res.error || (action === 'doctor' && res.doctor && !res.doctor.ok)) process.exit(1)

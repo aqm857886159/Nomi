@@ -302,4 +302,20 @@ describe('图层分离入口 —— 派生一个方式已定好的节点，不�
     const onlyPro = derivedIdOf(await derive(source, layerHost({ editModelOptions: [MODEL, SEEDREAM_PRO] }), 'layer-split'))
     expect(nodeOf(onlyPro).meta).toMatchObject({ modelKey: 'doubao-seedream-5-0-pro' })
   })
+
+  it('配了自定义请求脚本的模型：拆图层不可选并报清原因；有未挂脚本的拆图模型时自动避开挂脚本的模型', async () => {
+    const SCRIPTED_55: ModelOption = { ...SEEDREAM_55, customCallScriptModes: ['layers'] }
+    const SEEDREAM_PRO: ModelOption = { value: 'doubao-seedream-5-0-pro', label: 'Seedream 5.0 Pro', vendor: 'apimart', modelKey: 'doubao-seedream-5-0-pro' }
+    const source = addSource()
+
+    // 唯一的拆图模型挂了 layers 脚本 → 拒派生并报 layer-split-custom-script（不指去重接已接上的同一家）。
+    const blocked = await derive(source, layerHost({ editModelOptions: [MODEL, SCRIPTED_55] }), 'layer-split')
+    expect(blocked).toEqual({ status: 'blocked', reason: 'layer-split-custom-script' })
+    expect(store().nodes).toHaveLength(1)
+    expect(calls.runTask).not.toHaveBeenCalled()
+
+    // 另有未挂脚本的拆图模型时，跳过挂脚本的 5.5，落到真能返回图层元数据的 5.0 Pro。
+    const derivedId = derivedIdOf(await derive(source, layerHost({ editModelOptions: [MODEL, SCRIPTED_55, SEEDREAM_PRO] }), 'layer-split'))
+    expect(nodeOf(derivedId).meta).toMatchObject({ modelKey: 'doubao-seedream-5-0-pro' })
+  })
 })

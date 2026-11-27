@@ -1,8 +1,0 @@
-[walkthrough] content viewport {"width":1280,"height":800}
-[core-smoke] spend-confirm 失败： Error: Timed out waiting for generation draft request
-    at Timeout.<anonymous> (file:///Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-a2e5a111cd9ae90ea/tests/ux/agent-runtime-walk-support.mjs:212:41)
-    at listOnTimeout (node:internal/timers:605:17)
-    at process.processTimers (node:internal/timers:541:7)
-[core-smoke] 主进程说：
-[nomi:capability] rpc-listening port=50651
-[nomi:capability] RPC 监听 127.0.0.1:50651（库 /private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-core-smoke-spend-confirm-empty-p44003-EOJPAA/projects）

@@ -134,7 +134,7 @@
 | 落地中（下载各层、拼合成图） | 不可停（秒级） · 已扣 · — | 找回路径重新落地（recoverTaskActions 走同一条 landTaskResults） · 不重扣 · 任务中心 | 下载失败 →「图层已经拆好…可以重新取回」 · 不重扣 · 节点 | 同关窗 · 不重扣 · 任务中心 | — |
 | 画板编辑中 | 关画板 = 今天的草稿行为 · 不扣 · 节点 meta | 草稿按结果身份存（今天行为） · 不扣 · 节点 | 无影响 · 不扣 · — | 草稿在 · 不扣 · 节点 | 「完成」连点 = 今天行为 · 不扣 · 版本栈 |
 
-证据：派生 / 发送 / 落地 / 完成走查 `tests/ux/layer-split.walk.mjs`；关窗 / 重启 / 断网沿用现成找回（未针对图层分离单跑，**unverified**）。
+证据：派生 / 发送 / 关窗冷重启找回 / 落地 / 完成走查 `tests/ux/layer-split.walk.mjs`（重启找回 +0 POST）；后台结案、重启找回与首次落地失败后点「重新取回」三种路径由 `electron/capabilityCore/layerSplitRecovery.test.ts` 覆盖。
 
 ## 6 外部数据与失败
 
@@ -144,7 +144,7 @@
 | APIMart Seedream 5.0 Pro 请求 | https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation.md | 只发开关，不发选项 / size（Pro 收哪些 size 档没查到，**unverified**） | — |
 | 返回 `layers[i]` | 同上文档 | z_index 越大越在上（文档没写方向，**unverified**）；每层是裁好的小图还是整幅透明图没写死 → **两种都落对**：和底图一样大 = 铺满，其余按 bounding_box 缩进框，读不到尺寸按框（**unverified**，等协调真付费那一跑定案） | 层描述与图数对不上 → 挂取回解析阶段（可找回），不当普通多张落 |
 | 计费 | 同上文档 Billing | 约价 = 层数上限 × 高档单张价（自动按高档）+ 一次输入图费；5.0 Pro 不印；按输出张数实扣（**unverified**） | 算不出不印数、不印 0 |
-| 当前接入的渠道线缆 | 内置目录 | 线缆 body 不读 `layer_decomposition` = 拆不了 | 入口按「没有」处理并指路；发送口拒并说明 |
+| 当前接入的渠道线缆 / 自定义请求脚本 | 内置目录与模型自定义脚本 | 线缆 body 不读 `layer_decomposition` 或该方式被自定义请求脚本接管（脚本返回拿不到图层描述）= 拆不了 | 入口按不可拆处理并写明原因；发送口与自定义脚本派发口在扣费前拒发并说明 |
 | 底图读不出尺寸 | — | — | 落地失败那一句，可重新取回 |
 
 未知失败不甩给用户的 key：除上表外的失败走普通 Run 的错误面。
@@ -192,7 +192,7 @@ docs/design/boards/2026-11-26-layer-split/LayerSplit.board.json（`pnpm run chec
 
 补充检查（本 PR 自己加的）：删层后画笔能落笔（`whiteboardStateOps.test.ts` 三条）；换模型时「拆图层」这件事跟着走（`archetypeMeta.layerSplitCarry.test.ts`）；整幅透明图不被压扁（`layerSplitBoard.test.ts`、`landTaskResults.test.ts`）。
 
-反例 → 结果 → 证据（改坏 → 红、还原 → 绿，日志在仓库外 /Users/aoqimin/Nomi-coord/tmp/I-SE/redgreen/，PR 正文贴摘要）：
+反例 → 结果 → 证据（改坏 → 红、还原 → 绿，日志在仓库外临时证据目录，PR 正文贴摘要）：
 
 | 反例 | 改坏后 | 还原后 |
 |---|---|---|

@@ -109,6 +109,7 @@ type InlineParameterBarProps = {
    * 不传 = 原样（没有面板就不出这一格）。
    */
   summaryStatic?: boolean
+  summaryBoardAnchor?: string
   /** 宿主给面板里某一项下面挂一句（按控件 key）：如图层分离层数多时的花钱提醒，只提醒不拦。 */
   controlNotices?: Readonly<Record<string, React.ReactNode>>
   /**
@@ -185,6 +186,7 @@ export default function InlineParameterBar({
   summaryParts,
   summaryIcon,
   summaryStatic = false,
+  summaryBoardAnchor,
   controlNotices,
   modeMenu,
   modeChoices,
@@ -580,6 +582,7 @@ export default function InlineParameterBar({
         role="group"
         aria-label={t('generationCommon.parameters.panel')}
         data-agent-parameter-panel="true"
+        data-board={summaryBoardAnchor === 'layers.composer-cell' ? 'layers.params-panel' : undefined}
         className="nokey fixed rounded-nomi-lg border border-nomi-line bg-nomi-paper"
         style={{
           zIndex: 600,
@@ -641,6 +644,7 @@ export default function InlineParameterBar({
       // 走查锚点同摘要 pill；不是按钮（没有 role、点了什么都不开）。
       data-parameter-summary={text}
       data-parameter-summary-static="true"
+      data-board={summaryBoardAnchor}
       data-yield-item=""
       title={fullSummaryText}
       aria-label={fullSummaryText}
@@ -656,6 +660,7 @@ export default function InlineParameterBar({
       // 走查锚点：断言得能拿到那串摘要本身，
       // 不能靠中文 aria-label 去找（换个语言就断了）。
       data-parameter-summary={text}
+      data-board={summaryBoardAnchor}
       data-yield-item=""
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}

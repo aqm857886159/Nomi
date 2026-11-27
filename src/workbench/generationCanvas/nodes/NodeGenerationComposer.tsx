@@ -440,6 +440,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
         <div
           ref={promptExpand.scrollRef}
           data-node-composer-prompt
+          data-board={layerSplit ? 'layers.prompt-placeholder' : undefined}
           data-prompt-expanded={promptExpand.expanded ? 'true' : 'false'}
           className={cn(
             NODE_SCROLL_REGION_CLASS_NAME,
@@ -538,6 +539,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                 unitMenuAriaLabel: sendCost.unitMenuAriaLabel,
                 unitSwitchAriaLabel: sendCost.unitSwitchAriaLabel,
                 onUnitChange: sendCost.onUnitChange,
+                boardAnchor: layerSplit && sendCost.credits !== undefined ? 'layers.send-price' : undefined,
+                hoverBoardAnchor: layerSplit && layerSplit.inputCount === 0 ? 'layers.no-image-hint' : undefined,
               } : undefined,
               lowBalance: sendCostLowBalance,
               attrs: sendCost.source ? { 'data-price-source': sendCost.source } : undefined,

@@ -98,6 +98,7 @@ function quickActionItems(
   guides?: ImageQuickActionsToolbarProps['quickActionGuides'],
 ): WorkbenchMenuNode[] {
   return actions.map((action) => {
+    const dataAttributes = action.id === 'layer-split' ? { 'data-board': 'layers.entry' } : undefined
     const guide = guides?.[action.id]
     if (guide) {
       return {
@@ -105,6 +106,7 @@ function quickActionItems(
         label: t(action.labelKey),
         icon: action.icon as unknown as WorkbenchMenuIcon,
         description: guide.description,
+        ...(dataAttributes ? { dataAttributes } : {}),
         onSelect: guide.onSelect,
       }
     }
@@ -115,6 +117,7 @@ function quickActionItems(
       icon: action.icon as unknown as WorkbenchMenuIcon,
       disabled: Boolean(reason),
       ...(reason ? { description: reason, disabledReason: reason } : {}),
+      ...(dataAttributes ? { dataAttributes } : {}),
       onSelect: () => onPick(action.id),
     }
   })
@@ -234,6 +237,7 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
         <ToolbarIconButton
           icon={<IconBrush size={I.size} stroke={I.stroke} />}
           actionId="whiteboard-open"
+          dataBoard={readLayerSplitMark(node.result) ? 'layers.entry-whiteboard-hint' : undefined}
           title={t(readLayerSplitMark(node.result) ? 'generationCommon.imageToolbar.whiteboardLayersHint' : 'generationCommon.imageToolbar.whiteboardHint')}
           ariaLabel={t('generationCommon.imageToolbar.whiteboard')}
           disabled={busy || !imageUrl}

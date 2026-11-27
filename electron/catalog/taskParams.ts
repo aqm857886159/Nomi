@@ -166,9 +166,10 @@ export function applyHeadlessParamDefaults(
   const wireArchetype = archetype ?? resolveModelArchetype({
     modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
   }, { variant });
-  // 图层分离：按 mapping body 发、而这份 body 不读开关键 = 发出去只是一次普通改图（花了钱只拿回一张图）→ 发送前拒。
-  // 自定义脚本接管 = 看不清（脚本自己读 params），与第④步同一口径不拒；入口那头只在线缆读得到开关键时才可点。
-  if (mode && isLayerSplitMode(mode) && route.sends !== "script" && !layerSplitWireReady(bodyReferencedParamKeys(createBody))) {
+  // 图层分离：① 自定义调用脚本只返回裸媒体地址、带不回图层坐标与顺序，在付费前直接拒发；
+  // ② 按 mapping body 发、而这份 body 不读开关键 = 发出去只是一次普通改图（花了钱只拿回一张图）→ 发送前拒。
+  assertLayerSplitNotScriptRouted(mode, route);
+  if (mode && isLayerSplitMode(mode) && !layerSplitWireReady(bodyReferencedParamKeys(createBody))) {
     throw new ModeRouteMissingError(desktopT("modeInput.layerSplitWireMissing"));
   }
   const encoded = encodeParamsForWire(mode ? mode.params : wireArchetype?.modes.flatMap((candidate) => candidate.params) ?? [], owned);
@@ -194,6 +195,15 @@ export type SendRoute = { readonly sends: "mapping-body" } | { readonly sends: "
 const MAPPING_BODY_ROUTE: SendRoute = { sends: "mapping-body" };
 export function sendRouteFor(customCallScript: string | undefined): SendRoute {
   return customCallScript ? { sends: "script" } : MAPPING_BODY_ROUTE;
+}
+/** 自定义调用脚本不承载结构化图层契约：发送预检与脚本执行器共用同一道拒发闸（P1）。 */
+export function assertLayerSplitNotScriptRouted(
+  mode: Pick<ArchetypeMode, "layerSplit"> | null | undefined,
+  route: SendRoute,
+): void {
+  if (mode && isLayerSplitMode(mode) && route.sends === "script") {
+    throw new ModeRouteMissingError(desktopT("modeInput.layerSplitCustomScriptUnsupported"));
+  }
 }
 /** 这条路真要发出去的 create body（脚本接管 = 没有）。 */
 export function dispatchedCreateBody(route: SendRoute, createBody: unknown): unknown {

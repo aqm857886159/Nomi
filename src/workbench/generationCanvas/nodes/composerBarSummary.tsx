@@ -15,6 +15,7 @@ export type ComposerBarSummary = {
   summaryParts?: readonly HeadlinePart[]
   summaryIcon?: React.ReactNode
   summaryStatic?: boolean
+  summaryBoardAnchor?: string
   controlNotices?: Readonly<Record<string, React.ReactNode>>
 }
 
@@ -76,6 +77,7 @@ export function composerBarSummary({ t, workflowParamCount, isImageLike, isVideo
     ...(layerSplit ? {
       summaryIcon: <IconStack2 size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} data-layer-split-icon="true" />,
       summaryStatic: layerSplit.fixed,
+      summaryBoardAnchor: layerSplit.fixed ? 'layers.pro-fixed' : 'layers.composer-cell',
       ...(layerNotices ? { controlNotices: layerNotices } : {}),
     } : {}),
   }

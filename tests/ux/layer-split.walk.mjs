@@ -16,7 +16,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
 import { CANVAS_ZOOM_BAR } from './_shell.mjs'
 
-const options = parseDriverArgs(['--vendor', 'fake-apimart', ...process.argv.slice(2)])
+const options = parseDriverArgs(['--vendor', 'fake-apimart', '--vendor-pending', '3', ...process.argv.slice(2)])
 const out = options.out
 const client = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ui.mjs')
 const env = { ...process.env, NOMI_TEST_NETWORK_GUARD: '1', NOMI_UI_DIR: path.join(makeTempDir('nomi-layer-split-walk-'), 'ipc') }
@@ -27,8 +27,14 @@ const T = (key, values) => (values ? uiTextWith(locale, key, values) : uiText(lo
 const split = T('generationCommon.quickActions.actions.layerSplit')
 const L = {
   generate: T('generationCommon.composer.generateAsset'),
+  model: T('generationCommon.parameters.model'),
   split,
   cell: `${split} · ${T('generationCommon.layerSplitComposer.cellLayers', { count: 30 })} · ${T('generationCommon.parameters.auto')}`,
+  proCell: `${split} · ${T('generationCommon.layerSplitComposer.cellUpTo', { count: 17 })}`,
+  proNote: T('generationCommon.layerSplitComposer.fixedModel', { model: 'Seedream 5.0 Pro', layers: 16 }),
+  needImage: T('generationCommon.layerSplitComposer.needImage'),
+  disconnectRef: T('assetLibrary.refRow.disconnect'),
+  retryRetrieval: T('generationCommon.production.runAction.retry-retrieval'),
   readText: en ? 'Read text' : '识别文字',
   whiteboard: en ? 'Whiteboard' : '画板',
   base: T('generationCommon.whiteboard.baseImage'),
@@ -119,7 +125,7 @@ const layerRowsExpr = '[...document.querySelectorAll(\'[data-whiteboard-panel="l
 const summaryExpr = '[...document.querySelectorAll("[data-parameter-summary]")].map(e => e.getAttribute("data-parameter-summary"))'
 
 try {
-  console.log(ui('up', '--vendor', 'fake-apimart', '--out', out, '--locale', options.locale, '--theme', options.theme, '--size', options.sizeName))
+  console.log(ui('up', '--vendor', 'fake-apimart', '--vendor-pending', String(options.vendorPending), '--out', out, '--locale', options.locale, '--theme', options.theme, '--size', options.sizeName))
   assert.equal(ui('doctor').doctor.ok, true)
 
   // ① 先有一张图：图片节点生成一次（替身回一张图）。
@@ -185,6 +191,36 @@ try {
   console.log(`✓ prompt placeholder「${promptFace.placeholder}」, send enabled with an empty prompt`)
   shot('LS02-derived-composer')
 
+  // ③b 板 layers.no-image-hint：0 张图（参考被拿掉）时发送键禁用、约价照印，悬停先说缺图原因再说上限约价。
+  ui('click', `css:[data-composer-host] [aria-label=${JSON.stringify(L.disconnectRef)}]`)
+  await until(`document.querySelector('[aria-label=${JSON.stringify(L.generate)}]')?.disabled === true`, '0 images disables send')
+  const noImagePrice = read('document.querySelector(\'[data-board="layers.send-price"]\')?.innerText || ""')
+  assert.match(noImagePrice, /≤\s*8\.46/, `0 images keeps the upper-bound estimate on the send pill: ${noImagePrice}`)
+  ui('hover', 'css:[data-composer-host] [data-send-cost-trigger]')
+  await until(visible('[data-board="layers.no-image-hint"]'), '0 images disables send and hover shows the missing-image reason with upper-bound cost')
+  const noImageLines = read('(() => { const el = document.querySelector(\'[data-board="layers.no-image-hint"]\'); return el ? [...el.querySelectorAll(\':scope > span:not([role="tooltip"])\')].map(s => (s.textContent || "").trim()).filter(Boolean) : [] })()')
+  assert.equal(noImageLines[0], L.needImage, `hover first line states the missing-image reason: ${JSON.stringify(noImageLines)}`)
+  assert.match(noImageLines.slice(1).join(en ? ' ' : ''), L.upperBound, `hover second line states the upper-bound cost: ${JSON.stringify(noImageLines)}`)
+  shot('LS02b-no-image-hint')
+  ui('move', '12', '12')
+  ui('click', 'css:[data-composer-host] [data-reference-entry="true"]')
+  clickNodeCenter(sourceId)
+  clickNodeCenter(derived.id)
+  await until(`document.querySelector('[aria-label=${JSON.stringify(L.generate)}]')?.disabled === false`, 'reconnecting the source image re-enables send')
+
+  // ③c 板 layers.pro-fixed：换成 Seedream 5.0 Pro 时渲染「图层分离 · 最多 17 层」静态格，点击不打开参数面板。
+  ui('click', `css:[data-composer-host] [aria-label=${JSON.stringify(L.model)}]`)
+  ui('click', 'role:option=Seedream 5.0 Pro')
+  await until(`document.querySelector('[data-board="layers.pro-fixed"][data-parameter-summary-static="true"]')?.getAttribute('data-parameter-summary') === ${JSON.stringify(L.proCell)}`, 'Seedream 5.0 Pro renders a static up-to-17 cell that does not open the parameter panel')
+  const proComposerText = read('document.querySelector("[data-composer-host]")?.innerText || ""')
+  assert.ok(proComposerText.includes(L.proNote), `Seedream 5.0 Pro composer note explains fixed layers: ${proComposerText}`)
+  ui('click', 'css:[data-board="layers.pro-fixed"]')
+  assert.equal(read('!!document.querySelector(\'[data-agent-parameter-panel="true"]\')'), false, 'clicking the Seedream 5.0 Pro static cell does not open the parameter panel')
+  shot('LS02c-pro-fixed')
+  ui('click', `css:[data-composer-host] [aria-label=${JSON.stringify(L.model)}]`)
+  ui('click', 'role:option=Seedream 5.5')
+  await until(`${summaryExpr}.includes(${JSON.stringify(L.cell)})`, 'switching back to Seedream 5.5 restores the editable 30-layer cell')
+
   // ④ 参数面板：识别文字默认关，打开它。
   ui('click', `css:[data-parameter-summary=${JSON.stringify(L.cell)}]`)
   await until(visible(`[aria-label="${L.readText}"]`), 'params panel shows the read-text switch')
@@ -194,11 +230,34 @@ try {
   await until(`document.querySelector('[aria-label="${L.readText}"]')?.checked === true`, 'read text switched on')
   ui('press', 'Escape')
 
-  // ⑤ 发送一次：唯一一个拆图 POST，带 max_images 30 与 text_recognition true；节点下出现「3 层」。
+  // ⑤ 发送一次 → 板 layers.running 等待面（未出「N 层」）→ 关窗冷重启找回：全程唯一一个拆图 POST（重启找回 +0 POST），落成可编辑画板。
+  const openedProjectId = read(projectExpr)
+  const pidBeforeRestart = ui('doctor').doctor.ours.appPid
   ui('click', `aria:${L.generate}`)
-  await until('!!document.querySelector("[data-node-layer-split-status=\\"3\\"]")', `node shows「${L.status}」`, 4)
+  await until(
+    `!!document.querySelector('.generation-canvas-v2-node[data-node-id=${JSON.stringify(derived.id)}] [data-board="layers.running"]') && !document.querySelector('.generation-canvas-v2-node[data-node-id=${JSON.stringify(derived.id)}] [data-node-layer-split-status]')`,
+    'in-flight layer split shows the waiting surface without prematurely rendering the layer-count badge',
+    2,
+  )
+  shot('LS03b-running')
+  const splitPostsBeforeRestart = nonGet(vendorHits()).filter((hit) => /"layer_decomposition"\s*:\s*true/.test(hit.body || '')).length
+  assert.equal(splitPostsBeforeRestart, 1, 'one layer-split POST sent before cold restart')
+  const restarted = ui('restart')
+  assert.ok(restarted.appPid && restarted.appPid !== pidBeforeRestart, `cold restart launched a fresh Electron process (${pidBeforeRestart} → ${restarted.appPid})`)
+  await until(visible(`[data-project-card][data-project-id=${JSON.stringify(openedProjectId)}]`), 'project card visible in library after cold restart')
+  ui('click', `css:[data-project-card][data-project-id=${JSON.stringify(openedProjectId)}]`)
+  ui('goto', 'agent-collapsed')
+  ui('goto', 'canvas')
+  await expect.poll(() => {
+    const retrySel = `.generation-canvas-v2-node[data-node-id=${JSON.stringify(derived.id)}] [aria-label=${JSON.stringify(L.retryRetrieval)}]`
+    if (read(visible(retrySel))) ui('click', `css:${retrySel}`)
+    return read(`!!document.querySelector('.generation-canvas-v2-node[data-node-id=${JSON.stringify(derived.id)}] [data-node-layer-split-status="3"]')`)
+  }, { message: `recovered layer-split node shows「${L.status}」after cold restart`, timeout: stationTimeout({ operations: 5 }) }).toBe(true)
+  console.log(`✓ cold restart recovery landed「${L.status}」(+0 extra POST)`)
+  clickNodeCenter(derived.id)
+  await until('!!document.querySelector("[data-composer-host]")', 're-selecting the recovered split node opens its composer')
   const splitPosts = nonGet(vendorHits()).filter((hit) => /"layer_decomposition"\s*:\s*true/.test(hit.body || ''))
-  assert.equal(splitPosts.length, 1, 'exactly one layer-split create request')
+  assert.equal(splitPosts.length, 1, 'cold restart and recovery sent zero extra layer-split POSTs (still 1 total)')
   const sent = JSON.parse(splitPosts[0].body)
   assert.equal(sent.layer_decomposition_options?.max_images, 30, 'max_images follows the default 30')
   assert.equal(sent.layer_decomposition_options?.text_recognition, true, 'text_recognition follows the switch')
@@ -321,7 +380,14 @@ try {
   ui('down')
 }
 const hits = JSON.parse(fs.readFileSync(path.join(out, 'vendor-requests.json'), 'utf8'))
-assert.equal(hits.filter((hit) => hit.method !== 'GET' && /"layer_decomposition"\s*:\s*true/.test(hit.body || '')).length, 1, 'whole walk: one layer-split spend')
+const createPosts = hits.filter((hit) => hit.method === 'POST' && /\/v1\/images\/generations$/.test(hit.url || ''))
+const splitCreatePosts = createPosts.filter((hit) => /"layer_decomposition"\s*:\s*true/.test(hit.body || ''))
+const sourceCreatePosts = createPosts.filter((hit) => !/"layer_decomposition"\s*:\s*true/.test(hit.body || ''))
+assert.equal(sourceCreatePosts.length, 1, 'whole walk: one source-image create POST')
+assert.equal(splitCreatePosts.length, 1, 'whole walk: one layer-split create POST (+0 after restart recovery)')
+const postSummary = { sourcePosts: sourceCreatePosts.length, splitPosts: splitCreatePosts.length, extraPostsAfterRestart: 0, totalImageCreates: createPosts.length }
+fs.writeFileSync(path.join(out, 'post-counts.json'), JSON.stringify(postSummary, null, 2))
+console.log(`POST_COUNTS ${JSON.stringify(postSummary)}`)
 const network = fs.readFileSync(path.join(out, 'network.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line))
 assert.equal(network.filter((entry) => entry.kind === 'allowed-request' && !['127.0.0.1', 'localhost', '::1'].includes(new URL(entry.url).hostname)).length, 0, 'zero allowed external requests')
-console.log(`✓ layer split: derive → one spend → layers → ratio scale → delete then brush → done → no-model guide; evidence: ${out}`)
+console.log(`✓ layer split: derive → 0-image/pro-fixed → running → cold-restart recovery (+0 POST) → layers → ratio scale → delete then brush → done → no-model guide; evidence: ${out}`)

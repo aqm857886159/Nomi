@@ -3,7 +3,6 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties
@@ -44,10 +43,10 @@ import {
   normalizeCanvasBounds,
   shouldBlockEditorTargetInteraction,
 } from './whiteboardCanvasGeometry'
-import { renderWhiteboardScene } from './whiteboardSceneRender'
 import { useWhiteboardDrawing } from './useWhiteboardDrawing'
 import { useWhiteboardBoxSelection } from './useWhiteboardBoxSelection'
 import { useWhiteboardSelectionActions } from './useWhiteboardSelectionActions'
+import { useWhiteboardSceneReady } from './whiteboardSceneRender'
 import { useWhiteboardSceneSync } from './useWhiteboardSceneSync'
 import { canDrawOnLayer } from './whiteboardStateOps'
 
@@ -416,28 +415,23 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
     }
   }, [])
 
-  useLayoutEffect(() => {
-    const context = renderContextRef.current
-    if (!context) {
-      return
-    }
-
-    renderWhiteboardScene({
-      context,
-      assets,
-      texts,
-      strokes,
-      layers,
-      dimensions,
-      objectOffsets: objectOffsetsRef.current,
-      assetTransforms: assetTransformsRef.current,
-      objectFlipStates: objectFlipStatesRef.current,
-      layerGroupsRef,
-      canvasObjectNodesRef,
-      layerObjectTargetsRef,
-      draftEraserPathRef,
-    })
-  }, [assets, layers, renderReadyVersion, strokes, texts, sceneTransforms])
+  const sceneReadyState = useWhiteboardSceneReady({
+    renderContextRef,
+    assets,
+    texts,
+    strokes,
+    layers,
+    dimensions,
+    sceneTransforms,
+    renderReadyVersion,
+    objectOffsetsRef,
+    assetTransformsRef,
+    objectFlipStatesRef,
+    layerGroupsRef,
+    canvasObjectNodesRef,
+    layerObjectTargetsRef,
+    draftEraserPathRef,
+  })
 
   useWhiteboardSceneSync(
     {
@@ -636,6 +630,9 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
       <div
         ref={stageRef}
         tabIndex={0}
+        data-whiteboard-scene-ready={sceneReadyState.ready ? 'true' : undefined}
+        data-whiteboard-decoded-images={String(sceneReadyState.decodedImages)}
+        data-whiteboard-editable-count={String(sceneReadyState.editableCount)}
         onKeyDown={(event) => { if (handleKeyDown(event.nativeEvent)) { event.preventDefault(); event.stopPropagation() } }}
         className="relative h-full w-full"
         onContextMenu={showContextMenu}

@@ -140,17 +140,18 @@ const INSTALL_SOURCE = `(() => {
       return Boolean(box) && [...box.querySelectorAll('[data-storyboard-row]')]
         .some((element) => element.getClientRects().length > 0 && Boolean(element.querySelector('[data-prompt-box] [contenteditable="true"]')))
     },
-    // 内联画板能操作：编辑器挂上、画布在、初始图导入完（「导入图片」钮从禁用变可用）。
+    // 内联画板能操作：编辑器挂上、画布在、全部可见图层图片已解码并完成首帧绘制、初始图导入完（「导入图片」钮从禁用变可用）。
     whiteboardEditorReady() {
       const editor = document.querySelector('[data-nomi-inline-whiteboard="true"]')
+      const stageReady = editor ? editor.querySelector('[data-whiteboard-scene-ready="true"]') : null
       const importButton = editor ? editor.querySelector('[data-toolbar-action="whiteboard-importImage"]') : null
-      return visible(editor) && Boolean(editor.querySelector('canvas')) && Boolean(importButton) && !importButton.disabled
+      return visible(editor) && Boolean(stageReady) && Boolean(editor.querySelector('canvas')) && Boolean(importButton) && !importButton.disabled
     },
-    // 画板图层面板列全：面板开着、至少 count 行（图层分离 100 层的板；面板换虚拟列表前每行都在 DOM 里）。
+    // 画板图层面板列全：面板开着、精确等于 count 行（图层分离 100 层的板 = 底图 + 99 层 + 背景共 101 行；面板换虚拟列表前每行都在 DOM 里）。
     whiteboardLayersListed(count) {
       // 面板浮层挂在画板编辑器外面（工具条的弹层），按面板自己的标记找。
       const panel = document.querySelector('[data-whiteboard-panel="layers"]')
-      return visible(panel) && panel.querySelectorAll(':scope > div > div').length >= count
+      return visible(panel) && panel.querySelectorAll(':scope > div > div').length === count
     },
     // 画板完成：编辑器收起，节点上换成刚导出的那张图，并且图已解码可见（导出 + 落盘 + 节点结果 + 画布预览整段）。
     whiteboardResultVisible(nodeId) {

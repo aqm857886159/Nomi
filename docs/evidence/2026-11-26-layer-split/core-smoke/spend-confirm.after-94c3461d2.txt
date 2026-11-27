@@ -1,2 +1,0 @@
-[walkthrough] content viewport {"width":1280,"height":800}
-[core-smoke] spend-confirm/confirm 通过：出站 1 次，节点 gen-v2-image-mwy162xw-dshs 落成 success，画布一格未动

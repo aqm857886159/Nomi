@@ -44,6 +44,7 @@ export type CanvasTaskResult = {
   kind: string;
   status: TaskStatus;
   assets: CanvasTaskAsset[];
+  layers?: import("../shared/contracts/taskResultLayer").TaskResultLayer[];
   raw?: unknown;
   error?: string;
   [key: string]: unknown;
@@ -115,6 +116,7 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
         prompt: request.prompt,
         ...(typeof extras.modelKey === "string" ? { modelKey: extras.modelKey } : {}),
         ...(typeof extras.projectId === "string" ? { projectId: extras.projectId } : {}),
+        ...(extras.archetype && typeof extras.archetype === "object" ? { archetype: extras.archetype } : {}),
       });
       // Nomi 这一次没法去问（模型 / Key 用不了）：供应商什么都没说，不能当成这一单的结论，也不进备忘（否则开回来还是查不到新的）。
       // 抛错走「这次没查成」那条路：窗口开着渲染层接着等，窗口不在观察者停成待取回。都不判死，也不会再下单。

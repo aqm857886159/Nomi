@@ -8,7 +8,7 @@ import { findModelOptionByIdentifier } from '../adapters/modelOptionsAdapter'
 import { buildModeSwitchMeta, buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
 import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
 import { readModeChannelBody, type VendorMappingsReader } from '../nodes/controls/useChannelCreateBody'
-import { layerSplitModeOf, layerSplitWireReady } from '../../../../electron/shared/modelArchetypes/modeForInputs'
+import { LAYER_SPLIT_MODE_ID, layerSplitModeOf, layerSplitWireReady } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 import { resolveArchetypeForOption } from '../nodes/nodeModelArchetype'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -122,6 +122,7 @@ export type DeriveBlockReason =
   | 'no-image-model'
   | 'no-upscale-model'
   | 'no-layer-split-model'
+  | 'layer-split-custom-script'
   | 'missing-effect'
   | 'connect-failed'
 
@@ -134,16 +135,27 @@ export function findUpscaleModelOption(options: readonly ModelOption[]): ModelOp
   return options.find((option) => resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey })?.modes.some((mode) => mode.id === 'upscale')) ?? null
 }
 
+/** 模型为「图层分离」挂了自定义调用脚本时，脚本只返回裸地址、带不回图层坐标与顺序，能力准入与发送口一致排除。 */
+export function hasLayerSplitCustomScript(option: Pick<ModelOption, 'customCallScriptModes'>): boolean {
+  return Boolean(option.customCallScriptModes?.includes(LAYER_SPLIT_MODE_ID))
+}
+
 /**
- * 这个模型能不能做图层分离：档案里有「图层分离」方式，**并且**它所接渠道的线缆真读这个开关（与发送口同一句话，
- * 见 shared/modelArchetypes/modeForInputs.ts 的图层分离段）。渠道查不到（还没载 / 无 bridge）就当不能——入口点了要花一次钱，
- * 宁可说「没有」，也不派生出一个发出去只是普通改图的节点。
+ * 这个模型能不能做图层分离：档案里有「图层分离」方式，未挂拆图自定义调用脚本，**并且**它所接渠道的线缆真读这个开关
+ * （与发送口同一句话，见 shared/modelArchetypes/modeForInputs.ts 的图层分离段）。渠道查不到（还没载 / 无 bridge）就当不能——
+ * 入口点了要花一次钱，宁可说「没有」，也不派生出一个发出去只是普通改图的节点。
  */
 export function canLayerSplit(option: ModelOption, readMappings: VendorMappingsReader): boolean {
   const mode = layerSplitModeOf(resolveArchetypeForOption(option, { variantId: undefined, modelId: option.modelKey }))
-  if (!mode || !option.vendor) return false
+  if (!mode || !option.vendor || hasLayerSplitCustomScript(option)) return false
   const wire = readModeChannelBody(option.vendor, option.modelKey || option.value, 'image_edit', mode.id, readMappings)
   return Boolean(wire && layerSplitWireReady(wire.wireParamKeys))
+}
+
+/** 当前目录没有可用拆图模型，仅仅因为原本能拆的模型挂了自定义调用脚本（此时浮条置灰说明原因，而非指去接同一家）。 */
+export function allLayerSplitBlockedByCustomScript(options: readonly ModelOption[], readMappings?: VendorMappingsReader): boolean {
+  if (!readMappings || findLayerSplitModelOption(options, readMappings)) return false
+  return options.some((option) => hasLayerSplitCustomScript(option) && canLayerSplit({ ...option, customCallScriptModes: undefined }, readMappings))
 }
 
 /**
@@ -215,7 +227,12 @@ async function derive(request: DeriveRequest, host: DeriveHost): Promise<DeriveO
   // 派生要的是「一张出过图的图片」当参考：文本 / 没出图的节点不是（浮条本来也只在有图时出现）。
   if (source.result?.type !== 'image' || !source.result.url || !connectionCreateVerdictsForSource(source, ['image'] as const)[0]?.ok) return { status: 'blocked', reason: 'source-not-referenceable' }
   const model = pickDerivedModel(source, host.editModelOptions, action.requires, host.readMappings)
-  if (!model) return { status: 'blocked', reason: BLOCKED_WITHOUT_MODEL[action.requires] }
+  if (!model) {
+    if (action.requires === 'layer-split' && allLayerSplitBlockedByCustomScript(host.editModelOptions, host.readMappings)) {
+      return { status: 'blocked', reason: 'layer-split-custom-script' }
+    }
+    return { status: 'blocked', reason: BLOCKED_WITHOUT_MODEL[action.requires] }
+  }
   let template = ''
   if (action.effectId) {
     const body = await host.resolveEffectPrompt(action.effectId)

@@ -49,6 +49,7 @@ import { RESIZE_DIRECTIONS, getNodeResizeBounds, resolveNodeVisualSize } from '.
 import { NodeLabelRow } from './NodeLabelRow'
 import { NodeIndependentCopyBadge } from './NodeIndependentCopyBadge'
 import { NodeLayerSplitStatus } from './NodeLayerSplitStatus'
+import { readLayerSplitMark } from './whiteboard/whiteboardState'
 import { NodeShotLabel } from '../../generation/list/CanvasListLinks'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { hasEmptyCardLabel } from './render/emptyCardLabel'
@@ -253,6 +254,7 @@ function BaseGenerationNodeImpl({
       ) : null}
 
       <div
+        data-board={readLayerSplitMark(node.result) ? 'layers.node-composite' : undefined}
         className={cn(
           'generation-canvas-v2-node__preview',
           'relative z-[2] w-full h-full min-h-0 overflow-hidden',

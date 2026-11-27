@@ -62,7 +62,7 @@ export const INPUT_STATES: readonly LabState[] = [
     mirrors: [
       'src/ui/onboarding/ProviderProxyField.tsx:19',
       'src/ui/onboarding/CapabilityModeEditor.tsx:85',
-      'src/ui/onboarding/CustomCallEditor.tsx:715',
+      'src/ui/onboarding/CustomCallEditor.tsx:693',
     ],
     coverage: 'shell',
     // 四格 = 四个真实形状，不是「Mantine 支持哪几个 prop」：
@@ -146,7 +146,7 @@ export const INPUT_STATES: readonly LabState[] = [
     source: SOURCE_FORMS,
     mirrors: [
       'src/ui/onboarding/CapabilityModeEditor.tsx:595',
-      'src/ui/onboarding/CustomCallEditor.tsx:663',
+      'src/ui/onboarding/CustomCallEditor.tsx:642',
       'src/ui/onboarding/CapabilityModeEditor.tsx:95',
     ],
     coverage: 'shell',

@@ -1,6 +1,6 @@
 {
   "id": "inline-whiteboard-split-100-open",
-  "feature": "Layer split result opened on its board (design card docs/plan/2026-11-26-layer-split.md ★7): click Whiteboard on a split node until the editor is usable with every layer placed; then click Layers until all 100 image rows are listed (response, printed only)",
+  "feature": "Layer split result opened on its board (design card docs/plan/2026-11-26-layer-split.md ★7): click Whiteboard on a split node until every layer image has decoded and the first frame is operable; then click Layers until all 101 rows (base + 99 layers + background) are listed (response, printed only)",
   "script": "tests/ux/whiteboard-perf.probe.mjs",
   "args": [
     "--scene",

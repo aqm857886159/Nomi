@@ -40,8 +40,9 @@ const percentile = (values, fraction) => { const sorted = [...values].sort((a, b
 
 // Declared before the run loop below: the loop runs at module evaluation, before later top-level consts exist.
 const LEGACY_BOARDS = 20
-// A layer split at the API maximum: max_images 100 includes the base.
+// A layer split at the API maximum: max_images 100 includes the base (base + 99 layers + background = 101 rows in the layers panel).
 const SPLIT_LAYERS = 100
+const SPLIT_PANEL_ROWS = SPLIT_LAYERS + 1
 
 const samples = []
 for (let iteration = 0; iteration < runs; iteration++) samples.push(await (scene === 'legacy-previews' ? runLegacyPreviewsOnce() : runOnce()))
@@ -273,6 +274,36 @@ async function runOnce() {
     await expect(editor).toBeVisible()
     sample.openToInteractiveMs = opened.ms
     sample.openLongTasks = opened.longTasks
+    if (splitBoard) {
+      // Stop-timer proof: all 100 images (base + 99 layers) decoded, all 100 editable layer boxes mounted, and the top layer drags immediately on the first frame.
+      const stageFacts = await page.evaluate(() => {
+        const stage = document.querySelector('[data-nomi-inline-whiteboard="true"] [data-whiteboard-scene-ready="true"]')
+        const rect = stage?.getBoundingClientRect()
+        return stage && rect ? {
+          decodedImages: Number(stage.getAttribute('data-whiteboard-decoded-images')),
+          editableCount: Number(stage.getAttribute('data-whiteboard-editable-count')),
+          rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+        } : null
+      })
+      if (!stageFacts || stageFacts.decodedImages !== SPLIT_LAYERS || stageFacts.editableCount !== SPLIT_LAYERS) {
+        throw new Error(`split board stopped timer before all ${SPLIT_LAYERS} layers were decoded and operable: ${JSON.stringify(stageFacts)}`)
+      }
+      await expect(action('undo')).toBeDisabled()
+      await action('select').click()
+      const topLayer = project.record.payload.generationCanvas.nodes.find((entry) => entry.id === 'image').result.raw.whiteboardState.canvasAssets.at(-1)
+      const boardDim = project.record.payload.generationCanvas.nodes.find((entry) => entry.id === 'image').result.raw.whiteboardState.canvasDimensions
+      const scale = Math.min(stageFacts.rect.width / boardDim.width, stageFacts.rect.height / boardDim.height)
+      const offX = stageFacts.rect.left + (stageFacts.rect.width - boardDim.width * scale) / 2
+      const offY = stageFacts.rect.top + (stageFacts.rect.height - boardDim.height * scale) / 2
+      const hitX = Math.round(offX + (topLayer.x + topLayer.width / 2) * scale)
+      const hitY = Math.round(offY + (topLayer.y + topLayer.height / 2) * scale)
+      await page.mouse.move(hitX, hitY)
+      await page.mouse.down()
+      await page.mouse.move(hitX - 18, hitY - 12, { steps: 4 })
+      await page.mouse.up()
+      await expect(action('undo'), 'the top split layer responds to drag immediately after openToInteractive').toBeEnabled()
+      sample.firstFrameLayerDragged = true
+    }
     await page.waitForTimeout(800)
 
     const cdp = await page.context().newCDPSession(page)
@@ -369,11 +400,15 @@ async function runOnce() {
     }
 
     if (splitBoard) {
-      // Today's layers panel lists every row (a virtual list is PR2 of the layer-split card): click -> all 100 image rows in the DOM.
-      await armResponse(page, { trigger: 'pointerdown', predicate: 'whiteboardLayersListed', arg: SPLIT_LAYERS, timeoutMs: 30_000 })
+      // Today's layers panel lists every row (a virtual list is PR2 of the layer-split card): click -> all 101 rows (base + 99 layers + background) in the DOM.
+      await armResponse(page, { trigger: 'pointerdown', predicate: 'whiteboardLayersListed', arg: SPLIT_PANEL_ROWS, timeoutMs: 30_000 })
       await action('layers').click()
       const listed = await takeResponse(page)
-      Object.assign(sample, { layersPanelMs: listed.ms, layersPanelLongTasks: listed.longTasks, board: `layer split, ${SPLIT_LAYERS} images incl. base (6 distinct frames)` })
+      const rowNames = await page.evaluate(() => [...document.querySelectorAll('[data-whiteboard-panel="layers"] > div > div')].map((row) => row.querySelector('button')?.textContent?.trim() ?? ''))
+      if (rowNames.length !== SPLIT_PANEL_ROWS || !rowNames.includes('Background') || !rowNames.includes('Base image') || !rowNames.includes('Layer 1') || !rowNames.includes(`Layer ${SPLIT_LAYERS - 1}`)) {
+        throw new Error(`expected exact ${SPLIT_PANEL_ROWS} layer rows (Background + Base image + 99 layers), got ${rowNames.length}: ${rowNames.slice(0, 4).join(' / ')} ... ${rowNames.slice(-4).join(' / ')}`)
+      }
+      Object.assign(sample, { layersPanelMs: listed.ms, layersPanelRows: rowNames.length, layersPanelLongTasks: listed.longTasks, board: `layer split, ${SPLIT_LAYERS} images incl. base (${SPLIT_PANEL_ROWS} panel rows, 6 distinct frames)` })
     }
 
     if (scene === 'open-type') {

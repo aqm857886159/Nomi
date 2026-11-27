@@ -6,7 +6,7 @@ import { loadPromptLibraryItems, usePromptLibrary } from '../../promptLibrary/us
 import { KNOWN_VENDORS } from '../../../config/knownVendors'
 import { peekVendorDisplayName } from '../../../config/modelCatalogCache'
 import { mappingsEvidenceLoaded, useVendorMappingsReader } from '../nodes/controls/useChannelCreateBody'
-import { deriveFromNode, findLayerSplitModelOption, findUpscaleModelOption, layerSplitVendorKeys, type DeriveBlockReason } from './deriveFromNode'
+import { allLayerSplitBlockedByCustomScript, deriveFromNode, findLayerSplitModelOption, findUpscaleModelOption, layerSplitVendorKeys, type DeriveBlockReason } from './deriveFromNode'
 import { QUICK_ACTIONS, type QuickActionId } from './quickActionCatalog'
 import { capabilityGuide, type QuickActionGuide } from './capabilityGuide'
 
@@ -21,6 +21,7 @@ const BLOCK_MESSAGE_KEYS = {
   'no-image-model': 'generationCommon.quickActions.blocked.noImageModel',
   'no-upscale-model': 'generationCommon.quickActions.blocked.noUpscaleModel',
   'no-layer-split-model': 'generationCommon.quickActions.blocked.noLayerSplitModel',
+  'layer-split-custom-script': 'generationCommon.quickActions.blocked.layerSplitCustomScript',
   'missing-effect': 'generationCommon.quickActions.blocked.missingEffect',
   'source-not-referenceable': 'generationCommon.quickActions.derive.sourceNotReferenceable',
   'connect-failed': 'generationCommon.quickActions.blocked.connectFailed',
@@ -48,11 +49,14 @@ export function useQuickActionHost({
   // 唯一例外是放大（2026-10-07 用户拍板）：目前没有这个模型，没有时置灰、悬停说原因，不跳转。
   // 目录 / 渠道 mapping 还在加载时不判（不闪）；加载完仍没有才挂引导 / 置灰。点了派生却发现没有（加载中点的）也走同一条路。
   const missing = React.useMemo(() => {
-    if (models.loading) return { upscale: false, imageEdit: false, layerSplit: false }
+    if (models.loading) return { upscale: false, imageEdit: false, layerSplit: false, layerSplitCustomScript: false }
+    const mappingsReady = mappingsEvidenceLoaded(readMappings)
+    const layerSplitCustomScript = mappingsReady && allLayerSplitBlockedByCustomScript(editModelOptions, readMappings)
     return {
       upscale: !findUpscaleModelOption(editModelOptions),
       imageEdit: editModelOptions.length === 0,
-      layerSplit: mappingsEvidenceLoaded(readMappings) && !findLayerSplitModelOption(editModelOptions, readMappings),
+      layerSplit: mappingsReady && !layerSplitCustomScript && !findLayerSplitModelOption(editModelOptions, readMappings),
+      layerSplitCustomScript,
     }
   }, [editModelOptions, models.loading, readMappings])
 
@@ -82,12 +86,16 @@ export function useQuickActionHost({
         blocked[action.id] = t(BLOCK_MESSAGE_KEYS['no-upscale-model'])
         continue
       }
+      if (action.requires === 'layer-split' && missing.layerSplitCustomScript) {
+        blocked[action.id] = t(BLOCK_MESSAGE_KEYS['layer-split-custom-script'])
+        continue
+      }
       if (libraryKnown && action.effectId && !library.items.some((item) => item.id === action.effectId)) {
         blocked[action.id] = t(BLOCK_MESSAGE_KEYS['missing-effect'])
       }
     }
     return blocked
-  }, [library.items, library.loading, missing.upscale, t])
+  }, [library.items, library.loading, missing.layerSplitCustomScript, missing.upscale, t])
 
   const onQuickAction = React.useCallback((id: QuickActionId) => {
     void deriveFromNode(

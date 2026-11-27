@@ -20,6 +20,7 @@ export function NodeLayerSplitStatus({ node }: { node: Pick<GenerationCanvasNode
   return (
     <span
       data-node-layer-split-status={mark.layers}
+      data-board="layers.node-status"
       aria-label={t('generationCommon.layerSplitComposer.nodeStatusAria', { count: mark.layers })}
       className="pointer-events-none inline-flex h-6 shrink-0 items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-caption text-nomi-ink-60"
     >

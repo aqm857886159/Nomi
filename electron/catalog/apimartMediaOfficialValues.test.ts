@@ -7,7 +7,7 @@ import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 
 // 防线：每个 APIMart 图片 / 视频型号的参数面板，默认值必须在声明的选项里，选项必须是官方取值的子集。
 // 官方取值是手抄的（不从档案里推）：出处是 APIMart 官方文档页（2026-11-07 取），
-// 原文快照 /Users/aoqimin/Nomi-coord/tmp/R-apimart-agent-tools/llms-full.txt 里同名页面（GPT Image 2.6 在 6285-6340 行附近）。
+// 原文快照见仓库外归档的官方文档镜像同名页面（GPT Image 2.6 在 6285-6340 行附近）。
 // 档案把官方取值抄错一档（比如质量默认值写成官方没有的 ultra）、或多声明一档官方不认的值，这里当场红。
 // 写法是「类」级：下面循环所有已声明的 APIMart 型号，不为任何一个型号写特例；表里缺这个型号的官方取值，也红。
 
