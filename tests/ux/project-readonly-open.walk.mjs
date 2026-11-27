@@ -65,6 +65,12 @@ async function browse(win, project) {
   }
   await switchWorkspace(win, 'preview')
   await expect(win.locator('[data-timeline-toolbar-row]:visible').first()).toBeVisible()
+  const clip = project.read().payload.timeline.tracks.flatMap(track => track.clips)[0]
+  if (clip) {
+    const item = win.locator(`[data-testid="timeline-clip"][data-clip-id="${clip.id}"]:visible`).first()
+    await clickOrFail(item, '点选时间轴片段看帧')
+    await expect(item).toHaveAttribute('data-selected', 'true')
+  }
   return card
 }
 

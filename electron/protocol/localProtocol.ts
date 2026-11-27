@@ -1,5 +1,6 @@
 import { resolveSkillPreview } from "../skills/skillPreview";
 import { readSkillRecords } from "../skills/skillStore";
+import { CANVAS_PREVIEW_QUERY, readMemoryPreview } from "../assets/assetPreview";
 import { protocol } from "electron";
 import fs from "node:fs";
 import { createOwnedFileStream } from "./fileResponseStream";
@@ -187,7 +188,10 @@ export async function handleNomiLocalRequest(request: Request): Promise<Response
       return new Response("Not found", { status: 404 });
     }
   }
-  const target = parseLocalAssetUrl(request.url);
+  const url = new URL(request.url);
+  const canvasPreview = url.hostname === "asset" && url.search === CANVAS_PREVIEW_QUERY;
+  if (canvasPreview) url.search = "";
+  const target = parseLocalAssetUrl(url.href);
   const respond = (response: Response): Response => {
     if (target?.projectId) {
       appendEvents(target.projectId, [{
@@ -208,6 +212,12 @@ export async function handleNomiLocalRequest(request: Request): Promise<Response
     const filePath = target?.filePath ?? null;
     if (!filePath) {
       return new Response("Unsupported nomi-local host", { status: 404 });
+    }
+    if (canvasPreview) {
+      const preview = await readMemoryPreview(filePath, contentTypeForFile(filePath), request.signal);
+      if (preview.previewState !== "ready") return respond(new Response(null, { status: 404 }));
+      const headers = withLocalAssetHeaders({ "Content-Type": preview.contentType, "Content-Length": String(preview.bytes.length) });
+      return respond(new Response(request.method === "HEAD" ? null : new Uint8Array(preview.bytes), { headers }));
     }
     const rangeHeader = request.headers.get("range") || "";
     if (rangeHeader) {

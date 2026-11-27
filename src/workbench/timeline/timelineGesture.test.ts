@@ -113,6 +113,25 @@ describe('reverting an interrupted workbench timeline edit', () => {
     frameCount: 30, offsetStartFrame: 0, offsetEndFrame: 0, url: 'data:image/png;base64,AAAA',
   })
 
+  it.each([0, 90])('commits only net movement after a drag ending at frame %i', end => {
+    const base = createDefaultTimeline()
+    const origin = clip('a', 0)
+    const timeline = { ...base, tracks: base.tracks.map(track => track.type === 'image' ? { ...track, clips: [origin] } : track) }
+    useWorkbenchStore.setState({ timeline, timelineHistory: createTimelineHistory() })
+    const store = useWorkbenchStore.getState()
+    const token = store.captureTimelineUndo()
+    store.moveTimelineClip(origin.id, 90, { commit: false })
+    store.moveTimelineClip(origin.id, end, { commit: false })
+    store.commitTimelineClipDrag([origin], token)
+    store.timelineHistory.finishGesture(token)
+    expect(useWorkbenchStore.getState().persistRevision).toBe(store.persistRevision + Number(end !== 0))
+    expect(store.timelineHistory.entries.pastStates).toHaveLength(Number(end !== 0))
+    if (end) {
+      store.undoTimeline()
+      expect(useWorkbenchStore.getState().timeline.tracks).toEqual(timeline.tracks)
+    }
+  })
+
   it('restores the pre-gesture timeline and leaves no redo entry', () => {
     const base = createDefaultTimeline()
     const original = { ...base, tracks: base.tracks.map((track) => track.type === 'image' ? { ...track, clips: [clip('a', 0)] } : track) }

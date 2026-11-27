@@ -435,12 +435,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     const commit = options?.commit !== false
     set((state) => {
       const nextTimeline = moveClipToLegalFrame(state.timeline, clipId, startFrame)
-      const changed = nextTimeline !== state.timeline
+      if (nextTimeline === state.timeline) return state
       return {
         timeline: nextTimeline,
-        selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
-        // 拖动中(commit:false)不 bump persistRevision，避免每帧触发自动保存；松手 commit 一次
-        persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
+        selectedTimelineClipIds: [clipId],
+        persistRevision: commit ? state.persistRevision + 1 : state.persistRevision,
       }
     })
   },

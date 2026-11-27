@@ -21,7 +21,7 @@ export function readCurrentWorkbenchProjectContent(): WorkbenchProjectContent {
     // S5-b-0:持久化走 document 视图(选区是会话态不进项目文件)
     generationCanvas: generation.readDocumentSnapshot(),
     categories: workbench.categories,
-    // S5-b-1:尾部重放游标(append 回执维护;回执延迟导致略旧也安全——reducer 幂等)
+    // 当前已确认游标；保存队列会等待这份快照所覆盖的追加回执。
     generationCanvasLastSeq: getCanvasEventLastSeq(),
     storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
     editingPanelLayout: workbench.editingPanelLayout,

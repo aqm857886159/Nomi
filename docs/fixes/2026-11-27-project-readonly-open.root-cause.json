@@ -5,7 +5,7 @@
   "recurrence_check_on": "2026-12-11",
   "problem_type": "只读项目会话触发项目文件写入",
   "symptom": "升级后仅浏览 A、C、B，九个原文件变化，三份主档 revision 各加二。",
-  "direct_cause": "打开时保存内存迁移、拿回执时重采样、自动 fit 覆盖手动值、重放后立即发起始事件，日志读者也会打开写者。",
+  "direct_cause": "打开时保存内存迁移、拿回执时重采样、自动 fit 覆盖手动值、重放后立即发起始事件，日志读者也会打开写者。 首笔编辑在事件追加前捕获游标，原位落点重建时间轴，预览回填复用了导入写者。",
   "class_root": "显示投影和持久化事实共用了写入入口，事件缓冲没有所属项目代次。",
   "affected_population": [
     "从项目库打开旧片并查看时间轴的创作者",
@@ -21,7 +21,14 @@
     "src/workbench/workbenchStoreLifetime.ts",
     "src/workbench/generationCanvas/events/canvasEventEmitter.ts",
     "electron/events/eventLogRepository.ts",
-    "src/workbench/assets/pendingAssetDeletions.ts"
+    "src/workbench/assets/pendingAssetDeletions.ts",
+    "src/workbench/timeline/TimelineClip.tsx",
+    "src/workbench/timeline/timelineEdit.ts",
+    "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/assetPreview.ts",
+    "electron/protocol/localProtocol.ts",
+    "src/workbench/timeline/timelineClipWritesSlice.ts"
   ],
   "entry_points": [
     "打开 → 恢复 → 浏览预览 → 回库、失焦或关窗",
@@ -33,9 +40,16 @@
   "invariants": [
     "无持久编辑时返回原盘回执，原项目和日志字节保持一致。",
     "首笔编辑或运行结局在原项目保存一次，同时提交内存迁移和最后手动确认的缩放。",
-    "画布首笔事件携带重放后基线，跨代次回执不能推进当前游标。"
+    "画布首笔事件携带重放后基线，跨代次回执不能推进当前游标。",
+    "快照只确认同一打开代次、其中已包含的手势；重开保留关项后付费结果，首笔后的崩溃尾巴可重放。",
+    "点选和原位松手无保存或撤销；本地预览回填只读项目，已补事实与下一笔真实编辑一起保存。"
   ],
   "doors": [
+    {
+      "kind": "read",
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "readMemoryPreview"
+    },
     {
       "kind": "read",
       "path": "electron/capabilityCore/dispatcher.ts",
@@ -73,6 +87,11 @@
     },
     {
       "kind": "read",
+      "path": "electron/protocol/localProtocol.ts",
+      "symbol": "readMemoryPreview"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/assets/deleteAssetResult.ts",
       "symbol": "readLoadedProjectLivenessContent"
     },
@@ -88,6 +107,16 @@
     },
     {
       "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeDragModel.ts",
+      "symbol": "resolveLegalStartFrame"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
+      "symbol": "backfilledPreviewPatch"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/project/projectOpenTimeline.ts",
       "symbol": "ProjectOpenStage"
     },
@@ -99,12 +128,42 @@
     {
       "kind": "read",
       "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "captureCanvasEventCursor"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
       "symbol": "readCurrentWorkbenchProjectContent"
     },
     {
       "kind": "read",
       "path": "src/workbench/timeline/TimelinePanel.tsx",
       "symbol": "setTimelineZoom"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineEdit.ts",
+      "symbol": "resolveLegalStartFrame"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "ensureLocalAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "attachStoredAssetPreview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "attachStoredAssetPreview"
     },
     {
       "kind": "write",
@@ -143,18 +202,23 @@
     },
     {
       "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "persistActiveWorkbenchProjectNow"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/assets/deleteAssetResult.ts",
       "symbol": "deferAssetFileDeletion"
     },
     {
       "kind": "write",
       "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "persistActiveWorkbenchProjectNow"
+      "symbol": "forgetDeferredAssetDeletion"
     },
     {
       "kind": "write",
       "path": "src/workbench/assets/deleteAssetResult.ts",
-      "symbol": "forgetDeferredAssetDeletion"
+      "symbol": "persistActiveWorkbenchProjectNow"
     },
     {
       "kind": "write",
@@ -198,11 +262,6 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
-      "symbol": "persistActiveWorkbenchProjectNow"
-    },
-    {
-      "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
       "symbol": "persistActiveWorkbenchProjectNow"
     },
@@ -210,6 +269,16 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
       "symbol": "persistActiveWorkbenchProjectNow"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "symbol": "persistActiveWorkbenchProjectNow"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeDragResize.ts",
+      "symbol": "cancelGesture"
     },
     {
       "kind": "write",
@@ -268,18 +337,13 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/NomiStudioApp.tsx",
-      "symbol": "persistActiveWorkbenchProjectNow"
+      "path": "src/workbench/project/projectPersistenceService.ts",
+      "symbol": "replayCanvasEventTailAndSealGenesis"
     },
     {
       "kind": "write",
       "path": "src/workbench/project/projectPersistenceService.ts",
       "symbol": "saveLocalProject"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/project/projectPersistenceService.ts",
-      "symbol": "replayCanvasEventTailAndSealGenesis"
     },
     {
       "kind": "write",
@@ -293,13 +357,33 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/timeline/timelineMath.ts",
-      "symbol": "createDefaultTimeline"
+      "path": "src/workbench/timeline/TimelineClip.tsx",
+      "symbol": "commitTimelineClipDrag"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineClip.tsx",
+      "symbol": "moveTimelineClip"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineClip.tsx",
+      "symbol": "moveTimelineClips"
     },
     {
       "kind": "write",
       "path": "src/workbench/timeline/TimelinePanel.tsx",
       "symbol": "setTimelineZoom"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/timelineClipWritesSlice.ts",
+      "symbol": "cancelGesture"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/timelineMath.ts",
+      "symbol": "createDefaultTimeline"
     },
     {
       "kind": "write",
@@ -323,8 +407,9 @@
     }
   ],
   "door_reduction": {
-    "before": 58,
-    "after": 57
+    "before": 68,
+    "after": 72,
+    "why_not": "已有库、退出、Agent 和运行回报共用保存队列。片段落点由时间轴判断，主进程负责从源媒体读取预览。新增的是快照游标、手势提交和内存预览读口。"
   },
   "generality_proof": "两个 store 的持久修订号覆盖内容变化。所属项目的队列保存当时快照并复用真实回执。预览和重放无法单独打开事件写者。",
   "shared_boundaries": [
@@ -347,6 +432,16 @@
       "path": "electron/events/eventLogRepository.ts",
       "symbol": "openProjectEventLogWriter",
       "responsibility": "仅业务事件可以打开写者并修复撕裂尾行。"
+    },
+    {
+      "path": "src/workbench/timeline/timelineEdit.ts",
+      "symbol": "moveClipToLegalFrame",
+      "responsibility": "原位和夹紧到原位均保留时间轴引用。"
+    },
+    {
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "attachStoredAssetPreview",
+      "responsibility": "只读请求使用已有文件或进程内预览；导入仍登记项目素材。"
     }
   ],
   "same_class_entry_points": [
@@ -381,7 +476,8 @@
     "reason": "每次重开和视口重算都能触发，三个真实旧项目均出现。",
     "same_class_scan": [
       "door-map 检出生命周期和 Agent 回执入口、六处缩放调用。",
-      "#1693 的全树差异涉及主档、事件和可重建缓存；旧合同曾留下 genesis 风险。"
+      "#1693 的全树差异涉及主档、事件和可重建缓存；旧合同曾留下 genesis 风险。",
+      "本轮对照点选/拖动、后台本地预览/远端结果本地化、追加失败/同批尾部。updateNode 已有独立 persist 选项。"
     ]
   },
   "prevention": {
@@ -396,14 +492,20 @@
       "src/workbench/project/projectPersistenceService.ts",
       "src/workbench/project/workbenchProjectContent.ts",
       "src/workbench/generationCanvas/events/canvasEventEmitter.ts",
-      "electron/events/eventLogRepository.ts"
+      "electron/events/eventLogRepository.ts",
+      "src/workbench/timeline/timelineEdit.ts",
+      "src/workbench/generationCanvas/resultMediaBackfillBridge.ts",
+      "electron/assets/assetPreview.ts"
     ]
   },
   "regression_tests": [
     "src/workbench/project/projectPersistenceService.test.ts",
     "src/workbench/generationCanvas/store/canvasPatchHistory.characterization.test.ts",
     "electron/events/eventLogRepository.test.ts",
-    "src/workbench/assets/deleteAssetResult.realStore.test.ts"
+    "src/workbench/assets/deleteAssetResult.realStore.test.ts",
+    "electron/assets/canvasPreviewContract.test.ts",
+    "src/workbench/generationCanvas/resultMediaBackfillBridge.test.ts",
+    "src/workbench/timeline/timelineGesture.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/project/projectPersistenceService.test.ts",

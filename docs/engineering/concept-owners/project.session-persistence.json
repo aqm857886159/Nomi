@@ -26,6 +26,10 @@
     {
       "path": "electron/events/eventLogRepository.ts",
       "symbol": "openProjectEventLogWriter"
+    },
+    {
+      "path": "src/workbench/timeline/timelineEdit.ts",
+      "symbol": "moveClipToLegalFrame"
     }
   ],
   "forbidden_derivations": [],
@@ -36,5 +40,5 @@
   ],
   "parity_test": "src/workbench/project/projectPersistenceService.test.ts",
   "since": "2026-11-27",
-  "notes": "D-1127-old-project-readonly。编辑订阅拥有清单欠写与回执，持久投影提供手动确认的缩放。画布手势与日志写者负责同一项目的追加，打开和预览只读。"
+  "notes": "D-1127-old-project-readonly。编辑订阅拥有清单欠写与回执，持久投影提供手动确认的缩放。画布手势与日志写者负责同一项目的追加，打开和预览只读。 快照只确认它覆盖的追加批次。时间轴按实际落点判断改动，本地预览事实随下一笔真实修改保存。"
 }

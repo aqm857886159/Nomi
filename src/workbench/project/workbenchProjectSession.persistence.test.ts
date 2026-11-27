@@ -27,9 +27,6 @@ vi.mock('../workbenchStore', () => ({
   },
 }))
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => null }))
-vi.mock('../generationCanvas/events/canvasEventEmitter', () => ({
-  getCanvasEventLastSeq: vi.fn(() => 0),
-}))
 vi.mock('../generationCanvas/agent/shotVerifyStore', () => ({ useShotVerifyStore: { getState: () => ({ activateProject: vi.fn() }) } }))
 
 import {

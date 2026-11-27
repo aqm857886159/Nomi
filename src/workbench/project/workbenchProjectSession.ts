@@ -2,7 +2,7 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { createTimelineHistory } from '../history/historyMiddleware'
 import { useWorkbenchStore } from '../workbenchStore'
-import { beginCanvasEventSession } from '../generationCanvas/events/canvasEventEmitter'
+import { beginCanvasEventSession, captureCanvasEventCursor, onAfterCanvasGesture } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
@@ -174,6 +174,7 @@ export type WorkbenchProjectPersistenceOptions = {
 }
 
 type QueuedWorkbenchProjectSave = {
+  cursor: ReturnType<typeof captureCanvasEventCursor>
   projectId: string
   payload: WorkbenchProjectPayload
 }
@@ -208,6 +209,8 @@ function createProjectSaveQueue(input: {
         const next = pending
         pending = null
         try {
+          const cursor = next.cursor()
+          next.payload.generationCanvasLastSeq = typeof cursor === 'number' ? cursor : await cursor
           const saved = await input.saveProject(next.projectId, next.payload)
           input.receipt.savedRecord = saved
           failed = false
@@ -251,7 +254,7 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   let disposed = false
   let saveScheduled = false
   let saveTimer: ReturnType<typeof setTimeout> | null = null
-  let ownedPayload: WorkbenchProjectPayload | null = null
+  let ownedSave: QueuedWorkbenchProjectSave | null = null
   const ownsRuntime = () => !options.isHydrating() && options.canPersist()
   const { baseline } = options
   const saveQueue = createProjectSaveQueue({
@@ -267,8 +270,8 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     // nothing is owed, otherwise the newest edit would only have a debounce timer left.
     do {
       if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
-      if ((saveScheduled || saveQueue.hasFailed()) && ownedPayload) {
-        saveQueue.enqueue({ projectId: options.projectId, payload: ownedPayload })
+      if ((saveScheduled || saveQueue.hasFailed()) && ownedSave) {
+        saveQueue.enqueue(ownedSave)
       }
       saveScheduled = false
       record = await saveQueue.flush()
@@ -282,11 +285,8 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
       saveTimer = null
     }
     saveScheduled = false
-    if (disposed || !ownedPayload) return
-    saveQueue.enqueue({
-      projectId: options.projectId,
-      payload: ownedPayload,
-    })
+    if (disposed || !ownedSave) return
+    saveQueue.enqueue(ownedSave)
   }
   const flushPendingSave = () => {
     if (!saveScheduled || disposed) return
@@ -296,7 +296,7 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     // The restored stores can receive edits while React is still opening the Agent lane.
     // The service invalidates this opening's canPersist before the next restore starts.
     if (disposed || !options.canPersist() || (!baseline && options.isHydrating())) return
-    ownedPayload = readCurrentWorkbenchProjectPayload()
+    ownedSave = { projectId: options.projectId, payload: readCurrentWorkbenchProjectPayload(), cursor: captureCanvasEventCursor(options.projectId) }
     if (baseline) {
       baseline.workbenchRevision = useWorkbenchStore.getState().persistRevision
       baseline.canvasRevision = useGenerationCanvasStore.getState().persistRevision
@@ -307,6 +307,16 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   }
   const unsubscribeWorkbench = useWorkbenchStore.subscribe((state) => state.persistRevision, saveIfReady)
   const unsubscribeGeneration = useGenerationCanvasStore.subscribe((state) => state.persistRevision, saveIfReady)
+  // Store listeners run inside set(), before the action emits its gesture. Pair that
+  // gesture only with the document it describes, even if a later write is transient.
+  const unsubscribeGesture = onAfterCanvasGesture((projectId) => {
+    if (projectId !== options.projectId || !ownedSave || !options.canPersist()) return
+    const { nodes, edges, groups } = useGenerationCanvasStore.getState()
+    const snapshot = ownedSave.payload.generationCanvas
+    if (snapshot.nodes === nodes && snapshot.edges === edges && snapshot.groups === groups) {
+      ownedSave.cursor = captureCanvasEventCursor(options.projectId)
+    }
+  })
   window.addEventListener('pagehide', flushPendingSave)
   window.addEventListener('beforeunload', flushPendingSave)
   const target: ActiveWorkbenchProjectSaveTarget = {
@@ -328,6 +338,7 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     window.removeEventListener('beforeunload', flushPendingSave)
     unsubscribeWorkbench()
     unsubscribeGeneration()
+    unsubscribeGesture()
     // Global stores may already belong to the next project. Only drain snapshots
     // captured while this subscription owned the runtime; never sample on cleanup.
     const needsReceipt = saveScheduled || saveQueue.hasPending() || saveQueue.hasFailed()
