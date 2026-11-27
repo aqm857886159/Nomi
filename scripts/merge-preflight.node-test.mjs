@@ -359,7 +359,10 @@ function fakeGh({ headRefOid, body = '## 设计卡\n', createdAt = '2026-10-10T0
     const line = args.join(' ')
     calls.push(line)
     if (line.startsWith('pr view')) return JSON.stringify({ body, headRefOid, baseRefName: 'main', createdAt, ...(checks === null ? {} : { statusCheckRollup: checks }) })
-    if (line.startsWith('api repos/') && Object.hasOwn(comments, args[1])) return JSON.stringify({ body: comments[args[1]] })
+    if (line.startsWith('api repos/') && Object.hasOwn(comments, args[1])) {
+      const entry = comments[args[1]]
+      return JSON.stringify(typeof entry === 'string' ? { body: entry } : entry)
+    }
     // 真 GitHub 的原话（#1269）：实现若退回 gh pr diff 取数，大 PR 就拿不到结论
     if (line.startsWith('pr diff')) throw new Error("could not find pull request diff: HTTP 406: Sorry, the diff exceeded the maximum number of files (300). Consider using 'List pull requests files' API or locally cloning the repository instead.")
     throw new Error(`unexpected gh call: ${line}`)
@@ -590,6 +593,20 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
   })
   assert.equal(mismatchFail.code, 1)
   assert.match(mismatchFail.out, /对不上|不通过/)
+
+  // 反例 3：同仓库评论 ID 存在，但链接里的讨论串编号与 API 返回的 html_url 不符 → 按无效引用判红
+  const wrongThreadFail = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/o/r/pull/999#issuecomment-7224317666'),
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody,
+        html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+      },
+    },
+  })
+  assert.equal(wrongThreadFail.code, 1)
+  assert.match(wrongThreadFail.out, /独立验收的报告读不到/)
 })
 
 // ── 花钱类合并前要有真付费证据（2026-10-16，#1203 写「未验证」被合进来）：端到端走一遍 main()，只看真付费那一行 ──
