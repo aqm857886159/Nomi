@@ -10,9 +10,9 @@
     {
       "id": "permission.popover.tiers",
       "label": "输入框权限弹层：两档（请求批准 / 直接生成）竖排，每档标题下一行灰字说清会发生什么",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:AgentPermissionTiers/permission.popover.tiers",
+      "assertions": ["board:AgentPermissionTiers/permission.popover.tiers"],
       "states": [
         "selected",
         "hover",
@@ -26,9 +26,9 @@
     {
       "id": "permission.popover.system-prompt",
       "label": "同一弹层底部「编辑系统提示词」入口（旧弹层原有，位置不变）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:AgentPermissionTiers/permission.popover.system-prompt",
+      "assertions": ["board:AgentPermissionTiers/permission.popover.system-prompt"],
       "states": [
         "zh-en",
         "dark"
@@ -38,9 +38,9 @@
     {
       "id": "permission.switch-confirm",
       "label": "切进「直接生成」先弹的确认卡：说清直接开跑、不再逐次问，连续失败 / 计划外会停，不可逆仍问，随时可停止；取消 / 切到直接生成",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:AgentPermissionTiers/permission.switch-confirm",
+      "assertions": ["board:AgentPermissionTiers/permission.switch-confirm"],
       "states": [
         "zh-en",
         "dark",
@@ -52,9 +52,9 @@
     {
       "id": "permission.reminder-banner",
       "label": "直接生成档的常驻提醒条：「直接生成 · 不可逆的仍会问」+「回到请求批准」+ ×",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:AgentPermissionTiers/permission.reminder-banner",
+      "assertions": ["board:AgentPermissionTiers/permission.reminder-banner"],
       "states": [
         "zh-en",
         "dark",
@@ -66,9 +66,9 @@
     {
       "id": "spend-card.brake-reason",
       "label": "直接生成档刹车退回的报价卡：标题下多一行原因（连续失败 / 计划外 / 你点过停止），其余与请求批准下的卡一模一样",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:AgentPermissionTiers/spend-card.brake-reason",
+      "assertions": ["board:AgentPermissionTiers/spend-card.brake-reason"],
       "states": [
         "zh-en",
         "narrow"
@@ -77,7 +77,6 @@
       "stateEvidence": "设计实验室「付费卡」屏的生产组件格（zh 连续失败 spend-brake-retry、en 计划外 spend-brake-out-of-plan-en，390 宽）由 tests/ux/design-lab-spend-card.walk.mjs 断言；真 App 里未走（要供应商连续失败三次的夹具），留给真付费验收；dark 未截"
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "每步问：要花钱的生成每次先看报价确认",

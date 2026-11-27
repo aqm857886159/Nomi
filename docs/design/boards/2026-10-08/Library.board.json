@@ -20,9 +20,7 @@
     {
       "id": "library.title",
       "label": "项目库 页头",
-      "candidates": [
-        "002-span-项目库"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -34,10 +32,7 @@
     {
       "id": "topbar.tasks",
       "label": "任务",
-      "candidates": [
-        "003-button-任务",
-        "004-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -50,10 +45,7 @@
     {
       "id": "topbar.browser",
       "label": "浏览器",
-      "candidates": [
-        "005-button-浏览器",
-        "006-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -66,10 +58,7 @@
     {
       "id": "topbar.update",
       "label": "新版本",
-      "candidates": [
-        "007-button-新版本",
-        "008-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -82,10 +71,7 @@
     {
       "id": "topbar.settings",
       "label": "设置",
-      "candidates": [
-        "009-button-设置",
-        "010-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -98,12 +84,7 @@
     {
       "id": "library.tabs",
       "label": "页签 项目 · Skill · 提示词",
-      "candidates": [
-        "014-div-库",
-        "015-button-项目",
-        "016-button-Skill",
-        "017-button-提示词"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -115,9 +96,7 @@
     {
       "id": "library.filter",
       "label": "筛选",
-      "candidates": [
-        "018-div-筛选"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -129,10 +108,7 @@
     {
       "id": "library.filter.all",
       "label": "筛选 全部 3",
-      "candidates": [
-        "019-button-全部",
-        "020-span-3"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -144,10 +120,7 @@
     {
       "id": "library.filter.local",
       "label": "筛选 本地新建 2",
-      "candidates": [
-        "021-button-本地新建",
-        "022-span-2"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -159,10 +132,7 @@
     {
       "id": "library.filter.external",
       "label": "筛选 外部文件夹 1",
-      "candidates": [
-        "023-button-外部文件夹",
-        "024-span-1"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -174,10 +144,7 @@
     {
       "id": "library.search",
       "label": "搜索项目",
-      "candidates": [
-        "025-div-搜索项目",
-        "026-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -189,10 +156,7 @@
     {
       "id": "library.open-folder",
       "label": "打开文件夹",
-      "candidates": [
-        "027-button-打开文件夹",
-        "028-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -204,10 +168,7 @@
     {
       "id": "library.new-project",
       "label": "新建项目",
-      "candidates": [
-        "029-button-新建项目",
-        "030-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -219,10 +180,7 @@
     {
       "id": "library.assistant-banner",
       "label": "创作助手未连接模型提示",
-      "candidates": [
-        "031-div-创作助手还没连接模型写剧",
-        "032-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -235,9 +193,7 @@
     {
       "id": "library.assistant-connect",
       "label": "连接模型",
-      "candidates": [
-        "033-button-连接模型"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -249,10 +205,7 @@
     {
       "id": "library.card.yuye",
       "label": "项目卡 雨夜来信",
-      "candidates": [
-        "034-div-雨夜来信",
-        "035-div-刚刚7镜030"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -265,10 +218,7 @@
     {
       "id": "library.card.city",
       "label": "项目卡 城市晨跑",
-      "candidates": [
-        "036-div-城市晨跑",
-        "037-div-昨天12镜058"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -281,10 +231,7 @@
     {
       "id": "library.card.mountain",
       "label": "项目卡 山里的小店",
-      "candidates": [
-        "038-div-山里的小店",
-        "039-div-10月3日素材46"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -297,11 +244,7 @@
     {
       "id": "library.card.external",
       "label": "项目卡 外部文件夹",
-      "candidates": [
-        "040-span-外部文件夹",
-        "041-div",
-        "042-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -314,10 +257,7 @@
     {
       "id": "library.card.untitled",
       "label": "项目卡 未命名项目",
-      "candidates": [
-        "043-div-未命名项目",
-        "044-div-10月1日还没有内容"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -331,9 +271,9 @@
       "id": "library.card.delete",
       "label": "项目卡 删除动作：悬停卡片出右上角删除钮（红底垃圾桶）；普通卡点它进「删除」确认框，灰卡 / 外部文件夹点它进「从库移除」确认框",
       "change": "keep",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:Library/library.card.delete",
+      "assertions": ["board:Library/library.card.delete"],
       "states": [
         "hover",
         "zh-en"
@@ -350,9 +290,9 @@
       "id": "library.delete.confirm",
       "label": "删除确认框（本地项目）：标题「删除项目」，正文说清项目文件夹移到回收站 / 废纸篓、可还原、还原后下次启动回到项目库；按钮「取消 / 删除」（危险红）",
       "change": "keep",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:Library/library.delete.confirm",
+      "assertions": ["board:Library/library.delete.confirm"],
       "states": [
         "zh-en",
         "long-text"
@@ -387,9 +327,9 @@
       "id": "library.delete.moved",
       "label": "删除成功提示（toast）：「{名}」已移到回收站 / 废纸篓，说明怎么找回、下次启动回到项目库；卡片随即消失",
       "change": "keep",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:Library/library.delete.moved",
+      "assertions": ["board:Library/library.delete.moved"],
       "states": [
         "zh-en",
         "long-text"
@@ -406,9 +346,9 @@
       "id": "library.delete.removedOnly",
       "label": "删除时没有东西进回收站的提示（toast）：确认的是「删除」，主进程却只摘了登记（项目文件夹已被挪走、库页没刷新，或其实是外部文件夹）；说清「已从项目库移除、项目文件夹没有移到回收站、没有删除任何文件」，不再说「已移到回收站」",
       "change": "keep",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:Library/library.delete.removedOnly",
+      "assertions": ["board:Library/library.delete.removedOnly"],
       "states": [
         "zh-en",
         "long-text"
@@ -425,9 +365,9 @@
       "id": "library.delete.failed",
       "label": "进不了回收站时卡片上的失败提示：四类原因（没有权限 / 该位置没有回收站 / 文件被占用 / 其余）各一句，都写明项目没有被删除；卡片留在库里，没有「永久删除」选项",
       "change": "keep",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:Library/library.delete.failed",
+      "assertions": ["board:Library/library.delete.failed"],
       "states": [
         "error",
         "zh-en",
@@ -453,12 +393,6 @@
       },
       "note": "沿用卡片上方的反馈条（role=alert），不新增元素；分类依据与真机原文样本见方向检查 docs/engineering/direction-checks/2026-10-23-project-delete-to-trash.md §5。认不出的原因落「其余」，指向日志。真机截图 docs/evidence/2026-10-23-project-delete-to-trash/mac-trash-refused-zh-CN.png（没有权限）。 第 2 轮补：项目放在只读卷上时，删除前取清单锁写不进 .nomi 不再被说成「可能有别的程序正占用」，交给回收站报真原因（该位置没有回收站），真机截图 docs/evidence/2026-10-23-project-delete-to-trash/mac-readonly-volume-zh-CN.png。"
     }
-  ],
-  "decor": [
-    "001-svg-Nomi",
-    "011-svg",
-    "012-svg",
-    "013-svg"
   ],
   "functionCensus": [
     {

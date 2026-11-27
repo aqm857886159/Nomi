@@ -11,9 +11,7 @@
     {
       "id": "timeline.action",
       "label": "工具栏末尾时间轴纯图标",
-      "candidates": [
-        "001-timeline.action"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "T-node-timeline",
       "states": [
@@ -28,14 +26,12 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "one accessible draggable toolbar icon, no notch"
+      "assertions": ["one accessible draggable toolbar icon, no notch"]
     },
     {
       "id": "timeline.commit",
       "label": "点击贴尾、撤销与主结果",
-      "candidates": [
-        "002-timeline.commit"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "T-node-timeline",
       "states": [
@@ -50,14 +46,12 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "appends on correct track, truthful receipt, one UI Undo restores baseline"
+      "assertions": ["appends on correct track, truthful receipt, one UI Undo restores baseline"]
     },
     {
       "id": "timeline.drag",
       "label": "拖拽到全局时间轴与剪辑卡",
-      "candidates": [
-        "003-timeline.drag"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "T-node-timeline",
       "states": [
@@ -72,14 +66,12 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "Latest main result: Alt native icon drag reaches frame 75, source stays still, one UI Undo restores baseline"
+      "assertions": ["Latest main result: Alt native icon drag reaches frame 75, source stays still, one UI Undo restores baseline"]
     },
     {
       "id": "toolbar.retained",
       "label": "原有图片／视频／音频功能与版本入口",
-      "candidates": [
-        "004-toolbar.retained"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "T-node-timeline",
       "states": [
@@ -94,10 +86,9 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:NodeTimelineToolbar/toolbar.retained"
+      "assertions": ["board:NodeTimelineToolbar/toolbar.retained"]
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "加入时间轴",
