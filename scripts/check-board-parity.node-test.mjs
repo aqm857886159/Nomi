@@ -469,6 +469,23 @@ describe('R8 PR 认领的拍板图元素必须有去处', () => {
     const manifests = { Main: base() }
     assert.deepEqual(checkPrBoardClaims('## 拍板图\n- Main: topbar.title', manifests), [])
   })
+  it('pending 收集器：还没 implemented 的认领进 pending、不进 errors；清单里没有的照样进 errors', () => {
+    const manifests = { Main: base() }
+    const pending = []
+    assert.deepEqual(checkPrBoardClaims(body.join('\n'), manifests, { pending }), [])
+    assert.match(pending.join('\n'), /group\.header 还是 missing/)
+    assert.match(checkPrBoardClaims('## 拍板图\n- Main: 不存在的元素', manifests, { pending: [] }).join('\n'), /不在清单里/)
+  })
+  it('pending 收集器只收 missing / in-progress：缺用户原话的 deferred、非法状态照样进 errors', () => {
+    const m = base()
+    m.elements[1].status = 'deferred'
+    delete m.elements[1].owner
+    const pending = []
+    assert.match(checkPrBoardClaims('## 拍板图\n- Main: group.header', { Main: m }, { pending }).join('\n'), /group\.header 还是 deferred/)
+    assert.deepEqual(pending, [])
+    m.elements[1].status = 'half-done'
+    assert.match(checkPrBoardClaims('## 拍板图\n- Main: group.header', { Main: m }, { pending: [] }).join('\n'), /group\.header 还是 half-done/)
+  })
   it('正例：deferred 带用户原话和日期 → 绿', () => {
     const m = base()
     m.elements[1].status = 'deferred'

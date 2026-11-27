@@ -2194,6 +2194,7 @@
         "checking",
         "format",
         "idle",
+        "keyQuota",
         "keychain",
         "passed",
         "topup"

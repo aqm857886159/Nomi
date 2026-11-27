@@ -259,6 +259,7 @@ export function ShellAgentHost({
   }, [])
 
   const slot = React.useMemo<AgentPanelHeaderSlot>(() => ({
+    collapsed: form === 'collapsed',
     actions: <FormSwitch surface={surface} form={form} />,
     menuItems: [
       { id: 'form-collapse', label: t('appShell.agent.toCollapse'), onSelect: () => collapseAgent(surface) },

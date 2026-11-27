@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 真付费走查 run-retrieval-recovery-real.paid.mjs 的零额度演练：真 Electron、真 Run、真观察者，只有供应商是环回夹具。
 // 前三段：关窗（进程还在，窗口回来）、重启 App、重启 App + 真付费用的那个断网。都是取回失败 → 重开 → 重新取回落地，每段 POST=1。
-// 中间四段是本机查不了（模型被关）：关窗、重启、窗口一直开着都写真实原因，开回来落地，POST=1；标记失败之后才给重试，这时 POST=2。
+// 中间四段是本机查不了（原连接停用）：关窗、重启、窗口一直开着都写真实原因，开回来落地，POST=1；标记失败之后才给重试，这时 POST=2。
 // 最后一段窗口一直开着、单还在跑：放手给观察者；还在跑时重试被挡并说清楚；跑完点一下重新取回即现；跑完标记失败产物还在素材里。
 // 中英两轨：node <本文件> / node <本文件> --en。需要先构建。
 // 证据目录用 RUN_RETRIEVAL_RECOVERY_OUT 指定，缺省 docs/evidence/2026-10-31-run-retrieval-recovery。
@@ -9,9 +9,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { assertPaidBuildReady } from './_paidRun.mjs'
-import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
+import { closeNomiApp, encryptFixtureKey, launchNomiApp } from './_launchApp.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
-import { FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
+import { FIXTURE_API_KEY, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
 import { collapseAgentPanel } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -27,6 +27,19 @@ const projectsDir = path.join(tempRoot, 'projects')
 const settingsDir = path.join(tempRoot, 'settings')
 const fixture = createCanvasPerformanceFixture({ projectsDir, scale: 'empty', withProjectIdentity: true })
 const provider = await createProcessFixture(repoRoot, settingsDir)
+// 演练对标真付费认证供应商（authType: 'bearer' + safeStorage 密文）；b4b0f33f9 起仅认证连接在停用或缺密钥时拦在本机。
+{
+  const catalogPath = path.join(settingsDir, 'model-catalog.json')
+  const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
+  for (const vendor of catalog.vendors) if (vendor.key === FIXTURE_VENDOR) vendor.authType = 'bearer'
+  catalog.apiKeysByVendor[FIXTURE_VENDOR] = {
+    ...catalog.apiKeysByVendor[FIXTURE_VENDOR],
+    apiKey: encryptFixtureKey({ rootDir: repoRoot, userDataDir: path.join(tempRoot, 'user-data'), appName: 'nomi', plaintext: FIXTURE_API_KEY }),
+    enc: 'safeStorage',
+    enabled: true,
+  }
+  fs.writeFileSync(catalogPath, JSON.stringify(catalog))
+}
 const errors = []
 let app = null
 
@@ -57,9 +70,12 @@ async function restartApp(between) {
 }
 
 const finishJobs = () => { for (const job of provider.jobs) job.done = true }
-/** 用户在模型设置里关掉 / 开回这个模型（产品自己的接口）。 */
-const setModelEnabled = (page, enabled) => page.evaluate(({ vendorKey, modelKey, enabled }) => window.nomiDesktop.modelCatalog.upsertModel({ vendorKey, modelKey, enabled }),
-  { vendorKey: FIXTURE_VENDOR, modelKey: 'pf-video', enabled })
+/** 用户在模型设置里停用 / 重新启用这家连接（b4b0f33f9 起已提交任务冻结模型与映射，停用原模型仍可取回，原连接不可用才拦在本机）。 */
+const setVendorEnabled = (page, enabled) => page.evaluate(async ({ key, enabled }) => {
+  window.nomiDesktop.modelCatalog.upsertVendor({ key, enabled })
+  window.dispatchEvent(new Event('nomi-model-catalog-changed'))
+  await window.nomiDesktop.modelCatalog.listModels({ kind: 'video' })
+}, { key: FIXTURE_VENDOR, enabled })
 const common = {
   locale,
   projectRoot: fixture.projectRoot,
@@ -71,9 +87,9 @@ const common = {
 }
 
 const closeWindowAndWait = async (current, runRecordId) => {
-  const reopened = app.waitForEvent('window', { timeout: stationTimeout({ operations: 4 }), predicate: win => win !== current })
   await (await app.browserWindow(current)).evaluate(win => win.close())
   await waitStoppedForRetrieval(fixture.projectRoot, runRecordId)
+  const reopened = app.waitForEvent('window', { timeout: stationTimeout({ operations: 4 }), predicate: win => win !== current })
   await app.evaluate(({ app: electronApp }) => { electronApp.emit('activate') })
   return enterProject(await reopened)
 }
@@ -110,8 +126,8 @@ try {
   })
   page = blocked.page
   const local = {
-    modelOff: current => setModelEnabled(current, false),
-    modelOn: async (current) => { await setModelEnabled(current, true); finishJobs() },
+    modelOff: current => setVendorEnabled(current, false),
+    modelOn: async (current) => { await setVendorEnabled(current, true); finishJobs() },
   }
   const localClosed = await unavailableJourney({ ...common, ...local, page: await cleared(page), scenario: 'local-window-closed', position: { x: 620, y: 400 }, interrupt: closeWindowAndWait })
   page = localClosed.page

@@ -645,8 +645,10 @@ export function parsePrBoardClaims(body) {
 
 /**
  * merge 前判定：PR 认领的元素在 PR 头上是否都有去处。manifests：{ [board]: manifest }。纯函数、可测。
+ * pending（可选数组）：传了就把「还没 implemented」的认领收进它而不进 errors——推送档用：
+ * 只有不写实现的线才翻 implemented，实现线推送时元素必然还是 in-progress，合并档仍判红。
  */
-export function checkPrBoardClaims(body, manifests) {
+export function checkPrBoardClaims(body, manifests, { pending } = {}) {
   const errors = []
   for (const { board, ids } of parsePrBoardClaims(body)) {
     // 每条认领至少一个合法的元素 id：「- Main: ,」这种空认领不能冒充已认领
@@ -670,7 +672,9 @@ export function checkPrBoardClaims(body, manifests) {
       }
       const decided = (el.status === 'deferred' || el.status === 'dropped') && el.userDecision?.quote && el.userDecision?.date
       if (el.status !== 'implemented' && !decided) {
-        errors.push(`[${board}] 认领的元素 ${id} 还是 ${el.status}：合并前必须 implemented，或带用户原话的 deferred / dropped`)
+        // 只有「还在等验收」的合法状态能进 pending；非法状态、缺用户原话的 deferred / dropped 不是在等验收，推送档也红
+        const awaiting = el.status === 'missing' || el.status === 'in-progress'
+        ;(awaiting && pending ? pending : errors).push(`[${board}] 认领的元素 ${id} 还是 ${el.status}：合并前必须 implemented，或带用户原话的 deferred / dropped`)
       }
     }
   }

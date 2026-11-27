@@ -1,8 +1,8 @@
-import React, { type JSX, type ReactNode } from 'react'
+import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
-import { DecisionBar, DesignModal, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
+import { DecisionBar, DesignModal, type DesignModalProps, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
@@ -84,9 +84,9 @@ export function SpendConfirmDialog() {
   const agentNotice = isAgent ? t(pending.kind === 'plan' ? 'generationCommon.spend.agentNoticePlan' : 'generationCommon.spend.agentNotice') : null
   // 标题栏：图标 + 名字 + （Agent 发起时）副标。名字元素由外壳给（Modal.Title，对话框的名字就是标题这一句）；
   // 副标在标题栏里紧跟名字（阅读顺序上就在名字后面），不进名字。最外层这一格占的是原来标题元素的位置（铺满关闭键左边）。
-  const header = (title: ReactNode): JSX.Element => (
+  const header: NonNullable<DesignModalProps['header']> = (title, rowAlignment) => (
     <span className={cn('block min-w-0 flex-1')}>
-      <span className={cn('flex min-w-0 items-center gap-2.5')}>
+      <span className={cn('flex min-w-0 gap-2.5', rowAlignment)}>
         <span
           className={cn(
             'shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-nomi',
@@ -137,8 +137,8 @@ export function SpendConfirmDialog() {
       classNames={{
         content: 'rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-md outline-none',
         header: 'min-h-0 pb-2 bg-nomi-paper',
-        // 名字那一句。Mantine 的标题行距是 1；这里跟回正文（迁移前手写标题栏的样子），标题下还有一行 Agent 副标。
-        title: 'block min-w-0 truncate text-title font-medium leading-[inherit] text-nomi-ink',
+        // 名字那一句。Mantine 的标题行距是 1；这里保留正文的普通行距（迁移前手写标题栏的样子），标题下还有一行 Agent 副标。
+        title: 'block text-title font-medium leading-normal text-nomi-ink',
       }}
       actions={actions}
     >

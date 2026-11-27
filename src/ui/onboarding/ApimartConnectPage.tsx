@@ -106,7 +106,7 @@ export function ApimartConnectPage({
   const verification = useApimartVerification(onSaved)
   const { stage, check: saveKey } = verification
   const lockingInput = stage === 'checking'
-  const showChecks = stage === 'checking' || stage === 'passed' || stage === 'topup'
+  const showChecks = stage === 'checking' || stage === 'passed' || stage === 'topup' || stage === 'keyQuota'
   const notice = stage === 'format' || stage === 'invalid' || stage === 'keychain' || stage === 'offline' ? stage : null
   const checking = verification.suffix !== '' && stage !== 'idle'
   const [showSteps, setShowSteps] = React.useState(false)

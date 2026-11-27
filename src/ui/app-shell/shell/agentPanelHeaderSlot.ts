@@ -10,6 +10,8 @@ import React from 'react'
 export type AgentPanelHeaderSlotMenuItem = { id: string; label: string; onSelect: () => void; disabled?: boolean; disabledReason?: string }
 
 export type AgentPanelHeaderSlot = {
+  /** The shell keeps this panel mounted when it moves into its hidden portal. */
+  collapsed?: boolean
   /** 代替「收起」钮的那组形态按钮。 */
   actions: React.ReactNode
   /** 窄头部收进「⋯」时，形态切换在菜单里的样子。 */

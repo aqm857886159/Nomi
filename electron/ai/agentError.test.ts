@@ -22,10 +22,12 @@ describe("describeAgentError", () => {
     expect(describeAgentError(httpFailure(400, JSON.stringify({ error: "plain string error" })))).toContain("plain string error");
   });
 
-  it("falls back to a trimmed raw body when it is not JSON", () => {
-    const out = describeAgentError(httpFailure(502, "<html>Bad Gateway</html>"));
-    expect(out).toContain("Bad Gateway");
-    expect(out).toContain("502");
+  it("keeps plain-text business details and leaves HTML out of the HTTP payload's upstream message", () => {
+    const upstream = (body: string) => parseVendorErrorFromMessage(describeAgentError(httpFailure(401, body)));
+    expect(upstream("  请先启用此模型。  ")?.upstreamMsg).toBe("请先启用此模型。");
+    expect(upstream("<!DOCTYPE html><html><body>Sign in</body></html>")).toMatchObject({
+      httpStatus: 401, category: "auth", upstreamMsg: "",
+    });
   });
 
   it("handles plain Errors and non-errors", () => {

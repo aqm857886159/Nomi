@@ -46,6 +46,7 @@ function V4PriceRow({ price }: { price: NonNullable<InterventionData['price']> }
 
 export function V4SpendBar({
   data,
+  confirmRef,
   body,
   labels,
   onConfirm,
@@ -55,6 +56,7 @@ export function V4SpendBar({
   waiting = true,
 }: {
   data: InterventionData
+  confirmRef?: React.Ref<HTMLButtonElement>
   /** 卡体（指向元素 + 说明行，`AgentPanelV4SpendCardBody`）。给了就替掉 `data.params` 那排只读 chip。 */
   body?: React.ReactNode
   labels: { confirm: string; reject: string; cancel: string; confirmReject: string }
@@ -101,6 +103,7 @@ export function V4SpendBar({
         <span className="flex grow items-center justify-end gap-1.5" data-v4-block="card-actions">
           {dismiss}
           <WorkbenchButton
+            ref={waiting ? confirmRef : undefined}
             variant="primary"
             size="md"
             onClick={onConfirm}

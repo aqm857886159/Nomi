@@ -127,7 +127,7 @@ async function fixture(
     // 同一份快照的另一半：付费那一侧问的是「这笔钱要不要停下来问」。
     approvalPolicy: () => policy,
     generationFactory: () => undefined, onTaskCreated: async () => undefined, modelDefaults: undefined,
-    spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), dispose: () => undefined }) } })
+    spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), settled: Promise.resolve(), dispose: () => undefined }) } })
   cleanups.push(async () => assembly.dispose())
   const toolName = kind === 'document' ? 'write_script' : kind === 'delete' ? 'delete_from_canvas' : 'make_artifact'
   const args = kind === 'document' ? { content: ' Appended fixture.', where: 'end' }

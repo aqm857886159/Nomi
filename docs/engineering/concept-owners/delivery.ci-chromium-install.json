@@ -1,0 +1,29 @@
+{
+  "name": "CI Chromium 系统依赖安装源",
+  "subject": "delivery.ci-chromium-install",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/ci-install-chromium.sh",
+    "symbol": "isolate_ubuntu_apt_sources"
+  },
+  "write_api": [
+    {
+      "path": "scripts/ci-install-chromium.sh",
+      "symbol": "isolate_ubuntu_apt_sources"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/ci-install-chromium.node-test.mjs",
+  "allowed_consumers": [
+    ".github/workflows/desktop-rc.yml",
+    ".github/workflows/full-experience-run.yml",
+    ".github/workflows/nightly-walkthroughs.yml",
+    ".github/workflows/quality-gate.yml"
+  ],
+  "since": "2026-11-27",
+  "notes": "GitHub 托管 Ubuntu 在更新 apt 索引前仅按条目 URI 判定官方源，文件名只区分格式。主列表及 .list 分片逐行取 URI；DEB822 每段至少有一个 URI 且全部为官方才保留。"
+}
