@@ -42,15 +42,12 @@ export type AiAssistedOnboardingCardProps = {
   progress: { view: AssistedProgressView; name: string; hostLabel: string | null; reasonCode?: string | null } | null
   /** 「去连接」→ 打开自动化与权限的 AI 助手连接页（唯一的一键接入之家）。 */
   onOpenAssistantConnections: () => void
-  /** 首次出现时给一次 accent 描边（看过即消，不做常驻高亮）。 */
-  firstSeen?: boolean
 }
 
 export function AiAssistedOnboardingCard({
   info,
   progress,
   onOpenAssistantConnections,
-  firstSeen = false,
 }: AiAssistedOnboardingCardProps): JSX.Element {
   const { t } = useTranslation()
   const [host, setHost] = React.useState<AssistedOnboardingHost>('claude')
@@ -98,7 +95,6 @@ export function AiAssistedOnboardingCard({
   return (
     <details open={progress ? true : undefined}
       data-model-home-assisted-onboarding={host}
-      data-first-seen={firstSeen ? 'true' : undefined}
       className={cn('group', MODEL_ENTRY_ROW_CLASS)}
     >
       <summary className={cn('cursor-pointer list-none [&::-webkit-details-marker]:hidden', MODEL_ENTRY_HEAD_CLASS)}>

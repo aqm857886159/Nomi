@@ -1,5 +1,5 @@
 import React, { type JSX } from 'react'
-import { IconChevronRight, IconServerBolt } from '@tabler/icons-react'
+import { IconChevronRight, IconPlugConnected } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -101,10 +101,10 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
   const models = accounts.flatMap(c => c.models).filter(m => m.availability?.usable)
   const counts = Object.fromEntries(['image', 'video', 'audio', 'text'].map(kind => [kind, models.filter(m => m.kind === kind).length]))
   const subtitle = [previous.length ? t('settings.modelsHome.legacyCount', { count: previous.length }) : '',
-    accounts.length ? 'APIMart ' + t('settings.modelsHome.connected') : t('settings.modelsHome.disconnected'),
+    accounts.length ? t('settings.modelsHome.accountConnected') : t('settings.modelsHome.disconnected'),
     accounts.length ? t('settings.modelsHome.counts', counts) : ''].filter(Boolean).join(' · ')
   return <div className="min-h-0 overflow-y-auto" data-model-settings-page="home">
-    <header className="border-b border-nomi-line px-4 py-2.5 pr-14">
+    <header className="flex min-h-14 flex-col justify-center border-b border-nomi-line px-4 pr-14">
       <h2 className="text-body font-semibold">{t('onboardingProviders.drawer.home.title')}</h2>
       {loaded && !loadError && <p className="text-caption text-nomi-ink-60">{subtitle}</p>}
     </header>
@@ -148,11 +148,11 @@ export function ModelSettingsHome({ accounts, previous, connections, loaded, bri
             </section>
           </>}
           {taskCount > 0 && <section data-model-home-task-strip>{taskContent}</section>}
-          <h3 className="text-body-sm font-semibold">{t('settings.modelsHome.others')}</h3>
+          <h3 className="mt-1 text-body-sm font-semibold">{t('settings.modelsHome.others')}</h3>
           <AiAssistedOnboardingSection connections={connections} runs={adapterRuns} />
           <button type="button" data-model-home-action="other-ways" aria-label={t('settings.modelsHome.waysTitle')}
             className={cn(MODEL_ENTRY_ROW_CLASS, MODEL_ENTRY_HEAD_CLASS, 'hover:bg-nomi-ink-05')} onClick={onWays}>
-            <ModelEntryIcon><IconServerBolt size={16} stroke={1.7} aria-hidden="true" /></ModelEntryIcon>
+            <ModelEntryIcon><IconPlugConnected size={16} stroke={1.7} aria-hidden="true" /></ModelEntryIcon>
             <ModelEntryText title={t('settings.modelsHome.waysTitle')} hint={t('settings.modelsHome.waysHint')} />
             <ModelEntryChevron />
           </button>

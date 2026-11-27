@@ -2,6 +2,7 @@ export const zhSettings = {
   modelsHome: {
     platform: 'APIMart',
     connected: '已连接',
+    accountConnected: 'APIMart 已连接',
     disconnected: 'APIMart 未连接',
     connect: '连接',
     intro: '还没连 · 一个账户：图片、视频、配乐、Agent',
@@ -319,6 +320,7 @@ export const enSettings = {
   modelsHome: {
     platform: 'APIMart',
     connected: 'Connected',
+    accountConnected: 'APIMart connected',
     disconnected: 'APIMart disconnected',
     connect: 'Connect',
     intro: 'Not connected · One account for images, video, music and your agent',

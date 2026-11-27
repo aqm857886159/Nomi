@@ -19,6 +19,8 @@ import { renderScorecard } from './experience/scorecard.mjs'
 import { writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { initialPreferences } from './uiDriverOptions.mjs'
 
+import homeBoard from '../fixtures/boards/model-surfaces-settings-home.json' with { type: 'json' }
+
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const output = path.resolve(root, process.env.NOMI_WALK_OUT || 'docs/evidence/2026-11-24-t6a-model-settings')
 const board = path.join(root, 'docs/design/boards/2026-11-07-model-surfaces/preview')
@@ -63,6 +65,80 @@ async function expectFontSizes(win, rows) {
     const count = await locator.count()
     assert(count > 0, 'no element measured for ' + label)
     for (let i = 0; i < count; i++) await expect(locator.nth(i), label + ' · ' + tokenClass).toHaveCSS('font-size', px)
+  }
+}
+
+// #1704 measured the outer boxes, so include the border and the full cell dividers.
+async function checkConnectedHome(home, { locale, width, labelFor }) {
+  const account = home.locator('[data-model-account]')
+  const assisted = home.locator('[data-model-home-assisted-onboarding]')
+  const ways = home.locator('[data-model-home-action="other-ways"]')
+  const header = home.locator(':scope > header')
+  await expect(header).toHaveCSS('height', '56px')
+  for (const card of [account, assisted, ways]) await expect(card).toHaveCSS('border-radius', '10px')
+  const refresh = account.getByRole('button', { name: labelFor('refresh') })
+  await refresh.hover()
+  await expect(refresh).toHaveCSS('border-radius', '6px')
+  await expect(account.locator('header strong')).toHaveCSS('font-weight', '600')
+  await expect(account.locator('header strong + span')).toHaveCSS('height', '20px')
+  const storage = account.locator('[data-model-key-storage]')
+  await expect(storage).toHaveCSS('font-family', /monospace/i)
+  const ink60 = await storage.evaluate(el => {
+    const probe = document.createElement('span')
+    probe.className = 'text-nomi-ink-60'
+    el.after(probe)
+    const color = getComputedStyle(probe).color
+    probe.remove()
+    return color
+  })
+  await expect(storage).toHaveCSS('color', ink60)
+  await expect(ways.locator('[data-model-entry-icon] path').first()).toHaveAttribute('d', homeBoard.plugFirstPath)
+  if (locale === 'en') {
+    await expect(assisted.locator('[data-model-entry-title]')).toHaveText(homeBoard.englishAssistedTitle)
+    await expect(header.locator('p')).toHaveText(/^APIMart connected · Image \d+ · Video \d+ · Audio \d+ · Text \d+$/)
+  }
+  const entryProof = await proveProbe(assisted.locator('summary'), 'The assisted entry is mounted')
+  await expectAbsent(home.locator('[data-first-seen]'), { provenBy: entryProof, message: 'Opening Models has no first-visit highlight' })
+  for (const row of [assisted, ways]) {
+    const hint = row.locator('[data-model-entry-hint]')
+    await expect(hint).toHaveCSS('line-height', '18px')
+    const hintHeight = (await hint.boundingBox()).height
+    // At 700px the available text width can wrap additional lines.
+    const lines = width === 700 ? hintHeight / 18 : locale === 'en' && row === assisted ? 2 : 1
+    assert(Number.isInteger(lines) && lines >= 1)
+    await expect(row).toHaveCSS('height', (58 + 18 * (lines - 1)) + 'px')
+  }
+  const grid = account.locator('dl')
+  const bounds = await account.boundingBox()
+  const stats = await grid.boundingBox()
+  const bottom = box => box.y + box.height
+  assert.deepEqual([stats.x - bounds.x, bounds.width - stats.width, bottom(bounds) - bottom(stats)], [0, 0, 0], 'stats meet both sides and bottom of card')
+  const group = await home.locator('h3').boundingBox()
+  assert.equal(group.y - bottom(bounds), 16, 'card to next group heading')
+  await expect(grid).toHaveCSS('border-top-width', '1px')
+  const cells = grid.locator(':scope > div')
+  await expect(cells).toHaveCount(3)
+  for (let i = 0; i < 3; i++) {
+    const cell = cells.nth(i)
+    await expect(cell).toHaveCSS('padding', '10px 14px')
+    await expect(cell.locator('strong')).toHaveCSS('font-variant-numeric', 'tabular-nums')
+    if (i > 0) {
+      await expect(cell).toHaveCSS('border-left-width', '1px')
+      const box = await cell.boundingBox()
+      assert.equal(box.y, stats.y + 1)
+      assert.equal(bottom(box), bottom(bounds))
+    }
+  }
+  const usage = grid.getByRole('button', { name: labelFor('usageTitle') })
+  const runs = grid.getByText(labelFor('runs', { count: 41 }), { exact: true })
+  await expect(runs).toBeVisible()
+  const count = await runs.boundingBox()
+  assert.equal((await usage.boundingBox()).x - (count.x + count.width), 8, 'run count to usage link')
+  await expect(cells.last().locator('dd')).not.toContainText('·')
+  for (const link of [grid.getByRole('link'), usage]) {
+    await expect(link).toHaveCSS('font-weight', '500')
+    await expect(link.locator('svg')).toHaveCSS('width', '12px')
+    await expect(link.locator('svg')).toHaveCSS('height', '12px')
   }
 }
 
@@ -309,6 +385,7 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
         [loc('[data-model-home-action="other-ways"] [data-model-entry-title]'), 'text-body-sm', 'other ways title (board .bs 13)'],
         [loc('[data-model-home-action="other-ways"] [data-model-entry-hint]'), 'text-caption', 'other ways subtitle (board .cap 12)'],
       ])
+      await checkConnectedHome(loc('[data-model-settings-page="home"]'), { locale, width, labelFor })
       // 首页两行入口同一套行结构（板 .card.row.g12）：图标块左边距相等、行高相等、图标块有描边、箭头颜色与尺寸相同。
       const entryRows = await win.evaluate(() => {
         const rows = [document.querySelector('[data-model-home-assisted-onboarding] summary'), document.querySelector('[data-model-home-action="other-ways"]')]
@@ -348,7 +425,7 @@ async function scenario(kind, locale = 'zh-CN', theme = 'light', width = 1280) {
       await menu.click()
       await expect(win.getByRole('menuitem'), 'board:ModelSurfaces/settings.account-menu').toHaveCount(3)
       const menuProof = await proveProbe(win.getByRole('menuitem'), 'The open account menu shows its actions')
-      if (theme === 'dark') await shot(win, 'M1-dark')
+      if (zh && theme === 'dark') await shot(win, 'M1-dark')
       await win.keyboard.press('Escape')
       await expectAbsent(win.getByRole('menuitem'), { provenBy: menuProof, message: 'Escape closes the account menu' })
       // 主线 WorkbenchMenu 的约定：鼠标打开的菜单关闭后不强拉焦点（免出伪 focus-visible 框），键盘开关才回到触发器。两条都量。
@@ -502,6 +579,7 @@ async function runWalkthrough() {
   await scenario('connected')
   await scenario('fresh')
   await scenario('connected', 'en')
+  await scenario('connected', 'en', 'dark')
   await scenario('connected', 'zh-CN', 'dark')
   await scenario('connected', 'zh-CN', 'light', 700)
   assert.equal(comparisons.length, 7)
@@ -513,7 +591,7 @@ async function runWalkthrough() {
     verifier: { line: '实现线', kind: '隔离 Electron 实窗' },
     machine: { source: 'walk-log', env: { device: process.platform + ' ' + process.arch, window: '1280×800 / 700×800', language: 'zh-CN / en', theme: 'light / dark' },
       attempts, metrics: [
-        { name: '从模型首页到用量明细', unit: '点击', baseline: null, current: 1, n: 4, basis: 'script-count' },
+        { name: '从模型首页到用量明细', unit: '点击', baseline: null, current: 1, n: 5, basis: 'script-count' },
         { name: '付费提交', unit: '请求', baseline: null, current: 0, n: attempts.length, basis: 'script-count' },
         { name: '引号内名称断行或容器错误', unit: '处', baseline: null, current: 0, n: nameChecks, basis: 'script-count' },
       ] },

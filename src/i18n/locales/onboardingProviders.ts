@@ -1951,9 +1951,8 @@ export const enOnboardingProviders = {
     apiKeyAria: '{{name}} API key',
     addressPlaceholder: 'https://…',
   },
-  // "Let AI connect it for me" — the card at the top of the models page.
   assistedOnboarding: {
-    title: 'Let AI connect it for me',
+    title: 'Connect with my AI assistant',
     subtitle: 'Let the assistant you use (Claude Code, Codex…) wire another provider into Nomi',
     otherHost: 'Other',
     copy: 'Copy guide',

@@ -8,8 +8,8 @@ import { IconChevronRight } from '@tabler/icons-react'
 
 import { cn } from '../../utils/cn'
 
-/** 行外壳的外观：描边卡片 + 内边距；高度由内容（图标块 28px + 上下内边距）决定，两行一致。 */
-export const MODEL_ENTRY_ROW_CLASS = 'rounded-nomi-sm border border-nomi-line bg-nomi-paper px-3 py-2.5'
+/** 行外壳的外观：内描边不占盒高。单行说明时 10 + 20 + 18 + 10 = 58px；说明每折一行增加 18px。 */
+export const MODEL_ENTRY_ROW_CLASS = 'rounded-nomi ring-1 ring-inset ring-nomi-line bg-nomi-paper px-3 py-2.5'
 
 /** 行内一排：图标块、文字、箭头，间距同一个令牌。 */
 export const MODEL_ENTRY_HEAD_CLASS = 'flex w-full items-center gap-3 text-left'
@@ -25,8 +25,8 @@ export function ModelEntryIcon({ children }: { children: React.ReactNode }): JSX
 export function ModelEntryText({ title, hint }: { title: React.ReactNode; hint: React.ReactNode }): JSX.Element {
   return (
     <span className="min-w-0 flex-1">
-      <strong data-model-entry-title className="block text-body-sm font-semibold text-nomi-ink">{title}</strong>
-      <span data-model-entry-hint className="block text-caption text-nomi-ink-60">{hint}</span>
+      <strong data-model-entry-title className="block text-body-sm font-semibold leading-5 text-nomi-ink">{title}</strong>
+      <span data-model-entry-hint className="block text-caption leading-normal text-nomi-ink-60">{hint}</span>
     </span>
   )
 }
