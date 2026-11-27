@@ -165,8 +165,6 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
         endFrame: clip.endFrame,
       }
       const draggedLen = Math.max(1, dragged.endFrame - dragged.startFrame)
-      let lastDesired = dragged.startFrame
-      let lastPositions: Record<string, number> = {}
       let captured: symbol | undefined
 
       setIsDragging(true)
@@ -180,6 +178,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
             // 拖拽手势首次真正移动 → 压撤销栈（拖动前的状态）
             captured = useWorkbenchStore.getState().captureTimelineUndo()
           }
+          if (!didDragRef.current) return
           let desiredStart = Math.max(0, dragged.startFrame + Math.round((moveEvent.clientX - startX) / scaleNow))
 
           if (!moveEvent.shiftKey) {
@@ -202,7 +201,6 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
             applySnapGuide(null)
           }
 
-          lastDesired = desiredStart
           if (isGroup) {
             // 以被拖 clip 推出整组 delta，夹紧到合法范围（任一成员不与非选中重叠）
             const delta = clampGroupDelta(
@@ -212,7 +210,6 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
             )
             const positions: Record<string, number> = {}
             for (const origin of origins) positions[origin.id] = Math.max(0, origin.startFrame + delta)
-            lastPositions = positions
             useWorkbenchStore.getState().moveTimelineClips(positions, { commit: false })
           } else {
             // 单片：合法落位（撞了滑入最近空位，不弹回）
@@ -221,11 +218,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
         },
         // 松手落盘一次（commit:true）
         onCommit: () => {
-          if (isGroup && Object.keys(lastPositions).length > 0) {
-            useWorkbenchStore.getState().moveTimelineClips(lastPositions, { commit: true })
-          } else if (!isGroup) {
-            useWorkbenchStore.getState().moveTimelineClip(clip.id, lastDesired, { commit: true })
-          }
+          if (captured) useWorkbenchStore.getState().commitTimelineClipDrag(origins, captured)
         },
         // 被系统打断：回到按下之前。没有 click 会跟来，别让「刚拖过」的标记吞掉用户下一次真点击。
         onCancel: () => {

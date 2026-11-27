@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { appendEvents, readEvents, resetEventLogStateForTests, setEventLogProjectDirResolverForTests } from '../../../../electron/events/eventLogRepository'
+import { getCanvasEventLastSeq, setCanvasEventProjectIdProvider, setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { replayCanvasEventTailAndSealGenesis } from '../../project/workbenchProjectSession'
 import { createDefaultWorkbenchProjectPayload } from '../../project/projectRecordSchema'
 import { applyProposalBatch } from '../agent/proposalTxn'
@@ -228,7 +229,13 @@ describe('reopening the disk event stream', () => {
       expect(fs.readFileSync(log, 'utf8')).toContain('"truncated":true')
       fs.appendFileSync(log, '{"v":1,"seq":3')
       const read = vi.fn(async (id: string, fromSeq: number) => ({ events: readEvents(id, { fromSeq }) }))
-      vi.stubGlobal('window', { nomiDesktop: { events: { read } } })
+      const observed = vi.fn()
+      setCanvasEventSinkForTests(observed)
+      const append = vi.fn(async (id: string, events: Parameters<typeof appendEvents>[1]) => ({
+        lastSeq: appendEvents(id, events).at(-1)?.seq,
+      }))
+      setCanvasEventProjectIdProvider(() => project)
+      vi.stubGlobal('window', { nomiDesktop: { events: { read, append } } })
       open(project)
       await replayCanvasEventTailAndSealGenesis(project, { ...createDefaultWorkbenchProjectPayload(), generationCanvasLastSeq: seq }, {
         signal: new AbortController().signal, assertCurrent: () => {},
@@ -237,16 +244,54 @@ describe('reopening the disk event stream', () => {
       expect(node('paid')?.prompt).toBe(seq ? tail : 'original')
       expect(canvas().canUndo).toBe(false)
       const opened = canvas().readDocumentSnapshot()
+      expect(observed.mock.calls.length).toBe(0)
+      expect(append.mock.calls.length).toBe(0)
       editPrompt('after open')
+      await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1))
+      const [baseline, edit] = append.mock.calls[0]![1]
+      expect(baseline).toMatchObject({ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: opened.nodes } } })
+      expect(edit?.type).toMatch(/^canvas\.node/)
+      expect(readEvents(project).at(-2)?.payload.snapshot).toMatchObject({ nodes: opened.nodes })
       canvas().undo()
       expect(canvas().readDocumentSnapshot()).toEqual(opened)
       expect(Object.keys(opened).sort()).toEqual(['edges', 'groups', 'nodes', 'workflowTemplates'])
     } finally {
+      setCanvasEventProjectIdProvider(() => null)
+      setCanvasEventSinkForTests(null)
       vi.unstubAllGlobals()
       resetEventLogStateForTests()
       fs.rmSync(root, { recursive: true, force: true })
     }
   })
+  it('keeps buffered edits and late append receipts with the opened project', async () => {
+    let current = 'old'
+    let acknowledge!: (receipt: { lastSeq: number }) => void
+    const append = vi.fn((_id: string) => new Promise<{ lastSeq: number }>(resolve => { acknowledge = resolve }))
+    vi.stubGlobal('window', { nomiDesktop: { events: { read: async () => ({ events: [] }), append } } })
+    setCanvasEventProjectIdProvider(() => current)
+    const hydrate = async (id: string, seq: number) => {
+      open(id)
+      await replayCanvasEventTailAndSealGenesis(id, { ...createDefaultWorkbenchProjectPayload(), generationCanvasLastSeq: seq }, {
+        signal: new AbortController().signal, assertCurrent: () => {},
+      })
+    }
+    try {
+      await hydrate(current, 10)
+      editPrompt('belongs to old')
+      current = 'next'
+      await hydrate(current, 2)
+      await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1))
+      expect(append.mock.calls[0]![0]).toBe('old')
+      acknowledge({ lastSeq: 23 })
+      await Promise.resolve()
+      expect(getCanvasEventLastSeq()).toBe(2)
+    } finally {
+      setCanvasEventProjectIdProvider(() => null)
+      setCanvasEventSinkForTests(null)
+      vi.unstubAllGlobals()
+    }
+  })
+
 })
 
 describe('React Flow resize history', () => {

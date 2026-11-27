@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const deps = vi.hoisted(() => ({ changed: null as null | (() => void), version: 0 }))
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => null }))
-vi.mock('../generationCanvas/events/canvasEventEmitter', () => ({ emitCanvasGesture: vi.fn(), getCanvasEventLastSeq: () => 0, seedCanvasEventLastSeq: vi.fn() }))
 vi.mock('../generationCanvas/agent/shotVerifyStore', () => ({ useShotVerifyStore: { getState: () => ({ activateProject: vi.fn() }) } }))
-vi.mock('../workbenchStore', () => ({ useWorkbenchStore: { getState: () => ({}), subscribe: () => vi.fn() } }))
+vi.mock('../workbenchStore', () => ({ useWorkbenchStore: { getState: () => ({ persistRevision: 0 }), subscribe: () => vi.fn() } }))
 vi.mock('../generationCanvas/store/generationCanvasStore', () => ({ useGenerationCanvasStore: {
-  getState: () => ({ readDocumentSnapshot: () => ({ nodes: [], edges: [], groups: [], version: deps.version }) }),
+  getState: () => ({ persistRevision: deps.version, readDocumentSnapshot: () => ({ nodes: [], edges: [], groups: [], version: deps.version }) }),
   subscribe: (_selector: unknown, callback: () => void) => { deps.changed = callback; return vi.fn() },
 } }))
 import { clearActiveWorkbenchProjectSaveTarget, persistActiveWorkbenchProjectNow, subscribeWorkbenchProjectPersistence, type WorkbenchProjectSaveFn } from './workbenchProjectSession'
@@ -13,6 +12,26 @@ import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
 beforeEach(() => { vi.useFakeTimers(); deps.version = 0; vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() }) })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 describe('project persistence disposal', () => {
+  it('reuses the latest durable receipt after React rebinds the project', async () => {
+    const original = { id: 'p', revision: 14 } as WorkbenchProjectRecordV1
+    const saved = { ...original, revision: 15 }
+    const save = vi.fn().mockResolvedValue(saved)
+    const options = {
+      projectId: original.id, baseline: { savedRecord: original, workbenchRevision: 0, canvasRevision: 0 },
+      isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn(),
+    }
+    const first = subscribeWorkbenchProjectPersistence(options)
+    deps.version++
+    deps.changed?.()
+    expect(await persistActiveWorkbenchProjectNow()).toBe(saved)
+    await first()
+    const rebound = subscribeWorkbenchProjectPersistence(options)
+    try {
+      expect(await persistActiveWorkbenchProjectNow()).toBe(saved)
+      expect(save).toHaveBeenCalledOnce()
+    } finally { await rebound() }
+  })
+
   it('coalesces a newer explicit save into the same queue before acknowledging it', async () => {
     const versions: number[] = [], finish: Array<() => void> = []
     const save = vi.fn((_id: string, payload: unknown) => {
