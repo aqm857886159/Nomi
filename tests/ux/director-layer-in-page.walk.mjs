@@ -49,7 +49,7 @@ fs.mkdirSync(outDir, { recursive: true })
 
 const results = []
 const report = { locale, sizes: SIZES.map((size) => size.label), geometry: [], perf: null, notes: [], boardCoverage: null }
-// 板断言名 = docs/design/boards/2026-10-29/DirectorInPage.board.json 里各元素的 `assertion`（check:board-parity R4：断言名必须出现在 tests/ux 的走查里）。
+// 板断言名 = docs/design/boards/2026-10-29/DirectorInPage.board.json 里各元素的 `assertions`。
 // 每条检查用第 5 个参数挂到它守的元素上；走查末尾核「每个元素都有检查挂着且全过」（只有按小节 / 开关裁剪过的跑法不核）。
 const E = {
   fillsCell: 'board:DirectorInPage/layer.fills-cell',

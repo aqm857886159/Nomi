@@ -21,7 +21,9 @@
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { chromium } from '@playwright/test'
+import { assertBoardAnchor } from './_boardAnchorAssert.mjs'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import {
@@ -59,7 +61,7 @@ const extraShotDir = process.env.NOMI_WALK_SHOT_DIR ? path.resolve(process.env.N
 fs.mkdirSync(evidenceDir, { recursive: true })
 if (extraShotDir) fs.mkdirSync(extraShotDir, { recursive: true })
 
-// 拍板清单 S7a 全部 7 个 implemented 元素的精确断言标识（check:board-parity 逐条核验）。
+// 拍板清单 S7a 全部 7 个 implemented 元素的精确断言标识。
 const BOARD = Object.freeze({
   composerConnect: 'board:Onboarding/entry.composer-connect',
   personaSetup: 'board:Onboarding/entry.persona-setup',
@@ -256,11 +258,20 @@ try {
   )
 
   // 右下原发送位主按钮「连接模型」+ 悬停提示「出图要先连一个 APIMart 账户（通常几分钟），这段草稿会留着」
-  const composerConnectBtn = composer.locator('[data-composer-connect="true"]')
-  await expectVisible(composerConnectBtn, BOARD.composerConnect)
-  await expect(composerConnectBtn, BOARD.composerConnect).toHaveText(
-    uiText('zh-CN', 'onboardingProviders.entries.connectModel'),
-  )
+  const manifest = JSON.parse(fs.readFileSync(path.join(boardPreviewDir, '../Onboarding.board.json'), 'utf8'))
+  const element = manifest.elements.find(row => row.id === 'entry.composer-connect')
+  const composerConnectBtn = composer.locator(element.anchor)
+  const browser = await chromium.launch()
+  try {
+    const reference = await browser.newPage({ javaScriptEnabled: false })
+    await reference.goto(pathToFileURL(path.join(boardPreviewDir, 'Onboarding.html')).href)
+    await assertBoardAnchor({
+      frame: reference.locator('#O1a-canvas'), page: win, screen: composer, element,
+      lang: 'zh-CN', theme: 'light', text: true,
+    })
+  } finally {
+    await browser.close()
+  }
   await saveShot(win, 'impl-o1a-canvas-rest-zh', tempShotsDir)
   await composerConnectBtn.hover()
   const composerTooltip = win.getByRole('tooltip')

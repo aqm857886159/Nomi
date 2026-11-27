@@ -12,9 +12,7 @@
     {
       "id": "source.preview",
       "label": "原卡唯一视频预览",
-      "candidates": [
-        "001-source.preview"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -25,14 +23,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "02-drag-handles-readouts-follow-and-tag-is-not-red"
+      "assertions": ["02-drag-handles-readouts-follow-and-tag-is-not-red"]
     },
     {
       "id": "capture.camera",
       "label": "卡内当前帧相机",
-      "candidates": [
-        "002-capture.camera"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -44,14 +40,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "02-current-frame-lands-beside-with-edge-and-is-the-7.2s-frame"
+      "assertions": ["02-current-frame-lands-beside-with-edge-and-is-the-7.2s-frame"]
     },
     {
       "id": "capture.boundary",
       "label": "浮条首帧/尾帧",
-      "candidates": [
-        "003-capture.boundary"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "disabled",
@@ -60,14 +54,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "04-first-and-last-frame-unchanged-and-probe-discriminates"
+      "assertions": ["04-first-and-last-frame-unchanged-and-probe-discriminates"]
     },
     {
       "id": "edit.entry",
       "label": "浮条剪辑与拆镜入口",
-      "candidates": [
-        "004-edit.entry"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -82,9 +74,7 @@
     {
       "id": "edit.strip",
       "label": "原卡下方真实缩略图胶片条",
-      "candidates": [
-        "005-edit.strip"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -95,14 +85,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "09-real-1080p-performance-and-keyboard"
+      "assertions": ["09-real-1080p-performance-and-keyboard"]
     },
     {
       "id": "edit.handles",
       "label": "两端手柄与选区",
-      "candidates": [
-        "006-edit.handles"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -113,14 +101,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "02-drag-handles-readouts-follow-and-tag-is-not-red"
+      "assertions": ["02-drag-handles-readouts-follow-and-tag-is-not-red"]
     },
     {
       "id": "edit.timing",
       "label": "选区时长（纯读数）",
-      "candidates": [
-        "007-edit.timing"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -134,14 +120,12 @@
         "quote": "我是说入点和出点没啥用",
         "date": "2026-10-11"
       },
-      "assertion": "02-drag-handles-readouts-follow-and-tag-is-not-red"
+      "assertions": ["02-drag-handles-readouts-follow-and-tag-is-not-red"]
     },
     {
       "id": "edit.confirm",
       "label": "上方剪辑片段执行；Esc/空白处退出",
-      "candidates": [
-        "008-edit.confirm"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "disabled",
@@ -155,14 +139,12 @@
         "quote": "不是生成片段 名称不对 剪辑片段 另外就是有没有一个优雅的位置 现在我觉得节点右下角多个东西 很丑",
         "date": "2026-10-11"
       },
-      "assertion": "04-confirm-makes-a-connected-card-with-the-kept-range"
+      "assertions": ["04-confirm-makes-a-connected-card-with-the-kept-range"]
     },
     {
       "id": "smart.entry",
       "label": "浮条拆解 → 按镜头拆（唯一入口）",
-      "candidates": [
-        "009-smart.entry"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -182,9 +164,7 @@
     {
       "id": "smart.progress",
       "label": "分析/处理进度与取消",
-      "candidates": [
-        "010-smart.progress"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -197,9 +177,7 @@
     {
       "id": "smart.review",
       "label": "镜头选择/全选",
-      "candidates": [
-        "011-smart.review"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -215,9 +193,7 @@
     {
       "id": "smart.mode",
       "label": "图片/视频输出",
-      "candidates": [
-        "012-smart.mode"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -230,9 +206,7 @@
     {
       "id": "smart.settings",
       "label": "检测灵敏度与空结果恢复",
-      "candidates": [
-        "013-smart.settings"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -246,9 +220,7 @@
     {
       "id": "recovery.errors",
       "label": "失败/部分成功/不可用恢复",
-      "candidates": [
-        "014-recovery.errors"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -262,9 +234,7 @@
     {
       "id": "output.cards",
       "label": "右侧结果卡",
-      "candidates": [
-        "015-output.cards"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -274,14 +244,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "04-confirm-makes-a-connected-card-with-the-kept-range"
+      "assertions": ["04-confirm-makes-a-connected-card-with-the-kept-range"]
     },
     {
       "id": "output.edges",
       "label": "来源连线与结果集合",
-      "candidates": [
-        "016-output.edges"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -289,14 +257,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "04-confirm-makes-a-connected-card-with-the-kept-range"
+      "assertions": ["04-confirm-makes-a-connected-card-with-the-kept-range"]
     },
     {
       "id": "output.undo",
       "label": "撤销本次结果",
-      "candidates": [
-        "017-output.undo"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "disabled",
@@ -305,14 +271,12 @@
         "dark"
       ],
       "note": "macOS Electron zh/en-dark real-media walk passed; see docs/evidence/2026-10-11-video-edit-independent.md.",
-      "assertion": "05-one-undo-removes-card-and-edge"
+      "assertions": ["05-one-undo-removes-card-and-edge"]
     },
     {
       "id": "toolbar.retained",
       "label": "其余浮条功能原位保留",
-      "candidates": [
-        "018-toolbar.retained"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-video-edit-production",
       "states": [
@@ -324,7 +288,6 @@
       "note": "实验室可见/可操作，正式产品尚未按此样张接线；不得标 implemented。"
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "playback/metadata/mute/seek",

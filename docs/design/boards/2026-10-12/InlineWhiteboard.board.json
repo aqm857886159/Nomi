@@ -7,14 +7,9 @@
     {
       "id": "frame",
       "label": "节点内画板与独立范围",
-      "candidates": [
-        "013-section-镜头03图片节点",
-        "014-div",
-        "015-span-镜头03走进光里",
-        "017-div-图片编辑区域"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "image moves independently from the node frame",
+      "assertions": ["image moves independently from the node frame"],
       "states": [
         "empty",
         "loading",
@@ -35,11 +30,9 @@
     {
       "id": "history",
       "label": "复用版本卡片",
-      "candidates": [
-        "016-button-2"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "existing version cards remain available",
+      "assertions": ["existing version cards remain available"],
       "states": [
         "empty",
         "loading",
@@ -60,23 +53,9 @@
     {
       "id": "tools",
       "label": "同一行主工具栏与上下文动作",
-      "candidates": [
-        "018-section-画板编辑工具",
-        "019-div-画板工具",
-        "020-button-选择",
-        "021-button-画笔",
-        "022-button-橡皮",
-        "023-button-文字",
-        "025-button-撤销",
-        "026-button-重做",
-        "027-button-导入图片",
-        "028-button-素材库",
-        "029-button-图层",
-        "030-button-169",
-        "031-button-完成"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "complete direct editing toolbar remains available",
+      "assertions": ["complete direct editing toolbar remains available"],
       "states": [
         "empty",
         "loading",
@@ -97,9 +76,9 @@
     {
       "id": "materials",
       "label": "复用素材库与图层列表",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "expanded materials panel stays centered",
+      "assertions": ["expanded materials panel stays centered"],
       "states": [
         "empty",
         "loading",
@@ -120,9 +99,9 @@
     {
       "id": "document",
       "label": "绘画文字和变换持久化",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "reopen restores text and transforms",
+      "assertions": ["reopen restores text and transforms"],
       "states": [
         "empty",
         "loading",
@@ -143,9 +122,7 @@
     {
       "id": "annotations",
       "label": "版本绑定的修改标注（标注工具 + 「用这些意见修改」入口）——已拿掉",
-      "candidates": [
-        "024-button-标注"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "empty",
@@ -171,9 +148,9 @@
     {
       "id": "export",
       "label": "复用图片保存与派生截图事务",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "standalone screenshot creates derived image with source edge",
+      "assertions": ["standalone screenshot creates derived image with source edge"],
       "states": [
         "empty",
         "loading",
@@ -191,20 +168,6 @@
         "owner": "persistNodeImageFile + appendNodeResultVersion + addDerivedOutput"
       }
     }
-  ],
-  "decor": [
-    "001-div-Nomi原地画板紧凑交互",
-    "002-span-Nomi",
-    "003-span-N",
-    "004-span-项目库小小的勇气",
-    "005-span-创作",
-    "006-span-生成",
-    "007-span-预览",
-    "008-aside-工作区导航",
-    "009-div-素材库",
-    "010-div-分组",
-    "011-div-提示词",
-    "012-div-技能"
   ],
   "functionCensus": [
     {

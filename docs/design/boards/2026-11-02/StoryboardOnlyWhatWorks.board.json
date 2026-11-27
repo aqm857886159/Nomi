@@ -24,26 +24,7 @@
     {
       "id": "context.shell",
       "label": "工作台既有分区、项目名与工作区切换",
-      "candidates": [
-        "001-nav-工作台分区",
-        "002-svg",
-        "003-span-文稿",
-        "004-svg",
-        "005-span-目录",
-        "006-svg",
-        "007-span-素材",
-        "008-svg",
-        "009-span-流程",
-        "010-svg",
-        "011-span-Skill",
-        "012-svg",
-        "013-span-提示词",
-        "014-div-N",
-        "015-span-未命名项目1102061",
-        "016-span-创作",
-        "017-span-生成03",
-        "018-span-预览"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -62,11 +43,7 @@
     {
       "id": "header.title",
       "label": "方案标题与镜头数量",
-      "candidates": [
-        "019-svg",
-        "020-span-林薇在旧书店找到一封信",
-        "021-span-3镜"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -85,10 +62,7 @@
     {
       "id": "header.canvas",
       "label": "查看或放到画布",
-      "candidates": [
-        "022-button",
-        "023-span-查看画布"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -107,16 +81,7 @@
     {
       "id": "anchor.section",
       "label": "跨镜头参考卡、展开、添加参考",
-      "candidates": [
-        "024-span-跨镜头要一致的",
-        "025-span-全部展开",
-        "026-span-林薇",
-        "027-span-未生成",
-        "028-span-旧书店",
-        "029-span-未生成",
-        "030-button",
-        "031-span-添加参考"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -135,11 +100,7 @@
     {
       "id": "heading.playback",
       "label": "分镜标题与顺播",
-      "candidates": [
-        "032-span-分镜3镜",
-        "033-span",
-        "034-span-顺播"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -158,11 +119,7 @@
     {
       "id": "heading.film",
       "label": "整片画幅",
-      "candidates": [
-        "035-span-整片画幅",
-        "036-span-按模型默认",
-        "037-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "empty",
@@ -176,22 +133,12 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:StoryboardOnlyWhatWorks/heading.film"
+      "assertions": ["board:StoryboardOnlyWhatWorks/heading.film"]
     },
     {
       "id": "row.select",
       "label": "拖动、选中与行菜单",
-      "candidates": [
-        "038-svg",
-        "039-input-选中镜1",
-        "040-button",
-        "050-svg",
-        "051-input-选中镜2",
-        "052-button",
-        "062-svg",
-        "063-input-选中镜3",
-        "064-button"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -210,14 +157,7 @@
     {
       "id": "row.prompt",
       "label": "镜号与提示词",
-      "candidates": [
-        "041-span-01",
-        "042-span-林薇在旧书店找到一封信",
-        "053-span-02",
-        "054-span-林薇走到旧书店窗边",
-        "065-span-03",
-        "066-span-林薇在灯下拆开那封信"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -236,17 +176,7 @@
     {
       "id": "row.model",
       "label": "每镜模型菜单",
-      "candidates": [
-        "043-button",
-        "044-span-GPTImage2",
-        "045-svg",
-        "055-button",
-        "056-span-GPTImage2",
-        "057-svg",
-        "067-button",
-        "068-span-GPTImage2",
-        "069-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "empty",
@@ -260,19 +190,12 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:StoryboardOnlyWhatWorks/row.model"
+      "assertions": ["board:StoryboardOnlyWhatWorks/row.model"]
     },
     {
       "id": "row.params",
       "label": "每镜参数摘要与面板",
-      "candidates": [
-        "046-span-文生图自动1K",
-        "047-svg",
-        "058-span-文生图自动1K",
-        "059-svg",
-        "070-span-文生图自动1K",
-        "071-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -291,14 +214,7 @@
     {
       "id": "row.generate",
       "label": "每镜生成",
-      "candidates": [
-        "048-button",
-        "049-span-生成",
-        "060-button",
-        "061-span-生成",
-        "072-button",
-        "073-span-生成"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -317,10 +233,7 @@
     {
       "id": "footer.back",
       "label": "返回原稿",
-      "candidates": [
-        "074-button",
-        "075-span-返回原稿"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -339,9 +252,7 @@
     {
       "id": "footer.progress",
       "label": "生成进度",
-      "candidates": [
-        "076-span-已生成03镜"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -360,10 +271,7 @@
     {
       "id": "footer.generate-remaining",
       "label": "生成剩余",
-      "candidates": [
-        "077-button",
-        "078-span-生成剩余"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "storyboard-strips",
       "states": [
@@ -382,9 +290,9 @@
     {
       "id": "selection.actions",
       "label": "已选数量、清除、交给 Agent、删除已选",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:StoryboardOnlyWhatWorks/selection.actions",
+      "assertions": ["board:StoryboardOnlyWhatWorks/selection.actions"],
       "states": [
         "empty",
         "loading",
@@ -401,9 +309,9 @@
     {
       "id": "row.keyframe-toggle",
       "label": "视频镜首帧图开关",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:StoryboardOnlyWhatWorks/row.keyframe-toggle",
+      "assertions": ["board:StoryboardOnlyWhatWorks/row.keyframe-toggle"],
       "states": [
         "empty",
         "loading",
@@ -420,7 +328,7 @@
     {
       "id": "removed.strips",
       "label": "AI 草拟行与整片配置条",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "empty",
@@ -442,7 +350,7 @@
     {
       "id": "removed.selection-config",
       "label": "选中配置、生成已选与跳过",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "empty",
@@ -464,7 +372,7 @@
     {
       "id": "removed.duplicate-agent",
       "label": "页脚与行菜单的 Agent 交接",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "empty",
@@ -486,7 +394,7 @@
     {
       "id": "removed.skip",
       "label": "单镜和选中的本次跳过",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "empty",
@@ -508,7 +416,7 @@
     {
       "id": "removed.type-picker",
       "label": "原独立镜头类型选择器",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "empty",
@@ -530,7 +438,7 @@
     {
       "id": "removed.insert-above",
       "label": "分镜页行菜单「上方插入」",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "empty",
@@ -550,7 +458,6 @@
       }
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "工作台分区、项目标题、创作/生成/预览切换",

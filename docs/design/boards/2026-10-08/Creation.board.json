@@ -7,10 +7,7 @@
     {
       "id": "topbar.project-title",
       "label": "项目名（顶栏）",
-      "candidates": [
-        "002-button-雨夜来信",
-        "003-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -23,12 +20,7 @@
     {
       "id": "topbar.phase-switch",
       "label": "阶段切换",
-      "candidates": [
-        "004-div-阶段",
-        "005-button-创作",
-        "006-button-生成",
-        "008-button-预览"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -41,10 +33,7 @@
     {
       "id": "topbar.phase-counters",
       "label": "阶段进度与时长",
-      "candidates": [
-        "007-span-56",
-        "009-span-026"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -57,11 +46,7 @@
     {
       "id": "topbar.tasks",
       "label": "任务",
-      "candidates": [
-        "010-button-任务",
-        "012-span-1",
-        "011-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -74,10 +59,7 @@
     {
       "id": "topbar.browser",
       "label": "浏览器",
-      "candidates": [
-        "013-button-浏览器",
-        "014-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -90,10 +72,7 @@
     {
       "id": "topbar.update",
       "label": "新版本",
-      "candidates": [
-        "015-button-新版本",
-        "016-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -106,10 +85,7 @@
     {
       "id": "topbar.settings",
       "label": "设置",
-      "candidates": [
-        "017-button-设置",
-        "018-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -122,11 +98,7 @@
     {
       "id": "rail.resources",
       "label": "左栏 资源",
-      "candidates": [
-        "022-nav-资源",
-        "023-button",
-        "024-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -141,11 +113,7 @@
     {
       "id": "rail.docs",
       "label": "左栏 文稿",
-      "candidates": [
-        "025-span-文稿",
-        "026-button",
-        "027-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -160,11 +128,7 @@
     {
       "id": "rail.catalog",
       "label": "左栏 目录",
-      "candidates": [
-        "028-span-目录",
-        "029-button",
-        "030-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -179,11 +143,7 @@
     {
       "id": "rail.assets",
       "label": "左栏 素材",
-      "candidates": [
-        "031-span-素材",
-        "032-button",
-        "033-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -198,11 +158,7 @@
     {
       "id": "rail.flow",
       "label": "左栏 流程",
-      "candidates": [
-        "034-span-流程",
-        "035-button",
-        "036-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -217,11 +173,7 @@
     {
       "id": "rail.skill",
       "label": "左栏 Skill",
-      "candidates": [
-        "037-span-Skill",
-        "038-button",
-        "039-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -236,9 +188,7 @@
     {
       "id": "rail.prompts",
       "label": "左栏 提示词",
-      "candidates": [
-        "040-span-提示词"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -251,10 +201,7 @@
     {
       "id": "rail.collapse",
       "label": "收起左栏",
-      "candidates": [
-        "041-button-收起左栏",
-        "042-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -267,10 +214,7 @@
     {
       "id": "creation.plan.title",
       "label": "方案标题 雨夜便利店",
-      "candidates": [
-        "044-button-雨夜便利店",
-        "045-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -282,9 +226,7 @@
     {
       "id": "creation.plan.source",
       "label": "方案来源与镜数",
-      "candidates": [
-        "046-span-来自剧本7镜目标30s已"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -297,9 +239,7 @@
     {
       "id": "creation.plan.duration",
       "label": "方案时长 30s",
-      "candidates": [
-        "047-b-30s"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -311,9 +251,7 @@
     {
       "id": "creation.plan.to-canvas",
       "label": "「放到画布」",
-      "candidates": [
-        "048-button-放到画布"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -325,9 +263,7 @@
     {
       "id": "creation.plan.generate-all",
       "label": "「生成全部」",
-      "candidates": [
-        "049-button-生成全部"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -339,10 +275,7 @@
     {
       "id": "creation.plan.more",
       "label": "方案「更多」",
-      "candidates": [
-        "050-button-更多",
-        "051-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -354,12 +287,7 @@
     {
       "id": "creation.style.chips",
       "label": "风格 冷色夜景/写实/慢节奏",
-      "candidates": [
-        "052-span-风格",
-        "053-span-冷色夜景",
-        "054-span-写实",
-        "055-span-慢节奏"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -371,12 +299,7 @@
     {
       "id": "creation.anchors",
       "label": "锚点 贯穿全片/林薇/便利店/怀表",
-      "candidates": [
-        "056-span-贯穿全片",
-        "057-span-林薇",
-        "058-span-便利店",
-        "059-span-怀表等定妆"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -388,12 +311,7 @@
     {
       "id": "creation.card.shot-01",
       "label": "分镜卡 镜 01",
-      "candidates": [
-        "060-div",
-        "061-span-镜01",
-        "062-span-4s",
-        "063-div-远景雨后便利店门口林薇站"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -406,12 +324,7 @@
     {
       "id": "creation.card.shot-02",
       "label": "分镜卡 镜 02",
-      "candidates": [
-        "064-div",
-        "065-span-镜02",
-        "066-span-3s",
-        "067-div-近景林薇侧脸水珠沿发梢滑"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -423,13 +336,7 @@
     {
       "id": "creation.card.shot-03",
       "label": "分镜卡 镜 03",
-      "candidates": [
-        "068-div",
-        "070-span-镜03",
-        "071-span-4s",
-        "072-div-低机位怀表落在积水里车灯",
-        "069-svg-接上一镜"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -441,13 +348,7 @@
     {
       "id": "creation.card.shot-04",
       "label": "分镜卡 镜 04（在画布上·未生成）",
-      "candidates": [
-        "073-div",
-        "074-div-俯拍霓虹映在湿漉漉的车道",
-        "075-div-在画布上还没生成",
-        "076-span-镜04",
-        "077-span-4s"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -460,12 +361,7 @@
     {
       "id": "creation.card.shot-05",
       "label": "分镜卡 镜 05",
-      "candidates": [
-        "078-div",
-        "079-span-镜05",
-        "080-span-5s",
-        "081-div-中景林薇转身走进雨里便利"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -477,12 +373,7 @@
     {
       "id": "creation.card.shot-06",
       "label": "分镜卡 镜 06",
-      "candidates": [
-        "082-div",
-        "083-span-镜06",
-        "084-span-6s",
-        "085-div-特写表链在指间垂下指针停"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -494,14 +385,7 @@
     {
       "id": "creation.card.shot-07-draft",
       "label": "分镜卡 镜 07（草稿）",
-      "candidates": [
-        "086-div",
-        "087-div-特写林薇低头看表表盖上的",
-        "088-div-还没放到画布",
-        "089-span-草稿",
-        "090-span-镜07",
-        "091-span-4s"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -514,10 +398,7 @@
     {
       "id": "creation.add-shot",
       "label": "「加一镜」",
-      "candidates": [
-        "092-button-加一镜",
-        "093-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -529,13 +410,7 @@
     {
       "id": "agent.dock.header",
       "label": "Agent 停靠 标题与身份",
-      "candidates": [
-        "094-aside-NomiAgent",
-        "096-span-Nomi",
-        "097-button-内置Agent",
-        "095-svg",
-        "098-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -547,10 +422,7 @@
     {
       "id": "agent.dock.history",
       "label": "Agent 历史对话",
-      "candidates": [
-        "099-button-历史对话",
-        "100-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -562,15 +434,7 @@
     {
       "id": "agent.dock.form",
       "label": "Agent 形态 小球/浮窗/停靠",
-      "candidates": [
-        "101-div-Agent形态",
-        "102-button-缩成小球",
-        "104-button-浮窗",
-        "106-button-停靠在右侧",
-        "103-svg",
-        "105-svg",
-        "107-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -582,18 +446,7 @@
     {
       "id": "agent.dock.transcript",
       "label": "Agent 对话记录",
-      "candidates": [
-        "108-div-按剧本拆成分镜30秒左右",
-        "109-div-读了文稿剧本",
-        "110-svg",
-        "111-div-写了方案A6镜",
-        "113-div-按剧本顺序拆成了6镜合计",
-        "114-div-最后再加一镜林薇低头看表",
-        "115-div-加了镜07草稿",
-        "117-div-加好了现在合计30秒镜0",
-        "112-svg",
-        "116-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -606,9 +459,7 @@
     {
       "id": "agent.dock.composer.input",
       "label": "Agent 输入框",
-      "candidates": [
-        "118-div-继续告诉Nomi要改什么"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -621,10 +472,7 @@
     {
       "id": "agent.dock.composer.add",
       "label": "Agent 输入框「添加」",
-      "candidates": [
-        "119-button-添加",
-        "120-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -636,10 +484,7 @@
     {
       "id": "agent.dock.composer.model",
       "label": "Agent 输入框 选择模型",
-      "candidates": [
-        "121-button-选择模型",
-        "122-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -651,10 +496,7 @@
     {
       "id": "agent.dock.composer.auto",
       "label": "Agent 输入框 自动改",
-      "candidates": [
-        "123-button-自动改",
-        "124-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -666,10 +508,7 @@
     {
       "id": "agent.dock.composer.send",
       "label": "Agent 输入框 发送",
-      "candidates": [
-        "125-button-发送",
-        "126-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -678,13 +517,6 @@
       ],
       "note": "产品代码里有字样「发送」，待真 App 核并补走查断言（下一刀）"
     }
-  ],
-  "decor": [
-    "001-svg-Nomi",
-    "019-svg",
-    "020-svg",
-    "021-svg",
-    "043-main"
   ],
   "functionCensus": [
     {

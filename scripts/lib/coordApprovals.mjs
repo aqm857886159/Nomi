@@ -23,8 +23,8 @@ export const sha256Of = (value) => crypto.createHash('sha256').update(typeof val
 // 剩下的任何差异（新增、删除、板级字段、以后新加的任何字段）都要协调确认，哈希绑定整份规范化后的内容。
 // 要确认的集合由真实 diff 构造，不看 PR 认领了什么（认领只用来关联实现验收）。
 
-/** 板的白名单：元素的实现进度字段，实现线推进时合理会改。其余（含板级字段 decor / functionCensus / 设计来源 / stage、元素的用户原话）全算合同。 */
-export const BOARD_PROGRESS_FIELDS = Object.freeze(['status', 'assertion', 'owner'])
+/** 板的白名单：元素的实现进度字段，实现线推进时合理会改。其余（含板级字段 functionCensus / 设计来源 / stage、元素的用户原话）全算合同。 */
+export const BOARD_PROGRESS_FIELDS = Object.freeze(['status', 'assertions', 'owner'])
 
 /**
  * 板级 stage 只放行一种前进（协调 2026-10-22 定）：base 是「已拍板」阶段、head 是 built——和元素的 status 一样属于实现进度，不用确认。
@@ -97,7 +97,7 @@ export function describeBoardDiff(subject) {
     if (subject.added.length) parts.push(`新增了元素（${subject.added.join('、')}）`)
     if (subject.changed.length) parts.push(`改了合同的元素（${subject.changed.join('、')}）`)
     if (subject.removed.length) parts.push(`删了元素（${subject.removed.join('、')}）`)
-    if (subject.boardLevel) parts.push('改了板级字段（decor / functionCensus / 设计来源 / stage 等）')
+    if (subject.boardLevel) parts.push('改了板级字段（functionCensus / 设计来源 / stage 等）')
   }
   return parts.join('；')
 }

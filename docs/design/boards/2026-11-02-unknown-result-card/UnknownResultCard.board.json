@@ -3,7 +3,7 @@
   "approvedOn": "2026-11-02",
   "stage": "built",
   "visualReview": "用户 11-02 在 Claude Design 画布「结果未知的卡」第二版（https://claude.ai/artifact/Ws3NRu9dmtstoUyjx7mPDQ，私有）上说「按设计稿改」。画布同屏放了调研、用户以前定过的话和三条路。协调逐张对过设计系统。",
-  "sourceBoundary": "板源是画布的原样副本：部件在画布上叫 Main.dc.html，这里按板名存为 source/UnknownResultCard.dc.html，薄板的 dc-import 仍写 Main。preview/UnknownResultCard.html 和 -dark.html 是把画布渲染后抠出卡、格、确认卡、提示拼成的静态页，只用来抽候选；preview/*.png 是拍板时看的整页截图。分镜页上已经去掉的两条按另一张已批样张画，那是另一条线，不归这张板。",
+  "sourceBoundary": "板源是画布的原样副本：部件在画布上叫 Main.dc.html，这里按板名存为 source/UnknownResultCard.dc.html，薄板的 dc-import 仍写 Main。preview/UnknownResultCard.html 和 -dark.html 是把画布渲染后抠出卡、格、确认卡、提示拼成的静态页，用于分镜走查；preview/*.png 是拍板时看的整页截图。分镜页上已经去掉的两条按另一张已批样张画，那是另一条线，不归这张板。",
   "designIntent": "结果不知道的卡不再画成失败；点「再发一次」时，三页弹同一张已有的花钱确认卡，写清为什么可能多扣钱。",
   "priorArt": [
     {
@@ -69,15 +69,10 @@
         "dark",
         "disabled"
       ],
-      "candidates": [
-        "044-div-再发一次这张图片",
-        "045-svg",
-        "072-div-再发一次这张图片",
-        "073-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "note": "替掉分镜 AnchoredPopover 浮层和画布 / 列表的卡内确认条。",
-      "assertion": "board:UnknownResultCard/confirm.card"
+      "assertions": ["board:UnknownResultCard/confirm.card"]
     },
     {
       "id": "confirm.title",
@@ -87,12 +82,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "046-span-再发一次这张图片",
-        "074-span-再发一次这张图片"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/confirm.title"
+      "assertions": ["board:UnknownResultCard/confirm.title"]
     },
     {
       "id": "confirm.body.restart",
@@ -103,11 +95,9 @@
         "dark",
         "long-text"
       ],
-      "candidates": [
-        "049-span-上一次没等到结果可能已经"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/confirm.body.restart"
+      "assertions": ["board:UnknownResultCard/confirm.body.restart"]
     },
     {
       "id": "confirm.body.waiting",
@@ -118,11 +108,9 @@
         "dark",
         "long-text"
       ],
-      "candidates": [
-        "077-span-上一次还没结束再发一次可"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/confirm.body.waiting"
+      "assertions": ["board:UnknownResultCard/confirm.body.waiting"]
     },
     {
       "id": "confirm.cancel",
@@ -133,18 +121,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "047-button-关闭",
-        "048-svg",
-        "050-button",
-        "051-span-取消",
-        "075-button-关闭",
-        "076-svg",
-        "078-button",
-        "079-span-取消"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/confirm.cancel"
+      "assertions": ["board:UnknownResultCard/confirm.cancel"]
     },
     {
       "id": "confirm.resend",
@@ -158,15 +137,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "052-button",
-        "053-span-再发一次",
-        "080-button",
-        "081-span-再发一次"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "note": "替掉「继续」。设计系统 §1.9.1 要主动作写具体动词。",
-      "assertion": "board:UnknownResultCard/confirm.resend"
+      "assertions": ["board:UnknownResultCard/confirm.resend"]
     },
     {
       "id": "confirm.hosting-disclosure",
@@ -176,7 +150,7 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "删掉，用设置开关",
@@ -193,9 +167,9 @@
         "dark",
         "disabled"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/arrow.opens-card"
+      "assertions": ["board:UnknownResultCard/arrow.opens-card"]
     },
     {
       "id": "restart.card",
@@ -207,16 +181,9 @@
         "narrow",
         "long-text"
       ],
-      "candidates": [
-        "010-div",
-        "011-svg",
-        "027-div",
-        "028-svg",
-        "090-div",
-        "091-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.card"
+      "assertions": ["board:UnknownResultCard/restart.card"]
     },
     {
       "id": "restart.title",
@@ -227,14 +194,9 @@
         "dark",
         "long-text"
       ],
-      "candidates": [
-        "003-span-上一次没等到结果可能已经",
-        "012-span-上一次没等到结果可能已经",
-        "029-span-上一次没等到结果可能已经",
-        "092-span-Thelastreque"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.title"
+      "assertions": ["board:UnknownResultCard/restart.title"]
     },
     {
       "id": "restart.resend",
@@ -246,22 +208,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "004-button",
-        "005-svg",
-        "006-span-再发一次",
-        "015-button",
-        "016-svg",
-        "017-span-再发一次",
-        "032-button",
-        "033-svg",
-        "034-span-再发一次",
-        "095-button",
-        "096-svg",
-        "097-span-Sendagain"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.resend"
+      "assertions": ["board:UnknownResultCard/restart.resend"]
     },
     {
       "id": "restart.view-task",
@@ -272,18 +221,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "007-button",
-        "008-span-在任务中心查看",
-        "018-button",
-        "019-span-在任务中心查看",
-        "035-button",
-        "036-span-在任务中心查看",
-        "098-button",
-        "099-span-Viewintaskce"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.view-task"
+      "assertions": ["board:UnknownResultCard/restart.view-task"]
     },
     {
       "id": "restart.footer",
@@ -295,28 +235,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "020-button",
-        "021-span-复制详情",
-        "022-button",
-        "023-span-反馈问题",
-        "024-button",
-        "025-span-技术详情",
-        "037-button",
-        "038-span-复制详情",
-        "039-button",
-        "040-span-反馈问题",
-        "041-button",
-        "042-span-技术详情",
-        "100-button",
-        "101-span-Copydetails",
-        "102-button",
-        "103-span-Reportaprobl",
-        "104-button",
-        "105-span-Technicaldet"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.footer",
+      "assertions": ["board:UnknownResultCard/restart.footer"],
       "note": "保留原页脚动作；窄英文画布的既有页脚换行压出卡框，样张在框内，本轮按不碰压字问题停在该差异，未改布局。既有英文反馈按钮 Report Issue 与样张 Report a problem 仍不同。"
     },
     {
@@ -328,16 +249,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "013-button-收起",
-        "014-svg",
-        "030-button-收起",
-        "031-svg",
-        "093-button-Dismiss",
-        "094-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.dismiss"
+      "assertions": ["board:UnknownResultCard/restart.dismiss"]
     },
     {
       "id": "restart.storyboard-cell",
@@ -349,11 +263,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "002-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.storyboard-cell"
+      "assertions": ["board:UnknownResultCard/restart.storyboard-cell"]
     },
     {
       "id": "waiting.storyboard-cell",
@@ -364,14 +276,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "055-span-可找回",
-        "061-button",
-        "062-span-在任务中心查看"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "note": "今天付费的红按钮排在免费的上面。",
-      "assertion": "board:UnknownResultCard/waiting.storyboard-cell"
+      "assertions": ["board:UnknownResultCard/waiting.storyboard-cell"]
     },
     {
       "id": "waiting.card",
@@ -382,14 +290,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "064-div",
-        "065-svg",
-        "066-span-任务可能已在上游完成",
-        "067-span-等待已超上限但上游可能仍"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/waiting.card"
+      "assertions": ["board:UnknownResultCard/waiting.card"]
     },
     {
       "id": "waiting.retrieve",
@@ -401,16 +304,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "056-button",
-        "057-svg",
-        "058-span-重新取回",
-        "068-button",
-        "069-svg",
-        "070-span-重新取回"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/waiting.retrieve"
+      "assertions": ["board:UnknownResultCard/waiting.retrieve"]
     },
     {
       "id": "waiting.resend",
@@ -422,12 +318,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "059-button",
-        "060-span-再发一次"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/waiting.resend"
+      "assertions": ["board:UnknownResultCard/waiting.resend"]
     },
     {
       "id": "pill.no-duplicate",
@@ -438,9 +331,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/pill.no-duplicate"
+      "assertions": ["board:UnknownResultCard/pill.no-duplicate"]
     },
     {
       "id": "notice.skipped",
@@ -450,16 +343,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "083-svg",
-        "084-span-1张上一次还没结束这次跳",
-        "085-button",
-        "086-span-生成区",
-        "087-button-收起",
-        "088-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/notice.skipped",
+      "assertions": ["board:UnknownResultCard/notice.skipped"],
       "note": "2026-11-17 起触发条件变窄：一组全是没结束（可找回 / 生成中）的卡时，「生成这一组」四扇门（组工具条、框右键、框头、列表分区头）置灰、悬停说原因，点不出这条提示；组里混着能发的（确认后跳过开着的那几张）和分镜批量时照旧出这条提示，文字和样子不变。"
     },
     {
@@ -471,9 +357,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/other-failures.red"
+      "assertions": ["board:UnknownResultCard/other-failures.red"]
     },
     {
       "id": "legacy.in-card-confirm",
@@ -482,7 +368,7 @@
       "states": [
         "empty"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "按设计稿改",
@@ -490,17 +376,6 @@
       },
       "note": "同 PR 删，没有并行版。"
     }
-  ],
-  "decor": [
-    "001-figcaption-重启后分镜格",
-    "009-figcaption-重启后画布卡",
-    "026-figcaption-重启后列表大详情",
-    "043-figcaption-确认卡上一次没结果三页同",
-    "054-figcaption-慢任务分镜格",
-    "063-figcaption-慢任务画布卡",
-    "071-figcaption-确认卡还没结束三页同一张",
-    "082-figcaption-批量跳过提示不变",
-    "089-figcaption-Restartlistd"
   ],
   "functionCensus": [
     {

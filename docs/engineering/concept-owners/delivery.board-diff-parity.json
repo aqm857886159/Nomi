@@ -16,12 +16,12 @@
       "symbol": "checkBoardManifest"
     },
     {
-      "path": "scripts/board-diff-page.mjs",
-      "symbol": "readSurface"
+      "path": "tests/ux/_boardAnchorAssert.mjs",
+      "symbol": "assertBoardAnchor"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-11-27",
-  "notes": "合同 docs/fixes/2026-11-26-board-diff.root-cause.json。readSurface 为拍板页和真屏生成同一组测量值，checkBoardManifest 的 R4 依据各轨收据和清单中的逐项拍板记录核验认领。"
+  "notes": "checkBoardManifest 负责治理元素清单；走查在指定分镜与生产组件之间按同一显式锚点实测，assertBoardAnchor 检查实际语言、主题和声明的文案或样式。"
 }

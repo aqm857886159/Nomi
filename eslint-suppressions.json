@@ -481,11 +481,6 @@
       "count": 1
     }
   },
-  "scripts/board-extract.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 4
-    }
-  },
   "scripts/browser-live-capture-sweep.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1

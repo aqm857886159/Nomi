@@ -11,7 +11,7 @@
   },
   "visualReview": "协调会话 2026-10-24 逐张对过画布（A / B / C），B 要改两处：不用 --nomi-snap（橙）和 --workbench-text（紫），小图标换成 Tabler 真图标；用户随后拍板 B 并定只用三种媒体色。改完后协调对过真 DMG 截图和卷图标：暖白底、三张卡只用三条媒体轨颜色和注册表里的 Tabler 图标、卷图标角标是墨底白笔画没加强调色（§3.9.0）、文件名在浅底上清楚、提示路径对，通过。画布 https://claude.ai/artifact/HMWbBktUXkfi7DvsTLwBk6 私有，只有仓库主人能开。",
   "designCard": "docs/plan/2026-10-24-dmg-install-window.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 10 版「B · 镜头飞入」画板的原样副本（source/DmgInstallWindow.dc.html；画布里叫 B.dc.html，入库改成板名，好让板源哈希盖住它）+ 画布索引公开版（source/canvas.json：只留这张画板和四张便签：卡点、先例、骨架、拍板；A / C 方向、现状和细节画板、真机原型画板不入库，看画布）。画板上的背景（弧线、三张媒体卡、提示）是第 8 版直接取自 build/dmg/background.html 的渲染（token 解析成浅色值），和入库的背景图同源；图标和文件名是 Finder 画的，画板上用画布素材摆位。preview/DmgInstallWindow.html 是去掉画布外壳（运行时脚本、外网字体）的静态页：图片去掉 src（画布素材不进仓库），图标位置画成虚线框，两半各加一行说明（decor）。候选由 scripts/board-extract.mjs 的抽取函数（extractBoard + renderCandidatesFile，同样的浏览器设置）在静态页上抽出，两次抽取逐字节一致。",
+  "sourceBoundary": "板源 = Claude Design 画布第 10 版「B · 镜头飞入」画板的原样副本（source/DmgInstallWindow.dc.html；画布里叫 B.dc.html，入库改成板名）+ 画布索引公开版（source/canvas.json：只留这张画板和四张便签：卡点、先例、骨架、拍板；A / C 方向、现状和细节画板、真机原型画板不入库，看画布）。画板上的背景（弧线、三张媒体卡、提示）是第 8 版直接取自 build/dmg/background.html 的渲染（token 解析成浅色值），和入库的背景图同源；图标和文件名是 Finder 画的，画板上用画布素材摆位。preview/DmgInstallWindow.html 是去掉画布外壳（运行时脚本、外网字体）的静态页：图片去掉 src（画布素材不进仓库），图标位置画成虚线框，两半各加一行说明。",
   "designIntent": "安装窗口只讲两件事：往哪拖（Nomi → 应用程序，文本 / 图片 / 视频三张媒体卡沿弧线飞过去），第一次打开被拦去哪放行（中英两行提示）。卷名带版本、卷图标是磁盘加 Nomi 角标，桌面上的盘不会被当成已经装好的应用。",
   "artboards": [
     "DmgInstallWindow"
@@ -90,9 +90,9 @@
         "dark",
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.window",
+      "assertions": ["board:DmgInstallWindow/dmg.window"],
       "note": "窗口本身不是候选（画框没有结构类名）；Finder 里的大小、视图、背景两档由走查第②段问 Finder、读真 DMG 核对。"
     },
     {
@@ -104,12 +104,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "002-span-Nomi0240",
-        "019-span-Nomi0240"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.title",
+      "assertions": ["board:DmgInstallWindow/dmg.title"],
       "note": "板上画的是发 0.24.0 时的样子；本地测试包按仓库当前版本显示「Nomi 0.23.2」。"
     },
     {
@@ -119,9 +116,9 @@
       "states": [
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.volume-icon",
+      "assertions": ["board:DmgInstallWindow/dmg.volume-icon"],
       "note": "图片抽不成候选；真 DMG 里的 .VolumeIcon.icns 和自定义图标标记由走查第②段核对，样子看 PR 里的卷图标截图。"
     },
     {
@@ -132,12 +129,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "016-div-Nomi",
-        "033-div-Nomi"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.app-icon",
+      "assertions": ["board:DmgInstallWindow/dmg.app-icon"],
       "note": "深色外观：Finder 画的文件名可能变成白字、在浅底上偏淡；未实测（用户 10-24 判定不需要），见 knownLimitations。"
     },
     {
@@ -148,12 +142,9 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "017-div-Applications",
-        "034-div-Applications"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.applications",
+      "assertions": ["board:DmgInstallWindow/dmg.applications"],
       "note": "深色外观：Finder 画的文件名可能变成白字、在浅底上偏淡；未实测（用户 10-24 判定不需要），见 knownLimitations。"
     },
     {
@@ -163,12 +154,9 @@
       "states": [
         "dark"
       ],
-      "candidates": [
-        "003-svg",
-        "020-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.flight-arc",
+      "assertions": ["board:DmgInstallWindow/dmg.flight-arc"],
       "note": "弧线画在背景这张 SVG 里，SVG 本身是候选；三张卡另有候选，归 dmg.media-cards。"
     },
     {
@@ -178,28 +166,9 @@
       "states": [
         "dark"
       ],
-      "candidates": [
-        "004-g",
-        "005-rect",
-        "006-svg",
-        "007-g",
-        "008-rect",
-        "009-svg",
-        "010-g",
-        "011-rect",
-        "012-svg",
-        "021-g",
-        "022-rect",
-        "023-svg",
-        "024-g",
-        "025-rect",
-        "026-svg",
-        "027-g",
-        "028-rect",
-        "029-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.media-cards"
+      "assertions": ["board:DmgInstallWindow/dmg.media-cards"]
     },
     {
       "id": "dmg.first-open-hint",
@@ -210,22 +179,11 @@
         "long-text",
         "dark"
       ],
-      "candidates": [
-        "013-div",
-        "014-span-第一次打开若被拦系统设置",
-        "015-span-Blockedonfir",
-        "030-div",
-        "031-span-第一次打开若被拦系统设置",
-        "032-span-Blockedonfir"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:DmgInstallWindow/dmg.first-open-hint",
+      "assertions": ["board:DmgInstallWindow/dmg.first-open-hint"],
       "note": "提示烧进背景图（Finder 不能按系统语言换背景），所以中英两行同时出现，不走 i18n。"
     }
-  ],
-  "decor": [
-    "001-h3-B镜头飞入浅色外观Fin",
-    "018-h3-B镜头飞入深色外观标题栏"
   ],
   "functionCensus": [
     {
