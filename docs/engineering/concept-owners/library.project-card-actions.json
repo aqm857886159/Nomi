@@ -1,0 +1,26 @@
+{
+  "name": "Keep card opening and inline rename on distinct activation targets.",
+  "subject": "library.project-card-actions",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/library/ProjectLibraryPage.tsx",
+    "symbol": "ProjectLibraryPage"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "ProjectLibraryPage"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/devlab/designLab/updateReminder/updateReminderLabKit.tsx",
+    "src/workbench/NomiStudioApp.tsx"
+  ],
+  "since": "2026-11-24",
+  "notes": "Keep card opening and inline rename on distinct activation targets."
+}

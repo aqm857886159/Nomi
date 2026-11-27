@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import { createOverflowManager, type OverflowManager } from '@fluentui/priority-overflow'
 import { IconDots } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
-import { WorkbenchMenu, type WorkbenchMenuAction, type WorkbenchMenuAnchorRect, type WorkbenchMenuNode } from './menu'
+import { WorkbenchMenu, type WorkbenchMenuAction, type WorkbenchMenuAnchorRect, type WorkbenchMenuCheckbox, type WorkbenchMenuNode } from './menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip'
 
 /**
@@ -27,12 +27,13 @@ export type NomiOverflowRowItem = Readonly<{
   /** 平时画在这一排上的那颗按钮。 */
   node: React.ReactNode
   /** 收进「⋯」后在菜单里的那一项（图标 + 名字）。 */
-  menuItem: Omit<WorkbenchMenuAction, 'id' | 'kind'>
+  menuItem: Omit<WorkbenchMenuAction, 'id'> | Omit<WorkbenchMenuCheckbox, 'id'>
 }>
 
 export type NomiOverflowRowGroup = Readonly<{ id: string; items: readonly NomiOverflowRowItem[] }>
 
 export type NomiOverflowRowProps = {
+  overflowItems?: readonly (WorkbenchMenuAction | WorkbenchMenuCheckbox)[]
   groups: readonly NomiOverflowRowGroup[]
   /** 「⋯」的无障碍名与悬停提示。 */
   overflowLabel: string
@@ -86,12 +87,12 @@ function OverflowDivider({ groupId }: { groupId: string }): JSX.Element {
 }
 
 function OverflowMenuButton({
-  hiddenGroups,
+  items,
   label,
   buttonClassName,
   withDivider,
 }: {
-  hiddenGroups: readonly NomiOverflowRowGroup[]
+  items: readonly WorkbenchMenuNode[]
   label: string
   buttonClassName?: string
   withDivider: boolean
@@ -101,17 +102,13 @@ function OverflowMenuButton({
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const [open, setOpen] = React.useState(false)
   const [rect, setRect] = React.useState<WorkbenchMenuAnchorRect>({ left: 0, top: 0, width: 0, height: 0 })
-  // 「⋯」只在真有项收起时才挂；挂上的那一刻登记给测量器，它会立刻按「⋯」占的宽再收一轮（Fluent 同款时序）。
+  // 「⋯」有固定菜单项或有项收起时挂；挂上的那一刻登记给测量器，它会立刻按「⋯」占的宽再收一轮（Fluent 同款时序）。
   React.useLayoutEffect(() => {
     const element = ref.current
     if (!element) return
     manager.addOverflowMenu(element)
     return () => manager.removeOverflowMenu()
   }, [manager])
-  const items: WorkbenchMenuNode[] = hiddenGroups.flatMap((group, index) => [
-    ...(index > 0 ? [{ kind: 'separator' as const, id: `sep-${group.id}` }] : []),
-    ...group.items.map((item) => ({ ...item.menuItem, id: item.id })),
-  ])
   return (
     <div ref={ref} data-overflow-menu className="inline-flex shrink-0 items-center">
       {withDivider ? <span aria-hidden="true" className={DIVIDER_CLASS}>{DIVIDER_LINE}</span> : null}
@@ -158,7 +155,7 @@ function OverflowMenuButton({
   )
 }
 
-export function NomiOverflowRow({ groups, overflowLabel, overflowButtonClassName, className }: NomiOverflowRowProps): JSX.Element {
+export function NomiOverflowRow({ groups, overflowItems = [], overflowLabel, overflowButtonClassName, className }: NomiOverflowRowProps): JSX.Element {
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [manager] = React.useState(() => createOverflowManager())
   const snapshot = React.useSyncExternalStore(manager.subscribe, manager.getSnapshot, manager.getSnapshot)
@@ -180,9 +177,21 @@ export function NomiOverflowRow({ groups, overflowLabel, overflowButtonClassName
     return () => manager.disconnect()
   }, [manager])
 
+  const hasMenuItems = overflowItems.length > 0
+  React.useLayoutEffect(() => {
+    manager.setOptions({ hasHiddenItems: hasMenuItems })
+    manager.forceUpdate()
+  }, [manager, hasMenuItems])
+
   const hiddenGroups = groups
     .map((group) => ({ id: group.id, items: group.items.filter((item) => snapshot.itemVisibility[item.id] === false) }))
     .filter((group) => group.items.length > 0)
+  const items: WorkbenchMenuNode[] = hiddenGroups.flatMap((group, index) => [
+    ...(index > 0 ? [{ kind: 'separator' as const, id: `sep-${group.id}` }] : []),
+    ...group.items.map((item) => ({ ...item.menuItem, id: item.id })),
+  ])
+  if (items.length && hasMenuItems) items.push({ kind: 'separator', id: 'sep-overflow-only' })
+  items.push(...overflowItems)
   const firstGroupId = groups[0]?.id
   const firstGroupGone = firstGroupId !== undefined && snapshot.groupVisibility[firstGroupId] === 'hidden'
 
@@ -197,9 +206,9 @@ export function NomiOverflowRow({ groups, overflowLabel, overflowButtonClassName
             ))}
           </React.Fragment>
         ))}
-        {snapshot.invisibleItemCount > 0 ? (
+        {items.length > 0 ? (
           <OverflowMenuButton
-            hiddenGroups={hiddenGroups}
+            items={items}
             label={overflowLabel}
             buttonClassName={overflowButtonClassName}
             withDivider={!firstGroupGone}

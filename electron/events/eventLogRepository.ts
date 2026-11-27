@@ -15,7 +15,7 @@ import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
 import { redactDeep } from "./redact";
 import { diskSafePayload } from "../logging/diskSafeFailure";
-import { logError } from "../logging/logger";
+import { logError, logInfo, type LogFields } from "../logging/logger";
 import type { NewNomiEvent, NomiEvent, TruncatedPayloadField } from "./types";
 
 const MAX_EVENT_BYTES = 4096;
@@ -99,12 +99,19 @@ function parseLines(filePath: string): NomiEvent[] {
   return events;
 }
 
-function initState(projectId: string): LogState | null {
+function eventLogDir(projectId: string): string | null {
+  const root = projectDirResolver(projectId);
+  return root ? path.join(root, ".nomi", "events") : null;
+}
+
+function openProjectEventLogWriter(projectId: string): LogState | null {
   const cached = states.get(projectId);
-  if (cached) return cached;
-  const rootPath = projectDirResolver(projectId);
-  if (!rootPath) return null;
-  const dir = path.join(rootPath, ".nomi", "events");
+  // A torn append can leave bytes beyond the last acknowledged batch while the writer is cached.
+  if (cached && (fs.statSync(segmentPath(cached.dir, cached.segIndex), { throwIfNoEntry: false })?.size ?? 0) === cached.segBytes) {
+    return cached;
+  }
+  const dir = eventLogDir(projectId);
+  if (!dir) return null;
   fs.mkdirSync(dir, { recursive: true });
   const segments = listSegments(dir);
   const segIndex = segments.length > 0 ? segments[segments.length - 1] : 0;
@@ -115,7 +122,7 @@ function initState(projectId: string): LogState | null {
     seq: existing.length > 0 ? existing[existing.length - 1].seq : recoverSeqHighWater(dir, segments),
     segIndex,
     segEvents: existing.length,
-    segBytes: fs.existsSync(segmentPath(dir, segIndex)) ? fs.statSync(segmentPath(dir, segIndex)).size : 0,
+    segBytes: fs.statSync(segmentPath(dir, segIndex), { throwIfNoEntry: false })?.size ?? 0,
   };
   states.set(projectId, state);
   return state;
@@ -214,16 +221,28 @@ function capPayload(dir: string, seq: number, payload: Record<string, unknown>):
 /** 追加事件(批量)。返回写入的完整事件;项目不可解析或 IO 失败时返回 [](绝不 throw)。 */
 export function appendEvents(projectId: string, newEvents: readonly NewNomiEvent[]): NomiEvent[] {
   try {
-    const state = initState(projectId);
-    if (!state || newEvents.length === 0) return [];
     const secrets = secretsProvider();
+    const safePayload = (raw: NewNomiEvent) => redactDeep(diskSafePayload(stripOversizeStrings(raw.payload)), secrets);
+    const projectEvents = newEvents.filter((raw) => {
+      if (raw.type !== "preview.local.response" && raw.type !== "preview.video.state") return true;
+      const fields: LogFields = {};
+      for (const [key, value] of Object.entries(safePayload(raw))) {
+        fields[key] = typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value == null
+          ? value : JSON.stringify(value);
+      }
+      logInfo("events", raw.type, fields);
+      return false;
+    });
+    if (!projectEvents.length) return [];
+    const state = openProjectEventLogWriter(projectId);
+    if (!state) return [];
     const written: NomiEvent[] = [];
     let buffer = "";
-    for (const raw of newEvents) {
+    for (const raw of projectEvents) {
       state.seq += 1;
       // 顺序有讲究:先砍超大字段(只看 length),再去掉上游原话、脱敏,最后才 sidecar —— 后几步的成本都随长度涨。
       // diskSafePayload:上游原话(upstreamMsg)不落项目目录,供应商失败只留结构事实(唯一写者兜住所有写入方)。
-      const payload = capPayload(state.dir, state.seq, redactDeep(diskSafePayload(stripOversizeStrings(raw.payload)), secrets));
+      const payload = capPayload(state.dir, state.seq, safePayload(raw));
       const event: NomiEvent = { v: 1, ...raw, payload, seq: state.seq, ts: new Date().toISOString() };
       const line = `${JSON.stringify(event)}\n`;
       buffer += line;
@@ -266,14 +285,14 @@ function rehydratePayload(dir: string, payload: Record<string, unknown>): Record
 /** 读事件(全部段按 seq 升序,截断字段经 sidecar 还原),供轨迹查看/重放/评测消费。 */
 export function readEvents(projectId: string, opts: { fromSeq?: number } = {}): NomiEvent[] {
   try {
-    const state = initState(projectId);
-    if (!state) return [];
+    const dir = eventLogDir(projectId);
+    if (!dir) return [];
     const fromSeq = opts.fromSeq ?? 0;
     const events: NomiEvent[] = [];
-    for (const segIndex of listSegments(state.dir)) {
-      for (const event of parseLines(segmentPath(state.dir, segIndex))) {
+    for (const segIndex of listSegments(dir)) {
+      for (const event of parseLines(segmentPath(dir, segIndex))) {
         // 旧日志(2026-10-22 之前)里可能存着 upstreamMsg:照常读,但原话不再往外传(渲染层 / 评测 / 重放)。
-        if (event.seq > fromSeq) events.push({ ...event, payload: diskSafePayload(rehydratePayload(state.dir, event.payload)) });
+        if (event.seq > fromSeq) events.push({ ...event, payload: diskSafePayload(rehydratePayload(dir, event.payload)) });
       }
     }
     return events;

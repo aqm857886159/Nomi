@@ -350,6 +350,17 @@ describe('library deletion preserves a version while undo can restore it', () =>
     expect(listPersistedAssetDeletions()).toBeUndefined()
   })
 
+  it('publishes the pending file at the durable revision for deletion from the asset library', async () => {
+    let captured: ReturnType<typeof listPersistedAssetDeletions>
+    const unsubscribe = useGenerationCanvasStore.subscribe(state => state.persistRevision, () => {
+      captured = listPersistedAssetDeletions()
+    })
+    try {
+      await removeThenDelete()
+      expect(captured).toEqual([{ source: 'asset-library', relativePath: target.relativePath }])
+    } finally { unsubscribe() }
+  })
+
   it('recycles once at close when the creator does not undo', async () => {
     await removeThenDelete()
     expect(mocks.deleteFiles).not.toHaveBeenCalled()

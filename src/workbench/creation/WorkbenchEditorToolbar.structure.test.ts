@@ -6,7 +6,9 @@
 // 收起本身是真 DOM 测量，单测里没有布局引擎；真宽度下露几颗、菜单长什么样由走查 tests/ux/window-narrow-pages.walk.mjs 量。
 import fs from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { describe, expect, it, vi } from 'vitest'
+import { toMenuItem } from './editorToolbarMenuItem'
 
 const read = (file: string): string => fs.readFileSync(path.join(process.cwd(), file), 'utf8')
 const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '')
@@ -35,6 +37,27 @@ describe('创作页编辑区：窄时不裁、撤销重做钉右端', () => {
     expect(row).toBeGreaterThan(-1)
     expect(pinnedRender).toBeGreaterThan(row)
     expect(editor.slice(row, pinnedRender)).not.toMatch(/rightGroup|'undo'|'redo'/)
+  })
+
+  it('keeps infrequent formats in the menu and the full-document action at the right', () => {
+    const row = literalGroups('TOOLBAR_LEFT_GROUPS').flat()
+    for (const id of ['code', 'horizontal-rule', 'table']) expect(row).not.toContain(id)
+    expect(editor).toContain('overflowItems={pick(TOOLBAR_MENU_ONLY).map(toMenuItem)}')
+    expect(editor.indexOf('data-document-storyboard')).toBeGreaterThan(editor.indexOf('rightGroup.map('))
+  })
+
+  it.each([false, true])('exposes Code as a checkbox when active is %s', (active) => {
+    const onClick = vi.fn()
+    const item = toMenuItem({ id: 'code', label: 'Code', icon: createElement('svg'), active, onClick })
+    expect(item).toMatchObject({ kind: 'checkbox', checked: active, onCheckedChange: onClick })
+  })
+
+  it.each(['horizontal-rule', 'table'])('keeps %s as an ordinary menu command', (id) => {
+    const onClick = vi.fn()
+    const item = toMenuItem({ id, label: id, icon: createElement('svg'), onClick })
+    expect(item.kind ?? 'action').toBe('action')
+    expect(item).toMatchObject({ onSelect: onClick })
+    expect(item).not.toHaveProperty('checked')
   })
 
   it('不按窗口宽写断点：编辑区、收起组件、四个工作区根都只认量出来的放不下', () => {

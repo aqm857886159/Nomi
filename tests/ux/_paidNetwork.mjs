@@ -24,7 +24,7 @@ const { categorizeVendorFailure, encodeStructuredErrorMessage } = tsxRequire('..
 const { modelCallFailure } = tsxRequire('../../electron/ai/runtimeVendorError.ts', import.meta.url)
 const { describeAgentError } = tsxRequire('../../electron/ai/agentError.ts', import.meta.url)
 const { looksLikeLogicalError } = tsxRequire('../../electron/ai/requestPipeline.ts', import.meta.url)
-const { isJsonRecord, pickUpstreamCode, pickUpstreamMessage } = tsxRequire('../../electron/jsonUtils.ts', import.meta.url)
+const { isJsonRecord, pickUpstreamCode, pickUpstreamMessage, pickUpstreamType } = tsxRequire('../../electron/jsonUtils.ts', import.meta.url)
 
 /** 供应商 key → 它的成品下载域名。写法同闸：精确 origin，或 `*.域名`（含子域）。只放域名。 */
 export const VENDOR_RESULT_DOMAINS = Object.freeze({
@@ -366,7 +366,7 @@ export function classifyAllowedVendorResponse(entry) {
         const wire = encodeStructuredErrorMessage({
           vendorKey, method, url, logicalCode, upstreamMsg: detail.slice(0, 256),
           ...(upstreamCode ? { upstreamCode } : {}),
-          ...categorizeVendorFailure(undefined, logicalCode),
+          ...categorizeVendorFailure(undefined, logicalCode, { code: upstreamCode, type: pickUpstreamType(parsed) }),
         }, `Provider request failed (code ${logicalCode}) at ${vendorKey} ${method} ${url}: ${detail}`)
         const decision = decideGenerationFailure({ message: wire, locale: 'zh-CN' })
         return { kind: decision.kind, vendorSide: decision.vendorSide, providerMessage: decision.providerMessage ?? null }

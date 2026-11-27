@@ -199,7 +199,7 @@ function familyFor(toolName: string, args: unknown): V4ActionFamily {
 }
 
 
-function receiptFor(part: Extract<LanePart, { kind: 'tool-call' }>, labels: LaneViewModelLabels): ToolReceipt {
+function receiptFor(part: Extract<LanePart, { kind: 'tool-call' }>, labels: LaneViewModelLabels, waiting: boolean): ToolReceipt {
   const summary = labels.toolSummary(part.toolName, part.args)
   return {
     toolCallId: part.toolCallId,
@@ -208,7 +208,7 @@ function receiptFor(part: Extract<LanePart, { kind: 'tool-call' }>, labels: Lane
     action: familyFor(part.toolName, part.args),
     // 「跑着呢」和「填参数呢」是两件事：`input-available` 说的是参数已经齐了。
     // 结果落定之前不许写 `output-available`——那是在替一件还没发生的事下结论。
-    status: part.running ? 'input-available' : 'input-streaming',
+    status: waiting ? 'approval-requested' : part.running ? 'input-available' : 'input-streaming',
     // 没有 `input`：入参整段摆出来就是一坨 JSON（带操作 id、供应商路由键）。「做了什么」由上面的
     // `label` + `summary` 说；原始入参留在转录 / 轨迹里，排查去那儿看，不进面板。
   }
@@ -418,7 +418,9 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
     }
     if (part.kind === 'tool-call') {
       slots.set(part.toolCallId, { index: items.length, toolName: part.toolName, args: part.args })
-      push({ kind: 'tool', receipt: receiptFor(part, labels) })
+      const waitingOnOffer = projection.awaitingDecisionToolCallIds?.includes(part.toolCallId) === true
+      const waitingOnApproval = projection.pending?.effectClass === 'spend' && projection.pending.toolCallId === part.toolCallId
+      push({ kind: 'tool', receipt: receiptFor(part, labels, waitingOnOffer || waitingOnApproval) })
       continue
     }
     // tool-result：并回**它自己那一行**。找不到对应的调用不新开一行——那会让用户看到一条

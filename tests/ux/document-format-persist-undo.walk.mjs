@@ -99,11 +99,17 @@ async function openCreation(win) {
   await expectVisible(win.locator('.workbench-editor'), '创作页编辑器未渲染')
 }
 
-/** 选中编辑器里整段文字（三击段落），点一下工具条按钮。 */
-async function formatLine(win, text, actionKey) {
+/** 三击选中整段文字，从工具栏或「更多」菜单应用格式。 */
+async function formatLine(win, text, id) {
   const line = win.locator('.workbench-editor__content p', { hasText: text }).first()
   await line.click({ clickCount: 3 })
-  await win.locator('.workbench-editor-toolbar').getByRole('button', { name: label(actionKey) }).click()
+  const toolbar = win.locator('.workbench-editor-toolbar')
+  if (id === 'code') {
+    await toolbar.locator('[data-overflow-trigger]').click()
+    await win.locator('[data-menu-item="code"]').click()
+  } else {
+    await toolbar.getByRole('button', { name: label(`creationAi.selection.${id}`) }).click()
+  }
 }
 
 const first = makeTempDir('nomi-doc-format-')
@@ -118,7 +124,7 @@ try {
 
   // B：加粗后只按一次撤销。放在最前，免得别的格式把历史栈弄乱。
   const undoLine = win.locator('.workbench-editor__content p', { hasText: '撤销行' }).first()
-  await formatLine(win, '撤销行', 'creationAi.selection.bold')
+  await formatLine(win, '撤销行', 'bold')
   const strong = undoLine.locator('strong')
   const proof = await proveProbe(strong, '加粗后该行有 <strong>')
   await win.locator('.workbench-editor-toolbar').getByRole('button', { name: label('creationAi.selection.undo') }).click()
@@ -126,11 +132,7 @@ try {
   record('B 加粗后一次撤销', goneAfterUndo, `撤销一次后 strong=${await strong.count()}（应为 0）`)
 
   // A：逐个点工具条，落盘后核对。
-  const toolbarKey = {
-    bold: 'creationAi.selection.bold', italic: 'creationAi.selection.italic', strike: 'creationAi.selection.strike',
-    code: 'creationAi.selection.code', highlight: 'creationAi.selection.highlight', link: 'creationAi.selection.link',
-  }
-  for (const item of INLINE) await formatLine(win, item.text, toolbarKey[item.id])
+  for (const item of INLINE) await formatLine(win, item.text, item.id)
   await screenshotSettled(win, { path: path.join(shotsDir, '01-formatted.png') })
   const link = win.locator('.workbench-editor__content a').first()
   const linkVisible = await link.waitFor({ state: 'visible' }).then(() => true, () => false)

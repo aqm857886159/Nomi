@@ -240,7 +240,7 @@ try {
     await expect(win().locator(`${CREATION_PANEL} ${COMPOSER}`)).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   }, { surfaces: ['workspaceMode', 'agentPanel', 'rightPanel', 'canvasViewport', 'creationSelection'] })
   const SHOTS = EN ? ['Morning harbour in the mist', 'A cat on the pier', 'Seagulls past the masts'] : ['清晨的渔港，雾里的小船', '码头上晒太阳的猫', '海鸥掠过桅杆']
-  await row('storyboard-button', EN ? 'Select text in the document, click "Split into shots"' : '在文稿里选中文字，点「拆成镜头」', EN ? 'The new plan opens by itself (the user did it); a plan the Agent decides to create does not (next row)' : '新方案自动打开（是用户亲手点的）；Agent 自己决定建的方案不打开（见下一行）', async (record) => {
+  await row('storyboard-button', EN ? 'Select text in the document, click "To shots"' : '在文稿里选中文字，点「拆成镜头」', EN ? 'The new plan opens by itself (the user did it); a plan the Agent decides to create does not (next row)' : '新方案自动打开（是用户亲手点的）；Agent 自己决定建的方案不打开（见下一行）', async (record) => {
     const listState = () => win().evaluate(() => ({ ids: [...document.querySelectorAll('[data-storyboard-id]')].map((element) => element.getAttribute('data-storyboard-id')), active: [...document.querySelectorAll('[data-storyboard-id][data-active="true"]')].map((element) => element.getAttribute('data-storyboard-id')) }))
     const before = await listState()
     const turn = scriptTurn(fixture, { label: 'dom-storyboard-button', marker: 'DOM-BTN', steps: [
@@ -255,7 +255,7 @@ try {
       await win().keyboard.press('Control+Home')
       await win().keyboard.type(EN ? 'DOM-BTN: the harbour at dawn. ' : 'DOM-BTN：清晨的渔港。')
       await win().keyboard.press('Control+a')
-      await clickOrFail(win().getByRole('button', { name: EN ? 'Split into shots' : '拆成镜头' }), '选区浮条上的「拆成镜头」')
+      await clickOrFail(win().locator('[data-selection-action="storyboard"]'), '选区浮条上的「拆成镜头」')
       // 方案落地、被打开发生在这一下点击的结果里：等它落完才算这一步结束，界面的变化才算在用户这一步声明里。
       await turn.done
       await expect.poll(async () => (await listState()).ids.length, { message: '新方案进了左栏', timeout: DEFAULT_TIMEOUT_MS }).toBe(before.ids.length + 1)

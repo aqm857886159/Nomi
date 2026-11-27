@@ -1,3 +1,4 @@
+import { useSpendEnterConfirmation } from './useAgentPanelSpendCard'
 import { NomiBrand } from '../../../design/identity'
 // Agent 面板 v4 · 整块面板的装配壳
 //
@@ -115,7 +116,7 @@ export type AgentPanelV4PanelProps = {
   queue?: readonly QueueRowData[]
   queueHint?: string
   context: ContextUsage
-  composer?: Omit<AgentPanelV4ComposerProps, 'panelHeight'> & {
+  composer?: Omit<AgentPanelV4ComposerProps, 'panelHeight' | 'onEmptyEnter'> & {
     permission?: PermissionTier
     chips?: readonly V4ComposerReference[]
   }
@@ -247,6 +248,9 @@ export function AgentPanelV4Panel({
   const { t } = useTranslation()
   const workspaceFrame = useWorkspacePanelFrame()
   const headerSlot = React.useContext(AgentPanelHeaderSlotContext)
+  const { buttonRef: spendConfirmButton, confirmDisplayedSpend } = useSpendEnterConfirmation(
+    slot?.spendConfirmationId, !headerSlot?.collapsed,
+  )
   const labels = useV4Labels()
   const flowHandlersRef = React.useRef(flowHandlers)
   flowHandlersRef.current = flowHandlers
@@ -470,7 +474,7 @@ export function AgentPanelV4Panel({
         </div>
         {slot ? (
           <div className="shrink-0 px-2.5 pb-2">
-            <V4Intervention data={slot} labels={labels.intervention} {...(slotBody ? { body: slotBody } : {})} {...(slotWaiting === undefined ? {} : { waiting: slotWaiting })} {...slotHandlers} />
+            <V4Intervention data={slot} spendConfirmRef={spendConfirmButton} labels={labels.intervention} {...(slotBody ? { body: slotBody } : {})} {...(slotWaiting === undefined ? {} : { waiting: slotWaiting })} {...slotHandlers} />
           </div>
         ) : null}
         {queue?.length ? (
@@ -484,6 +488,7 @@ export function AgentPanelV4Panel({
           <AgentPanelV4Composer
             panelHeight={height}
             {...composer}
+            onEmptyEnter={confirmDisplayedSpend}
             onSubmit={onComposerSubmit ? submitAndFollow : undefined}
             mode={composer?.mode ?? 'idle'}
             permission={composer?.permission ?? DEFAULT_PERMISSION_TIER}

@@ -9,9 +9,10 @@
 import type { RuntimeErrorFacts } from '../shared/agentCapabilities/transportContracts';
 import { laneAssistantFaultOf, type LaneModelTimeoutPhase } from '../shared/agentLane/laneAssistantFault';
 import { MODEL_CALL_CEILING_ERROR } from '../shared/agentLane/modelCallPort';
-import { isJsonRecord, pickUpstreamCode } from '../jsonUtils';
+import { isJsonRecord, pickUpstreamCode, pickUpstreamType } from '../jsonUtils';
 // 失败事实与文案只引轻模块：laneModelProvider（pi 的 NodeNext 岛）也编到这里，vendorHttp / i18n 会把整个运行时拖进那份编译。
 import { VendorRequestError, categorizeVendorFailure } from '../shared/vendorFailure';
+import { containsHtmlMarkup } from '../shared/generationFailureDetect';
 import { desktopT } from '../desktopStrings';
 import type { ModelCallAttempt } from './modelCallFetch';
 
@@ -31,7 +32,7 @@ function pickBodyMessage(parsed: unknown): string {
 }
 
 /**
- * JSON-or-raw：上游响应体里那句人话，抠不出就给清洗过的片段。
+ * JSON 取消息字段，纯文本取片段。网页只保留在传输诊断中。
  * 中转常把真原因（如「官方算力限制，请等待一段时间后再进行使用」）只放在 body 里，状态行只有一句裸状态文本。
  */
 export function upstreamMessageFromBody(body: string): string {
@@ -41,34 +42,38 @@ export function upstreamMessageFromBody(body: string): string {
     const message = pickBodyMessage(JSON.parse(trimmed));
     if (message) return message.trim();
   } catch {
-    /* not JSON — fall through to raw snippet */
+    if (containsHtmlMarkup(trimmed)) return '';
   }
   return trimmed.replace(/\s+/g, ' ').slice(0, 300);
 }
 
-/** 上游响应体里它**自己给的错误码**（与图/视频侧同一个 `pickUpstreamCode`，键优先级表全仓一份）。 */
-export function upstreamCodeFromBody(body: string): string {
+/**
+ * 响应体里上游**自己给的**两格标识（`error.code` / `error.type`），与图 / 视频侧同一对取法（键优先级表全仓一份，`jsonUtils`）。
+ * `code` 随载荷过 IPC；两格一起交 `categorizeVendorFailure` 归类。
+ */
+function identifiersFromBody(body: string): { code: string; type: string } {
   try {
     const parsed: unknown = JSON.parse(body.trim());
-    return isJsonRecord(parsed) ? pickUpstreamCode(parsed) : '';
+    return isJsonRecord(parsed) ? { code: pickUpstreamCode(parsed), type: pickUpstreamType(parsed) } : { code: '', type: '' };
   } catch {
-    return '';
+    return { code: '', type: '' };
   }
 }
 
 /** HTTP / 网络 / 超时事实 → 结构化错误；取消与运行期错误不是服务商失败，返回 null。 */
 export function vendorErrorFromRuntimeFacts(error: RuntimeErrorFacts, vendorKey: string): VendorRequestError | null {
   if (error.kind !== 'http' && error.kind !== 'timeout' && error.kind !== 'network') return null;
-  const upstreamMsg = (error.body ? upstreamMessageFromBody(error.body) : '') || error.message;
+  const upstreamMsg = error.body ? upstreamMessageFromBody(error.body) : error.message;
   // 上游自己给的错误码与它说的话一起带过 IPC（和图 / 视频侧同一个 pickUpstreamCode）：状态码只说「请求有问题」。
-  const upstreamCode = error.body ? upstreamCodeFromBody(error.body) : '';
+  const identifiers = error.body ? identifiersFromBody(error.body) : { code: '', type: '' };
+  const upstreamCode = identifiers.code;
   // 有状态码就报状态码（与迁移前文本侧逐字一致：「（HTTP 429）上游原话」）；超时是我们自己的话，不再套一层前缀。
   const display = error.status !== undefined ? `（HTTP ${error.status}）${upstreamMsg}`
     : error.kind === 'timeout' ? upstreamMsg : `（请求失败）${upstreamMsg}`;
   return new VendorRequestError(display, {
     vendorKey, method: 'POST', url: error.url ?? '',
     ...(error.status !== undefined ? { httpStatus: error.status } : {}),
-    upstreamMsg: upstreamMsg.slice(0, 256), ...(upstreamCode ? { upstreamCode } : {}), ...categorizeVendorFailure(error.status),
+    upstreamMsg: upstreamMsg.slice(0, 256), ...(upstreamCode ? { upstreamCode } : {}), ...categorizeVendorFailure(error.status, undefined, identifiers),
   });
 }
 

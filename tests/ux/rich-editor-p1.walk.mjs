@@ -180,11 +180,20 @@ try {
   const toolbar = win.locator('.workbench-editor-toolbar')
   await expectVisible(toolbar, '工具栏未渲染')
   // 按格式钮的动作 id 定位（RichTextActionButton 的 data-rich-text-action；名字走 Tooltip，不再挂原生 title）
-  for (const action of ['highlight', 'strike', 'table', 'task-list']) {
+  for (const action of ['highlight', 'strike']) {
     const btn = toolbar.locator(`[data-rich-text-action="${action}"]`)
     const btnVisible = await btn.first().waitFor({ state: 'visible' }).then(() => true, () => false)
     record(`工具栏·${action}`, btnVisible, `可见=${btnVisible}`)
   }
+
+  await toolbar.locator('[data-overflow-trigger]').click()
+  for (const action of ['code', 'horizontal-rule', 'table']) {
+    await expectVisible(win.locator(`[data-menu-item="${action}"]`), `更多格式缺少 ${action}`)
+    record(`更多格式·${action}`, await toolbar.locator(`[data-rich-text-action="${action}"]`).count() === 0, '仅在菜单中提供')
+  }
+  const taskSelector = '[data-rich-text-action="task-list"]:visible, [data-menu-item="task-list"]'
+  await expectVisible(win.locator(taskSelector), '待办列表格式不可达')
+  await win.keyboard.press('Escape')
 
   // B：新格式真实渲染
   const mark = win.locator('.workbench-editor__content mark')

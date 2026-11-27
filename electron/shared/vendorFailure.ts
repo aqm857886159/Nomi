@@ -26,7 +26,10 @@ export type VendorErrorStructured = {
    * 这个码才是它说的原因——渲染层分类优先读它（classifyError 的 UPSTREAM_CODE_KINDS），不靠 400 猜「参数不对」。
    */
   upstreamCode?: string;
-  /** 查表分类,不是猜:401/403→auth,402→balance,429→quota,400/422→input,5xx→server。 */
+  /**
+   * 查表分类,不是猜:先认上游自己给的余额一族标识（`error.code` / `error.type`，见 `BALANCE_IDENTIFIERS`）→ balance；
+   * 再按状态码:401/403→auth,402→balance,429→quota,400/422→input,5xx→server。
+   */
   category: VendorErrorCategory;
   retryable: boolean;
   reasonCode?: "response_timeout";
@@ -63,11 +66,43 @@ export function encodeStructuredErrorMessage(structured: Record<string, unknown>
   return `${VENDOR_ERROR_IPC_MARKER}${b64}:: ${message}`;
 }
 
-/** 状态码→类别查表(数字逻辑码与 HTTP 状态同表)。 */
+/**
+ * 上游自己说「钱不够 / 额度用完 / 花费到顶」的标识（`error.code` 或 `error.type` 里的那个词）。认到就是 balance、不可重试，
+ * **先于状态码**：同一件事各家用的状态码不一样（one-api / new-api 回 403，OpenAI 回 429，APIMart / Anthropic 回 402），
+ * 按状态码猜会把它说成「Key 无效」或「稍等重试」。只收各家公开源码 / 文档里写明的词，出处逐条在下面；不按供应商分支。
+ */
+const BALANCE_IDENTIFIERS: ReadonlySet<string> = new Set([
+  // one-api `relay/controller/helper.go:76-77`、new-api `relaykit/types/error.go:89`：403 + 用户余额不够预扣
+  "insufficient_user_quota",
+  // one-api `relay/controller/helper.go:91`、new-api `relaykit/types/error.go:90`：403 + 令牌额度不够预扣
+  "pre_consume_token_quota_failed",
+  // OpenAI 错误码页（developers.openai.com/api/docs/guides/error-codes，2026-11-22）：账单 / 额度一族的 `error.type`，
+  // 原话「Retrying billing, spend, or quota errors won't restore API access」；同页的四个 `error.code` 也在这里
+  "insufficient_quota",
+  "credit_balance_exhausted",
+  "organization_spend_limit_exceeded",
+  "project_spend_limit_exceeded",
+  "organization_usage_limit_exceeded",
+  // OpenAI 旧形状（社区帖实录：400 `invalid_request_error`「Billing hard limit has been reached」）
+  "billing_hard_limit_reached",
+  // APIMart 文本接口 402 文档：`error.type: payment_required`
+  "payment_required",
+  // Anthropic 错误表（platform.claude.com/docs/en/api/errors）：402 `billing_error`
+  "billing_error",
+]);
+
+/**
+ * 失败 → 类别（三扇门共用这一张表：vendorHttp 的媒体请求、runtimeVendorError 的模型调用、localAssetFile 的上传）。
+ * `fields` 是上游响应体里它自己给的标识（`pickUpstreamCode` / `pickUpstreamType`）；认不出就按状态码查（数字逻辑码与 HTTP 状态同表）。
+ */
 export function categorizeVendorFailure(
   httpStatus?: number,
   logicalCode?: number | string,
+  fields: { readonly code?: string; readonly type?: string } = {},
 ): { category: VendorErrorCategory; retryable: boolean } {
+  if ([fields.code, fields.type].some((identifier) => identifier !== undefined && BALANCE_IDENTIFIERS.has(identifier))) {
+    return { category: "balance", retryable: false };
+  }
   const code = typeof httpStatus === "number" ? httpStatus : typeof logicalCode === "number" ? logicalCode : Number(logicalCode);
   if (!Number.isFinite(code)) return { category: "network", retryable: true };
   if (code === 401 || code === 403) return { category: "auth", retryable: false };

@@ -1,0 +1,101 @@
+{
+  "runId": "canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd",
+  "jobId": "generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce",
+  "runtimeTaskId": "runtime-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce-attempt-1",
+  "contractHash": "ecd8c490dcbdd7ce596038004286c8ba102717bd84ce5ae79d70f18ed26b6859",
+  "providerIdempotencyKey": "generation:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce:ecd8c490dcbdd7ce596038004286c8ba102717bd84ce5ae79d70f18ed26b6859:attempt-1",
+  "requestFingerprint": "bb0da4b05ed6f15bc232dd712e948ee1dddd223986c48cdc47b50b72cffcc81e",
+  "request": {
+    "moduleId": "generation.canvas",
+    "providerId": "canvas:apimart",
+    "modelId": "doubao-seedance-2.5",
+    "mode": "text_to_video",
+    "prompt": "银灰夹克少女戴上护目镜穿过赛博巷口追逐无人机",
+    "parameters": {
+      "vendor": "apimart",
+      "request": {
+        "kind": "text_to_video",
+        "prompt": "银灰夹克少女戴上护目镜穿过赛博巷口追逐无人机",
+        "extras": {
+          "modelKey": "doubao-seedance-2.5",
+          "modelAlias": "doubao-seedance-2.5",
+          "modelVendor": "apimart",
+          "vendor": "apimart",
+          "modelLabel": "Seedance 2.5",
+          "videoModel": "doubao-seedance-2.5",
+          "videoModelVendor": "apimart",
+          "archetype": {
+            "id": "seedance-2.5-apimart",
+            "modeId": "t2v"
+          },
+          "size": "16:9",
+          "resolution": "720p",
+          "duration": 5,
+          "generate_audio": true,
+          "return_last_frame": false,
+          "aspect_ratio": "16:9",
+          "nodeId": "gen-v2-video-mwxpstwo-iz0y",
+          "nodeKind": "video",
+          "idempotencyKey": "run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd",
+          "archetypeInput": {},
+          "projectId": "project-1795707353246-y9ww0a"
+        }
+      }
+    },
+    "references": [],
+    "contractHash": "ecd8c490dcbdd7ce596038004286c8ba102717bd84ce5ae79d70f18ed26b6859",
+    "idempotencyKey": "generation:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce:ecd8c490dcbdd7ce596038004286c8ba102717bd84ce5ae79d70f18ed26b6859:attempt-1",
+    "requestFingerprint": "bb0da4b05ed6f15bc232dd712e948ee1dddd223986c48cdc47b50b72cffcc81e",
+    "executionBinding": {
+      "immutableProjectUuid": "f88ae973-d6b9-4752-a4bd-b9e7a843f552",
+      "projectGeneration": 1,
+      "runId": "canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd",
+      "shotId": "generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce",
+      "contractHash": "ecd8c490dcbdd7ce596038004286c8ba102717bd84ce5ae79d70f18ed26b6859",
+      "runtimeTaskId": "runtime-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce-attempt-1",
+      "providerNamespace": "canvas:apimart",
+      "providerIdempotencyKey": "generation:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce:ecd8c490dcbdd7ce596038004286c8ba102717bd84ce5ae79d70f18ed26b6859:attempt-1",
+      "requestFingerprint": "bb0da4b05ed6f15bc232dd712e948ee1dddd223986c48cdc47b50b72cffcc81e",
+      "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd/jobs/generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce/runtime-envelope.json",
+      "fencingEpoch": 1
+    }
+  },
+  "schemaVersion": 1,
+  "state": "provider_accepted",
+  "updatedAt": "2026-11-26T15:36:09.761Z",
+  "providerTaskId": "s-walk-video-8",
+  "rawReceipt": {
+    "id": "s-walk-video-8",
+    "kind": "text_to_video",
+    "status": "queued",
+    "assets": [],
+    "raw": {
+      "code": 200,
+      "data": [
+        {
+          "status": "submitted",
+          "task_id": "s-walk-video-8"
+        }
+      ]
+    }
+  },
+  "lastPoll": {
+    "status": "running",
+    "revision": 1,
+    "raw": {
+      "id": "s-walk-video-8",
+      "kind": "text_to_video",
+      "status": "running",
+      "assets": [],
+      "raw": {
+        "code": 200,
+        "data": {
+          "id": "s-walk-video-8",
+          "status": "processing",
+          "progress": 35
+        }
+      }
+    },
+    "observedAt": "2026-11-26T15:36:09.761Z"
+  }
+}

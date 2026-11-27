@@ -177,8 +177,8 @@ try {
     await expect.poll(() => ordered.evaluate((el) => getComputedStyle(el).listStyleType), { message: '有序列表没有序号' }).toBe('decimal')
   })
   await check('创作区工具栏：悬停按钮出提示', async () => {
-    await creationButton('creationAi.selection.code').hover()
-    await expect(win.getByRole('tooltip', { name: label('creationAi.selection.code') }).first(), '悬停代码没出提示').toBeVisible()
+    await creationButton('creationAi.selection.bold').hover()
+    await expect(win.getByRole('tooltip', { name: label('creationAi.selection.bold') }).first(), '悬停加粗没出提示').toBeVisible()
   })
   if (shot) await win.screenshot({ path: path.join(output, `creation-toolbar-${tag}.png`) })
 } finally {
