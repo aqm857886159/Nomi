@@ -1,3 +1,4 @@
+import type { PendingSpendHandOverInput } from "../shared/contracts/pendingSpendConfirm";
 import { ipcMain } from "electron";
 
 import type { ProductionActionResult, ProductionShotActionResult } from "./productionRunTypes";
@@ -17,7 +18,7 @@ type CapabilityActions = {
    * Agent 面板付费卡（D2 第③步）：交给画布 / 取消 / 不生成 × / 恢复。卡上没有参数，所以没有「改参数」。
    * **读不在这里**（2026-10-05）：待决出价随对话投影推给面板（`laneDesktopSpend`），渲染层没有第二条去拉它的路。
    */
-  handOverPendingSpendShots: (input: SpendCardInput & { shotIds: readonly string[] }) => Promise<ProductionActionResult>;
+  handOverPendingSpendShots: (input: PendingSpendHandOverInput) => Promise<ProductionActionResult>;
   discardPendingSpendConfirmation: (input: SpendCardInput) => Promise<ProductionActionResult>;
   removePendingSpendShot: (input: SpendCardInput & { shotId: string }) => Promise<ProductionActionResult>;
   restorePendingSpendShot: (input: SpendCardInput & { shotId: string }) => Promise<ProductionActionResult>;
@@ -93,7 +94,11 @@ export function registerProductionActionIpc(deps: {
     const raw = objectOf(payload);
     const shotIds = Array.isArray(raw.shotIds) ? raw.shotIds.map(str).filter(Boolean) : [];
     if (shotIds.length === 0) return { ok: false, code: "failed", message: "generation_scope_invalid" };
-    return (await deps.loadCore()).handOverPendingSpendShots({ ...scoped, ...cardIdentity(raw), quoteId: str(raw.quoteId), shotIds });
+    const handOverRevision = raw.handOverRevision;
+    if (typeof handOverRevision !== "number" || !Number.isSafeInteger(handOverRevision) || handOverRevision < 0) {
+      return { ok: false, code: "failed", message: "generation_quote_changed" };
+    }
+    return (await deps.loadCore()).handOverPendingSpendShots({ ...scoped, ...cardIdentity(raw), quoteId: str(raw.quoteId), handOverRevision, shotIds });
   });
 
   ipcMain.handle("nomi:production-runs:discard-spend", async (event, payload: unknown): Promise<ProductionActionResult> => {

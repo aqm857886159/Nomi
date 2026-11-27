@@ -31,6 +31,7 @@ import {
   type GenerationModelDefaultMap,
 } from '../../generationCanvas/model/generationModelDefaults'
 import { collapseV4Flow } from './agentPanelV4Collapse'
+import { useAgentPanelSpendCard, type AgentPanelSpendCard } from './useAgentPanelSpendCard'
 import { useV4Labels } from './agentPanelV4Labels'
 import { replaceEqualDeep } from './shareEqualDeep'
 import type { ContextUsage, InterventionData, QueueRowData, V4FlowItem } from './agentPanelV4Types'
@@ -78,6 +79,7 @@ export function shareFlowItems(previous: readonly V4FlowItem[], next: readonly V
 export type AgentPanelV4Data = Readonly<{
   connectionFailure: ReturnType<typeof laneClient.connectionFailure>
   snapshot: LaneWorkspaceProjection
+  spend: AgentPanelSpendCard
   activeThreadId: string | null
   flow: readonly V4FlowItem[]
   loadOlder?: () => Promise<void>
@@ -131,6 +133,7 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
   const committedProposal = React.useSyncExternalStore(subscribeCommittedProposal, getCommittedProposal, getCommittedProposal)
   const undoableToolCallId = undoableLaneToolCallId(snapshot.active.parts, committedProposal)
   const activeThreadId = snapshot.lanes.find((lane) => lane.laneName === snapshot.active.lane)?.sessionId ?? null
+  const spend = useAgentPanelSpendCard(snapshot.spend)
   const primaryPending = snapshot.active.pending
   const pendingRecords = React.useMemo(() => primaryPending ? [{ call: primaryPending }] : [], [primaryPending])
   const [models, setModels] = React.useState<readonly ModelCatalogModelDto[]>([])
@@ -301,13 +304,16 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
   return {
     connectionFailure,
     snapshot,
+    spend,
     activeThreadId,
     flow,
     loadOlder: snapshot.active.history?.hasMore ? async () => {
       const result = await laneClient.loadOlder()
       if (!result.ok) throw new Error(result.code)
     } : undefined,
-    slot,
+    slot: slot?.kind === 'spend' && primaryPending
+      ? { ...slot, spendConfirmationId: JSON.stringify([snapshot.workspaceId, snapshot.active.lane, primaryPending.toolCallId]) }
+      : slot,
     plan: { ...plan, kept: (slot?.plan ?? []).filter((row) => row.checked).map((row) => row.label) },
     queue,
     context,

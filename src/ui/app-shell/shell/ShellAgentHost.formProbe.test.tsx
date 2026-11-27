@@ -44,6 +44,16 @@ vi.mock('../../../workbench/ai/pointer/NodePointerGroup', async () => {
   return { NodePointerReturnToChat }
 })
 
+import { AgentPanelV4Panel } from '../../../workbench/ai/v4/AgentPanelV4Panel'
+import type { PromptEditorProps } from '../../../workbench/assets/PromptEditor'
+import { useResidentComposerFocusRequest } from '../../../workbench/ai/residentComposerFocus'
+
+let editor: PromptEditorProps
+vi.mock('../../../workbench/assets/PromptEditor', () => ({ default: (props: PromptEditorProps) => { editor = props; return null } }))
+vi.mock('use-stick-to-bottom', () => ({ useStickToBottom: () => ({
+  scrollRef: { current: null }, contentRef: { current: null }, scrollToBottom: vi.fn(), state: { isAtBottom: true }, isAtBottom: true,
+}) }))
+
 import { PROBE_SURFACES, bootProbe, type OldForm, type Probe, type Shown } from './agentFormProbe.testkit'
 import { machineHold, type AgentFormSurface } from './agentFormStore'
 import { NodePointerReturnDock } from '../../../workbench/ai/pointer/NodePointerReturnDock'
@@ -67,6 +77,89 @@ function pickReferenceOnCanvas(p: Probe): void {
   machineHold('generation', 'open')
   p.goto('generation')
 }
+
+it.each([true, false])('starts the 500ms review after Mod+J (button in viewport on expansion: %s)', async visibleOnOpen => {
+  vi.useFakeTimers()
+  const onConfirm = vi.fn()
+  const events = new EventTarget()
+  const page = { ...document, visibilityState: 'visible',
+    addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events) }
+  vi.stubGlobal('document', page)
+  let intersects = true
+  const notify = new Set<() => void>()
+  vi.stubGlobal('IntersectionObserver', class {
+    constructor(private readonly callback: IntersectionObserverCallback) {}
+    private publish?: () => void
+    observe(target: Element) {
+      this.publish = () => this.callback([{ target, isIntersecting: intersects, intersectionRatio: intersects ? 1 : 0 } as IntersectionObserverEntry], this as unknown as IntersectionObserver)
+      notify.add(this.publish)
+      this.publish()
+    }
+    disconnect() { if (this.publish) notify.delete(this.publish) }
+  })
+  const focusEditor = vi.fn(() => true)
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(performance.now()); return 1 })
+  vi.stubGlobal('cancelAnimationFrame', vi.fn())
+  let setQuote!: (quote: string) => void
+  function Panel() {
+    const [quote, updateQuote] = React.useState('first')
+    setQuote = updateQuote
+    useResidentComposerFocusRequest(focusEditor)
+    return <AgentPanelV4Panel flow={[]} context={{}} emptyOverride={<span />}
+      slot={{ kind: 'spend', title: quote, spendConfirmationId: quote }}
+      slotHandlers={{ onConfirm, onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      composer={{ draft: { subscribe: () => () => {}, getSnapshot: () => '', write: () => {} } }} />
+  }
+  const pressEnter = () => editor.onKeyDownCapture!({
+    key: 'Enter', nativeEvent: {}, preventDefault: vi.fn(), stopPropagation: vi.fn(),
+  } as React.KeyboardEvent<HTMLDivElement>)
+  try {
+    probe = await bootProbe({ narrow: false, page: 'creation', forms: { creation: 'dock' }, agent: <Panel /> })
+    pressEnter()
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    probe.key('\\')
+    expect(probe.shown()).toBe('collapsed')
+    intersects = false
+    for (const publish of notify) publish()
+    setQuote('second')
+    probe.settle()
+    vi.advanceTimersByTime(1000)
+    intersects = visibleOnOpen
+    probe.key('j')
+    expect(probe.shown()).toBe('dock')
+    expect(focusEditor).toHaveBeenCalled()
+    pressEnter()
+    expect(onConfirm, 'immediate Enter after Mod+J').toHaveBeenCalledTimes(1)
+    if (!visibleOnOpen) {
+      vi.advanceTimersByTime(1000)
+      pressEnter()
+      expect(onConfirm, 'expanded but outside the viewport').toHaveBeenCalledTimes(1)
+      intersects = true
+      for (const publish of notify) publish()
+      vi.advanceTimersByTime(499)
+      probe.key('\\')
+      vi.advanceTimersByTime(1000)
+      probe.key('j')
+      pressEnter()
+      expect(onConfirm, 'reopening the same quote restarts review').toHaveBeenCalledTimes(1)
+      vi.advanceTimersByTime(499)
+      page.visibilityState = 'hidden'
+      events.dispatchEvent(new Event('visibilitychange'))
+      vi.advanceTimersByTime(1000)
+      page.visibilityState = 'visible'
+      events.dispatchEvent(new Event('visibilitychange'))
+    }
+    vi.advanceTimersByTime(499)
+    pressEnter()
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1)
+    pressEnter()
+    expect(onConfirm).toHaveBeenCalledTimes(2)
+  } finally {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  }
+})
 
 describe('没钉住的三条（方向检查第 3 节）：写成期望行为', () => {
   it('预测 1a · 窄窗里创作页点开，生成页没点不跟着开', async () => {

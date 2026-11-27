@@ -1,7 +1,17 @@
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import '../../src/i18n'
+import { collapseV4Flow } from '../../src/workbench/ai/v4/agentPanelV4Collapse'
+import { V4FlowRow } from '../../src/workbench/ai/v4/AgentPanelV4Panel'
+import { zhAgentPanelV4 } from '../../src/i18n/locales/agentPanelV4'
+import { laneViewModel } from '../../src/workbench/ai/lane/laneViewModel'
+import { laneViewTestLabels } from '../../tests/fixtures/laneViewTestLabels'
 import { describe, expect, it, vi } from 'vitest'
 import { cleanupTestTemp, makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import { createHttpFixture, type FixtureReply } from '../../tests/agent-runtime/httpFixture.mjs'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
+import { watchSpendCardClose } from './laneSpendCardClose'
+import type { GenerationPresentation, ProductionGenerationPlan } from '../productionRun/productionRunTypes'
 import { openLane } from './laneHost.mjs'
 import { createLaneExtendedDesktopPorts, type LaneExtendedDesktopPortsInput } from './laneExtendedDesktopPorts'
 import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs'
@@ -27,7 +37,7 @@ function fakeSpendCard() {
   const dispose = vi.fn()
   return {
     watched, dispose, close: () => close(),
-    port: { whenCardCloses: (operationId: string) => { watched.push(operationId); return { closed: new Promise<void>((resolve) => { close = resolve }), dispose } } },
+    port: { whenCardCloses: (operationId: string) => { watched.push(operationId); return { closed: new Promise<void>((resolve) => { close = resolve }), settled: Promise.resolve(), dispose } } },
   }
 }
 
@@ -319,7 +329,7 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
   const presentedCard = { ok: true as const, result: { operation: { operationId: 'op-1' }, shots: ['shot-1'], nextAction: 'await_user' } }
   const generateCall: RuntimeToolCall = { toolName: 'generate', args: { operationId: 'op-1' }, toolCallId: 'call-generate' }
   /** 宿主算的逐镜结局（付费卡逐镜）：回合只读它，回执只渲染它。 */
-  const resolvedOutcome = { closedBy: 'resolved', generating: ['shot-1'], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [] }
+  const resolvedOutcome = { closedBy: 'resolved' as const, generating: ['shot-1'], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [] }
   const closedOutcome = { closedBy: 'user_closed', generating: [], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [{ shotId: 'shot-1', reason: 'user_closed' }] }
   const wroteOutcome = { closedBy: 'user_wrote', generating: [], failedBeforeSending: [], removed: [], takenByCanvas: [], undecided: [{ shotId: 'shot-1', reason: 'user_wrote' }] }
 
@@ -333,6 +343,78 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
     return { gate, controller, host }
   }
   const untilHolding = async (gate: ReturnType<typeof createLaneApprovalGate>) => { await vi.waitFor(() => expect(gate.holding()).toBeDefined()) }
+
+  it('projects the exact generate call until cancel closes the card even while handoff settlement is outstanding', async () => {
+    const f = setup()
+    const handOver = { by: 'gesture' as const, shotId: 'shot-1', at: 't1', canvasRunId: 'canvas-1' }
+    let presentation: GenerationPresentation = { openedAt: 't0', fromGate: 0, shotIds: ['shot-1'], handOvers: [handOver] }
+    const read = () => ({ presentations: [presentation] }) as ProductionGenerationPlan
+    let notify = () => {}
+    const watch = vi.spyOn(f.input.spendCard, 'whenCardCloses').mockImplementation(() => watchSpendCardClose({
+      read, subscribe: listener => { notify = () => listener(read()); return () => { notify = () => {} } },
+    }))
+    vi.mocked(f.input.generation).mockReturnValue({
+      tryExecute: vi.fn(async () => presentedCard), withdrawPresentation: vi.fn(),
+      readPresentationOutcome: vi.fn(async () => resolvedOutcome), dispose: vi.fn(),
+    })
+    const http = await createHttpFixture([
+      { type: 'tool', calls: [
+        { id: 'held', name: 'generate', arguments: { operationId: 'op-1' } },
+        { id: 'parallel', name: 'read_timeline', arguments: {} },
+      ] },
+      { type: 'text', text: 'Done.' },
+    ])
+    const root = await makeTempDirAsync('nomi-spend-preflight-')
+    try {
+      const lane = await openLane({ projectDir: root, fetch: globalThis.fetch, systemPrompt: 'Use the tools.',
+        model: { kind: 'openai-compatible', providerId: 'fixture', modelId: 'fixture',
+          baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture' },
+        tools: f.assembly.tools, toolLifecycle: f.assembly.toolLifecycle,
+        approval: { hasUserInterface: true, policy: () => ({ mode: 'request' }) },
+      })
+      try {
+        const turn = lane.execute({ kind: 'prompt', text: 'Generate the shot.' })
+        try {
+          await vi.waitFor(() => expect(watch).toHaveBeenCalled())
+          const snapshot = lane.projection()
+          expect(snapshot.pending).toBeUndefined()
+          expect(snapshot.parts).toEqual(expect.arrayContaining([
+            expect.objectContaining({ kind: 'tool-call', toolCallId: 'held', running: false }),
+            expect.objectContaining({ kind: 'tool-call', toolCallId: 'parallel' }),
+          ]))
+          const view = laneViewModel(snapshot, laneViewTestLabels)
+          const visible = collapseV4Flow(view.items, key => key)
+          const row = visible.find(item => item.kind === 'tool' && item.receipt.toolCallId === 'held')
+          expect(row).toMatchObject({ receipt: { status: 'approval-requested' } })
+          const markup = renderToStaticMarkup(React.createElement(V4FlowRow, { item: row!, darkMode: false }))
+          expect(markup).toContain(zhAgentPanelV4.toolStatus.approvalRequested)
+          expect(markup).not.toContain('animate-spin')
+          expect(view.items.find(item => item.kind === 'tool' && item.receipt.toolCallId === 'parallel'))
+            .not.toMatchObject({ receipt: { status: 'approval-requested' } })
+          presentation = { ...presentation, closed: { by: 'user_closed', at: 't2' } }
+          notify()
+          await vi.waitFor(() => {
+            const settling = lane.projection()
+            expect(settling.running).toBe(true)
+            expect(settling.parts.some(part => part.kind === 'tool-result' && part.toolCallId === 'held')).toBe(false)
+            const receipt = laneViewModel(settling, laneViewTestLabels).items.find(item => item.kind === 'tool' && item.receipt.toolCallId === 'held')
+            expect(receipt?.kind).toBe('tool')
+            expect(receipt?.kind === 'tool' && receipt.receipt.status, 'closed card still asks for approval').not.toBe('approval-requested')
+          })
+        } finally {
+          presentation = { ...presentation, closed: { by: 'user_closed', at: 't2' }, handOvers: [{ ...handOver, settled: { at: 't3', outcome: 'accepted' } }] }
+          notify()
+          if (!watch.mock.calls.length) await lane.execute({ kind: 'abort' })
+          await turn
+        }
+        expect(lane.projection()).not.toHaveProperty('awaitingDecisionToolCallIds')
+      } finally { await lane.close() }
+    } finally {
+      f.assembly.dispose()
+      await http.close()
+      cleanupTestTemp(root)
+    }
+  })
 
   it('卡上每一镜都决定了 → 回合拿到宿主算的逐镜结局（card_closed）；execute 不再碰领域（不会把答完的卡重新摆出来）', async () => {
     const f = setup()
@@ -358,7 +440,7 @@ describe('generate：等用户住在预检期，结局以成功形状交给 exec
     const f = setup()
     const generation = { tryExecute: vi.fn(async () => presentedCard), withdrawPresentation: vi.fn(async () => undefined), readPresentationOutcome: vi.fn(async () => resolvedOutcome), dispose: vi.fn() }
     const { host } = withGate(f, generation)
-    const assembly = createLaneExtendedDesktopPorts({ ...f.input, spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), dispose: vi.fn() }) } })
+    const assembly = createLaneExtendedDesktopPorts({ ...f.input, spendCard: { whenCardCloses: () => ({ closed: Promise.resolve(), settled: Promise.resolve(), dispose: vi.fn() }) } })
     await assembly.toolLifecycle.prepare(generateCall, signal)
     await assembly.toolLifecycle.approved(generateCall, f.record, host)
     const outcome = await assembly.tools.find(tool => tool.name === 'generate')!.execute(generateCall.args, { toolCallId: generateCall.toolCallId, signal }) as { ok: boolean; details?: { userDecision?: unknown } }

@@ -61,6 +61,7 @@ function projectionErrorCard(run: ProductionRun, error: unknown): PendingSpendCo
     ...(presentation?.presentationId ? { presentationId: presentation.presentationId } : {}),
     ...(presentation?.presentationEpoch !== undefined ? { presentationEpoch: presentation.presentationEpoch } : {}),
     ...(presentation?.policySnapshot ? { policySnapshot: structuredClone(presentation.policySnapshot) } : {}),
+    handOverRevision: presentation?.handOvers?.length ?? 0,
     currency: run.budget.currency, shots: Object.freeze([]),
     error: { code, message: error instanceof Error ? error.message : String(error) },
   });
@@ -166,6 +167,7 @@ export function projectPendingSpendConfirm(
       candidateRevision: plan.candidate.revision,
       shots: shots.map((shot) => [shot.shotId, shot.nodeId ?? null, plan.shots?.find((entry) => entry.shotId === shot.shotId)?.candidate.revision ?? plan.candidate.revision]),
     })).digest("hex"),
+    handOverRevision: presentation?.handOvers?.length ?? 0,
     currency: run.budget.currency,
     shots: Object.freeze(shots),
   });
