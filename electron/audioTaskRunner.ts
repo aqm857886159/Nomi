@@ -225,7 +225,8 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
   const text = firstMappedString(json, (op.response_mapping || null) as JsonRecord | null, "text")
     || firstString(isJsonRecord(json) ? json.text : undefined);
   if (!text) throw new Error(desktopT("transcribe.noText"));
-  return { id: taskId, kind, status: "succeeded", assets: [], raw: json };
+  const raw = isJsonRecord(json) && !firstString(json.text) ? { ...json, text } : json;
+  return { id: taskId, kind, status: "succeeded", assets: [], raw };
 }
 
 /** 从请求里找参考音频 URL（whisper 的 file 来源）。档案 input(file/reference_audio_urls) + camelCase 兜底。 */
