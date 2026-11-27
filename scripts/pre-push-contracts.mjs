@@ -597,7 +597,11 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
       return 1
     }
     if (!pr.available) {
-      console.error(`[pre-push] 正文类门岗跳过：${pr.reason}；CI 侧仍会查`)
+      console.error(`[pre-push] 正文类门岗跳过正文，仍查机器产出重量：${pr.reason}；CI 侧仍会查完整正文`)
+      for (const name of bodyGates) {
+        const script = 'scripts/check-pr-judgement.mjs'
+        tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script)], { NOMI_PR_JUDGEMENT_STAGE: 'push' }, { name })) }))
+      }
     } else {
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {
