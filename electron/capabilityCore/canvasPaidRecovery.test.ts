@@ -8,7 +8,9 @@ import { VendorRequestError } from "../vendor/vendorHttp";
 import { isOpenGenerationRefusal } from "../shared/generationFailure";
 import { createRunObservationDrivers } from "./appIntegrationRunObservation";
 import { CANVAS_TEST_PROJECT as projectId, setupCanvasShots } from "./canvasShotTestUtils";
-import type { CanvasTaskResult, CanvasTransport } from "./canvasTransportProvider";
+import { buildWorld } from "../../tests/world";
+import { installFetchCapture } from "../parity/generationParityTestUtils";
+import { lazyCanvasTransport, type CanvasTaskResult, type CanvasTransport } from "./canvasTransportProvider";
 import type { CanvasShotRequest } from "./appIntegrationCanvasShot";
 
 const roots: string[] = [];
@@ -112,14 +114,18 @@ describe.each(["draft_task_id", "source_task_id"])("paid derivation from %s", (s
     expect(f.post).toHaveBeenCalledTimes(1);
   });
 
-  it("requires the existing resend confirmation after success and moves the claim once", async () => {
+  it.each(["success", "provider_task_failed"])("requires the existing resend confirmation after %s and moves the claim once", async (outcome) => {
     const f = fixture();
     await f.submit(f.host, "first", first);
+    if (outcome === "provider_task_failed") f.query.mockReturnValueOnce({ ...paid, status: "failed", assets: [] });
     await f.poll(f.host, "first");
+    if (outcome === "provider_task_failed") {
+      expect(f.run("first").jobs[0]).toMatchObject({ providerTaskId: paid.id, status: "needs_attention", errorCode: outcome });
+    }
     const fresh = f.restart();
     // The renderer recognizes this submit refusal and calls decideResend(true) for the existing card.
     const refusal = await f.submit(fresh, "unconfirmed", next).catch((error: Error) => error);
-    expect(refusal).toMatchObject({ action: "ask" });
+    expect(refusal).toMatchObject({ code: "node_generation_in_flight", reason: "resend_confirmation_required", action: "ask" });
     expect(isOpenGenerationRefusal((refusal as Error).message)).toBe(true);
     expect(f.post).toHaveBeenCalledTimes(1);
     const decision = fresh.runs.resend.decideResend({ projectId, nodeId, initiator: "user", senderId: fresh.senderId, resend: true });
@@ -127,6 +133,27 @@ describe.each(["draft_task_id", "source_task_id"])("paid derivation from %s", (s
     if (decision.action !== "ask") throw new Error("missing confirmation");
     expect(await f.submit(fresh, "confirmed", next, decision.decisionId)).toMatchObject({ id: "order-2" });
     expect(await f.submit(fresh, "follow", next)).toMatchObject({ id: "order-2" });
+    expect(await f.poll(fresh, "confirmed")).toEqual({ ...paid, id: "order-2" });
+    expect(f.post).toHaveBeenCalledTimes(2);
+  });
+
+  it("replaces an unknown order only after the user checks and abandons it", async () => {
+    const f = fixture();
+    f.post.mockRejectedValueOnce(new Error("response lost"));
+    await expect(f.submit(f.host, "first", first)).rejects.toThrow();
+    const run = f.run("first");
+    const job = run.jobs[0]!;
+    expect(job.status).toBe("submission_unknown");
+    await expect(f.submit(f.host, "before-check", next)).rejects.toThrow();
+    await f.host.service.command(projectId, run.runId, {
+      commandId: "abandon", expectedRevision: run.revision, type: "job.reconcile",
+      payload: { jobId: job.jobId, outcome: "user_checked_abandon" }, humanGesture: true, issuedAt: new Date().toISOString(),
+    });
+    expect(f.run("first").jobs[0]).toMatchObject({ status: "needs_attention", errorCode: "user_checked_abandoned" });
+    expect(f.post).toHaveBeenCalledTimes(1);
+    const fresh = f.restart();
+    expect(await f.submit(fresh, "retry", next)).toMatchObject({ id: "order-2" });
+    expect(await f.poll(fresh, "retry")).toEqual({ ...paid, id: "order-2" });
     expect(f.post).toHaveBeenCalledTimes(2);
   });
 
@@ -261,6 +288,39 @@ describe("settled canvas receipt boundaries", () => {
     expect(f.host.observed).toHaveLength(1);
     expect(await f.poll(f.restart(), "first")).toEqual(result);
     expect(f.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("materializes mapped transcript text and replays the complete receipt after restart", async () => {
+    const vendor = "custom-audio";
+    const modelKey = "custom-transcriber";
+    const world = buildWorld({ projects: [], catalog: {
+      vendors: [{ key: vendor, name: vendor, baseUrlHint: "https://transcribe.example", authType: "none", enabled: true }],
+      models: [{ vendorKey: vendor, modelKey, kind: "audio", enabled: true }],
+      mappings: [{ id: "mapped-transcript", vendorKey: vendor, modelKey, name: modelKey, taskKind: "transcribe", enabled: true,
+        create: { method: "POST", path: "/transcribe", response_mapping: { text: "content.0.text" } } }],
+    } });
+    const restore = world.activate();
+    const upstream = installFetchCapture();
+    try {
+      const content = [{ text: "blue cloud" }];
+      upstream.respondWith(() => ({ status: 200, payload: { content } }));
+      const host = () => setupCanvasShots({ root: world.rootDir, vendorKey: vendor, transport: lazyCanvasTransport() });
+      const h = host();
+      const input = { projectId, nodeId, runRecordId: "mapped", vendor, senderId: h.senderId, gesture: h.gesture,
+        request: { kind: "transcribe", prompt: "", extras: { modelKey, reference_audio_urls: ["data:audio/wav;base64,AAAA"] } } };
+      await h.runs.submit(input);
+      const online = await h.runs.poll(input);
+      expect(h.repository.read(projectId, canvasRunIdFor(input.runRecordId))).toMatchObject({ status: "completed" });
+      expect(online).toMatchObject({ status: "succeeded", raw: { text: content[0]!.text, content } });
+      const fresh = host();
+      expect(await fresh.runs.poll(input)).toEqual(online);
+      expect(await fresh.runs.submit(input)).toEqual(online);
+      expect(upstream.calls).toEqual([expect.objectContaining({ method: "POST", url: "https://transcribe.example/transcribe", body: "[FormData]" })]);
+    } finally {
+      upstream.restore();
+      restore();
+      world.cleanup();
+    }
   });
 
   it("settles a persisted choices-only script transcript", async () => {

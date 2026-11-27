@@ -67,8 +67,10 @@ export function createCanvasShotSubmitter(deps: {
       const previous = read(owner);
       const job = previous && latestJob(previous);
       if (!job) throw new Error("Derived submission intent has no approved job");
-      if (submissionActions(job).accepted === "not_sent") return true;
-      if (job.status === "ready" || job.status === "adopted" || previous.status === "completed") {
+      const needsAttention = job.status === "needs_attention";
+      if (submissionActions(job).accepted === "not_sent" || (needsAttention && job.errorCode === "user_checked_abandoned")) return true;
+      const providerFailed = needsAttention && job.errorCode === "provider_task_failed";
+      if (providerFailed || job.status === "ready" || job.status === "adopted" || previous.status === "completed") {
         if (input.gesture && !existing && deps.confirm(input, previous)) return true;
         // The renderer handles this admission signal by asking decideResend(true).
         throw Object.assign(new Error("node_generation_in_flight: resend_confirmation_required"),
