@@ -21,6 +21,7 @@
  *
  * 设计卡：docs/plan/2026-10-05-engine-convergence-cut1-step12-design-card.md、docs/plan/2026-10-05-engine-convergence-cut1-step34-design-card.md。
  */
+import { createCanvasShotSubmitter, type CanvasShotDispatch } from "./canvasDerivedSubmission";
 import { tagNomiError } from "../shared/nomiErrorCodes";
 import type { DirectorPreviewSpendBlockReason } from "../shared/director/directorPreviewStatus";
 
@@ -31,7 +32,7 @@ import {
   canvasResult,
   type CanvasTaskResult,
 } from "./canvasTransportProvider";
-import { blockingReason, failedResult, latestJob, readyArtifacts, resultFromArtifacts } from "./canvasShotResult";
+import { blockingReason, failedResult, latestJob, readyArtifacts, readSettledCanvasResult } from "./canvasShotResult";
 import { createCanvasShotSettledBell } from "./canvasShotSettledBell";
 import type { CanvasShotSettledNotice } from "../shared/canvas/canvasShotSettled";
 import { freezeCanvasExecutionContract, type PlanCandidate } from "./executionContract";
@@ -39,6 +40,7 @@ import type { GenerationProvider } from "./generationRuntimeAdapter";
 import { mainProcessGateApproval } from "./runOwnedGenerationGateAuthority";
 import {
   canvasRunIdFor,
+  attachedCanvasRunId,
   markCanvasRunOpen,
   markCanvasRunSettled,
   openCanvasRuns,
@@ -47,6 +49,7 @@ import {
   prepareProductionGenerationAuthorization,
   type GenerationAuthorizationProjectIdentity,
 } from "../productionRun/prepareProductionGenerationAuthorization";
+import { SubmissionReconciliationRequiredError } from "../productionRun/submissionOutbox";
 import type { ProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
 import type { ProductionRunService } from "../productionRun/productionRunService";
 import type {
@@ -297,12 +300,12 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     projectRoot: string,
     runId: string,
     job?: ProductionJob,
-    artifactId?: string,
+    completed = false,
     cause?: unknown,
   ): void {
     try {
-      if (artifactId)
-        markSingleShotCompleted(repository(), projectId, runId, { ...(job ? { jobId: job.jobId } : {}), artifactId });
+      if (completed)
+        markSingleShotCompleted(repository(), projectId, runId, { jobId: job?.jobId });
       else markSingleShotAttention(repository(), projectId, runId, job?.jobId, { cause });
     } catch (error) {
       logWarn("production-run", "canvas-shot-settle-failed", { runId }, error);
@@ -320,6 +323,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     input: CanvasShotSubmitInput,
     runId: string,
     consented: ProductionRun | null,
+    commitApproval: Parameters<CanvasShotDispatch>[3],
   ): Promise<CanvasTaskResult> {
     const { projectId, nodeId, vendor, request } = input;
     // 交给画布的那一镜：这个画布 Run 的来历里记着它替哪个制作 Run 的哪一镜交；节点请求里绑着的那一镜必须就是它。
@@ -466,7 +470,12 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
           );
         throw coded(`shot_not_landed: ${runId}`, "shot_not_landed", "shot_not_landed");
       }
-      repository().executeBatch(projectId, runId, run.revision, commands);
+      const attached = commitApproval(() => repository().executeBatch(projectId, runId, run.revision, commands));
+      if (attached) {
+        leases.delete(runId);
+        handOff(projectId, runId);
+        return await attached;
+      }
       const submission = submissionFor(projectId);
       let started;
       try {
@@ -538,8 +547,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     if (!job) throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
     if (productionJobOpenAs(job.status) === "needs_reconcile")
       throw new Error(tagNomiError("submission-unknown", job.errorMessage || "The previous request got no result"));
-    const [artifact, ...more] = readyArtifacts(run, job);
-    if (artifact) return resultFromArtifacts(run, job, [artifact, ...more], kind);
+    const settled = readSettledCanvasResult(identity(run.projectId).projectRoot, run, job, kind);
+    if (settled) return settled;
     if (job.status === "needs_attention") return failedResult(job, kind);
     if (job.providerTaskId) return { id: job.providerTaskId, kind, status: "queued", assets: [], raw: {} };
     throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
@@ -561,22 +570,10 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       job = latestJob(run) ?? job;
       if (run.origin.nodeId) markCanvasRunOpen(projectRoot, runId, run.origin.nodeId);
     }
-    const [existing] = readyArtifacts(run, job);
-    if (existing) {
-      // 产物已在账上，job 没跟上（崩在落地中途）：交给提交出口补齐，下面才收得了尾。
-      if (!["ready", "adopted"].includes(job.status)) {
-        try {
-          await submissionFor(projectId).materialize({ projectId, operationId: runId });
-          run = repository().read(projectId, runId) ?? run;
-          job = latestJob(run) ?? job;
-        } catch (error) {
-          logWarn("production-run", "canvas-shot-finish-landing-failed", { runId }, error);
-        }
-      }
-      // 补齐之后再读一遍：一次出几张，回话里就是这笔作业落进账的那几张。
-      const [first, ...more] = readyArtifacts(run, job);
-      settle(projectId, projectRoot, runId, job, (first ?? existing).artifactId);
-      return resultFromArtifacts(run, job, first ? [first, ...more] : [existing], kind);
+    const settled = readSettledCanvasResult(projectRoot, run, job, kind);
+    if (settled) {
+      settle(projectId, projectRoot, runId, job, true);
+      return settled;
     }
     if (job.status === "needs_attention") {
       settle(projectId, projectRoot, runId, job);
@@ -584,30 +581,33 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     }
     if (!job.providerTaskId && submitting.has(`${projectId}\u0000${runId}`)) return { id: runId, kind, status: "running", assets: [], raw: {} };
     const submission = submissionFor(projectId);
-    let polled: Awaited<ReturnType<ProductionGenerationSubmission["poll"]>>;
-    try {
-      polled = await submission.poll({ projectId, operationId: runId });
-    } catch (error) {
-      // 撞上别的观察者只是忙：这一次当还在跑，渲染层过一会儿再来。
-      if (isObservationContention(error)) return { id: job.providerTaskId ?? job.jobId, kind, status: "running", assets: [], raw: {} };
-      // 这次重新取回又没成：回到「待取回」，节点照旧给「重新取回」。
-      if (reopened) settle(projectId, projectRoot, runId, latestJob(repository().read(projectId, runId) ?? run), undefined, error);
-      throw error;
+    // A previous materialization may have recorded some artifacts before it was interrupted.
+    if (!readyArtifacts(run, job).length) {
+      let polled: Awaited<ReturnType<ProductionGenerationSubmission["poll"]>>;
+      try {
+        polled = await submission.poll({ projectId, operationId: runId });
+      } catch (error) {
+        // poll first restores a durable acceptance if the process died before the journal write.
+        const awaitingHandle = !job.providerTaskId && error instanceof SubmissionReconciliationRequiredError
+          && (job.status === "authorized" || productionJobOpenAs(job.status) === "in_flight");
+        if (awaitingHandle || isObservationContention(error)) return { id: job.providerTaskId ?? job.jobId, kind, status: "running", assets: [], raw: {} };
+        if (reopened) settle(projectId, projectRoot, runId, latestJob(repository().read(projectId, runId) ?? run), false, error);
+        throw error;
+      }
+      if (polled.nextAction === "poll")
+        return canvasResult(polled.raw) ?? { id: polled.providerTaskId, kind, status: "running", assets: [], raw: {} };
+      if (polled.nextAction === "attention") {
+        job = latestJob(repository().read(projectId, runId) ?? run) ?? job;
+        settle(projectId, projectRoot, runId, job);
+        const failure = canvasResult(polled.raw);
+        return failure?.status === "failed" ? failure : failedResult(job, kind);
+      }
     }
-    const last = canvasResult(polled.raw);
-    if (polled.nextAction === "poll")
-      return last ?? { id: polled.providerTaskId, kind, status: "running", assets: [], raw: {} };
-    if (polled.nextAction === "attention") {
-      run = repository().read(projectId, runId) ?? run;
-      job = latestJob(run) ?? job;
-      settle(projectId, projectRoot, runId, job);
-      return last && last.status === "failed" ? last : failedResult(job, kind);
-    }
     try {
-      const materialized = await submission.materialize({ projectId, operationId: runId });
-      settle(projectId, projectRoot, runId, job, materialized.artifactId);
+      await submission.materialize({ projectId, operationId: runId });
+      settle(projectId, projectRoot, runId, job, true);
     } catch (error) {
-      // 取回失败已在 Run 里停成「需要处理」（可免费重新取回）；把画布那台已经拿到的结果照常交给节点。
+      // 结案失败时只交回账本确认的结果。
       logWarn("production-run", "canvas-shot-materialize-failed", { runId }, error);
       const after = repository().read(projectId, runId);
       if (after && !blockingReason(after)) settle(projectId, projectRoot, runId, latestJob(after));
@@ -615,12 +615,12 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       else {
         leases.delete(runId);
         observe(submission, projectId, runId);
+        return { id: job.providerTaskId ?? job.jobId, kind, status: "running", assets: [], raw: {} };
       }
     }
     run = repository().read(projectId, runId) ?? run;
     job = latestJob(run) ?? job;
-    const [artifact, ...more] = readyArtifacts(run, job);
-    return last ?? (artifact ? resultFromArtifacts(run, job, [artifact, ...more], kind) : failedResult(job, kind));
+    return readSettledCanvasResult(projectRoot, run, job, kind) ?? failedResult(job, kind);
   }
 
   /**
@@ -759,34 +759,28 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         withdrawConsent(input.projectId, runId, { outcome: "withdrawn", by: input.by });
     },
     /** 渲染层「交」：同一次意图（同一个运行记录号）只交一次，之后照 Run 账本回话。 */
-    submit(input: CanvasShotSubmitInput): Promise<CanvasTaskResult> {
-      const runId = canvasRunIdFor(input.runRecordId);
-      const key = `${input.projectId}\u0000${runId}`;
-      const pending = submitting.get(key);
-      if (pending) return pending;
-      const work = (async () => {
-        const existing = repository().read(input.projectId, runId);
-        if (existing && !consentedDraft(existing)) return replay(existing, input.request.kind);
-        return dispatch(input, runId, existing);
-      })();
-      submitting.set(key, work);
-      void work.then(
-        () => submitting.delete(key),
-        () => submitting.delete(key),
-      );
-      return work;
-    },
+    submit: createCanvasShotSubmitter({
+      projectRoot: id => identity(id).projectRoot,
+      read: (projectId, runId) => repository().read(projectId, runId),
+      submitting, consented: consentedDraft, replay, dispatch,
+      withdraw: (projectId, runId) => withdrawConsent(projectId, runId, { outcome: "not_sent" }),
+      confirm: resend.confirmsCompleted,
+    }),
     /** 渲染层「查」：每一次都经 Run（poll → 出片就 materialize）；没有这个 Run 回 null（旧项目的旧运行记录，照旧路查）。 */
     async poll(input: { projectId: string; runRecordId: string; senderId: number }): Promise<CanvasTaskResult | null> {
-      const runId = canvasRunIdFor(input.runRecordId);
-      if (!repository().read(input.projectId, runId)) return null;
+      const click = canvasRunIdFor(input.runRecordId);
+      const direct = repository().read(input.projectId, click);
+      const runId = direct?.jobs.length ? click : await attachedCanvasRunId(identity(input.projectId).projectRoot, click);
+      if (!(runId === click ? direct : repository().read(input.projectId, runId))) return null;
       leases.set(runId, { projectId: input.projectId, senderId: input.senderId, touchedAt: Date.now() });
       bell.reclaimed(input.projectId, runId);
       return pollRun(input.projectId, runId);
     },
     /** 渲染层不再等这一笔（点了停）：还在路上的交给观察者收完，钱花了的结果照样进项目；还没交的同意收回。 */
-    release(input: { projectId: string; runRecordId: string }): void {
-      const runId = canvasRunIdFor(input.runRecordId);
+    async release(input: { projectId: string; runRecordId: string }): Promise<void> {
+      const click = canvasRunIdFor(input.runRecordId);
+      const direct = leases.has(click) || consents.has(click) || repository().read(input.projectId, click)?.jobs.length;
+      const runId = direct ? click : await attachedCanvasRunId(identity(input.projectId).projectRoot, click);
       leases.delete(runId);
       consents.delete(runId);
       handOff(input.projectId, runId);

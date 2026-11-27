@@ -94,7 +94,7 @@ export type GenerationHostPorts = Readonly<{
    * 应用内今天不在这里记（是不是漏接没有查清，这一刀原样保留）。
    */
   onReconciled: (event:
-    | Readonly<{ kind: "materialized"; projectId: string; runId: string; jobId: string; artifactId: string }>
+    | Readonly<{ kind: "materialized"; projectId: string; runId: string; jobId: string; artifactId?: string }>
     | Readonly<{ kind: "attention"; projectId: string; runId: string; jobId?: string }>) => void;
 }>;
 

@@ -33,17 +33,17 @@ function fixture(result = paid) {
     id, kind: result.kind, status: "queued", assets: [], raw: {},
   }));
   const query = vi.fn((id: string) => ({ ...result, id }));
+  const execute = vi.fn<CanvasTransport["execute"]>();
   const transport: CanvasTransport = {
-    execute: () => post(`order-${post.mock.calls.length + 1}`),
+    execute: execute.mockImplementation(() => post(`order-${post.mock.calls.length + 1}`)),
     fetchResult: async ({ taskId }) => ({ result: query(String(taskId)) }),
   };
-  let driver: ReturnType<typeof createRunObservationDrivers>;
   const host = setupCanvasShots({
     transport,
     observe: (submission, project, runId) => driver.observeSingleShotRun(
       submission as Parameters<typeof driver.observeSingleShotRun>[0], project, runId),
   });
-  driver = createRunObservationDrivers({ repository: host.service.repository, buildSchedulerForRun: () => null });
+  const driver: ReturnType<typeof createRunObservationDrivers> = createRunObservationDrivers({ repository: host.service.repository, buildSchedulerForRun: () => null });
   roots.push(host.root);
   for (const asset of result.assets) fs.writeFileSync(path.join(host.root, "assets", path.basename(asset.url)), "media");
   const restart = () => setupCanvasShots({ root: host.root, transport });
@@ -55,7 +55,7 @@ function fixture(result = paid) {
     const record = run(id);
     return JSON.parse(fs.readFileSync(path.join(host.root, envelopeRefFor(record.runId, record.jobs[0]!.jobId)), "utf8"));
   };
-  return { host, restart, post, query, submit, poll, run, envelope, driver };
+  return { host, restart, execute, post, query, submit, poll, run, envelope };
 }
 
 describe("paid canvas result recovery", () => {
@@ -135,13 +135,107 @@ describe.each(["draft_task_id", "source_task_id"])("paid derivation from %s", (s
     const failure = errorCode === "provider_not_reached" ? new SubmissionNotDispatchedError("offline", "never_reached_network")
       : new VendorRequestError("policy refused", { vendorKey: "acme", method: "POST", url: "x", httpStatus: 400, upstreamMsg: "refused", category: "input", retryable: false },
         { httpStatus: 400, envelopeFailure: false, taskIdReturned: false });
-    f.post.mockRejectedValueOnce(failure);
+    const notSent = errorCode === "provider_not_reached";
+    (notSent ? f.execute : f.post).mockRejectedValueOnce(failure);
     await expect(f.submit(f.host, "first", first)).rejects.toThrow();
     expect(f.run("first").jobs[0]).toMatchObject({ errorCode });
     const fresh = f.restart();
-    expect(await f.submit(fresh, "retry", next)).toMatchObject({ id: "order-2" });
-    expect(await f.submit(fresh, "follow", next)).toMatchObject({ id: "order-2" });
-    expect(await f.poll(fresh, "follow")).toEqual({ ...paid, id: "order-2" });
+    const count = notSent ? 1 : 2;
+    const id = `order-${count}`;
+    expect(await f.submit(fresh, "retry", next)).toMatchObject({ id });
+    expect(await f.submit(fresh, "follow", next)).toMatchObject({ id });
+    expect(await f.poll(fresh, "follow")).toEqual({ ...paid, id });
+    expect(f.post).toHaveBeenCalledTimes(count);
+  });
+});
+
+describe("settled canvas receipt boundaries", () => {
+  it("replays a pre-snapshot job as media from both read doors", async () => {
+    const f = fixture();
+    await f.submit(f.host, "legacy");
+    await f.poll(f.host, "legacy");
+    const run = f.run("legacy");
+    const file = path.join(f.host.root, envelopeRefFor(run.runId, run.jobs[0]!.jobId));
+    const legacy = f.envelope("legacy");
+    delete legacy.settledResult;
+    fs.writeFileSync(file, JSON.stringify(legacy));
+    const fresh = f.restart();
+    const media = { id: paid.id, kind: paid.kind, status: "succeeded", assets: [{ type: "video", url: url("shot.mp4") }], raw: {} };
+    expect(await f.poll(fresh, "legacy")).toEqual(media);
+    expect(await f.submit(fresh, "legacy")).toEqual(media);
+    expect(f.envelope("legacy")).not.toHaveProperty("settledResult");
+    expect(f.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes the transcript snapshot before notifying the closed window", async () => {
+    const result = { ...paid, kind: "transcribe", assets: [], raw: { text: "cloud", segments: [] } };
+    const f = fixture(result);
+    const receiptAtReady: unknown[] = [];
+    const execute = f.host.service.repository.execute;
+    vi.spyOn(f.host.service.repository, "execute").mockImplementation((project, id, command) => {
+      const written = execute(project, id, command);
+      if (command.type === "job.status" && command.payload.status === "ready") receiptAtReady.push(f.envelope("first").settledResult);
+      return written;
+    });
+    await f.submit(f.host, "first");
+    f.host.runs.releaseSender(f.host.senderId);
+    await vi.waitFor(() => expect(f.host.settled).toHaveLength(1));
+    expect(receiptAtReady).toEqual([result]);
+    expect(f.run("first").status).toBe("completed");
+    expect(await f.poll(f.restart(), "first")).toEqual(result);
+    expect(f.post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { kind: "text_to_video", raw: { text: "provider message" } },
+    { kind: "transcribe", raw: { text: "  ", segments: [] } },
+  ])("keeps empty $kind output retrievable without a false success", async ({ kind, raw }) => {
+    const f = fixture({ ...paid, kind, assets: [], raw });
+    await f.submit(f.host, "empty");
+    expect(await f.poll(f.host, "empty")).toMatchObject({ status: "failed" });
+    expect(f.run("empty").jobs[0]).toMatchObject({ errorCode: "output_retrieval_failed" });
+    expect(f.envelope("empty")).not.toHaveProperty("settledResult");
+  });
+
+  it("coalesces simultaneous clicks during preparation", async () => {
+    const f = fixture();
+    const request = { ...plain, params: { draft_task_id: "draft", resolution: "1080p" } };
+    const [first, second] = await Promise.all([f.submit(f.host, "one", request), f.submit(f.host, "two", request)]);
+    expect(second).toEqual(first);
+    expect(await f.poll(f.restart(), "two")).toEqual(paid);
+    expect(f.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("can attach and poll while another host still awaits the provider handle", async () => {
+    const f = fixture();
+    let accept!: () => void;
+    const waiting = new Promise<void>(resolve => { accept = resolve; });
+    f.post.mockImplementationOnce(async id => {
+      await waiting;
+      return { id, kind: paid.kind, status: "queued", assets: [], raw: {} };
+    });
+    const request = { ...plain, params: { source_task_id: "original" } };
+    const inFlight = f.submit(f.host, "first", request);
+    try {
+      await vi.waitFor(() => expect(f.post).toHaveBeenCalledTimes(1));
+      const second = f.restart();
+      expect(await f.submit(second, "another", request)).toMatchObject({ status: "queued" });
+      expect(await f.poll(second, "another")).toMatchObject({ status: "running" });
+    } finally { accept(); await inFlight; }
+    expect(await f.poll(f.restart(), "another")).toEqual(paid);
+    expect(f.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps resolution-specific claims separate and binds confirmation to the exact completed order", async () => {
+    const f = fixture();
+    const spec = (resolution: string) => ({ ...plain, params: { draft_task_id: "draft", resolution } });
+    for (const id of ["720p", "1080p"]) {
+      await f.submit(f.host, id, spec(id));
+      await f.poll(f.host, id);
+    }
+    await expect(f.submit(f.host, "third", spec("720p"))).rejects.toMatchObject({ action: "ask" });
+    const token = f.host.resendDecisionFor(nodeId);
+    await expect(f.submit(f.host, "wrong-order", spec("1080p"), token)).rejects.toMatchObject({ action: "ask" });
     expect(f.post).toHaveBeenCalledTimes(2);
   });
 });

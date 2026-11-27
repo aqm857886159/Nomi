@@ -1,3 +1,5 @@
+import { canvasResult, isCanvasProviderId } from "../capabilityCore/canvasTransportProvider";
+import { isJsonRecord } from "../jsonUtils";
 import { vendorFailureFacts } from "../logging/diskSafeFailure";
 import { parseVendorErrorFromMessage } from "../shared/generationFailureWire";
 import { encodeStructuredErrorMessage } from "../shared/vendorFailure";
@@ -9,10 +11,24 @@ export type GenerationSubmissionMaterializeResult = {
   runId: string;
   jobId: string;
   providerTaskId: string;
-  artifactId: string;
-  contentHash: string;
+  artifactId?: string;
+  contentHash?: string;
   nextAction: "completed";
 };
+
+export function localizedCanvasResult(providerId: string, raw: unknown) {
+  return isCanvasProviderId(providerId) ? canvasResult(raw) : undefined;
+}
+
+export function isSettledTranscript(mode: string, result: ReturnType<typeof canvasResult>): boolean {
+  return mode === "transcribe" && result?.kind === mode && result.status === "succeeded" && !result.assets.length
+    && isJsonRecord(result.raw) && typeof result.raw.text === "string" && Boolean(result.raw.text.trim());
+}
+
+export function readyJobMedia(run: ProductionRun, jobId: string): ProductionArtifact[] {
+  return run.artifacts.filter(artifact => artifact.jobId === jobId && ["image", "video", "audio", "model3d"].includes(artifact.kind)
+    && artifact.status === "ready" && artifact.contentHash);
+}
 
 export class GenerationMaterializationUnsupportedError extends Error {
   readonly code = "provider_materialization_unsupported" as const;

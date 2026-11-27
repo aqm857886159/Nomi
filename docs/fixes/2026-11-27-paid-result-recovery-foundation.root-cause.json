@@ -1,0 +1,356 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-paid-result-recovery-foundation",
+  "problem_type": "Paid canvas job loses its identity or result across clicks and process lifetimes",
+  "symptom": "After restarting, paid output loses layers, duration and actual cost. A fresh finalization click can submit a second paid order.",
+  "direct_cause": "Foreground poll returns a temporary task result. Replay reconstructs from media receipts. Admission keys on the new click.",
+  "class_root": "The durable Run does not own both the derived request identity and its localized terminal semantics.",
+  "affected_population": [
+    "Creators retrieving paid canvas output and requesting final or regenerated video from an existing task"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "electron/capabilityCore/canvasDerivedSubmission.ts",
+    "electron/capabilityCore/canvasResendDecision.ts",
+    "electron/capabilityCore/canvasShotResult.ts",
+    "electron/capabilityCore/canvasShotRunApi.ts",
+    "electron/capabilityCore/canvasShotSettledBell.ts",
+    "electron/capabilityCore/generationDomain.ts",
+    "electron/productionRun/canvasShotRunIndex.ts",
+    "electron/productionRun/productionGenerationMaterialization.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.ts",
+    "electron/productionRun/singleShotRunLifecycle.ts",
+    "electron/productionRun/submissionIntent.ts",
+    "electron/tasks/taskIpcHandlers.ts"
+  ],
+  "entry_points": [
+    "Canvas submit, poll and same-click replay",
+    "Single shot background observation and manual retrieval"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The canvas result, project Run ledger and resend protocol are repository-owned interfaces.",
+  "invariants": [
+    "Commit the complete localized result before publishing ready.",
+    "An unconfirmed new click for an active derived scope follows the existing job across restart."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "canvasResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "readSettledCanvasResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "confirmsCompleted"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "settledResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "resultFromArtifacts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "canvasResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "canvasResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "settledResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "settledResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "claimProjectRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "projectRunOwner"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "markCanvasRunSettled"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "markSingleShotCompleted"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "createCanvasShotSubmitter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "attachedCanvasRunId"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "symbol": "createSubmissionIntent"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "symbol": "attachedCanvasRunId"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "symbol": "attachCanvasRun"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "symbol": "projectRunOwner"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "symbol": "claimProjectRun"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotSettledBell.ts",
+      "symbol": "markCanvasRunSettled"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "readyJobMedia"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "isSettledTranscript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotRunLifecycle.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "projectRunOwner"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "submitCanvasShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "submitCanvasShotRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "pollCanvasShotRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "pollCanvasShotRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasResendDecision.ts",
+      "symbol": "createResendDecisions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasResendDecision.ts",
+      "symbol": "createResendDecisions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/canvasShotRunIndex.ts",
+      "symbol": "canvasRunIdGuard"
+    }
+  ],
+  "door_reduction": {
+    "before": 25,
+    "after": 44,
+    "why_not": "Counted the affected Run owners and their canvas IPC, renderer and observer callers. Submit, replay, observation and journal recovery retain their distinct entry points. New claim and attachment reads address those callers to one Run. Only the legacy media reader reconstructs a result."
+  },
+  "generality_proof": "Whole-object persistence preserves future result fields. Source identity omits click identity and forceRerun. Both parent parameter names use the same admission.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "symbol": "createCanvasShotSubmitter",
+      "responsibility": "Resolve same-click replay and attachment before dispatch. Claim the approved project Run before the provider POST."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionGenerationSubmission",
+      "responsibility": "Commit the whole localized canvas result before publishing job readiness."
+    },
+    {
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "createSubmissionIntent",
+      "responsibility": "Serialize the selection of the project Run that owns a derived request."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "entry_point": "submitCanvasShot",
+      "disposition": "enforced",
+      "evidence": "Trusted IPC forwards every single-shot submit to the Run owner."
+    },
+    {
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "entry_point": "observeSingleShotGeneration",
+      "disposition": "enforced",
+      "evidence": "The background observer uses the same materialization as foreground poll."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult",
+      "disposition": "enforced",
+      "evidence": "Manual recovery and the settled bell query by click id, including durable attachments."
+    }
+  ],
+  "recurrence_of": "2026-11-24-u2-paid-submission-recovery",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every media type, transcript and derived click can cross this boundary on restart.",
+    "same_class_scan": [
+      "door-map resultFromArtifacts canvasResult materialize submitCanvasShot submitCanvasShotRun pollCanvasShotRun",
+      "Inspected MiniMax source_task_id, sample draft_task_id, audioTaskRunner and canvas.run-settled readers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionGenerationSubmission.ts",
+    "invariant": "All successful paid result delivery reads the completed envelope. Derived admission uses the existing Run under an intent claim.",
+    "failure_mode": "Missing media retains retrieval failure. Unconfirmed repeat success requires the existing resend decision.",
+    "exception_policy": "none",
+    "strategy": "Publish the snapshot before ready and consult the durable claim before dispatch.",
+    "artifacts": [
+      "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/productionRun/submissionIntent.ts",
+      "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "electron/productionRun/productionRunRuntimeEnvelope.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/canvasPaidRecovery.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/canvasPaidRecovery.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/appIntegrationCanvasShot.ts"
+    ],
+    "rationale": "Remove the online last-result shortcut. Only pre-snapshot completed jobs reconstruct media."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The project journal and canvas lifecycle own the invariant locally.",
+    "exit_criteria": []
+  },
+  "migration": "Old jobs without a snapshot replay available artifacts. No backfill.",
+  "residual_risks": [
+    "Live paid services and native window restarts are outside this free verification."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-11",
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun",
+    "tests": [
+      "electron/capabilityCore/canvasPaidRecovery.test.ts"
+    ]
+  }
+}
