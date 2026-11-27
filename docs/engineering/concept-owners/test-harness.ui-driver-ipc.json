@@ -1,0 +1,28 @@
+{
+  "name": "走查驱动 IPC 文件的公布",
+  "subject": "test-harness.ui-driver-ipc",
+  "lifecycle": "delivery",
+  "authority_kind": "writer",
+  "trust_domain": "test",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/uiIpcFile.mjs",
+    "symbol": "writeUiIpcFile"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/uiIpcFile.mjs",
+      "symbol": "writeUiIpcFile"
+    },
+    {
+      "path": "tests/ux/ui.mjs",
+      "symbol": "requireCurrentDriver"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "parity_test": "tests/ux/uiIpcPublication.test.mjs",
+  "since": "2026-11-27",
+  "notes": "客户端和驱动通过 writeUiIpcFile 公布请求、回执、状态和就绪标记。目标文件名首次可见时，内容已完整。requireCurrentDriver 在公布普通命令与复用实例前核对驱动协议版本，quit 可用于停止旧驱动。"
+}

@@ -292,7 +292,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-32-agent-dialog',
     name: 'agent · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/ai/ProjectAgentResidentShell.tsx:647'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/ai/ProjectAgentResidentShell.tsx:622'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="agent" />,
   },
   {

@@ -14,17 +14,18 @@
 //   node tests/ux/ui.mjs drag x1 y1 x2 y2 [steps]
 //   node tests/ux/ui.mjs read "document.title" 只读探针：在页面里求一个表达式的值（不许用它改状态）
 //   node tests/ux/ui.mjs wait 800
-//   node tests/ux/ui.mjs down                 关掉这次起的实例（证据留下）
+//   node tests/ux/ui.mjs down                 关掉这次起的实例（同 quit / stop，证据留下）
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { UI_DIR } from './uiDir.mjs'
+import { UI_IPC_VERSION, writeUiIpcFile } from './uiIpcFile.mjs'
 import { parseDriverArgs, pidAlive, profileBanner } from './uiDriverOptions.mjs'
 
 const DIR = UI_DIR
 const DRIVER = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ui-driver.mjs')
-const ACTIONS = ['up', 'down', 'doctor', 'features', 'goto', 'snap', 'shot', 'click', 'fill', 'press', 'hover', 'setfile', 'read', 'drag', 'move', 'wait', 'quit', 'probe-latency', 'fps-start', 'fps-stop', 'density', 'contrast']
+const ACTIONS = ['up', 'down', 'stop', 'doctor', 'features', 'goto', 'snap', 'shot', 'click', 'fill', 'press', 'hover', 'setfile', 'read', 'drag', 'move', 'wait', 'quit', 'probe-latency', 'fps-start', 'fps-stop', 'density', 'contrast']
 const [action, ...rest] = process.argv.slice(2)
 if (!action || !ACTIONS.includes(action)) {
   console.error(`用法: node tests/ux/ui.mjs <${ACTIONS.join('|')}> ...（详见文件头）`)
@@ -36,6 +37,23 @@ const readLockPid = () => {
 }
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+function readReady() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(DIR, 'ready'), 'utf8')) ?? {}
+  } catch (error) {
+    if (error.code === 'ENOENT') return null
+    if (error instanceof SyntaxError) return {}
+    throw error
+  }
+}
+
+function requireCurrentDriver(ready) {
+  if (ready?.ipcVersion !== UI_IPC_VERSION) {
+    console.error('驱动 IPC 版本不匹配。请先 node tests/ux/ui.mjs down，再 node tests/ux/ui.mjs up 重启驱动。')
+    process.exit(2)
+  }
+}
+
 async function up() {
   let options
   try {
@@ -46,6 +64,8 @@ async function up() {
   }
   const holder = readLockPid()
   if (holder && pidAlive(holder)) {
+    const ready = readReady()
+    if (ready !== null) requireCurrentDriver(ready)
     console.error(`这个工作树已经起了一个驱动实例（pid ${holder}）。先 node tests/ux/ui.mjs down，或直接接着用它（node tests/ux/ui.mjs doctor）`)
     process.exit(3)
   }
@@ -60,7 +80,7 @@ async function up() {
   let exited = null
   child.once('exit', (code) => { exited = code ?? 1 })
   const t0 = Date.now()
-  while (!fs.existsSync(path.join(DIR, 'ready'))) {
+  while (readReady()?.driverPid !== child.pid) {
     if (exited !== null) {
       console.error(`驱动没起来（退出码 ${exited}）。日志尾：\n${fs.readFileSync(logPath, 'utf8').split('\n').slice(-25).join('\n')}`)
       process.exit(exited)
@@ -82,19 +102,22 @@ async function up() {
 }
 
 async function send(cmd, timeoutMs = 60_000) {
-  if (!fs.existsSync(path.join(DIR, 'ready'))) {
+  const ready = readReady()
+  if (ready === null) {
     console.error(`驱动没在跑（本工作树的 IPC 目录 ${DIR}）。先 node tests/ux/ui.mjs up`)
     process.exit(2)
   }
+  if (cmd.action !== 'quit') requireCurrentDriver(ready)
   const resP = path.join(DIR, 'res.json')
   fs.rmSync(resP, { force: true })
-  fs.writeFileSync(path.join(DIR, 'req.json'), JSON.stringify(cmd))
+  writeUiIpcFile(path.join(DIR, 'req.json'), JSON.stringify(cmd))
   const t0 = Date.now()
   while (!fs.existsSync(resP)) {
     if (Date.now() - t0 > timeoutMs) { console.error('超时：驱动没响应（node tests/ux/ui.mjs doctor 看看还在不在）'); process.exit(3) }
     await sleep(120)
   }
-  await sleep(60)
+  // Legacy peers may still be writing the quit receipt. down waits for the lock holder to exit.
+  if (cmd.action === 'quit') return
   const text = fs.readFileSync(resP, 'utf8')
   return { text, res: JSON.parse(text) }
 }
@@ -119,7 +142,7 @@ async function down() {
 }
 
 if (action === 'up') await up()
-else if (action === 'down' || action === 'quit') await down()
+else if (action === 'down' || action === 'quit' || action === 'stop') await down()
 else {
   const cmd = { action }
   if (action === 'shot') cmd.name = rest[0]

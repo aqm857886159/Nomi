@@ -252,7 +252,7 @@ export function checkBoardContracts({ strict = false, boards = null, baseBoards 
  */
 const PRODUCTION_TSX = /^src\/(?!devlab\/).*\.tsx$/
 const TEST_TSX = /(?:\.(?:test|spec)\.tsx$|(?:^|\/)__tests__\/)/
-export function checkBoardClaim(body, { inferred, files = [], strict = false, claimsRequired = true, table = undefined, boards = null, baseBoards = null, approvals = null } = {}) {
+export function checkBoardClaim(body, { inferred, files = [], strict = false, claimsRequired = true, table = undefined, boards = null, baseBoards = null, approvals = null, stage = 'merge' } = {}) {
   const claims = parsePrBoardClaims(body)
   const lines = []
   let ok = true
@@ -265,11 +265,15 @@ export function checkBoardClaim(body, { inferred, files = [], strict = false, cl
       lines.push(`✖ 拍板图认领没有元素 id：${empty.map((claim) => claim.board).join('、')}（写成 \`- <板名>: <元素 id>, …\`；空串、只有逗号 / 顿号 / 空白都不算认领）`)
     }
     if (headBoards) {
-      const errors = checkPrBoardClaims(body, headBoards)
+      // 推送档：认领的元素还没 implemented 只提醒——翻 implemented 是验收线的事，实现线推送时必然还没翻
+      const pending = stage === 'push' ? [] : undefined
+      const errors = checkPrBoardClaims(body, headBoards, { pending })
       if (errors.length) {
         ok = false
         lines.push(`✖ 拍板图认领未过（${errors.length} 条）：`, ...errors.map((error) => `    ✗ ${error}`))
-      } else if (!empty.length) lines.push(`✅ 拍板图：认领的元素都有去处（${claims.map((claim) => claim.board).join('、')}）`)
+      }
+      if (pending?.length) lines.push(`⚠ 拍板图认领还没验收（${pending.length} 条；推送档只提醒，「PR Body」检查与合并前扫描要求验收线翻成 implemented）：`, ...pending.map((item) => `    · ${item}`))
+      if (!errors.length && !pending?.length && !empty.length) lines.push(`✅ 拍板图：认领的元素都有去处（${claims.map((claim) => claim.board).join('、')}）`)
     } else if (strict) lines.push('⚠ 拍板图：这个环境取不到清单目录，认领的元素没核')
   }
   // 清单合同的批准：真实 diff，不看认领（认领只用来关联实现验收）
@@ -539,7 +543,7 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     // 短档不查功能分类 / 验收证据：由声明与 base / head 界面清单核实替代
     routing: short ? { ok: true, blocking: false, lines: ['· 功能分类 / 验收证据：短档不要求（由声明与 base/head 界面清单核实覆盖）'], gaps: [], categories: [] } : judgement.routing,
     // 清单合同的批准看真实 diff，不分档位；短档只免「改了界面要认领或写例外」
-    board: checkBoardClaim(body, { inferred: judgement.inferred, files: normalized, strict: strictEvidence, claimsRequired: !short, table: policy, boards: inputs.boards ?? null, baseBoards: inputs.baseBoards ?? null, approvals: inputs.approvals ?? null }),
+    board: checkBoardClaim(body, { inferred: judgement.inferred, files: normalized, strict: strictEvidence, claimsRequired: !short, table: policy, boards: inputs.boards ?? null, baseBoards: inputs.baseBoards ?? null, approvals: inputs.approvals ?? null, stage }),
     perfPolicy: { ok: !pinned.blocked, lines: pinned.lines },
     suppressions: checkSuppressionContracts({ strict: strictEvidence, suppressions: inputs.suppressions, baseSuppressions: inputs.baseSuppressions, approvals: inputs.suppressionApprovals ?? inputs.approvals ?? null }),
     grandfathered: !enforce && isGrandfathered({ createdAt }),

@@ -228,7 +228,7 @@ function labRead(scenario: SpendLabScenario): PendingSpendRead {
   if (scenario.unreadable) return { surface: 'unreadable', reason: 'surface-unavailable' }
   if (scenario.done) return { surface: 'ready', rows: [] }
   const pending: PendingSpendConfirm = {
-    projectId: PROJECT_ID, runId: RUN_ID, operationId: OPERATION_ID, planVersion: 1, quoteId: 'lab-spend-quote',
+    projectId: PROJECT_ID, runId: RUN_ID, operationId: OPERATION_ID, planVersion: 1, quoteId: 'lab-spend-quote', handOverRevision: 0,
     presentationId: PRESENTATION_ID, presentationEpoch: 1, currency: 'CNY',
     ...(scenario.brake ? { brake: { reason: scenario.brake } } : {}),
     shots: scenario.shots.map((shot) => ({

@@ -32,7 +32,7 @@ function facts(index: number, overrides: Partial<SpendCardShotFacts> = {}): Spen
 }
 
 function pending(shots: readonly PendingSpendShot[], overrides: Partial<PendingSpendConfirm> = {}): PendingSpendConfirm {
-  return { projectId: 'p1', runId: 'r1', operationId: 'op-1', planVersion: 1, quoteId: 'q1', currency: 'CNY', shots, ...overrides }
+  return { projectId: 'p1', runId: 'r1', operationId: 'op-1', planVersion: 1, quoteId: 'q1', handOverRevision: 0, currency: 'CNY', shots, ...overrides }
 }
 
 const IDLE: SpendCardView = { busy: false, stopping: false,  }

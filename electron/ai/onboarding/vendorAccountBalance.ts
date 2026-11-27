@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readCatalog } from "../../catalog/catalogStore";
 import { builtinVendorSeed } from "../../catalog/builtinVendorSeeds";
 import { decryptApiKeyRecord, type ApiKeyRecord } from "../../catalog/secrets";
@@ -73,7 +74,8 @@ function balanceReader(payload: VendorAccountBalanceRequest, options: BalanceRea
   const catalog = options.catalog ?? readCatalog();
   const vendor = catalog.vendors.find((row) => row.key === vendorKey && (options.candidateKey !== undefined || row.enabled));
   if (!vendor) return null;
-  const apiKey = options.candidateKey ?? (options.resolveApiKey ?? decryptApiKeyRecord)(catalog.apiKeysByVendor[vendor.key]);
+  const resolveApiKey = options.resolveApiKey ?? decryptApiKeyRecord;
+  const apiKey = (options.candidateKey ?? resolveApiKey(catalog.apiKeysByVendor[vendor.key])).trim();
   if (!apiKey) return null;
   const base = userVendorBaseUrl(vendor);
   if (!URL.canParse(base)) return null;
@@ -110,7 +112,11 @@ function balanceReader(payload: VendorAccountBalanceRequest, options: BalanceRea
       return { status: "offline" };
     }
   };
-  return { read, topUpUrl: config.topUpUrl };
+  return {
+    read,
+    topUpUrl: config.topUpUrl,
+    get checkedKeyId() { return createHash("sha256").update(apiKey).digest("hex"); },
+  };
 }
 
 /** Account-only snapshot used beside the send button. */
@@ -133,11 +139,12 @@ export async function checkVendorAccountBalance(
   const reader = balanceReader(payload, options);
   if (!reader) return { status: "unavailable" };
   const [account, key] = await Promise.all([reader.read("account"), reader.read("key")]);
-  if (key.status === "invalid") return { status: "invalid" };
+  if (key.status === "invalid") return { status: "invalid", checkedKeyId: reader.checkedKeyId };
   if (account.status === "unavailable" || key.status === "unavailable") return { status: "unavailable" };
-  if (account.status === "offline" && key.status === "offline") return { status: "offline" };
+  if (account.status === "offline" && key.status === "offline") return { status: "offline", checkedKeyId: reader.checkedKeyId };
   return {
     status: "received",
+    checkedKeyId: reader.checkedKeyId,
     accountBalance: account.status === "received" ? parseReportedBalance(account.body, "account") : null,
     keyQuota: key.status === "received" ? parseReportedBalance(key.body, "key") : null,
   };

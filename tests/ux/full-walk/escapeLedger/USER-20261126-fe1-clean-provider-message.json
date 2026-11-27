@@ -1,0 +1,26 @@
+{
+  "id": "USER-20261126-fe1-clean-provider-message",
+  "since": "2026-11-26",
+  "source": "协作看板 #1586 · F-E / F-E-1 创作者反馈报错原样露出 HTML 与 ServiceUnavailableError（#issuecomment-7195700165、#issuecomment-7195753801）",
+  "category": "claims-and-outcomes",
+  "problem": "401 鉴权失败后面跟一大段服务商网页 HTML，503 或无 HTTP 状态的 ServiceUnavailableError 直接原样出现在画布失败节点卡与 Agent 对话中。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-26-clean-provider-message.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/observability/vendorQuoteProvenance.test.ts"
+  },
+  "evidence": [
+    "electron/ai/agentError.test.ts",
+    "src/workbench/observability/vendorQuoteProvenance.test.ts"
+  ],
+  "completionCommits": [
+    "5d08ae050"
+  ],
+  "fixedInPr": 1694
+}
