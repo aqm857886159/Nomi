@@ -276,6 +276,7 @@ test('端到端：CLI 在生效日之后的 PR 上，验收 HEAD 对不上当前
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const write = (rel, content) => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), content) }
   git(root, 'init', '-q'); git(root, 'config', 'user.email', 't@t'); git(root, 'config', 'user.name', 't'); git(root, 'config', 'commit.gpgsign', 'false')
+  write('docs/engineering/generated-allowlist.json', '[]')
   write('docs/engineering/test-routing.json', JSON.stringify(TABLE))
   write('src/design/tokens.ts', 'export const v = 0\n')
   git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'base')

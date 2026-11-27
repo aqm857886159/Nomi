@@ -170,7 +170,9 @@ export function markSingleShotCompleted(
       && Boolean(artifact.contentHash)
       && Boolean(artifact.projectRelativePath || artifact.thumbnailRelativePath),
   );
-  if (!targetArtifact) return run;
+  // The materializer only publishes a ready, media-free canvas transcript after committing its text.
+  const transcript = run.origin.host === "canvas" && run.generationPlan?.contract?.mode === "transcribe";
+  if (!targetArtifact && !transcript) return run;
   if (run.jobs.some((job) => job.jobId !== targetJob!.jobId && NON_TERMINAL_JOB_STATUSES.has(job.status))) return run;
   if (["paused", "pausing", "needs_attention"].includes(run.status)) return run;
   if (RUNNING_SOURCES.has(run.status)) {

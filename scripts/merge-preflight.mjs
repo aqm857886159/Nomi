@@ -31,6 +31,8 @@ import { execGhReadSync, retryTransientSync } from './lib/transientRetry.mjs'
 import { RULES_INTRODUCED_BY_PR, evaluatePrBody, ledgerChanges, mergeReport, settledContracts } from './pr-body-criteria.mjs'
 import { SCENARIO_DIR, knownScenarios, scenarioEntriesFromReader } from './perf-scenarios-lib.mjs'
 import {
+  GENERATED_ALLOWLIST_FILE,
+  loadRoutingTable,
   PROTECTED_PATHS,
   SCOPE_SECTION,
   checkProtectedScope,
@@ -137,7 +139,8 @@ function run(argv, exec, git, root) {
     throw new PreflightDataError('完整的提交历史', new Error('本机仓库是浅克隆，merge-base 算不准'))
   }
   const forkSha = must('merge-base', () => git(['merge-base', baseSha, headSha]).trim())
-  const { files, addedByFile, packageRemovedLines } = must('PR 改动（本地 git diff）', () => prChanges({ git, base: forkSha, head: headSha }))
+  const table = loadRoutingTable()
+  const { files, addedByFile, packageRemovedLines } = must('PR 改动（本地 git diff）', () => prChanges({ git, base: forkSha, head: headSha, contentScope: table.abortSignal?.scope }))
 
   /** 某个提交上的文件内容：这个提交上确实没有这个路径 → null；别的失败（对象缺失、是目录、读不出来）一律抛出，不当作「没有」。 */
   const showAt = (sha, file) => {
@@ -198,7 +201,23 @@ function run(argv, exec, git, root) {
     removedFiles: scenarioRows.filter((row) => row.status === 'D').map((row) => row.path),
   })
 
+  const parseAllowlist = (raw) => {
+    if (raw === null) return null
+    try { return JSON.parse(raw) } catch { return 'invalid-json' }
+  }
+  const touchedAllowlist = files.some((row) => row.path === GENERATED_ALLOWLIST_FILE)
+  const baseAllowlist = must(`base 上的 ${GENERATED_ALLOWLIST_FILE}`, () => {
+    const atFork = parseAllowlist(showAt(forkSha, GENERATED_ALLOWLIST_FILE))
+    if (atFork !== null) return atFork
+    return touchedAllowlist ? null : parseAllowlist(showAt(baseSha, GENERATED_ALLOWLIST_FILE))
+  })
+  const headAllowlist = touchedAllowlist
+    ? must(`PR 头上的 ${GENERATED_ALLOWLIST_FILE}`, () => (files.find((row) => row.path === GENERATED_ALLOWLIST_FILE)?.status === 'D' ? 'deleted' : parseAllowlist(showAt(headSha, GENERATED_ALLOWLIST_FILE))))
+    : undefined
   const judged = evaluatePrBody({
+    table,
+    baseAllowlist,
+    headAllowlist,
     body,
     files,
     addedByFile,

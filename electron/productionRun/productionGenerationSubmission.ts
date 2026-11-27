@@ -1,4 +1,4 @@
-import { artifactFromMaterializationReceipt, type GenerationMaterializationReceipt, catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, polledFailureMessage, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
+import { readyJobMedia, localizedCanvasResult, isSettledTranscript, artifactFromMaterializationReceipt, type GenerationMaterializationReceipt, catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, polledFailureMessage, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
 import { addressedGenerationAttempt, readGenerationExecution, requiredGenerationContract } from "./productionGenerationHistory";
 export { addressedGenerationAttempt } from "./productionGenerationHistory";
 import path from "node:path";
@@ -479,19 +479,18 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       const store = envelope(run.runId, jobId);
       const observed = store.read();
       // 这一单账上已落的产物（按落账顺序）。一次出几张就落几份；第 k 份就是上游交回的第 k 份。
-      const readyArtifacts = (current: ProductionRun) => current.artifacts.filter((artifact) => artifact.jobId === jobId && ["image", "video", "audio"].includes(artifact.kind) && artifact.status === "ready" && artifact.contentHash);
-      const resultFor = (artifacts: readonly ProductionArtifact[]): GenerationSubmissionMaterializeResult => ({ operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifacts[0]!.artifactId, contentHash: artifacts[0]!.contentHash!, nextAction: "completed" });
-      /**
-       * 已有 ready 产物的唯一出口。一次落地要写好几份记录（产物、job、信封），崩在任何两步之间都会留下半状态，
-       * 所以产物一旦在账上，来的人就负责把 job 和信封补齐，再回话：不管崩在哪，下一次查都能收尾。
-       */
-      const settleWithArtifacts = (artifacts: readonly ProductionArtifact[], complete: () => void): GenerationSubmissionMaterializeResult => {
+      const readyArtifacts = (current: ProductionRun) => readyJobMedia(current, jobId);
+      const snapshot = observed?.settledResult ?? localizedCanvasResult(job.provider, observed?.lastPoll?.raw);
+      const transcript = isSettledTranscript(contract.mode, snapshot);
+      const settleWithArtifacts = (artifacts: readonly ProductionArtifact[], complete: (value?: typeof snapshot) => void): GenerationSubmissionMaterializeResult => {
+        complete(snapshot);
         catchUpJobToArtifact(requiredRun(deps.repository, input.projectId, input.operationId), jobId, command);
-        complete();
-        return resultFor(artifacts);
+        const first = artifacts[0];
+        return { operationId: run.runId, runId: run.runId, jobId, providerTaskId, nextAction: "completed",
+          ...(first && { artifactId: first.artifactId, contentHash: first.contentHash }) };
       };
       const existing = readyArtifacts(run);
-      if (observed?.state === "materialized" && existing.length) return settleWithArtifacts(existing, () => undefined);
+      if (observed?.state === "materialized" && (existing.length || transcript)) return settleWithArtifacts(existing, () => undefined);
       if (!observed?.providerTaskId || observed.state !== "provider_accepted") throw new GenerationMaterializationError("Provider acceptance is required before materialization");
       const polled = observed.lastPoll;
       if (!polled || isPendingProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task is still processing");
@@ -506,7 +505,10 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
         let current = requiredRun(deps.repository, input.projectId, input.operationId);
         const ready = readyArtifacts(current);
         // 账上已有的份数够了（或读不出更多）：收尾。读不出更多时已落的照收，和只有一份时「产物在账上就收尾」同一条。
-        if (ready.length && (currentEnvelope.state === "materialized" || !extraction || ready.length >= extraction.outputs.length)) return settleWithArtifacts(ready, complete);
+        if (ready.length && (currentEnvelope.state === "materialized" || !extraction || ready.length >= extraction.outputs.length))
+          return settleWithArtifacts(ready, complete);
+        if (transcript && (currentEnvelope.state === "materialized" || extraction?.outputs.length === 0))
+          return settleWithArtifacts(ready, complete);
         if (currentEnvelope.state === "materialized") throw new GenerationMaterializationError("Materialized runtime has no ready artifact receipt");
         const latestJob = current.jobs.find((candidate) => candidate.jobId === jobId)!;
         if (latestJob.status === "needs_attention") throw new GenerationMaterializationError(latestJob.errorMessage ?? "Output retrieval requires attention before continuing");
