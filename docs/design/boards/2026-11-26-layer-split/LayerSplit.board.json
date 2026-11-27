@@ -274,7 +274,8 @@
         "171-span-图片",
         "172-span-海报海边短片图层"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "derived node lands right of the source on the same row",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
@@ -452,7 +453,8 @@
       "candidates": [
         "200-div-描述希望拆分的图层留空将"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "prompt box shows the layer-split placeholder",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
@@ -699,7 +701,8 @@
         "693-svg",
         "694-span-20"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "layer status sits in the label row above the node",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
@@ -722,7 +725,8 @@
         "035-div-一个人的夏天",
         "036-svg"
       ],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "split result carries its own whiteboard state",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
@@ -1173,7 +1177,8 @@
       "source": "D-1126-sdse-libtv",
       "component": "whiteboardSceneRender.ts:278-283（每层 resizeable、lockRatio）；全局 WhiteboardLeaferCanvas.tsx:329 resizeable:false；自写 whiteboardCanvasGeometry.ts:336 isPointNearSingleAssetResizeHandle",
       "candidates": [],
-      "status": "in-progress",
+      "status": "implemented",
+      "assertion": "corner drag keeps the ratio",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）"
     },
     {
