@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import { writeJsonFileAtomic } from "../jsonFile";
 import path from "node:path";
 
 /**
@@ -29,6 +30,25 @@ export function canvasRunIdFor(runRecordId: string): string {
   const runId = `${CANVAS_RUN_PREFIX}${String(runRecordId || "").trim()}`;
   if (!RUN_ID.test(runId) || runRecordId.trim() === "") throw new Error("Invalid canvas run record id");
   return runId;
+}
+
+/** The renderer polls by its own click id even after attaching to another Run. */
+function canvasAttachmentPath(projectRoot: string, runId: string): string {
+  return path.join(projectRoot, ".nomi", "canvas-runs", "attachments", canvasRunIdGuard(runId) + ".json");
+}
+
+export async function attachedCanvasRunId(projectRoot: string, runId: string): Promise<string> {
+  try {
+    const bytes = await fs.promises.readFile(canvasAttachmentPath(projectRoot, runId), "utf8");
+    return canvasRunIdGuard(JSON.parse(bytes).runId);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return runId;
+    throw error;
+  }
+}
+
+export function attachCanvasRun(projectRoot: string, click: string, owner: string): void {
+  writeJsonFileAtomic(canvasAttachmentPath(projectRoot, click), { runId: canvasRunIdGuard(owner) });
 }
 
 function openDir(projectDir: string): string {

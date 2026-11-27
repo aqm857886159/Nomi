@@ -135,7 +135,7 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
     const raw = (payload || {}) as { projectId?: unknown; runRecordId?: unknown };
     const projectId = str(raw.projectId);
     const runRecordId = str(raw.runRecordId);
-    if (projectId && runRecordId) (await loadCore()).releaseCanvasShot({ projectId, runRecordId });
+    if (projectId && runRecordId) return (await loadCore()).releaseCanvasShot({ projectId, runRecordId });
   });
 
   ipcMain.handle("nomi:tasks:result", (event, payload) => {
