@@ -146,13 +146,39 @@ export function suppressionsAt({ git, sha }) {
 export function boardsAtHead({ git, sha }) {
   const tmp = fs.mkdtempSync(path.join(process.env.TEMP || os.tmpdir(), 'pr-boards-'))
   try {
-    const names = String(git(['ls-tree', '-r', '-z', '--name-only', sha, 'docs/design/boards/'])).split(String.fromCharCode(0)).filter((name) => name.endsWith('.board.json'))
-    for (const name of names) {
-      const target = path.join(tmp, name)
-      fs.mkdirSync(path.dirname(target), { recursive: true })
-      fs.writeFileSync(target, git(['show', `${sha}:${name}`]))
+    const entries = String(git(['ls-tree', '-r', '-z', sha, 'docs/design/boards/'])).split(String.fromCharCode(0)).filter(Boolean)
+    const artboardsByDir = new Map()
+    const boardDirs = new Map()
+    for (const entry of entries) {
+      const tab = entry.indexOf('\t')
+      if (tab < 0) continue
+      const oid = entry.slice(0, tab).trim().split(/\s+/)[2]
+      const name = entry.slice(tab + 1)
+      if (name.endsWith('.board.json')) {
+        const target = path.join(tmp, name)
+        fs.mkdirSync(path.dirname(target), { recursive: true })
+        fs.writeFileSync(target, git(['show', `${sha}:${name}`]))
+        const dirRel = path.posix.dirname(name)
+        const boardName = path.posix.basename(name, '.board.json')
+        boardDirs.set(`${dirRel}/${boardName}`, { dirRel, boardName })
+      } else {
+        const match = /^(docs\/design\/boards\/[^/]+)\/((?:source|preview)\/.+\.(?:html|svg))$/i.exec(name)
+        if (match && oid) {
+          const [, dirRel, subPath] = match
+          if (!artboardsByDir.has(dirRel)) artboardsByDir.set(dirRel, {})
+          artboardsByDir.get(dirRel)[subPath] = oid
+        }
+      }
     }
-    return loadManifests(path.join(tmp, 'docs/design/boards/2026-10-08'))
+    const manifests = loadManifests(path.join(tmp, 'docs/design/boards/2026-10-08'))
+    for (const { dirRel, boardName } of boardDirs.values()) {
+      const manifest = manifests[boardName]
+      const artboardFiles = artboardsByDir.get(dirRel)
+      if (manifest && !manifest.ambiguous && artboardFiles && Object.keys(artboardFiles).length > 0) {
+        manifest.artboardFiles = artboardFiles
+      }
+    }
+    return manifests
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true })
   }

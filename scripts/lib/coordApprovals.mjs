@@ -51,13 +51,14 @@ export function normalizeBoard(manifest) {
   return out
 }
 
-const withoutElements = (board) => Object.fromEntries(Object.entries(board ?? {}).filter(([key]) => key !== 'elements'))
+const withoutElements = (board) => Object.fromEntries(Object.entries(board ?? {}).filter(([key]) => key !== 'elements' && key !== 'artboardFiles'))
 const sameContent = (a, b) => canonicalJson(a) === canonicalJson(b)
 
 /**
  * 一张板在 PR 里的合同差异（整份对比）。baseManifest / headManifest 任一为 null/undefined = 那一边没有这张板。
- * 返回 { needsApproval, added, removed, changed, boardLevel, isNewBoard, isRemovedBoard, fingerprint }：
+ * 返回 { needsApproval, added, removed, changed, boardLevel, artboardChanged, isNewBoard, isRemovedBoard, fingerprint }：
  *   added / removed / changed = 新增 / 删除 / 合同变了的元素 id；boardLevel = 除 elements 外的板级字段变了；
+ *   artboardChanged = 同目录 source/ 或 preview/ 下的源图 / 预览 HTML 变了；
  *   fingerprint = 整份规范化后的 head 内容的哈希（删板时是「删除」标记的哈希），批准记录的 sha256 就是它；内容再变一个字，哈希就对不上。
  */
 export function boardApprovalSubject(name, baseManifest, headManifest) {
@@ -73,6 +74,7 @@ export function boardApprovalSubject(name, baseManifest, headManifest) {
   const baseLevel = withoutElements(base)
   const headLevel = withoutElements(head)
   const boardLevel = !sameContent(baseLevel, headLevel)
+  const artboardChanged = !sameContent(base?.artboardFiles ?? null, head?.artboardFiles ?? null)
   const needsApproval = !sameContent(base, head)
   return {
     needsApproval,
@@ -80,6 +82,7 @@ export function boardApprovalSubject(name, baseManifest, headManifest) {
     removed,
     changed,
     boardLevel,
+    artboardChanged,
     isNewBoard: !base && !!head,
     isRemovedBoard: !!base && !head,
     // 兼容旧字段：所有有差异的元素 id（新增 + 删除 + 改动）
@@ -98,6 +101,7 @@ export function describeBoardDiff(subject) {
     if (subject.changed.length) parts.push(`改了合同的元素（${subject.changed.join('、')}）`)
     if (subject.removed.length) parts.push(`删了元素（${subject.removed.join('、')}）`)
     if (subject.boardLevel) parts.push('改了板级字段（functionCensus / 设计来源 / stage 等）')
+    if (subject.artboardChanged) parts.push('改了拍板源图或预览')
   }
   return parts.join('；')
 }

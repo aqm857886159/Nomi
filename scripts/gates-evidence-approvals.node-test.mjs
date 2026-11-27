@@ -62,7 +62,7 @@ const CARD = [
   '- 验收线：V-x', '- 报告：D:/Nomi-coord-state/reports/V-x.md', '- 报告首行：V-x：有条件通过', '- 验收 HEAD：abcdef1', '实现线：I-x',
 ].join('\n')
 const NOT_APPLICABLE_PERF = '## 验收证据\n- perf-scenario：不适用：只改了一个按钮的事件绑定，不碰规模'
-const ELEMENT = (overrides = {}) => ({ id: 'a', label: '按钮', anchor: '[data-board="a"]', states: ['selected'], status: 'missing', owner: '#1', ...overrides })
+const ELEMENT = (overrides = {}) => ({ id: 'a', label: '按钮', anchor: `[data-board="${overrides.id ?? 'a'}"]`, states: ['selected'], status: 'missing', owner: '#1', ...overrides })
 const evalBody = (body, { files, scenarios = { ids: [], byId: new Map(), problems: [] }, evidence = {} } = {}) => evaluatePrBody({
   body, files, createdAt: CREATED, table: TABLE, scenarios,
   evidence: { headSha: HEAD, readReport: () => undefined, readRaw: () => null, boards: null, baseBoards: null, approvals: ciApprovals, ...evidence },

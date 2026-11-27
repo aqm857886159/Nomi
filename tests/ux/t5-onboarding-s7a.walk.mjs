@@ -22,8 +22,8 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
-import { assertBoardAnchor } from './_boardAnchorAssert.mjs'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { assertBoardAnchor, readApprovedBoardHtml } from './_boardAnchorAssert.mjs'
+import { fileURLToPath } from 'node:url'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import {
@@ -264,7 +264,7 @@ try {
   const browser = await chromium.launch()
   try {
     const reference = await browser.newPage({ javaScriptEnabled: false })
-    await reference.goto(pathToFileURL(path.join(boardPreviewDir, 'Onboarding.html')).href)
+    await reference.setContent(readApprovedBoardHtml(path.join(boardPreviewDir, 'Onboarding.html'), element.id))
     await assertBoardAnchor({
       frame: reference.locator('#O1a-canvas'), page: win, screen: composer, element,
       lang: 'zh-CN', theme: 'light', text: true, css: ['font-weight'],

@@ -29,10 +29,12 @@ describe('元素清单', () => {
     assert.match(run(m).join('\n'), /decor.*已退役/)
     assert.match(run(m).join('\n'), /candidates.*已退役/)
   })
-  it('填写的 anchor 必须是非空字符串，assertions 必须是字符串数组', () => {
-    for (const anchor of [null, 1, ' ']) {
+  it('anchor 必须是显式 data-board 选择器或 未定，缺失或指向别的元素必红；assertions 必须是字符串数组', () => {
+    for (const anchor of [undefined, null, 1, ' ', 'button', '[data-board="other"]']) {
       const m = base()
-      Object.assign(m.elements[0], { anchor, assertions: [3] })
+      if (anchor === undefined) delete m.elements[0].anchor
+      else m.elements[0].anchor = anchor
+      m.elements[0].assertions = [3]
       assert.match(run(m).join('\n'), /anchor/)
       assert.match(run(m).join('\n'), /assertions/)
     }
@@ -403,6 +405,7 @@ describe('R12 引用方扫描（makeReferrerScanner）：只看直接引用；�
     write('src/workbench/OtherOnly.tsx', "import { Other } from '../design'\nexport const c = Other\n")
     write('src/workbench/TypeOnly.tsx', "import type { ThingProps } from '../design/Thing'\nexport type D = ThingProps\n")
     write('src/workbench/Lazy.tsx', "export const load = () => import('../design/Thing')\n")
+    write('src/workbench/LazyTemplate.tsx', 'export const load = () => import(`../design/Thing`)\n')
     write('src/workbench/TypeQuery.ts', "type T = import('../design/Thing').ThingProps\ntype Module = typeof import('../design/Thing')\n")
     write('src/workbench/Notes.ts', "const note = `import { Thing } from '../design/Thing'` // import('../design/Thing')\n")
     write('src/workbench/Direct.test.tsx', "import { Thing } from '../design/Thing'\n")
@@ -412,7 +415,7 @@ describe('R12 引用方扫描（makeReferrerScanner）：只看直接引用；�
     const got = scan('src/design/Thing.tsx')
     assert.ok(scan('src/design/Ghost.tsx') === null)
     fs.rmSync(root, { recursive: true, force: true })
-    assert.deepEqual(got, ['src/devlab/designLab/thing/thingLabKit.tsx', 'src/workbench/Direct.tsx', 'src/workbench/Lazy.tsx', 'src/workbench/ViaBarrel.tsx'])
+    assert.deepEqual(got, ['src/devlab/designLab/thing/thingLabKit.tsx', 'src/workbench/Direct.tsx', 'src/workbench/Lazy.tsx', 'src/workbench/LazyTemplate.tsx', 'src/workbench/ViaBarrel.tsx'])
   })
 })
 
@@ -451,9 +454,12 @@ describe('R8 PR 认领的拍板图元素必须有去处', () => {
     const manifests = { Main: base() }
     assert.match(checkPrBoardClaims('## 拍板图\n- Main: 不存在的元素', manifests).join('\n'), /不在清单里/)
   })
-  it('正例：认领的元素是 implemented → 绿', () => {
+  it('正例：认领的元素是 implemented 且带显式 anchor → 绿；anchor 仍为 未定 → 红', () => {
     const manifests = { Main: base() }
     assert.deepEqual(checkPrBoardClaims('## 拍板图\n- Main: topbar.title', manifests), [])
+    const unanchored = base()
+    unanchored.elements[0].anchor = '未定'
+    assert.match(checkPrBoardClaims('## 拍板图\n- Main: topbar.title', { Main: unanchored }).join('\n'), /anchor 必须是 \[data-board="topbar\.title"\]/)
   })
   it('pending 收集器：还没 implemented 的认领进 pending、不进 errors；清单里没有的照样进 errors', () => {
     const manifests = { Main: base() }
@@ -508,8 +514,8 @@ describe('其它日期目录的板（2026-10-16：新板对门岗和合并前扫
     return dir
   }
   const textOnly = (overrides = {}) => ({
-    board: 'TextOnly', stage: 'built',
-    elements: [{ id: 'tier.popover', label: '弹层', status: 'implemented', assertions: ['board:TextOnly/tier.popover'], component: 'src/workbench/ai/v4/AgentPanelV4Composer.tsx', states: ['zh-en'], ...overrides }],
+    board: 'TextOnly', stage: 'built', manifestOnly: true,
+    elements: [{ id: 'tier.popover', label: '弹层', anchor: '未定', status: 'implemented', assertions: ['board:TextOnly/tier.popover'], component: 'src/workbench/ai/v4/AgentPanelV4Composer.tsx', states: ['zh-en'], ...overrides }],
     functionCensus: [{ function: '旧弹层', before: '三档', after: 'tier.popover' }],
   })
   it('正例：只有清单的新板被找到，且 `## 拍板图` 能认领到它', async () => {
@@ -527,8 +533,8 @@ describe('其它日期目录的板（2026-10-16：新板对门岗和合并前扫
 
 describe('V-1203 复验 R1：跨日期同名板——校验按「日期目录 + 板名」逐张读，同名不能互相顶替', () => {
   const tmpRoot = () => fs.mkdtempSync(path.join(process.env.TMPDIR || process.env.TEMP || '.', 'bp-dup-'))
-  const good = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', status: 'implemented', assertions: ['board:ReviewProbe/probe-ok'], component: 'src/workbench/Probe.tsx', states: ['zh-en'] }], functionCensus: [{ function: 'old', after: 'probe' }] }
-  const bad = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', status: 'implemented', assertions: ['NEVER_EXISTS_V1203_R1'], states: [] }], functionCensus: [{ function: 'old', after: 'missing' }] }
+  const good = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', anchor: '[data-board="probe"]', status: 'implemented', assertions: ['board:ReviewProbe/probe-ok'], component: 'src/workbench/Probe.tsx', states: ['zh-en'] }], functionCensus: [{ function: 'old', after: 'probe' }] }
+  const bad = { board: 'ReviewProbe', stage: 'built', elements: [{ id: 'probe', anchor: '未定', status: 'implemented', assertions: ['NEVER_EXISTS_V1203_R1'], states: [] }], functionCensus: [{ function: 'old', after: 'missing' }] }
   const setup = () => {
     const root = tmpRoot()
     const main = path.join(root, 'main-day'); fs.mkdirSync(main)
@@ -664,6 +670,7 @@ describe('R17 元素 component 必填（非 dropped 且非 change=remove 必须�
   const validElement = (overrides = {}) => ({
     id: 'ask.cost',
     label: '费用确认条',
+    anchor: '未定',
     status: 'missing',
     owner: 'T-1',
     change: 'new',

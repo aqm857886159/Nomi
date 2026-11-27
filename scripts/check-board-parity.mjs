@@ -450,7 +450,7 @@ export function checkBoundaryCoverage({ board, manifest, date }) {
 function* relativeModuleReferences(text) {
   const tokens = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|[$\w]+|[^\s]/g
   const words = Array.from(text.matchAll(tokens), match => match[0]).filter(word => !word.startsWith('//') && !word.startsWith('/*'))
-  const relative = word => /^['"]\.{1,2}\//.test(word ?? '')
+  const relative = word => /^(?:['"]\.{1,2}\/|`\.{1,2}\/(?:\\.|[^`$\\])*`$)/.test(word ?? '')
   for (let i = 0; i < words.length; i++) {
     const kind = words[i]
     if (!['import', 'export', 'require'].includes(kind)) continue
@@ -547,6 +547,8 @@ export function makeReferrerScanner(root = REPO_ROOT, roots = ['src', 'electron'
   }
 }
 
+export const expectedBoardAnchor = (id) => `[data-board="${id}"]`
+
 /**
  * 单张板的清单校验。纯函数、可测。
  * @param {{board:string, manifest:object, date?:string, boardNames?:string[], referrersOf?:(file:string)=>string[]|null}} input
@@ -586,7 +588,10 @@ export function checkBoardManifest({ board, manifest, date, boardNames, referrer
   for (const el of elements) {
     const where = `元素 ${el.id}`
     if (Object.hasOwn(el, 'candidates')) errors.push(tag(`${where} 的 candidates 已退役`))
-    if (Object.hasOwn(el, 'anchor') && !isNonEmptyString(el.anchor)) errors.push(tag(`${where} 的 anchor 必须是非空字符串`))
+    const requiredAnchor = expectedBoardAnchor(el.id)
+    if (el.anchor !== '未定' && el.anchor !== requiredAnchor) {
+      errors.push(tag(`${where} 的 anchor 必须是 ${requiredAnchor} 或 未定`))
+    }
     if (Object.hasOwn(el, 'assertions') && !(Array.isArray(el.assertions) && el.assertions.every(isNonEmptyString))) {
       errors.push(tag(`${where} 的 assertions 必须是非空字符串组成的数组`))
     }
@@ -673,6 +678,8 @@ export function checkPrBoardClaims(body, manifests, { pending } = {}) {
         // 只有「还在等验收」的合法状态能进 pending；非法状态、缺用户原话的 deferred / dropped 不是在等验收，推送档也红
         const awaiting = el.status === 'missing' || el.status === 'in-progress'
         ;(awaiting && pending ? pending : errors).push(`[${board}] 认领的元素 ${id} 还是 ${el.status}：合并前必须 implemented，或带用户原话的 deferred / dropped`)
+      } else if (el.status === 'implemented' && !manifest.manifestOnly && el.change !== 'remove' && el.anchor !== expectedBoardAnchor(id)) {
+        errors.push(`[${board}] 认领的元素 ${id} 是 implemented，anchor 必须是 ${expectedBoardAnchor(id)}（当前 ${el.anchor ?? '缺失'}）`)
       }
     }
   }
