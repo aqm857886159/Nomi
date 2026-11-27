@@ -5,7 +5,7 @@
 // 打包快照的公开库；「我的」提示词预埋两条（带参考图的「Q 版角色卡」、没有媒体的「Tokyo Walk」），我的技能走真实导入入口进来。
 // 读取失败 / 加载两屏靠 _promptLibraryReadGate.cjs 在主进程入口把「读提示词库」那一路先换成失败、再挂住、再放行。
 //
-// 断言名 `board:<板>/<元素 id>` 对应 docs/design/boards/2026-10-24/*.board.json 里 implemented 的元素（check:board-parity 认这串字）。
+// 断言名 `board:<板>/<元素 id>` 对应 docs/design/boards/2026-10-24/*.board.json 里 implemented 的元素。
 // 截图写到 NOMI_LIBRARY_LAYOUT_SHOTS（默认系统临时目录），不写进仓库。
 // 用法：pnpm build && node tests/ux/library-layout.walk.mjs
 import fs from 'node:fs'

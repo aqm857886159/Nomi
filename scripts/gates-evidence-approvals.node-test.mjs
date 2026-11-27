@@ -1,6 +1,6 @@
 // V-gates 复验（2026-10-21，PR #1266 第 2 轮）的反例：PR 不能自己给自己开绿灯。
 // 统一原则：合同类数据（性能预算政策、拍板清单）不能由 PR 自己批准，只能来自 base，或来自协调在本机留下的确认记录；
-// 实现线合理会改的「实现状态」字段（status / assertion / owner）照常允许。
+// 实现线合理会改的「实现状态」字段（status / assertions / owner）照常允许。
 // 全部跑完整 evaluatePrBody（CI 入口 = 默认 ci 确认口径；本机入口 = merge-preflight 的 local 口径），不只测解析函数。
 //   B1 PR 改自己的场景文件放宽性能判据   B2 空元素认领   B3 src/design 下新增 tsx 套例外   B4 自造未批准的清单
 //   S1 docs/evidence 只许非可执行类型   S3 验收线精确匹配   S5 非法日期按严格   S6 「不通过」单独反例   S7 路径分类
@@ -62,7 +62,7 @@ const CARD = [
   '- 验收线：V-x', '- 报告：D:/Nomi-coord-state/reports/V-x.md', '- 报告首行：V-x：有条件通过', '- 验收 HEAD：abcdef1', '实现线：I-x',
 ].join('\n')
 const NOT_APPLICABLE_PERF = '## 验收证据\n- perf-scenario：不适用：只改了一个按钮的事件绑定，不碰规模'
-const ELEMENT = (overrides = {}) => ({ id: 'a', label: '按钮', candidates: ['001-div'], states: ['selected'], status: 'missing', owner: '#1', ...overrides })
+const ELEMENT = (overrides = {}) => ({ id: 'a', label: '按钮', anchor: `[data-board="${overrides.id ?? 'a'}"]`, states: ['selected'], status: 'missing', owner: '#1', ...overrides })
 const evalBody = (body, { files, scenarios = { ids: [], byId: new Map(), problems: [] }, evidence = {} } = {}) => evaluatePrBody({
   body, files, createdAt: CREATED, table: TABLE, scenarios,
   evidence: { headSha: HEAD, readReport: () => undefined, readRaw: () => null, boards: null, baseBoards: null, approvals: ciApprovals, ...evidence },
@@ -149,7 +149,7 @@ test('B1·本机确认记录文件没设环境变量 / 读不到 → 需要确�
 
 // ── B2 空认领 ───────────────────────────────────────────────────────────────────────────────────────────────
 const boardsOf = (manifest, name = 'Foo') => ({ [name]: manifest })
-const FOO = { board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertion: 'x' }), ELEMENT({ id: 'b', status: 'implemented', assertion: 'x' })] }
+const FOO = { board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertions: ['x'] }), ELEMENT({ id: 'b', status: 'implemented', assertions: ['x'] })] }
 const claimBody = (claim) => `${CARD.split('## 独立验收')[0]}\n## 拍板图\n${claim}\n${NOT_APPLICABLE_PERF}`
 
 test('B2·空认领（空串 / 逗号 / 中文逗号 / 顿号 / 空白的各种组合）不算认领：完整入口红', () => {
@@ -194,7 +194,7 @@ const claimFoo = (extra = '') => claimBody(`- Foo: a${extra}`)
 const evidenceFor = (head, base, approvals) => ({ boards: head, baseBoards: base, approvals })
 
 test('B4·PR 自造一份新板（base 上没有）认领自己：本机没有确认记录红、CI 只提示待确认', () => {
-  const fake = { board: 'Fake', stage: 'built', elements: [ELEMENT({ status: 'implemented', assertion: 'x' })] }
+  const fake = { board: 'Fake', stage: 'built', elements: [ELEMENT({ status: 'implemented', assertions: ['x'] })] }
   const body = claimBody('- Fake: a')
   const ci = evalBody(body, { files: tsxModified, evidence: evidenceFor(boardsOf(fake, 'Fake'), {}, ciApprovals) })
   assert.equal(ci.blocked, false, text(ci))
@@ -206,32 +206,32 @@ test('B4·PR 自造一份新板（base 上没有）认领自己：本机没有�
 })
 
 test('B4·协调确认过新板（哈希对上）→ 绿；确认后板内容又改了 → 红', () => {
-  const fake = { board: 'Fake', stage: 'built', elements: [ELEMENT({ status: 'implemented', assertion: 'x' })] }
+  const fake = { board: 'Fake', stage: 'built', elements: [ELEMENT({ status: 'implemented', assertions: ['x'] })] }
   const subject = boardApprovalSubject('Fake', null, fake)
   const record = { pr: 7, kind: 'board', name: 'Fake', sha256: subject.fingerprint, at: 'x', note: '' }
   const run = (manifest, records) => evalBody(claimBody('- Fake: a'), { files: tsxModified, evidence: evidenceFor(boardsOf(manifest, 'Fake'), {}, withApprovals(records)) })
   assert.equal(run(fake, [record]).blocked, false)
-  const edited = { ...fake, elements: [ELEMENT({ status: 'implemented', assertion: 'x', label: '确认之后偷偷改了的按钮' })] }
+  const edited = { ...fake, elements: [ELEMENT({ status: 'implemented', assertions: ['x'], label: '确认之后偷偷改了的按钮' })] }
   assert.equal(run(edited, [record]).blocked, true)
 })
 
-test('B4·给已有的板新增元素 / 改了元素合同：要确认；只更新实现状态（status / assertion / owner）：不用确认', () => {
+test('B4·给已有的板新增元素 / 改了元素合同：要确认；只更新实现状态（status / assertions / owner）：不用确认', () => {
   const base = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'missing' })] })
-  const advance = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertion: 'x', owner: '#2' })] })
+  const advance = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertions: ['x'], owner: '#2' })] })
   const ok = evalBody(claimFoo(), { files: tsxModified, evidence: evidenceFor(advance, base, noRecords()) })
   assert.equal(ok.blocked, false, text(ok))
-  const added = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertion: 'x' }), ELEMENT({ id: 'new', status: 'implemented', assertion: 'x' })] })
+  const added = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertions: ['x'] }), ELEMENT({ id: 'new', status: 'implemented', assertions: ['x'] })] })
   const addedRun = evalBody(claimFoo(', new'), { files: tsxModified, evidence: evidenceFor(added, base, noRecords()) })
   assert.equal(addedRun.blocked, true, text(addedRun))
   assert.match(text(addedRun), /新增了元素（new）/)
-  const rewritten = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertion: 'x', candidates: ['999-div'] })] })
+  const rewritten = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertions: ['x'], anchor: '未定' })] })
   assert.equal(evalBody(claimFoo(), { files: tsxModified, evidence: evidenceFor(rewritten, base, noRecords()) }).blocked, true, '改了元素的候选 = 改了合同')
   const dropped = boardsOf({ board: 'Foo', elements: [ELEMENT({ status: 'dropped', userDecision: { quote: '随便写一句话', date: '2026-10-22' } })] })
   assert.equal(evalBody(claimFoo(), { files: tsxModified, evidence: evidenceFor(dropped, base, noRecords()) }).blocked, true, 'PR 自己写一句用户原话就放弃元素 = 改了合同')
 })
 
 test('B4·本机确认记录读不到（环境变量没设）时，需要确认的认领红', () => {
-  const fake = { board: 'Fake', stage: 'built', elements: [ELEMENT({ status: 'implemented', assertion: 'x' })] }
+  const fake = { board: 'Fake', stage: 'built', elements: [ELEMENT({ status: 'implemented', assertions: ['x'] })] }
   const result = evalBody(claimBody('- Fake: a'), { files: tsxModified, evidence: evidenceFor(boardsOf(fake, 'Fake'), {}, localApprovals({ pr: 7, env: {} })) })
   assert.equal(result.blocked, true)
   assert.match(text(result), /NOMI_COORD_APPROVALS/)
@@ -370,30 +370,30 @@ test('A·场景：确认过的哈希绑整份规范化内容——只改 machine
   assert.equal(perfRun(scenarioFiles(sc(), relaxed), withApprovals([record])).blocked, false)
 })
 
-test('A·板：整张板被删、新增板外的 decor 变化，不看正文有没有拍板图节也要确认；只改 status / assertion / owner 不用', () => {
-  const base = { Foo: { board: 'Foo', decor: [], elements: [ELEMENT({ status: 'missing' })] } }
-  const progress = { Foo: { board: 'Foo', decor: [], elements: [ELEMENT({ status: 'implemented', assertion: 'z', owner: '#99' })] } }
+test('A·板：整张板被删、新增板级设计意图 变化，不看正文有没有拍板图节也要确认；只改 status / assertions / owner 不用', () => {
+  const base = { Foo: { board: 'Foo', elements: [ELEMENT({ status: 'missing' })] } }
+  const progress = { Foo: { board: 'Foo', elements: [ELEMENT({ status: 'implemented', assertions: ['z'], owner: '#99' })] } }
   assert.equal(evalBody(CARD.split('### 功能分类')[0], { files: [{ path: 'docs/x.md', status: 'M' }], evidence: evidenceFor(progress, base, noRecords()) }).blocked, false)
   const deletedBoard = evalBody(CARD.split('### 功能分类')[0], { files: [{ path: 'docs/design/boards/2026-10-23/Foo.board.json', status: 'D' }], evidence: evidenceFor({}, base, noRecords()) })
   assert.equal(deletedBoard.blocked, true)
   assert.match(text(deletedBoard), /整张删掉/)
-  const decor = { Foo: { board: 'Foo', decor: ['c-x'], elements: [ELEMENT({ status: 'missing' })] } }
-  assert.match(text(evalBody(CARD.split('### 功能分类')[0], { files: [{ path: 'docs/x.md', status: 'M' }], evidence: evidenceFor(decor, base, noRecords()) })), /板级字段/)
+  const design = { Foo: { board: 'Foo', designIntent: 'changed', elements: [ELEMENT({ status: 'missing' })] } }
+  assert.match(text(evalBody(CARD.split('### 功能分类')[0], { files: [{ path: 'docs/x.md', status: 'M' }], evidence: evidenceFor(design, base, noRecords()) })), /板级字段/)
 })
 
 test('A·板：确认记录的哈希绑整份规范化内容；确认之后板级字段又变一个字 → 失效', () => {
-  const base = { Foo: { board: 'Foo', decor: [], elements: [ELEMENT({ status: 'missing' })] } }
-  const head = { Foo: { board: 'Foo', decor: ['c-x'], elements: [ELEMENT({ status: 'missing' })] } }
+  const base = { Foo: { board: 'Foo', elements: [ELEMENT({ status: 'missing' })] } }
+  const head = { Foo: { board: 'Foo', designIntent: 'changed', elements: [ELEMENT({ status: 'missing' })] } }
   const record = { pr: 7, kind: 'board', name: 'Foo', sha256: boardApprovalSubject('Foo', base.Foo, head.Foo).fingerprint, at: 'T', note: '' }
   const files = [{ path: 'docs/x.md', status: 'M' }]
   const body = CARD.split('### 功能分类')[0]
   assert.equal(evalBody(body, { files, evidence: evidenceFor(head, base, withApprovals([record])) }).blocked, false)
-  const later = { Foo: { ...head.Foo, decor: ['c-x', 'c-y'] } }
+  const later = { Foo: { ...head.Foo, designIntent: 'further change' } }
   assert.equal(evalBody(body, { files, evidence: evidenceFor(later, base, withApprovals([record])) }).blocked, true)
 })
 
 test('A·板 stage：只放行「已拍板 → built」（approved→built；仓库词表里的 explored→built 同）；explored→approved、built 退回 approved、其余变化都要确认', () => {
-  const withStage = (stage) => ({ Foo: { board: 'Foo', stage, decor: [], elements: [ELEMENT({ status: 'missing' })] } })
+  const withStage = (stage) => ({ Foo: { board: 'Foo', stage, elements: [ELEMENT({ status: 'missing' })] } })
   const body = CARD.split('### 功能分类')[0]
   const files = [{ path: 'docs/x.md', status: 'M' }]
   const run = (from, to) => evalBody(body, { files, evidence: evidenceFor(withStage(to), withStage(from), noRecords()) })

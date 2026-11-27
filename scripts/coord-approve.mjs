@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { APPROVAL_ENV, boardApprovalSubject, describeBoardDiff, describeSuppressionGrowth, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
+import { allowlistApprovalSubject, APPROVAL_ENV, boardApprovalSubject, describeBoardDiff, describeSuppressionGrowth, GENERATED_ALLOWLIST_PATH, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
 import { boardsAtHead } from './lib/prEvidenceInputs.mjs'
 import { scenarioPolicyHash, scenarioRemovedHash } from './perf-scenarios-lib.mjs'
 
@@ -31,11 +31,13 @@ export function buildApproval({ argv, git = realGit, now = () => new Date().toIS
   const board = argValue(argv, '--board')
   const perf = argValue(argv, '--perf')
   const suppressions = argv.includes('--suppressions')
-  const usage = '用法：node scripts/coord-approve.mjs --pr <号> (--board <板名> | --perf <场景 id>) [--note 说明]；或 node scripts/coord-approve.mjs [--pr <号>] --suppressions [--note 说明]'
-  if ([board, perf, suppressions].filter(Boolean).length !== 1) throw new Error(usage)
+  const allowlist = argv.includes('--allowlist')
+  const usage = '用法：node scripts/coord-approve.mjs --pr <号> (--board <板名> | --perf <场景 id>) [--note 说明]；或 node scripts/coord-approve.mjs [--pr <号>] (--suppressions | --allowlist) [--note 说明]'
+  if ([board, perf, suppressions, allowlist].filter(Boolean).length !== 1) throw new Error(usage)
   if (pr !== null && (!Number.isInteger(pr) || pr <= 0)) throw new Error(usage)
-  if (pr === null && !suppressions) throw new Error(usage)
+  if (pr === null && !suppressions && !allowlist) throw new Error(usage)
   if (suppressions) return buildSuppressionsApproval({ argv, pr, git, now, fetch })
+  if (allowlist) return buildAllowlistApproval({ argv, pr, git, now, fetch })
   // --head <sha>：测试 / 已经 fetch 过时直接指定 PR head，不再去 fetch
   let headSha = argValue(argv, '--head')
   if (!headSha) {
@@ -82,6 +84,23 @@ function buildSuppressionsApproval({ argv, pr, git, now, fetch }) {
   if (!subject.needsApproval) throw new Error(`${SUPPRESSIONS_FILE} 在 ${String(headSha).slice(0, 9)} 上和 base 比冻结数没有上涨，不需要确认`)
   console.error(`确认 ${SUPPRESSIONS_FILE}：${describeSuppressionGrowth(subject)}`)
   return { pr, kind: 'eslint-suppressions', name: SUPPRESSIONS_FILE, sha256: subject.fingerprint, at: now(), note: argValue(argv, '--note') ?? '', head: headSha }
+}
+
+function buildAllowlistApproval({ argv, pr, git, now, fetch }) {
+  let headSha = argValue(argv, '--head')
+  if (!headSha) {
+    if (fetch) git(['fetch', '--quiet', 'origin', 'main'])
+    if (pr !== null) {
+      if (fetch) git(['fetch', '--quiet', 'origin', `pull/${pr}/head`])
+      headSha = String(git(['rev-parse', 'FETCH_HEAD'])).trim()
+    } else headSha = String(git(['rev-parse', 'HEAD'])).trim()
+  }
+  const base = String(git(['merge-base', 'origin/main', headSha])).trim()
+  const read = (sha) => { try { return JSON.parse(git(['show', `${sha}:${GENERATED_ALLOWLIST_PATH}`])) } catch { return [] } }
+  const subject = allowlistApprovalSubject(read(base), read(headSha))
+  if (!subject.needsApproval) throw new Error(`${GENERATED_ALLOWLIST_PATH} 在 ${String(headSha).slice(0, 9)} 上和 base 比没有新增豁免规则，不需要确认`)
+  console.error(`确认 ${GENERATED_ALLOWLIST_PATH}：新增规则 ${subject.addedGlobs.join('、')}`)
+  return { pr, kind: 'generated-allowlist', name: GENERATED_ALLOWLIST_PATH, sha256: subject.fingerprint, at: now(), note: argValue(argv, '--note') ?? '', head: headSha }
 }
 
 function main() {

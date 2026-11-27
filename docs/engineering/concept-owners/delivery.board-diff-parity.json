@@ -1,0 +1,27 @@
+{
+  "name": "拍板图与真屏的差异对账",
+  "subject": "delivery.board-diff-parity",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/check-board-parity.mjs",
+    "symbol": "checkBoardManifest"
+  },
+  "write_api": [
+    {
+      "path": "scripts/check-board-parity.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "path": "tests/ux/_boardAnchorAssert.mjs",
+      "symbol": "assertBoardAnchor"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-27",
+  "notes": "checkBoardManifest 负责治理元素清单；走查在指定分镜与生产组件之间按同一显式锚点实测，assertBoardAnchor 检查实际语言、主题和声明的文案或样式。"
+}

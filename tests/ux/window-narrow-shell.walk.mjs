@@ -46,7 +46,7 @@ const DRAWER_STORED = 720
 const DRAWER_RESERVE = 232
 const STEP = 25
 
-// 拍板清单元素断言（check:board-parity 认这些名字）。
+// 拍板清单元素断言。
 const BOARD = {
   minSize: 'board:WindowNarrow/window.min-size',
   tier: 'board:WindowNarrow/shell.narrow-tier',

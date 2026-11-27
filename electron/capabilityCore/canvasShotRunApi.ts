@@ -54,8 +54,8 @@ export function followCanvasShotChange(run: ProductionRun): void {
   active?.followRunChange(run);
 }
 
-export function releaseCanvasShot(input: { projectId: string; runRecordId: string }): void {
-  active?.release(input);
+export function releaseCanvasShot(input: { projectId: string; runRecordId: string }): Promise<void> | undefined {
+  return active?.release(input);
 }
 
 /** 排队的那几镜被去掉 / 整批 ×：收回还没交的同意。 */

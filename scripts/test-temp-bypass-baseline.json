@@ -1,5 +1,5 @@
 {
-  "scripts/check-board-parity.node-test.mjs": 5,
+  "scripts/check-board-parity.node-test.mjs": 4,
   "scripts/gates-evidence-approvals.node-test.mjs": 2,
   "scripts/gates-evidence-judgement.node-test.mjs": 2,
   "scripts/lab-export-audio.mts": 1,

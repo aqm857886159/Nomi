@@ -86,15 +86,21 @@ export function withoutFilesAwaitingTrash<T extends AssetRef>(assets: readonly T
   return assets.filter((asset) => asset.origin.source !== 'project' || !isAssetFileAwaitingTrash(asset.origin))
 }
 
+function commitAssetDeletionIntent(target: ProjectFileTarget): void {
+  const canvas = useGenerationCanvasStore.getState()
+  if (canvas.projectId === target.projectId) canvas.commitPersistedChange()
+  changed()
+}
+
 export function deferAssetFileDeletion(target: PendingAssetDeletion): void {
   if (target.source !== 'asset-library') throw new Error('File deletion requires asset-library intent')
   pending.set(keyOf(target), target)
-  changed()
+  commitAssetDeletionIntent(target)
 }
 
 /** 删除没落成（存盘失败、已回滚）：这一笔待删作废。 */
 export function forgetDeferredAssetDeletion(target: ProjectFileTarget): void {
-  if (pending.delete(keyOf(target))) changed()
+  if (pending.delete(keyOf(target))) commitAssetDeletionIntent(target)
 }
 
 /**

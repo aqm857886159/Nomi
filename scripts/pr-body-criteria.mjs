@@ -5,12 +5,13 @@
 // 路由 / 规则与门岗范围仍在 scripts/pr-judgement-lib.mjs（本模块在它之上叠设计卡等判据，并给一个总入口 evaluatePrBody）。
 import { classCheckErrors, contractErrors, escapeIdOfPath, fixedTransitions } from './escape-ledger-lib.mjs'
 import { checkPrBoardClaims, parsePrBoardClaims } from './check-board-parity.mjs'
-import { approvalCommand, boardApprovalSubject, checkSuppressionContracts, describeBoardDiff } from './lib/coordApprovals.mjs'
+import { approvalCommand, boardApprovalSubject, checkSuppressionContracts, describeBoardDiff, resolveEffectiveAllowlist } from './lib/coordApprovals.mjs'
 
 export { checkSuppressionContracts }
 import { pinScenarioPolicy } from './perf-scenarios-lib.mjs'
 import { localEvidenceInputs } from './lib/prEvidenceInputs.mjs'
-import { deriveUiVerification, evaluatePrJudgement, evaluateProcessTier, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable, PROCESS_TIERS, processTieringEnforced, REAL_SCENE_SECTION, realSceneVerdict } from './pr-judgement-lib.mjs'
+import defaultAllowlist from '../docs/engineering/generated-allowlist.json' with { type: 'json' }
+import { checkGeneratedWeight, deriveUiVerification, evaluatePrJudgement, evaluateProcessTier, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable, PROCESS_TIERS, processTieringEnforced, REAL_SCENE_SECTION, realSceneVerdict } from './pr-judgement-lib.mjs'
 
 /** 四类（花钱 / 长跑 / 可打断 / 新界面）——路由表里 pathRules.legacy 的那部分；files: [{ path, status }]，status 'A' = 新增。 */
 export function classifyChange(files, addedLines = '', table = undefined) {
@@ -211,8 +212,8 @@ export function checkIndependentAcceptance(body, { stage = 'merge', strict = fal
 
 /**
  * 拍板清单的批准范围：默认全拦（2026-10-22 用户拍板方案 A，V-gates R2-B1 / R2-B2）。
- * 板文件按 base 与 head 的整份规范化内容对比（先剥掉元素的 status / assertion / owner），任何差异——新增板、整张删板、新增 / 删除 / 改了合同的元素、
- * 板级字段（decor / functionCensus / 设计来源 / stage 等）——都要协调确认，哈希绑整份规范化后的 head 内容。
+ * 板文件按 base 与 head 的整份规范化内容对比（先剥掉元素的 status / assertions / owner），任何差异——新增板、整张删板、新增 / 删除 / 改了合同的元素、
+ * 板级字段（functionCensus / 设计来源 / stage 等）——都要协调确认，哈希绑整份规范化后的 head 内容。
  * 要确认的集合由真实 diff 构造：不看正文认领了什么，也不看 PR 是不是界面改动、有没有写 `## 拍板图` 一节。
  * CI 读不到本机确认记录，只提示「待协调确认」；合并前扫描没有记录就红。boards / baseBoards = loadManifests() 形状（对象，或返回它的函数；null = 取不到）。
  */
@@ -244,7 +245,7 @@ export function checkBoardContracts({ strict = false, boards = null, baseBoards 
  *   · 路径推出「新界面 / 改交互」（inferred 里有 ui 类）才要求；不碰界面的 PR 不问；
  *   · 认领：`- <板名>: <元素 id>, …`，每条至少一个合法的元素 id（空认领不算，V-gates B2）；板必须存在、元素必须 implemented（或带用户原话的 deferred / dropped）——同 check-board-parity 的 R8，同一份实现；
  *   · 批准身份（V-gates B4）：认领只对 base 上已有的板和元素直接有效；PR 新增的板、或给已有板新增 / 改了合同的元素，要协调确认（approvals，哈希对上）才算。
- *     只改实现状态（status / assertion / owner）不用确认。CI 读不到本机确认记录，只提示「待协调确认」；合并前扫描没有记录就红；
+ *     只改实现状态（status / assertions / owner）不用确认。CI 读不到本机确认记录，只提示「待协调确认」；合并前扫描没有记录就红；
  *   · 例外：`- 不适用：<例外 id>：<具体理由>`，例外 id 必须在路由政策表 evidenceJudgement.boardClaimExceptions 里已登记，理由至少 8 个字且不是重复字符；
  *   · 新增了生产 .tsx（文件状态 A，含 src/design/components/**）不许用例外：新界面必须有清单；只改令牌、样式的可以用例外（V-gates B3）。
  * boards / baseBoards = loadManifests() 形状的清单（对象，或返回它的函数；null = 取不到）：boards 是 PR head 上的，baseBoards 是 base 上的。
@@ -456,7 +457,7 @@ export function isGrandfathered({ createdAt, effectiveAt = RULES_EFFECTIVE_AT })
 }
 
 /** 正文判据的逐行输出与是否判红；renderReport（合并前）和推送前各自加抬头 / 结论。 */
-export function renderBodyLines({ classification, processTier = null, design, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, board = { ok: true, lines: [] }, perfPolicy = { ok: true, lines: [] }, suppressions = { ok: true, lines: [] }, grandfathered = false }) {
+export function renderBodyLines({ classification, processTier = null, weight = { ok: true, lines: [] }, design, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, board = { ok: true, lines: [] }, perfPolicy = { ok: true, lines: [] }, suppressions = { ok: true, lines: [] }, grandfathered = false }) {
   const lines = []
   lines.push(classification.fourClass
     ? `· 四类：命中（${classification.classes.join('、')}）——${classification.hits.slice(0, 5).map((hit) => hit.path).join('、')}${classification.hits.length > 5 ? ' …' : ''}`
@@ -474,9 +475,9 @@ export function renderBodyLines({ classification, processTier = null, design, ac
   lines.push(...perfPolicy.lines)
   lines.push(...suppressions.lines)
   // 规则与门岗的改动范围不吃「规则生效前开的 PR」那条宽限：#1032 这种回退正是旧分支带出来的。
-  lines.push(...scope.lines)
+  lines.push(...scope.lines, ...weight.lines)
   if (grandfathered) lines.push('· 这是规则生效（#961 合并）之前开的 PR：缺项只给警告，不判红')
-  const blocked = !scope.ok || !promises.ok || routing.blocking || !board.ok || !perfPolicy.ok || !suppressions.ok || (!grandfathered && (!design.ok || (classification.fourClass && !acceptance.ok) || !escape.ok))
+  const blocked = !weight.ok || !scope.ok || !promises.ok || routing.blocking || !board.ok || !perfPolicy.ok || !suppressions.ok || (!grandfathered && (!design.ok || (classification.fourClass && !acceptance.ok) || !escape.ok))
   return { lines, blocked }
 }
 
@@ -491,14 +492,14 @@ export const renderReport = ({ pr, ...rest }) => mergeReport(pr, renderBodyLines
 
 /**
  * 正文判据的总入口（推送前的 check-pr-judgement 与合并前扫描都从这里判）：
- *   files: [{ path, status }]（A / M / D 或 added / modified / removed）；addedByFile: Map(路径 → 新增行)；
+ *   files: [{ path, status, additions, binary }]，additions 取 git numstat；addedByFile: Map(路径 → 新增行)；
  *   contracts / ledger（transitions、ids、removed、settledContracts）见 checkEscapeContract / ledgerChanges；
  *   createdAt: PR 创建时间（拿不到 = 不宽限，fail-closed）；enforce: 假设规则已生效（回放用）；
  *   paidStrict: 合并前扫描传 true——花钱类的 spend-paid-sample 按严格口径判（pr-judgement-lib 的 paidSampleVerdict），CI / 推送前不传；
  *   uiVerification: 短档声明的界面核实结果（测试注入；不传就用 evidence 里的 base / head 拍板图清单现算，且只有声明短档的 PR 才会去取）。
  *   返回里的 processTier = 流程档位（严 ≡ 四类 classification.fourClass；其余分短 / 标准，见 pr-judgement-lib 的 evaluateProcessTier）。
  */
-export function evaluatePrBody({ body, files, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined, uiVerification = null }) {
+export function evaluatePrBody({ body, files, allowlist = defaultAllowlist, baseAllowlist = undefined, headAllowlist = undefined, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined, uiVerification = null }) {
   const normalized = files.map((file) => ({ ...file, status: file.status === 'added' ? 'A' : file.status }))
   const withAdded = addedByFile ? normalized.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })) : normalized
   const classification = classifyChange(withAdded, addedLines, table)
@@ -532,7 +533,12 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     shortAllowed: processTieringEnforced(createdAt, enforce),
   })
   const short = processTier.tier === PROCESS_TIERS.SHORT
+  const effectiveAllowlist = baseAllowlist !== undefined || headAllowlist !== undefined
+    ? resolveEffectiveAllowlist({ files: normalized, baseAllowlist, headAllowlist, fallbackAllowlist: allowlist, approvals: inputs.approvals ?? null })
+    : { allowlist, headAllowlist: undefined, unapprovedGlobs: [] }
+  const weight = checkGeneratedWeight(normalized, effectiveAllowlist.allowlist, { headAllowlist: effectiveAllowlist.headAllowlist, unapprovedGlobs: effectiveAllowlist.unapprovedGlobs })
   const result = renderBodyLines({
+    weight,
     classification,
     processTier,
     design: checkDesignCard(body, { fourClass: classification.fourClass, short }),
@@ -548,5 +554,5 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     suppressions: checkSuppressionContracts({ strict: strictEvidence, suppressions: inputs.suppressions, baseSuppressions: inputs.baseSuppressions, approvals: inputs.suppressionApprovals ?? inputs.approvals ?? null }),
     grandfathered: !enforce && isGrandfathered({ createdAt }),
   })
-  return { ...result, classification, judgement, processTier }
+  return { ...result, classification, judgement, processTier, weight }
 }

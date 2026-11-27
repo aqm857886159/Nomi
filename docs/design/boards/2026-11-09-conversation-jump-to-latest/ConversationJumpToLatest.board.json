@@ -26,17 +26,14 @@
     {
       "id": "button",
       "label": "「回到最新」圆钮：28px 向下箭头，纸底细边框小阴影，对话流底部正中、输入框上方；往上翻着时才出现，点了回到最新一条并接着跟，回到底就消失；悬停加深字色；中英同一个图标，名字放悬停提示和读屏；暗色跟 token 翻转。",
-      "candidates": [
-        "001-jump-button",
-        "002-jump-button-hover"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ConversationJumpToLatest/button"
+      "assertions": ["board:ConversationJumpToLatest/button"]
     }
   ],
   "functionCensus": [
@@ -45,6 +42,5 @@
       "before": "没有入口：只能自己拖右边的滚动条到底（2026-11-08 用户反馈）",
       "after": "button"
     }
-  ],
-  "decor": []
+  ]
 }

@@ -4,7 +4,7 @@
 //    result.url 改写为 nomi-local://（原链接留在 providerUrl），顺带带上落盘回执的预览两栏。
 // ② 补预览（2026-10-16 起图片也补）：没有已知预览事实的 nomi-local 图 / 视频——升级前的旧数据、
 //    thumbnailUrl 等于 url 的旧形状、或只交了 URL 的入口（白板、截图、抽帧……）——向主进程要一份
-//    （sidecar 有就直接给，没有就派生一份），把小图 + 预览事实写回结果。这是画布「预览」不变式的第二道共享边界：
+//    （sidecar 有就直接给，缺图时从源生成内存预览），把小图 + 预览事实写回结果。这是画布「预览」不变式的第二道共享边界：
 //    第一道是落盘回执（入口出生就带事实），这一道兜住所有没带事实就进了画布的结果，下次打开不再补。
 //
 // 为什么图片现在可以补（14a5320a0 当年把图片关掉的原因）：那时直接换 src，画布先解码原图、再解码缩略图，
@@ -12,7 +12,7 @@
 // 已在解码缓存里，一帧也不空）；只补当前项目、低优先级（空闲时）、并发 2、视口内和靠近视口的先补；
 // 源本身已有界（source）或派生不出来（missing）只写事实，src 一个字不变，画面不动。
 //
-// 纪律：幂等（同 node+url 每次启动只试一次；写回后有事实就不再进队）；失败记「预览缺失」事实，不重试风暴；
+// 纪律：幂等（同 node+url 每次打开只补一次预览；写回后有事实就不再进队）；失败记「预览缺失」事实，不重试风暴；
 // 写回前核对 url 未被替换（重生成 / 转码自愈竞态时绝不覆盖新结果）；只看 result 真变了的节点（打字不触发全表扫描）。
 import { hostedAssetCanvasPreview, hostedAssetUrl, importWorkbenchRemoteAssetUrl } from '../api/assetUploadApi'
 import { assetKindOf } from '../assets/assetTypes'
@@ -29,9 +29,6 @@ import {
 } from '../../../electron/shared/canvas/canvasMediaPreview'
 
 type PreviewReceipt = { thumbnailUrl?: string; previewState?: string } | null | undefined
-
-/** 补全写回不是用户编辑：要存盘（下次打开不用再补），但不进撤销、不发画布事件。 */
-const BACKFILL_UPDATE_OPTIONS = { history: false, emit: false } as const
 
 /** 补预览的并发：每张都要主进程起一次 ffmpeg（约一次缩放），2 路足够跟上滚动又不抢前台。 */
 const PREVIEW_BACKFILL_CONCURRENCY = 2
@@ -85,10 +82,10 @@ export function backfilledPreviewPatch(result: GenerationNodeResult, preview: Pr
   return withPreviewFields(result, fields)
 }
 
-const attempted = new Set<string>()
+const relocalizationAttempts = new Set<string>()
 
 /** 写回前的竞态核对：换了项目、节点没了、结果已被替换 → 放弃。版本列表里同一个 url 的条目一起补。 */
-function writeBack(project: ProjectExecutionContext, nodeId: string, sourceUrl: string, patchFor: (current: GenerationNodeResult) => GenerationNodeResult | null): void {
+function writeBack(project: ProjectExecutionContext, nodeId: string, sourceUrl: string, persist: boolean, patchFor: (current: GenerationNodeResult) => GenerationNodeResult | null): void {
   if (!isProjectExecutionContextCurrent(project)) return
   const state = useGenerationCanvasStore.getState()
   const node = state.nodes.find((candidate) => candidate.id === nodeId)
@@ -106,7 +103,7 @@ function writeBack(project: ProjectExecutionContext, nodeId: string, sourceUrl: 
   state.updateNode(nodeId, {
     ...(resultPatch ? { result: resultPatch } : {}),
     ...(historyChanged && history ? { history } : {}),
-  }, BACKFILL_UPDATE_OPTIONS)
+  }, { history: false, emit: false, persist })
 }
 
 async function relocalizeNode(nodeId: string, result: GenerationNodeResult, project: ProjectExecutionContext): Promise<void> {
@@ -119,7 +116,7 @@ async function relocalizeNode(nodeId: string, result: GenerationNodeResult, proj
       projectBinding: project.binding, assertCurrent: project.assertCurrent, ownerNodeId: nodeId, kind: 'generated', expectedKind,
     })
     const localUrl = hostedAssetUrl(dto)
-    writeBack(project, nodeId, sourceUrl, (current) =>
+    writeBack(project, nodeId, sourceUrl, true, (current) =>
       relocalizedResultPatch(current, localUrl, dto?.id, hostedAssetCanvasPreview(dto, current.type)))
   } catch {
     // 链接已死 / 换了项目 → 静默不打扰；attempted 只在本次启动生效，下次打开会再试。
@@ -217,7 +214,7 @@ async function backfillPreview(candidate: PreviewCandidate, session: BackfillSes
     fields = { previewState: 'missing' }
   }
   if (!sessionLive(session)) return false
-  if (fields.previewState || fields.thumbnailUrl) writeBack(project, candidate.nodeId, candidate.url, (current) => backfilledPreviewPatch(current, fields))
+  if (fields.previewState || fields.thumbnailUrl) writeBack(project, candidate.nodeId, candidate.url, false, (current) => backfilledPreviewPatch(current, fields))
   return true
 }
 
@@ -298,6 +295,7 @@ export function initResultMediaBackfillBridge(deps: PreviewBackfillDeps | null =
       projectSignal?.removeEventListener('abort', onProjectAbort)
     }
     const seenResults = new WeakSet<GenerationNodeResult>()
+    const previewAttempts = new Set<string>()
     const queuedKeys = new Set<string>()
     let pending: PreviewCandidate[] = []
     let running = 0
@@ -315,8 +313,8 @@ export function initResultMediaBackfillBridge(deps: PreviewBackfillDeps | null =
             await deps.yieldToForeground(controller.signal)
             if (!sessionLive(session)) return
             const key = keyOf(next)
-            if (attempted.has(key)) return
-            if (await backfillPreview(next, session, deps)) attempted.add(key)
+            if (previewAttempts.has(key)) return
+            if (await backfillPreview(next, session, deps)) previewAttempts.add(key)
           } finally {
             running -= 1
             queuedKeys.delete(keyOf(next))
@@ -335,8 +333,8 @@ export function initResultMediaBackfillBridge(deps: PreviewBackfillDeps | null =
         seenResults.add(result)
         const key = `${project.binding.projectId}:${node.id}:${String(result.url || '')}`
         if (shouldRelocalizeResult(result)) {
-          if (attempted.has(key)) continue
-          attempted.add(key)
+          if (relocalizationAttempts.has(key)) continue
+          relocalizationAttempts.add(key)
           void relocalizeNode(node.id, result, project)
           continue
         }
@@ -345,7 +343,7 @@ export function initResultMediaBackfillBridge(deps: PreviewBackfillDeps | null =
       const queued = collectPreviewCandidates(fresh, (categoryId) => visibleCanvasRect(categoryId))
         .filter((candidate) => {
           const key = keyOf(candidate)
-          if (attempted.has(key) || queuedKeys.has(key)) return false
+          if (previewAttempts.has(key) || queuedKeys.has(key)) return false
           queuedKeys.add(key)
           return true
         })
@@ -368,5 +366,5 @@ export function initResultMediaBackfillBridge(deps: PreviewBackfillDeps | null =
 
 /** 测试专用：清掉本次启动的「已试过」记录。 */
 export function resetResultMediaBackfillAttemptsForTests(): void {
-  attempted.clear()
+  relocalizationAttempts.clear()
 }

@@ -1,0 +1,27 @@
+[
+  {
+    "glob": "docs/engineering/**/*.json",
+    "reason": "工程治理登记表及各概念的结构化正本",
+    "owner": "工程治理"
+  },
+  {
+    "glob": "docs/fixes/*.root-cause.json",
+    "reason": "P2 根因合同由门岗核对",
+    "owner": "根因合同维护者"
+  },
+  {
+    "glob": "docs/design/boards/**/*.board.json",
+    "reason": "拍板元素清单是界面实现和验收合同",
+    "owner": "设计系统"
+  },
+  {
+    "glob": "docs/design/boards/**/source/**",
+    "reason": "保留拍板对应的探索源稿",
+    "owner": "设计系统"
+  },
+  {
+    "glob": "docs/design/boards/**/preview/**",
+    "reason": "保留拍板对应的预览稿",
+    "owner": "设计系统"
+  }
+]

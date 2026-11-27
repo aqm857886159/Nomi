@@ -6,18 +6,53 @@ import { type FailureLocale } from './generationFailureCopy'
 import { type GenerationErrorKind } from './generationFailureKinds'
 import { parseTaskFailureMessage, type VendorErrorStructuredLite } from './generationFailureWire'
 
+/** 两个入口都可能拿到整页、内联标签或已截断的标签。 */
+export function containsHtmlMarkup(text: string): boolean {
+  if (/<!doctype\b|<!--|<\/?(?:html|head|body|title|meta|script|style|center|hr|br)(?=[\s/>]|$)/i.test(text)
+    || /<[a-z][\w:-]*(?:\s*\/>|\s+[a-z_:][\w:.-]*(?:\s*=|\s*\/?>))/i.test(text)) return true
+  if (!text.includes('</')) return false
+
+  const opened = new Set<string>()
+  for (const [, closing, name] of text.matchAll(/<(\/?)([a-z][\w:-]*)\s*>/gi)) {
+    const tag = name.toLowerCase()
+    if (!closing) opened.add(tag)
+    else if (opened.has(tag)) return true
+  }
+  return false
+}
+
+/** JSON 信封、数组或开头的裸键值。业务句中的引号字段名和 [Pro] 前缀保留。 */
+function looksLikeJsonPayload(text: string): boolean {
+  return text.startsWith('{') || /^\[\s*(?:[[{"\d\]-]|true\b|false\b|null\b|$)/.test(text)
+    || /^"(?:\\.|[^"\\])*"\s*:/.test(text)
+}
+
+function containsErrorStack(text: string): boolean {
+  if (!/^(?:[\w$]+\.)*[\w$]*(?:Error|Exception):/.test(text)) return false
+  // 换行还在时认缩进栈帧。被传输层压平时认函数调用、文件位置或省略号。
+  return /\n\s*at\s+\S/.test(text) || /\bat\s+(?:(?:(?:async|new)\s+)?[^\s(]+\s*\(|\S+:\d+\b|\.{3}|…)/.test(text)
+}
+
+export function isTechnicalErrorLine(text: string): boolean {
+  return containsHtmlMarkup(text) || looksLikeJsonPayload(text) || containsErrorStack(text)
+    || /^(?:(?:[\w$]+\.)*[\w$]*(?:Error|Exception)|[A-Z][A-Z0-9_]+|[A-Za-z][A-Za-z0-9]*_\w+)$/.test(text)
+    || /^HTTP\s+\d{3}(?:$|\s*:\s*provider returned\b)/i.test(text)
+}
+
 export function cleanProviderMessage(candidate: string | undefined): string {
   const source = String(candidate || '').trim()
-  const msg = (jsonErrorMessage(source) ?? source).replace(/\s+/g, ' ').trim()
-  if (!msg || msg === '(no detail from provider)') return ''
+  const detail = jsonErrorMessage(source) ?? source
+  const msg = detail.replace(/\s+/g, ' ').trim()
+  if (!msg || msg === '(no detail from provider)' || isTechnicalErrorLine(detail)) return ''
   return msg.length > 200 ? `${msg.slice(0, 199)}…` : msg
 }
 
-/** provider 常把报错塞进 JSON：{ error: { message } } / { message } / { error }。抠不出返回 null。 */
+/** provider 常把报错塞进 JSON：{ error: { message } } / { message } / { error }。有效 JSON 没有消息时给空串，解析失败才给 null。 */
 function jsonErrorMessage(source: string): string | null {
   try {
     const parsed = JSON.parse(source) as unknown
-    if (!parsed || typeof parsed !== 'object') return null
+    if (typeof parsed === 'string') return parsed.trim()
+    if (!parsed || typeof parsed !== 'object') return ''
     const record = parsed as Record<string, unknown>
     const errorField = record.error
     const candidates = [
@@ -30,7 +65,7 @@ function jsonErrorMessage(source: string): string | null {
     for (const value of candidates) {
       if (typeof value === 'string' && value.trim()) return value.trim()
     }
-    return null
+    return ''
   } catch {
     return null // 不是 JSON
   }
@@ -39,7 +74,7 @@ function jsonErrorMessage(source: string): string | null {
 /**
  * 未命中任何已知分类时，从 raw 里抠一句**可读首行**当 reason——而不是又甩一句
  * "生成失败"（那会和顶部状态徽标重复，对用户零信息）。优先解析 JSON 里的
- * message/error 字段，否则取第一行非空文本并截断。抠不出可读内容才返回 ''。
+ * message/error 字段，否则取第一行非空文本，供标题先判形状再截断。没有内容返回 ''。
  */
 export function extractReadableErrorLine(raw: string): string {
   // IPC 外壳（`Error invoking remote method '…': Error: …`）是我们自己的管道细节，对用户零信息，却正好占住
@@ -48,13 +83,14 @@ export function extractReadableErrorLine(raw: string): string {
   if (!source) return ''
   // 1) provider 常把报错塞进 JSON（与 cleanProviderMessage 共用同一个剥壳器，两处不许各写一份）
   const fromJson = jsonErrorMessage(source)
-  if (fromJson) return truncateLine(fromJson)
+  if (fromJson) return fromJson
+  if (containsErrorStack(source)) return ''
   // 2) 纯文本：取第一行非空内容
   const firstLine = source
     .split('\n')
     .map((line) => line.trim())
     .find(Boolean)
-  return firstLine ? truncateLine(firstLine) : ''
+  return firstLine ?? ''
 }
 
 /**
@@ -135,6 +171,10 @@ export function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
     return 'quota'
   // 我们自己的轮询超时(视频长任务常见)——不是网络问题,任务多半还在服务商侧跑。
   if (raw.includes('轮询超时') || lower.includes('task poll timeout')) return 'poll-timeout'
+  // 旧报文没有类别字段时，只认独立的网关状态或异常名。Gateway Timeout 优先于网络超时关键词。
+  const status = lower.trim()
+  if (/^(?:(?:http\s+)?5\d\d\s+)?(?:service\s+unavailable|bad\s+gateway|gateway\s+timeout)(?=$|[.:](?:\s|$)|\s+-\s|[\r\n])/.test(status)
+    || /^(?:[\w$]+\.)*(?:serviceunavailable|badgateway|gatewaytimeout)(?:error|exception)(?=$|:)/.test(status)) return 'server'
   // 连不上 ≠ 超时。以前这桶只认 timeout 一族，「压根没连上」的那半边全漏进 unknown，拿到
   // 「可能是服务商临时故障或额度问题，建议稍等重试」——把用户自己的网络/代理问题甩锅给一个
   // 根本没被请求到的服务商，而重试必再撞（同 output-truncated 的理由）。三处真实来源都得认：

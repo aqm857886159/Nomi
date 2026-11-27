@@ -26,8 +26,9 @@ import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { evaluatePrBody, ledgerChanges, resolveJudgementStage, reviewedContracts, settledContracts } from './pr-body-criteria.mjs'
 import { knownScenarios, scenarioEntriesFromReader } from './perf-scenarios-lib.mjs'
 import { PRIOR_ART_THRESHOLD_DATE, evaluatePlans, evaluatePullRequest, scopePlansToChanged } from './prior-art-lib.mjs'
-import { ROUTING_FILE } from './pr-judgement-lib.mjs'
-import { loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
+import { GENERATED_ALLOWLIST_FILE, checkGeneratedWeight, loadRoutingTable, ROUTING_FILE, toolGaps } from './pr-judgement-lib.mjs'
+import { pushApprovals, resolveEffectiveAllowlist } from './lib/coordApprovals.mjs'
+import defaultAllowlist from '../docs/engineering/generated-allowlist.json' with { type: 'json' }
 import { SELF_WRITTEN_FILE, registryChanges } from './self-written-lib.mjs'
 import { prChanges } from './lib/prChanges.mjs'
 
@@ -87,11 +88,32 @@ function main() {
   }
   // 档位先定（写错的 --stage 当场报错，不等取到正文才发现）
   const stage = resolveJudgementStage(process.env, process.argv.slice(2))
+  const parseAllowlist = (raw) => {
+    if (raw === null) return null
+    try { return JSON.parse(raw) } catch { return 'invalid-json' }
+  }
   const pr = resolvePullRequestBody({ cwd: repoRoot })
   if (!pr.available) {
     if (pr.required) {
       console.error(`✖ PR 正文取不到，无法判功能分类 / 验收证据 / 规则与门岗范围：${pr.reason}`)
       return 1
+    }
+    const baseForWeight = resolveBase()
+    if (baseForWeight) {
+      const showForWeight = (ref, file) => { try { return git(['show', `${ref}:${file}`]) } catch { return null } }
+      const { files: weightFiles } = prChanges({ git, base: baseForWeight, head: 'HEAD', contentScope: '^$' })
+      const touchedAllowlist = weightFiles.some((file) => file.path === GENERATED_ALLOWLIST_FILE)
+      const baseAllowlist = parseAllowlist(showForWeight(baseForWeight, GENERATED_ALLOWLIST_FILE))
+      const headAllowlist = touchedAllowlist
+        ? (weightFiles.find((file) => file.path === GENERATED_ALLOWLIST_FILE)?.status === 'D' ? 'deleted' : parseAllowlist(showForWeight('HEAD', GENERATED_ALLOWLIST_FILE)))
+        : undefined
+      const resolved = resolveEffectiveAllowlist({ files: weightFiles, baseAllowlist, headAllowlist, fallbackAllowlist: defaultAllowlist, approvals: pushApprovals() })
+      const weight = checkGeneratedWeight(weightFiles, resolved.allowlist, { headAllowlist: resolved.headAllowlist, unapprovedGlobs: resolved.unapprovedGlobs })
+      if (!weight.ok) {
+        for (const line of weight.lines) console.log(line)
+        console.error('✖ 请修正上述文件或登记表后重新提交。')
+        return 1
+      }
     }
     console.log(`⏭️ PR 正文判据跳过（${pr.reason}）`)
     return 0
@@ -102,8 +124,14 @@ function main() {
     return 1
   }
   // 新增行按文件取（AbortController 只在非测试文件里认，#1038）；文件表 / 新增行 / package.json 被删行和合并前扫描同一个函数
-  const { files, addedByFile, packageRemovedLines } = prChanges({ git, base, head: 'HEAD' })
   const show = (ref, file) => { try { return git(['show', `${ref}:${file}`]) } catch { return null } }
+  // 政策表（路由表）取 base 版本：PR 不能放宽自己的路由要求（G-perfreg 分工：政策取 main，可扩充数据取 PR 头）
+  const policyTable = JSON.parse(show(base, ROUTING_FILE) ?? 'null')
+  if (!policyTable) {
+    console.error(`✖ 拿不到 base 上的路由政策表（${ROUTING_FILE}），无法判——不拿 PR 头上的版本顶替`)
+    return 1
+  }
+  const { files, addedByFile, packageRemovedLines } = prChanges({ git, base, head: 'HEAD', contentScope: policyTable.abortSignal?.scope })
   // 逃逸账本一条一个文件：条目被删 = 条目文件在 base 有、HEAD 没有；转 fixed 看两版（同一份 ledgerChanges）。
   const ledger = { transitions: [], ids: [], removed: [], settledContracts: [], preparedContracts: [] }
   if (files.some((file) => escapeIdOfPath(file.path))) {
@@ -134,13 +162,12 @@ function main() {
     prFiles: files.filter((file) => file.status !== 'D' && scenarioRe.test(file.path)).map((file) => ({ file: file.path, content: show('HEAD', file.path) })),
     removedFiles: files.filter((file) => file.status === 'D' && scenarioRe.test(file.path)).map((file) => file.path),
   })
-  // 政策表（路由表）取 base 版本：PR 不能放宽自己的路由要求（G-perfreg 分工：政策取 main，可扩充数据取 PR 头）
-  const policyTable = JSON.parse(show(base, ROUTING_FILE) ?? 'null')
-  if (!policyTable) {
-    console.error(`✖ 拿不到 base 上的路由政策表（${ROUTING_FILE}），无法判——不拿 PR 头上的版本顶替`)
-    return 1
-  }
-  const result = evaluatePrBody({ body: pr.body, files, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
+  const touchedAllowlist = files.some((file) => file.path === GENERATED_ALLOWLIST_FILE)
+  const baseAllowlist = parseAllowlist(show(base, GENERATED_ALLOWLIST_FILE))
+  const headAllowlist = touchedAllowlist
+    ? (files.find((file) => file.path === GENERATED_ALLOWLIST_FILE)?.status === 'D' ? 'deleted' : parseAllowlist(show('HEAD', GENERATED_ALLOWLIST_FILE)))
+    : undefined
+  const result = evaluatePrBody({ body: pr.body, files, baseAllowlist, headAllowlist, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
   const priorArtErrors = checkPriorArtAlongside({ base, files, body: pr.body, show })
   const categories = result.judgement.inferred.categories.map((category) => category.label)
   console.log(`PR 正文判据（${stage === 'merge' ? '合并档' : '推送档'}，正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)
@@ -150,7 +177,8 @@ function main() {
   }
   if (result.blocked || priorArtErrors.length > 0) {
     // 合并档跑在「PR Body」检查里，正文一改（edited）它自动重判；推送档跑在 Contracts 里，Quality Gate 只在推送时触发。
-    console.error(stage === 'merge'
+    if (!result.weight.ok) console.error('✖ 请修正上述文件或登记表后重新提交。')
+    else console.error(stage === 'merge'
       ? '✖ PR 正文判据（合并档）没过：在 GitHub 上把 PR 正文改好即可，「PR Body」检查会自动重判，不必重推、不必点重跑。'
       : '✖ PR 正文判据（推送档）没过：这几项推送时就该写好。改好 PR 正文后重跑这个 job 即可，不必重推。')
     return 1

@@ -22,7 +22,7 @@ import {
   renderReport,
   resolveJudgementStage,
 } from './pr-body-criteria.mjs'
-import { checkProtectedScope, extractSection, main as preflightMain } from './merge-preflight.mjs'
+import { checkProtectedScope, extractSection, main as preflightMain, readReportRef, repoSlugOfOrigin, sameRepoCommentEndpoint } from './merge-preflight.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -337,7 +337,7 @@ function prRepo(t, { base = {}, head = {} } = {}) {
     runGit(work, ['commit', '-q', '--allow-empty', '-m', message])
     return runGit(work, ['rev-parse', 'HEAD']).trim()
   }
-  const baseSha = commit({ 'README.md': 'base\n', ...base }, 'base')
+  const baseSha = commit({ 'README.md': 'base\n', 'docs/engineering/generated-allowlist.json': [], ...base }, 'base')
   runGit(work, ['push', '-q', origin, 'HEAD:refs/heads/main'])
   const headSha = commit(head, 'pr')
   runGit(work, ['push', '-q', origin, `HEAD:refs/pull/${PR}/head`])
@@ -353,12 +353,16 @@ const prBodyRun = (overrides = {}) => ({
 })
 const QUALITY_GATE_RUN = { __typename: 'CheckRun', name: 'Contracts', workflowName: 'Quality Gate', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-11-07T01:00:00Z', completedAt: '2026-11-07T01:20:00Z' }
 
-function fakeGh({ headRefOid, body = '## 设计卡\n', createdAt = '2026-10-10T00:00:00Z', checks = [QUALITY_GATE_RUN, prBodyRun()] }) {
+function fakeGh({ headRefOid, body = '## 设计卡\n', createdAt = '2026-10-10T00:00:00Z', checks = [QUALITY_GATE_RUN, prBodyRun()], comments = {} }) {
   const calls = []
   const exec = (args) => {
     const line = args.join(' ')
     calls.push(line)
     if (line.startsWith('pr view')) return JSON.stringify({ body, headRefOid, baseRefName: 'main', createdAt, ...(checks === null ? {} : { statusCheckRollup: checks }) })
+    if (line.startsWith('api repos/') && Object.hasOwn(comments, args[1])) {
+      const entry = comments[args[1]]
+      return JSON.stringify(typeof entry === 'string' ? { body: entry } : entry)
+    }
     // 真 GitHub 的原话（#1269）：实现若退回 gh pr diff 取数，大 PR 就拿不到结论
     if (line.startsWith('pr diff')) throw new Error("could not find pull request diff: HTTP 406: Sorry, the diff exceeded the maximum number of files (300). Consider using 'List pull requests files' API or locally cloning the repository instead.")
     throw new Error(`unexpected gh call: ${line}`)
@@ -396,7 +400,7 @@ test('大 PR（超过 300 个文件，GitHub 的 PR diff 给不了）：本地 g
   assert.deepEqual(result.calls, ONLY_PR_VIEW, '远程只剩 gh pr view 一次：不再走 gh pr diff / 文件表 / contents / compare / GraphQL')
   const changes = prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha })
   assert.equal(changes.files.length, count + 2)
-  assert.deepEqual(changes.files.at(-1), { path: LEDGER, status: 'M' })
+  assert.deepEqual(changes.files.at(-1), { path: LEDGER, status: 'M', additions: 1, binary: false })
 })
 
 test('head 对不上：fetch 到的 pull/<n>/head 不是 gh pr view 给的 headRefOid（取数这几秒里 PR 又推了）→ 取数失败，不拿新 head 判旧正文', (t) => {
@@ -429,11 +433,11 @@ test('本地 diff 的格式用参数钉死：仓库里设了 diff.noprefix / dif
   const cleanChanges = prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha })
   // 先证明基准本身是对的（否则「不变」没有意义）
   assert.deepEqual(cleanChanges.files, [
-    { path: 'docs/中文说明.md', status: 'M' },
-    { path: 'package.json', status: 'M' },
-    { path: 'src/workbench/ai/stream.ts', status: 'M' },
-    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A' },
-    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D' },
+    { path: 'docs/中文说明.md', status: 'M', additions: 1, binary: false },
+    { path: 'package.json', status: 'M', additions: 0, binary: false },
+    { path: 'src/workbench/ai/stream.ts', status: 'M', additions: 1, binary: false },
+    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A', additions: 5, binary: false },
+    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D', additions: 0, binary: false },
   ])
   assert.equal(cleanChanges.addedByFile.get('src/workbench/ai/stream.ts'), '+export const c = new AbortController()')
   assert.equal(cleanChanges.addedByFile.get('docs/中文说明.md'), '+二')
@@ -459,8 +463,8 @@ test('逃逸账本条目文件改名：文件表里是「旧路径 D + 新路径
   assert.equal(result.code, 1)
   // 内容几乎一样，git 默认会认成改名（R0xx）；钉死 --no-renames 后是一删一增，旧路径不会藏在改名记录里
   assert.deepEqual(prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha }).files, [
-    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A' },
-    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D' },
+    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A', additions: 5, binary: false },
+    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D', additions: 0, binary: false },
   ])
 })
 
@@ -504,14 +508,128 @@ test('取数失败 = 没有结论：fetch 不到、本机缺对象、合同内�
   assert.match(cut.out, /取不到完整的提交历史：本机仓库是浅克隆/)
 })
 
-test('取数只有本地 git 一个口：合并前扫描的远程调用只剩 gh pr view，文件表 / 新增行只经 scripts/lib/prChanges.mjs（不再有 gh pr diff、gh api、第二份 git diff）', () => {
+test('取数只有本地 git 一个口：合并前扫描的远程调用只剩 gh pr view（加同仓库验收评论单条 gh api），文件表 / 新增行只经 scripts/lib/prChanges.mjs（不再有 gh pr diff、文件表/目录 API、第二份 git diff）', () => {
   const source = fs.readFileSync(path.join(here, 'merge-preflight.mjs'), 'utf8')
-  const ghCalls = [...source.matchAll(/\bgh\(\[\s*'([^']+)',\s*'([^']+)'/g)].map((match) => `${match[1]} ${match[2]}`)
-  assert.deepEqual(ghCalls, ['pr view'])
+  const ghCalls = [...source.matchAll(/\bgh\(\[\s*'([^']+)'(?:,\s*'([^']+)')?/g)].map((match) => (match[2] ? `${match[1]} ${match[2]}` : match[1]))
+  assert.deepEqual(ghCalls, ['pr view', 'api'])
   assert.doesNotMatch(source, /\bexec\(\[/, '不许绕过 gh 包装直接调 gh')
-  assert.doesNotMatch(source, /'api'|'graphql'|contents\/|\/compare\/|'--paginate'/, '文件内容 / 文件表 / 目录 / merge-base 不再走 GitHub API')
+  assert.doesNotMatch(source, /'graphql'|contents\/|\/compare\/|'--paginate'/, '文件内容 / 文件表 / 目录 / merge-base 不再走 GitHub API')
   assert.match(source, /from '\.\/lib\/prChanges\.mjs'/)
   assert.doesNotMatch(source, /'--name-status'|'-U0'/, '文件表 / 新增行只从 prChanges 一处取')
+})
+
+test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报告正文并核对首行与 HEAD；外仓链接、非评论外链照旧判红（#1712 真评论形状）', (t) => {
+  assert.equal(repoSlugOfOrigin('https://github.com/aqm857886159/Nomi.git'), 'aqm857886159/Nomi')
+  assert.equal(repoSlugOfOrigin('git@github.com:aqm857886159/Nomi.git'), 'aqm857886159/Nomi')
+  assert.equal(repoSlugOfOrigin('/tmp/local-origin.git'), null)
+  assert.equal(sameRepoCommentEndpoint('https://github.com/o/r/pull/1712#issuecomment-7224317666', 'o/r'), 'repos/o/r/issues/comments/7224317666')
+  assert.equal(sameRepoCommentEndpoint('https://github.com/O/R/issues/1586#issuecomment-7224317666', 'o/r'), 'repos/O/R/issues/comments/7224317666')
+  assert.equal(sameRepoCommentEndpoint('https://github.com/other/repo/pull/1712#issuecomment-7224317666', 'o/r'), null)
+  assert.equal(sameRepoCommentEndpoint('https://github.com/o/r/pull/1712', 'o/r'), null)
+  assert.equal(readReportRef('https://github.com/other/repo/pull/1712#issuecomment-7224317666', () => 'x', () => 'y', { repoSlug: 'o/r', readComment: () => 'body' }), null)
+
+  const repo = spendRepo(t)
+  const firstLine = `【验收】PR0-recovery @ ${repo.headSha.slice(0, 9)}：有条件通过（8 项合同与撤底座必红反例全部实跑通过；真付费抽检按约定由协调合并前执行）`
+  const pr1712CommentBody = [
+    firstLine,
+    '',
+    '- 验收线：V-PR0-gemini',
+    `- 验收 HEAD：${repo.headSha}`,
+    '',
+    '| # | 核对项 | 实跑命令 | 实测结果 | 源码与测试证据 |',
+    '| --- | --- | --- | --- | --- |',
+    '| 1 | 在线和找回结果一致 | `vitest run` | 106/106 通过 | `electron/capabilityCore/canvasPaidRecovery.test.ts` |',
+  ].join('\n')
+  const makeFourClassBody = (reportUrl, quotedFirst = firstLine) => [
+    FULL_CARD.split('## 独立验收')[0].trimEnd(),
+    '出口：不涉及：单测夹具',
+    '### 功能分类',
+    '- [x] 花钱',
+    '',
+    '## 验收证据',
+    '- spend-walks：tests/ux/agent-spend-card.walk.mjs',
+    '- spend-paid-sample：协调豁免：底座单测覆盖，合并前补跑',
+    '- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs',
+    '',
+    '## 独立验收',
+    '- 验收线：V-PR0-gemini',
+    `- 报告：${reportUrl}`,
+    `- 报告首行：${quotedFirst}`,
+    `- 验收 HEAD：${repo.headSha}`,
+  ].join('\n')
+
+  // 正例 1：本仓 PR 评论链接（#1712 形状）→ 调 gh api 读出报告并核对讨论串归属通过
+  const prOk = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody,
+        html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+      },
+    },
+  })
+  assert.equal(prOk.code, 0, prOk.out)
+  assert.deepEqual(prOk.calls, [...ONLY_PR_VIEW, 'api repos/o/r/issues/comments/7224317666'])
+
+  // 正例 2：本仓 issue 评论链接同样支持
+  const issueOk = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/o/r/issues/1586#issuecomment-7224317666'),
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody,
+        html_url: 'https://github.com/o/r/issues/1586#issuecomment-7224317666',
+      },
+    },
+  })
+  assert.equal(issueOk.code, 0, issueOk.out)
+
+  // 反例 1：外仓评论链接不发 gh api、直接按读不到判红
+  const foreignFail = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/evil/other/pull/7#issuecomment-7224317666'),
+    comments: { 'repos/evil/other/issues/comments/7224317666': pr1712CommentBody },
+  })
+  assert.equal(foreignFail.code, 1)
+  assert.match(foreignFail.out, /独立验收的报告读不到/)
+  assert.deepEqual(foreignFail.calls, ONLY_PR_VIEW)
+
+  // 反例 2：评论正文首行与 PR 正文声明不一致（或结论为不通过）→ 真实读回后拦截判红
+  const mismatchFail = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody.replace('有条件通过', '不通过'),
+        html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+      },
+    },
+  })
+  assert.equal(mismatchFail.code, 1)
+  assert.match(mismatchFail.out, /对不上|不通过/)
+
+  // 反例 3：同仓库评论 ID 存在，但链接里的讨论串编号与 API 返回的 html_url 不符（或缺 html_url 无法核验）→ 按无效引用判红
+  const wrongThreadFail = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/o/r/pull/999#issuecomment-7224317666'),
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody,
+        html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+      },
+    },
+  })
+  assert.equal(wrongThreadFail.code, 1)
+  assert.match(wrongThreadFail.out, /独立验收的报告读不到/)
+
+  const missingHtmlUrlFail = runPreflight(repo, {
+    createdAt: '2026-11-27T00:00:00Z',
+    body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
+    comments: { 'repos/o/r/issues/comments/7224317666': pr1712CommentBody },
+  })
+  assert.equal(missingHtmlUrlFail.code, 1)
+  assert.match(missingHtmlUrlFail.out, /独立验收的报告读不到/)
 })
 
 // ── 花钱类合并前要有真付费证据（2026-10-16，#1203 写「未验证」被合进来）：端到端走一遍 main()，只看真付费那一行 ──
@@ -597,4 +715,49 @@ test('合并前扫描拿不到 statusCheckRollup = 取数失败（结论：✖ �
   assert.equal(result.code, 1)
   assert.match(result.out, /取不到PR 当前 head 上的检查列表/)
   assert.match(result.out, /^结论：✖ 有项没过，先别合（取数失败/m)
+})
+
+test('合并扫描从 git numstat 计行：基线白名单生效、拒绝 PR 自批放宽、兼容旧分支缺白名单、压住 -diff 属性', (t) => {
+  const name = 'docs/evidence/探针\t[v2].CSV'
+  const allowlist = 'docs/engineering/generated-allowlist.json'
+  const baseRules = [{ glob: allowlist, reason: '登记表', owner: '工程治理' }, { glob: 'docs/registered.log', reason: '验收合同', owner: '评审' }]
+  const repo = prRepo(t, {
+    base: {
+      '.gitattributes': 'docs/evidence/** -diff\n',
+      [allowlist]: baseRules,
+    },
+    head: {
+      [name]: '++raw\n'.repeat(1001),
+      'docs/binary.json': '\0' + '\n'.repeat(1500),
+      'src/sample.candidates.json': '++raw\n'.repeat(1001),
+      'docs/registered.log': 'row\n'.repeat(2500),
+      'docs/sneaky.jsonl': 'row\n'.repeat(1001),
+      [allowlist]: [...baseRules, { glob: 'docs/sneaky.jsonl', reason: '自批豁免', owner: '实现线' }],
+    },
+  })
+  const result = runPreflight(repo, { git: args => {
+    assert.ok(!args.includes('-U0'), '这组改动没有需要路由内容检查的路径')
+    return repo.git(args)
+  } })
+  assert.equal(result.code, 1)
+  assert.ok(result.out.includes(`${name} 新增 1001 行`), result.out)
+  assert.ok(result.out.includes('docs/sneaky.jsonl 新增 1001 行'), result.out)
+  assert.match(result.out, /合计新增 3003 行/)
+  assert.match(result.out, /不能在同一 PR 内自行豁免/)
+  assert.doesNotMatch(result.out, /机器产出 docs\/(?:registered\.log|binary\.json)/)
+  const changes = prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha })
+  assert.deepEqual(changes.files.find(f => f.path === 'docs/binary.json'), { path: 'docs/binary.json', status: 'A', additions: 0, binary: true })
+  assert.deepEqual(changes.files.find(f => f.path === name), { path: name, status: 'A', additions: 1001, binary: false })
+
+  // 尚未合并本 PR 的旧在途分支（forkSha / headSha 上均无 generated-allowlist.json），基线 main 已有白名单时不误报缺失
+  const legacyRepo = prRepo(t, { base: { 'docs/a.md': 'a\n', [allowlist]: null }, head: { 'docs/a.md': 'b\n', 'docs/registered.log': 'row\n'.repeat(1500) } })
+  const workDir = path.join(path.dirname(legacyRepo.origin), 'work')
+  runGit(workDir, ['checkout', '-q', legacyRepo.baseSha])
+  fs.mkdirSync(path.join(workDir, 'docs/engineering'), { recursive: true })
+  fs.writeFileSync(path.join(workDir, allowlist), JSON.stringify(baseRules))
+  runGit(workDir, ['add', allowlist])
+  runGit(workDir, ['commit', '-q', '-m', 'main adds allowlist'])
+  runGit(workDir, ['push', '-q', legacyRepo.origin, 'HEAD:refs/heads/main'])
+  const legacyOk = runPreflight(legacyRepo, { body: FULL_CARD })
+  assert.equal(legacyOk.code, 0, legacyOk.out)
 })

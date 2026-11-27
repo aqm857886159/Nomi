@@ -5,15 +5,13 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled, proveProbe, expectAbsent, expectOverlayReachable, waitForVisualQuiescence } from './_assert.mjs'
 import { buildInlineWhiteboardProject } from './_whiteboardFixture.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { clickBlank } from './full-walk/actions.mjs'
 import { collapseAgentPanel, canvasSetZoomPercent, canvasResetView, canvasZoomPercent } from './_shell.mjs'
 import { checkBoardManifest } from '../../scripts/check-board-parity.mjs'
-import { hashBoardSource } from '../../scripts/board-source-hash.mjs'
 
 const boardDir = path.resolve('docs/design/boards/2026-10-12')
 const boardManifest = JSON.parse(fs.readFileSync(path.join(boardDir, 'InlineWhiteboard.board.json'), 'utf8'))
-const boardCandidates = JSON.parse(fs.readFileSync(path.join(boardDir, 'InlineWhiteboard.candidates.json'), 'utf8'))
-expect(hashBoardSource(boardDir, 'InlineWhiteboard')).toBe(boardCandidates.sourceSha256)
-expect(checkBoardManifest({ board: 'InlineWhiteboard', manifest: boardManifest, candidates: boardCandidates.candidates, assertionCorpus: fs.readFileSync(new URL(import.meta.url), 'utf8') })).toEqual([])
+expect(checkBoardManifest({ board: 'InlineWhiteboard', manifest: boardManifest })).toEqual([])
 
 const locale = process.argv.includes('--en') ? 'en' : 'zh-CN'
 const dark = process.argv.includes('--dark')
@@ -301,14 +299,31 @@ try {
   await expectAbsent(editor, { provenBy: editorProbe })
   await expect.poll(() => readNode('image').history.length).toBe(2)
   check('unchanged reopen and Done does not duplicate result history', true)
-  await canvasSetZoomPercent(page, 35)
-  await node.locator('[data-version-badge]').click()
+  // 525feeacb / 9b49d3a40 起未选中卡片在 <40% 缩放走轻量渲染（仅标题与缩略图），40%–55% 全局视口段保留版本徽标。
+  await clickBlank(page)
+  await expect(node, 'image node is unselected before checking 45% badge').toHaveAttribute('data-selected', 'false')
+  await canvasSetZoomPercent(page, 45)
+  await expect.poll(() => canvasZoomPercent(page)).toBe(45)
+  await expect(node, 'image node stays unselected at 45% zoom').toHaveAttribute('data-selected', 'false')
+  const unselectedBadge = node.locator('[data-version-badge]')
+  await expect(unselectedBadge, 'unselected node at 45% zoom still renders version badge').toBeVisible()
+  const editedResultId = readNode('image').result.id
+  expect(editedResultId).not.toBe('original')
+  await unselectedBadge.click()
   await expect(page.locator('[data-version-grid="image"] [data-version-card]').first()).toBeVisible()
+  const originalCard = page.locator('[data-version-grid="image"] [data-version-identity="original"]')
+  await originalCard.hover()
+  await originalCard.locator('[data-toolbar-action="set-primary"]').click()
+  await expect.poll(() => readNode('image').result.id).toBe('original')
+  const editedCard = page.locator(`[data-version-grid="image"] [data-version-identity="${editedResultId}"]`)
+  await editedCard.hover()
+  await editedCard.locator('[data-toolbar-action="set-primary"]').click()
+  await expect.poll(() => readNode('image').result.id).toBe(editedResultId)
   check('existing version cards remain available', true)
   await snap('saved-history')
   await openImage()
   await stroke()
-  const originalCard = page.locator('[data-version-grid="image"] [data-version-identity="original"]')
+  if (!await page.locator('[data-version-grid="image"]').isVisible()) await node.locator('[data-version-badge]').click()
   await originalCard.hover()
   await originalCard.locator('[data-toolbar-action="set-primary"]').click()
   await expectAbsent(editor, { provenBy: editorProbe })

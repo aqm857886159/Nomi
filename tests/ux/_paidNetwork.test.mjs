@@ -227,6 +227,8 @@ describe('rehearsalVerdict', () => {
     expect(vendorRowClass({ kind: 'blocked', via: 'socket', host: 'api.apimart.ai', url: 'tcp://api.apimart.ai:443' }).station).toBe('vendor-read')
     expect(vendorRowClass({ kind: 'blocked', via: 'fetch', host: 'cdn.getapib.org', url: 'https://cdn.getapib.org/x/result' }).station).toBe('vendor-read')
     expect(vendorRowClass({ kind: 'blocked', via: 'chromium', method: 'GET', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/videos/generations' }).station).toBe('vendor-read')
+    expect(vendorRowClass({ kind: 'blocked', via: 'fetch', host: 'api.apimart.ai', url: 'https://api.apimart.ai/api/pricing/model?model=gpt-image-2' }).station).toBe('vendor-read')
+    expect(vendorRowClass({ kind: 'blocked', via: 'fetch', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/user/balance' }).station).toBe('vendor-read')
     const verdict = rehearsalVerdict({ entries: [loaded, mainCreate], lockedAtEntry: 1, judgedAllow, stoppedBy: 'guard-block' })
     expect(verdict).toMatchObject({ passed: true, station: 'vendor-create' })
     expect(verdict.reason).toContain('方法没记、按路径推')
@@ -252,11 +254,18 @@ describe('rehearsalVerdict', () => {
     const verdict = rehearsalVerdict({ entries: [loaded, balance, loaded, vendorPost], lockedAtEntry: 3, judgedAllow })
     expect(verdict).toMatchObject({ passed: true, request: { path: '/v1/videos/generations' }, preLock: [{ path: '/v1/balance' }] })
   })
-  it('rehearsalShouldStop: keeps the app running through vendor blocks before the lock; stops at the first block after it, or at any other origin', () => {
-    const balance = { kind: 'blocked', via: 'product-guard', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/balance' }
+  it('rehearsalShouldStop: keeps the app running through vendor blocks before the lock and vendor-read blocks after the lock (real-key reopen balance/pricing reads); stops at endpoint block or foreign origin', () => {
+    const balance = { kind: 'blocked', via: 'product-guard', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/user/balance' }
+    const pricing = { kind: 'blocked', via: 'fetch', host: 'api.apimart.ai', url: 'https://api.apimart.ai/api/pricing/model?model=gpt-image-2' }
     expect(rehearsalShouldStop([loaded, balance], { lockedAtEntry: null, judgedAllow })).toBe(null)
-    expect(rehearsalShouldStop([loaded, balance], { lockedAtEntry: 2, judgedAllow })).toBe(null)
-    expect(rehearsalShouldStop([loaded, balance, vendorPost], { lockedAtEntry: 2, judgedAllow })).toBe('guard-block')
+    // real-key reopen 后后台发出的余额 / 询价只读请求在 lockedAtEntry 之后被闸挡下时，不能提前杀掉正在点项目卡的 App
+    expect(rehearsalShouldStop([loaded, balance, pricing], { lockedAtEntry: 1, judgedAllow, endsAt: 'vendor-create', now: Date.now() })).toBe(null)
+    expect(rehearsalShouldStop([loaded, balance], { lockedAtEntry: 1, judgedAllow, endsAt: 'vendor-read', now: Date.now() })).toBe('guard-block')
+    expect(rehearsalShouldStop([loaded, balance, vendorPost], { lockedAtEntry: 1, judgedAllow, endsAt: 'vendor-create', now: Date.now() })).toBe('guard-block')
+    // holdForScript（验请求体的演练）下，非替身闸挡下的 vendor-create 同样必须立即报 guard-block 关窗判红，不许被后续替身请求盖掉
+    const standInPost = { kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/images/generations' }
+    expect(rehearsalShouldStop([loaded, vendorPost], { lockedAtEntry: 1, judgedAllow, holdForScript: true, endsAt: 'vendor-create', now: Date.now() })).toBe('guard-block')
+    expect(rehearsalVerdict({ entries: [loaded, vendorPost, standInPost], lockedAtEntry: 1, judgedAllow, hold: true, stoppedBy: 'guard-block' }).passed).toBe(false)
     expect(rehearsalShouldStop([loaded, elsewhere], { lockedAtEntry: null, judgedAllow })).toBe('foreign')
   })
   it('stand-in vendor (no-key tier): answers only the declared free probe and upload, records every other request with method + path + scrubbed body, never logs headers', async () => {

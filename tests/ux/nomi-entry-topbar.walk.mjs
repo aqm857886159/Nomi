@@ -46,7 +46,7 @@ const GAP = 12
 const ENTRY = '[data-shell-nomi-entry]'
 const SURFACES = ['creation', 'storyboard', 'generation', 'preview']
 
-// 拍板清单元素断言（check:board-parity 认这些名字）。
+// 拍板清单元素断言。
 const BOARD = {
   entry: 'board:NomiEntryTopbar/nomi-entry',
   face: 'board:NomiEntryTopbar/nomi-entry.face',

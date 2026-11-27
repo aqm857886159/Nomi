@@ -11,7 +11,7 @@
   },
   "visualReview": "用户 2026-10-24 在 Claude Design 画布「技能库与提示词库排版改版（0.24 探索）」第 48 版上把 10 个问题全按默认定（https://claude.ai/artifact/A7vtfvcPzy8zCWJUdrJn9y，私有，只有仓库主人能开）。",
   "designCard": "docs/plan/2026-10-23-skill-prompt-library-layout.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。候选由 scripts/board-extract.mjs 的抽取函数（extractBoard + renderCandidatesFile，同样的浏览器设置）在拼页上抽出，两次抽取逐字节一致。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
+  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
   "designIntent": "技能详情：头部封面 + 名字 + 简介 + 来源 / 许可 / 作者；正文是技能文件原文；底栏只有「导出」图标和「放进对话」主按钮（我的技能另有删除在最左）。",
   "artboards": [
     "SkillDetail",
@@ -112,13 +112,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "002-div-技能详情",
-        "028-div-Skilldetails"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.dialog"
+      "assertions": ["board:SkillDetail/skill-detail.dialog"]
     },
     {
       "id": "skill-detail.cover",
@@ -129,11 +126,11 @@
         "error",
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "封面是图片，抽取不成候选；看同名截图。",
-      "assertion": "board:SkillDetail/skill-detail.cover"
+      "assertions": ["board:SkillDetail/skill-detail.cover"]
     },
     {
       "id": "skill-detail.title",
@@ -144,13 +141,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "003-span-凝露产品广告",
-        "029-span-FrostGlassSe"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.title"
+      "assertions": ["board:SkillDetail/skill-detail.title"]
     },
     {
       "id": "skill-detail.summary",
@@ -161,13 +155,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "004-span-用微距水滴和环绕镜头展示",
-        "030-span-AdaptFrostGl"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.summary"
+      "assertions": ["board:SkillDetail/skill-detail.summary"]
     },
     {
       "id": "skill-detail.meta",
@@ -178,33 +169,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "005-span-广告",
-        "006-span",
-        "007-span-内置",
-        "008-span",
-        "009-a",
-        "010-span-来源",
-        "011-svg",
-        "012-span",
-        "013-span-CCBY40",
-        "014-span",
-        "015-span-LichAmnesia",
-        "031-span-Advertising",
-        "032-span",
-        "033-span-Builtin",
-        "034-span",
-        "035-a",
-        "036-span-Source",
-        "037-svg",
-        "038-span",
-        "039-span-CCBY40",
-        "040-span",
-        "041-span-LichAmnesia"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.meta"
+      "assertions": ["board:SkillDetail/skill-detail.meta"]
     },
     {
       "id": "skill-detail.close",
@@ -215,15 +183,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "016-button-关闭",
-        "017-svg",
-        "042-button-Close",
-        "043-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.close"
+      "assertions": ["board:SkillDetail/skill-detail.close"]
     },
     {
       "id": "skill-detail.body",
@@ -234,21 +197,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "018-span-确认已有参考素材与目标尺",
-        "019-span-配方",
-        "020-p-Afrostedglas",
-        "021-span-验收",
-        "022-span-核对主体身份数量结构光影",
-        "044-span-确认已有参考素材与目标尺",
-        "045-span-配方",
-        "046-p-Afrostedglas",
-        "047-span-验收",
-        "048-span-核对主体身份数量结构光影"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.body"
+      "assertions": ["board:SkillDetail/skill-detail.body"]
     },
     {
       "id": "skill-detail.invalid-notice",
@@ -260,11 +212,11 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "样张不画这一态。",
-      "assertion": "board:SkillDetail/skill-detail.invalid-notice"
+      "assertions": ["board:SkillDetail/skill-detail.invalid-notice"]
     },
     {
       "id": "skill-detail.export",
@@ -275,15 +227,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "023-button-导出技能包",
-        "024-svg",
-        "049-button-Exportskillp",
-        "050-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.export"
+      "assertions": ["board:SkillDetail/skill-detail.export"]
     },
     {
       "id": "skill-detail.delete",
@@ -294,11 +241,11 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "样张画的是内置技能，没有这颗。",
-      "assertion": "board:SkillDetail/skill-detail.delete"
+      "assertions": ["board:SkillDetail/skill-detail.delete"]
     },
     {
       "id": "skill-detail.add-to-chat",
@@ -310,15 +257,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "025-button",
-        "026-span-放进对话",
-        "051-button",
-        "052-span-Addtochat"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:SkillDetail/skill-detail.add-to-chat",
+      "assertions": ["board:SkillDetail/skill-detail.add-to-chat"],
       "note": "项目库页上没开项目时禁用并说原因（真机 J-01：芯片漏进下一个新建的项目）；包有问题时禁用并说「修好之前不能放进对话」。"
     },
     {
@@ -328,7 +270,7 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "技能库 / 提示词库设计稿 10 个问题全按默认定，Q1 效果放提示词库。",
@@ -336,10 +278,6 @@
       },
       "note": "Q4：删；想用到节点跟 Nomi 说一句。"
     }
-  ],
-  "decor": [
-    "001-h3-修后技能详情中明去壳背景",
-    "027-h3-修后技能详情英暗去壳背景"
   ],
   "functionCensus": [
     {

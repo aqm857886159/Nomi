@@ -1,14 +1,9 @@
 #!/usr/bin/env node
 // 设计图对账门岗（check:board-parity）。规则来源：docs/engineering/design-pipeline.md。
 //
-// 守的事：拍板图里每个看得见的东西，要么有去处（实现了 / 在做 / 缺且有人认领 / 用户点头推迟或放弃），
-// 要么是纯装饰。拍板图只是一张画时，「图上有、产品没做」没有任何东西会红；清单把它变成会红的东西。
-//
-// 规则（每条一个反例测试，见 check-board-parity.node-test.mjs）：
-//  R1 每个候选恰好被一个元素引用或列进 decor（板改了出新候选 → 红；重抽的候选与仓库里的 candidates.json 不一致也红）
-//  R2 status 只能是 implemented / in-progress / missing / deferred / dropped；元素 id 不重复；引用的候选必须存在
+// 按元素核对状态、责任与用户决定。真窗实测见 tests/ux/_boardAnchorAssert.mjs。
+//  R2 status 合法，元素 id 不重复
 //  R3 missing / in-progress 必须有 owner（PR 号或交接任务名）
-//  R4 implemented 必须有 assertion，且该字符串必须出现在 tests/ux 某个走查文件里（没有就不许写空断言）
 //  R5 deferred / dropped 必须有 userDecision {quote, date}（用户原话 + 日期）
 //  R6 functionCensus 每项的 after 必须是存在的元素 id（旧功能必须有去处）
 //  R7 states 非空，取值只能来自状态词表
@@ -32,19 +27,20 @@
 //  R17 元素 component 必填（2026-11-22 建闸）：批过的板里，元素既不是 dropped、也不是 change=remove/removed，必须写 component（非空字符串或 { file, action }）；
 //      存量 49 块历史板冻结在 scripts/board-component-legacy.json（棘轮只减不增），不在此表的任何新板（含付费确认板）或新增元素一律严格拦截
 //  R8 PR 正文 `## 拍板图` 认领的元素：在 PR 头上必须是 implemented，或带 userDecision 的 deferred / dropped
-//     （认领可以指向任何日期目录里的板；发现到的每张新日期板都跑完整规则：抽取候选核哈希、人工普查须声明）
+//     （认领可以指向任何日期目录里的板；发现到的每张新日期板都跑完整规则：同名板分别查）
 //
-// 用法：node scripts/check-board-parity.mjs            （重抽候选 + 全部规则）
+// 用法：node scripts/check-board-parity.mjs            （全部清单规则）
 //       node scripts/check-board-parity.mjs --debt     （打印已批过板的欠账汇总）
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-// 默认模式只用常量和哈希：不 import 抽取（抽取要浏览器），抽取在 --reextract 里动态加载。
-import { BOARD_NAMES, BOARDS_DIR, REPO_ROOT } from './board-extract.mjs'
-import { hashBoardSource } from './board-source-hash.mjs'
-
+export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+export const BOARDS_DIR = path.join(REPO_ROOT, 'docs/design/boards/2026-10-08')
+export const BOARD_NAMES = Object.freeze([
+  'Main', 'Chrome', 'List', 'ListDetail', 'EmptyStates', 'Edges',
+  'TextNode', 'Creation', 'CreationDoc', 'Library', 'LibraryEmpty', 'CanvasAgent',
+])
 export const BOARD_STATUSES = Object.freeze(['implemented', 'in-progress', 'missing', 'deferred', 'dropped'])
 export const BOARD_STATES = Object.freeze(['empty', 'loading', 'error', 'selected', 'disabled', 'hover', 'narrow', 'long-text', 'zh-en', 'dark', 'max-count'])
 export const BOARD_STAGES = Object.freeze(['explored', 'built'])
@@ -449,15 +445,124 @@ export function checkBoundaryCoverage({ board, manifest, date }) {
   return errors
 }
 
+// R12 only consumes literal relative module references and the names crossing a barrel.
+// Skip comments and non-interpolated string/template text while still lexing ${...} expressions.
+function tokenizeModuleSource(text) {
+  const words = []
+  const templateStack = []
+  let braceDepth = 0
+  let i = 0
+  const readTemplateChunk = (isHead) => {
+    const start = i
+    i += 1
+    while (i < text.length) {
+      const ch = text[i]
+      if (ch === '\\') { i += 2; continue }
+      if (ch === '`') {
+        i += 1
+        if (isHead) words.push(text.slice(start, i))
+        return
+      }
+      if (ch === '$' && text[i + 1] === '{') {
+        i += 2
+        templateStack.push(braceDepth)
+        return
+      }
+      i += 1
+    }
+  }
+  while (i < text.length) {
+    const ch = text[i]
+    if (/\s/.test(ch)) { i += 1; continue }
+    if (ch === '/' && text[i + 1] === '/') {
+      i += 2
+      while (i < text.length && text[i] !== '\n') i += 1
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2)
+      i = end < 0 ? text.length : end + 2
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      const quote = ch
+      const start = i
+      i += 1
+      while (i < text.length) {
+        if (text[i] === '\\') { i += 2; continue }
+        if (text[i] === quote) { i += 1; break }
+        i += 1
+      }
+      words.push(text.slice(start, i))
+      continue
+    }
+    if (ch === '`') { readTemplateChunk(true); continue }
+    if (ch === '{') { braceDepth += 1; words.push('{'); i += 1; continue }
+    if (ch === '}') {
+      if (templateStack.length > 0 && templateStack[templateStack.length - 1] === braceDepth) {
+        templateStack.pop()
+        readTemplateChunk(false)
+        continue
+      }
+      if (braceDepth > 0) braceDepth -= 1
+      words.push('}')
+      i += 1
+      continue
+    }
+    const ident = /^[$\w]+/.exec(text.slice(i))
+    if (ident) { words.push(ident[0]); i += ident[0].length; continue }
+    words.push(ch)
+    i += 1
+  }
+  return words
+}
+
+function* relativeModuleReferences(text) {
+  const words = tokenizeModuleSource(text)
+  const relative = word => /^(?:['"]\.{1,2}\/|`\.{1,2}\/(?:\\.|[^`$\\])*`$)/.test(word ?? '')
+  for (let i = 0; i < words.length; i++) {
+    const kind = words[i]
+    if (!['import', 'export', 'require'].includes(kind)) continue
+    let j = i + 1
+    if (words[j] === '(' && relative(words[j + 1])) {
+      // TS import types name an exported type; runtime import returns a Promise.
+      const member = words[j + 3] === '.' ? words[j + 4] : null
+      if (kind === 'import' && words[i - 1] !== 'await' && (words[i - 1] === 'typeof' || (member && !['then', 'catch', 'finally'].includes(member)))) continue
+      yield { specifier: words[j + 1].slice(1, -1), kind: 'import', names: '*' }
+      continue
+    }
+    if (kind === 'require' || words[j] === 'type') continue
+    if (kind === 'import' && relative(words[j])) {
+      yield { specifier: words[j].slice(1, -1), kind, names: '*' }
+      continue
+    }
+    const hasDefault = kind === 'import' && /^[\w$]+$/.test(words[j] ?? '')
+    if (hasDefault) j += words[j + 1] === ',' ? 2 : 1
+    let names = '*'
+    if (words[j] === '{') {
+      const end = words.indexOf('}', j + 1)
+      if (end < 0) continue
+      const named = words.slice(j + 1, end).join(' ').split(',').map(binding => binding.trim())
+        .filter(binding => binding && !binding.startsWith('type '))
+        .map(binding => kind === 'export' ? binding.split(' as ').at(-1) : binding.split(' as ')[0])
+      if (!hasDefault) names = named
+      j = end + 1
+    } else if (words[j] === '*') {
+      j += words[j + 1] === 'as' ? 3 : 1
+    }
+    if (words[j] === 'from' && relative(words[j + 1]) && names.length) {
+      yield { specifier: words[j + 1].slice(1, -1), kind, names }
+    }
+  }
+}
+
 /**
  * 直接引用某个文件的非测试源文件（src/ 和 electron/ 下，设计实验室的屏算）。只看直接引用，不追多层。
  * 唯一的例外是桶文件：只把组件原样转出去（re-export，如 src/design/index.ts）的不算一处，
  * 改成列出「从桶里取了 X 的文件」——它们才是真的直接用到组件的地方。桶套桶不追。
- * 解析用 TypeScript 自带的 AST（import / export from / import()），相对路径按 TS 的扩展名规则解析；仓库没有路径别名。
+ * 只跟踪相对模块说明符，相对路径按 TS 的扩展名规则解析。
  */
 export function makeReferrerScanner(root = REPO_ROOT, roots = ['src', 'electron']) {
-  // 同步 require、只在有 2026-11-15 起的板声明了 components 时才加载：别的板和默认路径不为它付启动时间。
-  const ts = createRequire(import.meta.url)('typescript')
   const SOURCE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
   const TEST = /\.(?:test|spec|e2e)\.[^.]+$|\.node-test\.[cm]?js$|(?:^|\/)__tests__\//
   const files = []
@@ -492,35 +597,9 @@ export function makeReferrerScanner(root = REPO_ROOT, roots = ['src', 'electron'
     const rel = toRel(file)
     if (TEST.test(rel)) continue
     const text = fs.readFileSync(file, 'utf8')
-    const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false)
-    const seen = new Set()
-    for (const statement of source.statements) {
-      const spec = statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier) ? statement.moduleSpecifier.text : null
-      if (!spec) continue
-      const target = resolve(file, spec)
-      if (!target) continue
-      seen.add(spec)
-      if (ts.isImportDeclaration(statement)) {
-        // 只取类型的引用画不出组件，不算一处
-        const clause = statement.importClause
-        if (clause?.isTypeOnly) continue
-        const bindings = clause?.namedBindings
-        if (!clause || clause.name || (bindings && ts.isNamespaceImport(bindings))) add(uses, target, rel, '*')
-        else {
-          const names = (bindings?.elements ?? []).filter((el) => !el.isTypeOnly).map((el) => (el.propertyName ?? el.name).text)
-          if (names.length) add(uses, target, rel, names)
-        }
-      } else if (ts.isExportDeclaration(statement)) {
-        if (statement.isTypeOnly) continue
-        const clause = statement.exportClause
-        add(reexports, target, rel, clause && ts.isNamedExports(clause) ? clause.elements.filter((el) => !el.isTypeOnly).map((el) => el.name.text) : '*')
-      }
-    }
-    // 动态 import() / require()：整模块算用到
-    for (const { fileName: spec } of ts.preProcessFile(text, true, true).importedFiles) {
-      if (seen.has(spec)) continue
-      const target = resolve(file, spec)
-      if (target) add(uses, target, rel, '*')
+    for (const { specifier, kind, names } of relativeModuleReferences(text)) {
+      const target = resolve(file, specifier)
+      if (target) add(kind === 'export' ? reexports : uses, target, rel, names)
     }
   }
   return (component) => {
@@ -537,19 +616,26 @@ export function makeReferrerScanner(root = REPO_ROOT, roots = ['src', 'electron'
   }
 }
 
+export const expectedBoardAnchor = (id) => `[data-board="${id}"]`
+
 /**
  * 单张板的清单校验。纯函数、可测。
- * @param {{board:string, manifest:object, candidates:Array<{id:string}>, assertionCorpus:string, date?:string, boardNames?:string[], referrersOf?:(file:string)=>string[]|null}} input
+ * @param {{board:string, manifest:object, date?:string, boardNames?:string[], referrersOf?:(file:string)=>string[]|null}} input
  *   date = 板所在日期目录名（YYYY-MM-DD），不给就用清单的 approvedOn
  *   referrersOf = R12 用的引用方扫描（runBoardParity 传 makeReferrerScanner 的结果；不传时声明了 components 的新板会报「找不到」）
  * @returns {string[]} 错误列表（空 = 通过）
  */
-export function checkBoardManifest({ board, manifest, candidates, assertionCorpus, date, boardNames, referrersOf, peerRegistry, legacyComponentCounts }) {
+export function checkBoardManifest({ board, manifest, date, boardNames, referrersOf, peerRegistry, legacyComponentCounts }) {
   const errors = []
   const tag = (msg) => `[${board}] ${msg}`
   if (!manifest || typeof manifest !== 'object') return [tag('清单缺失或不是对象')]
   if (manifest.board !== board) errors.push(tag(`清单里的 board 字段是 ${manifest.board}，应为 ${board}`))
   if (!BOARD_STAGES.includes(manifest.stage)) errors.push(tag(`stage 只能是 ${BOARD_STAGES.join(' / ')}，当前 ${manifest.stage}`))
+  if (Object.hasOwn(manifest, 'manifestOnly') && typeof manifest.manifestOnly !== 'boolean') {
+    errors.push(tag('manifestOnly 必须是布尔值'))
+  } else if (manifest.manifestOnly === true && manifest.__hasArtboard === true) {
+    errors.push(tag('声明了 manifestOnly 却包含源图或预览文件'))
+  }
   errors.push(...checkPriorArt({ board, manifest, date }))
   errors.push(...checkBoundarySheet({ board, manifest, date, boardNames }))
   errors.push(...checkSameSurfacePriorArt({ board, manifest, date }))
@@ -560,7 +646,9 @@ export function checkBoardManifest({ board, manifest, candidates, assertionCorpu
   errors.push(...checkBoundaryCoverage({ board, manifest, date }))
   errors.push(...checkElementComponents({ board, manifest, date, legacyComponentCounts }))
   const elements = Array.isArray(manifest.elements) ? manifest.elements : []
-  const decor = Array.isArray(manifest.decor) ? manifest.decor : []
+  for (const key of ['candidates', 'decor']) {
+    if (Object.hasOwn(manifest, key)) errors.push(tag(`清单字段 ${key} 已退役`))
+  }
   const census = Array.isArray(manifest.functionCensus) ? manifest.functionCensus : []
 
   // R2：元素 id 唯一
@@ -571,22 +659,16 @@ export function checkBoardManifest({ board, manifest, candidates, assertionCorpu
     else elementIds.add(el.id)
   }
 
-  // R1：候选恰好被认领一次（元素或 decor）
-  const candidateIds = new Set((candidates ?? []).map((c) => c.id))
-  const claimed = new Map()
-  const claim = (id, by) => claimed.set(id, [...(claimed.get(id) ?? []), by])
-  for (const el of elements) for (const cid of el.candidates ?? []) claim(cid, `元素 ${el.id}`)
-  for (const cid of decor) claim(cid, 'decor')
-  for (const [cid, by] of claimed) {
-    if (!candidateIds.has(cid)) errors.push(tag(`引用了不存在的候选：${cid}（${by.join('、')}）`))
-    else if (by.length > 1) errors.push(tag(`候选被重复认领：${cid} ← ${by.join('、')}`))
-  }
-  for (const cid of candidateIds) {
-    if (!claimed.has(cid)) errors.push(tag(`候选未认领（板上有、清单没去处）：${cid}`))
-  }
-
   for (const el of elements) {
     const where = `元素 ${el.id}`
+    if (Object.hasOwn(el, 'candidates')) errors.push(tag(`${where} 的 candidates 已退役`))
+    const requiredAnchor = expectedBoardAnchor(el.id)
+    if (el.anchor !== '未定' && el.anchor !== requiredAnchor) {
+      errors.push(tag(`${where} 的 anchor 必须是 ${requiredAnchor} 或 未定`))
+    }
+    if (Object.hasOwn(el, 'assertions') && !(Array.isArray(el.assertions) && el.assertions.every(isNonEmptyString))) {
+      errors.push(tag(`${where} 的 assertions 必须是非空字符串组成的数组`))
+    }
     // R2：status 合法
     if (!BOARD_STATUSES.includes(el.status)) {
       errors.push(tag(`${where} 的 status 非法：${el.status}`))
@@ -595,11 +677,6 @@ export function checkBoardManifest({ board, manifest, candidates, assertionCorpu
     // R3：缺 / 在做必须有 owner
     if ((el.status === 'missing' || el.status === 'in-progress') && !isNonEmptyString(el.owner)) {
       errors.push(tag(`${where} 是 ${el.status}，必须写 owner（PR 号或交接任务名）`))
-    }
-    // R4：implemented 必须有走查断言，且断言名真在 tests/ux 里
-    if (el.status === 'implemented') {
-      if (!isNonEmptyString(el.assertion)) errors.push(tag(`${where} 是 implemented，必须写 assertion（走查断言名）`))
-      else if (!assertionCorpus.includes(el.assertion)) errors.push(tag(`${where} 的断言 ${el.assertion} 不在 tests/ux 任何走查文件里`))
     }
     // R5：推迟 / 放弃必须有用户原话和日期
     if (el.status === 'deferred' || el.status === 'dropped') {
@@ -675,33 +752,22 @@ export function checkPrBoardClaims(body, manifests, { pending } = {}) {
         // 只有「还在等验收」的合法状态能进 pending；非法状态、缺用户原话的 deferred / dropped 不是在等验收，推送档也红
         const awaiting = el.status === 'missing' || el.status === 'in-progress'
         ;(awaiting && pending ? pending : errors).push(`[${board}] 认领的元素 ${id} 还是 ${el.status}：合并前必须 implemented，或带用户原话的 deferred / dropped`)
+      } else if (el.status === 'implemented' && el.change !== 'remove') {
+        const isManifestOnly = manifest.__hasArtboard !== undefined ? !manifest.__hasArtboard : manifest.manifestOnly === true
+        if (!isManifestOnly && el.anchor !== expectedBoardAnchor(id)) {
+          errors.push(`[${board}] 认领的元素 ${id} 是 implemented，anchor 必须是 ${expectedBoardAnchor(id)}（当前 ${el.anchor ?? '缺失'}）`)
+        }
       }
     }
   }
   return errors
 }
 
-/** 走查断言语料：tests/ux 下所有脚本的拼接文本（断言名只要在里面出现过即算「有走查」）。 */
-export function loadAssertionCorpus(root = REPO_ROOT) {
-  const dir = path.join(root, 'tests/ux')
-  const chunks = []
-  const walk = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const full = path.join(current, entry.name)
-      if (entry.isDirectory()) walk(full)
-      else if (/\.(mjs|cjs|js|ts|tsx)$/.test(entry.name)) chunks.push(fs.readFileSync(full, 'utf8'))
-    }
-  }
-  if (fs.existsSync(dir)) walk(dir)
-  return chunks.join('\n')
-}
-
 /**
  * 其它日期目录里的板（`docs/design/boards/<日期>/<板名>.board.json`，不在 BOARD_NAMES 那 12 张里）。
  * 2026-10-16：新板（例如只有文字拍板、没有画布的板）原来对门岗和合并前扫描都不可见——
  * 门岗不查它，PR 正文 `## 拍板图` 认领它时合并前扫描只会报「不存在」。
- * 返回 [{ board, dir, manifestOnly }]；身份 = 日期目录 + 板名（同名板各算一张，V-1203 复验 R1）；
- * manifestOnly = 同目录没有 `<板名>.candidates.json`（没有画布可抽候选）。
+ * 身份 = 日期目录 + 板名，同名板分别读取。
  */
 export function findDatedBoards(root = path.dirname(BOARDS_DIR), skipDir = BOARDS_DIR) {
   const out = []
@@ -713,79 +779,59 @@ export function findDatedBoards(root = path.dirname(BOARDS_DIR), skipDir = BOARD
     for (const name of fs.readdirSync(dir)) {
       if (!name.endsWith('.board.json')) continue
       const board = name.slice(0, -'.board.json'.length)
-      out.push({ board, dir, manifestOnly: !fs.existsSync(path.join(dir, `${board}.candidates.json`)) })
+      out.push({ board, dir })
     }
   }
   return out
 }
 
 export function loadManifests(dir = BOARDS_DIR, root = path.dirname(dir)) {
-  const out = {}
-  for (const board of BOARD_NAMES) {
-    const file = path.join(dir, `${board}.board.json`)
-    out[board] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null
-  }
-  // 其它日期目录的板也能被 `## 拍板图` 认领到。重名（与固定 12 张或彼此）不挑第一份：标成有歧义，认领就红。
-  for (const { board, dir: boardDir } of findDatedBoards(root, dir)) {
-    if (out[board] === undefined) out[board] = JSON.parse(fs.readFileSync(path.join(boardDir, `${board}.board.json`), 'utf8'))
-    else out[board] = { ambiguous: true }
+  const out = Object.fromEntries(BOARD_NAMES.map(board => [board, null]))
+  for (const row of listBoardManifests({ dir, root })) {
+    // 固定板名保留给默认目录；跨目录重名不能按名字认领。
+    const reserved = row.dir !== dir && BOARD_NAMES.includes(row.board)
+    out[row.board] = reserved || out[row.board] ? { ambiguous: true } : row.manifest
   }
   return out
-}
-
-/**
- * 候选与板源哈希是否对得上（纯函数，可测）。
- * candidatesDoc = 解析后的 <Board>.candidates.json；currentHash = 当前板源的哈希。
- */
-export function checkSourceHash({ board, candidatesDoc, currentHash }) {
-  if (!candidatesDoc || typeof candidatesDoc.sourceSha256 !== 'string' || !candidatesDoc.sourceSha256) {
-    return [`[${board}] candidates.json 缺 sourceSha256（抽取时没记板源哈希）：重跑 node scripts/board-extract.mjs`]
-  }
-  if (candidatesDoc.sourceSha256 !== currentHash) {
-    return [`[${board}] 板源已改（哈希对不上）：板改了，重跑 node scripts/board-extract.mjs 并让清单认领新候选`]
-  }
-  return []
 }
 
 /**
  * 仓库内所有已批板清单的唯一读取入口（同时覆盖 BOARDS_DIR 与所有其它日期目录）。
  * check:board-parity 与 delivery:preflight 欠账汇总共用这一份，不另写第二份板读取器。
  */
+function boardDirHasArtboard(boardDir) {
+  for (const sub of ['preview', 'source']) {
+    const target = path.join(boardDir, sub)
+    if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) continue
+    const stack = [target]
+    while (stack.length) {
+      const current = stack.pop()
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        if (entry.isDirectory()) stack.push(path.join(current, entry.name))
+        else if (/\.(?:html|svg)$/i.test(entry.name)) return true
+      }
+    }
+  }
+  return false
+}
+
 export function listBoardManifests({ dir = BOARDS_DIR, root = path.dirname(dir) } = {}) {
-  const records = []
-  const seen = new Set()
-  const push = (board, boardDir, manifestOnly) => {
+  const boards = [
+    ...boardNamesIn(dir).map(board => ({ board, dir })),
+    ...findDatedBoards(root, dir),
+  ]
+  return boards.map(({ board, dir: boardDir }) => {
     const file = path.join(boardDir, `${board}.board.json`)
-    const resolved = path.resolve(file)
-    if (seen.has(resolved) || !fs.existsSync(file)) return
-    seen.add(resolved)
     const manifest = JSON.parse(fs.readFileSync(file, 'utf8'))
-    const dirName = path.basename(boardDir)
-    records.push({
-      board,
-      dir: boardDir,
-      dirName,
-      boardKey: `${dirName}/${board}`,
-      file,
-      manifestOnly,
-      manifest,
-      approvedOn: approvedDateOf(dirName, manifest),
+    Object.defineProperty(manifest, '__hasArtboard', {
+      value: boardDirHasArtboard(boardDir),
+      configurable: true,
+      writable: true,
+      enumerable: false,
     })
-  }
-  if (fs.existsSync(dir)) {
-    for (const board of BOARD_NAMES) {
-      push(board, dir, !fs.existsSync(path.join(dir, `${board}.candidates.json`)))
-    }
-    for (const name of fs.readdirSync(dir)) {
-      if (!name.endsWith('.board.json')) continue
-      const board = name.slice(0, -'.board.json'.length)
-      push(board, dir, !fs.existsSync(path.join(dir, `${board}.candidates.json`)))
-    }
-  }
-  for (const { board, dir: boardDir, manifestOnly } of findDatedBoards(root, dir)) {
-    push(board, boardDir, manifestOnly)
-  }
-  return records
+    const dirName = path.basename(boardDir)
+    return { board, dir: boardDir, dirName, boardKey: `${dirName}/${board}`, file, manifest, approvedOn: approvedDateOf(dirName, manifest) }
+  })
 }
 
 const parseIsoDayUtc = (day) => {
@@ -965,14 +1011,8 @@ export function formatBoardDebtReport(summary, { color = false } = {}) {
   return lines.join('\n')
 }
 
-/**
- * 默认模式：只看哈希与清单，不起浏览器（CI 的 Contracts job 没有 Playwright 浏览器）。
- * reextract = true（显式 --reextract，只在本机或装了浏览器的环境）：再真抽一遍，比对候选文件全文。
- */
-export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), reextract = false, peerRegistry, legacyComponentCounts } = {}) {
+export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir), peerRegistry, legacyComponentCounts } = {}) {
   const errors = []
-  const manifests = loadManifests(dir, root)
-  const corpus = loadAssertionCorpus()
   if (legacyComponentCounts === undefined) {
     legacyComponentCounts = loadLegacyComponentBaseline()
   }
@@ -989,56 +1029,19 @@ export async function runBoardParity({ dir = BOARDS_DIR, root = path.dirname(dir
   // R12 的引用方扫描要读全部源文件：第一次用到时才建，之后共用。
   let scanner = null
   const referrersOf = (file) => (scanner ??= makeReferrerScanner())(file)
-  // 其它日期目录里**发现到的每一张板**都跑完整规则（V-1203 F2：原来只查「只有清单」的那一种，带候选文件的新板落在两个循环之外）。
-  // 发现集合与校验集合是同一份：findDatedBoards 找到什么就查什么。
-  for (const { board, dir: boardDir, manifestOnly } of findDatedBoards(root, dir)) {
-    let candidates = []
-    if (!manifestOnly) {
-      const doc = JSON.parse(fs.readFileSync(path.join(boardDir, `${board}.candidates.json`), 'utf8'))
-      const extractor = typeof doc.extractor === 'string' ? doc.extractor : ''
-      // 抽取出来的候选核板源哈希；人工普查（没有可抽取的板源）明写 extractor=manual-*，免哈希但照认领规则查；
-      // 两样都不是 = 不声不响地免掉了哈希核对 → 红。
-      if (extractor.startsWith('board-extract')) errors.push(...checkSourceHash({ board, candidatesDoc: doc, currentHash: hashBoardSource(boardDir, board) }))
-      else if (!extractor.startsWith('manual')) errors.push(`[${board}] 候选文件既不是 board-extract 抽取的（核板源哈希），也没声明人工普查（extractor: manual-*）`)
-      candidates = Array.isArray(doc.candidates) ? doc.candidates : []
-    }
-    // 读这张板自己目录里的清单，不按板名查表——同名板不能互相顶替（V-1203 复验 R1）。
-    const manifest = JSON.parse(fs.readFileSync(path.join(boardDir, `${board}.board.json`), 'utf8'))
-    errors.push(...checkBoardManifest({ board, manifest, candidates, assertionCorpus: corpus, date: path.basename(boardDir), boardNames: boardNamesIn(boardDir), referrersOf, peerRegistry, legacyComponentCounts }))
-  }
-  // 重名本身就红：PR 正文按板名认领，重名就分不清认的是哪一张。
-  const dated = findDatedBoards(root, dir)
-  for (const name of new Set(dated.map((entry) => entry.board))) {
-    const places = dated.filter((entry) => entry.board === name).map((entry) => path.basename(entry.dir))
-    if (BOARD_NAMES.includes(name)) places.unshift(path.basename(dir))
-    if (places.length > 1) errors.push(`[${name}] 同名板出现在多个日期目录（${places.join('、')}）：按板名认领有歧义，改名`)
-  }
+  const records = listBoardManifests({ dir, root })
   for (const board of BOARD_NAMES) {
-    const file = path.join(dir, `${board}.candidates.json`)
-    const committed = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
-    if (!committed) {
-      errors.push(`[${board}] 缺候选文件 ${board}.candidates.json：重跑 node scripts/board-extract.mjs`)
-      continue
-    }
-    const doc = JSON.parse(committed)
-    errors.push(...checkSourceHash({ board, candidatesDoc: doc, currentHash: hashBoardSource(dir, board) }))
-    if (!manifests[board]) {
-      errors.push(`[${board}] 缺清单 ${board}.board.json`)
-      continue
-    }
-    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, assertionCorpus: corpus, date: path.basename(dir), boardNames: boardNamesIn(dir), referrersOf, peerRegistry, legacyComponentCounts }))
+    if (!records.some(row => row.dir === dir && row.board === board)) errors.push(`[${board}] 缺清单 ${board}.board.json`)
   }
-  if (reextract) {
-    // 显式开关：动态加载抽取（会起 Playwright 浏览器），逐字节比对候选文件。
-    const { extractAllBoards, renderCandidatesFile } = await import('./board-extract.mjs')
-    const fresh = await extractAllBoards()
-    for (const board of BOARD_NAMES) {
-      const file = path.join(dir, `${board}.candidates.json`)
-      const committed = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
-      if (committed !== renderCandidatesFile(board, fresh[board], hashBoardSource(dir, board))) {
-        errors.push(`[${board}] 重抽结果与 candidates.json 不一致（--reextract）：重跑 node scripts/board-extract.mjs`)
-      }
-    }
+  const places = new Map()
+  for (const row of records) {
+    const { board, manifest, dirName } = row
+    if (!places.has(board)) places.set(board, [])
+    places.get(board).push(dirName)
+    errors.push(...checkBoardManifest({ board, manifest, date: dirName, boardNames: boardNamesIn(row.dir), referrersOf, peerRegistry, legacyComponentCounts }))
+  }
+  for (const [board, dirs] of places) {
+    if (dirs.length > 1) errors.push(`[${board}] 同名板出现在多个日期目录（${dirs.join('、')}）：按板名认领有歧义，改名`)
   }
   return errors
 }
@@ -1050,14 +1053,13 @@ async function main() {
     if (process.argv.includes('--fail-on-overdue') && summary.overdueBoards > 0) process.exit(1)
     return
   }
-  const errors = await runBoardParity({ reextract: process.argv.includes('--reextract') })
+  const errors = await runBoardParity()
   if (errors.length) {
     console.error(`拍板图对账未通过（${errors.length} 条）：`)
     for (const e of errors) console.error(`  ✗ ${e}`)
     process.exit(1)
   }
-  const dated = findDatedBoards()
-  console.log(`拍板图对账通过：${BOARD_NAMES.length} 张板，候选全部认领；其它日期目录 ${dated.length} 张板全部按完整规则查过（其中 ${dated.filter((entry) => entry.manifestOnly).length} 张只有清单）。`)
+  console.log(`拍板图对账通过：${listBoardManifests().length} 张板。`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

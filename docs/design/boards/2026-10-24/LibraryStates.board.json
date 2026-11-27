@@ -11,7 +11,7 @@
   },
   "visualReview": "用户 2026-10-24 在 Claude Design 画布「技能库与提示词库排版改版（0.24 探索）」第 48 版上把 10 个问题全按默认定（https://claude.ai/artifact/A7vtfvcPzy8zCWJUdrJn9y，私有，只有仓库主人能开）。",
   "designCard": "docs/plan/2026-10-23-skill-prompt-library-layout.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。候选由 scripts/board-extract.mjs 的抽取函数（extractBoard + renderCandidatesFile，同样的浏览器设置）在拼页上抽出，两次抽取逐字节一致。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
+  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
   "designIntent": "两个库共用一套状态图：加载（Nomi 加载标 + 一句话）、读取失败（原因 + 重试，只影响那一段）、无匹配、媒体失效（图片 / 视频占位 +「已失效」）。",
   "artboards": [
     "States"
@@ -110,14 +110,7 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "002-section-加载中",
-        "003-nav-技能分类",
-        "004-span-全部",
-        "005-span-我的",
-        "006-svg",
-        "007-span-正在读取技能"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-10（协调另立账）",
       "note": "提示词这一半已做（加载标 +「正在读取提示词…」，走查 library-layout 挂住读取验过）；板上画的是技能「正在读取技能…」——技能库现在没有加载态、读取失败显示成「没有内置技能」，是设计卡「另修」D-10，本线按任务书不修。"
@@ -131,17 +124,7 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "008-section-读取失败",
-        "009-nav-提示词分类",
-        "010-span-全部",
-        "011-span-公开库",
-        "012-span-GPTImage2",
-        "013-h3-没拉到提示词",
-        "014-p-公开库这次没连上网络不通",
-        "015-button-重试",
-        "016-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-12（协调另立账）",
       "note": "提示词读取失败这一屏已做（没拉到提示词 + 一句原因 + 重试，我的照常列在上面；走查 library-layout 验过）。文案按真实结构改成「内置和公开库这次没读出来」：内置与公开库是同一次读取，公开库离线有缓存 / 快照兜底，单独「公开库没拉到」这一屏在产品里出不来。板上「我的库读取失败也要显示」= 另修 D-12，本线不修。"
@@ -155,17 +138,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "017-section-无匹配",
-        "018-label",
-        "019-svg",
-        "020-input-搜索提示词",
-        "021-h3-没有匹配的提示词",
-        "022-p-换个分类或搜索词试试"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryStates/states.no-match"
+      "assertions": ["board:LibraryStates/states.no-match"]
     },
     {
       "id": "states.media-expired",
@@ -176,26 +152,11 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "023-section-媒体失效",
-        "024-h3-Sora2",
-        "025-svg",
-        "026-strong-VolleyballGr",
-        "027-span-视频",
-        "028-svg",
-        "029-span-已失效",
-        "030-strong-LuxuryMerced",
-        "031-span-视频",
-        "032-strong-MittenAstron",
-        "033-span-视频"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryStates/states.media-expired"
+      "assertions": ["board:LibraryStates/states.media-expired"]
     }
-  ],
-  "decor": [
-    "001-h3-修后各状态加载失败无匹配"
   ],
   "functionCensus": [
     {

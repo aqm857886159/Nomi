@@ -76,6 +76,7 @@ export const workbenchStoreLifetime = declareStoreLifetime({
     projectAgentApprovalPolicy: 'project',
     projectAgentDockCollapsed: 'project',
     timeline: 'project',
+    persistedTimelineScale: 'project',
     timelinePlaying: 'project',
     previewAspect: 'project',
     selectedTimelineClipIds: 'project',
@@ -90,6 +91,7 @@ export const workbenchStoreLifetime = declareStoreLifetime({
     editingPanelKeep: 'project',
   },
   releaseProject: () => {
+    const timeline = createDefaultTimeline()
     const emptyDocument = createDefaultWorkbenchDocument()
     useWorkbenchStore.setState({
       workspaceMode: 'generation',
@@ -114,7 +116,8 @@ export const workbenchStoreLifetime = declareStoreLifetime({
       projectAgentReferences: [],
       projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
       projectAgentDockCollapsed: false,
-      timeline: createDefaultTimeline(),
+      timeline,
+      persistedTimelineScale: timeline.scale,
       timelinePlaying: false,
       previewAspect: undefined,
       selectedTimelineClipIds: [],

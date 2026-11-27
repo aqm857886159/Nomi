@@ -1,0 +1,161 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-26-board-diff",
+  "problem_type": "拍板认领可绕过可见属性验收",
+  "symptom": "#1702、#1703 的候选与认领淹没产品差异；旧量具把 7 天与 30 天折叠为同文，并把画板自己的 10px 判红。",
+  "direct_cause": "探索稿的 DOM 序号、盒层级和跨分镜候选认领进入了生产合同。",
+  "class_root": "设计元素和真窗实现没有共享显式身份与状态上下文。",
+  "affected_population": [
+    "从拍板图搭建的所有产品面及其语言、主题和交互状态"
+  ],
+  "scope_paths": [
+    "scripts/check-board-parity.mjs",
+    "tests/ux/_boardAnchorAssert.mjs",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx"
+  ],
+  "entry_points": [
+    "清单门岗及三个板专用读者",
+    "走查中已定位的画板分镜与生产窗口"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "用户批准的元素身份和历史清单治理均归仓库；浏览器断言复用已安装的 Playwright。",
+  "invariants": [
+    "退役字段无法重新混入元素清单，未定锚点不改变历史状态。",
+    "已选择的分镜独立提供期望值，按真实语种、主题与显式锚点核对，保留业务数字和批准的像素值。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "tests/ux/board-anchor.node-test.mjs",
+      "symbol": "assertBoardAnchor"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/t5-onboarding-s7a.walk.mjs",
+      "symbol": "assertBoardAnchor"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-board-parity.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-board-parity.node-test.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/directorFunctionCensus.test.ts",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "data-board"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
+      "symbol": "data-board"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/reference-entry-board.test.mjs",
+      "symbol": "checkBoardManifest"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/whiteboard-refactor.walk.mjs",
+      "symbol": "checkBoardManifest"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 9,
+    "why_not": "清单门岗、规则测试与三个板读者保留；新增两个生产组件的锚点出口，走查和单测在两种环境共用同一显式分镜断言。"
+  },
+  "generality_proof": "每块板经过同一清单校验，每次显式核对只读取当前分镜和指定生产区域的一对节点。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-board-parity.mjs",
+      "symbol": "checkBoardManifest",
+      "responsibility": "检查元素清单、去处与状态。"
+    },
+    {
+      "path": "tests/ux/_boardAnchorAssert.mjs",
+      "symbol": "assertBoardAnchor",
+      "responsibility": "按分镜读取批准值并核实真窗轨道与元素。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/reference-entry-board.test.mjs",
+      "entry_point": "checkBoardManifest",
+      "disposition": "enforced",
+      "evidence": "ReferenceEntry 校验本板元素清单。"
+    },
+    {
+      "path": "tests/ux/whiteboard-refactor.walk.mjs",
+      "entry_point": "checkBoardManifest",
+      "disposition": "enforced",
+      "evidence": "InlineWhiteboard 打开生产窗口前读取本板清单。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "两张大 PR 共用同一候选生产器，生产实现的布局与探索 DOM 可独立演变。",
+    "same_class_scan": [
+      "默认 door-map 扫描产品根得到 0；另查 checkBoardManifest 的脚本与走查入口。",
+      "47 份候选，56 张板；#1704 记录数字漏报、10px 误报、分镜串轨。"
+    ]
+  },
+  "prevention": {
+    "kind": "schema-validation",
+    "enforcement_path": "scripts/check-board-parity.mjs",
+    "invariant": "元素合同拒绝逐个 DOM 候选及装饰清单。",
+    "failure_mode": "字段回流报出板名和元素；真窗不符由走查的 Playwright 断言报出。",
+    "exception_policy": "none",
+    "strategy": "删除抽取、推测配对及离线收据，按分镜在生产锚点读取实际值。",
+    "artifacts": [
+      "scripts/check-board-parity.mjs",
+      "tests/ux/_boardAnchorAssert.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-board-parity.node-test.mjs",
+    "tests/ux/board-anchor.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-board-parity.node-test.mjs",
+    "tests/ux/board-anchor.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/board-extract.mjs",
+      "scripts/board-source-hash.mjs"
+    ],
+    "rationale": "移除候选生产端和校验端，已有用户拍板决定保留。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "比较边界与既有库版本无关。使用现有 Playwright 与 DOM/CSSOM。",
+    "exit_criteria": []
+  },
+  "migration": "历史元素逐个保留，已绑定的组件写 selector，其余标未定；旧断言说明原样迁入数组。",
+  "residual_risks": [
+    "未定条目尚未真窗核对。独立验收仍负责实际点击、并排图及未声明的样式。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-03",
+  "invariant_owner_layer": {
+    "layer": "scripts/check-board-parity.mjs",
+    "tests": [
+      "scripts/check-board-parity.node-test.mjs",
+      "tests/ux/board-anchor.node-test.mjs"
+    ]
+  }
+}

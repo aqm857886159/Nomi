@@ -103,9 +103,10 @@ export function moveClipToLegalFrame(timeline: TimelineState, clipId: string, st
   if (!id) return timeline
   let moved = false
   const tracks = timeline.tracks.map((track) => {
-    if (!track.clips.some((clip) => clip.id === id)) return track
+    const current = track.clips.find((clip) => clip.id === id)
+    if (!current || current.startFrame === startFrame) return track
     const legalStart = resolveLegalStartFrame(track, id, startFrame)
-    if (legalStart == null) return track
+    if (legalStart == null || legalStart === current.startFrame) return track
     moved = true
     return {
       ...track,
@@ -327,18 +328,18 @@ export function clampGroupDelta(timeline: TimelineState, origins: readonly ClipO
 
 /** 把一组 clip 设到绝对起点（外部已保证组内同速平移、不重叠）。 */
 export function applyClipStartFrames(timeline: TimelineState, positions: Record<string, number>): TimelineState {
-  const idSet = new Set(Object.keys(positions))
-  if (idSet.size === 0) return timeline
+  const changes = (clip: TimelineClip) => Object.prototype.hasOwnProperty.call(positions, clip.id) && clampInteger(positions[clip.id], 0) !== clip.startFrame
+  let moved = false
   const tracks = timeline.tracks.map((track) => {
-    if (!track.clips.some((clip) => idSet.has(clip.id))) return track
+    if (!track.clips.some(changes)) return track
+    moved = true
     return {
       ...track,
-      clips: track.clips
-        .map((clip) => (idSet.has(clip.id) ? withClipStartFrame(clip, positions[clip.id]) : clip))
+      clips: track.clips.map((clip) => changes(clip) ? withClipStartFrame(clip, positions[clip.id]) : clip)
         .sort((left, right) => left.startFrame - right.startFrame),
     }
   })
-  return { ...timeline, tracks }
+  return moved ? { ...timeline, tracks } : timeline
 }
 
 export function splitClipAtFrame(timeline: TimelineState, clipId: string, frame: number): TimelineState {
@@ -467,6 +468,7 @@ export function resizeClipEdge(timeline: TimelineState, clipId: string, edge: 'l
       const maxStart = current.endFrame - minFrameCount
       const nextStart = Math.min(maxStart, Math.max(minStart, rawStart))
       const diff = nextStart - current.startFrame
+      if (!diff) return track
       next = {
         ...current,
         startFrame: nextStart,
@@ -481,6 +483,7 @@ export function resizeClipEdge(timeline: TimelineState, clipId: string, edge: 'l
         : maxEnd
       const nextEnd = Math.max(minEnd, Math.min(maxEnd, naturalMaxEnd, rawEnd))
       const diff = nextEnd - current.endFrame
+      if (!diff) return track
       next = {
         ...current,
         endFrame: nextEnd,

@@ -11,7 +11,7 @@
   },
   "visualReview": "用户 2026-10-24 在 Claude Design 画布「技能库与提示词库排版改版（0.24 探索）」第 48 版上把 10 个问题全按默认定（https://claude.ai/artifact/A7vtfvcPzy8zCWJUdrJn9y，私有，只有仓库主人能开）。",
   "designCard": "docs/plan/2026-10-23-skill-prompt-library-layout.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。候选由 scripts/board-extract.mjs 的抽取函数（extractBoard + renderCandidatesFile，同样的浏览器设置）在拼页上抽出，两次抽取逐字节一致。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
+  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
   "designIntent": "「我的」是左侧分类第一项：技能和提示词各在自己的库里；我的提示词卡有参考图显示参考图、标签进卡下一行，编辑 / 删除在卡片标题行；我的为空时空态写清怎么新建、能拖什么。",
   "artboards": [
     "Mine",
@@ -110,29 +110,10 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [
-        "002-svg",
-        "003-span-项目库",
-        "004-button-窗口",
-        "005-svg",
-        "006-button-设置",
-        "007-svg",
-        "053-svg",
-        "054-span-项目库",
-        "055-button-窗口",
-        "056-svg",
-        "057-button-设置",
-        "058-svg",
-        "146-svg",
-        "147-span-项目库",
-        "148-button-窗口",
-        "149-svg",
-        "150-button-设置",
-        "151-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/shell.topbar"
+      "assertions": ["board:LibraryMine/shell.topbar"]
     },
     {
       "id": "library.tabs",
@@ -142,32 +123,10 @@
         "selected",
         "zh-en"
       ],
-      "candidates": [
-        "008-div-项目库页签",
-        "009-button",
-        "010-span-项目",
-        "011-button",
-        "012-span-Skill",
-        "013-button",
-        "014-span-提示词",
-        "059-div-项目库页签",
-        "060-button",
-        "061-span-项目",
-        "062-button",
-        "063-span-Skill",
-        "064-button",
-        "065-span-提示词",
-        "152-div-项目库页签",
-        "153-button",
-        "154-span-项目",
-        "155-button",
-        "156-span-Skill",
-        "157-button",
-        "158-span-提示词"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/library.tabs"
+      "assertions": ["board:LibraryMine/library.tabs"]
     },
     {
       "id": "mine.search",
@@ -177,20 +136,10 @@
         "empty",
         "zh-en"
       ],
-      "candidates": [
-        "015-label",
-        "016-svg",
-        "017-input-搜技能",
-        "073-label",
-        "074-svg",
-        "075-input-搜提示词",
-        "159-label",
-        "160-svg",
-        "161-input-搜技能"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.search"
+      "assertions": ["board:LibraryMine/mine.search"]
     },
     {
       "id": "mine.import",
@@ -200,15 +149,10 @@
         "hover",
         "zh-en"
       ],
-      "candidates": [
-        "018-button-导入技能SKILLmdz",
-        "019-svg",
-        "162-button-导入技能SKILLmdz",
-        "163-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.import"
+      "assertions": ["board:LibraryMine/mine.import"]
     },
     {
       "id": "mine.new",
@@ -218,20 +162,10 @@
         "hover",
         "zh-en"
       ],
-      "candidates": [
-        "020-button",
-        "021-svg",
-        "022-span-新建",
-        "076-button",
-        "077-svg",
-        "078-span-新建",
-        "164-button",
-        "165-svg",
-        "166-span-新建"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.new"
+      "assertions": ["board:LibraryMine/mine.new"]
     },
     {
       "id": "mine.type-segment",
@@ -241,18 +175,10 @@
         "selected",
         "zh-en"
       ],
-      "candidates": [
-        "066-div-图片或视频",
-        "067-button",
-        "068-span-全部",
-        "069-button",
-        "070-span-图片",
-        "071-button",
-        "072-span-视频"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.type-segment",
+      "assertions": ["board:LibraryMine/mine.type-segment"],
       "note": "同 PromptLibrary/prompt-lib.type-segment：整段高 32（NomiSegmented compact），样张 28。"
     },
     {
@@ -263,105 +189,10 @@
         "selected",
         "zh-en"
       ],
-      "candidates": [
-        "023-nav-分类",
-        "024-button",
-        "025-span-全部",
-        "026-span-50",
-        "027-button",
-        "028-span-我的",
-        "029-span-1",
-        "030-span-内置",
-        "031-button",
-        "032-span-创作流程",
-        "033-span-10",
-        "034-button",
-        "035-span-导演",
-        "036-span-13",
-        "037-button",
-        "038-span-编剧",
-        "039-span-11",
-        "040-button",
-        "041-span-广告",
-        "042-span-8",
-        "043-button",
-        "044-span-角色与场景",
-        "045-span-7",
-        "079-nav-分类",
-        "080-button",
-        "081-span-全部",
-        "082-span-222",
-        "083-button",
-        "084-span-我的",
-        "085-span-3",
-        "086-span-内置",
-        "087-button",
-        "088-span-表情预设",
-        "089-span-25",
-        "090-button",
-        "091-span-运镜",
-        "092-span-23",
-        "093-button",
-        "094-span-构图",
-        "095-span-8",
-        "096-button",
-        "097-span-分镜",
-        "098-span-5",
-        "099-button",
-        "100-span-角色设定",
-        "101-span-4",
-        "102-button",
-        "103-span-修图",
-        "104-span-2",
-        "105-button",
-        "106-span-场景",
-        "107-span-1",
-        "108-button",
-        "109-span-去AI感",
-        "110-span-1",
-        "111-span-公开库",
-        "112-button",
-        "113-span-GPTImage2",
-        "114-span-30",
-        "115-button",
-        "116-span-NanoBananaPr",
-        "117-span-30",
-        "118-button",
-        "119-span-GPT4o图像",
-        "120-span-30",
-        "121-button",
-        "122-span-Sora2",
-        "123-span-30",
-        "124-button",
-        "125-span-Sora官方",
-        "126-span-30",
-        "167-nav-分类",
-        "168-button",
-        "169-span-全部",
-        "170-span-49",
-        "171-button",
-        "172-span-我的",
-        "173-span-0",
-        "174-span-内置",
-        "175-button",
-        "176-span-创作流程",
-        "177-span-10",
-        "178-button",
-        "179-span-导演",
-        "180-span-13",
-        "181-button",
-        "182-span-编剧",
-        "183-span-11",
-        "184-button",
-        "185-span-广告",
-        "186-span-8",
-        "187-button",
-        "188-span-角色与场景",
-        "189-span-7"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.category-nav"
+      "assertions": ["board:LibraryMine/mine.category-nav"]
     },
     {
       "id": "mine.group",
@@ -370,15 +201,10 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [
-        "046-span-我的",
-        "047-span-1",
-        "127-span-我的",
-        "128-span-3"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.group"
+      "assertions": ["board:LibraryMine/mine.group"]
     },
     {
       "id": "mine.skill-card",
@@ -389,13 +215,10 @@
         "long-text",
         "zh-en"
       ],
-      "candidates": [
-        "048-button",
-        "049-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.skill-card"
+      "assertions": ["board:LibraryMine/mine.skill-card"]
     },
     {
       "id": "mine.skill-card.title",
@@ -405,12 +228,10 @@
         "long-text",
         "zh-en"
       ],
-      "candidates": [
-        "050-strong-improvscenem"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.skill-card.title"
+      "assertions": ["board:LibraryMine/mine.skill-card.title"]
     },
     {
       "id": "mine.skill-card.summary",
@@ -420,12 +241,10 @@
         "long-text",
         "zh-en"
       ],
-      "candidates": [
-        "051-span-即兴生台词让角色在设定好"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.skill-card.summary"
+      "assertions": ["board:LibraryMine/mine.skill-card.summary"]
     },
     {
       "id": "mine.prompt-card",
@@ -437,16 +256,10 @@
         "long-text",
         "zh-en"
       ],
-      "candidates": [
-        "129-button-Q版角色卡",
-        "136-button-TokyoWalk",
-        "137-span-Astylishwoma",
-        "141-button-未命名提示词",
-        "142-span-Prompt1Creat"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.prompt-card"
+      "assertions": ["board:LibraryMine/mine.prompt-card"]
     },
     {
       "id": "mine.prompt-card.title",
@@ -456,14 +269,10 @@
         "long-text",
         "zh-en"
       ],
-      "candidates": [
-        "130-span-Q版角色卡",
-        "138-span-TokyoWalk",
-        "143-span-未命名提示词"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.prompt-card.title"
+      "assertions": ["board:LibraryMine/mine.prompt-card.title"]
     },
     {
       "id": "mine.prompt-card.actions",
@@ -474,15 +283,10 @@
         "selected",
         "zh-en"
       ],
-      "candidates": [
-        "131-button-编辑",
-        "132-svg",
-        "133-button-删除",
-        "134-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.prompt-card.actions"
+      "assertions": ["board:LibraryMine/mine.prompt-card.actions"]
     },
     {
       "id": "mine.prompt-card.meta",
@@ -491,15 +295,10 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [
-        "135-span-网页提取图片",
-        "139-svg",
-        "140-span-视频",
-        "144-span-图片"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.prompt-card.meta"
+      "assertions": ["board:LibraryMine/mine.prompt-card.meta"]
     },
     {
       "id": "mine.empty",
@@ -509,21 +308,12 @@
         "empty",
         "zh-en"
       ],
-      "candidates": [
-        "190-svg",
-        "191-span-你还没有自己的技能",
-        "192-span-点右上新建让AI帮你写一"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryMine/mine.empty",
+      "assertions": ["board:LibraryMine/mine.empty"],
       "note": "说明句照样张，只在「新建」后补「（要先打开项目）」：项目库页上没开项目时「新建」（用 AI 写）禁用（真机 J-01，见 SkillLibrary/skill-lib.new-ai），不补这句就是叫人去点一颗点不了的钮；抽屉在项目里，这句多余但不错。"
     }
-  ],
-  "decor": [
-    "001-h3-修后技能库我的中明",
-    "052-h3-修后提示词库我的中明悬停",
-    "145-h3-修后技能库我的为空中明"
   ],
   "functionCensus": [
     {

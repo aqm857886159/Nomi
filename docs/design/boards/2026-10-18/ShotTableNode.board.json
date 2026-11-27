@@ -4,26 +4,26 @@
   "stage": "explored",
   "source": null,
   "approval": "用户 10-18 看 Claude Design 画布：「方向对，细节要改」；唯一的画布评论「为什么不居中设计上下的参数框」已改（浮条与下方栏以节点为中心）；随后「做完你去弄吧」。",
-  "sourceBoundary": "画布是 Claude Design（https://claude.ai/artifact/HbWD5RLYnLKzeq9JXs4pcj），板源是 .dc.html 运行时模板（sc-for / 数据在脚本里），board-extract 抽不出确定的候选；源码原样存档在 source/。没有 candidates.json，每个元素的 candidates 为空，清单规则由 check:board-parity「只有清单的板」一支照查。",
+  "sourceBoundary": "画布是 Claude Design（https://claude.ai/artifact/HbWD5RLYnLKzeq9JXs4pcj），板源是 .dc.html 运行时模板（sc-for / 数据在脚本里）；源码原样存档在 source/。",
   "designCard": "docs/plan/2026-10-18-shot-table-node.md",
   "elements": [
     {
       "id": "flow.create-then-deconstruct",
       "label": "视频浮条「拆解 ▾ → 镜头表」只建表并选中，点下方「拆解」才走报价卡",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "empty",
         "zh-en"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "01-new-table-idle",
+      "assertions": ["01-new-table-idle"],
       "stateEvidence": "zh/en × 光暗四轨真机走查：建表零请求、不弹报价卡（holdAbsent）、下方栏「拆解」态"
     },
     {
       "id": "toolbar.centered",
       "label": "选中拆解表时上方浮条，以节点为中心（用户 10-18 评论：上下参数框要居中）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -31,13 +31,13 @@
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "居中偏差",
+      "assertions": ["居中偏差"],
       "stateEvidence": "四轨走查量浮条中心与节点中心偏差 0px；⑥ 贴右缘仍一行"
     },
     {
       "id": "toolbar.columns",
       "label": "浮条「显示列 ▾」：列显隐，随项目保存",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
@@ -45,26 +45,26 @@
         "long-text"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "04-columns-menu",
+      "assertions": ["04-columns-menu"],
       "stateEvidence": "四轨走查：每列一个勾选项"
     },
     {
       "id": "toolbar.row-height",
       "label": "浮条行高 − / 标准 / +（紧凑 44 · 标准 58 · 大图 92）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "03-row-height-large",
+      "assertions": ["03-row-height-large"],
       "stateEvidence": "四轨走查：标准 → 大，行真的变高"
     },
     {
       "id": "toolbar.duplicate",
       "label": "浮条「复制节点」",
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "states": [
         "zh-en",
@@ -76,7 +76,7 @@
     {
       "id": "toolbar.fullscreen",
       "label": "浮条「全屏」",
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "states": [
         "zh-en",
@@ -87,7 +87,7 @@
     {
       "id": "toolbar.export",
       "label": "浮条「导出 CSV」",
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "states": [
         "zh-en",
@@ -98,7 +98,7 @@
     {
       "id": "composer.centered",
       "label": "下方拆解栏钉在节点正下方、居中（复用生成框定位锚）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -106,26 +106,26 @@
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "居中偏差",
+      "assertions": ["居中偏差"],
       "stateEvidence": "四轨走查量下方栏中心偏差 0px"
     },
     {
       "id": "composer.source-line",
       "label": "下方栏首行：源视频缩略图 + 「拆这条视频：<名> · <时长>」+ 说明",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "long-text",
         "zh-en"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "shot-table-source-line",
+      "assertions": ["shot-table-source-line"],
       "stateEvidence": "四轨真素材走查（NOMI_CANVAS_PERF_REAL_ASSET_DIR）：poster + 「<名> · m:ss」；没有 poster / 时长就不画（shotTableComposerStates.test.ts）"
     },
     {
       "id": "composer.vision-chip",
       "label": "「读图」chip：只列能读图的模型 + 自动选择；默认上次选的；停用时标红说原因不悄悄换",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "empty",
@@ -135,13 +135,13 @@
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "03-deconstruct-bar-has-vision-model-picker-default-auto",
+      "assertions": ["03-deconstruct-bar-has-vision-model-picker-default-auto"],
       "stateEvidence": "tests/ux/shot-table-vision-leg.walk.mjs；停用标红 / 没有模型给「去接入」由 shotTableComposerStates.test.ts 钉（未截图）"
     },
     {
       "id": "composer.transcribe-chip",
       "label": "「转写」chip：本机 Whisper / 云端转写模型；没音轨时写明不转写",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "empty",
@@ -156,7 +156,7 @@
     {
       "id": "composer.custom-column",
       "label": "「+ 自定义列」",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "zh-en",
@@ -168,7 +168,7 @@
     {
       "id": "composer.primary",
       "label": "主按钮：拆解 / 重新拆解 / 取消拆解（运行中）/ 改用云端重试（本机转写失败）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -178,26 +178,26 @@
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "shot-table-restart-deconstruction",
+      "assertions": ["shot-table-restart-deconstruction"],
       "stateEvidence": "走查 ① 拆解态；取消 / 改用云端由 deconstruction-interrupted-recovery 与组件单测覆盖"
     },
     {
       "id": "composer.selection",
       "label": "勾了镜头：「已选 N 镜」+「取消选择」（不再在表上直接生成；拆完要干嘛交给 Agent）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
         "zh-en"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "05-rows-selected",
+      "assertions": ["05-rows-selected"],
       "stateEvidence": "四轨走查：勾两镜 →「已选 2 镜 · 取消选择」，只有一个按钮"
     },
     {
       "id": "composer.generate",
       "label": "选中态主按钮「生成 N 镜」（沿用现有 generate）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "loading",
@@ -212,7 +212,7 @@
     {
       "id": "composer.image-model-chips",
       "label": "选中态的出图模型 / 比例 / 参考关键帧 chips",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -227,71 +227,71 @@
     {
       "id": "table.header",
       "label": "表头一行：标题 · 镜数 · 时长 · 失败摘要（右侧红字）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "error",
         "long-text"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "02-ready-selected",
+      "assertions": ["02-ready-selected"],
       "stateEvidence": "四轨走查"
     },
     {
       "id": "table.keyframe-column",
       "label": "关键帧列 68×38（近档），镜号与关键帧固定在左",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "05b-scrolled-pinned",
+      "assertions": ["05b-scrolled-pinned"],
       "stateEvidence": "四轨走查：横向滚 240px，关键帧列 x 不变、后面的列滚走"
     },
     {
       "id": "zoom.far-card",
       "label": "远档（< 45%）：卡片 = 标题 · 镜数 · 问题数 · 关键帧条",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "07-far-card",
+      "assertions": ["07-far-card"],
       "stateEvidence": "四轨走查 29% 缩放：卡片代替表格（无头条）、镜数 · 时长 · 关键帧条；没读出几镜由单测钉（夹具里没有失败镜）"
     },
     {
       "id": "zoom.mid-four-columns",
       "label": "中档（45%–80%）：只留 镜 · 关键帧 · 景别 · 画面",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "07a-mid-columns",
+      "assertions": ["07a-mid-columns"],
       "stateEvidence": "四轨走查 56%：data-density=compact，表头 6 格（勾选 · 镜 · 关键帧 · 景别 · 画面 · 状态）。缺口：中档字在屏幕上约 7px，拍板稿要求「不硬缩字」，另起"
     },
     {
       "id": "zoom.near-full",
       "label": "近档（≥ 80%）：全部列",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
         "dark"
       ],
       "owner": "feat/shot-table-node",
-      "assertion": "02-ready-selected",
+      "assertions": ["02-ready-selected"],
       "stateEvidence": "四轨走查"
     },
     {
       "id": "prefs.remember-last",
       "label": "读图 / 转写默认取上次拆解时选的（改 chip 时写偏好）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "empty"
@@ -302,7 +302,7 @@
     {
       "id": "quote.model-lines",
       "label": "报价卡：读图 / 转写两行显示用户选的模型名",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "zh-en"
@@ -311,7 +311,6 @@
       "note": "报价卡现在只在一共超过 30 次调用时出现（用户 10-18 拍板）；分腿行由 deconstructSpend / 报价单测钉，长片报价卡没有真机截图"
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "已选 N 镜",

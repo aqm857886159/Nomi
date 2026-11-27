@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fsyncDirectoryIfDurable } from "../durability";
-import { renameSyncWithRetry, writeJsonFileAtomic } from "../jsonFile";
+import { isJsonRecord } from "../jsonUtils";
+import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from "../jsonFile";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { createProductionRunLock, inspectProductionRunLockFile } from "./productionRunLock";
 import { productionRunPaths } from "./productionRunPaths";
@@ -260,6 +261,33 @@ export function createSubmissionIntent(input: { root: string; scope: readonly st
       try { quiet?.release(); } finally { lock.release(lease); }
     }
   }
+  const ownerFile = path.join(claimDir, "project-run.json");
+  function projectRunOwner(): string | undefined {
+    // The claim re-reads this small journal record under its synchronous allocation lease.
+    try {
+      const owner = readJsonFile(ownerFile);
+      if (isJsonRecord(owner) && typeof owner.runId === "string" && owner.runId) return owner.runId;
+      throw new Error("Invalid submission intent Run identity");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      throw error;
+    }
+  }
+
+  /** Project callers already have a Run. Publish its approved job and identity under the
+   * scope lease. Network work starts only after this returns to the winning caller. */
+  function claimProjectRun(candidate: string, mayReplace: (previous: string) => boolean, approve: () => void): string {
+    const { lock, lease } = acquireClaim();
+    try {
+      const previous = projectRunOwner();
+      if (previous && previous !== candidate && !mayReplace(previous)) return previous;
+      approve();
+      writeJsonFileAtomic(ownerFile, { runId: candidate });
+      fsyncDirectoryIfDurable(claimDir);
+      return candidate;
+    } finally { lock.release(lease); }
+  }
+
   function submit(claimed: Extract<ReturnType<typeof claim>, { owned: true }>, dispatch: () => Promise<Result>) {
     const submission = createRunOwnedGenerationSubmission({
       repository, envelopeFor: ({ jobId }) => envelopeFor(jobId), safeRetryLimit: 0,
@@ -296,5 +324,5 @@ export function createSubmissionIntent(input: { root: string; scope: readonly st
     } catch { /* see above */ }
   }
 
-  return { read, current, observation, claim, submit, recordResult };
+  return { read, current, observation, claim, submit, recordResult, intentId: runId, projectRunOwner, claimProjectRun };
 }

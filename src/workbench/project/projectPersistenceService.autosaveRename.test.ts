@@ -30,9 +30,6 @@ vi.mock('../workbenchStore', () => ({
     subscribe: (_selector: unknown, listener: () => void) => { deps.workbenchListener = listener; return vi.fn() },
   },
 }))
-vi.mock('../generationCanvas/events/canvasEventEmitter', () => ({
-  emitCanvasGesture: vi.fn(), getCanvasEventLastSeq: vi.fn(() => 0), seedCanvasEventLastSeq: vi.fn(),
-}))
 vi.mock('../generationCanvas/agent/shotVerifyStore', () => ({ useShotVerifyStore: { getState: () => ({ activateProject: vi.fn() }) } }))
 vi.mock('../../desktop/bridge', () => {
   // 主进程 saveWorkspaceProject 的合同：名字只取记录里的非空 name，否则沿用磁盘上的；
