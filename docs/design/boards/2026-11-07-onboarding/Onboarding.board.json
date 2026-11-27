@@ -282,7 +282,7 @@
       "anchor": "[data-board=\"entry.composer-connect\"]",
       "status": "implemented",
       "owner": "S7a 入口指路（入口）",
-      "assertions": ["board:Onboarding/entry.composer-connect", "O1a-canvas 中文浅色分镜的连接按钮文案"]
+      "assertions": ["board:Onboarding/entry.composer-connect", "O1a-canvas 中文浅色分镜的连接按钮文案与字重"]
     },
     {
       "id": "entry.persona-setup",

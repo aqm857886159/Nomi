@@ -456,6 +456,9 @@ function* relativeModuleReferences(text) {
     if (!['import', 'export', 'require'].includes(kind)) continue
     let j = i + 1
     if (words[j] === '(' && relative(words[j + 1])) {
+      // TS import types name an exported type; runtime import returns a Promise.
+      const member = words[j + 3] === '.' ? words[j + 4] : null
+      if (kind === 'import' && (words[i - 1] === 'typeof' || (member && !['then', 'catch', 'finally'].includes(member)))) continue
       yield { specifier: words[j + 1].slice(1, -1), kind: 'import', names: '*' }
       continue
     }
@@ -699,15 +702,11 @@ export function findDatedBoards(root = path.dirname(BOARDS_DIR), skipDir = BOARD
 }
 
 export function loadManifests(dir = BOARDS_DIR, root = path.dirname(dir)) {
-  const out = {}
-  for (const board of BOARD_NAMES) {
-    const file = path.join(dir, `${board}.board.json`)
-    out[board] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null
-  }
-  // 其它日期目录的板也能被 `## 拍板图` 认领到。重名（与固定 12 张或彼此）不挑第一份：标成有歧义，认领就红。
-  for (const { board, dir: boardDir } of findDatedBoards(root, dir)) {
-    if (out[board] === undefined) out[board] = JSON.parse(fs.readFileSync(path.join(boardDir, `${board}.board.json`), 'utf8'))
-    else out[board] = { ambiguous: true }
+  const out = Object.fromEntries(BOARD_NAMES.map(board => [board, null]))
+  for (const row of listBoardManifests({ dir, root })) {
+    // 固定板名保留给默认目录；跨目录重名不能按名字认领。
+    const reserved = row.dir !== dir && BOARD_NAMES.includes(row.board)
+    out[row.board] = reserved || out[row.board] ? { ambiguous: true } : row.manifest
   }
   return out
 }
@@ -717,30 +716,16 @@ export function loadManifests(dir = BOARDS_DIR, root = path.dirname(dir)) {
  * check:board-parity 与 delivery:preflight 欠账汇总共用这一份，不另写第二份板读取器。
  */
 export function listBoardManifests({ dir = BOARDS_DIR, root = path.dirname(dir) } = {}) {
-  const records = []
-  const seen = new Set()
-  const push = (board, boardDir) => {
+  const boards = [
+    ...boardNamesIn(dir).map(board => ({ board, dir })),
+    ...findDatedBoards(root, dir),
+  ]
+  return boards.map(({ board, dir: boardDir }) => {
     const file = path.join(boardDir, `${board}.board.json`)
-    const resolved = path.resolve(file)
-    if (seen.has(resolved) || !fs.existsSync(file)) return
-    seen.add(resolved)
     const manifest = JSON.parse(fs.readFileSync(file, 'utf8'))
     const dirName = path.basename(boardDir)
-    records.push({
-      board,
-      dir: boardDir,
-      dirName,
-      boardKey: `${dirName}/${board}`,
-      file,
-      manifest,
-      approvedOn: approvedDateOf(dirName, manifest),
-    })
-  }
-  for (const board of boardNamesIn(dir)) push(board, dir)
-  for (const { board, dir: boardDir } of findDatedBoards(root, dir)) {
-    push(board, boardDir)
-  }
-  return records
+    return { board, dir: boardDir, dirName, boardKey: `${dirName}/${board}`, file, manifest, approvedOn: approvedDateOf(dirName, manifest) }
+  })
 }
 
 const parseIsoDayUtc = (day) => {

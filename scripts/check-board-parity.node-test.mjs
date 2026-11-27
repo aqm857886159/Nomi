@@ -403,6 +403,8 @@ describe('R12 引用方扫描（makeReferrerScanner）：只看直接引用；�
     write('src/workbench/OtherOnly.tsx', "import { Other } from '../design'\nexport const c = Other\n")
     write('src/workbench/TypeOnly.tsx', "import type { ThingProps } from '../design/Thing'\nexport type D = ThingProps\n")
     write('src/workbench/Lazy.tsx', "export const load = () => import('../design/Thing')\n")
+    write('src/workbench/TypeQuery.ts', "type T = import('../design/Thing').ThingProps\ntype Module = typeof import('../design/Thing')\n")
+    write('src/workbench/Notes.ts', "const note = `import { Thing } from '../design/Thing'` // import('../design/Thing')\n")
     write('src/workbench/Direct.test.tsx', "import { Thing } from '../design/Thing'\n")
     write('src/devlab/designLab/thing/thingLabKit.tsx', "import { Thing } from '../../../design/Thing'\nexport const e = Thing\n")
     write('src/workbench/Deep.tsx', "import { a } from './Direct'\nexport const f = a\n")

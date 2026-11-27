@@ -157,6 +157,7 @@ describe('T-5 S7a 全部剩余入口指路收口与 F-D 契约核对', () => {
     )
     const emptyText = stripTags(emptyHtml)
     expect(emptyHtml).toContain('data-composer-connect="true"')
+    expect(emptyHtml).toContain('data-board="entry.composer-connect"')
     expect(emptyText).toContain(i18n.t('onboardingProviders.entries.modelChipEmpty'))
     expect(emptyText).toContain(i18n.t('onboardingProviders.entries.connectModel'))
   })

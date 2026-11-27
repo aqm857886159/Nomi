@@ -267,11 +267,12 @@ try {
     await reference.goto(pathToFileURL(path.join(boardPreviewDir, 'Onboarding.html')).href)
     await assertBoardAnchor({
       frame: reference.locator('#O1a-canvas'), page: win, screen: composer, element,
-      lang: 'zh-CN', theme: 'light', text: true,
+      lang: 'zh-CN', theme: 'light', text: true, css: ['font-weight'],
     })
   } finally {
     await browser.close()
   }
+  await expect(composerConnectBtn, BOARD.composerConnect).toHaveText(uiText('zh-CN', 'onboardingProviders.entries.connectModel'))
   await saveShot(win, 'impl-o1a-canvas-rest-zh', tempShotsDir)
   await composerConnectBtn.hover()
   const composerTooltip = win.getByRole('tooltip')
