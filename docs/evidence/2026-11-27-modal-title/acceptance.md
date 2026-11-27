@@ -1,99 +1,52 @@
-有条件通过：第 2 轮独立盲验确认 `DesignModal` 运行时对对象与回调形式 `classNames.title` / `styles.title` 截断覆写的剥离与合法排版类保留、20 个弹窗调用方真实挂载断言（断言辅助已迁至 `tests/setup/modalTitleAssertions.ts`，无 `devlab/` 生产引用）、旧 AST 扫描彻底删除、零真付费调用，以及 4 个测试文件 34 条用例与 `check-design-lab --mirrors-only` 全绿；样片模式英文深色 1100×690 等桌面对照截图仍按约定由协调审查补截确认。
+有条件通过：合并提交 `4678085a6f12fd3091ccb3dca852a259035011a9` 的独立盲验中，全部代码逻辑、20 扇调用方核查、锁文件冲突解决核查、真实渲染单测/浏览器布局实测与破坏必红反例均通过；桌面端三处改前改后截图按派活单约定留待协调审查补截确认。
 
-- 验收线：v-fmodal-title-r3
-- 验收 HEAD：2cab3c1f99c079cfee9ba08983c228264b92839b
+- 验收线：v-fmodal-title-r4
+- 验收 HEAD：4678085a6f12fd3091ccb3dca852a259035011a9
+- 基线对比：`origin/main`（`be925b9e0`）..`4678085a6f12fd3091ccb3dca852a259035011a9`
 - 阻断：无
-- 上轮验收基线：`da738062bb660af20a6a7dbf0f0738a3045a2c42`（`v-fmodal-title`）；初始基线提交：`a05ca5219`（仅测试提交：`6d8059b1683c9ed27a0cd43ea267e56339db1079`）
-- 盲验依据：派活单、`git diff origin/main..2cab3c1f99c079cfee9ba08983c228264b92839b` 分支源码与实跑输出（严禁且未读任何实现线自报材料）
+- 待补条件：桌面端三处改前改后截图（按派活单约定本轮不截，交协调审查补截确认）
 
-## 1. 范围与禁区核查
+## 1. 范围与实现核查
 
-`git diff --stat a05ca5219..da738062bb660af20a6a7dbf0f0738a3045a2c42` 共改动 9 个文件（`+435 / -18`）：
+1. **外壳兜底与顶对齐机制（`src/design/overlays.tsx`）**
+   - 使用 `useResolvedStylesApi<ModalFactory>({ classNames, styles, props })` 统一解析对象与回调两种写法的 `classNames` / `styles`。
+   - 对 `caller.title` 过滤所有变体前缀 / `!` 修饰符组合的截断类（`truncate`、`text-ellipsis`、`text-nowrap`、`whitespace-nowrap`、`whitespace-pre`、非 `none` 的 `line-clamp-*`、`overflow*-hidden|clip`、`break-normal`）及任意属性声明（`[white-space:...]`、`[text-overflow:...]`、`[overflow*:...]`、`[line-clamp:...]` 等），同时保留调用方合法的字号、字重、字体、颜色类，并附加 `min-w-0`。
+   - 对 `resolvedStyles.title` 过滤 `titleFlowStyles`，强制设置 `whiteSpace: 'normal'` 与 `overflowWrap: 'anywhere'`，并保留其余排版内联样式（如 `letterSpacing`）。
+   - `header` 附加 `*:min-w-0`，`close` 附加 `shrink-0`；通过 `ResizeObserver` 独立观测 `Modal.Title`（`h2`）高度是否超过 `Math.ceil(lineHeight)`，仅在标题实际折行时把 `Modal.Header` 与 `header(titleElement, rowAlignment)` 同步切至 `items-start`，单行时维持 `items-center`。
 
-| 核查项 | 结论 | 实证 |
-|---|---|---|
-| 外壳唯一收口折行与首行顶对齐 | 通过 | 仅 `src/design/overlays.tsx`（`DesignModal`）统一定义 `title: cn(callerClassNames.title, 'min-w-0 whitespace-normal break-words')`、`header: cn('shrink-0', callerClassNames.header, '*:min-w-0', titleWrapped && 'items-start')`、`close: cn(callerClassNames.close, 'shrink-0')`；通过 `ResizeObserver`（React 19.3.0 原生支持 ref cleanup）观测 `Modal.Title` 高度，单行维持 `items-center`，折行后切换 `items-start` 并经 `header(titleElement, rowAlignment)` 传递至前置图标行。 |
-| 未改任何弹窗标题字号、字重、颜色 | 通过 | `overlays.tsx` 未设置字号/字重/颜色；`SpendConfirmDialog.tsx` 保持 `text-title font-medium text-nomi-ink`；`CustomCallTitle.tsx` 保持 `text-body font-semibold text-nomi-ink`；`SelectionPromptSaveController.tsx` 保持 `text-body font-semibold text-nomi-ink`；`HandbookPanel.tsx` 保持 `text-title font-bold text-nomi-ink`。 |
-| 未写非设计系统任意值 | 通过 | `SpendConfirmDialog.tsx` 还将旧的 `leading-[inherit]` 收敛为 Tailwind `leading-normal`；`node ./scripts/check-design-tokens.mjs` 通过（4 类棘轮 0/0/0/0）；`node ./scripts/check-dangling-tailwind.mjs` 通过（悬空类 0）。 |
-| 未碰 i18n 文案、拍板图或 `feat/sd-sample-mode` | 通过 | diff 零改动 `src/i18n/`、`docs/design/` 及任何拍板图文件。 |
-| 两处单行截断同提交删净 | 通过 | `da738062b` 同提交删除 `src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx` 的 `truncate` 与 `src/ui/onboarding/CustomCallTitle.tsx` 的 `whitespace-nowrap`（并去掉 `shrink-0`）。 |
-| 热点提交 `Direction-Check` trailer 合规 | 通过 | `da738062bb660af20a6a7dbf0f0738a3045a2c42` 提交信息含 `Direction-Check: docs/plan/2026-11-26-direction-check-spend-confirm-title.md`，且目标文档存在于分支中。 |
-| 类型与根因合同门禁 | 通过 | `pnpm run typecheck` 5 份并发全绿（`tsc app/electron/electron-pi/fixtures` + `check:test-types`）；`node ./scripts/check-root-cause-contracts.mjs` 通过。 |
+2. **全部调用方核对（`node scripts/door-map.mjs DesignModal`）**
+   - 扫描 3214 个非测试文件，共检出 20 扇读入口（40 处引用）。
+   - 19 个生产弹窗调用方全部在 `src/design/__tests__/modalTitleCallers.test.tsx` 中真实挂载渲染并注入超长标题验证；第 20 扇门 `src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx` 为设计实验室陈列页，直接使用无自定义标题类/插槽的 `<DesignModal>` 默认外壳，由 `DesignModalDefault` 覆盖。
+   - 正当排版类零丢失核对：
+     - `src/ui/app-shell/UpdateDialog.tsx`：`block m-0 text-title font-semibold text-nomi-ink` 原样保留；
+     - `src/ui/onboarding/CustomCallEditor.tsx`（经 `src/ui/onboarding/CustomCallTitle.tsx`）：`text-body font-semibold text-nomi-ink` 原样保留，已删净 `shrink-0 whitespace-nowrap`（旁侧 `label` 改为 `min-w-0 flex-1 truncate`）；
+     - `src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx`：`text-body font-semibold text-nomi-ink` 原样保留，前置标志行接入 `rowAlignment`；
+     - `src/workbench/onboarding/HandbookPanel.tsx`：`text-title font-bold text-nomi-ink` 原样保留，前置图标行接入 `rowAlignment`；
+     - `src/workbench/skillLibrary/SkillDetail.tsx`：`m-0 font-nomi-display text-h1 font-medium leading-8 text-nomi-ink` 原样保留；
+     - `src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx`：`block text-title font-medium leading-normal text-nomi-ink` 原样保留字号/字重/颜色，已删净 `truncate`，前置图标行接入 `rowAlignment`。
+   - 核查 `src/design/`、`tests/`、`scripts/` 无旧 AST 静态扫描测试残留，真相完全由真实渲染与浏览器布局测试守住。
 
-## 2. 全量调用方核查（20 扇门）
+3. **合并锁文件核查**
+   - `git diff origin/main..4678085a6f12fd3091ccb3dca852a259035011a9 -- package.json` 仅新增 `"jsdom": "27.2.0"`。
+   - `git diff origin/main..4678085a6f12fd3091ccb3dca852a259035011a9 -- pnpm-lock.yaml`（+297 / -4）仅包含 `jsdom@27.2.0` 及其传递依赖、`vitest@4.1.8` 的 `jsdom@27.2.0` peer 组合键更新，以及 `iconv-lite@0.6.3` 因 `whatwg-encoding@3.1.1` 引入而移除 `optional: true`，无冲突残留或无关依赖变更。
+   - `pnpm install --frozen-lockfile --prefer-offline` 退出码 0（`Lockfile is up to date, resolution step is skipped` / `Already up to date`）。
 
-实跑 `node scripts/door-map.mjs DesignModal`：扫描 3214 个非测试源码文件，写入口 0 扇、读入口 **20 扇**（40 处出现；19 个生产文件 + 1 个 devlab 样张 `src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx`）。逐扇门源码复核结果：
+## 2. 自动化验证结果
 
-- **13 扇默认标题门（无 `classNames.title` / 无自定义标题样式）**：`src/design/confirmDialog.tsx`、`src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx`、`src/ui/community/FeedbackShareHost.tsx`、`src/ui/onboarding/ModelSettingsDetailDialog.tsx`（`header: 'sr-only'`）、`src/ui/onboarding/OnboardingWizard.tsx`（注：第 678 行 `<h2 className="truncate">` 属于 `presentation === 'page'` 的 `ModelSettingsPageSurface`，非 `DesignModal` 标题栏）、`src/workbench/ai/ProjectAgentResidentShell.tsx`、`src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx`、`src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx`、`src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx`、`src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx`、`src/workbench/library/WorkflowLibraryContent.tsx`、`src/workbench/settings/SettingsDialog.tsx`、`src/workbench/timeline/TimelineShortcutsDialog.tsx`。以上均无标题单行截断，统一继承外壳折行与顶对齐。
-- **7 扇带 `header` 插槽或 `classNames.title` 的门**：
-  1. `src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx`：`truncate` 已删，图标行接入 `rowAlignment`；Agent 副标（`text-micro text-nomi-ink-60`）未误伤。
-  2. `src/ui/onboarding/CustomCallEditor.tsx`（经 `src/ui/onboarding/CustomCallTitle.tsx`）：`CUSTOM_CALL_NAME_CLASS` 已删 `whitespace-nowrap` 与 `shrink-0`；相邻模型名 `{label}` 保留 `min-w-0 flex-1 truncate text-caption text-nomi-ink-60`，省略策略未被误伤。
-  3. `src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx`：无标题截断，logo 行接入 `rowAlignment`。
-  4. `src/workbench/onboarding/HandbookPanel.tsx`：无标题截断，图标/字标行接入 `rowAlignment`。
-  5. `src/ui/app-shell/UpdateDialog.tsx`：无标题截断，图标行本身 `flex items-start gap-3`，副标未误伤。
-  6. `src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx`：无标题截断，路径副标未误伤。
-  7. `src/workbench/skillLibrary/SkillDetail.tsx`：无标题截断，作者标签保留 `max-w-40 truncate`，未误伤。
+| 检查项 | 命令 | 结果 |
+| --- | --- | --- |
+| 锁文件离线冻结校验 | `pnpm install --frozen-lockfile --prefer-offline` | 通过（exit 0） |
+| 入口普查 | `node scripts/door-map.mjs DesignModal` | 20 扇门全数核对完成 |
+| 渲染单测与构建依赖单测 | `VITEST_MAX_WORKERS=2 pnpm exec vitest run src/design/__tests__/DesignModal.test.tsx src/design/__tests__/modalTitleCallers.test.tsx src/design/modalAccessibleNames.test.tsx src/design/overlays.structure.test.tsx scripts/viteOptimizeDeps.test.mjs` | 5 文件 41/41 通过（`DesignModal` 6、`modalTitleCallers` 20、`modalAccessibleNames` 7、`overlays.structure` 6、`viteOptimizeDeps` 2） |
+| 真实浏览器布局与读屏实测 | `VITEST_MAX_WORKERS=2 pnpm exec vitest run src/design/dialogName.browser.test.ts` | 9/9 通过（含 380px `SpendConfirmDialog` 60 字符英文 2 行折行无裁切+首行顶对齐、单行 `16px`/`500` 居中对齐） |
+| 设计 token 门岗 | `node scripts/check-design-tokens.mjs` | 通过（4 类棘轮 0/0/0/0） |
+| 设计实验室 mirrors 校验 | `node scripts/check-design-lab.mjs --mirrors-only` | 通过 |
+| 根因合同校验 | `node ./scripts/check-root-cause-contracts.mjs` | 通过 |
 
-## 3. 定向单测与真 Chromium 浏览器实测
+## 3. 破坏必红反例记录
 
-均以 `VITEST_MAX_WORKERS=2` 指定文件实跑通过：
-
-1. `VITEST_MAX_WORKERS=2 pnpm exec vitest run src/design/overlays.structure.test.tsx src/design/dialogName.browser.test.ts src/design/modalAccessibleNames.test.tsx src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx`
-   - 结果：**4 个测试文件 / 25 条用例全部通过**（总耗时 17.60s）：
-     - `src/design/overlays.structure.test.tsx`：7/7 通过（含 AST 全仓扫描「DesignModal 调用方不能把标题限制为单行」，3723ms）。
-     - `src/design/dialogName.browser.test.ts`：9/9 通过（真实 Chromium + `@mantine/core/styles.css` + PostCSS/Tailwind 编译生产样式，17098ms）：
-       - 380px `SpendConfirmDialog` 挂载 60 字符英文标题（`Create another high definition version of this sample draft?`，实测长度 60）后：宽度精确 380px，`whiteSpace !== 'nowrap'`，`textOverflow !== 'ellipsis'`，真实折成 `2` 行，零水平/垂直裁剪（`clipped === false`），前置图标与关闭键 `boundingBox().y` 与标题首行顶齐。
-       - 短标题单行（`Generate reference images?`）：`fontSize === '16px'`、`fontWeight === '500'`、保留 `text-title font-medium text-nomi-ink`，图标与关闭键继续与单行标题垂直居中（零误伤）。
-     - `src/design/modalAccessibleNames.test.tsx`：7/7 通过。
-     - `src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx`：2/2 通过。
-2. 关联回归特征测试：`VITEST_MAX_WORKERS=2 pnpm exec vitest run src/design/dialogMigration.structure.test.ts src/design/dialogAnchorFreeze.test.ts src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx`
-   - 结果：**3 个测试文件 / 18 条用例全部通过**（871ms）。
-
-## 4. 破坏必红反例（实跑验证）
-
-在不移动 `HEAD` 的前提下，分别将工作区回退至（A）仅测试提交 `6d8059b16` 完整快照，与（B）保留 `HEAD` 测试但将 5 个生产文件回退至修复前 `a05ca5219` 写法，随后立即完整还原并确认 `git status` 干净：
-
-- **反例 A（仅测试提交 `6d8059b16`）**：
-  - `src/design/overlays.structure.test.tsx`：**真实变红失败（exit 1）**
-    ```text
-    FAIL src/design/overlays.structure.test.tsx > DesignModal 调用方不能把标题限制为单行
-    AssertionError: expected [ …(2) ] to deeply equal []
-    Received: [
-      "src/ui/onboarding/CustomCallTitle.tsx: whitespace-nowrap",
-      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx: truncate",
-    ]
-    ```
-  - `src/design/dialogName.browser.test.ts`：**真实变红失败（exit 1）**
-    ```text
-    FAIL src/design/dialogName.browser.test.ts > 380px 花钱确认卡的标题排版 > 60 字符的英文标题完整折行，关闭键和图标靠首行
-    AssertionError: expected 'nowrap' not to be 'nowrap' // Object.is equality
-    ```
-- **反例 B（`HEAD` 测试 + 修复前生产文件）**：
-  - `src/design/overlays.structure.test.tsx`：**真实变红失败（exit 1）**，同样检出 `CustomCallTitle.tsx: whitespace-nowrap` 与 `SpendConfirmDialog.tsx: truncate` 两项违规。
-  - `src/design/dialogName.browser.test.ts`：**真实变红失败（exit 1）**，同样在 60 字符长标题用例报 `AssertionError: expected 'nowrap' not to be 'nowrap'`。
-
-## 5. 待协调补截确认项与非阻断观察
-
-- **待协调审查补截（按派活单范围约定）**：样片模式「第二次出高清」英文深色 1100×690、短标题弹窗、自定义调用标题三处桌面端改前改后对照截图，由协调审查补截后交用户确认再合入。
-- **非阻断观察**：按派活单「不改任何弹窗标题字号/行高/外观、单行一像素不变」的明确边界，13 扇未传 `classNames.title` 的弹窗仍沿用 Mantine 默认 `line-height: 1`；后续统一弹窗标题字号与行高出样张拍板时一并收口即可。
-
-## 6. 第 2 轮独立盲验（`v-fmodal-title-r3` · HEAD `2cab3c1f99c079cfee9ba08983c228264b92839b`）
-
-直接对照 `git diff origin/main..2cab3c1f99c079cfee9ba08983c228264b92839b`（共 14 个文件，`+1021 / -36`）逐项核查：
-
-| 核查项 | 结论 | 实证 |
-|---|---|---|
-| `DesignModal` 运行时剥离对象与回调形式截断类/内联样式，且保留合法排版类 | 通过 | `src/design/overlays.tsx` 通过 Mantine `useResolvedStylesApi<ModalFactory>({ classNames, styles, props })` 统一解析对象与函数回调形式的 `classNames` / `styles`；按 `titleTruncation` 与 `titleFlowDeclaration` 剥离 `caller.title` 中的截断及流式声明类（含变体前缀、`!` 重要修饰符及任意 CSS 属性），保留调用方合法排版类并追加 `min-w-0`；按 `titleFlowStyles` 过滤 `resolvedStyles.title` 中的截断内联属性，保留 `letterSpacing` 等排版属性及其他插槽样式，并固定落盘 `whiteSpace: 'normal'` 与 `overflowWrap: 'anywhere'`。 |
-| 真实挂载渲染 20 个弹窗调用方并断言 `h2` 及弹窗内祖先节点无截断 | 通过 | `src/design/__tests__/DesignModal.test.tsx`（6 条用例）覆盖对象展开、Mantine `classNames` 回调、对象 `styles`、Mantine `styles` 回调、类与内联同时覆写及 `slots.header` 间接包裹 `h2` 的反例自检；`src/design/__tests__/modalTitleCallers.test.tsx`（20 条用例）在 jsdom 中真实挂载 20 个弹窗调用方（14 个表格用例含 `DesignModalDefault` + 6 个交互/store 触发用例：`ConfirmDialogHost`、`FeedbackShareHost`、`SpendConfirmDialog`、`WorkflowEditDialog`、`SelectionPromptSaveController`、`ProjectAgentResidentShell`）；公共断言辅助位于 `tests/setup/modalTitleAssertions.ts`，逐层检查 `aria-labelledby` 指向的弹窗内 `h2` 及至 `[role="dialog"]` 全部祖先节点无截断类/内联样式，并校验合法排版类保留；生产代码与相关测试中 `devlab/` 引用为 0。 |
-| 第 1 轮旧 AST 扫描已删除且零真付费调用 | 通过 | `src/design/overlays.structure.test.tsx` 已删除 `node:path`、`typescript` 引入与 97 行 AST 全仓扫描用例，仅保留 6 条外壳结构测试；全部新增/修改源码与单测均在本地 jsdom/Node 运行，零外部网络或真付费 API 调用。 |
-
-### 第 2 轮实跑结果
-
-1. `VITEST_MAX_WORKERS=2 npx vitest run src/design/__tests__/DesignModal.test.tsx src/design/__tests__/modalTitleCallers.test.tsx src/design/overlays.structure.test.tsx scripts/viteOptimizeDeps.test.mjs`
-   - 结果：**4 个测试文件 / 34 条用例全部通过**（总耗时 10.01s）：
-     - `src/design/__tests__/DesignModal.test.tsx`：6/6 通过（272ms）
-     - `src/design/__tests__/modalTitleCallers.test.tsx`：20/20 通过（962ms）
-     - `src/design/overlays.structure.test.tsx`：6/6 通过（73ms）
-     - `scripts/viteOptimizeDeps.test.mjs`：2/2 通过（446ms）
-2. `node scripts/check-design-lab.mjs --mirrors-only`
-   - 结果：**通过**（`设计实验室结构 + mirrors 行号检查通过`）。
+- **临时破坏方式**：不移动 `HEAD`，执行 `git checkout origin/main -- src/design/overlays.tsx src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx src/ui/onboarding/CustomCallTitle.tsx`，将外壳防护与两处截断旧写法恢复回 `origin/main`。
+- **变红实测**：运行 `VITEST_MAX_WORKERS=2 pnpm exec vitest run src/design/__tests__/DesignModal.test.tsx src/design/__tests__/modalTitleCallers.test.tsx`，退出码 `1`，2 个测试文件共 7 条用例失败：
+  - `src/design/__tests__/DesignModal.test.tsx` 5/6 失败（对象/回调 `classNames`、对象/回调 `styles`、类与内联样式同时覆盖全部被抓红，仅断言自检用例保持绿）；
+  - `src/design/__tests__/modalTitleCallers.test.tsx` 2/20 失败（`CustomCallEditor 的超长标题` 捕获 `whitespace-nowrap`，`SpendConfirmDialog 的超长标题` 捕获 `truncate`）。
+- **还原与复绿**：执行 `git checkout HEAD -- src/design/overlays.tsx src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx src/ui/onboarding/CustomCallTitle.tsx` 还原，确认工作区源码 100% 干净后复跑全部 5 份单测（41/41 通过）。
