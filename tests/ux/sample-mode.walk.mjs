@@ -11,7 +11,8 @@
 //           算不出价：钮上不印数、不印 0，读屏说明是「暂时估不出这次用量」。几何：行在节点框下、生成框上。字号按 token。
 //   hd      ★9-3 点「出高清」不弹框，替身只收 1 次 POST，键集合恰为 {model, draft_task_id, resolution}；
 //           在路上：样片照常可见、下方写「高清生成中」；落地进第 2 版「高清版」，角标 2，第 1 版还在；切回第 1 版那一行回来。
-//   second  ★9-4 第二次出高清先弹确认：取消 / Esc 都不发；「再出高清」才发，请求体同上。
+//   recovery  480p 与 1080p 各在受理后重启同一项目，取回原单，POST 增量各 1。
+//   second  ★9-4 第二次出高清先弹确认：取消 / Esc 都不发；确认后从缓存取回第 2 版，POST 总数不变。
 //   plain   ★9-5 普通 Seedance 2.5 选 480p 真出一条：没有这一行、没有「出高清」。
 //   expiry  ★9-2 只拨渲染进程的钟（Playwright clock）：剩 2 小时多 → 不提醒；剩 1 小时多 / 48 分钟 → 提醒色；过 72 小时 →
 //           「已过期」、没有「出高清」、只有「重拍样片」，点了按样片再发 1 次（draft:true）。
@@ -48,7 +49,7 @@ assert(FONT.caption && FONT.micro, `read font tokens from nomiTheme.ts: ${JSON.s
 const ALL_RUNS = { 'zh-light': { locale: 'zh-CN', scheme: 'light' }, 'en-dark': { locale: 'en', scheme: 'dark' } }
 const RUNS = process.env.NOMI_SAMPLE_WALK_RUN ? [ALL_RUNS[process.env.NOMI_SAMPLE_WALK_RUN]] : Object.values(ALL_RUNS)
 assert(RUNS.every(Boolean), `NOMI_SAMPLE_WALK_RUN 只认 ${Object.keys(ALL_RUNS).join(' / ')}`)
-const STATIONS = ['menu', 'sample', 'hd', 'second', 'plain', 'narrow', 'expiry']
+const STATIONS = ['menu', 'sample', 'hd', 'second', 'plain', 'narrow', 'expiry', 'recovery']
 /** ★9-7 最长文字：28 字镜头名（设计卡边界表原文）；英文轨用同样长度级别的英文名。最窄节点宽 = nodeSizing.ts 的 MIN_NODE_WIDTH。 */
 const LONG_SHOT_NAME = { 'zh-CN': '雨后清晨的海边栈道上少女缓缓转身回望远处灯塔慢推近景特写', en: 'Rainy dawn on the seaside boardwalk, the girl slowly turns back toward the distant lighthouse' }
 const MIN_NODE_WIDTH = 240
@@ -121,12 +122,31 @@ async function expectNotTruncated(locator, label) {
   assert(box.scroll <= box.client + 0.5, `${label}：「${box.text}」被截断（scrollWidth ${box.scroll} > clientWidth ${box.client}）`)
 }
 
-async function pickModel(win, locale, label) {
-  await openNodeModelMenu(win, `open model menu for ${label}`)
+async function pickModel(win, locale, label, nodeId = '') {
   const menu = win.locator('[data-nomi-select-dropdown]:visible').first()
   const row = menu.getByRole('option').filter({ has: win.locator('[data-nomi-select-option-label]', { hasText: new RegExp(`^${label.replace(/[()（）.]/g, '\\$&')}$`) }) }).first()
   const more = menu.getByRole('button', { name: uiText(locale, 'onboardingProviders.modelControls.more'), exact: true })
+  await openNodeModelMenu(win, `open model menu for ${label}`)
   if (!(await row.isVisible().catch(() => false)) && await more.isVisible().catch(() => false)) await clickOrFail(more, 'expand more models')
+  const rowBox = await row.boundingBox()
+  if (rowBox && rowBox.y < 8) {
+    // 690 高窗口里展开全表后的上翻菜单顶缘若越过窗口上沿几像素，把画布往下微移对应像素即可完整露出首行且不丢节点选中。
+    const dy = Math.min(80, Math.ceil(24 - rowBox.y))
+    await win.keyboard.press('Escape')
+    await expect(menu, `close clipped menu for ${label}`).toBeHidden()
+    const blank = await findCanvasBlankPoint(win)
+    assert(blank, `pick ${label}：画布上找不到空白处`)
+    const sy = Math.min(blank.y, 480)
+    await win.mouse.move(blank.x, sy)
+    await win.mouse.down()
+    for (let i = 1; i <= 6; i += 1) await win.mouse.move(blank.x, sy + (dy * i) / 6)
+    await win.mouse.up()
+    if (nodeId && !(await selectedNodeComposer(win).isVisible().catch(() => false))) {
+      await nodeById(win, nodeId).locator('.generation-canvas-v2-node').first().click({ position: { x: 8, y: 8 } })
+    }
+    await openNodeModelMenu(win, `reopen model menu for ${label}`)
+    if (!(await row.isVisible().catch(() => false)) && await more.isVisible().catch(() => false)) await clickOrFail(more, 'expand more models')
+  }
   await clickOrFail(row, `pick ${label}`)
   await expect(menu, `pick ${label}: menu closes`).toBeHidden()
 }
@@ -299,7 +319,7 @@ for (const run of RUNS) {
   const shot = (name) => path.join(OUT, `${name}.${locale}.${scheme}.png`)
   const fake = await startFakeApimartServer({ pendingPolls: 3 })
   const world = buildSampleWorld()
-  const { app, win } = await launch(world, run, fake)
+  let { app, win } = await launch(world, run, fake)
   const ctx = { sampleNodeId: '', sampleTaskId: '', sendAt: 0 }
   try {
     await createBlankProject(win)
@@ -474,7 +494,7 @@ for (const run of RUNS) {
       const node = nodeById(win, ctx.sampleNodeId)
       const hd = node.locator('[data-sample-make-final]').first()
       const dialog = win.locator('[role="dialog"]').filter({ hasText: uiTextWith(locale, 'generationCommon.sample.secondFinal.title', { resolution: '1080p' }) }).first()
-      const before = videoCreates(fake)
+      const rowSeen = await proveProbe(node.locator('[data-sample-row]'), '重出前第 1 版样片行在')
       const postsBefore = videoPosts(fake)
       await onCanvas(win, hd, 'make HD again')
       await expect(dialog, 'board:SampleMode/sample.confirm-second-hd：第二次先弹确认').toBeVisible()
@@ -496,25 +516,28 @@ for (const run of RUNS) {
       const order = await dialog.locator('[data-spend-confirm-action]').evaluateAll((els) => els.map((el) => el.getAttribute('data-spend-confirm-action')))
       assert.deepEqual(order, ['cancel', 'confirm'], 'board:SampleMode/sample.confirm-second-hd：按钮依次「取消」「再出高清」')
       await screenshotSettled(win, { path: shot('06-confirm') })
+      const cardSeen = await proveProbe(dialog, '已出高清的样片弹出二次确认')
       await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]').first(), 'cancel second HD')
-      await expect(dialog).toBeHidden()
+      await expectAbsent(dialog, { provenBy: cardSeen, message: '取消关闭重出确认' })
+      assert.equal(videoPosts(fake), postsBefore, '取消不发请求')
+      await expect(node.locator('[data-version-badge]')).toHaveText('2')
       await expect.poll(() => win.evaluate(() => document.activeElement?.hasAttribute('data-sample-make-final') ?? false), { message: '取消后焦点回到「出高清」' }).toBe(true)
       await onCanvas(win, hd, 'make HD again (Esc)')
       await expect(dialog).toBeVisible()
       await win.keyboard.press('Escape')
-      await expect(dialog).toBeHidden()
-      await new Promise((resolve) => setTimeout(resolve, 1200))
+      await expectAbsent(dialog, { provenBy: cardSeen, message: 'Esc 关闭重出确认' })
       assert.equal(videoPosts(fake), postsBefore, '取消 / Esc 不发请求')
       await expect(node.locator('[data-version-badge]').first(), '取消后版本数不变').toHaveText('2')
       await onCanvas(win, hd, 'make HD again (confirm)')
       await expect(dialog).toBeVisible()
       await clickOrFail(dialog.locator('[data-spend-confirm-action="confirm"]').first(), 'confirm second HD')
-      const sent = await nthVideoPost(fake, postsBefore + 1, 'second HD POST')
-      assert.deepEqual(Object.keys(sent).sort(), SAMPLE_FINAL_KEYS, `第二次出高清请求体：${JSON.stringify(sent)}`)
-      assert.equal(sent.draft_task_id, ctx.sampleTaskId)
-      await nthVideoCreate(fake, before + 1, 'second HD task created')
-      await expect(node.locator('[data-version-badge]').first(), '第二次高清进第 3 版').toHaveText('3', { timeout: LONG })
-      assert.equal(videoPosts(fake), postsBefore + 1, '确认后只 POST 1 次')
+      await expectAbsent(node.locator('[data-sample-row]'), { provenBy: rowSeen, message: '确认后高清重新成为主图，样片行收起' }, LONG)
+      await expect(node.locator('[data-version-badge]')).toHaveText('2')
+      await setVersionsSpread(win, ctx.sampleNodeId, true)
+      const hdCard = win.locator(`[data-version-grid="${ctx.sampleNodeId}"] [data-version-card="2"]`)
+      await expect(hdCard).toHaveAttribute('data-primary', 'true')
+      await expect(hdCard.locator('[data-version-card-number]')).toHaveText(uiText(locale, 'generationCommon.sample.finalLabel'))
+      assert.equal(videoPosts(fake), postsBefore, '切回已出过高清的样片再确认，POST 计数不增加')
       await setPrimary(win, ctx.sampleNodeId, 1)
     })
 
@@ -524,10 +547,14 @@ for (const run of RUNS) {
       await win.keyboard.press('Escape')
       await addCanvasNode(win, 'video')
       await expectVisible(selectedNodeComposer(win), 'plain node composer')
+      await expect.poll(async () => {
+        const currentId = await readNodeId(selectedNodeComposer(win))
+        return currentId && currentId !== ctx.sampleNodeId ? currentId : ''
+      }, { message: 'plain node id' }).not.toBe('')
       const plainId = await readNodeId(selectedNodeComposer(win))
       assert(plainId && plainId !== ctx.sampleNodeId, 'plain node id')
       await composerIntoView(win, plainId)
-      await pickModel(win, locale, PARENT_LABEL)
+      await pickModel(win, locale, PARENT_LABEL, plainId)
       await openNodeParams(win, 'open params (plain 2.5)')
       const resolution = win.locator('[data-agent-parameter-control="resolution"]').first()
       await clickOrFail(resolution.getByRole('radio', { name: '480p', exact: true }).first(), 'plain 2.5 → 480p')
@@ -723,6 +750,81 @@ for (const run of RUNS) {
       assert.equal(created.body?.resolution, '480p')
       assert.equal(created.body?.draft_task_id, undefined, '重拍样片不带旧样片号')
     })
+    await station('recovery', run, async () => {
+      const projectId = await win.evaluate(() => new URLSearchParams(location.hash.split('?')[1]).get('projectId'))
+      const project = (await win.evaluate(() => window.nomiDesktop.projects.listAsync())).find(item => item.id === projectId)
+      assert(project?.rootPath, '找回站需要当前项目的持久目录')
+      const reopen = async () => {
+        await app.close()
+        const restarted = await launch(world, run, fake)
+        app = restarted.app
+        win = restarted.win
+        await clickOrFail(win.locator(`[data-project-card][data-project-id="${projectId}"]`), '重开原项目')
+        await switchWorkspace(win, 'generation')
+      }
+      if (ctx.clockInstalled) await reopen()
+      await addCanvasNode(win, 'video')
+      await expectVisible(selectedNodeComposer(win), '找回站的新视频节点')
+      await expect.poll(async () => {
+        const currentId = await readNodeId(selectedNodeComposer(win))
+        return currentId && currentId !== ctx.sampleNodeId ? currentId : ''
+      }, { message: '找回站使用独立节点' }).not.toBe('')
+      const id = await readNodeId(selectedNodeComposer(win))
+      assert(id && id !== ctx.sampleNodeId, '找回站使用独立节点')
+      await composerIntoView(win, id)
+      await pickModel(win, locale, SAMPLE_LABEL[locale], id)
+      await fillPrompt(win, locale === 'en' ? 'A gull takes off from a lighthouse' : '海鸥从灯塔起飞')
+      const node = () => nodeById(win, id)
+      const row = () => node().locator('[data-sample-row]')
+      const final = () => row().locator('[data-sample-make-final]')
+      const assertSampleReady = async () => {
+        await expect(row()).toHaveAttribute('data-sample-state', 'ready', { timeout: LONG })
+        await expect(row().locator('[data-sample-expiry]')).toHaveText(uiTextWith(locale, 'generationCommon.sample.expiry.days', { count: 2 }))
+        await expect(final()).toHaveText(uiText(locale, 'generationCommon.sample.makeFinal'))
+      }
+      const interrupt = async (taskId, landed) => {
+        // 先证任务号已进项目存盘、查询尚在 processing，再关掉整个宿主。相同节点的上一版无法满足这个判据。
+        const projectFile = path.join(project.rootPath, '.nomi', 'project.json')
+        await expect.poll(() => JSON.parse(fs.readFileSync(projectFile, 'utf8')).payload?.generationCanvas?.nodes
+          ?.find(item => item.id === id)?.runs?.[0]?.taskId, { timeout: LONG }).toBe(taskId)
+        await expect.poll(() => fake.hits.some(hit => hit.method === 'GET' && hit.url === `/v1/tasks/${taskId}`), { timeout: LONG }).toBe(true)
+        await reopen()
+        fake.setProcessingHold(false)
+        const retrieve = node().getByRole('button', { name: uiText(locale, 'generationCommon.production.runAction.retry-retrieval'), exact: true })
+        await expect(landed().or(retrieve).first()).toBeVisible({ timeout: LONG })
+        if (await retrieve.isVisible()) await onCanvas(win, retrieve, '重新取回原单')
+        await expect(landed()).toBeVisible({ timeout: LONG })
+      }
+      fake.setProcessingHold(true)
+      const beforeSample = videoPosts(fake)
+      const beforeSampleTasks = videoCreates(fake)
+      await send(win, locale)
+      const draft = await nthVideoCreate(fake, beforeSampleTasks + 1, '找回站样片')
+      assert.equal(draft.body?.draft, true)
+      assert.equal(draft.body?.resolution, '480p')
+      await interrupt(draft.taskId, final)
+      await assertSampleReady()
+      const beforeFinal = videoPosts(fake)
+      assert.equal(beforeFinal - beforeSample, 1, '样片重启取回只下原单')
+      console.log(`  recovery 480p POST ${beforeSample} → ${beforeFinal}（+1）`)
+
+      fake.setProcessingHold(true)
+      const beforeFinalTasks = videoCreates(fake)
+      await onCanvas(win, final(), '从找回的样片出高清')
+      const hd = await nthVideoCreate(fake, beforeFinalTasks + 1, '找回站高清')
+      assert.deepEqual(hd.body, { model: 'seedance-2.5', draft_task_id: draft.taskId, resolution: '1080p' })
+      await interrupt(hd.taskId, () => node().locator('[data-version-badge]'))
+      await expect(node().locator('[data-version-badge]')).toHaveText('2')
+      await setVersionsSpread(win, id, true)
+      const card = win.locator(`[data-version-grid="${id}"] [data-version-card="2"]`)
+      await expect(card).toHaveAttribute('data-primary', 'true')
+      await expect(card.locator('[data-version-card-number]')).toHaveText(uiText(locale, 'generationCommon.sample.finalLabel'))
+      await setPrimary(win, id, 1)
+      await assertSampleReady()
+      assert.equal(videoPosts(fake) - beforeFinal, 1, '高清重启取回只下原单')
+      console.log(`  recovery 1080p POST ${beforeFinal} → ${videoPosts(fake)}（+1）`)
+    })
+
   } catch (error) {
     if (!error?.stationRed) {
       failed = true

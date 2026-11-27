@@ -1,5 +1,11 @@
 // 样片事实全从结果来历和运行记录现算：是不是样片、还剩多久、出高清在不在路上、没成之后重试发什么。
 import { describe, expect, it } from 'vitest'
+import { applyBuiltinSeeds } from '../../../../electron/catalog/seedBuiltins'
+import { publicPriceFor } from '../../../../electron/ai/onboarding/vendorPricePreview'
+import { priceQueryFromRequest } from '../../../../electron/ai/onboarding/vendorPriceRequest'
+import { normalizeCatalogTaskResults } from '../runner/catalogTaskResultParse'
+import { buildCatalogTaskRequest } from '../runner/catalogTaskActions'
+import { priceRequest, sampleFinalPriceRequest } from '../spend/useNodePricePreview'
 import type { GenerationCanvasNode, GenerationNodeResult, GenerationNodeRunRecord } from './generationCanvasTypes'
 import {
   failedSampleFinalOf,
@@ -87,6 +93,31 @@ describe('是不是样片：只读结果自己的来历', () => {
     const subject = node({ history: [finalResult('draft-1'), finalResult('draft-2')] })
     expect(finalsMadeFrom(subject, 'draft-1')).toHaveLength(1)
   })
+})
+
+it('从真实归一化结果读取冻结的文生方式，发送键和高清按钮分别按父行两档报价', () => {
+  const source = node({ prompt: '窗外的灯塔', meta: {
+    modelVendor: 'apimart', modelKey: 'doubao-seedance-2.5-sample',
+    archetype: { id: 'seedance-2.5-apimart-sample', modeId: 't2v' }, duration: 5,
+  } })
+  const { request } = buildCatalogTaskRequest(source)
+  const [result] = normalizeCatalogTaskResults({
+    id: 'sample-quote', kind: request.kind, status: 'succeeded', raw: {},
+    assets: [{ type: 'video', url: 'sample.mp4' }],
+    provenance: { provider: 'apimart', timestamp: T0, params: { extras: request.extras } },
+  }, source)
+  expect(result.taskKind).toBe('video')
+  const facts = sampleFactsOf(source, result)!
+  const catalog = applyBuiltinSeeds({ version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, '2026-11-28').state
+  const tariffs = { success: true, data: { model_name: 'seedance-2.5', membership: { category: 'video' },
+    billing_type: 'per_second', resolution_paid_prices: { '480p': 0.02, '1080p': 0.08 } } }
+  const sample = priceRequest(source, { nodes: [source], edges: [] })
+  const final = sampleFinalPriceRequest(facts, '1080p')
+  for (const [input, resolution, usd] of [[sample, '480p', 0.1], [final, '1080p', 0.4]] as const) {
+    const query = priceQueryFromRequest(input!, catalog)
+    expect(query).toMatchObject({ modelId: 'seedance-2.5', resolution, durationSec: 5 })
+    expect(publicPriceFor(query!, tariffs, null, 'fixture')).toEqual({ usd, credits: usd * 10, source: 'fixture' })
+  }
 })
 
 describe('还剩多久（C-D3）', () => {

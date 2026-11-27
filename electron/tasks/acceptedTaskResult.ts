@@ -7,6 +7,8 @@ import { localizeTaskAssets } from "../assets/localizeTaskAsset";
 import { trim } from "../jsonUtils";
 import type { PaidSubmissionReceipt } from "../productionRun/paidSubmissionReceipt";
 import { buildProfileTaskResult, type TaskRequest, type TaskResult } from "../runtime";
+import { recipeFingerprint, rememberTaskResult } from "../vendor/fingerprintCache";
+import { buildNormalizedRecipe } from "../vendor/provenance";
 import { executeTaskQuery } from "./taskResultQuery";
 import { expectedMediaKind, readTaskResponse } from "./taskResultReading";
 import { RETRIEVAL_UNAVAILABLE_MESSAGE } from "../shared/nomiErrorCodes";
@@ -45,6 +47,9 @@ export async function recoverAcceptedTask(receipt: PaidSubmissionReceipt, reques
     };
   }
   if (receipt.source === "profile" && mapping) {
+    const fingerprint = recipeFingerprint(
+      buildNormalizedRecipe({ vendor, model, mappingId: trim((mapping as { id?: unknown }).id), request }),
+    );
     const normalized = await buildProfileTaskResult({
       response,
       mapping,
@@ -64,8 +69,10 @@ export async function recoverAcceptedTask(receipt: PaidSubmissionReceipt, reques
       !mapping.query ||
       normalized.result.assets.length ||
       normalized.result.status === "failed"
-    )
+    ) {
+      rememberTaskResult(projectId, fingerprint, normalized.result);
       return normalized.result;
+    }
   }
   let urls: string[];
   if (receipt.source === "assets") urls = response as string[];
@@ -86,6 +93,9 @@ export async function recoverAcceptedTask(receipt: PaidSubmissionReceipt, reques
     if (receipt.authType !== "none" && !apiKey) throw new Error(RETRIEVAL_UNAVAILABLE_MESSAGE);
     if (mapping?.query && receipt.remoteTaskId) {
       const providerMeta = profileAcceptanceIdentity(response, mapping.create, taskId).providerMeta;
+      const fingerprint = recipeFingerprint(
+        buildNormalizedRecipe({ vendor: connection, model, mappingId: trim((mapping as { id?: unknown }).id), request }),
+      );
       return (
         await executeTaskQuery(
           taskId,
@@ -98,6 +108,7 @@ export async function recoverAcceptedTask(receipt: PaidSubmissionReceipt, reques
             providerMeta,
             projectId,
             nodeId,
+            fingerprint,
             wantedKind,
           },
           undefined,

@@ -3,7 +3,7 @@
 // 老项目、普通模型出的结果读不出样片档案 → 不是样片（没有节点下方那一行）。
 import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
 import type { ModelArchetype } from '../../../../electron/shared/modelArchetypes/types'
-import { SAMPLE_FINAL_MODE_ID, sampleFinalResolution } from '../../../../electron/shared/videoCapabilities/sampleMode'
+import { findArchetypeMode, SAMPLE_FINAL_MODE_ID, sampleFinalResolution } from '../../../../electron/shared/videoCapabilities/sampleMode'
 import type { GenerationCanvasNode, GenerationNodeResult, GenerationNodeRunRecord } from './generationCanvasTypes'
 
 type SampleArchetype = ModelArchetype & { sampleOf: NonNullable<ModelArchetype['sampleOf']> }
@@ -64,6 +64,7 @@ export function sampleFactsOf(node: Pick<GenerationCanvasNode, 'runs'>, result: 
   const moments = [run?.startedAt, result.provenance?.timestamp, result.createdAt]
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
   if (!moments.length) return null
+  const recordedKind = text(result.taskKind)
   return {
     draftTaskId,
     vendorKey,
@@ -71,7 +72,9 @@ export function sampleFactsOf(node: Pick<GenerationCanvasNode, 'runs'>, result: 
     archetype: archetype as SampleArchetype,
     createdAt: Math.min(...moments),
     extras,
-    taskKind: text(result.taskKind) || text(archetype.sampleOf.final.transportTaskKind) || 'text_to_video',
+    taskKind: findArchetypeMode(archetype, selection.modeId)?.transportTaskKind
+      || (recordedKind === 'text_to_video' || recordedKind === 'image_to_video' ? recordedKind : '')
+      || text(archetype.sampleOf.final.transportTaskKind) || 'text_to_video',
   }
 }
 

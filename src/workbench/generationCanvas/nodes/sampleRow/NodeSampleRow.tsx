@@ -84,7 +84,8 @@ function SampleRowBody({ node, facts, onFeedback, flowWidth, readOnly, onSpace }
         ) : readOnly ? null : expired ? (
           onSampleRow ? <RedraftButton node={node} onFeedback={onFeedback} /> : null
         ) : (
-          <MakeFinalButton node={node} sample={sample} resolution={resolution} disabled={busy} onFeedback={onFeedback} />
+          <MakeFinalButton node={node} sample={sample} resolution={resolution} disabled={busy} onFeedback={onFeedback}
+            onDeclined={() => rowRef.current?.querySelector<HTMLButtonElement>('[data-sample-make-final]')?.focus({ preventScroll: true })} />
         )}
       </div>
       {run?.phase === 'failed' && !expired ? (
@@ -209,19 +210,23 @@ function RowButton({ label, ariaLabel, cost, disabled, onClick, ...attrs }: {
   )
 }
 
-function MakeFinalButton({ node, sample, resolution, disabled, onFeedback }: {
+function MakeFinalButton({ node, sample, resolution, disabled, onFeedback, onDeclined }: {
   node: GenerationCanvasNode
   sample: SampleFacts
   resolution: string
   disabled: boolean
+  onDeclined: () => void
   onFeedback: (message: string) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const cost = useSampleFinalCost(sample, resolution, { idle: !disabled })
   // 第一次按下就发；这条样片已出过高清 → 控制器先弹「再出高清」确认（取消什么都不发）。
   const makeFinal = async () => {
-    try { await confirmAndRunNode(node.id, { initiator: 'user', sampleFinal: { draftTaskId: sample.draftTaskId, resolution } }) }
-    catch (error) { onFeedback(error instanceof Error ? error.message : t('generationCommon.batchPlan.authorizationFailed')) }
+    try {
+      const outcome = await confirmAndRunNode(node.id, { initiator: 'user', sampleFinal: { draftTaskId: sample.draftTaskId, resolution } })
+      // 准入期间原按钮被「高清生成中」替换。卡收起后把焦点交回同一行的新按钮。
+      if (outcome === 'declined') requestAnimationFrame(onDeclined)
+    } catch (error) { onFeedback(error instanceof Error ? error.message : t('generationCommon.batchPlan.authorizationFailed')) }
   }
   return (
     <RowButton

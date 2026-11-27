@@ -442,8 +442,6 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
     ? undefined
     : captureApprovedGenerationInputs([nodeId])
   const node = opts.deferredMaterialization?.draftNode ?? useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
-  // 出高清走不走单镜 Run 看样片那一行，不看节点现在选着谁。
-  const hasRun = opts.sampleFinal ? 'run' as const : !opts.rerun && generationNodeLedger(node)
   // 要不要问、放行哪几笔只由主进程定（canvasResendDecide）；这里只报「我想再发一次」和身份，照它的判定弹现成那张卡。
   const decideResend = (resend: boolean): Promise<CanvasResendDecision> => {
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
@@ -458,7 +456,9 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
       ...(productionRunId ? { production: { runId: productionRunId } } : {}),
     })
   }
-  const first: CanvasResendDecision = hasRun || opts.resend ? await decideResend(Boolean(opts.resend)) : { action: 'send' }
+  // 高清原单是否可附着由 submit 按样片号决定。先按节点问 openRuns 会给同一笔在途单误弹重发卡。
+  const checkNodeResend = !opts.sampleFinal && (opts.resend || (!opts.rerun && generationNodeLedger(node)))
+  const first: CanvasResendDecision = checkNodeResend ? await decideResend(Boolean(opts.resend)) : { action: 'send' }
   if (first.action === 'refuse') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
   if (opts.prepareDependencies?.()) return 'nothing-to-run'
   let resendDecisionId: string | undefined
@@ -466,7 +466,15 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     synchronizeCanvasOpenRuns(decision.open)
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
-    const confirmed = await confirmGenerationResend({ resultUnknown: decision.resultUnknown, kind: current ? spendCostKind(current.kind) : 'image' })
+    const final = opts.sampleFinal
+    let secondSampleFinal: Parameters<typeof confirmGenerationResend>[0]['secondSampleFinal']
+    if (final && current && !decision.resultUnknown && !decision.open.length && finalsMadeFrom(current, final.draftTaskId).length) {
+      const sample = sampleByTaskId(current, final.draftTaskId)
+      const price = sample && await sampleFinalCredits(sample, final.resolution, i18n.language)
+      if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+      secondSampleFinal = { resolution: final.resolution, ...(price ? { credits: price.text, unit: price.unit } : {}) }
+    }
+    const confirmed = await confirmGenerationResend({ resultUnknown: decision.resultUnknown, kind: current ? spendCostKind(current.kind) : 'image', secondSampleFinal })
     if (!confirmed) return 'declined'
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     try {
@@ -484,17 +492,6 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
   if (resending) {
     const outcome = await askToResend(first)
     if (outcome) return outcome
-  }
-  // 同一条样片第二次出高清：钱会再扣一次全价，先问（上一张「再发一次」卡问过就不再问第二遍）。
-  if (opts.sampleFinal && !resending) {
-    const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
-    const sample = current ? sampleByTaskId(current, opts.sampleFinal.draftTaskId) : null
-    if (current && sample && finalsMadeFrom(current, sample.draftTaskId).length > 0) {
-      const price = await sampleFinalCredits(sample, opts.sampleFinal.resolution, i18n.language)
-      const again = await confirmGenerationResend({ resultUnknown: false, kind: 'video', secondSampleFinal: { resolution: opts.sampleFinal.resolution, ...(price ? { credits: price.text, unit: price.unit } : {}) } })
-      if (!again) return 'declined'
-      if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
-    }
   }
   const ok = resending || await confirmGenerationSpend([node], {
     initiator: opts.initiator,

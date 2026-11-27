@@ -57,6 +57,7 @@ function parseJsonBody(body) {
 
 export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0, failTasks = 0, expiredDrafts = [] } = {}) {
   const expired = new Set(expiredDrafts.map(String))
+  let holdProcessing = false
   let dropsLeft = dropSubmits
   let failsLeft = failTasks
   const media = mediaFixture()
@@ -112,7 +113,7 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
       if (query) {
         const task = tasks.get(query[1])
         if (!task) { json({ code: 404, data: { status: 'failed', error: { message: 'unknown task' } } }, 404); return }
-        if (task.remaining > 0) { task.remaining -= 1; json({ code: 200, data: { id: query[1], status: 'processing' } }); return }
+        if (holdProcessing || task.remaining > 0) { task.remaining = Math.max(0, task.remaining - 1); json({ code: 200, data: { id: query[1], status: 'processing' } }); return }
         if (task.failed) { json({ code: 200, data: { id: query[1], status: 'failed', error: { message: 'generation failed upstream' } } }); return }
         const entry = task.kind === 'video'
           ? { id: query[1], url: [`${origin}/fixture/video.mp4`], thumbnail_url: `${origin}/fixture/poster.png`, filename: 'fixture.mp4' }
@@ -144,6 +145,7 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
     socketEvents,
     /** 走查中途把某个样片号标成已过期（官方 3 天有效期，走查不真等）。 */
     expireDraft: (taskId) => { expired.add(String(taskId)) },
+    setProcessingHold: (held) => { holdProcessing = held },
     /** Node 默认 5s 就把闲置的 keep-alive 连接关掉；把它记下来，好判断空窗期是不是跨过了它。 */
     keepAliveTimeoutMs: server.keepAliveTimeout,
     referencePath: media.referencePath,

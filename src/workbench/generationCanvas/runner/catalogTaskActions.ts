@@ -316,7 +316,6 @@ function buildReferenceExtras(
 function buildSampleFinalRequest(
   node: GenerationCanvasNode,
   sampleFinal: NonNullable<CatalogTaskActionOptions['sampleFinal']>,
-  options: CatalogTaskActionOptions,
 ): { vendor: string; request: TaskRequestDto } {
   const vendor = selectedVendor(node)
   const modelKey = selectedModelKey(node)
@@ -340,9 +339,6 @@ function buildSampleFinalRequest(
         vendor,
         nodeId: node.id,
         nodeKind: node.kind,
-        ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
-        // 同一条样片再出一次高清 = 人确认过的再扣一次，不许被指纹缓存秒回上一次的高清版。
-        forceRerun: true,
       },
     },
   }
@@ -352,7 +348,7 @@ export function buildCatalogTaskRequest(
   node: GenerationCanvasNode,
   options: CatalogTaskActionOptions = {},
 ): { vendor: string; request: TaskRequestDto } {
-  if (options.sampleFinal) return buildSampleFinalRequest(node, options.sampleFinal, options)
+  if (options.sampleFinal) return buildSampleFinalRequest(node, options.sampleFinal)
   // 出高清方式只从「出高清」那一下进来（带样片号、过第二次确认）；节点上万一留着这个方式，普通发送一律不发。
   if ((node.meta?.archetype as { modeId?: unknown } | undefined)?.modeId === SAMPLE_FINAL_MODE_ID) throw new Error('sample_final_needs_draft')
   const vendor = selectedVendor(node)

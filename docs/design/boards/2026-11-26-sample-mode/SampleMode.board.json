@@ -267,11 +267,11 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/common/useDedupedModelSelect.ts（档案变体行，紧跟 Seedance 2.5）；electron/catalog/apimartVideos.ts（目录行 doubao-seedance-2.5-sample）；electron/shared/videoCapabilities/seedance25ApimartSample.ts（由 2.5 派生的样片档案）；src/config/modelCapabilityLine.ts（说明行从档案样片规格读）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "note": "C-D5：目录里独立一行，模型菜单、隐藏模型、设置里的模型框整理、分镜菜单都有；出高清只在画布节点下方",
       "assertion": "board:SampleMode/sample.picker-row",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.picker-row\"]",
       "assertions": [
         "board:SampleMode/sample.picker-row"
       ]
@@ -291,10 +291,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx（模型格，名字同菜单）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.picker-chip",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.picker-chip\"]",
       "assertions": [
         "board:SampleMode/sample.picker-chip"
       ]
@@ -336,10 +336,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx；src/workbench/generationCanvas/spend/useNodePricePreview.ts（样片约价只走 electron/shared/videoCapabilities/sampleMode.ts sampleBillingRequest 一个家）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.send-price",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.send-price\"]",
       "assertions": [
         "board:SampleMode/sample.send-price"
       ]
@@ -357,10 +357,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx 参数面板；src/workbench/generationCanvas/nodes/controls/ParameterControlBody.tsx（只有一个取值照样显示）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.params-panel",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.params-panel\"]",
       "assertions": [
         "board:SampleMode/sample.params-panel"
       ]
@@ -385,7 +385,7 @@
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "note": "C-D8：放在节点框正下方，不压画面；列表详情显示同一行；远景轻量节点不显示",
       "assertion": "board:SampleMode/sample.below-row",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.below-row\"]",
       "assertions": [
         "board:SampleMode/sample.below-row"
       ]
@@ -404,10 +404,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx ExpiryChip；src/workbench/generationCanvas/model/sampleFacts.ts（剩多久按档案 sampleOf.spec.ttlHours 现算）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.expiry-chip",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.expiry-chip\"]",
       "assertions": [
         "board:SampleMode/sample.expiry-chip"
       ]
@@ -425,10 +425,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx ExpiryChip 的 Tooltip",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.expiry-tooltip",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.expiry-tooltip\"]",
       "assertions": [
         "board:SampleMode/sample.expiry-tooltip"
       ]
@@ -453,7 +453,7 @@
       "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.hd-button",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.hd-button\"]",
       "assertions": [
         "board:SampleMode/sample.hd-button"
       ]
@@ -471,10 +471,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx RowButton（cost.credits 缺省 = 不印数）；悬停复用 generationCommon.composer.sendCost.priceUnknown",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.hd-no-price",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.hd-no-price\"]",
       "assertions": [
         "board:SampleMode/sample.hd-no-price"
       ]
@@ -493,10 +493,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx RedraftButton",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.redraft-button",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.redraft-button\"]",
       "assertions": [
         "board:SampleMode/sample.redraft-button"
       ]
@@ -513,10 +513,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx（data-sample-final-progress）；src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx（出高清时不盖样片）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.hd-progress",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.hd-progress\"]",
       "assertions": [
         "board:SampleMode/sample.hd-progress"
       ]
@@ -555,10 +555,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx（今天的等待面，样片生成时原样）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.generating",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.generating\"]",
       "assertions": [
         "board:SampleMode/sample.generating"
       ]
@@ -577,11 +577,11 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCards.tsx；src/workbench/generationCanvas/nodes/versionCards/nodeVersionEntries.ts（第 2 版叫「高清版」）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "note": "C-D2：版本栈不设上限，照今天的做法；板上画 2 版只是样片 + 高清版这个场景",
       "assertion": "board:SampleMode/sample.version-hd",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.version-hd\"]",
       "assertions": [
         "board:SampleMode/sample.version-hd"
       ]
@@ -605,7 +605,7 @@
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "note": "C-D11：复用 confirmGenerationResend，只换这一处文案与主按钮；英文正文进 COST_LABEL_EXACT 登记",
       "assertion": "board:SampleMode/sample.confirm-second-hd",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.confirm-second-hd\"]",
       "assertions": [
         "board:SampleMode/sample.confirm-second-hd"
       ]
@@ -621,10 +621,10 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "src/workbench/generationCanvas/model/sampleFacts.ts（没有样片号 = 不是样片）",
-      "status": "implemented",
+      "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.plain-480p",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.plain-480p\"]",
       "assertions": [
         "board:SampleMode/sample.plain-480p"
       ]
@@ -643,7 +643,7 @@
       "status": "in-progress",
       "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
       "assertion": "board:SampleMode/sample.old-node",
-      "anchor": "未定",
+      "anchor": "[data-board=\"sample.old-node\"]",
       "assertions": [
         "board:SampleMode/sample.old-node"
       ]
