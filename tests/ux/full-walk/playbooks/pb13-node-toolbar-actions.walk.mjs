@@ -109,6 +109,7 @@ async function readPage() {
   const canvas = project?.payload?.generationCanvas ?? project?.generationCanvas ?? {}
   const nodes = (canvas.nodes ?? []).map((node) => ({
     id: node.id, kind: node.kind, status: node.status, hasResult: Boolean(node.result?.url), resultUrl: node.result?.url ?? null,
+    whiteboardAssetUrls: (node.meta?.whiteboardState?.canvasAssets ?? []).map((asset) => asset?.url).filter(Boolean),
     versions: (node.history ?? []).length, prompt: String(node.prompt ?? ''), model: node.meta?.modelKey ?? null, vendor: node.meta?.modelVendor ?? null, width: node.meta?.imageWidth ?? null, height: node.meta?.imageHeight ?? null,
   }))
   const dom = await win().evaluate(() => {
@@ -120,7 +121,7 @@ async function readPage() {
     }
     return {
       dialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).map((element) => element.getAttribute('aria-label') || element.getAttribute('data-testid') || 'dialog'),
-      whiteboard: visible(document.querySelector('[data-nomi-whiteboard-modal="true"]')),
+      whiteboard: visible(document.querySelector('[data-nomi-inline-whiteboard="true"]')),
       modelSettingsPages: [...document.querySelectorAll('[data-model-settings-page]')].filter(visible).map((element) => element.getAttribute('data-model-settings-page')),
       menus: [...document.querySelectorAll('[role="menu"]')].filter(visible).length,
       feedback: [...document.querySelectorAll('[role="status"], [data-node-feedback], [data-canvas-toast]')].filter(visible).map((element) => element.textContent?.trim()).filter(Boolean).slice(0, 4),
@@ -329,15 +330,24 @@ try {
   await monitor.checkClickTarget(targetOf('tb-whiteboard'), {
     observe: readPage,
     act: async () => {
+      const expectedUrl = nodeOf(await readPage(), SRC)?.resultUrl
+      expect(expectedUrl, '源节点本身带原图').toBeTruthy()
       await clickOrFail(toolbar().getByRole('button', { name: text('generationCommon.imageToolbar.whiteboard'), exact: true }).first(), '画板')
-      await expect(win().locator('[data-nomi-whiteboard-modal="true"]').first(), '画板打开').toBeVisible({ timeout: stationTimeout() }).catch(() => undefined)
-      await win().waitForTimeout(600)
+      await expect(win().locator('[data-nomi-inline-whiteboard="true"]').first(), '画板打开').toBeVisible({ timeout: stationTimeout() })
+      await expect(win().locator('[data-toolbar-action="whiteboard-importImage"]').first(), '画板初始加载就绪').toBeEnabled({ timeout: stationTimeout() })
+      await expect.poll(async () => nodeOf(await readPage(), SRC)?.whiteboardAssetUrls ?? [], { timeout: stationTimeout(), message: '源节点原图已载入内联画板' }).toContain(expectedUrl)
     },
-    judge: (_before, after) => ({ ok: after.whiteboard, actual: after.whiteboard ? '画板打开了' : '画板没打开' }),
+    judge: (before, after) => {
+      const srcUrl = nodeOf(before, SRC)?.resultUrl
+      const seeded = Boolean(srcUrl) && (nodeOf(after, SRC)?.whiteboardAssetUrls ?? []).includes(srcUrl)
+      const ok = after.whiteboard && seeded
+      return { ok, actual: !after.whiteboard ? '画板没打开' : seeded ? '画板打开且已放入原图' : '画板打开了，但原图未进入画板' }
+    },
   })
   await monitor.step('关上画板（复原）', async () => {
-    await win().keyboard.press('Escape')
-    await expect(win().locator('[data-nomi-whiteboard-modal="true"]'), '画板关上').toHaveCount(0, { timeout: stationTimeout() })
+    const done = win().locator('[data-toolbar-action="whiteboard-done"]').first()
+    if (await done.isVisible().catch(() => false)) await clickOrFail(done, 'whiteboard-done')
+    await expect(win().locator('[data-nomi-inline-whiteboard="true"]'), '画板关上').toHaveCount(0, { timeout: stationTimeout() })
   }, { surfaces: ['*'] })
   await reselect()
 
