@@ -22,7 +22,7 @@ import {
   renderReport,
   resolveJudgementStage,
 } from './pr-body-criteria.mjs'
-import { checkProtectedScope, extractSection, main as preflightMain, readReportRef, repoSlugOfOrigin, sameRepoCommentEndpoint } from './merge-preflight.mjs'
+import { checkProtectedScope, extractSameRepoCommentBody, extractSection, main as preflightMain, readReportRef, repoSlugOfOrigin, sameRepoCommentEndpoint } from './merge-preflight.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -558,7 +558,7 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
     `- 验收 HEAD：${repo.headSha}`,
   ].join('\n')
 
-  // 正例 1：本仓 PR 评论链接（#1712 形状）→ 调 gh api 读出报告并核对讨论串归属通过
+  // 正例 1：本仓 PR 评论链接（#1712 形状）→ 调 gh api 读出报告并核对讨论串归属与成员身份通过
   const prOk = runPreflight(repo, {
     createdAt: '2026-11-27T00:00:00Z',
     body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
@@ -566,6 +566,7 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
       'repos/o/r/issues/comments/7224317666': {
         body: pr1712CommentBody,
         html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+        author_association: 'COLLABORATOR',
       },
     },
   })
@@ -580,6 +581,7 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
       'repos/o/r/issues/comments/7224317666': {
         body: pr1712CommentBody,
         html_url: 'https://github.com/o/r/issues/1586#issuecomment-7224317666',
+        author_association: 'OWNER',
       },
     },
   })
@@ -603,6 +605,7 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
       'repos/o/r/issues/comments/7224317666': {
         body: pr1712CommentBody.replace('有条件通过', '不通过'),
         html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+        author_association: 'COLLABORATOR',
       },
     },
   })
@@ -617,6 +620,7 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
       'repos/o/r/issues/comments/7224317666': {
         body: pr1712CommentBody,
         html_url: 'https://github.com/o/r/pull/7#issuecomment-7224317666',
+        author_association: 'COLLABORATOR',
       },
     },
   })
@@ -626,10 +630,54 @@ test('Q-report-link：同仓库 PR / issue 评论链接经 gh api 读验收报�
   const missingHtmlUrlFail = runPreflight(repo, {
     createdAt: '2026-11-27T00:00:00Z',
     body: makeFourClassBody('https://github.com/o/r/pull/7#issuecomment-7224317666'),
-    comments: { 'repos/o/r/issues/comments/7224317666': pr1712CommentBody },
+    comments: {
+      'repos/o/r/issues/comments/7224317666': {
+        body: pr1712CommentBody,
+        author_association: 'COLLABORATOR',
+      },
+    },
   })
   assert.equal(missingHtmlUrlFail.code, 1)
   assert.match(missingHtmlUrlFail.out, /独立验收的报告读不到/)
+
+  // 正反例 4（Q-report-link-author）：评论者身份 author_association 严格白名单（仅 OWNER / MEMBER / COLLABORATOR）
+  const commentHtmlUrl = 'https://github.com/o/r/pull/7#issuecomment-7224317666'
+  for (const association of ['OWNER', 'MEMBER', 'COLLABORATOR']) {
+    const payload = { body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: association }
+    assert.equal(extractSameRepoCommentBody(payload, '/o/r/pull/7'), pr1712CommentBody, association)
+    const allowed = runPreflight(repo, {
+      createdAt: '2026-11-27T00:00:00Z',
+      body: makeFourClassBody(commentHtmlUrl),
+      comments: { 'repos/o/r/issues/comments/7224317666': payload },
+    })
+    assert.equal(allowed.code, 0, `${association}：${allowed.out}`)
+  }
+
+  for (const [label, payload] of [
+    ['NONE', { body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: 'NONE' }],
+    ['CONTRIBUTOR', { body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: 'CONTRIBUTOR' }],
+    ['FIRST_TIME_CONTRIBUTOR', { body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: 'FIRST_TIME_CONTRIBUTOR' }],
+    ['FIRST_TIMER', { body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: 'FIRST_TIMER' }],
+    ['MANNEQUIN', { body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: 'MANNEQUIN' }],
+    ['小写 owner', { body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: 'owner' }],
+    ['缺省 author_association', { body: pr1712CommentBody, html_url: commentHtmlUrl }],
+  ]) {
+    assert.equal(extractSameRepoCommentBody(payload, '/o/r/pull/7'), null, label)
+    const denied = runPreflight(repo, {
+      createdAt: '2026-11-27T00:00:00Z',
+      body: makeFourClassBody(commentHtmlUrl),
+      comments: { 'repos/o/r/issues/comments/7224317666': payload },
+    })
+    assert.equal(denied.code, 1, label)
+    assert.match(denied.out, /✖/, label)
+    assert.match(denied.out, /独立验收的报告读不到/, label)
+  }
+
+  // 畸形输入一律 fail-closed 返回 null（不抛错）
+  assert.equal(extractSameRepoCommentBody({ body: pr1712CommentBody, html_url: 'not-a-valid-url', author_association: 'OWNER' }, '/o/r/pull/7'), null)
+  assert.equal(extractSameRepoCommentBody({ body: pr1712CommentBody, html_url: commentHtmlUrl, author_association: 'OWNER' }, ''), null)
+  assert.equal(extractSameRepoCommentBody({ body: null, html_url: commentHtmlUrl, author_association: 'OWNER' }, '/o/r/pull/7'), null)
+  assert.equal(extractSameRepoCommentBody(null, '/o/r/pull/7'), null)
 })
 
 // ── 花钱类合并前要有真付费证据（2026-10-16，#1203 写「未验证」被合进来）：端到端走一遍 main()，只看真付费那一行 ──
