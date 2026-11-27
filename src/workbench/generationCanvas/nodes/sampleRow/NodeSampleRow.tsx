@@ -224,8 +224,8 @@ function MakeFinalButton({ node, sample, resolution, disabled, onFeedback, onDec
   const makeFinal = async () => {
     try {
       const outcome = await confirmAndRunNode(node.id, { initiator: 'user', sampleFinal: { draftTaskId: sample.draftTaskId, resolution } })
-      // 准入期间原按钮被「高清生成中」替换。卡收起后把焦点交回同一行的新按钮。
-      if (outcome === 'declined') requestAnimationFrame(onDeclined)
+      // 准入期间原按钮被「高清生成中」替换。等弹窗卸载和它自己的还焦点定时器走完再交回同一行的新按钮。
+      if (outcome === 'declined') setTimeout(() => setTimeout(onDeclined, 0), 0)
     } catch (error) { onFeedback(error instanceof Error ? error.message : t('generationCommon.batchPlan.authorizationFailed')) }
   }
   return (

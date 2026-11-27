@@ -1,0 +1,28 @@
+{
+  "name": "样片事实与出高清派生请求（从冻结来历读原方式，派生高清请求不强迫重抽）",
+  "subject": "generation.sample-mode",
+  "lifecycle": "frozen-execution",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/model/sampleFacts.ts",
+    "symbol": "sampleFactsOf"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/model/sampleFacts.ts",
+      "symbol": "sampleFactsOf"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "buildSampleFinalRequest"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/model/sampleFacts.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-28",
+  "notes": "合同 docs/fixes/2026-11-28-sample-mode-receipt.root-cause.json：样片事实（sampleFactsOf）从冻结结果的 archetype 与 modeId 还原原始传输请求种类与计价输入，不受结果归一覆写 taskKind 影响；出高清请求（buildSampleFinalRequest）只按样片号与目标清晰度表达派生，不再强迫重抽（forceRerun 已删），派生单认领统一归主进程 PR0 canvasDerivedSubmission。"
+}
