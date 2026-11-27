@@ -1,3 +1,6 @@
+import pLimit from "p-limit";
+import { LRUCache } from "lru-cache";
+import { withVideoImportScratchDir } from "./videoImportNormalize";
 import fs from "node:fs";
 import path from "node:path";
 import { renameSyncOnce, renameSyncWithRetry } from "../jsonFile";
@@ -185,6 +188,41 @@ export async function createStoredAssetPreview(
   return { ...dimensions, ...duration };
 }
 
+/** A portable view of the source. Opening this URL after a restart regenerates the same bounded preview. */
+export const CANVAS_PREVIEW_QUERY = "?canvas-preview";
+type MemoryPreview = { previewState: "ready"; bytes: Buffer; contentType: string } | { previewState: Exclude<CanvasPreviewState, "ready"> };
+const memoryPreviews = new LRUCache<string, MemoryPreview>({
+  maxSize: 32 * 1024 * 1024,
+  sizeCalculation: (value) => value.previewState === "ready" ? value.bytes.length : 128,
+});
+
+// Reopened cards can request the derived URL directly, outside the renderer backfill queue.
+const limitPreviewReads = pLimit(2);
+
+export async function readMemoryPreview(absolutePath: string, contentType: string, signal?: AbortSignal): Promise<MemoryPreview> {
+  throwIfCancelled(signal);
+  const stat = await fs.promises.stat(absolutePath);
+  const key = JSON.stringify([absolutePath, stat.size, stat.mtimeMs, stat.ctimeMs]);
+  return limitPreviewReads(async () => {
+    throwIfCancelled(signal);
+    const cached = memoryPreviews.get(key);
+    if (cached) return cached;
+    const preview = await withVideoImportScratchDir("nomi-canvas-preview-", signal, async (dir, scoped): Promise<MemoryPreview> => {
+      const image = await createStoredAssetPreview(absolutePath, contentType, { previewOwnerPath: path.join(dir, "frame"), signal: scoped });
+      if (!image.previewPath) {
+        return { previewState: mediaKindFromContentType(contentType) === "image" && isBoundedImage(image.width, image.height) ? "source" : "missing" };
+      }
+      return {
+        previewState: "ready", bytes: await fs.promises.readFile(image.previewPath),
+        contentType: image.previewPath.endsWith(".png") ? "image/png" : "image/jpeg",
+      };
+    });
+    throwIfCancelled(signal);
+    memoryPreviews.set(key, preview);
+    return preview;
+  });
+}
+
 type StoredRecordLike = {
   projectId?: unknown;
   data?: JsonRecord & { absolutePath?: unknown; relativePath?: unknown; contentType?: unknown };
@@ -209,7 +247,7 @@ export type WithStoredAssetPreview<T> = T extends { data?: infer D } ? Omit<T, "
  * 并把它们写回 sidecar（下次列表、重开项目都能直接读到，不用重新派生）。
  * 记录不是落盘产物（比如 nomi-local 引用桩）时原样返回。
  */
-export async function attachStoredAssetPreview<T>(record: T, prepared?: StoredAssetPreview, options: AssetPreviewOptions = {}): Promise<WithStoredAssetPreview<T>> {
+export async function attachStoredAssetPreview<T>(record: T, prepared?: StoredAssetPreview, options: AssetPreviewOptions & { readOnly?: boolean } = {}): Promise<WithStoredAssetPreview<T>> {
   throwIfCancelled(options.signal);
   const stored = record as StoredRecordLike;
   const absolutePath = typeof stored?.data?.absolutePath === "string" ? stored.data.absolutePath : "";
@@ -230,6 +268,14 @@ export async function attachStoredAssetPreview<T>(record: T, prepared?: StoredAs
   // 源本身就有界（上次探测过的尺寸 ≤ 上限，或是矢量图）：不必再起一次 ffprobe。
   if (mediaKind === "image" && (isVectorImage(contentType) || isBoundedImage(cachedWidth, cachedHeight))) {
     return withPreviewFields(record, projectId, { width: cachedWidth, height: cachedHeight, previewState: "source" });
+  }
+  if (options.readOnly) {
+    if (!visual) return record as WithStoredAssetPreview<T>;
+    const preview = await readMemoryPreview(absolutePath, contentType, options.signal);
+    return { ...record, data: {
+      ...stored.data, previewState: preview.previewState,
+      ...(preview.previewState === "ready" ? { thumbnailUrl: localAssetUrl(projectId, relativePath) + CANVAS_PREVIEW_QUERY } : {}),
+    } } as WithStoredAssetPreview<T>;
   }
   const preview = adoptPreparedPreview(absolutePath, prepared) ?? await createStoredAssetPreview(absolutePath, contentType, options);
   // 派生完到写 sidecar 之间被取消：这一次不登记、不给事实。已发布的正式预览是完整的共享产物，

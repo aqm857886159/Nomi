@@ -3,17 +3,15 @@ import { describe, expect, it, vi } from 'vitest'
 const deps = vi.hoisted(() => ({
   readEvents: vi.fn(),
   applyEventTail: vi.fn(),
-  emitCanvasGesture: vi.fn(),
-  seedCanvasEventLastSeq: vi.fn(),
+  sealGenesis: vi.fn(),
 }))
 
 vi.mock('../../desktop/bridge', () => ({
   getDesktopBridge: () => ({ events: { read: deps.readEvents } }),
 }))
 vi.mock('../generationCanvas/events/canvasEventEmitter', () => ({
-  emitCanvasGesture: deps.emitCanvasGesture,
+  beginCanvasEventSession: () => deps.sealGenesis,
   getCanvasEventLastSeq: vi.fn(() => 0),
-  seedCanvasEventLastSeq: deps.seedCanvasEventLastSeq,
 }))
 vi.mock('../generationCanvas/store/generationCanvasStore', () => ({
   useGenerationCanvasStore: {
@@ -69,6 +67,6 @@ describe('canvas event-tail hydration epoch', () => {
 
     await expect(replaying).rejects.toThrow('project_hydration_superseded')
     expect(deps.applyEventTail).not.toHaveBeenCalled()
-    expect(deps.emitCanvasGesture).not.toHaveBeenCalled()
+    expect(deps.sealGenesis).not.toHaveBeenCalled()
   })
 })

@@ -28,6 +28,7 @@ import { readAssetSidecarMeta } from "./assetSidecar";
 import type { AssetSourceFact } from "./assetSourceEvidence";
 import { attachStoredAssetPreview, createStoredAssetPreview, discardPreparedPreview, type AssetPreviewOptions, type StoredAssetPreview } from "./assetPreview";
 import { createAssetImportProgressReporter, type AssetCopyProgress } from "./assetImportProgress";
+import type { CanvasPreviewFields } from "../shared/canvas/canvasMediaPreview";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { captureAssetWriteContext, type AssetWriteContext } from "./assetWriteContext";
 import { checkedUserAssetKind, type CheckedUserAssetKind, type NotGeneratedKind } from "./generatedAssetStaging";
@@ -314,11 +315,11 @@ function readHealedAsset(sourcePath: string): unknown | null {
 /**
  * 补预览（打开项目后的后台补齐，resultMediaBackfillBridge 唯一调用）：结果早于「落盘回执带预览事实」、
  * 经旧导入路径进来、或某个入口只交了 URL 的 nomi-local 图片 / 视频，没有已知的预览事实。这里按 URL 找回源文件，
- * 交给 attachStoredAssetPreview——预览派生的唯一 owner：sidecar 里有就直接用，没有就派生一份写回 sidecar。
+ * 交给 attachStoredAssetPreview——预览派生的唯一 owner：已有 sidecar 直接使用，旧源缺小图时只生成内存预览。
  * 返回 { thumbnailUrl?, previewState }（previewState 恒有：ready / source / missing）；
  * 不是本项目落盘文件 → null（调用方照旧画原片，不写事实，下次打开再试）。
  */
-export async function ensureLocalAssetPreview(payload: unknown, options: AssetPreviewOptions = {}): Promise<JsonRecord | null> {
+export async function ensureLocalAssetPreview(payload: unknown, options: AssetPreviewOptions = {}): Promise<CanvasPreviewFields | null> {
   const parsed = parseLocalAssetUrl(String((payload as JsonRecord | undefined)?.url || "").trim());
   if (!parsed) return null;
   const { projectId, filePath } = parsed;
@@ -327,7 +328,7 @@ export async function ensureLocalAssetPreview(payload: unknown, options: AssetPr
   const relativePath = path.relative(projectDir, filePath).replace(/\\/g, "/");
   const contentType = contentTypeFromStoredFile(filePath);
   // 取消信号一路传到 ffprobe / ffmpeg：项目关了 / 换了 / 窗口没了就杀进程、删产物、抛 AssetPreviewCancelledError。
-  const record = await attachStoredAssetPreview({ projectId, data: { absolutePath: filePath, relativePath, contentType } }, undefined, options);
+  const record = await attachStoredAssetPreview({ projectId, data: { absolutePath: filePath, relativePath, contentType } }, undefined, { ...options, readOnly: true });
   const { thumbnailUrl, previewState } = record.data;
   return { ...(thumbnailUrl ? { thumbnailUrl } : {}), ...(previewState ? { previewState } : {}) };
 }

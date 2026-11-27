@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 1,
+  "snapshotCursor": 16,
+  "run": {
+    "schemaVersion": 1,
+    "runId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+    "projectId": "project-1795707276012-f4tys8",
+    "revision": 15,
+    "status": "completed",
+    "stageId": "generate",
+    "playbook": {
+      "name": "generation.single-shot",
+      "version": "1.0.0"
+    },
+    "origin": {
+      "host": "canvas",
+      "nodeId": "gen-v2-image-mwxpr3l0-hfyi"
+    },
+    "policy": {
+      "trustedHosts": [
+        "canvas"
+      ],
+      "allowedProviders": [
+        "canvas:apimart"
+      ],
+      "allowedModels": [
+        "doubao-seedream-5-0-pro"
+      ],
+      "maxSpend": null,
+      "maxAttemptsPerJob": 1,
+      "minimizeUploads": true,
+      "trustLevel": "key_confirm"
+    },
+    "budget": {
+      "currency": "CNY",
+      "authorized": 0,
+      "reserved": 0,
+      "actual": 0,
+      "unsettled": 0,
+      "unknownInFlight": 1
+    },
+    "planVersion": 1,
+    "snapshotCursor": 16,
+    "stages": [
+      {
+        "stageId": "generate",
+        "title": "Generate",
+        "status": "completed",
+        "order": 0,
+        "completedAt": "2026-11-26T15:34:48.087Z"
+      }
+    ],
+    "gates": [
+      {
+        "gateId": "generation-authorization:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1:v1:n1",
+        "scope": "budget_envelope",
+        "status": "approved",
+        "planHash": "f14271e44988333edf1fb6fa8a6c4efa2ea835a77afef9b57b78683e6c54021f",
+        "authorizationDigest": "f14271e44988333edf1fb6fa8a6c4efa2ea835a77afef9b57b78683e6c54021f",
+        "authorizationEnvelope": {
+          "schemaVersion": 1,
+          "immutableProjectUuid": "f222f861-90cd-479f-89ba-baf9d0f1baf2",
+          "projectGeneration": 1,
+          "projectId": "project-1795707276012-f4tys8",
+          "projectRevision": 8,
+          "runId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+          "planVersion": 1,
+          "gateId": "generation-authorization:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1:v1:n1",
+          "costScope": "generation.single-shot:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+          "expiresAt": "2026-11-26T15:44:45.117Z",
+          "jobs": [
+            {
+              "jobId": "generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4",
+              "shotId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-shot",
+              "attempt": 1,
+              "target": {
+                "kind": "generation-operation",
+                "operationId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+                "candidateRevision": 1
+              },
+              "contractHash": "63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9",
+              "providerId": "canvas:apimart",
+              "modelId": "doubao-seedream-5-0-pro",
+              "mode": "text_to_image",
+              "parameters": {
+                "vendor": "apimart",
+                "request": {
+                  "kind": "text_to_image",
+                  "prompt": "雨夜街角咖啡馆外景，暖光橱窗与霓虹倒影，电影质感",
+                  "extras": {
+                    "modelKey": "doubao-seedream-5-0-pro",
+                    "modelAlias": "doubao-seedream-5-0-pro",
+                    "modelVendor": "apimart",
+                    "vendor": "apimart",
+                    "modelLabel": "Seedream 5.0 Pro",
+                    "size": "1:1",
+                    "resolution": "2K",
+                    "imageModel": "doubao-seedream-5-0-pro",
+                    "imageModelVendor": "apimart",
+                    "archetype": {
+                      "id": "seedream-5-pro",
+                      "modeId": "t2i"
+                    },
+                    "nodeId": "gen-v2-image-mwxpr3l0-hfyi",
+                    "nodeKind": "image",
+                    "idempotencyKey": "run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+                    "archetypeInput": {},
+                    "projectId": "project-1795707276012-f4tys8"
+                  }
+                }
+              },
+              "references": [],
+              "providerWirePayloadHash": "423b64875e04e424030b723f6feda7b97c25bd12a183f21f4ee01263c8bcdc43",
+              "providerIdempotencyKey": "generation:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1:generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4:63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9:attempt-1",
+              "price": {
+                "currency": "CNY",
+                "maximum": null
+              }
+            }
+          ],
+          "budget": {
+            "currency": "CNY",
+            "maximum": 0,
+            "ledgerCeiling": 0,
+            "unknownJobCount": 1
+          }
+        },
+        "costScope": "generation.single-shot:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+        "requestedSpend": 0,
+        "requestedUnknownJobs": 1,
+        "jobIds": [
+          "generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4"
+        ],
+        "title": "Confirm generation spend",
+        "summary": "Approve the frozen provider requests and their maximum total cost.",
+        "createdAt": "2026-11-26T15:34:45.169Z",
+        "expiresAt": "2026-11-26T15:44:45.117Z",
+        "decidedAt": "2026-11-26T15:34:45.169Z",
+        "receiptId": "b74a36ea-6991-4076-a54e-f11ff11f1444"
+      }
+    ],
+    "jobs": [
+      {
+        "jobId": "generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4",
+        "stageId": "generate",
+        "status": "ready",
+        "attempt": 1,
+        "provider": "canvas:apimart",
+        "model": "doubao-seedream-5-0-pro",
+        "idempotencyKey": "generation:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1:generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4:63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9:attempt-1",
+        "providerIdempotencyKey": "generation:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1:generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4:63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9:attempt-1",
+        "authorizationDigest": "f14271e44988333edf1fb6fa8a6c4efa2ea835a77afef9b57b78683e6c54021f",
+        "taskKind": "text_to_image",
+        "createdAt": "2026-11-26T15:34:45.169Z",
+        "updatedAt": "2026-11-26T15:34:48.067Z",
+        "executionBinding": {
+          "immutableProjectUuid": "f222f861-90cd-479f-89ba-baf9d0f1baf2",
+          "projectGeneration": 1,
+          "runId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+          "shotId": "generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4",
+          "contractHash": "63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9",
+          "runtimeTaskId": "runtime-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4-attempt-1",
+          "providerNamespace": "canvas:apimart",
+          "providerIdempotencyKey": "generation:canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1:generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4:63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9:attempt-1",
+          "requestFingerprint": "878239e882e8fdbb8effe1ec40c857772f06e33112ad38bf26314a9ad80217ae",
+          "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1/jobs/generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4/runtime-envelope.json",
+          "fencingEpoch": 1
+        },
+        "requestFingerprint": "878239e882e8fdbb8effe1ec40c857772f06e33112ad38bf26314a9ad80217ae",
+        "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1/jobs/generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4/runtime-envelope.json",
+        "providerTaskId": "s-walk-image-1",
+        "providerStatus": "succeeded",
+        "lastPollAt": "2026-11-26T15:34:48.029Z",
+        "lastVendorStateChangeAt": "2026-11-26T15:34:48.029Z"
+      }
+    ],
+    "artifacts": [
+      {
+        "artifactId": "canvas-artifact-s-walk-image-1",
+        "stageId": "generate",
+        "jobId": "generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4",
+        "kind": "image",
+        "status": "ready",
+        "source": "external-mcp",
+        "contentHash": "800e7a0a4dc6dfa22804d0415c798705066aa614d0421e0ca5af960af3c483fb",
+        "projectRelativePath": "assets/generated/2026-11-26/image-1795707287991.png",
+        "createdAt": "2026-11-26T15:34:48.052Z",
+        "version": 1
+      }
+    ],
+    "generationPlan": {
+      "operationId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+      "state": "submitted",
+      "presentations": [],
+      "candidate": {
+        "candidateId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-shot",
+        "revision": 1,
+        "moduleId": "generation.canvas",
+        "providerId": "canvas:apimart",
+        "modelId": "doubao-seedream-5-0-pro",
+        "mode": "text_to_image",
+        "prompt": "雨夜街角咖啡馆外景，暖光橱窗与霓虹倒影，电影质感",
+        "parameters": {
+          "vendor": "apimart",
+          "request": {
+            "kind": "text_to_image",
+            "prompt": "雨夜街角咖啡馆外景，暖光橱窗与霓虹倒影，电影质感",
+            "extras": {
+              "modelKey": "doubao-seedream-5-0-pro",
+              "modelAlias": "doubao-seedream-5-0-pro",
+              "modelVendor": "apimart",
+              "vendor": "apimart",
+              "modelLabel": "Seedream 5.0 Pro",
+              "size": "1:1",
+              "resolution": "2K",
+              "imageModel": "doubao-seedream-5-0-pro",
+              "imageModelVendor": "apimart",
+              "archetype": {
+                "id": "seedream-5-pro",
+                "modeId": "t2i"
+              },
+              "nodeId": "gen-v2-image-mwxpr3l0-hfyi",
+              "nodeKind": "image",
+              "idempotencyKey": "run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+              "archetypeInput": {},
+              "projectId": "project-1795707276012-f4tys8"
+            }
+          }
+        },
+        "references": [],
+        "sealedContractHash": "63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9"
+      },
+      "updatedAt": "2026-11-26T15:34:45.269Z",
+      "contract": {
+        "schemaVersion": 1,
+        "candidateId": "canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-shot",
+        "candidateRevision": 1,
+        "moduleId": "generation.canvas",
+        "moduleVersion": "1.0.0",
+        "providerId": "canvas:apimart",
+        "modelId": "doubao-seedream-5-0-pro",
+        "mode": "text_to_image",
+        "prompt": "雨夜街角咖啡馆外景，暖光橱窗与霓虹倒影，电影质感",
+        "parameters": {
+          "vendor": "apimart",
+          "request": {
+            "kind": "text_to_image",
+            "prompt": "雨夜街角咖啡馆外景，暖光橱窗与霓虹倒影，电影质感",
+            "extras": {
+              "modelKey": "doubao-seedream-5-0-pro",
+              "modelAlias": "doubao-seedream-5-0-pro",
+              "modelVendor": "apimart",
+              "vendor": "apimart",
+              "modelLabel": "Seedream 5.0 Pro",
+              "size": "1:1",
+              "resolution": "2K",
+              "imageModel": "doubao-seedream-5-0-pro",
+              "imageModelVendor": "apimart",
+              "archetype": {
+                "id": "seedream-5-pro",
+                "modeId": "t2i"
+              },
+              "nodeId": "gen-v2-image-mwxpr3l0-hfyi",
+              "nodeKind": "image",
+              "idempotencyKey": "run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1",
+              "archetypeInput": {},
+              "projectId": "project-1795707276012-f4tys8"
+            }
+          }
+        },
+        "references": [],
+        "contractHash": "63c9e5ece3200ed4dd90558d0b447885d9d8789b1a222750a6db1e972c9165a9",
+        "warnings": []
+      }
+    },
+    "createdAt": "2026-11-26T15:34:45.130Z",
+    "updatedAt": "2026-11-26T15:34:48.102Z"
+  },
+  "checksum": "cbc97c62cb3bddfcf5de4ee9b5226cefdc4e08176f5c517f0976da9aac3912bc"
+}
