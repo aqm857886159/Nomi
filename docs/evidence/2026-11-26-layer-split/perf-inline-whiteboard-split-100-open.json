@@ -1,10 +1,10 @@
 {
-  "machine": "darwin arm64 Apple M5 x10 / 24GB",
-  "commit": "f280a1bcd",
-  "head": "f280a1bcd0fbc05157690a34576f8ea997598807",
+  "machine": "darwin arm64 Apple M5 x10 / 16GB",
+  "commit": "b76b2914a",
+  "head": "b76b2914a80fa1c989dc5ff69a6c53e3eb05b6ce",
   "dirty": false,
-  "sourceTree": "ee9945ba38f46dedd717878d72ac529a3e25ffc4",
-  "date": "2026-11-26",
+  "sourceTree": "b6ca720f9f7d8b8fe266945d40f98546ee47bbc0",
+  "date": "2026-11-27",
   "runs": 5,
   "results": [
     {
@@ -12,13 +12,13 @@
       "metrics": {
         "openToInteractive": {
           "runs": 5,
-          "median": 370.3,
-          "p95": 372.7
+          "median": 447.7,
+          "p95": 457.5
         },
         "response": {
           "runs": 5,
-          "median": 30.5,
-          "p95": 38.1
+          "median": 47.4,
+          "p95": 48.8
         },
         "longTasks": {
           "runs": 5,
@@ -28,18 +28,18 @@
       },
       "samples": {
         "openToInteractive": [
-          370.3,
-          372.7,
-          372.7,
-          367.8,
-          336.1
+          459.9,
+          421.8,
+          447.2,
+          447.7,
+          448
         ],
         "response": [
-          21.9,
-          38.1,
-          38.1,
-          30.5,
-          21.5
+          49,
+          47.8,
+          46,
+          47.4,
+          46.9
         ],
         "frameGapP95": [],
         "longTasks": [
@@ -65,8 +65,8 @@
         "noisy": true
       },
       "verdict": {
-        "status": "ok",
-        "note": ""
+        "status": "regression-noisy",
+        "note": "中位数 447.7 比基线 364.8 差 23%（基线标了有噪声，只提示）"
       }
     }
   ]
