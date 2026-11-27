@@ -158,6 +158,7 @@ export function V4TaskCard({
 
 export function V4Intervention({
   data,
+  spendConfirmRef,
   body,
   labels,
   onConfirm,
@@ -171,6 +172,7 @@ export function V4Intervention({
   waiting = true,
 }: {
   data: InterventionData
+  spendConfirmRef?: React.Ref<HTMLButtonElement>
   /**
    * 卡体（标题下、价格折叠上）。付费卡放的是**指向元素 + 一行只读摘要 + 说明行**（`AgentPanelV4SpendCardBody`，
    * SpendCardQ1 板）：卡上没有可改的东西，想改点指向元素去节点里改（设计系统 §1.0）。
@@ -275,6 +277,7 @@ export function V4Intervention({
   if (data.kind === 'spend') {
     return (
       <V4SpendBar
+        confirmRef={spendConfirmRef}
         data={data}
         {...(body ? { body } : {})}
         labels={labels}

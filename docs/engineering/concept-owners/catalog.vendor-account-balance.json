@@ -31,5 +31,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-11-24",
-  "notes": "账户快照仅取 userBalancePath。接入保存与重查并读 Key 的额度，只有 Key 端点的认证拒绝可拒收。"
+  "notes": "账户快照仅取 userBalancePath。接入保存与重查并读 Key 的额度，只有 Key 端点的认证拒绝可拒收。核查回包的 checkedKeyId 由主进程用本次两个请求共用的凭据生成，仅供内存比对。"
 }

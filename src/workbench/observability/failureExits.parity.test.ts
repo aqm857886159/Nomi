@@ -80,7 +80,7 @@ async function exitsOf(testCase: Case, language: 'zh-CN' | 'en') {
 export async function collectExitTable() {
   const table: Record<string, Awaited<ReturnType<typeof exitsOf>>> = {}
   for (const testCase of CASES) table[`${testCase.id} [zh-CN]`] = await exitsOf(testCase, 'zh-CN')
-  for (const id of ['I9 unknown_model_identity', 'I3 Mundane malfunction', 'X1 正文里嵌入的整词码']) {
+  for (const id of ['I9 unknown_model_identity', 'U1 码是别的词的一部分', 'U3b 同一个码塞回正文', 'I3 Mundane malfunction', 'X1 正文里嵌入的整词码']) {
     const testCase = CASES.find((entry) => entry.id === id)!
     table[`${testCase.id} [en]`] = await exitsOf(testCase, 'en')
   }

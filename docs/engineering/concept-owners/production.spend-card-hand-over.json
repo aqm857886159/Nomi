@@ -18,6 +18,10 @@
     {
       "path": "electron/capabilityCore/generationTransportAdapters.ts",
       "symbol": "createPiGenerationTransportAdapter"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "handOverShots"
     }
   ],
   "forbidden_derivations": [],
@@ -29,5 +33,5 @@
     "electron/capabilityCore/residentGenerationAdapterFactory.ts"
   ],
   "since": "2026-10-24",
-  "notes": "D2 第③步「一台发动机」（设计卡 docs/plan/2026-10-23-d2-pointer-spend-card.md；合同 docs/fixes/2026-10-24-spend-card-one-engine.root-cause.json）：卡上「生成 / 全部生成（N）/ 生成剩下 N 段 / 再试一次」（人的手势）与「直接生成」档（主进程策略）只经这一个编排把几镜交给画布，逐镜走画布单节点提交那一条路（canvas.shot-run）；制作流程自己的付费门 + 调度器不再替卡发。四步只有第一步是决定：①出价上记交接（generation.handover，渲染层命令白名单里没有它）②没落的镜先落（唯一准入点的落地器）③请渲染层开同意（production.hand-over-shots → consentCanvasShots 带 production → bindHandOvers 绑上画布 Run），只等同意开好、不等生成 ④渲染层回话之后还没绑上的当场记没发出去（原因照它说的）。之后每一镜的结局由画布那一侧写回（settleHandOver），这里不写；策略档另等结局落定（waitForSettlement）再回合。渲染层那一半是 canvas.spend-card-hand-over-op。"
+  "notes": "D2 第③步「一台发动机」（设计卡 docs/plan/2026-10-23-d2-pointer-spend-card.md；合同 docs/fixes/2026-10-24-spend-card-one-engine.root-cause.json）：卡上「生成 / 全部生成（N）/ 生成剩下 N 段 / 再试一次」（人的手势）与「直接生成」档（主进程策略）只经这一个编排把几镜交给画布，逐镜走画布单节点提交那一条路（canvas.shot-run）；制作流程自己的付费门 + 调度器不再替卡发。四步只有第一步是决定：①出价上记交接（generation.handover，渲染层命令白名单里没有它）②没落的镜先落（唯一准入点的落地器）③请渲染层开同意（production.hand-over-shots → consentCanvasShots 带 production → bindHandOvers 绑上画布 Run），只等同意开好、不等生成 ④渲染层回话之后还没绑上的当场记没发出去（原因照它说的）。之后每一镜的结局由画布那一侧写回（settleHandOver），这里不写；策略档另等结局落定（waitForSettlement）再回合。渲染层那一半是 canvas.spend-card-hand-over-op。 手势入口在调用交接编排前核对尝试版本；编排在第一个 await 前追加交接记录，重复输入过不了同一道门。"
 }

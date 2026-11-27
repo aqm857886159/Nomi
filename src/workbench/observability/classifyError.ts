@@ -28,6 +28,7 @@ export type GenerationErrorReport = {
    * 只在它与 reason 不同、且有信息量时给（unknown 类的 reason 本身就是原话，不重复）。
    */
   providerMessage?: string
+  unknownWithoutDetail?: GenerationFailureDecision['unknownWithoutDetail']
   /**
    * 仅 model-kind-mismatch：一键改对所需的三个事实。让 UI **直接读**，不从文案里反解——
    * 文案是给人看的、还要翻译，用正则从它里面抠 modelKey 是必然会烂的耦合。
@@ -60,6 +61,7 @@ export function projectGenerationFailure(decision: GenerationFailureDecision): G
     hint,
     ...(decision.providerMessage && decision.providerMessage !== reason ? { providerMessage: decision.providerMessage } : {}),
     ...(decision.modelKindFix ? { modelKindFix: decision.modelKindFix } : {}),
+    ...(decision.unknownWithoutDetail ? { unknownWithoutDetail: true } : {}),
     vendorSide: decision.vendorSide,
     raw: decision.raw || i18n.t('generationCommon.observability.error.unknown.reason'),
   }

@@ -1,3 +1,4 @@
+import type { watchSpendCardClose } from './laneSpendCardClose'
 import type { DirectorPreviewSpendBlockReason } from '../shared/director/directorPreviewStatus'
 import type { CanvasWriteApprovalAuthority } from '../shared/agentCapabilities/transportContracts'
 import { randomUUID } from 'node:crypto'
@@ -63,7 +64,7 @@ export interface LaneExtendedDesktopPortsInput {
    * 「这一次出价关了没有」——回合等付费卡时唯一的消息来源，直接看 Run 账本（`laneDesktopSpend.whenCardCloses`）。
    * 卡上每一镜都决定了、点了 ×、计划被取消……哪条路关的都一样：关了就去问宿主逐镜结局。
    */
-  spendCard: Readonly<{ whenCardCloses(operationId: string): Readonly<{ closed: Promise<void>; dispose(): void }> }>
+  spendCard: Readonly<{ whenCardCloses(operationId: string, signal: AbortSignal): ReturnType<typeof watchSpendCardClose> }>
   onTaskCreated?(call: RuntimeToolCall, result: unknown): Promise<void>
   context?(): LaneComposerContext
   /**
@@ -288,11 +289,13 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
         return { ok: false, code: 'generation_approval_unavailable', message: 'This session has no window where the user could approve the spend, so nothing was generated.' }
       }
       const wait = host.waitForUser()
-      card = input.spendCard.whenCardCloses(operationId)
+      card = input.spendCard.whenCardCloses(operationId, host.signal)
       void card.closed.then(() => { wait.settle({ kind: 'card-closed' }) })
       const outcome = await wait.outcome
       // 卡关了（每一镜都决定了 / × / 计划被取消——关它的那条路已经把账本写好了）：每一镜的结局只问宿主，这里不替它说。
       if (outcome.kind === 'card-closed') {
+        await card.settled
+        if (host.signal.aborted) return { ok: false, code: 'generation_cancelled', message: 'generation_cancelled', denied: true }
         const shots = await generation.readPresentationOutcome(operationId)
         // 读不到结局就不编：卡上可能已经有镜在生成，照实说「结果要去核对」，而不是「都开始了」或「什么都没发生」。
         if (!shots) return { ok: false, code: 'generation_execution_failed', message: 'generation_execution_failed' }

@@ -362,6 +362,8 @@ export interface LaneProjection {
   readonly usage: LaneUsage
   /** 有一张卡在等用户。**这一段不在 pi 的快照里**，见 `LanePendingApproval`。 */
   readonly pending?: LanePendingApproval
+  /** Calls awaiting the creator's decision on an open card. Settlement belongs to the host. */
+  readonly awaitingDecisionToolCallIds?: readonly string[]
   readonly thinking: LaneThinking
   /** 排着队还没被吃进去的插话，按 pi 的队列顺序。空数组 = 队列是空的。 */
   readonly queues: readonly LaneQueuedMessage[]

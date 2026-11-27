@@ -51,7 +51,7 @@ function ownerOf(name) {
 }
 
 /** 创建者确实不在了？只有 ESRCH 才算；EPERM（有这个进程、只是没权限）、非法进程号、一切未知错误都当「还在」，宁可不收。 */
-function ownerIsGone(pid) {
+export function ownerIsGone(pid) {
   if (!Number.isSafeInteger(pid) || pid <= 0) return false
   try {
     process.kill(pid, 0)

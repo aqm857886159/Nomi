@@ -33,6 +33,7 @@ export function setProbeNarrow(next: boolean, options: { silent?: boolean } = {}
 const body = { nodeType: 1, contains: () => false }
 const fakeDocument = {
   body,
+  visibilityState: 'visible',
   documentElement: { lang: '', dataset: {}, classList: { add: () => undefined, remove: () => undefined, toggle: () => undefined, contains: () => false }, style: {}, setAttribute: () => undefined },
   activeElement: null,
   querySelector: () => null,

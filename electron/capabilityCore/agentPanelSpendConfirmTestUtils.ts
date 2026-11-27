@@ -407,7 +407,7 @@ export function spendWorld(options: SpendWorldOptions = {}) {
     /** 卡上点主按钮（`shown` 缺省 = 此刻那一张；`shotIds` 缺省 = 主按钮递的那一叠）。 */
     generate: (shotIds?: readonly string[], shown: PendingSpendConfirm | undefined = pending()) => {
       if (!shown) throw new Error("no card on screen");
-      return card.handOverShots({ ...identityOf(shown), shotIds: shotIds ?? remainingOn(shown) });
+      return card.handOverShots({ ...identityOf(shown), handOverRevision: shown.handOverRevision, shotIds: shotIds ?? remainingOn(shown) });
     },
     cancel: (shown: PendingSpendConfirm | undefined = pending()) => {
       if (!shown) throw new Error("no card on screen");
@@ -482,8 +482,8 @@ export function watchCardForTurn(world: SpendWorld, options: { settlingGraceMs?:
     ...(options.settlingGraceMs !== undefined ? { settlingGraceMs: options.settlingGraceMs } : {}),
   });
   let closed = false;
-  void watch.closed.then(() => { closed = true; });
-  return { closed: () => closed, whenClosed: watch.closed, dispose: watch.dispose };
+  void watch.settled.then(() => { closed = true; });
+  return { closed: () => closed, whenClosed: watch.settled, dispose: watch.dispose };
 }
 
 export async function settleMicrotasks(): Promise<void> {
