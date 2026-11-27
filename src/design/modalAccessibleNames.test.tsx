@@ -73,7 +73,7 @@ describe('选区提示词保存弹窗', () => {
   it('title 用标题那条词条，标志在插槽里', () => {
     const source = fs.readFileSync(new URL('../workbench/generationCanvas/components/SelectionPromptSaveController.tsx', import.meta.url), 'utf8')
     expect(source).toContain("title={t('generationCommon.savePrompt.title')}")
-    expect(source).toMatch(/header=\{\(name\) => <span[^>]*>\s*<NomiLogoMark size=\{22\} \/>\{name\}/)
+    expect(source).toMatch(/header=\{\(name(?:,\s*\w+)?\) => <span[^>]*>\s*<NomiLogoMark size=\{22\} \/>\{name\}/)
     for (const locale of LOCALES) expect(i18n.getFixedT(locale)('generationCommon.savePrompt.title')).not.toBe('generationCommon.savePrompt.title')
   })
 })

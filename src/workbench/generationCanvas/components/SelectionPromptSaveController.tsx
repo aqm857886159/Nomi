@@ -199,7 +199,7 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
           // 名字 = 「保存提示词」一句（外壳放进 Modal.Title）；标志走标题栏插槽摆在名字前面。插槽这一格占原来标题元素的位置（行距 1）。
           title={t('generationCommon.savePrompt.title')}
           classNames={{ title: 'text-body font-semibold text-nomi-ink' }}
-          header={(name) => <span className="flex items-center gap-2.5 leading-none">
+          header={(name, rowAlignment) => <span className={`flex gap-2.5 leading-none ${rowAlignment}`}>
             <NomiLogoMark size={22} />{name}
           </span>}
           actions={
