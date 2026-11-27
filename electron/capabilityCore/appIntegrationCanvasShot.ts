@@ -579,7 +579,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       settle(projectId, projectRoot, runId, job);
       return failedResult(job, kind);
     }
-    if (!job.providerTaskId && submitting.has(`${projectId}\u0000${runId}`)) return { id: runId, kind, status: "running", assets: [], raw: {} };
+    const running = (id: string): CanvasTaskResult => ({ id, kind, status: "running", assets: [], raw: {} });
+    if (!job.providerTaskId && submitting.has(`${projectId}\u0000${runId}`)) return running(runId);
     const submission = submissionFor(projectId);
     // A previous materialization may have recorded some artifacts before it was interrupted.
     if (!readyArtifacts(run, job).length) {
@@ -590,12 +591,12 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         // poll first restores a durable acceptance if the process died before the journal write.
         const awaitingHandle = !job.providerTaskId && error instanceof SubmissionReconciliationRequiredError
           && (job.status === "authorized" || productionJobOpenAs(job.status) === "in_flight");
-        if (awaitingHandle || isObservationContention(error)) return { id: job.providerTaskId ?? job.jobId, kind, status: "running", assets: [], raw: {} };
+        if (awaitingHandle || isObservationContention(error)) return running(job.providerTaskId ?? job.jobId);
         if (reopened) settle(projectId, projectRoot, runId, latestJob(repository().read(projectId, runId) ?? run), false, error);
         throw error;
       }
       if (polled.nextAction === "poll")
-        return canvasResult(polled.raw) ?? { id: polled.providerTaskId, kind, status: "running", assets: [], raw: {} };
+        return canvasResult(polled.raw) ?? running(polled.providerTaskId);
       if (polled.nextAction === "attention") {
         job = latestJob(repository().read(projectId, runId) ?? run) ?? job;
         settle(projectId, projectRoot, runId, job);
@@ -615,7 +616,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       else {
         leases.delete(runId);
         observe(submission, projectId, runId);
-        return { id: job.providerTaskId ?? job.jobId, kind, status: "running", assets: [], raw: {} };
+        return (after && readSettledCanvasResult(projectRoot, after, job, kind, true))
+          ?? running(job.providerTaskId ?? job.jobId);
       }
     }
     run = repository().read(projectId, runId) ?? run;

@@ -1,5 +1,5 @@
 import { canvasResult, isCanvasProviderId } from "../capabilityCore/canvasTransportProvider";
-import { isJsonRecord } from "../jsonUtils";
+import { firstString, isJsonRecord, readNestedRecord } from "../jsonUtils";
 import { vendorFailureFacts } from "../logging/diskSafeFailure";
 import { parseVendorErrorFromMessage } from "../shared/generationFailureWire";
 import { encodeStructuredErrorMessage } from "../shared/vendorFailure";
@@ -22,7 +22,7 @@ export function localizedCanvasResult(providerId: string, raw: unknown) {
 
 export function isSettledTranscript(mode: string, result: ReturnType<typeof canvasResult>): boolean {
   return mode === "transcribe" && result?.kind === mode && result.status === "succeeded" && !result.assets.length
-    && isJsonRecord(result.raw) && typeof result.raw.text === "string" && Boolean(result.raw.text.trim());
+    && isJsonRecord(result.raw) && Boolean(firstString(result.raw.text, readNestedRecord(result.raw.choices, ["0", "message", "content"])));
 }
 
 export function readyJobMedia(run: ProductionRun, jobId: string): ProductionArtifact[] {

@@ -171,15 +171,18 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
     }
     throw error;
   }
-  // 文本：脚本 return { text }。**raw 合成成与文本任务执行器完全相同的 OpenAI choices 形状**
-  // （textTaskRunner.ts 的 executeTextTask），这样下游解析一行都不用改——文本产出只有一种形状，不是两种。
+  // 转写的正文与音频执行器一致，同时保留脚本的 choices 回执。
   if (executed.text !== undefined) {
     const textResult: TaskResult = {
       id: taskId,
       kind,
       status: "succeeded",
       assets: [],
-      raw: { choices: [{ message: { role: "assistant", content: executed.text } }], customCall: true },
+      raw: {
+        ...(kind === "transcribe" && { text: executed.text }),
+        choices: [{ message: { role: "assistant", content: executed.text } }],
+        customCall: true,
+      },
       provenance: buildTaskProvenance({ vendor, model, request, vendorRequestId: taskId }),
     };
     traceVendorCompleted(projectId, { runId: taskId, nodeId, status: "succeeded", assetCount: 0 });

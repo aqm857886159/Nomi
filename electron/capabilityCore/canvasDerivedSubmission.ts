@@ -1,4 +1,4 @@
-import { isJsonRecord, trim } from "../jsonUtils";
+import { firstString, isJsonRecord } from "../jsonUtils";
 import { attachCanvasRun, attachedCanvasRunId, canvasRunIdFor } from "../productionRun/canvasShotRunIndex";
 import type { ProductionRun } from "../productionRun/productionRunTypes";
 import { createSubmissionIntent } from "../productionRun/submissionIntent";
@@ -11,13 +11,9 @@ import type { CanvasTaskResult } from "./canvasTransportProvider";
 function derivedIntent(projectRoot: string, { request, vendor }: CanvasShotSubmitInput) {
   const params = isJsonRecord(request.params) ? request.params : {};
   const extras = request.extras ?? {};
-  const value = (name: string) => trim(params[name]) || trim(extras[name]);
-  const source = ["draft_task_id", "source_task_id"].find(name => value(name));
-  if (!source) return;
-  const mode = isJsonRecord(extras.archetype) ? trim(extras.archetype.modeId) : trim(extras.modeId);
-  const scope = ["canvas-derived", vendor, trim(extras.modelKey) || trim(extras.modelAlias), request.kind,
-    mode, source, value(source), value("resolution")];
-  return createSubmissionIntent({ root: projectRoot, scope });
+  const sourceTaskId = firstString(extras.draft_task_id, params.draft_task_id, extras.source_task_id, params.source_task_id);
+  if (!sourceTaskId) return;
+  return createSubmissionIntent({ root: projectRoot, scope: ["canvas-derived", vendor, sourceTaskId] });
 }
 
 type TaskReply = Promise<CanvasTaskResult>;

@@ -22,7 +22,8 @@
     "electron/productionRun/productionRunRuntimeEnvelope.ts",
     "electron/productionRun/singleShotRunLifecycle.ts",
     "electron/productionRun/submissionIntent.ts",
-    "electron/tasks/taskIpcHandlers.ts"
+    "electron/tasks/taskIpcHandlers.ts",
+    "electron/catalog/customCallDispatch.ts"
   ],
   "entry_points": [
     "Canvas submit, poll and same-click replay",
@@ -254,14 +255,44 @@
       "kind": "write",
       "path": "electron/productionRun/canvasShotRunIndex.ts",
       "symbol": "canvasRunIdGuard"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
+      "symbol": "derivedIntent"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "runCustomCallTask"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "canvasResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "runCustomCallScript"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/acceptedTaskResult.ts",
+      "symbol": "runCustomCallScript"
     }
   ],
   "door_reduction": {
-    "before": 25,
-    "after": 44,
-    "why_not": "Counted the affected Run owners and their canvas IPC, renderer and observer callers. Submit, replay, observation and journal recovery retain their distinct entry points. New claim and attachment reads address those callers to one Run. Only the legacy media reader reconstructs a result."
+    "before": 29,
+    "after": 50,
+    "why_not": "Counted the affected Run owners and their canvas IPC, renderer and observer callers. Submit, replay, observation and journal recovery retain their distinct entry points. New claim and attachment reads address those callers to one Run. Only the legacy media reader reconstructs a result. The script runner also serves script preview and accepted task recovery. Canvas dispatch owns the paid script transcript receipt."
   },
-  "generality_proof": "Whole-object persistence preserves future result fields. Source identity omits click identity and forceRerun. Both parent parameter names use the same admission.",
+  "generality_proof": "Whole-object persistence preserves future result fields. Both source parameter names resolve to one vendor and parent identity, independent of the delivery specification. An interrupted foreground materialization can return disk-backed results while the observer completes the job.",
   "shared_boundaries": [
     {
       "path": "electron/capabilityCore/canvasDerivedSubmission.ts",
@@ -297,6 +328,12 @@
       "entry_point": "recoverNodeResult",
       "disposition": "enforced",
       "evidence": "Manual recovery and the settled bell query by click id, including durable attachments."
+    },
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "enforced",
+      "evidence": "The script producer returns raw.text and preserves choices. Its result passes the same Run materialization gate as native transcription."
     }
   ],
   "recurrence_of": "2026-11-24-u2-paid-submission-recovery",
@@ -311,7 +348,7 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/productionRun/productionGenerationSubmission.ts",
-    "invariant": "All successful paid result delivery reads the completed envelope. Derived admission uses the existing Run under an intent claim.",
+    "invariant": "Every successful delivery is backed by the job envelope. An interrupted materialization may return its persisted observation once all output files have artifact receipts. Derived admission uses the existing Run under a vendor and parent task claim.",
     "failure_mode": "Missing media retains retrieval failure. Unconfirmed repeat success requires the existing resend decision.",
     "exception_policy": "none",
     "strategy": "Publish the snapshot before ready and consult the durable claim before dispatch.",
@@ -320,14 +357,17 @@
       "electron/productionRun/productionGenerationSubmission.ts",
       "electron/productionRun/submissionIntent.ts",
       "electron/capabilityCore/canvasDerivedSubmission.ts",
-      "electron/productionRun/productionRunRuntimeEnvelope.ts"
+      "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "electron/catalog/customCallDispatch.ts"
     ]
   },
   "regression_tests": [
-    "electron/capabilityCore/canvasPaidRecovery.test.ts"
+    "electron/capabilityCore/canvasPaidRecovery.test.ts",
+    "electron/catalog/customCallDispatch.test.ts"
   ],
   "class_regression_tests": [
-    "electron/capabilityCore/canvasPaidRecovery.test.ts"
+    "electron/capabilityCore/canvasPaidRecovery.test.ts",
+    "electron/catalog/customCallDispatch.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

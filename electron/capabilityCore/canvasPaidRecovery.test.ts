@@ -94,7 +94,7 @@ describe("paid canvas result recovery", () => {
 describe.each(["draft_task_id", "source_task_id"])("paid derivation from %s", (source) => {
   const spec = { [source]: "sample-42", resolution: "1080p" };
   const first = { ...plain, params: spec };
-  const next = { ...plain, extras: { ...plain.extras, ...spec, forceRerun: true } };
+  const next = { ...plain, extras: { ...plain.extras, ...spec, resolution: "720p", forceRerun: true } };
 
   it.each(["polling", "awaiting retrieval"])("attaches a fresh click while %s and polls the owner's result", async (state) => {
     const f = fixture();
@@ -119,7 +119,7 @@ describe.each(["draft_task_id", "source_task_id"])("paid derivation from %s", (s
     const fresh = f.restart();
     // The renderer recognizes this submit refusal and calls decideResend(true) for the existing card.
     const refusal = await f.submit(fresh, "unconfirmed", next).catch((error: Error) => error);
-    expect(refusal).toBeInstanceOf(Error);
+    expect(refusal).toMatchObject({ action: "ask" });
     expect(isOpenGenerationRefusal((refusal as Error).message)).toBe(true);
     expect(f.post).toHaveBeenCalledTimes(1);
     const decision = fresh.runs.resend.decideResend({ projectId, nodeId, initiator: "user", senderId: fresh.senderId, resend: true });
@@ -200,7 +200,8 @@ describe("settled canvas receipt boundaries", () => {
   it("coalesces simultaneous clicks during preparation", async () => {
     const f = fixture();
     const request = { ...plain, params: { draft_task_id: "draft", resolution: "1080p" } };
-    const [first, second] = await Promise.all([f.submit(f.host, "one", request), f.submit(f.host, "two", request)]);
+    const alias = { ...plain, extras: { ...plain.extras, source_task_id: " draft " }, params: { source_task_id: "stale" } };
+    const [first, second] = await Promise.all([f.submit(f.host, "one", request), f.submit(f.host, "two", alias)]);
     expect(second).toEqual(first);
     expect(await f.poll(f.restart(), "two")).toEqual(paid);
     expect(f.post).toHaveBeenCalledTimes(1);
@@ -226,16 +227,51 @@ describe("settled canvas receipt boundaries", () => {
     expect(f.post).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps resolution-specific claims separate and binds confirmation to the exact completed order", async () => {
+  it("binds confirmation to the exact completed source order", async () => {
     const f = fixture();
-    const spec = (resolution: string) => ({ ...plain, params: { draft_task_id: "draft", resolution } });
-    for (const id of ["720p", "1080p"]) {
+    const spec = (source: string) => ({ ...plain, params: { draft_task_id: source } });
+    for (const id of ["draft-one", "draft-two"]) {
       await f.submit(f.host, id, spec(id));
       await f.poll(f.host, id);
     }
-    await expect(f.submit(f.host, "third", spec("720p"))).rejects.toMatchObject({ action: "ask" });
+    await expect(f.submit(f.host, "third", spec("draft-one"))).rejects.toMatchObject({ action: "ask" });
     const token = f.host.resendDecisionFor(nodeId);
-    await expect(f.submit(f.host, "wrong-order", spec("1080p"), token)).rejects.toMatchObject({ action: "ask" });
+    await expect(f.submit(f.host, "wrong-order", spec("draft-two"), token)).rejects.toMatchObject({ action: "ask" });
     expect(f.post).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([1, 2])("checks every receipt after interruption landing the first of %i files", async (count) => {
+    const result = { ...paid, assets: [paid.assets[0]!, { type: "video", url: url("second.mp4") }].slice(0, count) };
+    const f = fixture(result);
+    await f.submit(f.host, "first");
+    const execute = f.host.service.repository.execute;
+    let interrupted = false;
+    vi.spyOn(f.host.service.repository, "execute").mockImplementation((project, id, command) => {
+      const written = execute(project, id, command);
+      if (command.type === "artifact.add" && !interrupted) {
+        interrupted = true;
+        throw new Error("interrupted after artifact.add");
+      }
+      return written;
+    });
+    const online = await f.poll(f.host, "first");
+    if (count === 1) expect(online).toEqual(result);
+    else expect(online).toMatchObject({ status: "running", assets: [] });
+    await vi.waitFor(() => expect(f.run("first").status).toBe("completed"));
+    expect(f.host.observed).toHaveLength(1);
+    expect(await f.poll(f.restart(), "first")).toEqual(result);
+    expect(f.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("settles a persisted choices-only script transcript", async () => {
+    const result = { ...paid, kind: "transcribe", assets: [], raw: {
+      customCall: true, choices: [{ message: { role: "assistant", content: "blue cloud" } }],
+    } };
+    const f = fixture(result);
+    f.post.mockResolvedValueOnce(result);
+    await f.submit(f.host, "first");
+    expect(await f.poll(f.restart(), "first")).toEqual(result);
+    expect(f.run("first").status).toBe("completed");
+    expect(f.post).toHaveBeenCalledTimes(1);
   });
 });

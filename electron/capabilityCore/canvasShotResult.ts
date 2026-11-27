@@ -6,7 +6,7 @@ import { envelopeRefFor } from "../productionRun/productionGenerationBinding";
 import { createProductionRunRuntimeEnvelope } from "../productionRun/productionRunRuntimeEnvelope";
 import { localAssetUrl } from "../assets/assetPaths";
 import type { ProductionArtifact, ProductionJob, ProductionRun } from "../productionRun/productionRunTypes";
-import type { CanvasTaskResult } from "./canvasTransportProvider";
+import { canvasResult, type CanvasTaskResult } from "./canvasTransportProvider";
 
 /** 这笔作业账上的全部产物（一次出几张就几张，按落账顺序 = 上游交回的顺序）。 */
 export function readyArtifacts(run: ProductionRun, job: ProductionJob): ProductionArtifact[] {
@@ -39,11 +39,19 @@ export function resultFromArtifacts(
 }
 
 /** Online completion, observed completion and replay all read the same job. */
-export function readSettledCanvasResult(projectRoot: string, run: ProductionRun, job: ProductionJob, kind: string): CanvasTaskResult | undefined {
-  if (job.status !== "ready" && job.status !== "adopted") return undefined;
+export function readSettledCanvasResult(projectRoot: string, run: ProductionRun, job: ProductionJob, kind: string, allowInterrupted = false): CanvasTaskResult | undefined {
+  if (!allowInterrupted && job.status !== "ready" && job.status !== "adopted") return undefined;
   const receipt = createProductionRunRuntimeEnvelope({ filePath: path.join(projectRoot, envelopeRefFor(run.runId, job.jobId)) }).read();
   if (receipt?.settledResult) return receipt.settledResult;
-  const [first, ...rest] = readyArtifacts(run, job);
+  const artifacts = readyArtifacts(run, job);
+  if (allowInterrupted) {
+    // artifact.add can be durable before the final snapshot. Every returned file needs its own receipt.
+    const observed = canvasResult(receipt?.lastPoll?.raw);
+    const landed = new Set(artifacts.map(a => localAssetUrl(run.projectId, a.projectRelativePath ?? "")));
+    if (observed?.status === "succeeded" && observed.assets.length && observed.assets.every(a => landed.has(a.url))) return observed;
+    return undefined;
+  }
+  const [first, ...rest] = artifacts;
   return first && resultFromArtifacts(run, job, [first, ...rest], kind);
 }
 
