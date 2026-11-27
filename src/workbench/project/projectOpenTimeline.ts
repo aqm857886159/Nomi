@@ -29,7 +29,6 @@ export const PROJECT_OPEN_PREFIX = 'nomi:open:'
 export type ProjectOpenStage =
   | 'read-project'
   | 'migrate'
-  | 'save-migrated'
   | 'restore-store'
   | 'replay-events'
   | 'canvas-read-commit'

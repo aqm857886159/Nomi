@@ -2,7 +2,7 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { createTimelineHistory } from '../history/historyMiddleware'
 import { useWorkbenchStore } from '../workbenchStore'
-import { emitCanvasGesture, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
+import { beginCanvasEventSession } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
@@ -32,19 +32,15 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload,
   useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas, projectId)
 }
 
-/**
- * S5-b-1 崩溃恢复:restore 之后调——重放快照没盖到的事件尾巴,再以"含尾巴的后态"
- * 发 genesis(顺序铁律:genesis 在尾部重放之后,否则磁盘日志最终态丢尾巴)。
- * 老项目(payload 无 lastSeq 字段)跳过重放只发 genesis——不拿整本日志去覆盖快照。
- */
+/** Replay only the uncovered tail. Keep the resulting genesis in memory for the first gesture. */
 export async function replayCanvasEventTailAndSealGenesis(
   projectId: string,
   payload: WorkbenchProjectPayload,
   guard: ProjectHydrationGuard,
 ): Promise<void> {
   guard.assertCurrent()
-  const lastSeq = Number(payload.generationCanvasLastSeq) || 0
-  seedCanvasEventLastSeq(lastSeq)
+  let lastSeq = Number(payload.generationCanvasLastSeq) || 0
+  const sealGenesis = beginCanvasEventSession(projectId, lastSeq)
   const api = getDesktopBridge()?.events
   if (api && projectId && payload.generationCanvasLastSeq != null && lastSeq > 0) {
     let events: Awaited<ReturnType<typeof api.read>>['events'] = []
@@ -63,15 +59,13 @@ export async function replayCanvasEventTailAndSealGenesis(
       if (canvasTail.length) {
         guard.assertCurrent()
         useGenerationCanvasStore.getState().applyEventTail(canvasTail as { type: string; payload: Record<string, unknown> }[])
-        seedCanvasEventLastSeq(Math.max(lastSeq, ...canvasTail.map((event) => Number(event.seq) || 0)))
+        lastSeq = Math.max(lastSeq, ...canvasTail.map((event) => Number(event.seq) || 0))
       }
     }
   }
   guard.assertCurrent()
   const post = useGenerationCanvasStore.getState()
-  emitCanvasGesture([
-    { type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: post.nodes, edges: post.edges, groups: post.groups } } },
-  ])
+  sealGenesis(lastSeq, { nodes: post.nodes, edges: post.edges, groups: post.groups })
 }
 
 export type WorkbenchProjectSaveFn = (
@@ -156,18 +150,21 @@ export async function persistActiveWorkbenchProjectNow(): Promise<WorkbenchProje
   return projectSaveOwners.get(target)?.() ?? null
 }
 
-/**
- * Writes only what is already owed: a debounced edit, a save in flight, or a failed save to retry.
- * Unlike persistActiveWorkbenchProjectNow it never samples the stores, so a clean project is not
- * rewritten. Used by the OS-shutdown flush, where nobody is there to answer a dialog.
- */
+/** OS shutdown drains every owner, including failed writes from outgoing projects. */
 export async function flushPendingWorkbenchProjectSaves(): Promise<void> {
   const results = await Promise.allSettled([...projectSaveOwners.values()].map((flush) => flush()))
   const failed = results.find((result) => result.status === 'rejected')
   if (failed) throw (failed as PromiseRejectedResult).reason
 }
 
+export type WorkbenchProjectSaveBaseline = {
+  savedRecord: WorkbenchProjectRecordV1
+  workbenchRevision: number
+  canvasRevision: number
+}
+
 export type WorkbenchProjectPersistenceOptions = {
+  baseline?: WorkbenchProjectSaveBaseline
   projectId: string
   isHydrating: () => boolean
   canPersist: () => boolean
@@ -184,6 +181,7 @@ type QueuedWorkbenchProjectSave = {
 const PROJECT_SAVE_DEBOUNCE_MS = 700
 
 function createProjectSaveQueue(input: {
+  receipt: { savedRecord: WorkbenchProjectRecordV1 | null }
   saveProject: WorkbenchProjectSaveFn
   onSaved: (record: WorkbenchProjectRecordV1) => void
   onSaveError?: (error: unknown) => void
@@ -192,7 +190,6 @@ function createProjectSaveQueue(input: {
   let running = false
   let pending: QueuedWorkbenchProjectSave | null = null
   let completion = Promise.resolve()
-  let savedRecord: WorkbenchProjectRecordV1 | null = null
   let failed = false
   let failure: unknown
   const idleWaiters: Array<() => void> = []
@@ -212,7 +209,7 @@ function createProjectSaveQueue(input: {
         pending = null
         try {
           const saved = await input.saveProject(next.projectId, next.payload)
-          savedRecord = saved
+          input.receipt.savedRecord = saved
           failed = false
           if (input.isActive()) input.onSaved(saved)
         } catch (error: unknown) {
@@ -237,7 +234,7 @@ function createProjectSaveQueue(input: {
     async flush(): Promise<WorkbenchProjectRecordV1 | null> {
       await completion
       if (failed) throw failure
-      return savedRecord
+      return input.receipt.savedRecord
     },
     cancelPending(): void {
       pending = null
@@ -256,7 +253,9 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let ownedPayload: WorkbenchProjectPayload | null = null
   const ownsRuntime = () => !options.isHydrating() && options.canPersist()
+  const { baseline } = options
   const saveQueue = createProjectSaveQueue({
+    receipt: baseline ?? { savedRecord: null },
     saveProject: options.saveProject,
     onSaved: options.onSaved,
     onSaveError: options.onSaveError,
@@ -294,8 +293,14 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     void flushSave()
   }
   const saveIfReady = () => {
-    if (disposed || !ownsRuntime()) return
+    // The restored stores can receive edits while React is still opening the Agent lane.
+    // The service invalidates this opening's canPersist before the next restore starts.
+    if (disposed || !options.canPersist() || (!baseline && options.isHydrating())) return
     ownedPayload = readCurrentWorkbenchProjectPayload()
+    if (baseline) {
+      baseline.workbenchRevision = useWorkbenchStore.getState().persistRevision
+      baseline.canvasRevision = useGenerationCanvasStore.getState().persistRevision
+    }
     saveScheduled = true
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => { void flushSave() }, PROJECT_SAVE_DEBOUNCE_MS)
@@ -307,18 +312,10 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   const target: ActiveWorkbenchProjectSaveTarget = {
     projectId: options.projectId,
     canPersist: () => !disposed && ownsRuntime(),
-    persist: async () => {
-      if (!ownsRuntime()) return null
-      ownedPayload = readCurrentWorkbenchProjectPayload()
-      saveScheduled = true
-      let record: WorkbenchProjectRecordV1 | null
-      do {
-        record = await flushOwned()
-      } while (saveScheduled)
-      if (disposed && record && activeWorkbenchProjectSaveTarget === target && ownsRuntime()) options.onSaved(record)
-      return record
-    },
+    persist: flushOwned,
   }
+  if (baseline && (baseline.workbenchRevision !== useWorkbenchStore.getState().persistRevision
+    || baseline.canvasRevision !== useGenerationCanvasStore.getState().persistRevision)) saveIfReady()
   projectSaveOwners.set(target, flushOwned)
   setActiveWorkbenchProjectSaveTarget(target)
   const dispose = async () => {

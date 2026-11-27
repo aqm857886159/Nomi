@@ -115,6 +115,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   canvasFitNonce: number
   canvasFitCategoryId: string | null
   timeline: TimelineState
+  persistedTimelineScale: number
   timelinePlaying: boolean
   previewAspect: PreviewAspect | undefined
   /** 多选：选中 clip id 集合（单一真相源）。单片工具取末位为 primary。 */
@@ -211,7 +212,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   deselectTimelineItem: (id: string, kind: 'media' | 'text', isCurrent: () => boolean) => void
   setTimelineSelection: (clipIds: string[]) => void
   setTimelinePlayhead: (frame: number) => void
-  setTimelineZoom: (scale: number) => void
+  setTimelineZoom: (scale: number, source?: 'user' | 'viewport') => void
   restoreTimeline: (timeline: unknown) => void
   /** 文字轨（字幕/标题卡）。在 playhead 处加一条，选中并返回 id。 */
   addTimelineTextClip: (style: TimelineTextStyle, startFrame: number) => string
@@ -242,6 +243,10 @@ function travelTimeline(state: WorkbenchState, direction: HistoryDirection): Par
     timelinePlaying: false,
     persistRevision: state.persistRevision + 1,
   }
+}
+
+function projectTimeline(timeline: TimelineState) {
+  return { timeline, persistedTimelineScale: timeline.scale }
 }
 
 export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector((set, get, store) => ({
@@ -335,7 +340,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     projectAgentReferences: typeof references === 'function' ? references(state.projectAgentReferences) : references,
   })),
   setProjectAgentApprovalPolicy: (projectAgentApprovalPolicy) => set({ projectAgentApprovalPolicy: Object.freeze({ mode: projectAgentApprovalPolicy.mode }) }),
-  timeline: createDefaultTimeline(),
+  ...projectTimeline(createDefaultTimeline()),
   timelinePlaying: false,
   previewAspect: undefined,
   selectedTimelineClipIds: [],
@@ -384,7 +389,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   },
   setTimeline: (timeline, previewAspect) => {
     set((state) => ({
-      timeline: normalizeTimeline(timeline),
+      ...projectTimeline(normalizeTimeline(timeline)),
       previewAspect,
       persistRevision: state.persistRevision + 1,
     }))
@@ -397,7 +402,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       activeDocumentId: doc.id,
       storyboardDesignsByDocumentId: {},
       activeStoryboardId: null,
-      timeline: normalizeTimeline(timeline),
+      ...projectTimeline(normalizeTimeline(timeline)),
       timelinePlaying: false,
       previewAspect: undefined,
       selectedTimelineClipIds: [],
@@ -662,12 +667,16 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setTimelinePlayhead: (frame) => {
     set((state) => ({ timeline: setTimelinePlayheadFrame(state.timeline, frame) }))
   },
-  setTimelineZoom: (scale) => {
-    set((state) => ({ timeline: setTimelineScale(state.timeline, scale) }))
+  setTimelineZoom: (scale, source = 'user') => {
+    set((state) => {
+      const timeline = setTimelineScale(state.timeline, scale)
+      if (source === 'viewport' || timeline.scale === state.persistedTimelineScale) return { timeline }
+      return { ...projectTimeline(timeline), persistRevision: state.persistRevision + 1 }
+    })
   },
   restoreTimeline: (timeline) => {
     set((state) => ({
-      timeline: normalizeTimeline(timeline),
+      ...projectTimeline(normalizeTimeline(timeline)),
       persistRevision: state.persistRevision + 1,
     }))
   },

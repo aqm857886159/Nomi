@@ -4,6 +4,7 @@
 // 纪律(总方案 §4.4):payload 在入口深拷贝成 plain JSON(禁 immer draft 引用)并 freeze;
 // 50ms/20 条先到先 flush;bridge 缺失(测试/旧 preload)或 IO 失败一律静默——绝不影响画布。
 import { getDesktopBridge } from '../../../desktop/bridge'
+import type { CanvasProjection } from './canvasEventReducer'
 import { observeCanvasHistoryGesture } from './canvasPatchHistory'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
@@ -23,11 +24,13 @@ const FLUSH_COUNT = 20
 
 let projectIdProvider: () => string | null = () => null
 let buffer: CanvasShadowEvent[] = []
+let bufferProjectId: string | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 let testSink: ((events: readonly CanvasShadowEvent[]) => void) | null = null
 
-/** NomiStudioApp 在 hydrate 时注入(flush 时刻取值,防切换期错绑)。 */
+/** NomiStudioApp 注入当前项目（在手势发生时取值）。 */
 export function setCanvasEventProjectIdProvider(provider: () => string | null): void {
+  flushNow()
   projectIdProvider = provider
 }
 
@@ -41,15 +44,22 @@ const mintId = () => `evt_${crypto.randomUUID().slice(0, 12)}`
 // 该项目日志的最后已知 seq(append 回执维护)——写进项目快照,hydrate 时重放其后的尾巴。
 // 注意:回执异步到达,save 可能读到略旧的值 → 尾部重放会重看几条已在快照里的事件,
 // 因此 reducer 的全部 case 必须幂等(canvasEventReducer 已逐 case 保证)。
-let lastAppliedSeq = 0
+type CanvasEventSession = { projectId: string; lastSeq: number; genesis: CanvasProjection | null }
+let session: CanvasEventSession | null = null
 
 export function getCanvasEventLastSeq(): number {
-  return lastAppliedSeq
+  return session?.lastSeq ?? 0
 }
 
-/** hydrate 时以快照里的 seq 起步(尾部重放后再被 append 回执推进)。 */
-export function seedCanvasEventLastSeq(seq: number): void {
-  lastAppliedSeq = Math.max(0, Number(seq) || 0)
+/** The immutable post-replay snapshot belongs to this opening, even when the same project is reopened. */
+export function beginCanvasEventSession(projectId: string, lastSeq: number) {
+  flushNow()
+  const opened: CanvasEventSession = { projectId, lastSeq: Math.max(0, lastSeq), genesis: null }
+  session = opened
+  return (replayedSeq: number, snapshot: CanvasProjection): void => {
+    opened.lastSeq = Math.max(opened.lastSeq, replayedSeq)
+    opened.genesis = snapshot
+  }
 }
 
 function flushNow(): void {
@@ -60,13 +70,16 @@ function flushNow(): void {
   if (buffer.length === 0) return
   const batch = buffer
   buffer = []
-  const projectId = projectIdProvider()
+  const projectId = bufferProjectId
+  const owner = session
   const api = getDesktopBridge()?.events
   if (!projectId || !api) return
   void api
     .append(projectId, batch)
     .then((result) => {
-      if (result?.lastSeq) lastAppliedSeq = Math.max(lastAppliedSeq, result.lastSeq)
+      if (result?.lastSeq && owner?.projectId === projectId && session === owner && projectIdProvider() === projectId) {
+        owner.lastSeq = Math.max(owner.lastSeq, result.lastSeq)
+      }
     })
     .catch(() => {})
 }
@@ -100,11 +113,25 @@ export function emitCanvasGesture(
       payload: JSON.parse(JSON.stringify(event.payload)) as Record<string, unknown>,
     }),
   )
+  const projectId = projectIdProvider()
   observeCanvasHistoryGesture(out)
-  testSink?.(out)
-  buffer.push(...out)
-  if (buffer.length >= FLUSH_COUNT) flushNow()
-  else if (!timer) timer = setTimeout(flushNow, FLUSH_MS)
+  // Genesis is a replay checkpoint, outside the editable gesture and its Agent transaction.
+  const batch: CanvasShadowEvent[] = out
+  if (session && session.projectId === projectId && session.genesis) {
+    batch.unshift(Object.freeze({
+      id: mintId(), txnId: `txn_${crypto.randomUUID().slice(0, 10)}`, source: 'runtime',
+      type: 'canvas.snapshot.restored', payload: { snapshot: JSON.parse(JSON.stringify(session.genesis)) as CanvasProjection },
+    }))
+    session.genesis = null
+  }
+  testSink?.(batch)
+  if (projectId) {
+    if (projectId !== bufferProjectId) flushNow()
+    bufferProjectId = projectId
+    buffer.push(...batch)
+    if (buffer.length >= FLUSH_COUNT) flushNow()
+    else if (!timer) timer = setTimeout(flushNow, FLUSH_MS)
+  }
   for (const hook of afterGestureHooks) hook()
 }
 

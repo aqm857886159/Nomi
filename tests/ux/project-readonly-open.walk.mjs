@@ -8,7 +8,7 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 import { clickOrFail, DEFAULT_TIMEOUT_MS, expect } from './_assert.mjs'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
-import { backToLibrary, switchWorkspace } from './_shell.mjs'
+import { backToLibrary, setAppLanguage, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 const { openFixtureWorld } = tsxRequire('../fixtures/readonlyOpenProjects.ts', import.meta.url)
@@ -115,6 +115,7 @@ try {
       },
     })
     try {
+      await setAppLanguage(win, locale)
       for (const letter of letters) {
         const project = projects.find(entry => entry.name.startsWith('项目' + letter))
         const card = await browse(win, project)

@@ -1,0 +1,40 @@
+{
+  "name": "打开项目后哪些改动需要写入项目文件",
+  "subject": "project.session-persistence",
+  "lifecycle": "project-data",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/project/workbenchProjectSession.ts",
+    "symbol": "subscribeWorkbenchProjectPersistence"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "subscribeWorkbenchProjectPersistence"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasEventEmitter.ts",
+      "symbol": "emitCanvasGesture"
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectContent.ts",
+      "symbol": "readCurrentWorkbenchProjectContent"
+    },
+    {
+      "path": "electron/events/eventLogRepository.ts",
+      "symbol": "openProjectEventLogWriter"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/project/projectPersistenceService.ts",
+    "src/workbench/project/useProjectWindowLifecycle.ts",
+    "electron/events/eventsIpc.ts"
+  ],
+  "parity_test": "src/workbench/project/projectPersistenceService.test.ts",
+  "since": "2026-11-27",
+  "notes": "D-1127-old-project-readonly。编辑订阅拥有清单欠写与回执，持久投影提供手动确认的缩放。画布手势与日志写者负责同一项目的追加，打开和预览只读。"
+}
