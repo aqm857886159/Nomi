@@ -48,6 +48,9 @@ jobs:
             note: "PR #126 · createOwnedFileStream · 待验的修复"
 
     steps:
+      - name: Enable Git long paths on Windows
+        run: git config --global core.longpaths true
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0

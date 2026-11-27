@@ -26,6 +26,11 @@
 // 下线前几周的限时停用和正式下线都没人看见，要到发版当天才炸（2026-11-07 真事：desktop-rc / desktop-preview
 // 一直写着 macos-14，GitHub 11-02 下线它，0.24.1 候选包的 Mac 打包一秒被取消；每个 PR 跑的检查早已是 macos-26）。
 // 只认 push / merge_group / schedule：pull_request 不算，因为有的 workflow 只在打了标签时才真跑。
+//
+// 第四条（硬零）：每个跑在 Windows runner 上的作业，在每次 `actions/checkout` 之前都必须无条件启用
+// `git config --global core.longpaths true`（不带 `if`、不带 `continue-on-error`）。
+// 仓库内已包含 >260 字符的真实旧版用户数据夹具，而 Git for Windows 默认 `core.longpaths=false`；
+// 2026-11-27 实测 `win-installer.yml` 在第一步 `actions/checkout@v4` 直接因 `Filename too long` 崩溃。
 import fs from 'node:fs'
 import { load } from 'js-yaml'
 import path from 'node:path'
@@ -119,6 +124,72 @@ export function findUnexercisedRunners(files, { fsImpl = fs, root = repoRoot } =
   return uses.filter((use) => !exercised.has(use.label))
 }
 
+function valueMentionsWindows(value) {
+  if (typeof value === 'string') return /\bwindows(?:[-_][A-Za-z0-9._-]+)?\b/i.test(value)
+  if (Array.isArray(value)) return value.some(valueMentionsWindows)
+  if (value && typeof value === 'object') return Object.values(value).some(valueMentionsWindows)
+  return false
+}
+
+function isWindowsJob(job) {
+  if (!job || typeof job !== 'object') return false
+  const runsOn = job['runs-on']
+  if (valueMentionsWindows(runsOn)) return true
+  if (typeof runsOn === 'string' && /\$\{\{[\s\S]*\bmatrix\./.test(runsOn)) {
+    return valueMentionsWindows(job.strategy?.matrix)
+  }
+  return false
+}
+
+const CHECKOUT_ACTION = /^actions\/checkout(?:@|$)/
+const ENABLE_GLOBAL_LONGPATHS = /^\s*git\s+config\s+--global\s+core\.longpaths\s+true(?:\s|$)/
+const DISABLE_LONGPATHS = /^\s*git\s+config\b[^\n]*\b(?:--unset(?:-all)?\s+core\.longpaths|core\.longpaths\s+false)\b/
+
+function stepUnconditionallyEnablesLongpaths(step) {
+  if (!step || typeof step.run !== 'string') return false
+  if (step.if !== undefined || step['continue-on-error'] === true) return false
+  let enabled = false
+  for (const rawLine of step.run.split('\n')) {
+    const line = rawLine.replace(/(^|\s)#.*$/, '').trim()
+    if (!line) continue
+    if (ENABLE_GLOBAL_LONGPATHS.test(line)) enabled = true
+    if (DISABLE_LONGPATHS.test(line)) enabled = false
+  }
+  return enabled
+}
+
+function stepDisablesLongpaths(step) {
+  if (!step || typeof step.run !== 'string') return false
+  return step.run.split('\n').some((rawLine) => DISABLE_LONGPATHS.test(rawLine.replace(/(^|\s)#.*$/, '')))
+}
+
+/** 回所有「Windows 作业在启用 git config --global core.longpaths true 之前就调用 actions/checkout」的位置。 */
+export function findWindowsCheckoutsWithoutLongpaths(files, { fsImpl = fs, root = repoRoot } = {}) {
+  const offenders = []
+  for (const file of files) {
+    const doc = load(fsImpl.readFileSync(file, 'utf8'))
+    const jobs = doc?.jobs
+    if (!jobs || typeof jobs !== 'object') continue
+    const rel = path.relative(root, file).split(path.sep).join('/')
+    for (const [jobId, job] of Object.entries(jobs)) {
+      if (!isWindowsJob(job)) continue
+      const steps = Array.isArray(job.steps) ? job.steps : []
+      let longpathsEnabled = false
+      for (const [index, step] of steps.entries()) {
+        if (stepUnconditionallyEnablesLongpaths(step)) {
+          longpathsEnabled = true
+          continue
+        }
+        if (stepDisablesLongpaths(step)) longpathsEnabled = false
+        if (typeof step?.uses === 'string' && CHECKOUT_ACTION.test(step.uses.trim()) && !longpathsEnabled) {
+          offenders.push({ file: rel, job: jobId, stepIndex: index + 1, uses: step.uses.trim() })
+        }
+      }
+    }
+  }
+  return offenders
+}
+
 /**
  * 覆盖不变量：至少要扫到一份 workflow、且至少解析出一处引用。
  * 不断言具体条数（派生值写死会在下次增删 workflow 时假红，而假红会诱人直接改数字）；
@@ -143,6 +214,7 @@ export function main({ root = repoRoot, log = console.log } = {}) {
   const missing = findMissingRefs(files, scripts, { root })
   const floating = findFloatingRunners(files, { root })
   const unexercised = findUnexercisedRunners(files, { root })
+  const missingLongpaths = findWindowsCheckoutsWithoutLongpaths(files, { root })
   if (missing.length > 0) {
     log(`✖ workflow 脚本引用门岗未通过：${missing.length} 处引用了 package.json 里不存在的 script`)
     for (const item of missing) log(`    ${item.file}:${item.line}  pnpm run ${item.script}`)
@@ -161,8 +233,16 @@ export function main({ root = repoRoot, log = console.log } = {}) {
     log('  → 换成 push / merge_group / schedule 触发的 workflow 里在用的那台机器。')
     log('    日常没人用的机器被 GitHub 下线时没人看得见，只在发版 / 手动时才跑的 workflow 要到那天才炸。')
   }
-  if (missing.length > 0 || floating.length > 0 || unexercised.length > 0) return 1
-  log(`✅ workflow 脚本引用门岗通过：${files.length} 份 workflow、${refCount} 处 \`pnpm run\` 全部解析得到，机器标签全部写死版本且日常有 workflow 在用（硬零）`)
+  if (missingLongpaths.length > 0) {
+    log(`✖ workflow Windows 长路径门岗未通过：${missingLongpaths.length} 处 Windows 作业在 actions/checkout 前未启用 core.longpaths`)
+    for (const item of missingLongpaths) log(`    ${item.file}  job:${item.job}  step#${item.stepIndex} (${item.uses})`)
+    log('  → 在每个 Windows 作业的 actions/checkout 之前无条件加上：')
+    log('      - name: Enable Git long paths on Windows')
+    log('        run: git config --global core.longpaths true')
+    log('    仓库内已有 >260 字符的夹具路径，Git for Windows 默认 core.longpaths=false 会在检出第一步直接报 Filename too long。')
+  }
+  if (missing.length > 0 || floating.length > 0 || unexercised.length > 0 || missingLongpaths.length > 0) return 1
+  log(`✅ workflow 脚本引用门岗通过：${files.length} 份 workflow、${refCount} 处 \`pnpm run\` 全部解析得到，机器标签全部写死版本且日常有 workflow 在用，Windows 检出均已先启用 core.longpaths（硬零）`)
   return 0
 }
 
