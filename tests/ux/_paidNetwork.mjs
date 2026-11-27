@@ -247,6 +247,7 @@ export function rehearsalVerdict({ entries, lockedAtEntry = null, judgedAllow = 
   const where = request ? `（替身记下的是 ${shown(request)}${request.methodInferred ? '，方法没记、按路径推' : ''}）` : ''
   const progress = `走到「${station}」，${shots} 发里走到 ${reached} 发`
   if (stoppedBy === 'idle') return failed(request, `${REHEARSAL_STOPS.idle}——脚本没走完；${progress}${where}${said ? `；脚本报：${said}` : ''}`)
+  if (hold && stoppedBy === 'guard-block') return failed(request, `${REHEARSAL_STOPS['guard-block']}——验请求体的演练不允许绕过替身；${progress}${where}${said ? `；脚本报：${said}` : ''}`)
   if (counted) {
     return failed(request, station === 'before-click'
       ? `脚本在向供应商发第一条请求之前就失败——${said}`
@@ -278,11 +279,10 @@ export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow
   if (lockedAtEntry === null) return null
   const vendor = parseAllowlist(judgedAllow.join(','))
   const after = entries.slice(lockedAtEntry).filter((entry) => entry?.kind === 'blocked' || entry?.kind === 'rehearsal-answered')
-  const guardBlocked = after.filter((entry) => entry.kind === 'blocked' && !isStandInRow(entry))
-  if (guardBlocked.some((entry) => !isVendorRequestRow(entry, vendor))) return 'guard-block'
+  const benignVendorReadBlock = (entry) => isVendorRequestRow(entry, vendor) && vendorRowClass(entry).station === 'vendor-read' && endsAt !== 'vendor-read'
+  if (after.some((entry) => entry.kind === 'blocked' && !isStandInRow(entry) && !benignVendorReadBlock(entry))) return 'guard-block'
   const classes = after.filter((entry) => isVendorRequestRow(entry, vendor)).map((entry) => vendorRowClass(entry).station)
   if (!stationReaches('brain', endsAt) && classes.includes('brain') && !classes.includes('vendor-create')) return 'brain'
-  if (!holdForScript && guardBlocked.some((entry) => isVendorRequestRow(entry, vendor) && stationReaches(vendorRowClass(entry).station, endsAt))) return 'guard-block'
   if (!holdForScript && classes.some((station) => stationReaches(station, endsAt))) return 'endpoint'
   const last = after.at(-1)
   return last && now - Date.parse(last.at ?? '') >= graceMs ? 'idle' : null

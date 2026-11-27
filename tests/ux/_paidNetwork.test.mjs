@@ -262,6 +262,10 @@ describe('rehearsalVerdict', () => {
     expect(rehearsalShouldStop([loaded, balance, pricing], { lockedAtEntry: 1, judgedAllow, endsAt: 'vendor-create', now: Date.now() })).toBe(null)
     expect(rehearsalShouldStop([loaded, balance], { lockedAtEntry: 1, judgedAllow, endsAt: 'vendor-read', now: Date.now() })).toBe('guard-block')
     expect(rehearsalShouldStop([loaded, balance, vendorPost], { lockedAtEntry: 1, judgedAllow, endsAt: 'vendor-create', now: Date.now() })).toBe('guard-block')
+    // holdForScript（验请求体的演练）下，非替身闸挡下的 vendor-create 同样必须立即报 guard-block 关窗判红，不许被后续替身请求盖掉
+    const standInPost = { kind: 'blocked', via: 'rehearsal-vendor', role: 'vendor', method: 'POST', host: 'api.apimart.ai', url: 'https://api.apimart.ai/v1/images/generations' }
+    expect(rehearsalShouldStop([loaded, vendorPost], { lockedAtEntry: 1, judgedAllow, holdForScript: true, endsAt: 'vendor-create', now: Date.now() })).toBe('guard-block')
+    expect(rehearsalVerdict({ entries: [loaded, vendorPost, standInPost], lockedAtEntry: 1, judgedAllow, hold: true, stoppedBy: 'guard-block' }).passed).toBe(false)
     expect(rehearsalShouldStop([loaded, elsewhere], { lockedAtEntry: null, judgedAllow })).toBe('foreign')
   })
   it('stand-in vendor (no-key tier): answers only the declared free probe and upload, records every other request with method + path + scrubbed body, never logs headers', async () => {
