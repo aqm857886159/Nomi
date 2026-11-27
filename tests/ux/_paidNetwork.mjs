@@ -137,7 +137,7 @@ const BRAIN_PATH = /\/(?:chat\/completions|responses|messages)$/
  * 没记方法的行（产品闸、走查闸 fetch 层不记方法）按路径推：查列表 / 查余额 / 查任务是读；路径是个文件（下载成片）、
  * 或主机是供应商的成片下载域，也是读；连接层没有路径（推不出来），宁低不高按读；其余按创建算。
  */
-const READ_PATH = /\/(?:models|balance)(?:\/[^/]+)?$|\/tasks?\/[^/]+$|\.[a-z0-9]{2,5}$/i
+const READ_PATH = /\/(?:models|balance|pricing)(?:\/[^/]+)*$|\/tasks?\/[^/]+$|\.[a-z0-9]{2,5}$/i
 const RESULT_HOSTS = parseAllowlist(Object.values(VENDOR_RESULT_DOMAINS).flat().join(','))
 const isStandInRow = (entry) => entry?.via === 'rehearsal-vendor' || entry?.via === 'rehearsal-relay'
 const isVendorRequestRow = (entry, vendorAllow) => entry?.kind === 'blocked' && entry?.role !== 'relay' && listsHost(vendorAllow, String(entry?.host ?? ''))
@@ -278,9 +278,11 @@ export function rehearsalShouldStop(entries, { lockedAtEntry = null, judgedAllow
   if (lockedAtEntry === null) return null
   const vendor = parseAllowlist(judgedAllow.join(','))
   const after = entries.slice(lockedAtEntry).filter((entry) => entry?.kind === 'blocked' || entry?.kind === 'rehearsal-answered')
-  if (after.some((entry) => entry.kind === 'blocked' && !isStandInRow(entry))) return 'guard-block'
+  const guardBlocked = after.filter((entry) => entry.kind === 'blocked' && !isStandInRow(entry))
+  if (guardBlocked.some((entry) => !isVendorRequestRow(entry, vendor))) return 'guard-block'
   const classes = after.filter((entry) => isVendorRequestRow(entry, vendor)).map((entry) => vendorRowClass(entry).station)
   if (!stationReaches('brain', endsAt) && classes.includes('brain') && !classes.includes('vendor-create')) return 'brain'
+  if (!holdForScript && guardBlocked.some((entry) => isVendorRequestRow(entry, vendor) && stationReaches(vendorRowClass(entry).station, endsAt))) return 'guard-block'
   if (!holdForScript && classes.some((station) => stationReaches(station, endsAt))) return 'endpoint'
   const last = after.at(-1)
   return last && now - Date.parse(last.at ?? '') >= graceMs ? 'idle' : null
