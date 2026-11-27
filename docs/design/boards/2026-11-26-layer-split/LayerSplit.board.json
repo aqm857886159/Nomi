@@ -322,7 +322,7 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "ComposerSendButton 的通用规则：禁用时悬停先说为什么点不了、再说约价（出处 3d96e7254 花费显示第一步，清单 cost.hover）；原因句来自生成框的禁用原因，本板不另画、不改共用发送键（C-D13）",
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
       "anchor": "[data-board=\"layers.no-image-hint\"]",
       "assertion": "0 images disables send and hover shows the missing-image reason with upper-bound cost"
@@ -356,7 +356,7 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "electron/shared/modelArchetypes/seedream5Pro.ts；InlineParameterBar 格",
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
       "anchor": "[data-board=\"layers.pro-fixed\"]",
       "assertion": "Seedream 5.0 Pro renders a static up-to-17 cell that does not open the parameter panel"
@@ -409,7 +409,7 @@
       ],
       "source": "D-1126-sdse-libtv",
       "component": "复用 GenerationWaitingSurface.tsx",
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
       "anchor": "[data-board=\"layers.running\"]",
       "assertion": "in-flight layer split shows the waiting surface without prematurely rendering the layer-count badge"
