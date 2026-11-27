@@ -187,7 +187,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   // 手动缩放形同虚设。去掉 scale 依赖后：缩放不被回退；加片/删片/窗口 resize 仍自动 refit。
   React.useEffect(() => {
     if (durationFrame <= 0 || contentViewportWidth <= 0) return
-    setTimelineZoom(resolveTimelineFitScale(durationFrame, contentViewportWidth))
+    setTimelineZoom(resolveTimelineFitScale(durationFrame, contentViewportWidth), 'viewport')
   }, [contentViewportWidth, durationFrame, setTimelineZoom])
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

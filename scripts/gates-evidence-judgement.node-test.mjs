@@ -211,7 +211,7 @@ const FULL_CARD = CARD.replace('## 设计卡', ['## 设计卡', '线/负责人�
 const ACCEPT = [
   '## 独立验收', '- 验收线：V-x', '- 报告：D:/Nomi-coord-state/reports/V-x.md', '- 报告首行：V-x：有条件通过', '- 验收 HEAD：abcdef1', '实现线：I-x',
 ].join('\n')
-const BOARDS = { Foo: { elements: [{ id: 'a', status: 'implemented' }, { id: 'b', status: 'implemented' }] } }
+const BOARDS = { Foo: { elements: [{ id: 'a', anchor: '[data-board="a"]', status: 'implemented' }, { id: 'b', anchor: '[data-board="b"]', status: 'implemented' }] } }
 const judge = (body, files, { createdAt = '2026-10-23T00:00:00Z', boards = BOARDS } = {}) => evaluatePrBody({
   body, files, createdAt, table: TABLE, scenarios: SCENARIOS,
   evidence: { headSha: HEAD, readReport: () => undefined, readRaw: () => null, boards },
@@ -276,6 +276,7 @@ test('端到端：CLI 在生效日之后的 PR 上，验收 HEAD 对不上当前
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const write = (rel, content) => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), content) }
   git(root, 'init', '-q'); git(root, 'config', 'user.email', 't@t'); git(root, 'config', 'user.name', 't'); git(root, 'config', 'commit.gpgsign', 'false')
+  write('docs/engineering/generated-allowlist.json', '[]')
   write('docs/engineering/test-routing.json', JSON.stringify(TABLE))
   write('src/design/tokens.ts', 'export const v = 0\n')
   git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'base')
@@ -368,7 +369,7 @@ test('验收 HEAD 祖先·验收后分支又加了代码提交 → 红；浅克�
 // ── 拍板图清单取 PR head：PR 自己新增的板，认领判绿（main 检出里读不到它）──────────────────────────────────────────
 test('合并前扫描读 PR head 的清单：PR 认领它自己新增的板 → 绿；在 main 上找 → 找不到 → 红', (t) => {
   const r = repoWith(t)
-  const manifest = { board: 'NewBoard', elements: [{ id: 'a', status: 'implemented' }] }
+  const manifest = { board: 'NewBoard', elements: [{ id: 'a', anchor: '[data-board="a"]', status: 'implemented' }] }
   r.write('docs/design/boards/2026-10-19/NewBoard.board.json', JSON.stringify(manifest)); r.g('add', '-A'); r.g('commit', '-q', '-m', 'add board')
   const claim = '## 拍板图\n- NewBoard: a'
   assert.deepEqual(checkPrBoardClaims(claim, boardsAtHead({ git: gitIn(r.root), sha: r.g('rev-parse', 'HEAD') })), [])

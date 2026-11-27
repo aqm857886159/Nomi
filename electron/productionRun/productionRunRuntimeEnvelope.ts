@@ -1,3 +1,4 @@
+import type { CanvasTaskResult } from "../capabilityCore/canvasTransportProvider";
 import type { PaidSubmissionReceipt } from "./paidSubmissionReceipt";
 import fs from "node:fs";
 import path from "node:path";
@@ -25,6 +26,8 @@ export type ProductionRunRuntimeEnvelope = {
   rawReceipt?: unknown;
   acceptance?: PaidSubmissionReceipt;
   acceptanceMac?: string;
+  /** Localized canvas output, committed before the job becomes ready. */
+  settledResult?: CanvasTaskResult;
   lastPoll?: {
     status: string;
     /** Durable observation order; legacy observations are revision zero. */
@@ -35,7 +38,7 @@ export type ProductionRunRuntimeEnvelope = {
   updatedAt: string;
 };
 
-export type RuntimeEnvelopeSealInput = Omit<ProductionRunRuntimeEnvelope, "schemaVersion" | "state" | "updatedAt" | "providerTaskId" | "rawReceipt">;
+export type RuntimeEnvelopeSealInput = Omit<ProductionRunRuntimeEnvelope, "schemaVersion" | "state" | "updatedAt" | "providerTaskId" | "rawReceipt" | "settledResult">;
 
 export class RuntimeEnvelopeConflictError extends Error {
   readonly code = "runtime_envelope_conflict" as const;
@@ -204,7 +207,7 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
     });
   }
 
-  async function withMaterialization<T>(observed: ProductionRunRuntimeEnvelope, work: (current: ProductionRunRuntimeEnvelope, complete: () => void, assertOwned: () => void) => Promise<T>): Promise<{ kind: "refresh" } | { kind: "result"; value: T }> {
+  async function withMaterialization<T>(observed: ProductionRunRuntimeEnvelope, work: (current: ProductionRunRuntimeEnvelope, complete: (settledResult?: CanvasTaskResult) => void, assertOwned: () => void) => Promise<T>): Promise<{ kind: "refresh" } | { kind: "result"; value: T }> {
     const latest = accepted(read());
     // Finished work is immutable: even the ephemeral ownership file is unnecessary.
     if (latest.state === "materialized") return { kind: "result", value: await work(latest, () => undefined, () => { throw new RuntimeEnvelopeConflictError("Materialized execution is immutable"); }) };
@@ -213,12 +216,13 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
       const current = accepted(read());
       // Shared revalidation after the external extraction, before asset I/O or error handling.
       if (current.state !== "materialized" && superseded(current, observed)) return { kind: "refresh" };
-      const complete = () => {
+      const complete = (settledResult?: CanvasTaskResult) => {
         assertOwned();
         const latest = accepted(read());
         if (latest.state === "materialized") return;
         if (classifyUpstreamTaskStatus(latest.lastPoll?.status ?? "") !== "succeeded") throw new RuntimeEnvelopeConflictError("Successful provider observation is required before materialization");
-        writeJsonFileAtomic(deps.filePath, { ...latest, state: "materialized", updatedAt: now() });
+        writeJsonFileAtomic(deps.filePath, { ...latest, state: "materialized", ...(settledResult && { settledResult }), updatedAt: now() });
+        if (settledResult) fsyncDirectoryIfDurable(path.dirname(deps.filePath));
       };
       return { kind: "result", value: await work(current, complete, assertOwned) };
     });

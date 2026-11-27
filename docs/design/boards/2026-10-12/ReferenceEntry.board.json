@@ -8,12 +8,9 @@
     {
       "id": "agent.entry",
       "label": "Agent · 原小鼠标",
-      "candidates": [
-        "004-button-加参考",
-        "005-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ReferenceEntry/agent.creation.direct",
+      "assertions": ["board:ReferenceEntry/agent.creation.direct"],
       "states": [
         "empty",
         "loading",
@@ -30,18 +27,9 @@
     {
       "id": "agent.inline",
       "label": "Agent · 句中引用",
-      "candidates": [
-        "007-div-给Nomi的消息",
-        "008-p-changethebac",
-        "009-span",
-        "010-span-图片1",
-        "011-span-图片1",
-        "012-span",
-        "013-span-视频1",
-        "014-span-视频1"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ReferenceEntry/agent.at.search",
+      "assertions": ["board:ReferenceEntry/agent.at.search"],
       "states": [
         "empty",
         "loading",
@@ -58,14 +46,9 @@
     {
       "id": "node.image.entry",
       "label": "image · 原参考入口",
-      "candidates": [
-        "016-button-加参考",
-        "017-svg",
-        "018-button-加参考",
-        "019-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ReferenceEntry/node.image.direct",
+      "assertions": ["board:ReferenceEntry/node.image.direct"],
       "states": [
         "empty",
         "loading",
@@ -82,14 +65,9 @@
     {
       "id": "node.video.entry",
       "label": "video · 原参考入口",
-      "candidates": [
-        "021-button-加参考",
-        "022-svg",
-        "023-button-加参考",
-        "024-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ReferenceEntry/node.video.direct",
+      "assertions": ["board:ReferenceEntry/node.video.direct"],
       "states": [
         "empty",
         "loading",
@@ -106,14 +84,9 @@
     {
       "id": "node.text.entry",
       "label": "text · 原参考入口",
-      "candidates": [
-        "026-button-加参考",
-        "027-svg",
-        "028-button-加参考",
-        "029-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ReferenceEntry/node.text.connected",
+      "assertions": ["board:ReferenceEntry/node.text.connected"],
       "states": [
         "empty",
         "loading",
@@ -130,15 +103,9 @@
     {
       "id": "agent.at",
       "label": "Agent · @ 素材候选（英文暗色）",
-      "candidates": [
-        "031-div-Canvas",
-        "032-button-framecurrent",
-        "033-span-framecurrent",
-        "034-span-Connect",
-        "035-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ReferenceEntry/agent.at.search",
+      "assertions": ["board:ReferenceEntry/agent.at.search"],
       "states": [
         "empty",
         "loading",
@@ -152,16 +119,6 @@
         "dark"
       ]
     }
-  ],
-  "decor": [
-    "001-h1-参考入口生产组件快照",
-    "002-p-真实Electron走查",
-    "003-h2-Agent原小鼠标",
-    "006-h2-Agent句中引用",
-    "015-h2-image原参考入口",
-    "020-h2-video原参考入口",
-    "025-h2-text原参考入口",
-    "030-h2-Agent素材候选英文暗"
   ],
   "functionCensus": [
     {

@@ -11,7 +11,7 @@
   },
   "visualReview": "协调会话 2026-10-27：产品里「以 Nomi 身份说话」只有一处——NomiIdentityRow（16px 标 + 「Nomi」字标），现在只用在「还没连文本模型」的恢复卡上；v4 聊天的每条消息没有头像。换成形象空闲时的静态脸：不动、不眨眼、不跟鼠标、不带状态；字标、字号、间距不变。身体底色走 --nomi-logo-ground，眼睛恒为白色，和 logo 笔画一致。",
   "designCard": "docs/plan/2026-10-27-agent-persona.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 15 版（画布版本 16）「G · 聊天里的身份行」画板的原样副本（source/AgentIdentityRow.dc.html；画布里叫 Avatar.dc.html，入库改成板名）+ 与 AgentPersona 共用的画布索引公开版（source/canvas.json）。preview/AgentIdentityRow.html 是去掉画布外壳的静态页：样式与画面原样，只去掉运行时脚本和外网字体链接（字标中间的 m 退回系统衬线字体）。画板上「现在」那一行是现役身份行的样子（NomiLogoMark 16 + NomiWordmark 12），只作对照与旧功能普查的 before。候选由 scripts/board-extract.mjs --dir --board 抽出。",
+  "sourceBoundary": "板源 = Claude Design 画布第 15 版（画布版本 16）「G · 聊天里的身份行」画板的原样副本（source/AgentIdentityRow.dc.html；画布里叫 Avatar.dc.html，入库改成板名）+ 与 AgentPersona 共用的画布索引公开版（source/canvas.json）。preview/AgentIdentityRow.html 是去掉画布外壳的静态页：样式与画面原样，只去掉运行时脚本和外网字体链接（字标中间的 m 退回系统衬线字体）。画板上「现在」那一行是现役身份行的样子（NomiLogoMark 16 + NomiWordmark 12），只作对照与旧功能普查的 before。",
   "designIntent": "身份行和右下小球是同一个角色：聊天里以 Nomi 身份说话的那一行，用它的静态脸，让人认得出「这是那个助手」；状态只在小球上表达，这里不带。",
   "artboards": [
     "AgentIdentityRow"
@@ -58,14 +58,7 @@
       "states": [
         "dark"
       ],
-      "candidates": [
-        "010-svg-Nomi形象",
-        "020-svg-Nomi形象",
-        "026-svg-Nomi形象放大",
-        "027-div-外形和logo同一块底色",
-        "028-div-眼睛宽为边长的15高30",
-        "029-div-底色走logo底色tok"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D2-1",
       "component": "新品牌组件 NomiAgentFace 的静态用法（src/design/identity.tsx，与右下小球同一个组件、同一套几何，不另画）；NomiIdentityRow（src/workbench/ai/NomiIdentityRow.tsx）把 NomiLogoMark size=16 换成它",
@@ -79,16 +72,7 @@
         "dark",
         "zh-en"
       ],
-      "candidates": [
-        "007-span-Noi",
-        "008-span-m",
-        "011-span-Noi",
-        "012-span-m",
-        "017-span-Noi",
-        "018-span-m",
-        "021-span-Noi",
-        "022-span-m"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D2-1",
       "component": "NomiWordmark（src/design/identity.tsx），不改",
@@ -101,11 +85,7 @@
       "states": [
         "dark"
       ],
-      "candidates": [
-        "006-svg",
-        "016-svg",
-        "025-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "形象这 7 处照默认改，改完出实现清单，0.25 再建",
@@ -113,20 +93,6 @@
       },
       "note": "被 identity.face 取代；只是这一处不用，NomiLogoMark 组件本身保留给别处"
     }
-  ],
-  "decor": [
-    "001-div-G第15版第5处聊天里的",
-    "002-h1-以Nomi身份说话那一行",
-    "003-p-产品里就一处身份行Nom",
-    "004-span-浅色",
-    "005-span-现在",
-    "009-span-换成",
-    "013-div-恢复卡原来的内容不变",
-    "014-span-暗色",
-    "015-span-现在",
-    "019-span-换成",
-    "023-div-恢复卡原来的内容不变",
-    "024-span-放大看几何64px"
   ],
   "functionCensus": [
     {

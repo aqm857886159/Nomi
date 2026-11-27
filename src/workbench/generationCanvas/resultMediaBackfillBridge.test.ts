@@ -137,7 +137,7 @@ describe('补预览队列', () => {
     expect(order).toEqual(['hist.png', 'inside.png', 'near.png', 'far.png', 'old.png'])
   })
 
-  it('并发不超过 2；小图在内存里解码完才写回；写回进存盘（不进撤销）；失败只记一次 missing，不重试', async () => {
+  it('并发不超过 2；小图在内存里解码完才写回；回填不单独存盘或进撤销；失败只记一次 missing，不重试', async () => {
     const nodes = Array.from({ length: 6 }, (_, index) => imageNode(`n${index}`, index * 100))
     nodes.push(imageNode('broken', 50))
     const updates: Array<{ id: string; patch: Partial<GenerationCanvasNode>; options: unknown }> = []
@@ -169,7 +169,7 @@ describe('补预览队列', () => {
     for (const update of updates.filter((u) => u.id !== 'broken')) {
       expect(events).toContain(`decode:${update.id}.preview.jpg`)
       expect(update.patch.result).toMatchObject({ thumbnailUrl: expect.stringMatching(/\.preview\.jpg$/), previewState: 'ready' })
-      expect(update.options).toEqual({ history: false, emit: false })
+      expect(update.options).toEqual({ history: false, emit: false, persist: false })
     }
     expect(updates.find((u) => u.id === 'broken')?.patch.result).toMatchObject({ previewState: 'missing' })
     expect(decodePreview).not.toHaveBeenCalledWith(expect.stringContaining('broken'))

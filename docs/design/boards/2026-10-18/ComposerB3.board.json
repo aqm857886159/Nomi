@@ -3,7 +3,7 @@
   "approvedOn": "2026-10-18",
   "stage": "built",
   "visualReview": "用户 10-18 看 B3k / B3m 后确认 B3a–B3m，按协调推荐定稿（底栏 A、「生成」字钮、优化钮保留 N 标、数量只在模型声明时显示、锁语义不变、粘贴图片和拖画布结果本轮不新增）。",
-  "sourceBoundary": "板源 = Claude Design 画布「Nomi 0.24 交互方案」第二组 B3a–B3m 十三格（source/ 下每格一个 .dc.html，canvas.json 为画布布局）。preview/ComposerB3.html 是把十三格按原宽展开成的静态拼页（亮暗两套展开，样式按格加前缀隔离），candidates 由 board-extract 的抽取函数在该拼页上抽出。画布里的 A1 / C3 组不在本板（Agent 标注与付费卡另有板）。",
+  "sourceBoundary": "板源 = Claude Design 画布「Nomi 0.24 交互方案」第二组 B3a–B3m 十三格（source/ 下每格一个 .dc.html，canvas.json 为画布布局）。preview/ComposerB3.html 是把十三格按原宽展开成的静态拼页（亮暗两套展开，样式按格加前缀隔离）。画布里的 A1 / C3 组不在本板（Agent 标注与付费卡另有板）。",
   "designIntent": "生成框 0.24：生成方式进参数条（默认参考，图片不选方式）；参考入口改 40×40 方块 + 缩略图一行；提示词引用用名字；底栏左模型 + 变体 + 参数摘要、右三钮 + 数量 + ↑ 生成钮。清单是实现合同：先清单、后实现；实现线要等 D 组付费卡、E 组复用宿主样张确认后再开。",
   "decisions": [
     {
@@ -117,20 +117,7 @@
       "id": "node.card",
       "label": "生成框外壳（按真实节点宽，圆角 10px，--nomi-shadow-md；单选才挂）",
       "change": "restyle",
-      "candidates": [
-        "003-div",
-        "028-div",
-        "053-div",
-        "117-div",
-        "160-div",
-        "192-div",
-        "225-div",
-        "261-div",
-        "296-div",
-        "338-div",
-        "381-div",
-        "416-div"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -138,38 +125,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/node.card"
+      "assertions": ["board:ComposerB3/node.card"]
     },
     {
       "id": "ref.tool.canvas-pick",
       "label": "参考行 · 画布点选钮（40×40 浅底方块，IconPointer 20px，无虚线）",
       "change": "restyle",
-      "candidates": [
-        "004-button-画布点选",
-        "005-svg",
-        "029-button-画布点选",
-        "030-svg",
-        "054-button-画布点选",
-        "055-svg",
-        "118-button-画布点选",
-        "119-svg",
-        "161-button-画布点选",
-        "162-svg",
-        "193-button-画布点选",
-        "194-svg",
-        "226-button-画布点选",
-        "227-svg",
-        "262-button-画布点选",
-        "263-svg",
-        "297-button-画布点选",
-        "298-svg",
-        "339-button-画布点选",
-        "340-svg",
-        "382-button-画布点选",
-        "383-svg",
-        "417-button-画布点选这个模型用不了",
-        "418-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -180,38 +142,13 @@
         "dark"
       ],
       "note": "「selected」= 点选进行中；disabled 见 B3i 模型不收参考图",
-      "assertion": "board:ComposerB3/ref.tool.canvas-pick"
+      "assertions": ["board:ComposerB3/ref.tool.canvas-pick"]
     },
     {
       "id": "ref.tool.add",
       "label": "参考行 · 「+」添加参考钮（40×40，点开菜单：上传 / 从素材库选）",
       "change": "restyle",
-      "candidates": [
-        "006-button-添加参考上传或从素材库选",
-        "007-svg",
-        "031-button-添加参考上传或从素材库选",
-        "032-svg",
-        "056-button-添加参考上传或从素材库选",
-        "057-svg",
-        "120-button-添加参考上传或从素材库选",
-        "121-svg",
-        "163-button-添加参考上传或从素材库选",
-        "164-svg",
-        "195-button-添加参考上传或从素材库选",
-        "196-svg",
-        "228-button-添加参考上传或从素材库选",
-        "229-svg",
-        "264-button-添加参考上传或从素材库选",
-        "265-svg",
-        "299-button-添加参考上传或从素材库选",
-        "300-svg",
-        "341-button-添加参考上传或从素材库选",
-        "342-svg",
-        "384-button-添加参考上传或从素材库选",
-        "385-svg",
-        "419-button-添加参考这个模型用不了",
-        "420-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -223,24 +160,13 @@
         "dark"
       ],
       "note": "「loading / error」= 上传中 / 上传失败，样张没画，按现状保留（REF-07）",
-      "assertion": "board:ComposerB3/ref.tool.add"
+      "assertions": ["board:ComposerB3/ref.tool.add"]
     },
     {
       "id": "ref.thumb",
       "label": "参考行 · 参考缩略图 40×40（平时无序号、无 ×、无连线角标；图 / 视频 / 音频）",
       "change": "restyle",
-      "candidates": [
-        "122-svg-女主肖像画布节点来自连线",
-        "126-svg-海边小镇素材库",
-        "127-svg-树林上传",
-        "230-svg-海边清晨",
-        "231-svg-海边傍晚",
-        "386-svg-女主肖像",
-        "387-svg-海边小镇",
-        "388-svg-树林",
-        "421-svg-女主肖像不会发出去",
-        "422-svg-海边小镇不会发出去"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -252,31 +178,26 @@
         "dark"
       ],
       "note": "序号不再画在缩略图上；失效图、视频封面、音频波形、混合媒体计数样张没画，按现状保留（REF-14 / REF-15）",
-      "assertion": "board:ComposerB3/ref.thumb"
+      "assertions": ["board:ComposerB3/ref.thumb"]
     },
     {
       "id": "ref.thumb.remove",
       "label": "缩略图 · 悬停才出的 ×（来自连线的图，提示写「断开连线」）",
       "change": "restyle",
-      "candidates": [
-        "123-button-断开连线",
-        "124-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/ref.thumb.remove"
+      "assertions": ["board:ComposerB3/ref.thumb.remove"]
     },
     {
       "id": "ref.thumb.tooltip",
       "label": "缩略图 · 悬停小提示（名字 + 来源：画布节点 / 素材库 / 上传）",
       "change": "new",
-      "candidates": [
-        "125-div-画布节点女主肖像点断开连"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -285,16 +206,13 @@
         "dark"
       ],
       "note": "现状还有 450ms 参考图大预览（REF-13），样张没画；两者同屏的关系要实现线回协调定，不许丢大预览",
-      "assertion": "board:ComposerB3/ref.thumb.tooltip"
+      "assertions": ["board:ComposerB3/ref.thumb.tooltip"]
     },
     {
       "id": "ref.count-label",
       "label": "参考行 · 行尾小字「参考图 N 张」（12px，--nomi-ink60）",
       "change": "new",
-      "candidates": [
-        "128-span-参考图3张",
-        "389-span-参考图3张"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -303,18 +221,13 @@
         "dark"
       ],
       "note": "按媒体分类计数样张没画（REF-15）；总量满额态按现状保留（REF-17）",
-      "assertion": "board:ComposerB3/ref.count-label"
+      "assertions": ["board:ComposerB3/ref.count-label"]
     },
     {
       "id": "ref.tail.ambiguity-hint",
       "label": "参考行尾 · 歧义提示「要当首尾帧用？改成首尾帧 ×」（参考方式放 1–2 张、模型同时有参考与首帧能力才出；× 关掉后该节点不再提示）",
       "change": "new",
-      "candidates": [
-        "232-span-参考图2张要当首尾帧用",
-        "233-button-改成首尾帧",
-        "234-button-不再提示",
-        "235-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "hover",
@@ -332,9 +245,7 @@
       "id": "ref.tail.unused-note",
       "label": "参考行尾 · 小字「首尾帧用不到，切回参考还在」",
       "change": "new",
-      "candidates": [
-        "274-span-首尾帧用不到切回参考还在"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -350,24 +261,20 @@
       "id": "ref.tail.unsupported-note",
       "label": "参考行尾 · 小字「这个模型用不上，不会发出去」（连线带来的图变淡）",
       "change": "new",
-      "candidates": [
-        "423-span-参考图2张这个模型用不上"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "disabled",
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/ref.tail.unsupported-note"
+      "assertions": ["board:ComposerB3/ref.tail.unsupported-note"]
     },
     {
       "id": "ref.disabled-reason",
       "label": "模型不收参考图 · 灰化入口的悬停原因",
       "change": "new",
-      "candidates": [
-        "424-div-这个模型只能用文字生成换"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "disabled",
@@ -375,20 +282,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/ref.disabled-reason"
+      "assertions": ["board:ComposerB3/ref.disabled-reason"]
     },
     {
       "id": "ref.slot.first",
       "label": "首尾帧方式 · 「首帧」格（40×40，名字在格下，顶边对齐）",
       "change": "restyle",
-      "candidates": [
-        "165-svg-首帧海边小镇",
-        "166-span-首帧",
-        "197-svg-首帧海边小镇",
-        "198-span-首帧",
-        "266-svg-首帧海边清晨",
-        "267-span-首帧"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "empty",
@@ -398,20 +298,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/ref.slot.first"
+      "assertions": ["board:ComposerB3/ref.slot.first"]
     },
     {
       "id": "ref.slot.swap",
       "label": "首尾帧方式 · 中间 ⇄ 对调钮（IconArrowsLeftRight）",
       "change": "new",
-      "candidates": [
-        "167-button-对调首帧和尾帧",
-        "168-svg",
-        "199-button-对调首帧和尾帧",
-        "200-svg",
-        "268-button-对调首帧和尾帧",
-        "269-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -420,22 +313,13 @@
         "dark"
       ],
       "note": "新增行为：必须交换真实边 / 上传来源，不能只换图（BOUND-05）。【待用户点头的偏差，2026-11-12 协调定】对调后这个方式发不出去（另一格必填而现在是空的）时 ⇄ 置灰，悬停写「首帧必须放，放了两张才能对调」；判据只看档案槽的必填声明，首帧可不放的模型只放一张时仍可点。B3d 这一格因此和拍板图不同（拍板图上 ⇄ 可点）。改前 / 改后并排图：docs/evidence/2026-11-12-mode-bar/swap-before-after-zh.png、swap-before-after-en.png。用户不同意就改回。",
-      "assertion": "board:ComposerB3/ref.slot.swap"
+      "assertions": ["board:ComposerB3/ref.slot.swap"]
     },
     {
       "id": "ref.slot.last",
       "label": "首尾帧方式 · 「尾帧（可不填）」格",
       "change": "restyle",
-      "candidates": [
-        "169-button-尾帧可不填点击添加",
-        "170-svg",
-        "171-span-尾帧可不填",
-        "201-button-尾帧可不填点击添加",
-        "202-svg",
-        "203-span-尾帧可不填",
-        "270-svg-尾帧海边傍晚",
-        "271-span-尾帧"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "empty",
@@ -446,16 +330,13 @@
         "dark"
       ],
       "note": "尾帧空则按首帧生成；点「画布点选」或「+」填进第一个空格",
-      "assertion": "board:ComposerB3/ref.slot.last"
+      "assertions": ["board:ComposerB3/ref.slot.last"]
     },
     {
       "id": "ref.slot.unused",
       "label": "首尾帧方式 · 「未用到」淡格（多出的参考，切回参考方式还在）",
       "change": "new",
-      "candidates": [
-        "272-svg-树林暂时用不到",
-        "273-span-未用到"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "disabled",
@@ -473,20 +354,7 @@
       "id": "prompt.editor",
       "label": "提示词编辑区（Tiptap；占位文案、正文；右上展开钮）",
       "change": "restyle",
-      "candidates": [
-        "008-span-写下画面和镜头输入可以引",
-        "033-span-写下画面和镜头输入可以引",
-        "058-span-写下画面和镜头输入可以引",
-        "129-div-的人物走进树影按镜头缓慢",
-        "172-div-镜头缓慢推近薄雾散开海面",
-        "204-div-镜头缓慢推近薄雾散开海面",
-        "236-div-慢慢过渡到的暖光镜头缓慢",
-        "275-div-镜头缓慢推近海面从清晨的",
-        "301-span-写下想要的画面加了参考图",
-        "343-span-写下想要的画面加了参考图",
-        "390-div-让的人物站在背景树影按逆",
-        "425-div-清晨的海边小镇薄雾柔和的"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "empty",
@@ -498,38 +366,13 @@
         "dark"
       ],
       "note": "长文本内滚、粘贴文字、撤销按现状保留；锁定 / 只读见 keep.host.locked / keep.host.readonly",
-      "assertion": "board:ComposerB3/prompt.editor"
+      "assertions": ["board:ComposerB3/prompt.editor"]
     },
     {
       "id": "prompt.expand",
       "label": "提示词区 · 右上「展开」钮",
       "change": "restyle",
-      "candidates": [
-        "009-button-展开提示词",
-        "010-svg",
-        "034-button-展开提示词",
-        "035-svg",
-        "059-button-展开提示词",
-        "060-svg",
-        "136-button-展开提示词",
-        "137-svg",
-        "173-button-展开提示词",
-        "174-svg",
-        "205-button-展开提示词",
-        "206-svg",
-        "241-button-展开提示词",
-        "242-svg",
-        "276-button-展开提示词",
-        "277-svg",
-        "302-button-展开提示词",
-        "303-svg",
-        "344-button-展开提示词",
-        "345-svg",
-        "397-button-展开提示词",
-        "398-svg",
-        "426-button-展开提示词",
-        "427-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -538,30 +381,13 @@
         "dark"
       ],
       "note": "仅溢出才出，展开后正文最大 360px 内滚（PROMPT-03）",
-      "assertion": "board:ComposerB3/prompt.expand"
+      "assertions": ["board:ComposerB3/prompt.expand"]
     },
     {
       "id": "prompt.ref-chip",
       "label": "提示词里的引用小块（16px 小图 + 名字，最多 8 字，重名加「·2」）",
       "change": "restyle",
-      "candidates": [
-        "130-span-女主肖像",
-        "131-svg",
-        "132-span-海边小镇",
-        "133-svg",
-        "134-span-树林",
-        "135-svg",
-        "237-span-海边清晨",
-        "238-svg",
-        "239-span-海边傍晚",
-        "240-svg",
-        "391-span-女主肖像",
-        "392-svg",
-        "393-span-海边小镇",
-        "394-svg",
-        "395-span-树林",
-        "396-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -572,18 +398,13 @@
         "dark"
       ],
       "note": "发给模型时按顺序对应第几张，名字只给人看；原子删除、重排同步按现状保留",
-      "assertion": "board:ComposerB3/prompt.ref-chip"
+      "assertions": ["board:ComposerB3/prompt.ref-chip"]
     },
     {
       "id": "prompt.text-chip",
       "label": "提示词下 · 「连入文字 · 名字」签 + 断开 ×",
       "change": "restyle",
-      "candidates": [
-        "138-span-连入文字开场白",
-        "139-svg",
-        "140-button-断开连线",
-        "141-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -591,26 +412,13 @@
         "dark"
       ],
       "note": "与发送使用同一文本投影；悬停 / 聚焦出正文预览按现状保留（PROMPT-09）",
-      "assertion": "board:ComposerB3/prompt.text-chip"
+      "assertions": ["board:ComposerB3/prompt.text-chip"]
     },
     {
       "id": "bar.container",
       "label": "底栏容器（左：模型 + 参数；右：三个提示词钮 + 分隔线 + 数量 + 生成钮）",
       "change": "new",
-      "candidates": [
-        "011-div",
-        "036-div",
-        "061-div",
-        "142-div",
-        "175-div",
-        "207-div",
-        "243-div",
-        "278-div",
-        "304-div",
-        "346-div",
-        "399-div",
-        "428-div"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -619,38 +427,13 @@
         "dark"
       ],
       "note": "用户 10-18 定：底栏 A。参数条中英文都必须一行放下，不换行、不截断",
-      "assertion": "board:ComposerB3/bar.container"
+      "assertions": ["board:ComposerB3/bar.container"]
     },
     {
       "id": "bar.model",
       "label": "底栏 · 模型钮（模型一颗，只显示模型名；现有组件原样）",
       "change": "restyle",
-      "candidates": [
-        "012-button-Seedance20Fa",
-        "013-svg",
-        "037-button-Seedance20Fa",
-        "038-svg",
-        "062-button-Seedance20Fa",
-        "063-svg",
-        "143-button-Seedance20Fa",
-        "144-svg",
-        "176-button-Seedance20Fa",
-        "177-svg",
-        "208-button-Seedance20Fa",
-        "209-svg",
-        "244-button-Seedance20Fa",
-        "245-svg",
-        "279-button-Seedance20Fa",
-        "280-svg",
-        "305-button-GPTImage2",
-        "306-svg",
-        "347-button-GPTImage2",
-        "348-svg",
-        "400-button-GPTImage2",
-        "401-svg",
-        "429-button-Imagen4",
-        "430-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -662,46 +445,13 @@
         "dark"
       ],
       "note": "模型钮点开是 modelmenu；加载 / 无模型配置入口按现状保留（MODEL-04）；同模型供应商小签按现状保留（MODEL-02）",
-      "assertion": "board:ComposerB3/bar.model"
+      "assertions": ["board:ComposerB3/bar.model"]
     },
     {
       "id": "bar.params",
       "label": "底栏 · 参数摘要钮（只印当前值，如「16:9 · 720p · 5s」，不带生成方式；点开参数面板；现有组件原样）",
       "change": "restyle",
-      "candidates": [
-        "014-button-参考169720p5s",
-        "015-svg-有声",
-        "016-svg",
-        "039-button-参考169720p5s",
-        "040-svg-有声",
-        "041-svg",
-        "064-button-参考169720p5s",
-        "065-svg-有声",
-        "066-svg",
-        "145-button-参考169720p5s",
-        "146-svg-有声",
-        "147-svg",
-        "178-button-首尾帧169720p5s",
-        "179-svg-有声",
-        "180-svg",
-        "210-button-首尾帧169720p5s",
-        "211-svg-有声",
-        "212-svg",
-        "246-button-参考169720p5s",
-        "247-svg-有声",
-        "248-svg",
-        "281-button-首尾帧169720p5s",
-        "282-svg-有声",
-        "283-svg",
-        "307-button-112K中",
-        "308-svg",
-        "349-button-112K中",
-        "350-svg",
-        "402-button-112K中",
-        "403-svg",
-        "431-button-112K",
-        "432-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -711,38 +461,13 @@
         "dark"
       ],
       "note": "摘要只印当前值，生成方式放在面板顶部（10-19 用户拍板「按照目前 nomi 上面的弄」）；图片摘要同样只印当前值；摘要精简不代表删长尾参数；视频有清晰度参数时也印（16:9 · 720p · 5s，composerHeadlineSummary 视频键加 resolution；摘要钮默认贴文字宽、最宽 240，不再定宽 110 截断）",
-      "assertion": "board:ComposerB3/bar.params"
+      "assertions": ["board:ComposerB3/bar.params"]
     },
     {
       "id": "bar.tool.presets",
       "label": "底栏右 · 提示词预设钮（IconFileText）",
       "change": "restyle",
-      "candidates": [
-        "017-button-提示词预设",
-        "018-svg",
-        "042-button-提示词预设",
-        "043-svg",
-        "067-button-提示词预设",
-        "068-svg",
-        "148-button-提示词预设",
-        "149-svg",
-        "181-button-提示词预设",
-        "182-svg",
-        "213-button-提示词预设",
-        "214-svg",
-        "249-button-提示词预设",
-        "250-svg",
-        "284-button-提示词预设",
-        "285-svg",
-        "309-button-提示词预设",
-        "310-svg",
-        "351-button-提示词预设",
-        "352-svg",
-        "404-button-提示词预设",
-        "405-svg",
-        "433-button-提示词预设",
-        "434-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -751,38 +476,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/bar.tool.presets"
+      "assertions": ["board:ComposerB3/bar.tool.presets"]
     },
     {
       "id": "bar.tool.translate",
       "label": "底栏右 · 翻译提示词钮（IconLanguage；选中一段只翻那段）",
       "change": "restyle",
-      "candidates": [
-        "019-button-翻译提示词中英互译选中一",
-        "020-svg",
-        "044-button-翻译提示词中英互译选中一",
-        "045-svg",
-        "069-button-翻译提示词中英互译选中一",
-        "070-svg",
-        "150-button-翻译提示词中英互译选中一",
-        "151-svg",
-        "183-button-翻译提示词中英互译选中一",
-        "184-svg",
-        "215-button-翻译提示词中英互译选中一",
-        "216-svg",
-        "251-button-翻译提示词中英互译选中一",
-        "252-svg",
-        "286-button-翻译提示词中英互译选中一",
-        "287-svg",
-        "311-button-翻译提示词中英互译选中一",
-        "312-svg",
-        "353-button-翻译提示词中英互译选中一",
-        "354-svg",
-        "406-button-翻译提示词中英互译选中一",
-        "407-svg",
-        "435-button-翻译提示词中英互译选中一",
-        "436-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -792,38 +492,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/bar.tool.translate"
+      "assertions": ["board:ComposerB3/bar.tool.translate"]
     },
     {
       "id": "bar.tool.optimize",
       "label": "底栏右 · 用 Nomi 优化提示词钮（保留 N 标）",
       "change": "restyle",
-      "candidates": [
-        "021-button-用Nomi优化提示词",
-        "022-svg",
-        "046-button-用Nomi优化提示词",
-        "047-svg",
-        "071-button-用Nomi优化提示词",
-        "072-svg",
-        "152-button-用Nomi优化提示词",
-        "153-svg",
-        "185-button-用Nomi优化提示词",
-        "186-svg",
-        "217-button-用Nomi优化提示词",
-        "218-svg",
-        "253-button-用Nomi优化提示词",
-        "254-svg",
-        "288-button-用Nomi优化提示词",
-        "289-svg",
-        "313-button-用Nomi优化提示词",
-        "314-svg",
-        "355-button-用Nomi优化提示词",
-        "356-svg",
-        "408-button-用Nomi优化提示词",
-        "409-svg",
-        "437-button-用Nomi优化提示词",
-        "438-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -834,38 +509,13 @@
         "dark"
       ],
       "note": "用户 10-18：优化钮保留 N 标；R-icons 另议的图标统一不在本条",
-      "assertion": "board:ComposerB3/bar.tool.optimize"
+      "assertions": ["board:ComposerB3/bar.tool.optimize"]
     },
     {
       "id": "bar.quantity",
       "label": "底栏右 · 数量钮（紧挨生成钮左边；视频「N 个」/ 图片「N 张」）",
       "change": "restyle",
-      "candidates": [
-        "023-button-1个",
-        "024-svg",
-        "048-button-1个",
-        "049-svg",
-        "073-button-1个",
-        "074-svg",
-        "154-button-1个",
-        "155-svg",
-        "187-button-1个",
-        "188-svg",
-        "219-button-1个",
-        "220-svg",
-        "255-button-1个",
-        "256-svg",
-        "290-button-1个",
-        "291-svg",
-        "315-button-1张",
-        "316-svg",
-        "357-button-1张",
-        "358-svg",
-        "410-button-1张",
-        "411-svg",
-        "439-button-1张",
-        "440-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -876,38 +526,13 @@
       ],
       "decision": "D1",
       "note": "用户 10-18：数量只在模型声明时显示（PARAM-12）；应用层多版本另列新增合同，不按旧注释恢复",
-      "assertion": "board:ComposerB3/bar.quantity"
+      "assertions": ["board:ComposerB3/bar.quantity"]
     },
     {
       "id": "bar.send",
       "label": "底栏右 · 生成钮（↑ 圆钮：30px，--nomi-ink 底，IconArrowUp，tooltip「生成」；10-18 用户拍板改回，「生成」字钮作废）",
       "change": "keep-as-is",
-      "candidates": [
-        "025-button-生成",
-        "026-svg",
-        "050-button-生成",
-        "051-svg",
-        "075-button-生成",
-        "076-svg",
-        "156-button-生成",
-        "157-svg",
-        "189-button-生成",
-        "190-svg",
-        "221-button-生成",
-        "222-svg",
-        "257-button-生成",
-        "258-svg",
-        "292-button-生成",
-        "293-svg",
-        "317-button-生成",
-        "318-svg",
-        "359-button-生成",
-        "360-svg",
-        "412-button-生成",
-        "413-svg",
-        "441-button-生成",
-        "442-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -918,17 +543,13 @@
       ],
       "decision": "D2",
       "note": "一次提交、运行中 ···、禁止重复提交、aria「生成」按现状保留（RUN-01）；不带数字角标、不出花费字样（R5）",
-      "assertion": "board:ComposerB3/bar.send"
+      "assertions": ["board:ComposerB3/bar.send"]
     },
     {
       "id": "params.popover",
       "label": "参数弹层容器（上方优先、不足翻下；多组选后不关；Esc 内层先消费）",
       "change": "restyle",
-      "candidates": [
-        "077-div",
-        "319-div",
-        "361-div"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -938,15 +559,13 @@
         "dark"
       ],
       "note": "10-19 用户拍板：照现有组件原样（320 宽、最高 420、组标题在上选项在下、比例带小图形、时长滑杆、音频开关），样张画法只示意位置",
-      "assertion": "board:ComposerB3/params.popover"
+      "assertions": ["board:ComposerB3/params.popover"]
     },
     {
       "id": "params.mode.limit-tip",
       "label": "生成方式「参考」旁 ⓘ 的悬停上限提示（「此模型最多：9 张图、3 段视频、3 段音频」）",
       "change": "new",
-      "candidates": [
-        "078-div-此模型最多9张图3段视频"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "hover",
@@ -964,12 +583,7 @@
       "id": "params.group.variant",
       "label": "底栏 · 变体钮（标准 / Fast 等，紧跟模型钮；现有组件原样，不进参数弹层）",
       "change": "new",
-      "candidates": [
-        "079-div-变体",
-        "080-div",
-        "081-button-标准",
-        "082-button-Fast"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -979,19 +593,13 @@
         "dark"
       ],
       "note": "10-19 用户拍板：版本放进弹层作废，变体是参数条上单独一颗下拉；单 tier 固定值禁用；保存精确 ID（MODEL-03）",
-      "assertion": "board:ComposerB3/params.group.variant"
+      "assertions": ["board:ComposerB3/params.group.variant"]
     },
     {
       "id": "params.group.mode",
       "label": "参数面板顶部 · 生成方式分段（参考 / 首尾帧；模型只有首帧时叫「首帧」；只在有两种以上带图方式时出现；永远没有「文生视频」；现有组件原样）",
       "change": "new",
-      "candidates": [
-        "083-div-生成方式",
-        "084-div",
-        "085-button-参考",
-        "086-svg-参考的模型上限",
-        "087-button-首尾帧"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "selected",
@@ -1009,30 +617,7 @@
       "id": "params.group.aspect",
       "label": "弹层 · 比例组（比例图形、自动最前、16:9 / 9:16 优先）",
       "change": "restyle",
-      "candidates": [
-        "088-div-比例",
-        "089-div",
-        "090-button-169",
-        "091-button-916",
-        "092-button-11",
-        "093-button-43",
-        "094-button-34",
-        "095-button-219",
-        "320-div-比例",
-        "321-div",
-        "322-button-11",
-        "323-button-169",
-        "324-button-916",
-        "325-button-43",
-        "326-button-34",
-        "362-div-比例",
-        "363-div",
-        "364-button-11",
-        "365-button-169",
-        "366-button-916",
-        "367-button-43",
-        "368-button-34"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -1042,28 +627,13 @@
         "dark"
       ],
       "note": "10-19 用户拍板：照现有组件原样（320 宽、最高 420、组标题在上选项在下、比例带小图形、时长滑杆、音频开关），样张画法只示意位置",
-      "assertion": "board:ComposerB3/params.group.aspect"
+      "assertions": ["board:ComposerB3/params.group.aspect"]
     },
     {
       "id": "params.group.resolution",
       "label": "弹层 · 清晰度组",
       "change": "restyle",
-      "candidates": [
-        "096-div-清晰度",
-        "097-div",
-        "098-button-480p",
-        "099-button-720p",
-        "327-div-清晰度",
-        "328-div",
-        "329-button-1K",
-        "330-button-2K",
-        "331-button-4K",
-        "369-div-清晰度",
-        "370-div",
-        "371-button-1K",
-        "372-button-2K",
-        "373-button-4K"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -1072,24 +642,13 @@
         "dark"
       ],
       "note": "10-19 用户拍板：照现有组件原样（320 宽、最高 420、组标题在上选项在下、比例带小图形、时长滑杆、音频开关），样张画法只示意位置",
-      "assertion": "board:ComposerB3/params.group.resolution"
+      "assertions": ["board:ComposerB3/params.group.resolution"]
     },
     {
       "id": "params.group.quality",
       "label": "弹层 · 画质组（图片）",
       "change": "restyle",
-      "candidates": [
-        "332-div-画质",
-        "333-div",
-        "334-button-低",
-        "335-button-中",
-        "336-button-高",
-        "374-div-画质",
-        "375-div",
-        "376-button-低",
-        "377-button-中",
-        "378-button-高"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -1098,25 +657,13 @@
         "dark"
       ],
       "note": "10-19 用户拍板：照现有组件原样（320 宽、最高 420、组标题在上选项在下、比例带小图形、时长滑杆、音频开关），样张画法只示意位置",
-      "assertion": "board:ComposerB3/params.group.quality"
+      "assertions": ["board:ComposerB3/params.group.quality"]
     },
     {
       "id": "params.group.duration",
       "label": "弹层 · 生成时长组（视频）",
       "change": "restyle",
-      "candidates": [
-        "100-div-生成时长",
-        "101-div",
-        "102-button-4s",
-        "103-button-5s",
-        "104-button-6s",
-        "105-button-7s",
-        "106-button-8s",
-        "107-button-9s",
-        "108-button-10s",
-        "109-button-11s",
-        "110-button-12s"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -1126,18 +673,13 @@
         "dark"
       ],
       "note": "10-19 用户拍板：照现有组件原样（320 宽、最高 420、组标题在上选项在下、比例带小图形、时长滑杆、音频开关），样张画法只示意位置",
-      "assertion": "board:ComposerB3/params.group.duration"
+      "assertions": ["board:ComposerB3/params.group.duration"]
     },
     {
       "id": "params.group.audio",
       "label": "弹层 · 生成音频开关（布尔项，模型声明才有）",
       "change": "restyle",
-      "candidates": [
-        "111-div-生成音频",
-        "112-div",
-        "113-button-开启",
-        "114-button-关闭"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -1146,18 +688,13 @@
         "dark"
       ],
       "note": "10-19 用户拍板：照现有组件原样（320 宽、最高 420、组标题在上选项在下、比例带小图形、时长滑杆、音频开关），样张画法只示意位置",
-      "assertion": "board:ComposerB3/params.group.audio"
+      "assertions": ["board:ComposerB3/params.group.audio"]
     },
     {
       "id": "modelmenu.row",
       "label": "模型菜单 · 模型行（28px，只列模型本身，不写说明；当前行带勾）",
       "change": "restyle",
-      "candidates": [
-        "475-div-Seedance20",
-        "476-svg-当前模型",
-        "477-div-Wan27",
-        "478-div-Veo31"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -1168,16 +705,13 @@
         "dark"
       ],
       "note": "用户 10-18：模型菜单只列模型、版本进弹层、换模型不加说明；失败项变淡沉底仍可选（MODEL-06）、同模型供应商直选（MODEL-02）样张没画，按现状保留",
-      "assertion": "board:ComposerB3/modelmenu.row"
+      "assertions": ["board:ComposerB3/modelmenu.row"]
     },
     {
       "id": "modelmenu.footer-hide",
       "label": "模型菜单 · 底部「隐藏模型」",
       "change": "restyle",
-      "candidates": [
-        "479-div-隐藏模型",
-        "480-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -1185,44 +719,13 @@
         "dark"
       ],
       "note": "「更多旧模型」折叠、隐藏数量脚注按现状保留（MODEL-05）",
-      "assertion": "board:ComposerB3/modelmenu.footer-hide"
+      "assertions": ["board:ComposerB3/modelmenu.footer-hide"]
     },
     {
       "id": "swap.before",
       "label": "B3j 换之前：首尾帧方式 + 模型菜单展开（状态演示）",
       "change": "new",
-      "candidates": [
-        "445-div",
-        "446-button-画布点选",
-        "447-svg",
-        "448-button-添加参考上传或从素材库选",
-        "449-svg",
-        "450-svg-首帧海边清晨",
-        "451-span-首帧",
-        "452-button-对调首帧和尾帧",
-        "453-svg",
-        "454-svg-尾帧海边傍晚",
-        "455-span-尾帧",
-        "456-div-镜头缓慢推近海面从清晨的",
-        "457-button-展开提示词",
-        "458-svg",
-        "459-div",
-        "460-button-Seedance20Fa",
-        "461-svg",
-        "462-button-首尾帧169720p5s",
-        "463-svg-有声",
-        "464-svg",
-        "465-button-提示词预设",
-        "466-svg",
-        "467-button-翻译提示词中英互译选中一",
-        "468-svg",
-        "469-button-用Nomi优化提示词",
-        "470-svg",
-        "471-button-1个",
-        "472-svg",
-        "473-button-生成",
-        "474-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "selected",
@@ -1230,138 +733,39 @@
         "dark"
       ],
       "note": "状态演示格，元素本体见 ref.slot.* / modelmenu.*",
-      "assertion": "board:ComposerB3/swap.before"
+      "assertions": ["board:ComposerB3/swap.before"]
     },
     {
       "id": "swap.after",
       "label": "B3j 换之后：换模型时图跟着走——首尾帧（上传的 / 连线的）换到 Wan 2.7、Veo 3.1 等，两张图落在新模型的槽里（两张缩略图 + 「参考图 2 张」），不加说明，节点不掉成文生",
       "change": "new",
-      "candidates": [
-        "482-div",
-        "483-button-画布点选",
-        "484-svg",
-        "485-button-添加参考上传或从素材库选",
-        "486-svg",
-        "487-svg-海边清晨",
-        "488-svg-海边傍晚",
-        "489-span-参考图2张",
-        "490-div-镜头缓慢推近海面从清晨的",
-        "491-button-展开提示词",
-        "492-svg",
-        "493-div",
-        "494-button-Wan27",
-        "495-svg",
-        "496-button-参考169720p5s",
-        "497-svg",
-        "498-button-提示词预设",
-        "499-svg",
-        "500-button-翻译提示词中英互译选中一",
-        "501-svg",
-        "502-button-用Nomi优化提示词",
-        "503-svg",
-        "504-button-1个",
-        "505-svg",
-        "506-button-生成",
-        "507-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
         "dark"
       ],
       "note": "用户 10-18：换模型不加说明；换模型后新参数 / default 生效、清旧参数（MODEL-07）按现状保留；10-22 验收后：走真点击（swap.model.click.*），换模型和手动换方式走同一个搬运函数 reassignUploadedImages；新模型接不下的上传图给提示，不静默丢",
-      "assertion": "board:ComposerB3/swap.after"
+      "assertions": ["board:ComposerB3/swap.after"]
     },
     {
       "id": "compare.new-state",
       "label": "B3k「新」：同一视频节点（首尾帧）的新设计（对比演示）",
       "change": "new",
-      "candidates": [
-        "539-div",
-        "540-button-画布点选",
-        "541-svg",
-        "542-button-添加参考上传或从素材库选",
-        "543-svg",
-        "544-svg-首帧海边清晨",
-        "545-span-首帧",
-        "546-button-对调首帧和尾帧",
-        "547-svg",
-        "548-svg-尾帧海边傍晚",
-        "549-span-尾帧",
-        "550-div-镜头缓慢推近薄雾散开海面",
-        "551-button-展开提示词",
-        "552-svg",
-        "553-div",
-        "554-button-Seedance20Fa",
-        "555-svg",
-        "556-button-首尾帧169720p5s",
-        "557-svg-有声",
-        "558-svg",
-        "559-button-提示词预设",
-        "560-svg",
-        "561-button-翻译提示词中英互译选中一",
-        "562-svg",
-        "563-button-用Nomi优化提示词",
-        "564-svg",
-        "565-button-1个",
-        "566-svg",
-        "567-button-生成",
-        "568-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
         "dark"
       ],
       "note": "元素本体见 ref.* / bar.*",
-      "assertion": "board:ComposerB3/compare.new-state"
+      "assertions": ["board:ComposerB3/compare.new-state"]
     },
     {
       "id": "en.reference-state",
       "label": "B3l 英文：参考 3 张含连线（英文演示）",
       "change": "new",
-      "candidates": [
-        "571-div",
-        "572-button-Pickoncanvas",
-        "573-svg",
-        "574-button-Addreference",
-        "575-svg",
-        "576-svg-Portraitcanv",
-        "577-button-Disconnect",
-        "578-svg",
-        "579-div-CanvasnodePo",
-        "580-svg-Seasidelibra",
-        "581-svg-Forestupload",
-        "582-span-3references",
-        "583-div-walksintosha",
-        "584-span-Portrait",
-        "585-svg",
-        "586-span-Seaside",
-        "587-svg",
-        "588-span-Forest",
-        "589-svg",
-        "590-button-Expandprompt",
-        "591-svg",
-        "592-span-Connectedtex",
-        "593-svg",
-        "594-button-Disconnect",
-        "595-svg",
-        "596-div",
-        "597-button-Seedance20Fa",
-        "598-svg",
-        "599-button-Reference169",
-        "600-svg",
-        "601-button-Promptpreset",
-        "602-svg",
-        "603-button-Translatepro",
-        "604-svg",
-        "605-button-Optimizeprom",
-        "606-svg",
-        "607-button-1",
-        "608-svg",
-        "609-button-Generate",
-        "610-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
@@ -1369,44 +773,13 @@
         "dark"
       ],
       "note": "英文参数条写 Reference · 16:9 · 720p · 5s，数量写 ×1",
-      "assertion": "board:ComposerB3/en.reference-state"
+      "assertions": ["board:ComposerB3/en.reference-state"]
     },
     {
       "id": "en.first-last-state",
       "label": "B3l 英文：首尾帧，尾帧可不填（英文演示）",
       "change": "new",
-      "candidates": [
-        "612-div",
-        "613-button-Pickoncanvas",
-        "614-svg",
-        "615-button-Addreference",
-        "616-svg",
-        "617-svg-Firstframemo",
-        "618-span-First",
-        "619-button-Swapfirstand",
-        "620-svg",
-        "621-button-Lastframeopt",
-        "622-svg",
-        "623-span-Lastoptional",
-        "624-div-Slowpushinas",
-        "625-button-Expandprompt",
-        "626-svg",
-        "627-div",
-        "628-button-Seedance20Fa",
-        "629-svg",
-        "630-button-FirstLast169",
-        "631-svg",
-        "632-button-Promptpreset",
-        "633-svg",
-        "634-button-Translatepro",
-        "635-svg",
-        "636-button-Optimizeprom",
-        "637-svg",
-        "638-button-1",
-        "639-svg",
-        "640-button-Generate",
-        "641-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "zh-en",
@@ -1414,38 +787,13 @@
         "dark"
       ],
       "note": "英文首尾帧写 First / Last (optional)",
-      "assertion": "board:ComposerB3/en.first-last-state"
+      "assertions": ["board:ComposerB3/en.first-last-state"]
     },
     {
       "id": "bar.layout.a",
       "label": "B3m 底栏 A（拍板）：左模型 + 参数；右三个提示词钮 + 数量 + 生成钮",
       "change": "new",
-      "candidates": [
-        "643-div",
-        "644-button-画布点选",
-        "645-svg",
-        "646-button-添加参考上传或从素材库选",
-        "647-svg",
-        "648-svg-海边清晨",
-        "649-svg-海边傍晚",
-        "650-span-参考图2张",
-        "651-div-镜头缓慢推近海面从清晨过",
-        "652-div",
-        "653-button-Seedance20Fa",
-        "654-svg",
-        "655-button-参考169720p5s",
-        "656-svg",
-        "657-button-提示词预设",
-        "658-svg",
-        "659-button-翻译提示词中英互译选中一",
-        "660-svg",
-        "661-button-用Nomi优化提示词",
-        "662-svg",
-        "663-button-1个",
-        "664-svg",
-        "665-button-生成",
-        "666-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -1455,38 +803,13 @@
       ],
       "decision": "D2",
       "note": "落在 bar.container 等元素上；这里是对比演示格",
-      "assertion": "board:ComposerB3/bar.layout.a"
+      "assertions": ["board:ComposerB3/bar.layout.a"]
     },
     {
       "id": "bar.send.text",
       "label": "B3m「生成」字钮（作废）：带文字的 pill",
       "change": "dropped",
-      "candidates": [
-        "718-div",
-        "719-button-画布点选",
-        "720-svg",
-        "721-button-添加参考上传或从素材库选",
-        "722-svg",
-        "723-svg-海边清晨",
-        "724-svg-海边傍晚",
-        "725-span-参考图2张",
-        "726-div-镜头缓慢推近海面从清晨过",
-        "727-div",
-        "728-button-Seedance20Fa",
-        "729-svg",
-        "730-button-参考169720p5s",
-        "731-svg",
-        "732-button-提示词预设",
-        "733-svg",
-        "734-button-翻译提示词中英互译选中一",
-        "735-svg",
-        "736-button-用Nomi优化提示词",
-        "737-svg",
-        "738-button-1个",
-        "739-svg",
-        "740-button-生成",
-        "741-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "loading",
@@ -1506,32 +829,7 @@
       "id": "bar.optimize.mark",
       "label": "B3m 优化钮 Nomi 标记（拍板保留）：品牌标记，实心",
       "change": "restyle",
-      "candidates": [
-        "743-div",
-        "744-button-画布点选",
-        "745-svg",
-        "746-button-添加参考上传或从素材库选",
-        "747-svg",
-        "748-svg-海边清晨",
-        "749-svg-海边傍晚",
-        "750-span-参考图2张",
-        "751-div-镜头缓慢推近海面从清晨过",
-        "752-div",
-        "753-button-Seedance20Fa",
-        "754-svg",
-        "755-button-参考169720p5s",
-        "756-svg",
-        "757-button-提示词预设",
-        "758-svg",
-        "759-button-翻译提示词中英互译选中一",
-        "760-svg",
-        "761-button-用Nomi优化提示词",
-        "762-svg",
-        "763-button-1个",
-        "764-svg",
-        "765-button-生成",
-        "766-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "hover",
@@ -1540,38 +838,13 @@
       ],
       "decision": "D2",
       "note": "即 bar.tool.optimize 的最终图标",
-      "assertion": "board:ComposerB3/bar.optimize.mark"
+      "assertions": ["board:ComposerB3/bar.optimize.mark"]
     },
     {
       "id": "bar.layout.b",
       "label": "B3m 底栏 B（未选）：三个提示词钮留左边、只把数量挪到生成钮左边",
       "change": "dropped",
-      "candidates": [
-        "668-div",
-        "669-button-画布点选",
-        "670-svg",
-        "671-button-添加参考上传或从素材库选",
-        "672-svg",
-        "673-svg-海边清晨",
-        "674-svg-海边傍晚",
-        "675-span-参考图2张",
-        "676-div-镜头缓慢推近海面从清晨过",
-        "677-div",
-        "678-button-Seedance20Fa",
-        "679-svg",
-        "680-button-参考169720p5s",
-        "681-svg",
-        "682-button-提示词预设",
-        "683-svg",
-        "684-button-翻译提示词中英互译选中一",
-        "685-svg",
-        "686-button-用Nomi优化提示词",
-        "687-svg",
-        "688-button-1个",
-        "689-svg",
-        "690-button-生成",
-        "691-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -1586,32 +859,7 @@
       "id": "bar.send.circle",
       "label": "B3m「↑ 圆钮」（拍板）：和现在一样的生成钮",
       "change": "keep-as-is",
-      "candidates": [
-        "693-div",
-        "694-button-画布点选",
-        "695-svg",
-        "696-button-添加参考上传或从素材库选",
-        "697-svg",
-        "698-svg-海边清晨",
-        "699-svg-海边傍晚",
-        "700-span-参考图2张",
-        "701-div-镜头缓慢推近海面从清晨过",
-        "702-div",
-        "703-button-Seedance20Fa",
-        "704-svg",
-        "705-button-参考169720p5s",
-        "706-svg",
-        "707-button-提示词预设",
-        "708-svg",
-        "709-button-翻译提示词中英互译选中一",
-        "710-svg",
-        "711-button-用Nomi优化提示词",
-        "712-svg",
-        "713-button-1个",
-        "714-svg",
-        "715-button-生成",
-        "716-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "loading",
@@ -1621,38 +869,13 @@
         "dark"
       ],
       "note": "10-18 用户拍板：生成钮改回原来的 ↑ 圆钮；即 bar.send 的最终样子",
-      "assertion": "board:ComposerB3/bar.send.circle"
+      "assertions": ["board:ComposerB3/bar.send.circle"]
     },
     {
       "id": "bar.optimize.sparkles",
       "label": "B3m 优化钮 Sparkles 线条版（未选）",
       "change": "dropped",
-      "candidates": [
-        "768-div",
-        "769-button-画布点选",
-        "770-svg",
-        "771-button-添加参考上传或从素材库选",
-        "772-svg",
-        "773-svg-海边清晨",
-        "774-svg-海边傍晚",
-        "775-span-参考图2张",
-        "776-div-镜头缓慢推近海面从清晨过",
-        "777-div",
-        "778-button-Seedance20Fa",
-        "779-svg",
-        "780-button-参考169720p5s",
-        "781-svg",
-        "782-button-提示词预设",
-        "783-svg",
-        "784-button-翻译提示词中英互译选中一",
-        "785-svg",
-        "786-button-用Nomi优化提示词",
-        "787-svg",
-        "788-button-1个",
-        "789-svg",
-        "790-button-生成",
-        "791-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -1667,13 +890,7 @@
       "id": "legacy.mode-bar",
       "label": "B3k「现在」：顶部生成方式栏（文生视频 / 图生视频 / 全能参考 / 首尾帧）",
       "change": "dropped",
-      "candidates": [
-        "511-div-生成方式",
-        "512-button-文生视频",
-        "513-button-图生视频",
-        "514-button-全能参考",
-        "515-button-首尾帧"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -1689,9 +906,7 @@
       "id": "legacy.mode-hint",
       "label": "B3k「现在」：生成方式栏下的说明行（「首帧 + 尾帧，自动补间过渡」）",
       "change": "dropped",
-      "candidates": [
-        "516-div-首帧尾帧自动补间过渡"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -1707,13 +922,7 @@
       "id": "legacy.dashed-slots",
       "label": "B3k「现在」：虚线框参考入口（56px，首帧 / 尾帧带标签）",
       "change": "dropped",
-      "candidates": [
-        "517-svg",
-        "518-div-首帧",
-        "519-svg",
-        "520-div-尾帧",
-        "521-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -1729,25 +938,7 @@
       "id": "legacy.composer-now",
       "label": "B3k「现在」：旧生成框其余部分（外壳、提示词、底栏）",
       "change": "dropped",
-      "candidates": [
-        "510-div",
-        "522-div-镜头缓慢推近薄雾散开海面",
-        "523-div",
-        "524-button-Seedance20Fa",
-        "525-svg",
-        "526-button-169720p5s",
-        "527-svg",
-        "528-button-提示词预设",
-        "529-svg",
-        "530-button-翻译提示词中英互译选中一",
-        "531-svg",
-        "532-button-用Nomi优化提示词",
-        "533-svg",
-        "534-button-1个",
-        "535-svg",
-        "536-button-生成",
-        "537-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "zh-en",
@@ -1763,7 +954,7 @@
       "id": "host.agent-paycard",
       "label": "宿主：Agent 付费确认卡（卡内编辑生成内容；主行动归卡底，不复制右侧工具与发送钮）",
       "change": "host-pending",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "hostPending": true,
       "states": [
@@ -1785,7 +976,7 @@
       "id": "host.storyboard-row",
       "label": "宿主：分镜行内嵌生成框",
       "change": "host-pending",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "hostPending": false,
       "states": [
@@ -1796,13 +987,13 @@
         "dark"
       ],
       "note": "E1a 样张已对：参考在提示词上一行（「+」后面 28px 小图带名字），底栏 模型 + 摘要 + 「生成 ↑」；行宽 <520 时缩略图排到最上一行、底栏折行（E1a 400 / 320 两档）。未做：样张的「选择钮」（画布取点）——分镜表不在画布上，没有可取点的画布；400 档样张里「生成」与参数同行，真实宽度下装不下，折到右下",
-      "assertion": "board:ComposerB3/host.storyboard-row"
+      "assertions": ["board:ComposerB3/host.storyboard-row"]
     },
     {
       "id": "host.list-detail",
       "label": "宿主：列表详情展开镜头的内嵌生成框（HOST-06）",
       "change": "host-pending",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "hostPending": false,
       "states": [
@@ -1813,13 +1004,13 @@
         "dark"
       ],
       "note": "inline 宿主有卡壳 / 工具 / 生成钮，普通内容流，不随画布拖动隐藏；参考行与画布同一件，「+」满额时灰显（悬停写上限）而不是消失，四个宿主一致",
-      "assertion": "board:ComposerB3/host.list-detail"
+      "assertions": ["board:ComposerB3/host.list-detail"]
     },
     {
       "id": "host.error-report",
       "label": "宿主：错误报告里复用的生成框 / 参考区",
       "change": "host-pending",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "hostPending": true,
       "states": [
@@ -1829,13 +1020,13 @@
         "dark"
       ],
       "note": "等 E 组复用宿主样张确认",
-      "assertion": "board:ComposerB3/host.error-report"
+      "assertions": ["board:ComposerB3/host.error-report"]
     },
     {
       "id": "host.agent-input-ref-button",
       "label": "宿主：Agent 输入框的参考钮（「加参考」与句中引用）",
       "change": "host-pending",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "hostPending": true,
       "states": [
@@ -1846,13 +1037,13 @@
         "dark"
       ],
       "note": "等 E 组样张确认；与 ReferenceEntry 清单的 agent.* 元素对齐，不在本板重画",
-      "assertion": "board:ComposerB3/host.agent-input-ref-button"
+      "assertions": ["board:ComposerB3/host.agent-input-ref-button"]
     },
     {
       "id": "keep.canvas-pick.mode",
       "label": "保留：画布点选进行态（可选卡描边、其余变灰、顶部 Esc 提示、选一次退出；Esc / 点空白取消）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -1861,13 +1052,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/keep.canvas-pick.mode"
+      "assertions": ["board:ComposerB3/keep.canvas-pick.mode"]
     },
     {
       "id": "keep.picker.surface",
       "label": "保留：「+」菜单后的素材选择器（搜索、画布候选横滚、最近素材网格、浏览全部、loading / 空库 / 无匹配、拖文件进选择器、Esc / 外部关闭 / 焦点）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -1881,13 +1072,13 @@
         "dark"
       ],
       "note": "选择器内部样张没画（REF-04/05/06/10/19）；复用共享浮层，不被裁切",
-      "assertion": "board:ComposerB3/keep.picker.surface"
+      "assertions": ["board:ComposerB3/keep.picker.surface"]
     },
     {
       "id": "keep.reference.import-feedback",
       "label": "保留：上传中禁用、转圈、类型错误 role=alert 与重试入口",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -1903,7 +1094,7 @@
       "id": "keep.reference.drop-in",
       "label": "保留：整卡拖放（桌面多文件、素材库 / 项目文件树 MIME 拖入）与逐文件反馈",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -1919,7 +1110,7 @@
       "id": "keep.reference.hover-preview",
       "label": "保留：参考图悬停放大（450ms，最大 320×320，右侧优先、翻左 / 夹视口，离开关闭）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -1928,13 +1119,13 @@
         "dark"
       ],
       "note": "用户 10-18 点名「鼠标悬停预览」不许丢；样张只画名字 / 来源提示，两者关系待实现线回协调",
-      "assertion": "keep.reference.hover-preview"
+      "assertions": ["keep.reference.hover-preview"]
     },
     {
       "id": "keep.reference.reorder",
       "label": "保留：同媒体数组内拖动排序（跨媒体槽不重排）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -1950,7 +1141,7 @@
       "id": "keep.reference.capacity",
       "label": "保留：单类 / 总量上限与 pending 边占位（满额「+」灰显、悬停写已放满，候选类型变淡、总满 role=status）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -1965,7 +1156,7 @@
       "id": "keep.reference.dedupe",
       "label": "保留：重复参考去重（点选、上传、@ 三处结果一致，不占新序号）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -1978,7 +1169,7 @@
       "id": "keep.prompt.at-mention",
       "label": "保留：@ 三来源搜索（当前参考 / 画布 / 素材库）与真实引用落地、键盘 ↑↓ Enter Esc、空态、hover 高亮、容量 / 能力拒绝、跨项目复制",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -1990,13 +1181,13 @@
         "dark"
       ],
       "note": "候选面板样张没画",
-      "assertion": "board:ComposerB3/keep.prompt.at-mention"
+      "assertions": ["board:ComposerB3/keep.prompt.at-mention"]
     },
     {
       "id": "keep.prompt.tile-insert",
       "label": "保留：点击数组参考缩略图在光标处插入引用（focus 后 Enter / Space）；悬停 × 不能吞点击",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2005,13 +1196,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/keep.prompt.tile-insert"
+      "assertions": ["board:ComposerB3/keep.prompt.tile-insert"]
     },
     {
       "id": "keep.prompt.chip-preview",
       "label": "保留：提示词引用块悬停 280ms 预览、双击大预览（现状核验：画布侧接收与裁切风险待实现线查实，不当已接通能力）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2026,7 +1217,7 @@
       "id": "keep.prompt.empty-suggest",
       "label": "保留：空提示词时的推荐效果 pill、应用后可撤销、附带图落槽不支持时诚实反馈",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2041,7 +1232,7 @@
       "id": "keep.prompt.save-selection",
       "label": "保留：选中文字保存到提示词库（浮动入口 + 弹窗：改文字、选图片 / 视频类型、移除附带结果图；readOnly 不启用）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2059,7 +1250,7 @@
       "id": "keep.presets.library",
       "label": "保留：效果 / 提示词库弹层（全部 / 效果 / 公共库 / 我的、分类搜索、条目悬停 180ms 预览、加载失败重试、选后应用并关闭）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2073,13 +1264,13 @@
         "dark"
       ],
       "note": "不缩成固定三条推荐",
-      "assertion": "board:ComposerB3/keep.presets.library"
+      "assertions": ["board:ComposerB3/keep.presets.library"]
     },
     {
       "id": "keep.bar.tool-tooltips",
       "label": "保留：三个提示词钮的名称提示（120ms）、aria-label、禁用原因与运行状态点",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2088,13 +1279,13 @@
         "loading",
         "zh-en"
       ],
-      "assertion": "board:ComposerB3/keep.bar.tool-tooltips"
+      "assertions": ["board:ComposerB3/keep.bar.tool-tooltips"]
     },
     {
       "id": "keep.optimize.popover",
       "label": "保留：优化弹层（280px、想法输入、Cmd/Ctrl+Enter、流式预览、再点取消）与结果 diff（新增词高亮、点应用才写正文、重试、错误出口）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2106,13 +1297,13 @@
         "dark"
       ],
       "note": "不自动覆盖正文",
-      "assertion": "board:ComposerB3/keep.optimize.popover"
+      "assertions": ["board:ComposerB3/keep.optimize.popover"]
     },
     {
       "id": "keep.model.provider-pick",
       "label": "保留：同模型供应商直选（模型行供应商 chip，最多三个 + N；参数里的供应商项；记忆所选供应商）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2123,13 +1314,13 @@
         "dark"
       ],
       "note": "B3j 模型菜单只列模型本身，供应商入口落在哪（菜单行 chip 或参数弹层）实现线对照真实 NomiSelect 后回协调",
-      "assertion": "keep.model.provider-pick"
+      "assertions": ["keep.model.provider-pick"]
     },
     {
       "id": "keep.model.catalog-states",
       "label": "保留：模型目录加载 skeleton / 确实为空时的「配置模型」入口 / 失败保留上一份",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2145,7 +1336,7 @@
       "id": "keep.model.row-health",
       "label": "保留：模型健康与接入证据提示（失败项变淡沉底仍可选、单供应商限定语；灰化不等于禁用）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2161,7 +1352,7 @@
       "id": "keep.model.menu-more",
       "label": "保留：模型菜单「更多旧模型」折叠、当前旧项仍显示",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2175,7 +1366,7 @@
       "id": "keep.params.interaction",
       "label": "保留：多参数连续调整（选后不关）与单参数直出列表（两步、选后关、宽度贴内容），不恢复嵌套下拉",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2183,13 +1374,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/keep.params.interaction"
+      "assertions": ["board:ComposerB3/keep.params.interaction"]
     },
     {
       "id": "keep.params.control-kinds",
       "label": "保留：参数控件全种类（连续数值滑杆 + 方向键、结束时一次提交；自由文本与数字草稿；长枚举搜索、当前值保留、无匹配提示）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2201,13 +1392,13 @@
         "dark"
       ],
       "note": "不能只保枚举",
-      "assertion": "board:ComposerB3/keep.params.control-kinds"
+      "assertions": ["board:ComposerB3/keep.params.control-kinds"]
     },
     {
       "id": "keep.params.conditional",
       "label": "保留：条件参数联动（切模式 / 变体收窄可用选项、存量无效值归一化），继续按档案 / 渠道派生，不硬编码单个模型示例",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2220,7 +1411,7 @@
       "id": "keep.params.popover-behavior",
       "label": "保留：参数弹层定位（上方优先、不足翻下、打开后固定）、内部滚动、Esc 与外部关闭顺序、视口可达",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2229,13 +1420,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/keep.params.popover-behavior"
+      "assertions": ["board:ComposerB3/keep.params.popover-behavior"]
     },
     {
       "id": "keep.params.channel-guidance",
       "label": "保留：当前渠道缺少档案模式时的指路（说明、可换家时给动作、× 关闭）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2244,13 +1435,13 @@
         "dark"
       ],
       "note": "须改成参考行尾小字 + 文字链接，不用彩色提示条（用户 10-18 规则）；与换模型无关，勿混",
-      "assertion": "board:ComposerB3/ref.tail.channel-missing-mode"
+      "assertions": ["board:ComposerB3/ref.tail.channel-missing-mode"]
     },
     {
       "id": "keep.params.custom-workflow",
       "label": "保留：自定义 / ComfyUI 工作流模型的多媒体槽、自由参数（工作流参数 N 项）、不接 prompt 时移除正文与工具并说明",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2266,7 +1457,7 @@
       "id": "keep.run.regenerate",
       "label": "保留：已有结果再点生成 = 重新生成（确认后原地加版本，不复制节点）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2281,7 +1472,7 @@
       "id": "keep.run.upstream-first",
       "label": "保留：依赖上游参考未生成时先备齐（依赖波次批量确认，先上游后本节点），不把所有缺 URL 都禁用",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2295,7 +1486,7 @@
       "id": "keep.run.disabled-reason",
       "label": "保留：必需参考 / 跨槽伴随依赖不足时生成钮禁用 + 具体原因（与发送校验同源）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
@@ -2304,13 +1495,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/keep.run.disabled-reason"
+      "assertions": ["board:ComposerB3/keep.run.disabled-reason"]
     },
     {
       "id": "keep.run.production-guard",
       "label": "保留：制作占用 / 导演预演过期或失败阻止生成与重渲（给原因，可恢复预演给刷新钮）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2325,20 +1516,20 @@
       "id": "keep.host.canvas-mount",
       "label": "保留：画布单选才挂生成框、多选不挂；拖节点 / 拖画布 / 开版本网格时 visibility 隐身不卸载，输入不丢",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "retained": true,
       "states": [
         "selected",
         "dark"
       ],
-      "assertion": "board:ComposerB3/keep.host.canvas-mount"
+      "assertions": ["board:ComposerB3/keep.host.canvas-mount"]
     },
     {
       "id": "keep.host.locked",
       "label": "已由 2026-11-17 的决定撤掉（节点锁整个删除）：锁定节点的真实范围（通用 prompt 只读、推荐禁用、翻译 / 优化隐藏；参数 / 参考 / 生成未统一检查 locked）",
       "change": "dropped",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "states": [
@@ -2357,7 +1548,7 @@
       "id": "keep.host.readonly",
       "label": "保留：只读宿主（prompt 不可编辑，模式 / 参考 / 底栏隐藏并显示只读；区分 readOnly 与 locked，保留写口防护）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2371,7 +1562,7 @@
       "id": "keep.image.upscale",
       "label": "保留：图片放大 / 超清（必须一张图、倍率 1/2/4× 或无倍率两型；缺图禁用，不误走文生）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2387,7 +1578,7 @@
       "id": "keep.video.multimodal-ref",
       "label": "保留：视频多模态参考（图 / 视频 / 音频分类型数组、音频伴随条件校验、仅音频错误）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2404,7 +1595,7 @@
       "id": "keep.video.source-edit",
       "label": "保留：视频编辑方式的 source_video 独立单槽（上传 / 选择 / 连线）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2420,7 +1611,7 @@
       "id": "keep.audio.speech-transcribe",
       "label": "保留：音频配音 / 转写模式栏、台词 + 音色 + 语速、转写单音频槽 + 语言；无图片 / 视频翻译优化",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2436,7 +1627,7 @@
       "id": "keep.audio.music",
       "label": "保留：音乐生成动态参数（纯音乐、自定义模式、风格、标题、歌词、时长）与上传续写 / 翻唱（必需原音频、continueAt）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2451,7 +1642,7 @@
       "id": "keep.audio.sfx-voice-local",
       "label": "保留：音效（时长 / 循环 / 强度）、精细语音（音色 ID / 音量 / 音调）、转写（说话人 / 时间戳）、本地音频槽",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2465,7 +1656,7 @@
       "id": "keep.model3d",
       "label": "保留：3D 生成框（文生 / 图生与仅图生模型、拓扑 / 面数 / 对称 / 重网格 / PBR / 纹理 / 风格参数、图生缺图原因；提示词库有、翻译优化无）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2482,7 +1673,7 @@
       "id": "keep.text.processing-box",
       "label": "保留：文本节点独立加工框（宽匹配节点、NodeInputReferenceEntry、四个加工预设 + 阻塞原因、续写 / 改写 / 重写菜单、两行指令框 + 快捷发送 + IME）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2499,7 +1690,7 @@
       "id": "keep.text.model-follow",
       "label": "保留：文本模型默认跟随 Agent、可手选、可清绑定回跟随",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2513,7 +1704,7 @@
       "id": "keep.text.state-matrix",
       "label": "保留：文本自己的状态矩阵（预设模式模型禁用；locked 指令不可编辑；运行中可输入；发送禁用）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2528,7 +1719,7 @@
       "id": "keep.a11y.contract",
       "label": "保留：中英文案与无障碍合同（aria-label / expanded / pressed / status / alert；prompt 可访问名补全；全状态英文）",
       "change": "keep-as-is",
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-b1a-composer：保留项——本 PR 没有改它的代码路径（audio / 3D / 文本加工框 / 自定义工作流等），证据见 PR 正文普查表「保留在哪」；没有新增走查断言",
       "retained": true,
@@ -2543,7 +1734,7 @@
       "id": "icons.size-and-stroke",
       "label": "图标尺寸与线宽：待 F 组真实场景对比确认（R-icons 四个尺寸角色方案）",
       "change": "pending",
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "icons-pending：待 F 组真实场景对比确认后再定；本 PR 不动图标尺寸线宽（沿用现有组件）",
       "iconsPending": true,
@@ -2559,7 +1750,7 @@
       "id": "boundary.not-added",
       "label": "本轮不新增：粘贴图片成为当前参考、直接拖画布节点 / 结果进参考框（现状没有接线）；普通媒体框 Cmd/Ctrl+Enter 生成、生成框专属右键菜单（现状同样没有，不虚构）",
       "change": "deferred",
-      "candidates": [],
+      "anchor": "未定",
       "status": "deferred",
       "states": [
         "zh-en"
@@ -2571,44 +1762,6 @@
       },
       "note": "粘贴图 / 拖结果是用户 10-18 明确的两项；BOUND-03/04 沿用同一「现状没有就不当已保留、不虚构」口径，协调确认"
     }
-  ],
-  "decor": [
-    "001-h2-B3a视频空默认参考浅暗",
-    "002-div-视频生成框",
-    "027-div-视频生成框",
-    "052-h2-B3b视频参数弹层生成方",
-    "115-h2-B3c视频参考3张含连线",
-    "116-div-视频生成框",
-    "158-h2-B3d视频首尾帧尾帧可不",
-    "159-div-视频生成框",
-    "191-div-视频生成框",
-    "223-h2-B3e视频参考2张有歧义",
-    "224-div-视频生成框",
-    "259-h2-B3f视频3张参考切到首",
-    "260-div-视频生成框",
-    "294-h2-B3g图片空弹层没有生成",
-    "295-div-图片生成框",
-    "337-div-图片生成框",
-    "379-h2-B3h图片放3张图",
-    "380-div-图片生成框",
-    "414-h2-B3i图片模型不收参考图",
-    "415-div-图片生成框",
-    "443-h2-B3j换模型菜单不加说明",
-    "444-div-换之前",
-    "481-div-换之后",
-    "508-h2-B3k现在vs新",
-    "509-div-现在",
-    "538-div-新",
-    "569-h2-B3lEnglish",
-    "570-div-Videocompose",
-    "611-div-Videocompose",
-    "642-h2-B3m底栏两种排法",
-    "667-div-A左边只放模型和参数右边",
-    "692-div-B三个提示词按钮留在左边",
-    "717-div-圆钮和现在一样",
-    "742-div-生成字钮带文字不容易当成",
-    "767-div-Nomi标记品牌标记实心",
-    "792-div-Sparkles和旁边两"
   ],
   "functionCensus": [
     {

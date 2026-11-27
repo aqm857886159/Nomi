@@ -20,7 +20,7 @@
 //   --diff-algorithm=myers           diff.algorithm；
 //   --ignore-submodules=none --submodule=short   diff.ignoreSubmodules / diff.submodule；
 //   -c core.quotePath=false          非 ASCII 路径在 diff 头里被转成八进制，对不上文件表（文件表用 -z，本来就不转义）。
-import { addedLinesByFile } from '../pr-judgement-lib.mjs'
+import { addedLinesByFile, isGeneratedArtifact } from '../pr-judgement-lib.mjs'
 
 export const PINNED_DIFF_ARGS = Object.freeze([
   '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--no-relative',
@@ -33,19 +33,61 @@ const SINGLE_STATUS = /^[ADMTUX]$/
 
 /**
  * git(args) → 标准输出（失败抛错）。base / head：提交号或引用。
- * 返回 { files: [{ path, status }]（status 是 git 的一个字母：A 新增 / D 删除 / M 修改 / T 类型变了），
+ * 返回 { files: [{ path, status, additions, binary }]（status 是 git 的一个字母：A 新增 / D 删除 / M 修改 / T 类型变了），
  *        addedByFile: Map(路径 → 该文件的新增行), packageRemovedLines: package.json 被删的行（去掉 diff 的「-」前缀） }。
  */
-export function prChanges({ git, base, head }) {
-  const diff = (args) => git(['-c', 'core.quotePath=false', 'diff', ...PINNED_DIFF_ARGS, ...args, base, head])
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+const countTextLines = (text) => (!text ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0))
+
+export function prChanges({ git, base, head, contentScope }) {
+  const diff = (args, paths = []) => git([
+    '-c', 'core.quotePath=false',
+    '-c', 'core.attributesFile=/dev/null',
+    `--attr-source=${EMPTY_TREE}`,
+    'diff', ...PINNED_DIFF_ARGS, ...args, base, head, '--', ...paths,
+  ])
   const records = diff(['--name-status', '-z']).split('\0').filter(Boolean)
   if (records.length % 2 !== 0) throw new Error(`git diff --name-status 的输出不是「状态 + 路径」成对的（${records.length} 段）`)
+  // -z 保留路径里的制表符、换行和非 ASCII 字符；--attr-source 指向空树压住 .gitattributes 的 -diff，使二进制标记只由真实字节内容决定。
+  const stats = new Map()
+  for (const record of diff(['--numstat', '-z']).split('\0').filter(Boolean)) {
+    const row = /^(\d+|-)\t(\d+|-)\t(.+)$/s.exec(record)
+    if (!row || (row[1] === '-') !== (row[2] === '-')) throw new Error('git diff --numstat 输出无效')
+    stats.set(row[3], { additions: row[1] === '-' ? 0 : Number(row[1]), binary: row[1] === '-' })
+  }
   const files = []
   for (let i = 0; i < records.length; i += 2) {
-    if (!SINGLE_STATUS.test(records[i])) throw new Error(`git diff --name-status 出了预料之外的状态「${records[i]}」（${records[i + 1]}）：格式没钉住，不拿错位的文件表去判`)
-    files.push({ path: records[i + 1], status: records[i] })
+    const status = records[i]
+    if (!SINGLE_STATUS.test(status)) throw new Error(`git diff --name-status 出了预料之外的状态「${status}」（${records[i + 1]}）：格式没钉住，不拿错位的文件表去判`)
+    const name = records[i + 1]
+    if (!stats.has(name)) throw new Error(`git diff --numstat 缺少 ${name}`)
+    let { additions, binary } = stats.get(name)
+    // 防 .git/info/attributes 把文本机器产出标成 -diff：若候选机器产出被标 binary，核对真实 blob 前 8000 字节是否真含 NUL
+    if (binary && status !== 'D' && isGeneratedArtifact(name.replaceAll('\\', '/'))) {
+      const headBlob = git(['cat-file', 'blob', `${head}:${name}`])
+      if (!headBlob.slice(0, 8000).includes('\0')) {
+        binary = false
+        if (status === 'A') additions = countTextLines(headBlob)
+        else {
+          let baseBlob
+          try { baseBlob = git(['cat-file', 'blob', `${base}:${name}`]) } catch { baseBlob = '' }
+          additions = Math.max(0, countTextLines(headBlob) - countTextLines(baseBlob))
+        }
+      }
+    }
+    files.push({ path: name, status, additions, binary })
   }
-  const patch = diff(['-U0'])
+  // 正文门岗只有路由表指定的内容和 package.json 删行需要补丁；大的报告只读取计数。
+  // 不传范围的调用者仍取得完整补丁。按批传 literal pathspec，路径中的 glob 也按字面匹配。
+  const patches = []
+  if (contentScope) {
+    const scope = new RegExp(contentScope)
+    const paths = files.filter(file => file.path === 'package.json' || (scope.test(file.path) && !isGeneratedArtifact(file.path.replaceAll('\\', '/')))).map(file => `:(literal)${file.path}`)
+    for (let i = 0; i < paths.length; i += 128) patches.push(diff(['-U0'], paths.slice(i, i + 128)))
+  } else {
+    patches.push(diff(['-U0']))
+  }
+  const patch = patches.join('')
   const packageBlock = patch.split(/^diff --git /m).find((block) => block.startsWith('a/package.json b/package.json')) ?? ''
   return {
     files,

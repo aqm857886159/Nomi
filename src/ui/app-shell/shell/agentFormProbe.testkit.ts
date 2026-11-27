@@ -24,10 +24,14 @@ type ProbeNode = TestHostNode & {
   type: string
   props: Record<string, unknown>
   nodeType: 1
+  ownerDocument: Document
   clientWidth: number
   clientHeight: number
   /** 量自己（画布那一格里的东西读它；探针里没有排版，量出来是 0，那些 hook 自己就跳过摆放）。 */
   getBoundingClientRect: () => { left: number; top: number; right: number; bottom: number; width: number; height: number }
+  addEventListener(): void
+  removeEventListener(): void
+  click(): void
   closest: () => null
   querySelector: () => null
   querySelectorAll: () => []
@@ -83,6 +87,7 @@ export async function bootProbe(input: {
   forms?: Partial<Record<AgentFormSurface, OldForm>>
   narrow: boolean
   page: AgentFormSurface
+  agent?: React.ReactElement
   blob?: string
   /** 和外壳一起挂在这一页上的真组件（比如生成页画布那一格的「回到对话」）。 */
   alongside?: (page: AgentFormSurface) => React.ReactElement | null
@@ -98,8 +103,10 @@ export async function bootProbe(input: {
   const renderer = createReactTestRenderer<ProbeNode>({
     createInstance: (type, props) => {
       const node: ProbeNode = {
-        type, props, nodeType: 1, clientWidth: 1200, clientHeight: 800,
+        type, props, nodeType: 1, ownerDocument: document, clientWidth: 1200, clientHeight: 800,
         getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+        addEventListener() {}, removeEventListener() {},
+        click() { if (!this.props.disabled && typeof this.props.onClick === 'function') this.props.onClick() },
         closest: () => null,
         querySelector: () => null,
         querySelectorAll: () => [],
@@ -111,7 +118,7 @@ export async function bootProbe(input: {
   const render = () => {
     renderer.render(React.createElement(React.Fragment, null,
       React.createElement(ProbeNomiEntry, { surface: page }),
-      React.createElement(ShellAgentHost, { surface: page, dockTarget: null, agent: React.createElement(AgentProbePanel) }),
+      React.createElement(ShellAgentHost, { surface: page, dockTarget: null, agent: input.agent ?? React.createElement(AgentProbePanel) }),
       input.alongside?.(page) ?? null))
     renderer.flushPassiveEffects()
   }

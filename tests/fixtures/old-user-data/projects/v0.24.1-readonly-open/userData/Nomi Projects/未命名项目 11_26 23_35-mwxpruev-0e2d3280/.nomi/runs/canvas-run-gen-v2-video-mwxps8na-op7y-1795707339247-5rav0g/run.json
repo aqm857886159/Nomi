@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "snapshotCursor": 16,
+  "run": {
+    "schemaVersion": 1,
+    "runId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+    "projectId": "project-1795707318198-ebv6ef",
+    "revision": 15,
+    "status": "completed",
+    "stageId": "generate",
+    "playbook": {
+      "name": "generation.single-shot",
+      "version": "1.0.0"
+    },
+    "origin": {
+      "host": "canvas",
+      "nodeId": "gen-v2-video-mwxps8na-op7y"
+    },
+    "policy": {
+      "trustedHosts": [
+        "canvas"
+      ],
+      "allowedProviders": [
+        "canvas:apimart"
+      ],
+      "allowedModels": [
+        "doubao-seedance-2.5"
+      ],
+      "maxSpend": null,
+      "maxAttemptsPerJob": 1,
+      "minimizeUploads": true,
+      "trustLevel": "key_confirm"
+    },
+    "budget": {
+      "currency": "CNY",
+      "authorized": 0,
+      "reserved": 0,
+      "actual": 0,
+      "unsettled": 0,
+      "unknownInFlight": 1
+    },
+    "planVersion": 1,
+    "snapshotCursor": 16,
+    "stages": [
+      {
+        "stageId": "generate",
+        "title": "Generate",
+        "status": "completed",
+        "order": 0,
+        "completedAt": "2026-11-26T15:35:45.684Z"
+      }
+    ],
+    "gates": [
+      {
+        "gateId": "generation-authorization:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g:v1:n1",
+        "scope": "budget_envelope",
+        "status": "approved",
+        "planHash": "80cc43db9987d9b99f6878ac79cd781d16383a14fbc45d29ea2aec7f80b7c29f",
+        "authorizationDigest": "80cc43db9987d9b99f6878ac79cd781d16383a14fbc45d29ea2aec7f80b7c29f",
+        "authorizationEnvelope": {
+          "schemaVersion": 1,
+          "immutableProjectUuid": "d218fa19-2df4-4ef2-8c42-6dc9ee70dff6",
+          "projectGeneration": 1,
+          "projectId": "project-1795707318198-ebv6ef",
+          "projectRevision": 20,
+          "runId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+          "planVersion": 1,
+          "gateId": "generation-authorization:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g:v1:n1",
+          "costScope": "generation.single-shot:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+          "expiresAt": "2026-11-26T15:45:39.273Z",
+          "jobs": [
+            {
+              "jobId": "generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019",
+              "shotId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-shot",
+              "attempt": 1,
+              "target": {
+                "kind": "generation-operation",
+                "operationId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+                "candidateRevision": 1
+              },
+              "contractHash": "9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30",
+              "providerId": "canvas:apimart",
+              "modelId": "doubao-seedance-2.5",
+              "mode": "text_to_video",
+              "parameters": {
+                "vendor": "apimart",
+                "request": {
+                  "kind": "text_to_video",
+                  "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+                  "extras": {
+                    "modelKey": "doubao-seedance-2.5",
+                    "modelAlias": "doubao-seedance-2.5",
+                    "modelVendor": "apimart",
+                    "vendor": "apimart",
+                    "modelLabel": "Seedance 2.5",
+                    "videoModel": "doubao-seedance-2.5",
+                    "videoModelVendor": "apimart",
+                    "archetype": {
+                      "id": "seedance-2.5-apimart",
+                      "modeId": "t2v"
+                    },
+                    "size": "16:9",
+                    "resolution": "720p",
+                    "duration": 5,
+                    "generate_audio": true,
+                    "return_last_frame": false,
+                    "aspect_ratio": "16:9",
+                    "nodeId": "gen-v2-video-mwxps8na-op7y",
+                    "nodeKind": "video",
+                    "idempotencyKey": "run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+                    "archetypeInput": {},
+                    "projectId": "project-1795707318198-ebv6ef"
+                  }
+                }
+              },
+              "references": [],
+              "providerWirePayloadHash": "8f55e9c732046d38f9b221e3e341a20396f6e0122403f29b4adf9e226e140120",
+              "providerIdempotencyKey": "generation:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g:generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019:9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30:attempt-1",
+              "price": {
+                "currency": "CNY",
+                "maximum": null
+              }
+            }
+          ],
+          "budget": {
+            "currency": "CNY",
+            "maximum": 0,
+            "ledgerCeiling": 0,
+            "unknownJobCount": 1
+          }
+        },
+        "costScope": "generation.single-shot:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+        "requestedSpend": 0,
+        "requestedUnknownJobs": 1,
+        "jobIds": [
+          "generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019"
+        ],
+        "title": "Confirm generation spend",
+        "summary": "Approve the frozen provider requests and their maximum total cost.",
+        "createdAt": "2026-11-26T15:35:39.324Z",
+        "expiresAt": "2026-11-26T15:45:39.273Z",
+        "decidedAt": "2026-11-26T15:35:39.324Z",
+        "receiptId": "58d961a3-41be-46fc-a582-5dd67e99aa87"
+      }
+    ],
+    "jobs": [
+      {
+        "jobId": "generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019",
+        "stageId": "generate",
+        "status": "ready",
+        "attempt": 1,
+        "provider": "canvas:apimart",
+        "model": "doubao-seedance-2.5",
+        "idempotencyKey": "generation:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g:generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019:9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30:attempt-1",
+        "providerIdempotencyKey": "generation:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g:generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019:9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30:attempt-1",
+        "authorizationDigest": "80cc43db9987d9b99f6878ac79cd781d16383a14fbc45d29ea2aec7f80b7c29f",
+        "taskKind": "text_to_video",
+        "createdAt": "2026-11-26T15:35:39.324Z",
+        "updatedAt": "2026-11-26T15:35:45.666Z",
+        "executionBinding": {
+          "immutableProjectUuid": "d218fa19-2df4-4ef2-8c42-6dc9ee70dff6",
+          "projectGeneration": 1,
+          "runId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+          "shotId": "generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019",
+          "contractHash": "9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30",
+          "runtimeTaskId": "runtime-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019-attempt-1",
+          "providerNamespace": "canvas:apimart",
+          "providerIdempotencyKey": "generation:canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g:generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019:9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30:attempt-1",
+          "requestFingerprint": "c153f6754328db06a643963634e1a67692f0bb4ca40102cc489f111aa0469758",
+          "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g/jobs/generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019/runtime-envelope.json",
+          "fencingEpoch": 1
+        },
+        "requestFingerprint": "c153f6754328db06a643963634e1a67692f0bb4ca40102cc489f111aa0469758",
+        "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g/jobs/generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019/runtime-envelope.json",
+        "providerTaskId": "s-walk-video-6",
+        "providerStatus": "succeeded",
+        "lastPollAt": "2026-11-26T15:35:45.631Z",
+        "lastVendorStateChangeAt": "2026-11-26T15:35:45.631Z"
+      }
+    ],
+    "artifacts": [
+      {
+        "artifactId": "canvas-artifact-s-walk-video-6",
+        "stageId": "generate",
+        "jobId": "generation-canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-9e0a0e835b22f019",
+        "kind": "video",
+        "status": "ready",
+        "source": "external-mcp",
+        "contentHash": "9a90f1db9c6d566b6ed30baba487b632178fa02bbad2d7a6f47c210566512f01",
+        "projectRelativePath": "assets/generated/2026-11-26/video-1795707345591.mp4",
+        "createdAt": "2026-11-26T15:35:45.651Z",
+        "version": 1
+      }
+    ],
+    "generationPlan": {
+      "operationId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+      "state": "submitted",
+      "presentations": [],
+      "candidate": {
+        "candidateId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-shot",
+        "revision": 1,
+        "moduleId": "generation.canvas",
+        "providerId": "canvas:apimart",
+        "modelId": "doubao-seedance-2.5",
+        "mode": "text_to_video",
+        "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+        "parameters": {
+          "vendor": "apimart",
+          "request": {
+            "kind": "text_to_video",
+            "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+            "extras": {
+              "modelKey": "doubao-seedance-2.5",
+              "modelAlias": "doubao-seedance-2.5",
+              "modelVendor": "apimart",
+              "vendor": "apimart",
+              "modelLabel": "Seedance 2.5",
+              "videoModel": "doubao-seedance-2.5",
+              "videoModelVendor": "apimart",
+              "archetype": {
+                "id": "seedance-2.5-apimart",
+                "modeId": "t2v"
+              },
+              "size": "16:9",
+              "resolution": "720p",
+              "duration": 5,
+              "generate_audio": true,
+              "return_last_frame": false,
+              "aspect_ratio": "16:9",
+              "nodeId": "gen-v2-video-mwxps8na-op7y",
+              "nodeKind": "video",
+              "idempotencyKey": "run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+              "archetypeInput": {},
+              "projectId": "project-1795707318198-ebv6ef"
+            }
+          }
+        },
+        "references": [],
+        "sealedContractHash": "9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30"
+      },
+      "updatedAt": "2026-11-26T15:35:39.413Z",
+      "contract": {
+        "schemaVersion": 1,
+        "candidateId": "canvas-run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g-shot",
+        "candidateRevision": 1,
+        "moduleId": "generation.canvas",
+        "moduleVersion": "1.0.0",
+        "providerId": "canvas:apimart",
+        "modelId": "doubao-seedance-2.5",
+        "mode": "text_to_video",
+        "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+        "parameters": {
+          "vendor": "apimart",
+          "request": {
+            "kind": "text_to_video",
+            "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+            "extras": {
+              "modelKey": "doubao-seedance-2.5",
+              "modelAlias": "doubao-seedance-2.5",
+              "modelVendor": "apimart",
+              "vendor": "apimart",
+              "modelLabel": "Seedance 2.5",
+              "videoModel": "doubao-seedance-2.5",
+              "videoModelVendor": "apimart",
+              "archetype": {
+                "id": "seedance-2.5-apimart",
+                "modeId": "t2v"
+              },
+              "size": "16:9",
+              "resolution": "720p",
+              "duration": 5,
+              "generate_audio": true,
+              "return_last_frame": false,
+              "aspect_ratio": "16:9",
+              "nodeId": "gen-v2-video-mwxps8na-op7y",
+              "nodeKind": "video",
+              "idempotencyKey": "run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+              "archetypeInput": {},
+              "projectId": "project-1795707318198-ebv6ef"
+            }
+          }
+        },
+        "references": [],
+        "contractHash": "9e0a0e835b22f019562480d36dc70119bc64a0212b549bafabba6050a0848d30",
+        "warnings": []
+      }
+    },
+    "createdAt": "2026-11-26T15:35:39.283Z",
+    "updatedAt": "2026-11-26T15:35:45.700Z"
+  },
+  "checksum": "cbe4d8de02e435c6a1d1b02c5be6a3928edf5d3f49518686bd132295bb0ef61b"
+}

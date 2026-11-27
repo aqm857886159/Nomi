@@ -97,7 +97,7 @@ export function HandbookPanel({ opened, onClose }: Props): JSX.Element | null {
       // 图标和字标走标题栏插槽摆在名字两边。插槽这一格占原来标题元素的位置（行距 1）。
       title={content.title}
       classNames={{ title: 'text-title font-bold text-nomi-ink' }}
-      header={(name) => <span className="flex items-center gap-2 leading-none">
+      header={(name, rowAlignment) => <span className={`flex gap-2 leading-none ${rowAlignment}`}>
         <IconMap size={18} stroke={1.6} className="text-nomi-accent" />
         {name}
         <NomiWordmark fontSize={13} className="text-nomi-ink-40" />

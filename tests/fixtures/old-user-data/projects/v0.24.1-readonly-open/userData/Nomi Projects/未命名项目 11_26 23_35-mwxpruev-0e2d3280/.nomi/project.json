@@ -1,0 +1,867 @@
+{
+  "id": "project-1795707318198-ebv6ef",
+  "name": "项目C-废墟灯塔多节点连线",
+  "version": 2,
+  "createdAt": 1795707318212,
+  "updatedAt": 1795707352179,
+  "savedAt": 1795707352179,
+  "revision": 27,
+  "immutableProjectUuid": "d218fa19-2df4-4ef2-8c42-6dc9ee70dff6",
+  "projectGeneration": 1,
+  "lastKnownRootPath": "/tmp/nomi-s-upgrade/v0241-profile/projects/未命名项目 11_26 23_35-mwxpruev-0e2d3280",
+  "payload": {
+    "workbenchDocuments": [
+      {
+        "id": "doc-32f6c9ee-86b3-4bbf-b5f6-21a4d2ca9739",
+        "version": 1,
+        "title": "",
+        "contentJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "海雾笼罩的孤岛悬崖上，一座废弃石砌灯塔在暮色中亮起微光。"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "守塔人沿着螺旋石梯拾级而上，手中的铜灯映出古老海图。"
+                }
+              ]
+            }
+          ]
+        },
+        "updatedAt": 1795707319526
+      }
+    ],
+    "activeDocumentId": "doc-32f6c9ee-86b3-4bbf-b5f6-21a4d2ca9739",
+    "timeline": {
+      "version": 1,
+      "fps": 30,
+      "scale": 16,
+      "playheadFrame": 0,
+      "tracks": [
+        {
+          "id": "imageTrack",
+          "type": "image",
+          "label": "图片轨",
+          "clips": []
+        },
+        {
+          "id": "videoTrack",
+          "type": "video",
+          "label": "视频轨",
+          "clips": [
+            {
+              "id": "clip-gen-v2-video-mwxps8na-op7y-gen-v2-video-mwxps8na-op7y-s-walk-video-6-video-0",
+              "type": "video",
+              "sourceNodeId": "gen-v2-video-mwxps8na-op7y",
+              "label": "视频",
+              "startFrame": 0,
+              "endFrame": 60,
+              "frameCount": 60,
+              "offsetStartFrame": 0,
+              "offsetEndFrame": 0,
+              "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/video-1795707345591.mp4",
+              "thumbnailUrl": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/video-1795707345591.preview.jpg"
+            }
+          ]
+        },
+        {
+          "id": "audioTrack",
+          "type": "audio",
+          "label": "音频轨",
+          "clips": []
+        }
+      ],
+      "textClips": []
+    },
+    "generationCanvas": {
+      "nodes": [
+        {
+          "id": "gen-v2-image-mwxps026-xhip",
+          "kind": "image",
+          "title": "图片",
+          "position": {
+            "x": 460.56,
+            "y": 160.16000000000003
+          },
+          "size": {
+            "width": 340,
+            "height": 340
+          },
+          "prompt": "孤岛悬崖石砌废墟灯塔角色与场景设定图",
+          "references": [],
+          "history": [
+            {
+              "id": "gen-v2-image-mwxps026-xhip-s-walk-image-4",
+              "type": "image",
+              "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/image-1795707330232.png",
+              "previewState": "source",
+              "providerUrl": "http://127.0.0.1:64319/fixture/image-2.png",
+              "model": "doubao-seedream-5-0-pro",
+              "taskId": "s-walk-image-4",
+              "taskKind": "image",
+              "assetId": "asset-b49d5ab9406553d66f19",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-image-4",
+                  "status": "completed",
+                  "result": {
+                    "images": [
+                      {
+                        "id": "s-walk-image-4",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/image-2.png"
+                        ],
+                        "filename": "fixture-image-2.png"
+                      }
+                    ]
+                  }
+                }
+              },
+              "createdAt": 1795707330342,
+              "provenance": {
+                "timestamp": 1795707330256,
+                "provider": "apimart",
+                "modelKey": "doubao-seedream-5-0-pro",
+                "prompt": "孤岛悬崖石砌废墟灯塔角色与场景设定图",
+                "params": {
+                  "extras": {
+                    "size": "1:1",
+                    "resolution": "2K",
+                    "modelKey": "doubao-seedream-5-0-pro",
+                    "modelAlias": "doubao-seedream-5-0-pro",
+                    "modelVendor": "apimart",
+                    "vendor": "apimart",
+                    "modelLabel": "Seedream 5.0 Pro",
+                    "imageModel": "doubao-seedream-5-0-pro",
+                    "imageModelVendor": "apimart",
+                    "archetype": {
+                      "id": "seedream-5-pro",
+                      "modeId": "t2i"
+                    },
+                    "nodeId": "gen-v2-image-mwxps026-xhip",
+                    "nodeKind": "image",
+                    "idempotencyKey": "run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai",
+                    "archetypeInput": {},
+                    "projectId": "project-1795707318198-ebv6ef"
+                  }
+                },
+                "vendorRequestId": "s-walk-image-4"
+              },
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "doubao-seedream-5-0-pro",
+            "modelAlias": "doubao-seedream-5-0-pro",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "Seedream 5.0 Pro",
+            "size": "1:1",
+            "resolution": "2K",
+            "imageModel": "doubao-seedream-5-0-pro",
+            "imageModelVendor": "apimart",
+            "archetype": {
+              "id": "seedream-5-pro",
+              "modeId": "t2i"
+            },
+            "previewHeight": 340,
+            "imageWidth": 640,
+            "imageHeight": 360,
+            "imageAspectRatio": 1.7777777777777777,
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "undecodable",
+                  "suspect": false,
+                  "detail": "640×360"
+                }
+              ],
+              "checkedAt": 1795707330363
+            }
+          },
+          "categoryId": "shots",
+          "shotIndex": 1,
+          "runs": [
+            {
+              "id": "run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai",
+              "status": "success",
+              "startedAt": 1795707327141,
+              "updatedAt": 1795707330342,
+              "projectId": "project-1795707318198-ebv6ef",
+              "attempt": {
+                "vendorKey": "apimart",
+                "modelKey": "doubao-seedream-5-0-pro"
+              },
+              "durationSeconds": 3.201,
+              "taskId": "s-walk-image-4",
+              "taskKind": "image",
+              "completedAt": 1795707330342,
+              "assetId": "asset-b49d5ab9406553d66f19",
+              "resultId": "gen-v2-image-mwxps026-xhip-s-walk-image-4",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-image-4",
+                  "status": "completed",
+                  "result": {
+                    "images": [
+                      {
+                        "id": "s-walk-image-4",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/image-2.png"
+                        ],
+                        "filename": "fixture-image-2.png"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "result": {
+            "id": "gen-v2-image-mwxps026-xhip-s-walk-image-4",
+            "type": "image",
+            "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/image-1795707330232.png",
+            "previewState": "source",
+            "providerUrl": "http://127.0.0.1:64319/fixture/image-2.png",
+            "model": "doubao-seedream-5-0-pro",
+            "taskId": "s-walk-image-4",
+            "taskKind": "image",
+            "assetId": "asset-b49d5ab9406553d66f19",
+            "raw": {
+              "code": 200,
+              "data": {
+                "id": "s-walk-image-4",
+                "status": "completed",
+                "result": {
+                  "images": [
+                    {
+                      "id": "s-walk-image-4",
+                      "url": [
+                        "http://127.0.0.1:64319/fixture/image-2.png"
+                      ],
+                      "filename": "fixture-image-2.png"
+                    }
+                  ]
+                }
+              }
+            },
+            "createdAt": 1795707330342,
+            "provenance": {
+              "timestamp": 1795707330256,
+              "provider": "apimart",
+              "modelKey": "doubao-seedream-5-0-pro",
+              "prompt": "孤岛悬崖石砌废墟灯塔角色与场景设定图",
+              "params": {
+                "extras": {
+                  "size": "1:1",
+                  "resolution": "2K",
+                  "modelKey": "doubao-seedream-5-0-pro",
+                  "modelAlias": "doubao-seedream-5-0-pro",
+                  "modelVendor": "apimart",
+                  "vendor": "apimart",
+                  "modelLabel": "Seedream 5.0 Pro",
+                  "imageModel": "doubao-seedream-5-0-pro",
+                  "imageModelVendor": "apimart",
+                  "archetype": {
+                    "id": "seedream-5-pro",
+                    "modeId": "t2i"
+                  },
+                  "nodeId": "gen-v2-image-mwxps026-xhip",
+                  "nodeKind": "image",
+                  "idempotencyKey": "run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai",
+                  "archetypeInput": {},
+                  "projectId": "project-1795707318198-ebv6ef"
+                }
+              },
+              "vendorRequestId": "s-walk-image-4"
+            },
+            "versionNo": 1
+          },
+          "resultVersionMax": 1
+        },
+        {
+          "id": "gen-v2-image-mwxps483-xjqj",
+          "kind": "image",
+          "title": "图片",
+          "position": {
+            "x": 0,
+            "y": 172
+          },
+          "size": {
+            "width": 340,
+            "height": 340
+          },
+          "prompt": "海雾暮色琥珀灯光色调风格参考图",
+          "references": [],
+          "history": [
+            {
+              "id": "gen-v2-image-mwxps483-xjqj-s-walk-image-5",
+              "type": "image",
+              "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/image-1795707335996.png",
+              "previewState": "source",
+              "providerUrl": "http://127.0.0.1:64319/fixture/image-1.png",
+              "model": "doubao-seedream-5-0-pro",
+              "taskId": "s-walk-image-5",
+              "taskKind": "image",
+              "assetId": "asset-4cde08949a9d150328f4",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-image-5",
+                  "status": "completed",
+                  "result": {
+                    "images": [
+                      {
+                        "id": "s-walk-image-5",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/image-1.png"
+                        ],
+                        "filename": "fixture-image-1.png"
+                      }
+                    ]
+                  }
+                }
+              },
+              "createdAt": 1795707336110,
+              "provenance": {
+                "timestamp": 1795707336028,
+                "provider": "apimart",
+                "modelKey": "doubao-seedream-5-0-pro",
+                "prompt": "海雾暮色琥珀灯光色调风格参考图",
+                "params": {
+                  "extras": {
+                    "size": "1:1",
+                    "resolution": "2K",
+                    "modelKey": "doubao-seedream-5-0-pro",
+                    "modelAlias": "doubao-seedream-5-0-pro",
+                    "modelVendor": "apimart",
+                    "vendor": "apimart",
+                    "modelLabel": "Seedream 5.0 Pro",
+                    "imageModel": "doubao-seedream-5-0-pro",
+                    "imageModelVendor": "apimart",
+                    "archetype": {
+                      "id": "seedream-5-pro",
+                      "modeId": "t2i"
+                    },
+                    "nodeId": "gen-v2-image-mwxps483-xjqj",
+                    "nodeKind": "image",
+                    "idempotencyKey": "run-gen-v2-image-mwxps483-xjqj-1795707332840-avso9e",
+                    "archetypeInput": {},
+                    "projectId": "project-1795707318198-ebv6ef"
+                  }
+                },
+                "vendorRequestId": "s-walk-image-5"
+              },
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "doubao-seedream-5-0-pro",
+            "modelAlias": "doubao-seedream-5-0-pro",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "Seedream 5.0 Pro",
+            "size": "1:1",
+            "resolution": "2K",
+            "imageModel": "doubao-seedream-5-0-pro",
+            "imageModelVendor": "apimart",
+            "archetype": {
+              "id": "seedream-5-pro",
+              "modeId": "t2i"
+            },
+            "previewHeight": 340,
+            "imageWidth": 640,
+            "imageHeight": 360,
+            "imageAspectRatio": 1.7777777777777777,
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "undecodable",
+                  "suspect": false,
+                  "detail": "640×360"
+                }
+              ],
+              "checkedAt": 1795707336125
+            }
+          },
+          "categoryId": "shots",
+          "shotIndex": 2,
+          "runs": [
+            {
+              "id": "run-gen-v2-image-mwxps483-xjqj-1795707332840-avso9e",
+              "status": "success",
+              "startedAt": 1795707332840,
+              "updatedAt": 1795707336110,
+              "projectId": "project-1795707318198-ebv6ef",
+              "attempt": {
+                "vendorKey": "apimart",
+                "modelKey": "doubao-seedream-5-0-pro"
+              },
+              "durationSeconds": 3.27,
+              "taskId": "s-walk-image-5",
+              "taskKind": "image",
+              "completedAt": 1795707336110,
+              "assetId": "asset-4cde08949a9d150328f4",
+              "resultId": "gen-v2-image-mwxps483-xjqj-s-walk-image-5",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-image-5",
+                  "status": "completed",
+                  "result": {
+                    "images": [
+                      {
+                        "id": "s-walk-image-5",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/image-1.png"
+                        ],
+                        "filename": "fixture-image-1.png"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "result": {
+            "id": "gen-v2-image-mwxps483-xjqj-s-walk-image-5",
+            "type": "image",
+            "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/image-1795707335996.png",
+            "previewState": "source",
+            "providerUrl": "http://127.0.0.1:64319/fixture/image-1.png",
+            "model": "doubao-seedream-5-0-pro",
+            "taskId": "s-walk-image-5",
+            "taskKind": "image",
+            "assetId": "asset-4cde08949a9d150328f4",
+            "raw": {
+              "code": 200,
+              "data": {
+                "id": "s-walk-image-5",
+                "status": "completed",
+                "result": {
+                  "images": [
+                    {
+                      "id": "s-walk-image-5",
+                      "url": [
+                        "http://127.0.0.1:64319/fixture/image-1.png"
+                      ],
+                      "filename": "fixture-image-1.png"
+                    }
+                  ]
+                }
+              }
+            },
+            "createdAt": 1795707336110,
+            "provenance": {
+              "timestamp": 1795707336028,
+              "provider": "apimart",
+              "modelKey": "doubao-seedream-5-0-pro",
+              "prompt": "海雾暮色琥珀灯光色调风格参考图",
+              "params": {
+                "extras": {
+                  "size": "1:1",
+                  "resolution": "2K",
+                  "modelKey": "doubao-seedream-5-0-pro",
+                  "modelAlias": "doubao-seedream-5-0-pro",
+                  "modelVendor": "apimart",
+                  "vendor": "apimart",
+                  "modelLabel": "Seedream 5.0 Pro",
+                  "imageModel": "doubao-seedream-5-0-pro",
+                  "imageModelVendor": "apimart",
+                  "archetype": {
+                    "id": "seedream-5-pro",
+                    "modeId": "t2i"
+                  },
+                  "nodeId": "gen-v2-image-mwxps483-xjqj",
+                  "nodeKind": "image",
+                  "idempotencyKey": "run-gen-v2-image-mwxps483-xjqj-1795707332840-avso9e",
+                  "archetypeInput": {},
+                  "projectId": "project-1795707318198-ebv6ef"
+                }
+              },
+              "vendorRequestId": "s-walk-image-5"
+            },
+            "versionNo": 1
+          },
+          "resultVersionMax": 1
+        },
+        {
+          "id": "gen-v2-video-mwxps8na-op7y",
+          "kind": "video",
+          "title": "视频",
+          "position": {
+            "x": -701.1999999999994,
+            "y": 344.80000000000007
+          },
+          "size": {
+            "width": 420,
+            "height": 236
+          },
+          "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+          "references": [],
+          "history": [
+            {
+              "id": "gen-v2-video-mwxps8na-op7y-s-walk-video-6",
+              "type": "video",
+              "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/video-1795707345591.mp4",
+              "thumbnailUrl": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/video-1795707345591.preview.jpg",
+              "previewState": "ready",
+              "providerUrl": "http://127.0.0.1:64319/fixture/video-1.mp4",
+              "model": "doubao-seedance-2.5",
+              "durationSeconds": 2,
+              "taskId": "s-walk-video-6",
+              "taskKind": "video",
+              "assetId": "asset-545af7985a101ead33e2",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-video-6",
+                  "status": "completed",
+                  "result": {
+                    "videos": [
+                      {
+                        "id": "s-walk-video-6",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/video-1.mp4"
+                        ],
+                        "thumbnail_url": "http://127.0.0.1:64319/fixture/image-1.png",
+                        "filename": "fixture-video-1.mp4"
+                      }
+                    ]
+                  }
+                }
+              },
+              "createdAt": 1795707345716,
+              "provenance": {
+                "timestamp": 1795707345631,
+                "provider": "apimart",
+                "modelKey": "doubao-seedance-2.5",
+                "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+                "params": {
+                  "extras": {
+                    "size": "16:9",
+                    "resolution": "720p",
+                    "duration": 5,
+                    "generate_audio": true,
+                    "return_last_frame": false,
+                    "modelKey": "doubao-seedance-2.5",
+                    "modelAlias": "doubao-seedance-2.5",
+                    "modelVendor": "apimart",
+                    "vendor": "apimart",
+                    "modelLabel": "Seedance 2.5",
+                    "videoModel": "doubao-seedance-2.5",
+                    "videoModelVendor": "apimart",
+                    "archetype": {
+                      "id": "seedance-2.5-apimart",
+                      "modeId": "t2v"
+                    },
+                    "aspect_ratio": "16:9",
+                    "nodeId": "gen-v2-video-mwxps8na-op7y",
+                    "nodeKind": "video",
+                    "idempotencyKey": "run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+                    "archetypeInput": {},
+                    "projectId": "project-1795707318198-ebv6ef"
+                  }
+                },
+                "vendorRequestId": "s-walk-video-6"
+              },
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "doubao-seedance-2.5",
+            "modelAlias": "doubao-seedance-2.5",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "Seedance 2.5",
+            "videoModel": "doubao-seedance-2.5",
+            "videoModelVendor": "apimart",
+            "archetype": {
+              "id": "seedance-2.5-apimart",
+              "modeId": "omni"
+            },
+            "size": "16:9",
+            "resolution": "720p",
+            "duration": 5,
+            "generate_audio": true,
+            "return_last_frame": false,
+            "aspect_ratio": "16:9",
+            "previewHeight": 236,
+            "videoWidth": 640,
+            "videoHeight": 360,
+            "videoAspectRatio": 1.7777777777777777,
+            "videoDuration": 2,
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "zero-duration",
+                  "suspect": false,
+                  "detail": "时长 2.0s"
+                },
+                {
+                  "id": "black-frames",
+                  "suspect": false,
+                  "detail": "黑帧占比 0%"
+                },
+                {
+                  "id": "silent-audio",
+                  "suspect": false,
+                  "detail": "静音占比 0%"
+                }
+              ],
+              "checkedAt": 1795707345748
+            }
+          },
+          "categoryId": "shots",
+          "shotIndex": 3,
+          "runs": [
+            {
+              "id": "run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+              "status": "success",
+              "startedAt": 1795707339247,
+              "updatedAt": 1795707345716,
+              "projectId": "project-1795707318198-ebv6ef",
+              "attempt": {
+                "vendorKey": "apimart",
+                "modelKey": "doubao-seedance-2.5"
+              },
+              "durationSeconds": 2,
+              "taskId": "s-walk-video-6",
+              "taskKind": "video",
+              "completedAt": 1795707345716,
+              "assetId": "asset-545af7985a101ead33e2",
+              "resultId": "gen-v2-video-mwxps8na-op7y-s-walk-video-6",
+              "raw": {
+                "code": 200,
+                "data": {
+                  "id": "s-walk-video-6",
+                  "status": "completed",
+                  "result": {
+                    "videos": [
+                      {
+                        "id": "s-walk-video-6",
+                        "url": [
+                          "http://127.0.0.1:64319/fixture/video-1.mp4"
+                        ],
+                        "thumbnail_url": "http://127.0.0.1:64319/fixture/image-1.png",
+                        "filename": "fixture-video-1.mp4"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "result": {
+            "id": "gen-v2-video-mwxps8na-op7y-s-walk-video-6",
+            "type": "video",
+            "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/video-1795707345591.mp4",
+            "thumbnailUrl": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/video-1795707345591.preview.jpg",
+            "previewState": "ready",
+            "providerUrl": "http://127.0.0.1:64319/fixture/video-1.mp4",
+            "model": "doubao-seedance-2.5",
+            "durationSeconds": 2,
+            "taskId": "s-walk-video-6",
+            "taskKind": "video",
+            "assetId": "asset-545af7985a101ead33e2",
+            "raw": {
+              "code": 200,
+              "data": {
+                "id": "s-walk-video-6",
+                "status": "completed",
+                "result": {
+                  "videos": [
+                    {
+                      "id": "s-walk-video-6",
+                      "url": [
+                        "http://127.0.0.1:64319/fixture/video-1.mp4"
+                      ],
+                      "thumbnail_url": "http://127.0.0.1:64319/fixture/image-1.png",
+                      "filename": "fixture-video-1.mp4"
+                    }
+                  ]
+                }
+              }
+            },
+            "createdAt": 1795707345716,
+            "provenance": {
+              "timestamp": 1795707345631,
+              "provider": "apimart",
+              "modelKey": "doubao-seedance-2.5",
+              "prompt": "海雾中废墟灯塔亮起琥珀光束，镜头缓慢环绕上升",
+              "params": {
+                "extras": {
+                  "size": "16:9",
+                  "resolution": "720p",
+                  "duration": 5,
+                  "generate_audio": true,
+                  "return_last_frame": false,
+                  "modelKey": "doubao-seedance-2.5",
+                  "modelAlias": "doubao-seedance-2.5",
+                  "modelVendor": "apimart",
+                  "vendor": "apimart",
+                  "modelLabel": "Seedance 2.5",
+                  "videoModel": "doubao-seedance-2.5",
+                  "videoModelVendor": "apimart",
+                  "archetype": {
+                    "id": "seedance-2.5-apimart",
+                    "modeId": "t2v"
+                  },
+                  "aspect_ratio": "16:9",
+                  "nodeId": "gen-v2-video-mwxps8na-op7y",
+                  "nodeKind": "video",
+                  "idempotencyKey": "run-gen-v2-video-mwxps8na-op7y-1795707339247-5rav0g",
+                  "archetypeInput": {},
+                  "projectId": "project-1795707318198-ebv6ef"
+                }
+              },
+              "vendorRequestId": "s-walk-video-6"
+            },
+            "versionNo": 1
+          },
+          "resultVersionMax": 1
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge-gen-v2-image-mwxps026-xhip::gen-v2-video-mwxps8na-op7y::0",
+          "source": "gen-v2-image-mwxps026-xhip",
+          "target": "gen-v2-video-mwxps8na-op7y",
+          "mode": "character_ref",
+          "order": 0
+        },
+        {
+          "id": "edge-gen-v2-image-mwxps483-xjqj::gen-v2-video-mwxps8na-op7y::1",
+          "source": "gen-v2-image-mwxps483-xjqj",
+          "target": "gen-v2-video-mwxps8na-op7y",
+          "mode": "character_ref",
+          "order": 1
+        }
+      ],
+      "selectedNodeIds": [],
+      "groups": [],
+      "workflowTemplates": []
+    },
+    "categories": [
+      {
+        "id": "shots",
+        "name": "分镜",
+        "icon": "🎬",
+        "iconName": "IconLayoutRows",
+        "defaultNodeRenderKind": "shot-frame",
+        "order": 1,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "cast",
+        "name": "角色",
+        "icon": "👥",
+        "iconName": "IconUser",
+        "defaultNodeRenderKind": "character-card",
+        "order": 2,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "scene",
+        "name": "场景",
+        "icon": "🌍",
+        "iconName": "IconPhoto",
+        "defaultNodeRenderKind": "scene-card",
+        "order": 3,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "prop",
+        "name": "道具",
+        "icon": "🧰",
+        "iconName": "IconBox",
+        "defaultNodeRenderKind": "prop-card",
+        "order": 4,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "audio",
+        "name": "声音",
+        "icon": "🎵",
+        "iconName": "IconChartBar",
+        "defaultNodeRenderKind": "audio-strip",
+        "order": 5,
+        "isBuiltin": true,
+        "isHidden": false
+      }
+    ],
+    "generationCanvasLastSeq": 39,
+    "editingPanelLayout": {
+      "sourceWidth": 300,
+      "inspectorWidth": 240,
+      "assistantWidth": 390,
+      "timelineHeight": 260,
+      "visibility": {
+        "source": true,
+        "inspector": true,
+        "assistant": false
+      },
+      "preset": "default"
+    },
+    "storyboardDesignsByDocumentId": {
+      "doc-32f6c9ee-86b3-4bbf-b5f6-21a4d2ca9739": [
+        {
+          "id": "starter-doc-32f6c9ee-86b3-4bbf-b5f6-21a4d2ca9739",
+          "documentId": "doc-32f6c9ee-86b3-4bbf-b5f6-21a4d2ca9739",
+          "title": "",
+          "plan": {
+            "title": "",
+            "anchors": [],
+            "shots": [
+              {
+                "index": 1,
+                "shotId": "shot-1",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "广角，孤岛悬崖上的石砌废墟灯塔，冷蓝海雾与琥珀色灯光对比@",
+                "promptSegments": []
+              },
+              {
+                "index": 2,
+                "shotId": "shot-2",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "中景，守塔人提铜灯走上螺旋石梯，手持跟拍，海风拂动衣角",
+                "promptSegments": []
+              }
+            ]
+          },
+          "committed": false,
+          "status": "draft",
+          "sourceDocumentUpdatedAt": 1795707318198,
+          "createdAt": 1795707318198,
+          "updatedAt": 1795707323197
+        }
+      ]
+    }
+  }
+}

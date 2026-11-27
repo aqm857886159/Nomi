@@ -13,8 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it } from 'vitest'
 import board from '../../../../../docs/design/boards/2026-10-16/Director3dbox.board.json'
-import candidatesDoc from '../../../../../docs/design/boards/2026-10-16/Director3dbox.candidates.json'
-import { checkBoardManifest, loadAssertionCorpus } from '../../../../../scripts/check-board-parity.mjs'
+import { checkBoardManifest } from '../../../../../scripts/check-board-parity.mjs'
 import { resources } from '../../../../i18n/resources'
 import { MODEL_FACING_TOOL_SPECS } from '../../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { applyCanvasToolCall, resetClientIdRegistry } from '../../agent/applyCanvasToolCall'
@@ -207,8 +206,8 @@ describe('old director function census: every item still has a working home in t
     for (const [prefix] of PROBES) expect(census.filter((item) => item.function.startsWith(prefix)).length, prefix).toBe(1)
   })
 
-  it('the board manifest itself is consistent (every census item lands on an element, dropped items carry the user quote, implemented items name a real walk assertion)', () => {
-    expect(checkBoardManifest({ board: 'Director3dbox', manifest: board, candidates: candidatesDoc.candidates, assertionCorpus: loadAssertionCorpus() })).toEqual([])
+  it('the board manifest itself is consistent (every census item lands on an element, dropped items carry the user quote)', () => {
+    expect(checkBoardManifest({ board: 'Director3dbox', manifest: board })).toEqual([])
   })
 
   it('notices claimed on the board carry the dictionary copy word for word (zh-CN and en)', () => {

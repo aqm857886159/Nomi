@@ -69,7 +69,7 @@ async function compare(win, name, pairs) {
 }
 
 async function run(locale, theme, width, scenario = 'draft') {
-  const launch = scenario === 'topup' ? launchVisibilityWalk : launchNomiApp
+  const launch = scenario === 'draft' ? launchNomiApp : launchVisibilityWalk
   const { app, win, close, nativeVisibility } = await launch({
     name: 't5-s6-' + theme + '-' + scenario, viewportSize: { width, height: 900 }, syntheticCredentialStorage: true,
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': theme, 'nomi:canvas-gesture-hint:v1': 'seen' },
@@ -99,16 +99,6 @@ async function run(locale, theme, width, scenario = 'draft') {
         assert((await here.boundingBox()).width > 40, 'narrow breadcrumb currentLabel must remain visible')
         await topup.scrollIntoViewIfNeeded()
         await shoot(win, 'o5-' + theme)
-        const beforeRefresh = requests.length
-        nativeVisibility('hide')
-        await win.waitForFunction(() => document.hidden, undefined, { timeout: DEFAULT_TIMEOUT_MS, polling: 50 })
-        response = 'positive'
-        nativeVisibility('restore')
-        await expect(rows.nth(1)).toContainText(credits(52.3))
-        await expect(rows.nth(2)).toContainText(unlimited)
-        await expect(topup).toHaveCount(0)
-        await shoot(win, 'o5-refreshed-' + theme)
-        assert.deepEqual(requests.slice(beforeRefresh).map((req) => req.path).sort(), ['/v1/balance', '/v1/user/balance'])
       } else {
         const funds = scenario === 'unknown-account' ? uiText(locale, 'modelSetup.apimartVerification.unknown') : credits(52.3)
         await expect(rows.nth(1)).toContainText(funds)
@@ -116,8 +106,19 @@ async function run(locale, theme, width, scenario = 'draft') {
         await expect(rows.nth(2)).toContainText(credits(0))
         await expect(rows.nth(2).locator('.text-nomi-warning')).toBeVisible()
         await expect(topup).toHaveCount(0)
+        await expect(win.getByText(uiText(locale, 'modelSetup.apimartVerification.afterPaste'), { exact: true })).toHaveCount(0)
         await shoot(win, 'o4a-' + scenario)
       }
+      const beforeRefresh = requests.length
+      nativeVisibility('hide')
+      await win.waitForFunction(() => document.hidden, undefined, { timeout: DEFAULT_TIMEOUT_MS, polling: 50 })
+      response = 'positive'
+      nativeVisibility('restore')
+      await expect(rows.nth(1)).toContainText(credits(52.3))
+      await expect(rows.nth(2)).toContainText(unlimited)
+      await expect(topup).toHaveCount(0)
+      if (scenario === 'topup') await shoot(win, 'o5-refreshed-' + theme)
+      assert.deepEqual(requests.slice(beforeRefresh).map((req) => req.path).sort(), ['/v1/balance', '/v1/user/balance'])
       await expect(win.locator('[data-library-tab]')).toBeVisible()
       await expect(win.locator('[data-apimart-connect-page]')).toHaveCount(0)
       if (scenario === 'topup') {

@@ -40,106 +40,55 @@
       "label": "点外面就收起：画布「⋯」、左栏抽屉、任务中心等点画布空白处收起（按下即算，在画布上拖动平移的起手也算；滚轮 / 触控板平移不算）；因点外面关闭的不把焦点还给触发钮",
       "change": "behavior",
       "states": ["hover", "selected", "zh-en", "dark"],
-      "candidates": [
-        "011-li-画布左栏抽屉任务中心点画",
-        "012-b-点外面就收起",
-        "024-h3-①点外面就收起画布浮层打",
-        "025-figcaption-修前点了画布还挂在左下角",
-        "026-figcaption-修后收起不挂提示",
-        "027-figcaption-修后暗色",
-        "028-p-同一条规矩覆盖左栏抽屉任",
-        "040-figcaption-点空白后收起"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:TextFormatDismiss/dismiss.outside-press"
+      "assertions": ["board:TextFormatDismiss/dismiss.outside-press"]
     },
     {
       "id": "format.canvas-bar.shell",
       "label": "画布文本节点格式条：节点浮条共享外壳，恒定屏幕尺寸、夹在可见画布里；编辑时顶替锁 / 复制条",
       "change": "layout",
       "states": ["selected", "hover", "zh-en", "dark"],
-      "candidates": [
-        "013-li-恒定屏幕尺寸夹在可见画布",
-        "014-b-画布格式条外壳",
-        "029-h3-②画布文本节点只有一张节",
-        "030-figcaption-修前格式条放大三倍被顶栏",
-        "031-figcaption-修后恒定尺寸在可见区悬停",
-        "032-figcaption-修后暗色",
-        "033-p-编辑时格式条顶替节点上方",
-        "041-figcaption-画布格式条Italic"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:TextFormatDismiss/format.canvas-bar.shell"
+      "assertions": ["board:TextFormatDismiss/format.canvas-bar.shell"]
     },
     {
       "id": "format.pressed-state",
       "label": "格式钮按下态：随光标处格式实时刷新，设计系统 Pressed 底色；撤销等一次性动作不带按下态",
       "change": "style",
       "states": ["selected", "disabled", "hover", "dark"],
-      "candidates": [
-        "015-li-光标处是粗体加粗就亮设计",
-        "016-b-按下态",
-        "038-p-按下态光标在粗体里加粗就"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:TextFormatDismiss/format.pressed-state"
+      "assertions": ["board:TextFormatDismiss/format.pressed-state"]
     },
     {
       "id": "format.tooltip",
       "label": "格式钮悬停提示：设计系统 Tooltip，悬停即出名字；禁用的钮也出",
       "change": "style",
       "states": ["hover", "disabled", "zh-en", "dark"],
-      "candidates": [
-        "017-li-设计系统Tooltip悬",
-        "018-b-悬停提示",
-        "042-figcaption-创作区Inlinecod"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:TextFormatDismiss/format.tooltip"
+      "assertions": ["board:TextFormatDismiss/format.tooltip"]
     },
     {
       "id": "format.list-markers",
       "label": "列表符号：无序有圆点、有序有序号（创作区与画布文本节点；待办列表照旧无符号）",
       "change": "style",
       "states": ["long-text", "dark"],
-      "candidates": [
-        "019-li-无序有圆点有序有序号②③",
-        "020-b-列表符号"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:TextFormatDismiss/format.list-markers"
+      "assertions": ["board:TextFormatDismiss/format.list-markers"]
     },
     {
       "id": "format.selection-popover.placement",
       "label": "创作区选区浮条：以正文区为界，选中第一行时落在选区下方、不盖顶部工具栏；选区整段滚出视野时隐藏",
       "change": "layout",
       "states": ["selected", "long-text", "narrow", "dark"],
-      "candidates": [
-        "021-li-选中第一行时落在选区下方",
-        "022-b-选区浮条位置",
-        "034-h3-③创作区写一行全选加粗改",
-        "035-figcaption-修前选区浮条盖住工具栏代",
-        "036-figcaption-修后浮条在选区下方悬停出",
-        "037-figcaption-修后暗色"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:TextFormatDismiss/format.selection-popover.placement"
+      "assertions": ["board:TextFormatDismiss/format.selection-popover.placement"]
     }
-  ],
-  "decor": [
-    "001-h1-点外面收起格式按钮修前修",
-    "002-p-全部画面是生产构建上真机",
-    "003-h2-先查别人三条每条写对哪个",
-    "004-p-FloatingUIus",
-    "005-p-点外面默认听pointe",
-    "006-p-RadixDropdow",
-    "007-p-因点外面关闭时不把焦点还",
-    "008-p-TipTap官方自定义菜",
-    "009-p-React里isActi",
-    "010-h2-这张板上的六个元素",
-    "023-p-没放的格式钮的种类与顺序",
-    "039-h3-④英文界面修后提示文案随",
-    "043-p-窄窗Windows没跑P"
   ],
   "functionCensus": [
     { "function": "画布「⋯」视图浮层：重置视图 / 编组 / 整理画布 / 显示地图 / 画布操作 / 缩放滑块", "before": "全部在，点空白不收", "after": "dismiss.outside-press" },

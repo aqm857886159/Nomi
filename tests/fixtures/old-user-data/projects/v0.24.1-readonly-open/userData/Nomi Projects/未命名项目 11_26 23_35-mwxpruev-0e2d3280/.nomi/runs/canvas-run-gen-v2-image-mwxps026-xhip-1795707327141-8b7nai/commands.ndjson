@@ -1,0 +1,15 @@
+{"commandId":"generation.seal:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:v1:95faaf939bfed4e0ba767df1d18fa26aac33fecaa5f1babc25c7245689ff847c","expectedRevision":0,"resultRevision":1,"eventCursors":[2]}
+{"commandId":"canvas-shot-decide:generation-authorization:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:v1:n1:527b9dc9-b673-4674-892a-f8c04791a840","expectedRevision":1,"resultRevision":2,"eventCursors":[3]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:job-bind:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0","expectedRevision":2,"resultRevision":3,"eventCursors":[4]}
+{"commandId":"canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0:1:budget:reserve","expectedRevision":3,"resultRevision":4,"eventCursors":[5]}
+{"commandId":"canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0:1:submit-intent","expectedRevision":4,"resultRevision":5,"eventCursors":[6]}
+{"commandId":"canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0:1:submitting","expectedRevision":5,"resultRevision":6,"eventCursors":[7]}
+{"commandId":"canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0:1:provider-accepted","expectedRevision":6,"resultRevision":7,"eventCursors":[8]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:plan-submit:v1","expectedRevision":7,"resultRevision":8,"eventCursors":[9]}
+{"commandId":"single-shot:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:running:6","expectedRevision":8,"resultRevision":9,"eventCursors":[10]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:poll:9:running","expectedRevision":9,"resultRevision":10,"eventCursors":[11]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:poll:10:succeeded","expectedRevision":10,"resultRevision":11,"eventCursors":[12]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:materialize-artifact:canvas-artifact-s-walk-image-4","expectedRevision":11,"resultRevision":12,"eventCursors":[13]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:materialize-job:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0","expectedRevision":12,"resultRevision":13,"eventCursors":[14]}
+{"commandId":"single-shot:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:stage-completed:13","expectedRevision":13,"resultRevision":14,"eventCursors":[15]}
+{"commandId":"single-shot:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:completed:14","expectedRevision":14,"resultRevision":15,"eventCursors":[16]}

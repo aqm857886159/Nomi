@@ -48,6 +48,8 @@ export type PendingSpendConfirm = Readonly<{
   planVersion: number;
   /** 这张卡此刻的身份（出价、摆着哪几镜、每镜候选的版本、指向哪个节点；不含交接走到哪一步）。卡上的动作带着它来，对不上就拒。 */
   quoteId: string;
+  /** Append position in this presentation's handover ledger. With quoteId it identifies one confirmation attempt. */
+  handOverRevision: number;
   /** Durable identity of the exact presentation that produced this card. */
   presentationId?: string;
   /** Conditional-write epoch for actions originating from this card. */
@@ -67,6 +69,9 @@ export type PendingSpendConfirm = Readonly<{
   /** Projection failure card; identity remains tied to the same presentation. */
   error?: Readonly<{ code: string; message: string }>;
 }>;
+
+export type PendingSpendHandOverInput = Pick<PendingSpendConfirm, 'projectId' | 'operationId' | 'quoteId' | 'handOverRevision'>
+  & Readonly<{ presentationId?: string; presentationEpoch?: number; planVersion?: number; shotIds: readonly string[] }>;
 
 /**
  * 「有没有待确认的一笔」的**完整**答案（2026-09-14；2026-10-05 起它随对话投影推给面板，不再被轮询）。

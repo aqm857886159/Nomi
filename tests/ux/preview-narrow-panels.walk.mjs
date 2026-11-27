@@ -43,7 +43,7 @@ const SETTLE_MS = 3000
 const D_AT_1060 = [240, 410, RAIL]
 const D_AT_1000 = [250, 480, 200]
 
-// 拍板清单 docs/design/boards/2026-11-04-preview-narrow-panels/PreviewNarrowPanels.board.json 的元素断言（check:board-parity 认这些名字）。
+// 拍板清单 docs/design/boards/2026-11-04-preview-narrow-panels/PreviewNarrowPanels.board.json 的元素断言。
 const BOARD = {
   readable: 'board:PreviewNarrowPanels/rule.readable-or-rail',
   keepsIntent: 'board:PreviewNarrowPanels/rule.window-change-keeps-intent',
