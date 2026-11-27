@@ -23,8 +23,8 @@ export const sha256Of = (value) => crypto.createHash('sha256').update(typeof val
 // 剩下的任何差异（新增、删除、板级字段、以后新加的任何字段）都要协调确认，哈希绑定整份规范化后的内容。
 // 要确认的集合由真实 diff 构造，不看 PR 认领了什么（认领只用来关联实现验收）。
 
-/** 板的白名单：元素的实现进度字段，实现线推进时合理会改。其余（含板级字段 decor / functionCensus / 设计来源 / stage、元素的用户原话）全算合同。 */
-export const BOARD_PROGRESS_FIELDS = Object.freeze(['status', 'assertion', 'owner'])
+/** 板的白名单：元素的实现进度字段，实现线推进时合理会改。其余（含板级字段 functionCensus / 设计来源 / stage、元素的用户原话）全算合同。 */
+export const BOARD_PROGRESS_FIELDS = Object.freeze(['status', 'assertions', 'owner'])
 
 /**
  * 板级 stage 只放行一种前进（协调 2026-10-22 定）：base 是「已拍板」阶段、head 是 built——和元素的 status 一样属于实现进度，不用确认。
@@ -51,13 +51,14 @@ export function normalizeBoard(manifest) {
   return out
 }
 
-const withoutElements = (board) => Object.fromEntries(Object.entries(board ?? {}).filter(([key]) => key !== 'elements'))
+const withoutElements = (board) => Object.fromEntries(Object.entries(board ?? {}).filter(([key]) => key !== 'elements' && key !== '__artboardBlobs'))
 const sameContent = (a, b) => canonicalJson(a) === canonicalJson(b)
 
 /**
  * 一张板在 PR 里的合同差异（整份对比）。baseManifest / headManifest 任一为 null/undefined = 那一边没有这张板。
- * 返回 { needsApproval, added, removed, changed, boardLevel, isNewBoard, isRemovedBoard, fingerprint }：
+ * 返回 { needsApproval, added, removed, changed, boardLevel, artboardChanged, isNewBoard, isRemovedBoard, fingerprint }：
  *   added / removed / changed = 新增 / 删除 / 合同变了的元素 id；boardLevel = 除 elements 外的板级字段变了；
+ *   artboardChanged = 同目录 source/ 或 preview/ 下的源图 / 预览 HTML 变了；
  *   fingerprint = 整份规范化后的 head 内容的哈希（删板时是「删除」标记的哈希），批准记录的 sha256 就是它；内容再变一个字，哈希就对不上。
  */
 export function boardApprovalSubject(name, baseManifest, headManifest) {
@@ -73,6 +74,7 @@ export function boardApprovalSubject(name, baseManifest, headManifest) {
   const baseLevel = withoutElements(base)
   const headLevel = withoutElements(head)
   const boardLevel = !sameContent(baseLevel, headLevel)
+  const artboardChanged = !sameContent(base?.__artboardBlobs ?? null, head?.__artboardBlobs ?? null)
   const needsApproval = !sameContent(base, head)
   return {
     needsApproval,
@@ -80,6 +82,7 @@ export function boardApprovalSubject(name, baseManifest, headManifest) {
     removed,
     changed,
     boardLevel,
+    artboardChanged,
     isNewBoard: !base && !!head,
     isRemovedBoard: !!base && !head,
     // 兼容旧字段：所有有差异的元素 id（新增 + 删除 + 改动）
@@ -97,7 +100,8 @@ export function describeBoardDiff(subject) {
     if (subject.added.length) parts.push(`新增了元素（${subject.added.join('、')}）`)
     if (subject.changed.length) parts.push(`改了合同的元素（${subject.changed.join('、')}）`)
     if (subject.removed.length) parts.push(`删了元素（${subject.removed.join('、')}）`)
-    if (subject.boardLevel) parts.push('改了板级字段（decor / functionCensus / 设计来源 / stage 等）')
+    if (subject.boardLevel) parts.push('改了板级字段（functionCensus / 设计来源 / stage 等）')
+    if (subject.artboardChanged) parts.push('改了拍板源图或预览')
   }
   return parts.join('；')
 }

@@ -34,7 +34,7 @@
       "quote": "问题在于能不能把这个原来这些东西和你现在最新的设计做分离，然后做接入呢？为什么要重新的去做这个设计？ / 可以。画布撤掉 8 张整屏，换成 5 格组件级新增稿（旁边放现有组件真实截图对照），清单和设计卡改成接入结构，整屏效果用设计实验室拼。"
     }
   ],
-  "sourceBoundary": "第 3 组（M1–M8 拍板、A3a–A3j 对照）的板源是 docs/design/proposals/2026-10-18/（preview/*.png、各格 .dc.html、canvas.json）。select-to-iterate 的新增 Δ1–Δ5 的板源是 docs/design/boards/2026-10-21/select-to-iterate/source/（canvas.json + Main.dc.html〔Δ1〕、D2-version-draft.dc.html、D3-confirm-target.dc.html、D4-over-limit.dc.html、D5-draft-node.dc.html，每格左边是现有组件真实截图、右边是新增；对照截图副本在 source/assets/，来源见同目录 README）；Δ6 只改字不画。画布上原来的 8 张整屏（S1–S6、暗色、英文）已撤，不收。整屏效果下一步在设计实验室用生产组件拼。预览图待补：缺本地渲染器（见 README）。本清单只有清单（没有 AnnotateToAgent.candidates.json），每个元素 candidates 为空，R2–R7 由 check:board-parity 的「只有清单的板」一支照查。设计卡：docs/plan/2026-10-21-select-to-iterate.md。",
+  "sourceBoundary": "第 3 组（M1–M8 拍板、A3a–A3j 对照）的板源是 docs/design/proposals/2026-10-18/（preview/*.png、各格 .dc.html、canvas.json）。select-to-iterate 的新增 Δ1–Δ5 的板源是 docs/design/boards/2026-10-21/select-to-iterate/source/（canvas.json + Main.dc.html〔Δ1〕、D2-version-draft.dc.html、D3-confirm-target.dc.html、D4-over-limit.dc.html、D5-draft-node.dc.html，每格左边是现有组件真实截图、右边是新增；对照截图副本在 source/assets/，来源见同目录 README）；Δ6 只改字不画。画布上原来的 8 张整屏（S1–S6、暗色、英文）已撤，不收。整屏效果下一步在设计实验室用生产组件拼。预览图待补：缺本地渲染器（见 README）。设计卡：docs/plan/2026-10-21-select-to-iterate.md。",
   "designIntent": "意见挂在**某个节点的某一版**上：点底栏「评论」进评论模式，在图上点一下钉点或拖一下框区域、写一句就发给 Nomi；回复与结果留在这条意见的线程里。请求批准档先在原节点上摆出写好提示词的「第 N 版 · 待生成」草稿给人看、确认才生成；直接生成档直接出新版。新版落地即主图（沿用 2026-09-28 版本卡规则），线程里「放弃」= 回到上一版。另一个入口：画布上选中节点，左侧 Agent 输入框出现选区 chip，发送即确认对象。意见列表只分未解决 / 已解决。 2026-10-22 起按「分离 + 接入」：已有组件原样用，新增只在已有组件里加一种 chip、一种版本格、确认卡的一行、chip 区的一行、草稿节点外观，以及线程按钮改字。",
   "decisions": [
     {
@@ -174,7 +174,7 @@
         "M2-comment-mode",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -193,7 +193,7 @@
         "A3j-dark",
         "M6-node-bar"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "节点浮条去掉「提意见」（README 第 3 组拍板记录）",
@@ -211,7 +211,7 @@
         "A3a-enter",
         "A3j-dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "底栏放「评论」（README 第 3 组拍板记录；入口改在底栏，白板不另开意见页签）",
@@ -229,7 +229,7 @@
         "M2-comment-mode",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -244,7 +244,7 @@
         "M2-comment-mode",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -263,7 +263,7 @@
         "M2-comment-mode",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -282,7 +282,7 @@
         "A3b-place",
         "A3i-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "协调会话（Q-7 待问用户：M2 只画了点一下 / 拖一下；画一笔改由线程里的「圈一下」承担，选已有笔迹是否保留未表态）",
       "pending": true,
@@ -298,7 +298,7 @@
       "cells": [
         "A3d-before-send"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，排 0.25；M 风格样张由协调会话补）",
       "states": [
@@ -317,7 +317,7 @@
         "M8-dark",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -334,7 +334,7 @@
         "M8-dark",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -351,7 +351,7 @@
         "M4-circle-it",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -366,7 +366,7 @@
       "cells": [
         "M4-circle-it"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -380,7 +380,7 @@
       "cells": [
         "M4-circle-it"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -396,7 +396,7 @@
         "M8-dark",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -414,7 +414,7 @@
         "M8-dark",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "states": [
@@ -430,7 +430,7 @@
       "cells": [
         "docs/design/proposals/2026-10-18/preview/M3-thread.png"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "note": "改字不出样张。",
@@ -452,7 +452,7 @@
         "A3f-resolved",
         "A3i-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "两处按推荐：新版本照旧自动变主图，放弃=回到上一版；请求批准时，改已有节点就在原节点上出「待生成」草稿版，说「用这些做新的」才建草稿节点。接着推设计文档、补样张。",
@@ -471,7 +471,7 @@
         "M8-dark",
         "M7-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -488,7 +488,7 @@
         "A3e-nomi-reply",
         "A3i-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "states": [
@@ -505,7 +505,7 @@
         "A3e-nomi-reply",
         "A3i-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "states": [
@@ -521,7 +521,7 @@
         "A3e-nomi-reply",
         "A3i-english"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "states": [
@@ -537,7 +537,7 @@
       "cells": [
         "docs/design/boards/2026-10-21/select-to-iterate/source/D2-version-draft.dc.html"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "note": "草稿是 Run 上的草稿投影，不写进节点 history。",
@@ -562,7 +562,7 @@
       "cells": [
         "docs/design/boards/2026-10-21/select-to-iterate/source/D5-draft-node.dc.html"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "note": "样张已在 select-to-iterate/source/ 补画。",
@@ -591,7 +591,7 @@
       ],
       "hostComponent": "D2 精简确认卡（未实现，依赖它先落地）；现役投影 src/workbench/ai/v4/agentPanelSpendCard.ts（projectSpendCard / spendCardPage）",
       "plannedAssertion": "board:AnnotateToAgent/spendcard.target-line",
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "states": [
@@ -609,7 +609,7 @@
         "docs/design/boards/2026-10-21/select-to-iterate/source/Main.dc.html",
         "docs/design/mockups/2026-09-06-agent-panel-v4/preview/preview-FlowGeneration.png"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "note": "error = 节点被删（黄色虚线「已删除」）；D-1117-selection-chip-wins：芯片显示什么就发什么，不再标已变更。选中即 chip 的交互 2026-09-06 V4 生成流程板已画，本元素只补新种类的长相。 × = 在时间轴 / 画布上取消选中这一项，素材不删。",
@@ -634,7 +634,7 @@
       "cells": [
         "docs/design/boards/2026-10-21/select-to-iterate/source/D4-over-limit.dc.html"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "select-to-iterate 实现线（待派）",
       "states": [
@@ -656,7 +656,7 @@
         "M5-comment-list",
         "A3c-global-list"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -673,7 +673,7 @@
       "cells": [
         "M5-comment-list"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "states": [
@@ -695,7 +695,7 @@
         "A3g-draft-retry",
         "A3h-target-gone"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "列表分未解决 / 已解决两档（README 第 3 组拍板记录）",
@@ -714,7 +714,7 @@
         "M3-thread",
         "A3c-global-list"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，用户 10-21 定排 0.25，见 README / #1267；实现线未开）",
       "note": "M5 画的选中节点是蓝色描边；2026-10-10 用户拍板「蓝色描边不需要，都删掉」（nomi-design-system.md「描边颜色」），实现按现行选中样式，不照画蓝框。",
@@ -730,7 +730,7 @@
       "cells": [
         "A3f-resolved"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，排 0.25；M 风格样张由协调会话补）",
       "states": [
@@ -744,7 +744,7 @@
       "cells": [
         "A3g-draft-retry"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，排 0.25；M 风格样张由协调会话补）",
       "states": [
@@ -759,7 +759,7 @@
       "cells": [
         "A3h-target-gone"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-AnnotateToAgent（第 3 块，排 0.25；M 风格样张由协调会话补）",
       "states": [
@@ -769,7 +769,6 @@
       ]
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "censusId": "BAR-01",

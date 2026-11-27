@@ -212,8 +212,8 @@ export function checkIndependentAcceptance(body, { stage = 'merge', strict = fal
 
 /**
  * 拍板清单的批准范围：默认全拦（2026-10-22 用户拍板方案 A，V-gates R2-B1 / R2-B2）。
- * 板文件按 base 与 head 的整份规范化内容对比（先剥掉元素的 status / assertion / owner），任何差异——新增板、整张删板、新增 / 删除 / 改了合同的元素、
- * 板级字段（decor / functionCensus / 设计来源 / stage 等）——都要协调确认，哈希绑整份规范化后的 head 内容。
+ * 板文件按 base 与 head 的整份规范化内容对比（先剥掉元素的 status / assertions / owner），任何差异——新增板、整张删板、新增 / 删除 / 改了合同的元素、
+ * 板级字段（functionCensus / 设计来源 / stage 等）——都要协调确认，哈希绑整份规范化后的 head 内容。
  * 要确认的集合由真实 diff 构造：不看正文认领了什么，也不看 PR 是不是界面改动、有没有写 `## 拍板图` 一节。
  * CI 读不到本机确认记录，只提示「待协调确认」；合并前扫描没有记录就红。boards / baseBoards = loadManifests() 形状（对象，或返回它的函数；null = 取不到）。
  */
@@ -245,7 +245,7 @@ export function checkBoardContracts({ strict = false, boards = null, baseBoards 
  *   · 路径推出「新界面 / 改交互」（inferred 里有 ui 类）才要求；不碰界面的 PR 不问；
  *   · 认领：`- <板名>: <元素 id>, …`，每条至少一个合法的元素 id（空认领不算，V-gates B2）；板必须存在、元素必须 implemented（或带用户原话的 deferred / dropped）——同 check-board-parity 的 R8，同一份实现；
  *   · 批准身份（V-gates B4）：认领只对 base 上已有的板和元素直接有效；PR 新增的板、或给已有板新增 / 改了合同的元素，要协调确认（approvals，哈希对上）才算。
- *     只改实现状态（status / assertion / owner）不用确认。CI 读不到本机确认记录，只提示「待协调确认」；合并前扫描没有记录就红；
+ *     只改实现状态（status / assertions / owner）不用确认。CI 读不到本机确认记录，只提示「待协调确认」；合并前扫描没有记录就红；
  *   · 例外：`- 不适用：<例外 id>：<具体理由>`，例外 id 必须在路由政策表 evidenceJudgement.boardClaimExceptions 里已登记，理由至少 8 个字且不是重复字符；
  *   · 新增了生产 .tsx（文件状态 A，含 src/design/components/**）不许用例外：新界面必须有清单；只改令牌、样式的可以用例外（V-gates B3）。
  * boards / baseBoards = loadManifests() 形状的清单（对象，或返回它的函数；null = 取不到）：boards 是 PR head 上的，baseBoards 是 base 上的。

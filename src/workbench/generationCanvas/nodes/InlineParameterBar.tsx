@@ -480,6 +480,7 @@ export default function InlineParameterBar({
                       variant="primary"
                       className="shrink-0 rounded-pill px-3.5 font-semibold"
                       data-bar-segment="generate"
+                      data-board="entry.composer-connect"
                       data-composer-connect="true"
                       onClick={(event) => {
                         event.preventDefault()
@@ -536,6 +537,7 @@ export default function InlineParameterBar({
           size="sm"
           variant="primary"
           className="shrink-0 rounded-pill px-3 font-semibold"
+          data-board="entry.composer-connect"
           data-composer-connect="true"
           onClick={(event) => {
             event.preventDefault()

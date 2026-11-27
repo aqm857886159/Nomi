@@ -11,7 +11,7 @@
       "quote": "协调确认（10-29 02:3x）：看过首轮中文 before/after 两张：1440×900 浮窗、点「创作」。after 里左栏露出，导演台铺满生成页那一格，浮窗浮在导演台上，右侧不再露出画布；点「创作」后切到创作页，左栏还在，Agent 停靠在右边。和用户 10-29 00:5x 拍板的「收进生成页」一致。英中最终版截图到了，协调再抽看停靠、小球各一张。"
     }
   ],
-  "sourceBoundary": "没有 Claude Design 画布板，也没有候选文件（candidates.json）：这是一个 bug 修复带来的版面改动，样子由用户在上面的对比里直接选定，不是新画的界面。before 截图 = 复现报告（R-blockers-repro §3–5）里的真实界面；after 截图 = 新构建上的真机走查（tests/ux/director-layer-in-page.walk.mjs，中英两轨）。两组截图和对照说明放在 docs/evidence/2026-10-29-director-layer-in-page/。清单是按改后真实界面做的人工普查：元素 = 用户看得见、摸得到的那几件事，由 check:board-parity「只有清单的板」一支照查（断言名都在上面这份走查里）。",
+  "sourceBoundary": "没有 Claude Design 画布板：这是一个 bug 修复带来的版面改动，样子由用户在上面的对比里直接选定，不是新画的界面。before 截图 = 复现报告（R-blockers-repro §3–5）里的真实界面；after 截图 = 新构建上的真机走查（tests/ux/director-layer-in-page.walk.mjs，中英两轨）。两组截图和对照说明放在 docs/evidence/2026-10-29-director-layer-in-page/。清单是按改后真实界面做的人工普查：元素 = 用户看得见、摸得到的那几件事，由 check:board-parity 校验。",
   "designCard": "docs/plan/2026-10-29-director-layer-in-page.md",
   "designIntent": "导演台（和同类的全景查看器）不再是挂在 body 上、自己算位置的整窗层，而是生成页画布那一格里的一块：版面归生成页的网格（右边的 Agent 停靠栏、顶栏、左栏都由网格给出），导演层只管铺满那一格；可见性跟着生成页走（点创作 / 预览、或把生成页切到列表视图，就随生成页一起藏起来，回来原样还开着）。Agent 的浮窗和小球在导演层之上，永远点得到。不新增控件、不改文案。",
   "decisions": [
@@ -67,44 +67,44 @@
     {
       "id": "layer.fills-cell",
       "label": "导演台铺满生成页画布那一格：矩形 = 页格矩形（Agent 停靠 / 浮窗 / 小球 × 1440×900、1920×1080、1280×720 共 9 种都对）；停靠栏拖宽 / 变窄、时间轴展开时跟着变；第二个导演台节点先后打开同样",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["narrow", "zh-en", "dark"],
-      "assertion": "board:DirectorInPage/layer.fills-cell",
+      "assertions": ["board:DirectorInPage/layer.fills-cell"],
       "note": "2026-11-22 起 9 种组合里「小球」那一列换成「收起」（入口在顶栏，NomiEntryTopbar 板）。",
       "stateEvidence": "走查 1-geometry 九格、2.dock-resize.rect、3.timeline-expand、6.second-node，中英两轨；1280×720 是窄窗"
     },
     {
       "id": "layer.no-canvas-leak",
       "label": "导演层外面不再漏出可点的画布（改前：Agent 是浮窗时导演层右边白留「Agent 宽度 + 8px」，命中测试点到的是画布）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["narrow", "zh-en"],
-      "assertion": "board:DirectorInPage/layer.no-canvas-leak",
+      "assertions": ["board:DirectorInPage/layer.no-canvas-leak"],
       "stateEvidence": "走查 1-geometry 九格的命中测试：导演层右边一排点位（页格内）没有一个落在画布上"
     },
     {
       "id": "agent.dock-beside",
       "label": "Agent 停靠在右边列：导演层右缘 ≤ 停靠栏左缘，不重叠；拖宽 / 变窄停靠栏时 3D 画布跟着页格改尺寸",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["narrow", "zh-en"],
-      "assertion": "board:DirectorInPage/agent.dock-beside",
+      "assertions": ["board:DirectorInPage/agent.dock-beside"],
       "stateEvidence": "走查 1.*-dock.dock 三个窗口尺寸、2.dock-resize.canvas（页格宽变多少，3D 画布宽就变多少）"
     },
     {
       "id": "agent.float-above",
       "label": "Agent 浮窗浮在导演台之上、点得到（含把它拖到导演台中央）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["narrow", "zh-en"],
-      "assertion": "board:DirectorInPage/agent.float-above",
+      "assertions": ["board:DirectorInPage/agent.float-above"],
       "stateEvidence": "走查 1.*-float.float 三个窗口尺寸（浮窗中心点命中浮窗）、2.float-drag"
     },
     {
       "id": "agent.ball-above",
       "label": "Agent 小球浮在导演台之上，可见、点得到；点开变浮窗，输入框拿到焦点（和没开导演台时点小球一致）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": { "quote": "全部收进顶栏", "date": "2026-11-22" },
       "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。收起时入口在顶栏，导演层盖不到；走查 director-layer-in-page 改量「收起时顶栏入口点得到」（挂 chrome.topbar）和「点入口 → 浮窗在导演层之上」（挂 agent.float-above）。",
@@ -114,114 +114,113 @@
     {
       "id": "chrome.rail",
       "label": "左栏（文稿、素材…）留在导演层外面：命中落在按钮上，真点一次「文稿」抽屉能打开",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["narrow", "zh-en"],
-      "assertion": "board:DirectorInPage/chrome.rail",
+      "assertions": ["board:DirectorInPage/chrome.rail"],
       "stateEvidence": "走查 1.*.rail 九格、4.rail-click（真点，抽屉真开）"
     },
     {
       "id": "chrome.topbar",
       "label": "顶栏「创作 / 生成 / 预览」留在导演层外面：命中落在顶栏上",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["narrow", "zh-en"],
-      "assertion": "board:DirectorInPage/chrome.topbar",
+      "assertions": ["board:DirectorInPage/chrome.topbar"],
       "stateEvidence": "走查 1.*.topbar 九格"
     },
     {
       "id": "nav.away-hides",
       "label": "点创作 / 预览，或把生成页切到列表视图：导演台随生成页一起藏起来；创作 / 预览页按用户自己的明暗显示，不再被导演台的暗色锁带暗；录运镜录到一半切走，本次录制被放弃（和 Esc 同语义），不在后台悄悄继续",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en", "dark"],
-      "assertion": "board:DirectorInPage/nav.away-hides",
+      "assertions": ["board:DirectorInPage/nav.away-hides"],
       "stateEvidence": "走查 4.creation.hidden / 4.preview.hidden / 4.*.scheme / 3.list-hides / 4b.record-cancelled"
     },
     {
       "id": "nav.back-keeps",
       "label": "回到生成页 / 切回画布视图：导演台原样还开着，选中的镜头和视图标题没变，暗色锁重新生效",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["selected", "zh-en", "dark"],
-      "assertion": "board:DirectorInPage/nav.back-keeps",
+      "assertions": ["board:DirectorInPage/nav.back-keeps"],
       "stateEvidence": "走查 4.back.visible / 4.back.state / 4.back.scheme / 3.list-back"
     },
     {
       "id": "keys.hidden-pass-through",
       "label": "导演台藏着时不吞键：Esc、1 2 3、Delete / Backspace、⌘Z 都到得了别的页自己的监听；在创作 / 预览页按 Esc 不会弹出藏着的导演台的退出确认",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en"],
-      "assertion": "board:DirectorInPage/keys.hidden-pass-through",
+      "assertions": ["board:DirectorInPage/keys.hidden-pass-through"],
       "stateEvidence": "走查 4.hidden-esc / 4.hidden-hotkey / 4.hidden-no-exit-confirm（文档级键盘探针：被 window 捕获期吞掉的键到不了它）"
     },
     {
       "id": "render.hidden-stops",
       "label": "导演台藏着时 3D 渲染循环停（2 秒内 WebGL 绘制调用 0 次），回到生成页恢复",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en"],
-      "assertion": "board:DirectorInPage/render.hidden-stops",
+      "assertions": ["board:DirectorInPage/render.hidden-stops"],
       "stateEvidence": "走查 4.hidden-render-stops、4.back.render-resumes（改前藏不起来，渲染一直在跑；前后数字见走查报告 report.json 的 perf）"
     },
     {
       "id": "exit.confirm-on-top",
       "label": "退出路径不变：← / Esc 弹退出确认；确认框和导演台自己的设置对话框都在导演层、Agent、左栏之上；取消留在导演台；确认后导演层卸载，可再次进入，页格里最多一层",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en", "dark"],
-      "assertion": "board:DirectorInPage/exit.confirm-on-top",
+      "assertions": ["board:DirectorInPage/exit.confirm-on-top"],
       "stateEvidence": "走查 6.arrow-confirm / 6.esc-confirm / 6.cancel-stays / 6.exit / 6.reopen、5b.settings-on-top、5b.esc-closes-dialog-only"
     },
     {
       "id": "isolation.canvas-untouched",
       "label": "导演台里按 Delete 不会删后面的画布节点，视口里滚轮不会缩放后面的画布",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en"],
-      "assertion": "board:DirectorInPage/isolation.canvas-untouched",
+      "assertions": ["board:DirectorInPage/isolation.canvas-untouched"],
       "stateEvidence": "走查 5.delete、5.wheel"
     },
     {
       "id": "lifecycle.library-unmount",
       "label": "开着导演台回项目库：导演层卸载（页面里没有 director-editor，也没有页内层）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en"],
-      "assertion": "board:DirectorInPage/lifecycle.library-unmount",
+      "assertions": ["board:DirectorInPage/lifecycle.library-unmount"],
       "stateEvidence": "走查 8.library-unmount"
     },
     {
       "id": "panorama.same-mount",
       "label": "全景查看器同一个挂法：层 = 页格矩形，开着时左栏点得到，点创作藏起来（面板和页内层还在 DOM 里、只是藏着，不再挡在最前面出不去），Esc 关闭",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en"],
-      "assertion": "board:DirectorInPage/panorama.same-mount",
+      "assertions": ["board:DirectorInPage/panorama.same-mount"],
       "stateEvidence": "走查 7.layer-rect / 7.rail / 7.hidden / 7.esc-close；改前的同一套步骤在 main 构建上复现了同样的问题（层 0,40 起、盖住左栏、点创作后仍盖在最前面）"
     },
     {
       "id": "panorama.back-keeps",
       "label": "回到生成页，全景查看器原样还开着（和导演台一样）",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "F-director-layer-tenant-state（页格层租户状态；走查中英 7.back）",
       "states": ["zh-en"],
-      "assertion": "board:DirectorInPage/panorama.back-keeps",
+      "assertions": ["board:DirectorInPage/panorama.back-keeps"],
       "note": "没做到，也没查清为什么：完整走查里（先开关过导演台、建过第二个导演台节点）点回「生成」那一刻，全景节点的外壳 DOM 被画布卸载又挂回（标记丢、查看器 id 变），全屏态是节点里的本地 state 跟着丢，回来时查看器是关着的。单跑第 7 小节（--only=7）不复现；导演台节点（open 在节点组件自己身上）没事。不是 GenerationPageLayer 的挂载点丢了（节点没重挂时层就在）；节点上存的图没变，也不是磁盘问题。走查里这一条记成已知缺口（note），不进硬断言。"
     },
     {
       "id": "copy.unchanged",
       "label": "文案不变：导演台页面根的名字、退出确认框的标题 / 正文 / 确认钮仍取自词典；i18n 词典零改动",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["zh-en"],
-      "assertion": "board:DirectorInPage/copy.unchanged",
+      "assertions": ["board:DirectorInPage/copy.unchanged"],
       "stateEvidence": "走查 0.copy-region、6.copy-exit-confirm（按词典取值比对，中英各一遍）；本分支 git diff 不含任何词典文件"
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "导演台盖住整个窗口，含左栏和顶栏下面的区域",

@@ -56,7 +56,7 @@ const extraShotDir = process.env.NOMI_WALK_SHOT_DIR ? path.resolve(process.env.N
 fs.mkdirSync(evidenceDir, { recursive: true })
 if (extraShotDir) fs.mkdirSync(extraShotDir, { recursive: true })
 
-// 拍板清单 E0 + S7b 全部 19 个 implemented 元素的精确断言标识（check:board-parity R4 逐条核验）。
+// 拍板清单 E0 + S7b 全部 19 个 implemented 元素的精确断言标识。
 const BOARD = Object.freeze({
   entryRouting: 'board:Onboarding/big.entry-routing',
   libraryMainCard: 'board:Onboarding/entry.library-main-card',

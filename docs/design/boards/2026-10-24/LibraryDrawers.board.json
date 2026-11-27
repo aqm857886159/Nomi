@@ -11,7 +11,7 @@
   },
   "visualReview": "用户 2026-10-24 在 Claude Design 画布「技能库与提示词库排版改版（0.24 探索）」第 48 版上把 10 个问题全按默认定（https://claude.ai/artifact/A7vtfvcPzy8zCWJUdrJn9y，私有，只有仓库主人能开）。",
   "designCard": "docs/plan/2026-10-23-skill-prompt-library-layout.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。候选由 scripts/board-extract.mjs 的抽取函数（extractBoard + renderCandidatesFile，同样的浏览器设置）在拼页上抽出，两次抽取逐字节一致。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
+  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
   "designIntent": "项目里左栏两个抽屉（默认 280px、可拖宽、浮在画布上）：标题行放工具，第一行搜索 + 一颗「分类 ▾」，内容同库页一套卡片。外壳照现役真截图。",
   "artboards": [
     "DrawerSkill",
@@ -113,15 +113,10 @@
         "dark",
         "zh-en"
       ],
-      "candidates": [
-        "002-aside-技能库",
-        "065-aside-技能库",
-        "128-aside-提示词库",
-        "187-aside-Promptlibrar"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.panel"
+      "assertions": ["board:LibraryDrawers/drawer.panel"]
     },
     {
       "id": "drawer.title",
@@ -131,15 +126,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "003-span-Skill",
-        "066-span-Skill",
-        "129-span-提示词",
-        "188-span-Prompts"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.title"
+      "assertions": ["board:LibraryDrawers/drawer.title"]
     },
     {
       "id": "drawer.import",
@@ -150,15 +140,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "004-button-导入技能SKILLmdz",
-        "005-svg",
-        "067-button-导入技能SKILLmdz",
-        "068-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.import"
+      "assertions": ["board:LibraryDrawers/drawer.import"]
     },
     {
       "id": "drawer.new",
@@ -169,19 +154,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "006-button-用AI新建技能",
-        "007-svg",
-        "069-button-用AI新建技能",
-        "070-svg",
-        "130-button-新建提示词",
-        "131-svg",
-        "189-button-Newprompt",
-        "190-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.new"
+      "assertions": ["board:LibraryDrawers/drawer.new"]
     },
     {
       "id": "drawer.search",
@@ -194,23 +170,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "008-label",
-        "009-svg",
-        "010-input-搜技能",
-        "071-label",
-        "072-svg",
-        "073-input-搜技能",
-        "132-label",
-        "133-svg",
-        "134-input-搜提示词",
-        "191-label",
-        "192-svg",
-        "193-input-Searchprompt"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.search"
+      "assertions": ["board:LibraryDrawers/drawer.search"]
     },
     {
       "id": "drawer.filter",
@@ -222,23 +185,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "011-button-分类",
-        "012-span-全部",
-        "013-svg",
-        "074-button-分类",
-        "075-span-全部",
-        "076-svg",
-        "135-button-分类和图片视频",
-        "136-span-全部",
-        "137-svg",
-        "194-button-Categoryandi",
-        "195-span-All",
-        "196-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.filter"
+      "assertions": ["board:LibraryDrawers/drawer.filter"]
     },
     {
       "id": "drawer.group",
@@ -251,47 +201,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "014-section-我的",
-        "015-span-我的",
-        "020-section-创作流程",
-        "021-span-创作流程",
-        "031-section-导演",
-        "032-span-导演",
-        "042-section-编剧",
-        "043-span-编剧",
-        "053-section-广告",
-        "054-span-广告",
-        "077-section-我的",
-        "078-span-我的",
-        "083-section-创作流程",
-        "084-span-创作流程",
-        "094-section-导演",
-        "095-span-导演",
-        "105-section-编剧",
-        "106-span-编剧",
-        "116-section-广告",
-        "117-span-广告",
-        "138-section-我的",
-        "139-span-我的",
-        "151-section-表情预设",
-        "152-span-表情预设",
-        "162-section-运镜",
-        "163-span-运镜",
-        "175-section-构图",
-        "176-span-构图",
-        "197-section-Mine",
-        "198-span-Mine",
-        "210-section-Expressionpr",
-        "211-span-Expressionpr",
-        "221-section-Camera",
-        "222-span-Camera",
-        "234-section-Composition",
-        "235-span-Composition"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.group"
+      "assertions": ["board:LibraryDrawers/drawer.group"]
     },
     {
       "id": "drawer.group-more",
@@ -303,59 +216,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "022-a",
-        "023-span-全部10",
-        "024-svg",
-        "033-a",
-        "034-span-全部13",
-        "035-svg",
-        "044-a",
-        "045-span-全部11",
-        "046-svg",
-        "055-a",
-        "056-span-全部8",
-        "057-svg",
-        "085-a",
-        "086-span-全部10",
-        "087-svg",
-        "096-a",
-        "097-span-全部13",
-        "098-svg",
-        "107-a",
-        "108-span-全部11",
-        "109-svg",
-        "118-a",
-        "119-span-全部8",
-        "120-svg",
-        "140-a",
-        "141-span-全部3",
-        "142-svg",
-        "153-a",
-        "154-span-全部25",
-        "155-svg",
-        "164-a",
-        "165-span-全部23",
-        "166-svg",
-        "177-a",
-        "178-span-全部8",
-        "179-svg",
-        "199-a",
-        "200-span-All3",
-        "201-svg",
-        "212-a",
-        "213-span-All25",
-        "214-svg",
-        "223-a",
-        "224-span-All23",
-        "225-svg",
-        "236-a",
-        "237-span-All8",
-        "238-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.group-more"
+      "assertions": ["board:LibraryDrawers/drawer.group-more"]
     },
     {
       "id": "drawer.skill-card",
@@ -369,31 +233,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "016-button",
-        "017-svg",
-        "025-button",
-        "028-button",
-        "036-button",
-        "039-button",
-        "047-button",
-        "050-button",
-        "058-button",
-        "061-button",
-        "079-button",
-        "080-svg",
-        "088-button",
-        "091-button",
-        "099-button",
-        "102-button",
-        "110-button",
-        "113-button",
-        "121-button",
-        "124-button"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.skill-card"
+      "assertions": ["board:LibraryDrawers/drawer.skill-card"]
     },
     {
       "id": "drawer.skill-card.title",
@@ -405,29 +248,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "018-span-improvscenem",
-        "026-span-品牌宣传片",
-        "029-span-分镜规划",
-        "037-span-镜头语言",
-        "040-span-多角色调度",
-        "048-span-剧本审查",
-        "051-span-对白设计",
-        "059-span-凝露产品广告",
-        "062-span-咖啡倾注特写",
-        "081-span-improvscenem",
-        "089-span-品牌宣传片",
-        "092-span-分镜规划",
-        "100-span-镜头语言",
-        "103-span-多角色调度",
-        "111-span-剧本审查",
-        "114-span-对白设计",
-        "122-span-凝露产品广告",
-        "125-span-咖啡倾注特写"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.skill-card.title"
+      "assertions": ["board:LibraryDrawers/drawer.skill-card.title"]
     },
     {
       "id": "drawer.skill-card.summary",
@@ -439,29 +263,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "019-span-即兴生台词让角色在设定好",
-        "027-span-做产品品牌宣传片当用户要",
-        "030-span-把短故事拆成有序镜头整理",
-        "038-span-镜头语言与摄影技法方法论",
-        "041-span-多角色调度方法论3人以上",
-        "049-span-剧本审查导演视角用视觉叙",
-        "052-span-对白专家DavidMam",
-        "060-span-用微距水滴和环绕镜头展示",
-        "063-span-把注入油脂和蒸汽拆成清楚",
-        "082-span-即兴生台词让角色在设定好",
-        "090-span-做产品品牌宣传片当用户要",
-        "093-span-把短故事拆成有序镜头整理",
-        "101-span-镜头语言与摄影技法方法论",
-        "104-span-多角色调度方法论3人以上",
-        "112-span-剧本审查导演视角用视觉叙",
-        "115-span-对白专家DavidMam",
-        "123-span-用微距水滴和环绕镜头展示",
-        "126-span-把注入油脂和蒸汽拆成清楚"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.skill-card.summary"
+      "assertions": ["board:LibraryDrawers/drawer.skill-card.summary"]
     },
     {
       "id": "drawer.prompt-card",
@@ -474,27 +279,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "143-button",
-        "146-button",
-        "156-button",
-        "159-button",
-        "167-button",
-        "171-button",
-        "180-button",
-        "183-button",
-        "202-button",
-        "205-button",
-        "215-button",
-        "218-button",
-        "226-button",
-        "230-button",
-        "239-button",
-        "242-button"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.prompt-card"
+      "assertions": ["board:LibraryDrawers/drawer.prompt-card"]
     },
     {
       "id": "drawer.prompt-card.text-cover",
@@ -505,13 +293,10 @@
         "narrow",
         "dark"
       ],
-      "candidates": [
-        "147-span-Astylishwoma",
-        "206-span-Astylishwoma"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.prompt-card.text-cover"
+      "assertions": ["board:LibraryDrawers/drawer.prompt-card.text-cover"]
     },
     {
       "id": "drawer.prompt-card.title",
@@ -523,27 +308,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "144-span-Q版角色卡",
-        "148-span-TokyoWalk",
-        "157-span-喜悦15一丝笑意",
-        "160-span-喜悦35明朗微笑",
-        "168-span-空镜转场",
-        "172-span-过肩对话",
-        "181-span-画框构图",
-        "184-span-对角线构图",
-        "203-span-Q版角色卡",
-        "207-span-TokyoWalk",
-        "216-span-喜悦15一丝笑意",
-        "219-span-喜悦35明朗微笑",
-        "227-span-Emptyframebr",
-        "231-span-OTSdialogue",
-        "240-span-Framewithinf",
-        "243-span-Diagonaldyna"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.prompt-card.title"
+      "assertions": ["board:LibraryDrawers/drawer.prompt-card.title"]
     },
     {
       "id": "drawer.prompt-card.meta",
@@ -554,40 +322,11 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "145-span-网页提取图片",
-        "149-svg",
-        "150-span-视频",
-        "158-span-图片",
-        "161-span-图片",
-        "169-svg",
-        "170-span-视频",
-        "173-svg",
-        "174-span-视频",
-        "182-span-图片",
-        "185-span-图片",
-        "204-span-WebextractIm",
-        "208-svg",
-        "209-span-Video",
-        "217-span-Image",
-        "220-span-Image",
-        "228-svg",
-        "229-span-Video",
-        "232-svg",
-        "233-span-Video",
-        "241-span-Image",
-        "244-span-Image"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryDrawers/drawer.prompt-card.meta"
+      "assertions": ["board:LibraryDrawers/drawer.prompt-card.meta"]
     }
-  ],
-  "decor": [
-    "001-h3-修后Skill抽屉中明外",
-    "064-h3-修后Skill抽屉中暗外",
-    "127-h3-修后提示词抽屉中明外壳是",
-    "186-h3-修后提示词抽屉英暗外壳是"
   ],
   "functionCensus": [
     {

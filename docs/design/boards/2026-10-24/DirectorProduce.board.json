@@ -25,47 +25,46 @@
     {
       "id": "primary",
       "label": "主按钮「出成片」：墨底纸字；可点悬停蓝；没有镜头、超长、渲染中禁用；中英暗色跟 token 翻转",
-      "candidates": ["001-primary"],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["disabled", "loading", "hover", "narrow", "zh-en", "dark"],
-      "assertion": "board:DirectorProduce/primary"
+      "assertions": ["board:DirectorProduce/primary"]
     },
     {
       "id": "primary-hover",
       "label": "可点主按钮悬停态：背景由 nomi-ink 变 nomi-accent",
-      "candidates": ["002-primary-hover"],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["hover", "zh-en", "dark"],
-      "assertion": "board:DirectorProduce/primary-hover"
+      "assertions": ["board:DirectorProduce/primary-hover"]
     },
     {
       "id": "primary-disabled",
       "label": "禁用态：没有镜头 / 超长 / 预演渲染中保持墨底，按 primary 禁用透明度显示",
-      "candidates": ["003-primary-disabled"],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["disabled", "loading", "zh-en", "dark"],
-      "assertion": "board:DirectorProduce/primary-disabled"
+      "assertions": ["board:DirectorProduce/primary-disabled"]
     },
     {
       "id": "divider-spinner",
       "label": "分体分隔线与预演转圈：分别使用 paper/25、paper/40 与 paper 顶边 token",
-      "candidates": ["004-divider", "005-spinner"],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["loading", "zh-en", "dark"],
-      "assertion": "board:DirectorProduce/divider-spinner"
+      "assertions": ["board:DirectorProduce/divider-spinner"]
     },
     {
       "id": "menu",
       "label": "主按钮旁 ▾：截图、录制 MP4、已有产出菜单照旧可开",
-      "candidates": ["006-menu"],
+      "anchor": "未定",
       "status": "implemented",
       "states": ["disabled", "hover", "zh-en", "dark"],
-      "assertion": "board:DirectorProduce/menu"
+      "assertions": ["board:DirectorProduce/menu"]
     }
   ],
   "functionCensus": [
     { "function": "出成片主动作（含没有镜头、超长、渲染中、失败重试）", "before": "ProduceButton.SEGMENT：bg-nomi-accent + text-white", "after": "primary" },
     { "function": "分隔 ▾ 菜单：截图、录制 MP4、打开产出", "before": "ProduceButton 分体按钮右段", "after": "menu" }
-  ],
-  "decor": []
+  ]
 }

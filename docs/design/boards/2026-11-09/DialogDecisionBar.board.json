@@ -26,7 +26,7 @@
     {
       "id": "settings.shell",
       "label": "设置保留侧栏、关闭和 Esc 下钻，外壳管理高度",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -34,13 +34,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:DialogDecisionBar/settings.shell",
+      "assertions": ["board:DialogDecisionBar/settings.shell"],
       "stateEvidence": "三处生产组件，中英亮暗配对截图；popupGeometry 最小窗口中英档；设置另有隔离 Electron 两轨。"
     },
     {
       "id": "skill.actions",
       "label": "技能详情标题不滚，删除 / 导出 / 放进对话在固定底栏",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -48,13 +48,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:DialogDecisionBar/skill.actions",
+      "assertions": ["board:DialogDecisionBar/skill.actions"],
       "stateEvidence": "三处生产组件，中英亮暗配对截图；popupGeometry 最小窗口中英档；设置另有隔离 Electron 两轨。"
     },
     {
       "id": "extraction.actions",
       "label": "提取设置原有取消 / 保存 / 恢复默认在固定底栏",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -62,13 +62,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:DialogDecisionBar/extraction.actions",
+      "assertions": ["board:DialogDecisionBar/extraction.actions"],
       "stateEvidence": "三处生产组件，中英亮暗配对截图；popupGeometry 最小窗口中英档；设置另有隔离 Electron 两轨。"
     },
     {
       "id": "handbook.shell",
       "label": "手册沿用内容和关闭，标准外壳接管高度",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -76,13 +76,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:DialogDecisionBar/handbook.shell",
+      "assertions": ["board:DialogDecisionBar/handbook.shell"],
       "stateEvidence": "续派四个真组件中英亮暗配对图；最小窗口几何与反例红绿，详见交接报告。"
     },
     {
       "id": "shortcuts.shell",
       "label": "快捷键条目与帮助键不变，使用标准外壳",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -90,13 +90,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:DialogDecisionBar/shortcuts.shell",
+      "assertions": ["board:DialogDecisionBar/shortcuts.shell"],
       "stateEvidence": "续派四个真组件中英亮暗配对图；最小窗口几何与反例红绿，详见交接报告。"
     },
     {
       "id": "update.actions",
       "label": "更新各状态决定栏固定，正文摘要单独滚动",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -104,13 +104,13 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:DialogDecisionBar/update.actions",
+      "assertions": ["board:DialogDecisionBar/update.actions"],
       "stateEvidence": "续派四个真组件中英亮暗配对图；最小窗口几何与反例红绿，详见交接报告。"
     },
     {
       "id": "selection.actions",
       "label": "选中文字保存的取消 / 保存移到固定决定栏",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "states": [
         "narrow",
@@ -118,11 +118,10 @@
         "zh-en",
         "dark"
       ],
-      "assertion": "board:DialogDecisionBar/selection.actions",
+      "assertions": ["board:DialogDecisionBar/selection.actions"],
       "stateEvidence": "续派四个真组件中英亮暗配对图；最小窗口几何与反例红绿，详见交接报告。"
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "设置入口、六页签、关闭与 Esc",

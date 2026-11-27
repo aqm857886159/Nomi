@@ -11,7 +11,7 @@
   },
   "visualReview": "协调会话 2026-10-27 对过设计系统：颜色全部落在现有 token（身体 = --nomi-logo-ground，环和进度 = --nomi-accent，出错点 = --nomi-danger，胶囊 = --nomi-warning-soft / -edge / -ink，未读点 = 外壳共用的 DotMark），没有新颜色；五个基本状态和 V4DockStatus 的 idle / running / needs-confirm / done / failed 一一对应，「刚做完」停 2.4 秒与 V4_DOCK_DONE_HOLD_MS 一致。提出并按默认改了 7 处：空闲几乎不动、空闲圆角与 logo 同为 25%、形变时长进设计系统、长任务不报预计时间、聊天身份行也换、尺寸保持 44px、跟鼠标只在 160px 内。暗色身体以 token 为准（小样画得比 token 亮一档）。画布私有，只有仓库主人能开。",
   "designCard": "docs/plan/2026-10-27-agent-persona.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 15 版（画布版本 16）「G · 会动的小样」画板的原样副本（source/AgentPersona.dc.html；画布里叫 Motion.dc.html，入库改成板名，好让板源哈希盖住它）+ 画布索引公开版（source/canvas.json：只留拍板的两张画板和第 15 版便签；方向 A–I 的探索画板、调研画板不入库，看画布）。preview/AgentPersona.html 是静态拼页：样式第一段是小样 helmet 的原样副本，第二段只管排版；八种样子和悬停各占一行，第一格放大 4.5 倍，后三格是实际尺寸 44px，分别压在浅色画布、深色画面、暗色模式上；动画一律停在第一帧，「悬停」两行把小样里 .g:hover 的两条规则原样套上，「眼睛跟着看」套小样左上热区那条；示意文字（第 2 场分镜、第 5/8 镜、2 件事）照小样。小样暗色身体画成 #45413b，比设计系统的 --nomi-logo-ground 暗色值亮一档，实现以 token 为准（见 persona.on-dark）。候选由 scripts/board-extract.mjs --dir --board 在拼页上抽出。",
+  "sourceBoundary": "板源 = Claude Design 画布第 15 版（画布版本 16）「G · 会动的小样」画板的原样副本（source/AgentPersona.dc.html；画布里叫 Motion.dc.html，入库改成板名）+ 画布索引公开版（source/canvas.json：只留拍板的两张画板和第 15 版便签；方向 A–I 的探索画板、调研画板不入库，看画布）。preview/AgentPersona.html 是静态拼页：样式第一段是小样 helmet 的原样副本，第二段只管排版；八种样子和悬停各占一行，第一格放大 4.5 倍，后三格是实际尺寸 44px，分别压在浅色画布、深色画面、暗色模式上；动画一律停在第一帧，「悬停」两行把小样里 .g:hover 的两条规则原样套上，「眼睛跟着看」套小样左上热区那条；示意文字（第 2 场分镜、第 5/8 镜、2 件事）照小样。小样暗色身体画成 #45413b，比设计系统的 --nomi-logo-ground 暗色值亮一档，实现以 token 为准（见 persona.on-dark）。",
   "designIntent": "右下的 Agent 小球换成「logo 同一块底色、同一个圆角比例的形 + 两只白眼」：停着的时候就是 logo，只是 N 换成了眼睛；状态靠轮廓、颜色、动作这些大面积的变化区分，侧栏尺寸下眯眼也分得开。只换脸，不改它会做的事：不自己弹开、点开面板、能拖、右键切形态、⌘J。",
   "artboards": [
     "AgentPersona"
@@ -104,12 +104,10 @@
         "dark",
         "hover"
       ],
-      "candidates": [
-        "077-p-外形和logo同一块底色"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "新品牌组件 NomiAgentFace（src/design/identity.tsx，§3.9 第七个品牌组件），AgentBallFace（src/ui/app-shell/shell/AgentBallFace.tsx）用它替换现在的 NomiLogoMark",
-      "assertion": "board:AgentPersona/persona.body",
+      "assertions": ["board:AgentPersona/persona.body"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -120,9 +118,7 @@
         "narrow",
         "dark"
       ],
-      "candidates": [
-        "006-span-实际尺寸44px浅色画布"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "component": "agentFormStore.ts 的 BALL_SIZE 与 ShellAgentHost 的 PILL_WIDTH，原值不动",
       "userDecision": {
@@ -139,12 +135,7 @@
         "hover",
         "dark"
       ],
-      "candidates": [
-        "048-section",
-        "049-b-眼睛跟着看",
-        "050-span-鼠标在左上方时眼睛往左上",
-        "078-p-眼睛宽为边长的15高30"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "component": "NomiAgentFace 内部；跟鼠标的监听挂在 AgentBallFace，只在 160px 半径内生效",
       "userDecision": {
@@ -161,14 +152,10 @@
         "hover",
         "dark"
       ],
-      "candidates": [
-        "010-section",
-        "011-b-空闲",
-        "012-span-不动约20秒眨一下眼就是"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "AgentBallFace，status = idle（V4DockStatus）",
-      "assertion": "board:AgentPersona/state.idle",
+      "assertions": ["board:AgentPersona/state.idle"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -179,14 +166,10 @@
         "loading",
         "dark"
       ],
-      "candidates": [
-        "013-section",
-        "014-b-在跑",
-        "015-span-变圆蓝弧绕着转眼睛低头扫"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "AgentBallFace running 分支（保留 data-agent-ball-progress）",
-      "assertion": "board:AgentPersona/state.running",
+      "assertions": ["board:AgentPersona/state.running"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -198,18 +181,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "016-section",
-        "017-b-等你确认",
-        "018-span-长成带字的琥珀胶囊右缘不",
-        "019-span-等你确认2",
-        "020-span-等你确认2",
-        "021-span-等你确认2",
-        "022-span-等你确认2"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "AgentBallFace pill 分支（agentBallIsPill；ShellAgentHost 的 PILL_WIDTH 与右缘锚点照旧），文案沿用 appShell.agent.ballPending",
-      "assertion": "board:AgentPersona/state.needs-confirm",
+      "assertions": ["board:AgentPersona/state.needs-confirm"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。「等你确认 N」改由入口自己画：放得下（≥900、面板没开）是胶囊，否则脸加角标（nomi-entry.pending-capsule / nomi-entry.pending-badge）。"
     },
     {
@@ -219,14 +194,10 @@
       "states": [
         "dark"
       ],
-      "candidates": [
-        "023-section",
-        "024-b-刚做完",
-        "025-span-轻跳一下眯眼笑停24秒"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "AgentBallFace，status = done",
-      "assertion": "board:AgentPersona/state.done",
+      "assertions": ["board:AgentPersona/state.done"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -237,14 +208,10 @@
         "error",
         "dark"
       ],
-      "candidates": [
-        "026-section",
-        "027-b-出错",
-        "028-span-歪倒眼神塌下右上一颗红点"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "AgentBallFace failed 分支（danger 点与 aria-label 照旧）",
-      "assertion": "board:AgentPersona/state.failed",
+      "assertions": ["board:AgentPersona/state.failed"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -254,14 +221,10 @@
       "states": [
         "dark"
       ],
-      "candidates": [
-        "030-section",
-        "031-b-有新消息",
-        "032-span-空闲的变体加一颗蓝点眼睛"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "AgentBallFace 未读分支：DotMark + ShellAgentHost 里 useResidentActivityStore 的 dockUnreadCount（扣掉等你确认的条数，现有算法不变）",
-      "assertion": "board:AgentPersona/variant.unread",
+      "assertions": ["board:AgentPersona/variant.unread"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -273,19 +236,7 @@
         "dark",
         "zh-en"
       ],
-      "candidates": [
-        "033-section",
-        "034-b-长任务",
-        "035-span-在跑的变体多一圈底轨蓝弧",
-        "036-svg",
-        "037-svg",
-        "038-svg",
-        "039-svg",
-        "065-svg",
-        "068-svg",
-        "071-svg",
-        "074-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-agent-closeout-a",
       "component": "AgentBallFace 新分支；数据要 Run 状态接进小球（收尾 A），现在 running 只看回合（useAgentPanelV4Data）",
@@ -301,15 +252,7 @@
         "dark",
         "long-text"
       ],
-      "candidates": [
-        "040-section",
-        "041-b-先连模型",
-        "042-span-等你确认的变体同一个胶囊",
-        "043-span-先连一个模型",
-        "044-span-先连一个模型",
-        "045-span-先连一个模型",
-        "046-span-先连一个模型"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "D2-1",
       "component": "AgentBallFace pill 分支的新文案（zh / en 进 i18n）；状态来源是 NomiStudioApp 已有的 useHasTextModel().hasTextModel === false（与「还没连文本模型」恢复卡同一个判定，不另写一份）；点开面板后由现有恢复卡给下一步",
@@ -324,33 +267,10 @@
         "zh-en",
         "long-text"
       ],
-      "candidates": [
-        "051-section",
-        "052-b-移到身上",
-        "053-span-抬眼冒一行说明就是现在小",
-        "054-div",
-        "055-span-NomiJ打开",
-        "056-div",
-        "057-span-NomiJ打开",
-        "058-div",
-        "059-span-NomiJ打开",
-        "060-div",
-        "061-span-NomiJ打开",
-        "062-section",
-        "063-b-长任务时悬停",
-        "064-span-说明里报到第几镜不报预计",
-        "066-div",
-        "067-span-生成视频第58镜",
-        "069-div",
-        "070-span-生成视频第58镜",
-        "072-div",
-        "073-span-生成视频第58镜",
-        "075-div",
-        "076-span-生成视频第58镜"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "ShellAgentHost 组 title（appShell.agent.ballOpen / ballPending / ballUnread 与 dockStatusLabel），不照抄小样字面",
-      "assertion": "board:AgentPersona/persona.tooltip",
+      "assertions": ["board:AgentPersona/persona.tooltip"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -362,12 +282,10 @@
         "error",
         "dark"
       ],
-      "candidates": [
-        "079-p-形变任意两个状态之间连续"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "tailwind.config.ts 新增 --nomi-duration-morph / --nomi-ease-morph 与对应类名，docs/design/nomi-design-system.md §2.7 同步",
-      "assertion": "board:AgentPersona/motion.morph-token",
+      "assertions": ["board:AgentPersona/motion.morph-token"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -377,14 +295,10 @@
       "states": [
         "dark"
       ],
-      "candidates": [
-        "007-span-压在深色画面上",
-        "008-span-暗色模式",
-        "080-p-暗色和深色画面身体加一圈"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "component": "NomiAgentFace 的描边，走 token，不写死 hex",
-      "assertion": "board:AgentPersona/persona.on-dark",
+      "assertions": ["board:AgentPersona/persona.on-dark"],
       "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
     },
     {
@@ -395,9 +309,7 @@
         "hover",
         "selected"
       ],
-      "candidates": [
-        "081-p-只换脸不换行为点一下打开"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "component": "ShellAgentHost（Rnd 拖动、onContextMenu → WorkbenchMenu、open → setForm + requestResidentComposerFocus，2026-11-13 并 main 后换成主线的聚焦入口）与 AgentBallFace 的 data 属性，原样保留",
       "userDecision": {
@@ -406,16 +318,6 @@
       },
       "note": "改 dropped：2026-11-22 NomiEntryTopbar 板（docs/design/boards/2026-11-22-nomi-entry-topbar/）用户拍板「全部收进顶栏」，内容区右下的小球整个删掉。拖动 / 记位置 / 右键菜单随小球删掉（新板 agent.ball.drag-position）；点击打开并聚焦、⌘J、不自己弹开、焦点描边改由顶栏入口承担（nomi-entry）。"
     }
-  ],
-  "decor": [
-    "001-main",
-    "002-div-G去框第15版静态拼页八",
-    "003-h1-Agent形象五个状态三",
-    "004-p-每种样子一行第一格放大看",
-    "005-span-放大看形",
-    "009-div-五个状态",
-    "029-div-三个变体各挂在一个基本状",
-    "047-div-悬停鼠标离小球约160p"
   ],
   "functionCensus": [
     {

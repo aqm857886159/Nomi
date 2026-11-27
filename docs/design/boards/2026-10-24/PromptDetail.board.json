@@ -11,7 +11,7 @@
   },
   "visualReview": "用户 2026-10-24 在 Claude Design 画布「技能库与提示词库排版改版（0.24 探索）」第 48 版上把 10 个问题全按默认定（https://claude.ai/artifact/A7vtfvcPzy8zCWJUdrJn9y，私有，只有仓库主人能开）。",
   "designCard": "docs/plan/2026-10-23-skill-prompt-library-layout.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。候选由 scripts/board-extract.mjs 的抽取函数（extractBoard + renderCandidatesFile，同样的浏览器设置）在拼页上抽出，两次抽取逐字节一致。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
+  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
   "designIntent": "提示词详情：× 在标题行；媒体在上、全文在下；底栏左「来源」，右「复制」图标 +「放上画布」主按钮；我的条目另有编辑 / 删除。",
   "artboards": [
     "PromptDetail",
@@ -112,13 +112,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "002-div-推轨跟拍",
-        "017-div-Q版角色卡"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.dialog"
+      "assertions": ["board:PromptDetail/prompt-detail.dialog"]
     },
     {
       "id": "prompt-detail.title",
@@ -129,13 +126,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "003-span-推轨跟拍",
-        "018-span-Q版角色卡"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.title"
+      "assertions": ["board:PromptDetail/prompt-detail.title"]
     },
     {
       "id": "prompt-detail.meta",
@@ -145,14 +139,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "004-svg",
-        "005-span-运镜内置视频",
-        "019-span-我的网页提取图片"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.meta"
+      "assertions": ["board:PromptDetail/prompt-detail.meta"]
     },
     {
       "id": "prompt-detail.close",
@@ -163,15 +153,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "006-button-关闭",
-        "007-svg",
-        "020-button-关闭",
-        "021-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.close"
+      "assertions": ["board:PromptDetail/prompt-detail.close"]
     },
     {
       "id": "prompt-detail.media",
@@ -182,11 +167,11 @@
         "error",
         "dark"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "媒体是图片 / 视频，抽取不成候选；看同名截图。",
-      "assertion": "board:PromptDetail/prompt-detail.media"
+      "assertions": ["board:PromptDetail/prompt-detail.media"]
     },
     {
       "id": "prompt-detail.text",
@@ -197,13 +182,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "008-span-Smoothdollyt",
-        "022-span-画一张带有圆角和柔和投影"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.text"
+      "assertions": ["board:PromptDetail/prompt-detail.text"]
     },
     {
       "id": "prompt-detail.source",
@@ -214,14 +196,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "009-a",
-        "010-svg",
-        "011-span-来源"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.source"
+      "assertions": ["board:PromptDetail/prompt-detail.source"]
     },
     {
       "id": "prompt-detail.delete",
@@ -232,13 +210,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "023-button-删除",
-        "024-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.delete"
+      "assertions": ["board:PromptDetail/prompt-detail.delete"]
     },
     {
       "id": "prompt-detail.edit",
@@ -249,13 +224,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "025-button-编辑",
-        "026-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.edit"
+      "assertions": ["board:PromptDetail/prompt-detail.edit"]
     },
     {
       "id": "prompt-detail.copy",
@@ -267,12 +239,7 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "012-button-复制提示词",
-        "013-svg",
-        "027-button-复制提示词",
-        "028-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "D-07（协调另立账）",
       "note": "复制已改成图标钮 + 点后「已复制」（走查 library-layout 验过）；板上「检查剪贴板结果再说已复制」= 另修 D-07，本线不改复制逻辑。"
@@ -287,21 +254,12 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "014-button",
-        "015-span-放上画布",
-        "029-button",
-        "030-span-放上画布"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:PromptDetail/prompt-detail.add-to-canvas",
+      "assertions": ["board:PromptDetail/prompt-detail.add-to-canvas"],
       "note": "项目库页上没开项目时禁用并说原因（真机 J-02）；在创作 / 分镜 / 剪辑里点了，放上之后切到生成画布让人看见被选中的新节点（同类入口，一并收住）。"
     }
-  ],
-  "decor": [
-    "001-h3-修后提示词详情内置效果中",
-    "016-h3-修后提示词详情我的中暗去"
   ],
   "functionCensus": [
     {
