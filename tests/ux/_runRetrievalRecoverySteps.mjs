@@ -17,6 +17,7 @@ const OLD_STORED_SENTENCE = '生成结果未能安全落入项目，请查看任
 /** 界面上的说法都从词典取，不在走查里另抄一份。 */
 function labelsFor(locale) {
   const text = key => uiText(locale, key)
+  const resendWaiting = text('generationCommon.spend.resend.waiting').split('\n')
   return {
     retrieve: text('generationCommon.production.runAction.retry-retrieval'),
     goRetrieve: text('generationCommon.observability.action.openRecoverable.main'),
@@ -25,7 +26,8 @@ function labelsFor(locale) {
     timedOut: text('generationCommon.recoverable.title'),
     unavailable: text('generationCommon.recoverable.unavailableTitle'),
     stillRunningTitle: text('generationCommon.spend.resend.title.image'),
-    stillRunning: text('generationCommon.spend.resend.waiting').split('\n')[0],
+    stillRunning: resendWaiting[0],
+    mightChargeAgain: resendWaiting[1],
     projectAssets: text('assetLibrary.projectAssets'),
   }
 }
@@ -257,11 +259,19 @@ export async function windowOpenJourney(ctx) {
   await settledShot(`${scenario}-4-finished-marked-failed`, card(c))
   await button(c, labels.retry).click()
   await expect(resendDialog).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+  await expect(resendDialog).toContainText(labels.stillRunningTitle)
+  await expect(resendDialog).toContainText(labels.stillRunning)
+  await expect(resendDialog).toContainText(labels.mightChargeAgain)
+  expect(posts()).toBe(postsAtStart + 3)
   await resendDialog.locator('[data-spend-confirm-action="confirm"]').click()
   await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(postsAtStart + 4)
+  await expect.poll(async () => (await nodeFact(page, c.id)).runRecordId, { timeout: stationTimeout({ operations: 2 }) }).not.toBe(c.runRecordId)
+  const secondRunRecordId = (await nodeFact(page, c.id)).runRecordId
+  expect(secondRunRecordId).toBeTruthy()
 
   finishJobs()
   for (const node of [a, b, c]) await expect.poll(() => runOf(projectRoot, node.runRecordId)?.status, { timeout: stationTimeout({ operations: 8 }) }).toBe('completed')
+  await expect.poll(() => runOf(projectRoot, secondRunRecordId)?.status, { timeout: stationTimeout({ operations: 8 }) }).toBe('completed')
   for (const node of [a, b, c]) await expect.poll(() => status(node), { timeout: stationTimeout({ operations: 8 }) }).toBe('success')
   expect(posts()).toBe(postsAtStart + 4)
 
@@ -270,16 +280,24 @@ export async function windowOpenJourney(ctx) {
   expect((await nodeFact(page, b.id)).versions).toBe(1)
   await settledShot(`${scenario}-3-landed`, card(b))
 
-  // c：确认再发后的第二单与观察者盯完的第一单都按各自 runNumber 落回 c（共 2 版），项目素材抽屉里两张都在。
+  // c：确认再发后的第二单与观察者盯完的第一单都按各自 runNumber 落回 c（共 2 版），项目素材抽屉里按各自产物身份核对两张都可见。
   await expect.poll(async () => (await nodeFact(page, c.id)).versions, { timeout: stationTimeout({ operations: 4 }) }).toBe(2)
-  const artifact = runOf(projectRoot, c.runRecordId).artifacts.find(item => item.status === 'ready')
+  const firstArtifact = runOf(projectRoot, c.runRecordId).artifacts.find(item => item.status === 'ready')
+  const secondArtifact = runOf(projectRoot, secondRunRecordId).artifacts.find(item => item.status === 'ready')
+  expect(firstArtifact?.projectRelativePath).toBeTruthy()
+  expect(secondArtifact?.projectRelativePath).toBeTruthy()
+  expect(firstArtifact.projectRelativePath).not.toBe(secondArtifact.projectRelativePath)
   const assets = await openRailDrawer(page, 'assets', 'open the assets drawer after confirmed resend')
   await page.locator('[role="tab"]', { hasText: labels.projectAssets }).first().click()
+  for (const runArtifact of [firstArtifact, secondArtifact]) {
+    expect(fs.existsSync(path.join(projectRoot, runArtifact.projectRelativePath))).toBe(true)
+    const fileName = path.basename(runArtifact.projectRelativePath)
+    const assetCard = assets.locator('[role="button"][aria-label="Retrieve c"]').filter({ has: page.locator(`img[src*="${fileName}"]`) })
+    await expect(assetCard, `asset card for ${fileName} is visible in drawer`).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+  }
   await expect(assets.locator('[role="button"][aria-label="Retrieve c"]')).toHaveCount(2, { timeout: stationTimeout({ operations: 2 }) })
   await settledShot(`${scenario}-5-in-assets`, assets)
   await closeRailDrawer(page, 'assets', 'close the assets drawer')
-
-  expect(fs.existsSync(path.join(projectRoot, artifact.projectRelativePath))).toBe(true)
   report.posts = posts() - postsAtStart
   return { report, page }
 }
