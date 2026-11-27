@@ -12,6 +12,7 @@ import { MODEL_CALL_CEILING_ERROR } from '../shared/agentLane/modelCallPort';
 import { isJsonRecord, pickUpstreamCode, pickUpstreamType } from '../jsonUtils';
 // 失败事实与文案只引轻模块：laneModelProvider（pi 的 NodeNext 岛）也编到这里，vendorHttp / i18n 会把整个运行时拖进那份编译。
 import { VendorRequestError, categorizeVendorFailure } from '../shared/vendorFailure';
+import { containsHtmlMarkup } from '../shared/generationFailureDetect';
 import { desktopT } from '../desktopStrings';
 import type { ModelCallAttempt } from './modelCallFetch';
 
@@ -31,7 +32,7 @@ function pickBodyMessage(parsed: unknown): string {
 }
 
 /**
- * JSON-or-raw：上游响应体里那句人话，抠不出就给清洗过的片段。
+ * JSON 取消息字段，纯文本取片段。网页只保留在传输诊断中。
  * 中转常把真原因（如「官方算力限制，请等待一段时间后再进行使用」）只放在 body 里，状态行只有一句裸状态文本。
  */
 export function upstreamMessageFromBody(body: string): string {
@@ -41,7 +42,7 @@ export function upstreamMessageFromBody(body: string): string {
     const message = pickBodyMessage(JSON.parse(trimmed));
     if (message) return message.trim();
   } catch {
-    /* not JSON — fall through to raw snippet */
+    if (containsHtmlMarkup(trimmed)) return '';
   }
   return trimmed.replace(/\s+/g, ' ').slice(0, 300);
 }
@@ -62,7 +63,7 @@ function identifiersFromBody(body: string): { code: string; type: string } {
 /** HTTP / 网络 / 超时事实 → 结构化错误；取消与运行期错误不是服务商失败，返回 null。 */
 export function vendorErrorFromRuntimeFacts(error: RuntimeErrorFacts, vendorKey: string): VendorRequestError | null {
   if (error.kind !== 'http' && error.kind !== 'timeout' && error.kind !== 'network') return null;
-  const upstreamMsg = (error.body ? upstreamMessageFromBody(error.body) : '') || error.message;
+  const upstreamMsg = error.body ? upstreamMessageFromBody(error.body) : error.message;
   // 上游自己给的错误码与它说的话一起带过 IPC（和图 / 视频侧同一个 pickUpstreamCode）：状态码只说「请求有问题」。
   const identifiers = error.body ? identifiersFromBody(error.body) : { code: '', type: '' };
   const upstreamCode = identifiers.code;
