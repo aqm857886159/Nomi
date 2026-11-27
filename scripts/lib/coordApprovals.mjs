@@ -7,7 +7,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 
 export const APPROVAL_ENV = 'NOMI_COORD_APPROVALS'
-export const APPROVAL_KINDS = Object.freeze(['board', 'perf-policy', 'eslint-suppressions'])
+export const APPROVAL_KINDS = Object.freeze(['board', 'perf-policy', 'eslint-suppressions', 'generated-allowlist'])
 
 /** 键排序的规范化 JSON：同一份内容永远同一个哈希。 */
 export function canonicalJson(value) {
@@ -107,6 +107,33 @@ export function describeBoardDiff(subject) {
 // 比 base 多就要确认——按规则总数算会让「这里修一处、那里新冻一处」总数不变混进来（V-gates-g1 窄核）。改名 / 搬家也要确认，接受。
 // 确认绑定的是**上涨的那部分 diff**：每个 (文件, 规则) 冻结数比 base 多的条目。之后再多冻一处，哈希就对不上；只减少不影响。
 export const SUPPRESSIONS_FILE = 'eslint-suppressions.json'
+export const GENERATED_ALLOWLIST_PATH = 'docs/engineering/generated-allowlist.json'
+
+export function allowlistApprovalSubject(baseAllowlist, headAllowlist) {
+  const baseGlobs = new Set(Array.isArray(baseAllowlist) ? baseAllowlist.map((entry) => String(entry?.glob ?? '').trim()).filter(Boolean) : [])
+  const addedGlobs = [...new Set((Array.isArray(headAllowlist) ? headAllowlist : [])
+    .map((entry) => String(entry?.glob ?? '').trim())
+    .filter((glob) => glob && !baseGlobs.has(glob)))].sort()
+  return {
+    needsApproval: addedGlobs.length > 0,
+    addedGlobs,
+    fingerprint: sha256Of({ subject: GENERATED_ALLOWLIST_PATH, added: addedGlobs }),
+  }
+}
+
+export function resolveEffectiveAllowlist({ files = [], baseAllowlist = undefined, headAllowlist = undefined, fallbackAllowlist = [], approvals = null } = {}) {
+  const touched = files.some((file) => String(file?.path ?? '').replaceAll('\\', '/') === GENERATED_ALLOWLIST_PATH)
+  const base = baseAllowlist ?? (touched ? [] : fallbackAllowlist)
+  if (!touched && headAllowlist === undefined) return { allowlist: base, headAllowlist: undefined, unapprovedGlobs: [] }
+  if (!Array.isArray(headAllowlist)) return { allowlist: base, headAllowlist, unapprovedGlobs: [] }
+  const subject = allowlistApprovalSubject(base, headAllowlist)
+  const approved = !subject.needsApproval || approvals?.lookup?.('generated-allowlist', GENERATED_ALLOWLIST_PATH, subject.fingerprint) === true
+  return {
+    allowlist: approved ? headAllowlist : base,
+    headAllowlist,
+    unapprovedGlobs: approved ? [] : subject.addedGlobs,
+  }
+}
 
 /** 每条规则的冻结总数（eslint-suppressions.json 的形状：{ 文件: { 规则: { count } } }）。 */
 export function suppressionTotals(suppressions) {
@@ -170,7 +197,7 @@ export function localApprovals({ pr, env = process.env, readFile = (file) => fs.
  * 那时还没有号，记录的 pr 为空——所以两边任一边没号都算对上，两边都有号才要求相等。
  */
 function samePr(kind, recordPr, pr) {
-  if (kind === 'eslint-suppressions' && (recordPr == null || pr == null)) return true
+  if ((kind === 'eslint-suppressions' || kind === 'generated-allowlist') && (recordPr == null || pr == null)) return true
   return Number(recordPr) === Number(pr)
 }
 
@@ -220,5 +247,6 @@ export const ciApprovals = Object.freeze({ mode: 'ci', lookup: () => false })
 
 export function approvalCommand(pr, kind, name) {
   if (kind === 'eslint-suppressions') return `node scripts/coord-approve.mjs${pr ? ` --pr ${pr}` : ''} --suppressions`
+  if (kind === 'generated-allowlist') return `node scripts/coord-approve.mjs${pr ? ` --pr ${pr}` : ''} --allowlist`
   return `node scripts/coord-approve.mjs --pr ${pr ?? '<号>'} ${kind === 'board' ? '--board' : '--perf'} ${name}`
 }

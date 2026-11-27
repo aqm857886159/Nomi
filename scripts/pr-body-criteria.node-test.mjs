@@ -231,7 +231,7 @@ test('拍板图认领还没 implemented：推送档只提醒，合并档判红�
 
 test('机器产出重量：47 个真实 PR 的裁决及白名单后的新增量', async (t) => {
   const { default: replay } = await import('./fixtures/pr-weight-replay-45prs.json', { with: { type: 'json' } })
-  const red = new Map([[1702, [9112, 10384]], [1703, [11455, 12134]], [1666, [1536, 6176]], [1668, [1002, 1562]]])
+  const red = new Map([[1702, [9112, 10457]], [1703, [11455, 12134]], [1666, [1536, 6176]], [1668, [1002, 1562]]])
   assert.equal(new Set(replay.map(pr => pr.number)).size, 47)
   assert.equal(replay.filter(pr => pr.state === 'MERGED').length, 45)
   for (const number of [...red.keys(), 1667, 1697, 1709]) assert.ok(replay.some(pr => pr.number === number))
@@ -252,7 +252,7 @@ test('推送档与合并档执行同一机器产出重量判据，白名单读�
   const file = (path, additions, extra) => ({ path, additions, status: 'A', ...extra })
   for (const stage of ['push', 'merge']) {
     const judge = (files, options = {}) => evaluatePrBody({ stage, files, body: STAR, evidence: {}, ...options })
-    for (const extension of ['JSON', 'tXt', 'LOG', 'HTML', 'Csv', 'NDJSON']) {
+    for (const extension of ['JSON', 'Jsonl', 'tXt', 'LOG', 'HTML', 'Csv', 'NDJSON']) {
       const name = `docs\\evidence\\probe.${extension}`
       assert.equal(judge([file(name, 1000)]).blocked, false)
       const over = judge([file(name, 1001)])
@@ -280,5 +280,12 @@ test('推送档与合并档执行同一机器产出重量判据，白名单读�
         assert.ok(invalid.lines.some(line => line.includes(key)))
       }
     }
+    const sneakyGlob = { glob: 'docs/sneaky.jsonl', reason: '自批', owner: '实现线' }
+    const selfRelaxed = judge(
+      [file('docs/engineering/generated-allowlist.json', 5), file('docs/sneaky.jsonl', 1001)],
+      { baseAllowlist: [], headAllowlist: [sneakyGlob] },
+    )
+    assert.equal(selfRelaxed.blocked, true, 'PR 不能自行放宽登记表来豁免同 PR 的超标文件')
+    assert.match(selfRelaxed.lines.join('\n'), /不能在同一 PR 内自行豁免/)
   }
 })

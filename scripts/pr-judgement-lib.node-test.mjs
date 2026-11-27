@@ -890,3 +890,36 @@ test('碰决定老模型能不能用的文件 → 数据格式类，要交升级
   assert.equal(result.ok, false)
   assert.ok(result.lines.some((line) => line.includes('不接受「未验证」')), result.lines.join('\n'))
 })
+
+test('首次推送尚无 PR 或草稿正文时：check-pr-judgement 仍检查机器产出重量，超限必红、正常跳过正文', (t) => {
+  const root = makeTempDir('pr-judgement-first-push-weight-')
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  git(root, 'init', '-q'); git(root, 'config', 'user.email', 't@t'); git(root, 'config', 'user.name', 't'); git(root, 'config', 'commit.gpgsign', 'false')
+  fs.mkdirSync(path.join(root, 'docs/engineering'), { recursive: true })
+  fs.copyFileSync(path.join(here, '..', 'docs/engineering/test-routing.json'), path.join(root, 'docs/engineering/test-routing.json'))
+  fs.writeFileSync(path.join(root, 'docs/engineering/generated-allowlist.json'), '[]')
+  git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'base')
+  const base = git(root, 'rev-parse', 'HEAD').trim()
+  const run = () => spawnSync(process.execPath, [path.join(here, 'check-pr-judgement.mjs')], {
+    encoding: 'utf8',
+    env: { ...process.env, PR_JUDGEMENT_REPO_ROOT: root, PR_JUDGEMENT_BASE_REF: base, NOMI_PR_JUDGEMENT_STAGE: 'push', NOMI_PR_BODY: '', NOMI_PR_BODY_FILE: '', GITHUB_EVENT_NAME: '', CI: '' },
+  })
+  // 不传 NOMI_PR_BODY（彻底删除该环境变量以模拟无 PR、无草稿首次推送）
+  const cleanEnv = { ...process.env, PR_JUDGEMENT_REPO_ROOT: root, PR_JUDGEMENT_BASE_REF: base, NOMI_PR_JUDGEMENT_STAGE: 'push', GITHUB_EVENT_NAME: '', CI: '' }
+  delete cleanEnv.NOMI_PR_BODY
+  delete cleanEnv.NOMI_PR_BODY_FILE
+  const runNoPr = () => spawnSync(process.execPath, [path.join(here, 'check-pr-judgement.mjs')], { encoding: 'utf8', env: cleanEnv })
+  fs.writeFileSync(path.join(root, 'docs/note.md'), 'hello\n')
+  git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'normal doc')
+  const ok = runNoPr()
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr)
+  assert.match(ok.stdout, /⏭️ PR 正文判据跳过/)
+  void run
+
+  fs.mkdirSync(path.join(root, 'docs/evidence'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'docs/evidence/commands.jsonl'), '{"ok":true}\n'.repeat(1001))
+  git(root, 'add', '-A'); git(root, 'commit', '-q', '-m', 'oversized jsonl')
+  const blocked = runNoPr()
+  assert.equal(blocked.status, 1, blocked.stdout + blocked.stderr)
+  assert.match(blocked.stdout, /commands\.jsonl 新增 1001 行/)
+})

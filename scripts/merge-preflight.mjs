@@ -201,10 +201,23 @@ function run(argv, exec, git, root) {
     removedFiles: scenarioRows.filter((row) => row.status === 'D').map((row) => row.path),
   })
 
-  const allowlist = must(GENERATED_ALLOWLIST_FILE, () => JSON.parse(showAt(headSha, GENERATED_ALLOWLIST_FILE)))
+  const parseAllowlist = (raw) => {
+    if (raw === null) return null
+    try { return JSON.parse(raw) } catch { return 'invalid-json' }
+  }
+  const touchedAllowlist = files.some((row) => row.path === GENERATED_ALLOWLIST_FILE)
+  const baseAllowlist = must(`base 上的 ${GENERATED_ALLOWLIST_FILE}`, () => {
+    const atFork = parseAllowlist(showAt(forkSha, GENERATED_ALLOWLIST_FILE))
+    if (atFork !== null) return atFork
+    return touchedAllowlist ? null : parseAllowlist(showAt(baseSha, GENERATED_ALLOWLIST_FILE))
+  })
+  const headAllowlist = touchedAllowlist
+    ? must(`PR 头上的 ${GENERATED_ALLOWLIST_FILE}`, () => (files.find((row) => row.path === GENERATED_ALLOWLIST_FILE)?.status === 'D' ? 'deleted' : parseAllowlist(showAt(headSha, GENERATED_ALLOWLIST_FILE))))
+    : undefined
   const judged = evaluatePrBody({
     table,
-    allowlist,
+    baseAllowlist,
+    headAllowlist,
     body,
     files,
     addedByFile,

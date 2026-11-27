@@ -5,7 +5,7 @@
 // 路由 / 规则与门岗范围仍在 scripts/pr-judgement-lib.mjs（本模块在它之上叠设计卡等判据，并给一个总入口 evaluatePrBody）。
 import { classCheckErrors, contractErrors, escapeIdOfPath, fixedTransitions } from './escape-ledger-lib.mjs'
 import { checkPrBoardClaims, parsePrBoardClaims } from './check-board-parity.mjs'
-import { approvalCommand, boardApprovalSubject, checkSuppressionContracts, describeBoardDiff } from './lib/coordApprovals.mjs'
+import { approvalCommand, boardApprovalSubject, checkSuppressionContracts, describeBoardDiff, resolveEffectiveAllowlist } from './lib/coordApprovals.mjs'
 
 export { checkSuppressionContracts }
 import { pinScenarioPolicy } from './perf-scenarios-lib.mjs'
@@ -499,7 +499,7 @@ export const renderReport = ({ pr, ...rest }) => mergeReport(pr, renderBodyLines
  *   uiVerification: 短档声明的界面核实结果（测试注入；不传就用 evidence 里的 base / head 拍板图清单现算，且只有声明短档的 PR 才会去取）。
  *   返回里的 processTier = 流程档位（严 ≡ 四类 classification.fourClass；其余分短 / 标准，见 pr-judgement-lib 的 evaluateProcessTier）。
  */
-export function evaluatePrBody({ body, files, allowlist = defaultAllowlist, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined, uiVerification = null }) {
+export function evaluatePrBody({ body, files, allowlist = defaultAllowlist, baseAllowlist = undefined, headAllowlist = undefined, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined, uiVerification = null }) {
   const normalized = files.map((file) => ({ ...file, status: file.status === 'added' ? 'A' : file.status }))
   const withAdded = addedByFile ? normalized.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })) : normalized
   const classification = classifyChange(withAdded, addedLines, table)
@@ -533,7 +533,10 @@ export function evaluatePrBody({ body, files, allowlist = defaultAllowlist, adde
     shortAllowed: processTieringEnforced(createdAt, enforce),
   })
   const short = processTier.tier === PROCESS_TIERS.SHORT
-  const weight = checkGeneratedWeight(normalized, allowlist)
+  const effectiveAllowlist = baseAllowlist !== undefined || headAllowlist !== undefined
+    ? resolveEffectiveAllowlist({ files: normalized, baseAllowlist, headAllowlist, fallbackAllowlist: allowlist, approvals: inputs.approvals ?? null })
+    : { allowlist, headAllowlist: undefined, unapprovedGlobs: [] }
+  const weight = checkGeneratedWeight(normalized, effectiveAllowlist.allowlist, { headAllowlist: effectiveAllowlist.headAllowlist, unapprovedGlobs: effectiveAllowlist.unapprovedGlobs })
   const result = renderBodyLines({
     weight,
     classification,

@@ -574,21 +574,35 @@ function generatedGlob(glob) {
 }
 
 export function isGeneratedArtifact(name) {
-  return (name.startsWith('docs/') && /\.(json|txt|log|html|csv|ndjson)$/i.test(name)) || /\.candidates\.json$/i.test(name)
+  return (name.startsWith('docs/') && /\.(json|jsonl|txt|log|html|csv|ndjson)$/i.test(name)) || /\.candidates\.json$/i.test(name)
 }
 
-export function checkGeneratedWeight(files, allowlist) {
+export function validateGeneratedAllowlist(allowlist, label = GENERATED_ALLOWLIST_FILE) {
   const lines = []
   const matchers = []
-  if (!Array.isArray(allowlist)) lines.push(`✖ ${GENERATED_ALLOWLIST_FILE} 应为数组`)
+  if (!Array.isArray(allowlist)) lines.push(`✖ ${label} 应为数组`)
   else for (const [index, item] of allowlist.entries()) {
     const missing = ['glob', 'reason', 'owner'].filter(key => typeof item?.[key] !== 'string' || !item[key].trim())
-    if (missing.length) lines.push(`✖ ${GENERATED_ALLOWLIST_FILE} 第 ${index + 1} 项需要非空字符串：${missing.join('、')}`)
-    else matchers.push(generatedGlob(item.glob))
+    if (missing.length) lines.push(`✖ ${label} 第 ${index + 1} 项需要非空字符串：${missing.join('、')}`)
+    else matchers.push(generatedGlob(item.glob.trim()))
+  }
+  return { lines, matchers }
+}
+
+export function checkGeneratedWeight(files, allowlist, { headAllowlist = undefined, unapprovedGlobs = [] } = {}) {
+  const baseValid = validateGeneratedAllowlist(allowlist)
+  const lines = [...baseValid.lines]
+  const matchers = baseValid.matchers
+  let headMatchers = []
+  if (headAllowlist !== undefined) {
+    const headValid = validateGeneratedAllowlist(headAllowlist, `PR 提交的 ${GENERATED_ALLOWLIST_FILE}`)
+    lines.push(...headValid.lines)
+    headMatchers = headValid.matchers
   }
 
   let total = 0
   const counted = []
+  let blockedByUnapproved = false
   for (const file of files) {
     const name = norm(file.path)
     if (isRemoved(file.status) || file.binary) continue
@@ -599,13 +613,19 @@ export function checkGeneratedWeight(files, allowlist) {
       continue
     }
     if (file.additions === 0) continue
+    if (headMatchers.some(re => re.test(name))) blockedByUnapproved = true
     counted.push({ path: name, additions: file.additions })
     total += file.additions
     if (file.additions > 1000) lines.push(`✖ 机器产出 ${name} 新增 ${file.additions} 行，超过单文件 1000 行`)
   }
   if (total > 2000) lines.push(`✖ 机器产出合计新增 ${total} 行，超过 2000 行：${counted.map(f => `${f.path} (+${f.additions})`).join('、')}`)
   const ok = lines.length === 0
-  if (!ok) lines.push(`  → 原始转储留在本机工作树、不提交；报告里写结论和数字；确实要进仓库的，登记进 ${GENERATED_ALLOWLIST_FILE} 并写理由`)
+  if (!ok) {
+    lines.push(`  → 原始转储留在本机工作树、不提交；报告里写结论和数字；确实要进仓库的，登记进 ${GENERATED_ALLOWLIST_FILE} 并写理由`)
+    if (blockedByUnapproved && unapprovedGlobs.length > 0) {
+      lines.push(`  → 本 PR 新增或放宽的登记规则（${unapprovedGlobs.join('、')}）不能在同一 PR 内自行豁免超标文件；请先单独合入登记表，或由协调运行 node scripts/coord-approve.mjs --pr <号> --allowlist 确认`)
+    }
+  }
   return { ok, lines, total, counted }
 }
 

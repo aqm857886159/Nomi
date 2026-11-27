@@ -26,8 +26,9 @@ import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { evaluatePrBody, ledgerChanges, resolveJudgementStage, reviewedContracts, settledContracts } from './pr-body-criteria.mjs'
 import { knownScenarios, scenarioEntriesFromReader } from './perf-scenarios-lib.mjs'
 import { PRIOR_ART_THRESHOLD_DATE, evaluatePlans, evaluatePullRequest, scopePlansToChanged } from './prior-art-lib.mjs'
-import { GENERATED_ALLOWLIST_FILE, ROUTING_FILE } from './pr-judgement-lib.mjs'
-import { loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
+import { GENERATED_ALLOWLIST_FILE, checkGeneratedWeight, loadRoutingTable, ROUTING_FILE, toolGaps } from './pr-judgement-lib.mjs'
+import { pushApprovals, resolveEffectiveAllowlist } from './lib/coordApprovals.mjs'
+import defaultAllowlist from '../docs/engineering/generated-allowlist.json' with { type: 'json' }
 import { SELF_WRITTEN_FILE, registryChanges } from './self-written-lib.mjs'
 import { prChanges } from './lib/prChanges.mjs'
 
@@ -87,11 +88,32 @@ function main() {
   }
   // 档位先定（写错的 --stage 当场报错，不等取到正文才发现）
   const stage = resolveJudgementStage(process.env, process.argv.slice(2))
+  const parseAllowlist = (raw) => {
+    if (raw === null) return null
+    try { return JSON.parse(raw) } catch { return 'invalid-json' }
+  }
   const pr = resolvePullRequestBody({ cwd: repoRoot })
   if (!pr.available) {
     if (pr.required) {
       console.error(`✖ PR 正文取不到，无法判功能分类 / 验收证据 / 规则与门岗范围：${pr.reason}`)
       return 1
+    }
+    const baseForWeight = resolveBase()
+    if (baseForWeight) {
+      const showForWeight = (ref, file) => { try { return git(['show', `${ref}:${file}`]) } catch { return null } }
+      const { files: weightFiles } = prChanges({ git, base: baseForWeight, head: 'HEAD', contentScope: '^$' })
+      const touchedAllowlist = weightFiles.some((file) => file.path === GENERATED_ALLOWLIST_FILE)
+      const baseAllowlist = parseAllowlist(showForWeight(baseForWeight, GENERATED_ALLOWLIST_FILE))
+      const headAllowlist = touchedAllowlist
+        ? (weightFiles.find((file) => file.path === GENERATED_ALLOWLIST_FILE)?.status === 'D' ? 'deleted' : parseAllowlist(showForWeight('HEAD', GENERATED_ALLOWLIST_FILE)))
+        : undefined
+      const resolved = resolveEffectiveAllowlist({ files: weightFiles, baseAllowlist, headAllowlist, fallbackAllowlist: defaultAllowlist, approvals: pushApprovals() })
+      const weight = checkGeneratedWeight(weightFiles, resolved.allowlist, { headAllowlist: resolved.headAllowlist, unapprovedGlobs: resolved.unapprovedGlobs })
+      if (!weight.ok) {
+        for (const line of weight.lines) console.log(line)
+        console.error('✖ 请修正上述文件或登记表后重新提交。')
+        return 1
+      }
     }
     console.log(`⏭️ PR 正文判据跳过（${pr.reason}）`)
     return 0
@@ -140,8 +162,12 @@ function main() {
     prFiles: files.filter((file) => file.status !== 'D' && scenarioRe.test(file.path)).map((file) => ({ file: file.path, content: show('HEAD', file.path) })),
     removedFiles: files.filter((file) => file.status === 'D' && scenarioRe.test(file.path)).map((file) => file.path),
   })
-  const allowlist = JSON.parse(show('HEAD', GENERATED_ALLOWLIST_FILE))
-  const result = evaluatePrBody({ body: pr.body, files, allowlist, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
+  const touchedAllowlist = files.some((file) => file.path === GENERATED_ALLOWLIST_FILE)
+  const baseAllowlist = parseAllowlist(show(base, GENERATED_ALLOWLIST_FILE))
+  const headAllowlist = touchedAllowlist
+    ? (files.find((file) => file.path === GENERATED_ALLOWLIST_FILE)?.status === 'D' ? 'deleted' : parseAllowlist(show('HEAD', GENERATED_ALLOWLIST_FILE)))
+    : undefined
+  const result = evaluatePrBody({ body: pr.body, files, baseAllowlist, headAllowlist, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
   const priorArtErrors = checkPriorArtAlongside({ base, files, body: pr.body, show })
   const categories = result.judgement.inferred.categories.map((category) => category.label)
   console.log(`PR 正文判据（${stage === 'merge' ? '合并档' : '推送档'}，正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)

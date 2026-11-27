@@ -599,24 +599,47 @@ test('合并前扫描拿不到 statusCheckRollup = 取数失败（结论：✖ �
   assert.match(result.out, /^结论：✖ 有项没过，先别合（取数失败/m)
 })
 
-test('合并扫描从 git numstat 计行，PR 登记豁免生效，转储内容不占补丁缓冲区', (t) => {
+test('合并扫描从 git numstat 计行：基线白名单生效、拒绝 PR 自批放宽、兼容旧分支缺白名单、压住 -diff 属性', (t) => {
   const name = 'docs/evidence/探针\t[v2].CSV'
   const allowlist = 'docs/engineering/generated-allowlist.json'
-  const repo = prRepo(t, { head: {
-    [name]: '++raw\n'.repeat(1001),
-    'docs/binary.json': '\0' + '\n'.repeat(1500),
-    'src/sample.candidates.json': '++raw\n'.repeat(1001),
-    'docs/registered.log': 'row\n'.repeat(2500),
-    [allowlist]: [{ glob: allowlist, reason: '登记表', owner: '工程治理' }, { glob: 'docs/registered.log', reason: '验收合同', owner: '评审' }],
-  } })
+  const baseRules = [{ glob: allowlist, reason: '登记表', owner: '工程治理' }, { glob: 'docs/registered.log', reason: '验收合同', owner: '评审' }]
+  const repo = prRepo(t, {
+    base: {
+      '.gitattributes': 'docs/evidence/** -diff\n',
+      [allowlist]: baseRules,
+    },
+    head: {
+      [name]: '++raw\n'.repeat(1001),
+      'docs/binary.json': '\0' + '\n'.repeat(1500),
+      'src/sample.candidates.json': '++raw\n'.repeat(1001),
+      'docs/registered.log': 'row\n'.repeat(2500),
+      'docs/sneaky.jsonl': 'row\n'.repeat(1001),
+      [allowlist]: [...baseRules, { glob: 'docs/sneaky.jsonl', reason: '自批豁免', owner: '实现线' }],
+    },
+  })
   const result = runPreflight(repo, { git: args => {
     assert.ok(!args.includes('-U0'), '这组改动没有需要路由内容检查的路径')
     return repo.git(args)
   } })
   assert.equal(result.code, 1)
   assert.ok(result.out.includes(`${name} 新增 1001 行`), result.out)
-  assert.match(result.out, /合计新增 2002 行/)
+  assert.ok(result.out.includes('docs/sneaky.jsonl 新增 1001 行'), result.out)
+  assert.match(result.out, /合计新增 3003 行/)
+  assert.match(result.out, /不能在同一 PR 内自行豁免/)
   assert.doesNotMatch(result.out, /机器产出 docs\/(?:registered\.log|binary\.json)/)
   const changes = prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha })
   assert.deepEqual(changes.files.find(f => f.path === 'docs/binary.json'), { path: 'docs/binary.json', status: 'A', additions: 0, binary: true })
+  assert.deepEqual(changes.files.find(f => f.path === name), { path: name, status: 'A', additions: 1001, binary: false })
+
+  // 尚未合并本 PR 的旧在途分支（forkSha / headSha 上均无 generated-allowlist.json），基线 main 已有白名单时不误报缺失
+  const legacyRepo = prRepo(t, { base: { 'docs/a.md': 'a\n', [allowlist]: null }, head: { 'docs/a.md': 'b\n', 'docs/registered.log': 'row\n'.repeat(1500) } })
+  const workDir = path.join(path.dirname(legacyRepo.origin), 'work')
+  runGit(workDir, ['checkout', '-q', legacyRepo.baseSha])
+  fs.mkdirSync(path.join(workDir, 'docs/engineering'), { recursive: true })
+  fs.writeFileSync(path.join(workDir, allowlist), JSON.stringify(baseRules))
+  runGit(workDir, ['add', allowlist])
+  runGit(workDir, ['commit', '-q', '-m', 'main adds allowlist'])
+  runGit(workDir, ['push', '-q', legacyRepo.origin, 'HEAD:refs/heads/main'])
+  const legacyOk = runPreflight(legacyRepo, { body: FULL_CARD })
+  assert.equal(legacyOk.code, 0, legacyOk.out)
 })
