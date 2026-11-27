@@ -1,5 +1,4 @@
-#!/usr/bin/env node
-// 画布「写边」入口门岗（2026-10-10，Codex 对 #1137 的复审 2）。
+// 画布「写边」入口 AST 扫描模块（2026-10-10，Codex 对 #1137 的复审 2；2026-11-27 SM-gates-A 退役独立 CLI 门岗，保留为 scripts/check-canvas-edge-writers.test.mjs 唯一调用的纯函数库）。
 //
 // 病：「这条边合不合法」的规则（electron/shared/canvas/edgeAdmission 的 validateReferenceEdge）只挡了手动连线和 Agent；
 // MCP / headless 写图、粘贴、拖动复制各自把边原样写进去，视频 / 声音 → 文本这类非法边照样落库。
@@ -150,14 +149,4 @@ export function scanEdgeWriters(root = repoRoot, writers = EDGE_WRITERS, appendC
     }
   }
   return violations
-}
-
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const violations = scanEdgeWriters()
-  if (violations.length) {
-    console.error(`✖ 画布写边门岗失败（${violations.length} 条）`)
-    for (const message of violations) console.error(`  - ${message}`)
-    process.exit(1)
-  }
-  console.log(`✅ 画布写边门岗：${Object.keys(EDGE_WRITERS).length} 个写边文件都在名单里且过闸`)
 }
