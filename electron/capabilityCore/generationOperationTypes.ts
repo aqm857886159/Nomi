@@ -1,4 +1,4 @@
-import type { GenerationPresentationCloser, ProductionGateStatus } from "../productionRun/productionRunTypes";
+import type { GenerationOperationState, GenerationPresentationCloser, ProductionGateStatus } from "../shared/contracts/productionRunTypes";
 import type { GeneratePresentationOutcome } from "../shared/productionGenerationPresentation";
 // 生成 operation 的**数据形状与存储接口**（从 `mcpGenerationTools.ts` 拆出：那个文件顶着 800 行门岗，
 // 而这一段是纯类型、零运行时）。两份 store（内存版 / Run 账本版）与规划 handler 都从这里取同一份。
@@ -8,7 +8,7 @@ import type { GenerationInvocationContext } from "../shared/agentCapabilities/ge
 import type { ProductionGenerationAuthorizationEnvelopeV1 } from "../productionRun/productionGenerationAuthorization";
 import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 
-export type GenerationOperationState = "draft" | "sealed" | "cancelled" | "submitted";
+export type { GenerationOperationState };
 
 /**
  * P4 S4: one shot within a multi-shot operation, projected for the MCP surface. `role` distinguishes

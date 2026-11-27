@@ -5,7 +5,7 @@ import {
   DEFAULT_AUTOMATION_POLICY_SETTINGS,
   normalizeAutomationPolicySettings,
   type AutomationPolicySettings,
-} from "./automationPolicyContract";
+} from "../shared/contracts/automationPolicyContract";
 import { getSettingsRoot } from "./settingsRoot";
 
 const AUTOMATION_POLICY_FILE = "automation-policy.json";
@@ -14,7 +14,7 @@ export {
   DEFAULT_AUTOMATION_POLICY_SETTINGS,
   normalizeAutomationPolicySettings,
   type AutomationPolicySettings,
-} from "./automationPolicyContract";
+} from "../shared/contracts/automationPolicyContract";
 
 export function automationPolicySettingsPath(): string {
   return path.join(getSettingsRoot(), AUTOMATION_POLICY_FILE);

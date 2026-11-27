@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { GenerationHandOver, GenerationPresentation, ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import type { GenerationHandOver, GenerationPresentation, ProductionRun } from '../../../../electron/shared/contracts/productionRunTypes'
 import type { ToolReceipt, V4FlowItem } from '../v4/agentPanelV4Types'
 import { flowItemGenerations, receiptLine, receiptShotNodeIds } from './generationReceiptFacts'
 

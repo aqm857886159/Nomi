@@ -1,7 +1,7 @@
 import { declareStoreLifetime } from '../project/storeLifetime'
 import { create } from 'zustand'
 
-import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun } from '../../../electron/shared/contracts/productionRunTypes'
 import { productionRunApi } from './productionRunApi'
 import { isProductionRunTask } from './productionRunView'
 

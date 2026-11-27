@@ -16,7 +16,7 @@ import { createMultiShotBatchScheduler } from '../../../electron/productionRun/m
 import { createProductionGenerationSubmission } from '../../../electron/productionRun/productionGenerationSubmission'
 import { sealAndApproveProductionGeneration } from '../../../electron/productionRun/productionGenerationAuthorizationTestUtils'
 import { createProductionRunRepository } from '../../../electron/productionRun/productionRunRepository'
-import type { ProductionGenerationShot } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionGenerationShot } from '../../../electron/shared/contracts/productionRunTypes'
 import { materializeShots, type MaterializeShotsPayload } from './multiShotCanvasLanding'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { resetClientIdRegistry } from '../generationCanvas/agent/applyCanvasToolCall'

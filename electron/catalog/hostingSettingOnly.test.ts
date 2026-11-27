@@ -3,7 +3,7 @@ import { desktopT } from '../desktopStrings'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { localizeAssetsForVendor, assertLocalAssetTransportReady, type IngestionCandidate } from './assetLocalization'
 import { assetLocalizationOptions } from './assetTransportRuntime'
-import { normalizeAutomationPolicySettings } from '../settings/automationPolicyContract'
+import { normalizeAutomationPolicySettings } from '../shared/contracts/automationPolicyContract'
 
 const state = vi.hoisted(() => ({ policy: 'ask' as unknown }))
 vi.mock('../settings/automationPolicySettings', () => ({

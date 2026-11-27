@@ -14,7 +14,7 @@ import type { ModelAvailability } from "../shared/modelAvailability";
 import { createCatalogAvailability } from "./catalogModelAvailability";
 import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 import type { ReferenceModelContext } from "../shared/modelArchetypes/referenceKeys";
-import type { ParameterReferenceSelection } from "./parameterReferenceContract";
+import type { ParameterReferenceSelection } from "../shared/contracts/parameterReferenceContract";
 
 /** 一个模型跨其所有 mapping 汇总出的参考承载力 + 是哪些模式（taskKind）带得动。 */
 export type ModelReferenceSupport = BodyReferenceSupport & {

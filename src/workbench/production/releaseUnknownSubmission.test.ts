@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun } from '../../../electron/shared/contracts/productionRunTypes'
 import { useProductionCanvasLandingStore } from './productionCanvasLandingStore'
 import { nodeIdOfJob, releaseUnknownSubmission } from './releaseUnknownSubmission'
 

@@ -13,7 +13,7 @@ import { isProjectExecutionContextCurrent, subscribeProjectOpened } from '../pro
 // （canvasLandingHost.followRunChange → materialize-shots），与普通生成同一份状态、同一套画法。
 import React from 'react'
 
-import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun } from '../../../electron/shared/contracts/productionRunTypes'
 import { laneClient } from '../ai/lane/laneClient'
 import { productionRunIdOf } from './productionShotOwnership'
 import { productionRunApi } from './productionRunApi'

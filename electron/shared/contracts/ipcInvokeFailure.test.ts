@@ -6,7 +6,16 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { WorkspaceManifestLockBusyError } from "../../workspace/workspaceManifestLock";
 import { WORKSPACE_MANIFEST_BUSY_ERROR_NAME } from "./workspaceBusy";
-import { CODE_CLASS_NAME, ipcInvokeFailure, isCodeClassName, withoutIpcInvokeWrapper } from "./ipcInvokeFailure";
+import {
+  CODE_CLASS_NAME,
+  createStructuredIpcFailure,
+  ipcInvokeFailure,
+  isCodeClassName,
+  readIpcFailureMessage,
+  readStructuredIpcFailure,
+  withoutIpcInvokeWrapper,
+} from "./ipcInvokeFailure";
+import { IpcResultError } from "./ipcResult";
 
 /**
  * 真形状（Electron 43）：主进程 handle 抛错 → 主进程侧回 `error.toString()`；渲染层 ipcRenderer.invoke 里
@@ -63,6 +72,43 @@ describe("ipcInvokeFailure：读回主进程那个错误", () => {
     expect(ipcInvokeFailure("save failed: Error invoking remote method 'nomi:x': Error: y")).toBeNull();
     expect(ipcInvokeFailure(undefined)).toBeNull();
     expect(ipcInvokeFailure({ message: "Error invoking remote method 'x': Error: y" })).toBeNull();
+  });
+
+  it("readStructuredIpcFailure：结构化载体（StructuredIpcFailure / IpcResult / NomiErrorCode）优先于外壳文本", () => {
+    const carrier = createStructuredIpcFailure({
+      channel: "nomi:tasks:run",
+      name: "AssetInvalidError",
+      code: "EASSET",
+      message: "NOMI_ERR::asset-invalid::图片不可用",
+    });
+    expect(readStructuredIpcFailure(carrier)).toEqual({
+      channel: "nomi:tasks:run",
+      name: "AssetInvalidError",
+      code: "EASSET",
+      errorCode: "asset-invalid",
+      message: "NOMI_ERR::asset-invalid::图片不可用",
+    });
+    expect(readIpcFailureMessage(carrier)).toBe("NOMI_ERR::asset-invalid::图片不可用");
+
+    const ipcResultErr = new IpcResultError("project-save-failed", { kind: "busy", message: "save busy" });
+    expect(readStructuredIpcFailure(ipcResultErr)).toEqual({
+      channel: "",
+      name: "IpcResultError",
+      code: "busy",
+      message: "save busy",
+    });
+    expect(readStructuredIpcFailure({ ok: false, error: "save-locked", reason: { code: "EBUSY", message: "Error invoking remote method 'nomi:projects:save-async': Error: locked" } })).toEqual({
+      channel: "",
+      name: "IpcResultError",
+      code: "EBUSY",
+      message: "locked",
+    });
+    expect(ipcInvokeFailure("Error invoking remote method 'nomi:tasks:run': Error: NOMI_ERR::asset-invalid::bad ref")).toEqual({
+      channel: "nomi:tasks:run",
+      name: "Error",
+      errorCode: "asset-invalid",
+      message: "NOMI_ERR::asset-invalid::bad ref",
+    });
   });
 });
 

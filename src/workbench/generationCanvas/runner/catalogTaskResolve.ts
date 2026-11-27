@@ -33,7 +33,7 @@ import {
 import { carryHumanModePreference, sendArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { resolveComfyWorkflowTaskKind } from '../../../../electron/catalog/comfyuiWorkflowTaskContract'
-import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
+import { readParameterReferenceContract } from '../../../../electron/shared/contracts/parameterReferenceContract'
 import { resolveUsableModelForNode } from './usableVendorModel'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 

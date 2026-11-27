@@ -13,6 +13,7 @@ import { modelListErrorRedactor, publicModelListUrl } from "../ai/onboarding/mod
 import type { CertificationContractBinding } from "../integrationCertification/types";
 import type { ProviderAdapterRun } from "./types";
 import { derivePublishedExecution } from "../shared/modelPublication";
+import { isTerminalAdapterRunStage } from "../shared/contracts/providerAdapterContract";
 
 export type ExistingConnectionErrorCode =
   | "CONNECTION_NOT_FOUND"
@@ -121,15 +122,6 @@ export type ExistingConnectionActions = {
   retry: (input: { runId: string; modelKey?: string; certification: CertificationContractBinding }) => Promise<ExistingConnectionStartResult>;
 };
 
-const TERMINAL_RUN_STAGES = new Set<ProviderAdapterRun["stage"]>([
-  "completed",
-  "partial",
-  "failed",
-  "needs_ai",
-  "cancelled",
-  "timed_out",
-  "stale",
-]);
 
 function providerKind(value: Vendor["providerKind"]): AiSdkProviderKind {
   return value === "anthropic" || value === "openai-responses" ? value : "openai-compatible";
@@ -371,7 +363,7 @@ export function createExistingConnectionActions(
           error: "The saved verification task was not found",
         };
       }
-      if (!TERMINAL_RUN_STAGES.has(previous.stage)) {
+      if (!isTerminalAdapterRunStage(previous.stage)) {
         return {
           ok: false,
           code: "RUN_ACTIVE",

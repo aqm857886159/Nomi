@@ -6,7 +6,7 @@ import { DesignSwitch, IconActionButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { McpInfo } from '../../desktop/mcpBridgeTypes'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
-import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
+import type { AutomationPolicySettings } from '../../../electron/shared/contracts/automationPolicyContract'
 
 const ConnectAssistantCard = lazyWithChunkBoundary('MCP', () =>
   import('../../ui/onboarding/ConnectAssistantCard').then((module) => ({ default: module.ConnectAssistantCard })),

@@ -6,7 +6,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconListCheck } from '@tabler/icons-react'
-import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRunSummary } from '../../../electron/shared/contracts/productionRunTypes'
 import type { ExportJobSnapshot } from '../../../electron/shared/contracts/exportJobManager'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'

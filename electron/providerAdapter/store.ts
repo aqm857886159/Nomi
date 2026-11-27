@@ -16,6 +16,7 @@ import type {
   ProviderAdapterStoreState,
 } from "./types";
 import type { PromotionTerminalStage } from "../integrationCertification/types";
+import { isTerminalAdapterRunStage } from "../shared/contracts/providerAdapterContract";
 
 const EMPTY_STATE: ProviderAdapterStoreState = { version: 1, revision: 0, runs: [], revisions: [], inputs: [] };
 
@@ -31,18 +32,8 @@ export const PROVIDER_ADAPTER_STORE_LOCK_LEASE_MS = 30_000;
  * 熬陈旧租约的活交给调用方的异步退避重试，别把 Electron 主进程卡住 30 秒。
  */
 export const PROVIDER_ADAPTER_STORE_LOCK_SPIN_MS = 3_000;
-export const TERMINAL_ADAPTER_STAGES = new Set<ProviderAdapterRun["stage"]>([
-  "completed",
-  "partial",
-  "failed",
-  "needs_ai",
-  "cancelled",
-  "timed_out",
-  "stale",
-]);
-
 export function isTerminalAdapterStage(stage: ProviderAdapterRun["stage"]): boolean {
-  return TERMINAL_ADAPTER_STAGES.has(stage);
+  return isTerminalAdapterRunStage(stage);
 }
 
 function clone<T>(value: T): T {

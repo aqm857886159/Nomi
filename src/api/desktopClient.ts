@@ -4,7 +4,7 @@ import type {
   AgentChatAttachment,
   AgentChatResponse,
   AgentChatUsage,
-} from '../../electron/harness/agentChatContracts'
+} from '../../electron/shared/contracts/agentChatContracts'
 
 export type AgentAttachmentPayload = AgentChatAttachment
 export type AgentsChatResponseDto = AgentChatResponse

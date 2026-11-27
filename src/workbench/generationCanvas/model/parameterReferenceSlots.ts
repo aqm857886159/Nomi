@@ -12,7 +12,7 @@ import {
   readParameterReferenceSlotsContract,
   type ParameterReferenceGroup,
   type ParameterReferenceSlot,
-} from '../../../../electron/catalog/parameterReferenceContract'
+} from '../../../../electron/shared/contracts/parameterReferenceContract'
 
 export type ImageUrlGroup = ParameterReferenceGroup
 export type ImageUrlSlot = ParameterReferenceSlot

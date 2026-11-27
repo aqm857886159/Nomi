@@ -27,7 +27,9 @@ type CodexImageQueryInput = {
   writeAsset: WriteAsset;
 };
 
-type CodexImageJobStatus = "queued" | "running" | "succeeded" | "failed";
+import type { TaskStatus } from "../shared/contracts/taskStatus";
+
+type CodexImageJobStatus = TaskStatus;
 
 type CodexImageJobRecord = {
   jobId: string;
