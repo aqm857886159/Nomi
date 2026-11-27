@@ -26,7 +26,7 @@ import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { evaluatePrBody, ledgerChanges, resolveJudgementStage, reviewedContracts, settledContracts } from './pr-body-criteria.mjs'
 import { knownScenarios, scenarioEntriesFromReader } from './perf-scenarios-lib.mjs'
 import { PRIOR_ART_THRESHOLD_DATE, evaluatePlans, evaluatePullRequest, scopePlansToChanged } from './prior-art-lib.mjs'
-import { ROUTING_FILE } from './pr-judgement-lib.mjs'
+import { GENERATED_ALLOWLIST_FILE, ROUTING_FILE } from './pr-judgement-lib.mjs'
 import { loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
 import { SELF_WRITTEN_FILE, registryChanges } from './self-written-lib.mjs'
 import { prChanges } from './lib/prChanges.mjs'
@@ -102,8 +102,14 @@ function main() {
     return 1
   }
   // 新增行按文件取（AbortController 只在非测试文件里认，#1038）；文件表 / 新增行 / package.json 被删行和合并前扫描同一个函数
-  const { files, addedByFile, packageRemovedLines } = prChanges({ git, base, head: 'HEAD' })
   const show = (ref, file) => { try { return git(['show', `${ref}:${file}`]) } catch { return null } }
+  // 政策表（路由表）取 base 版本：PR 不能放宽自己的路由要求（G-perfreg 分工：政策取 main，可扩充数据取 PR 头）
+  const policyTable = JSON.parse(show(base, ROUTING_FILE) ?? 'null')
+  if (!policyTable) {
+    console.error(`✖ 拿不到 base 上的路由政策表（${ROUTING_FILE}），无法判——不拿 PR 头上的版本顶替`)
+    return 1
+  }
+  const { files, addedByFile, packageRemovedLines } = prChanges({ git, base, head: 'HEAD', contentScope: policyTable.abortSignal?.scope })
   // 逃逸账本一条一个文件：条目被删 = 条目文件在 base 有、HEAD 没有；转 fixed 看两版（同一份 ledgerChanges）。
   const ledger = { transitions: [], ids: [], removed: [], settledContracts: [], preparedContracts: [] }
   if (files.some((file) => escapeIdOfPath(file.path))) {
@@ -134,13 +140,8 @@ function main() {
     prFiles: files.filter((file) => file.status !== 'D' && scenarioRe.test(file.path)).map((file) => ({ file: file.path, content: show('HEAD', file.path) })),
     removedFiles: files.filter((file) => file.status === 'D' && scenarioRe.test(file.path)).map((file) => file.path),
   })
-  // 政策表（路由表）取 base 版本：PR 不能放宽自己的路由要求（G-perfreg 分工：政策取 main，可扩充数据取 PR 头）
-  const policyTable = JSON.parse(show(base, ROUTING_FILE) ?? 'null')
-  if (!policyTable) {
-    console.error(`✖ 拿不到 base 上的路由政策表（${ROUTING_FILE}），无法判——不拿 PR 头上的版本顶替`)
-    return 1
-  }
-  const result = evaluatePrBody({ body: pr.body, files, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
+  const allowlist = JSON.parse(show('HEAD', GENERATED_ALLOWLIST_FILE))
+  const result = evaluatePrBody({ body: pr.body, files, allowlist, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage, scenarios, table: policyTable })
   const priorArtErrors = checkPriorArtAlongside({ base, files, body: pr.body, show })
   const categories = result.judgement.inferred.categories.map((category) => category.label)
   console.log(`PR 正文判据（${stage === 'merge' ? '合并档' : '推送档'}，正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)
@@ -150,7 +151,8 @@ function main() {
   }
   if (result.blocked || priorArtErrors.length > 0) {
     // 合并档跑在「PR Body」检查里，正文一改（edited）它自动重判；推送档跑在 Contracts 里，Quality Gate 只在推送时触发。
-    console.error(stage === 'merge'
+    if (!result.weight.ok) console.error('✖ 请修正上述文件或登记表后重新提交。')
+    else console.error(stage === 'merge'
       ? '✖ PR 正文判据（合并档）没过：在 GitHub 上把 PR 正文改好即可，「PR Body」检查会自动重判，不必重推、不必点重跑。'
       : '✖ PR 正文判据（推送档）没过：这几项推送时就该写好。改好 PR 正文后重跑这个 job 即可，不必重推。')
     return 1

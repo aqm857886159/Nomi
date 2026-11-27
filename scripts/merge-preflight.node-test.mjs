@@ -337,7 +337,7 @@ function prRepo(t, { base = {}, head = {} } = {}) {
     runGit(work, ['commit', '-q', '--allow-empty', '-m', message])
     return runGit(work, ['rev-parse', 'HEAD']).trim()
   }
-  const baseSha = commit({ 'README.md': 'base\n', ...base }, 'base')
+  const baseSha = commit({ 'README.md': 'base\n', 'docs/engineering/generated-allowlist.json': [], ...base }, 'base')
   runGit(work, ['push', '-q', origin, 'HEAD:refs/heads/main'])
   const headSha = commit(head, 'pr')
   runGit(work, ['push', '-q', origin, `HEAD:refs/pull/${PR}/head`])
@@ -396,7 +396,7 @@ test('大 PR（超过 300 个文件，GitHub 的 PR diff 给不了）：本地 g
   assert.deepEqual(result.calls, ONLY_PR_VIEW, '远程只剩 gh pr view 一次：不再走 gh pr diff / 文件表 / contents / compare / GraphQL')
   const changes = prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha })
   assert.equal(changes.files.length, count + 2)
-  assert.deepEqual(changes.files.at(-1), { path: LEDGER, status: 'M' })
+  assert.deepEqual(changes.files.at(-1), { path: LEDGER, status: 'M', additions: 1, binary: false })
 })
 
 test('head 对不上：fetch 到的 pull/<n>/head 不是 gh pr view 给的 headRefOid（取数这几秒里 PR 又推了）→ 取数失败，不拿新 head 判旧正文', (t) => {
@@ -429,11 +429,11 @@ test('本地 diff 的格式用参数钉死：仓库里设了 diff.noprefix / dif
   const cleanChanges = prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha })
   // 先证明基准本身是对的（否则「不变」没有意义）
   assert.deepEqual(cleanChanges.files, [
-    { path: 'docs/中文说明.md', status: 'M' },
-    { path: 'package.json', status: 'M' },
-    { path: 'src/workbench/ai/stream.ts', status: 'M' },
-    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A' },
-    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D' },
+    { path: 'docs/中文说明.md', status: 'M', additions: 1, binary: false },
+    { path: 'package.json', status: 'M', additions: 0, binary: false },
+    { path: 'src/workbench/ai/stream.ts', status: 'M', additions: 1, binary: false },
+    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A', additions: 5, binary: false },
+    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D', additions: 0, binary: false },
   ])
   assert.equal(cleanChanges.addedByFile.get('src/workbench/ai/stream.ts'), '+export const c = new AbortController()')
   assert.equal(cleanChanges.addedByFile.get('docs/中文说明.md'), '+二')
@@ -459,8 +459,8 @@ test('逃逸账本条目文件改名：文件表里是「旧路径 D + 新路径
   assert.equal(result.code, 1)
   // 内容几乎一样，git 默认会认成改名（R0xx）；钉死 --no-renames 后是一删一增，旧路径不会藏在改名记录里
   assert.deepEqual(prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha }).files, [
-    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A' },
-    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D' },
+    { path: `${LEDGER_DIR}/FB-new.json`, status: 'A', additions: 5, binary: false },
+    { path: `${LEDGER_DIR}/FB-old.json`, status: 'D', additions: 0, binary: false },
   ])
 })
 
@@ -597,4 +597,26 @@ test('合并前扫描拿不到 statusCheckRollup = 取数失败（结论：✖ �
   assert.equal(result.code, 1)
   assert.match(result.out, /取不到PR 当前 head 上的检查列表/)
   assert.match(result.out, /^结论：✖ 有项没过，先别合（取数失败/m)
+})
+
+test('合并扫描从 git numstat 计行，PR 登记豁免生效，转储内容不占补丁缓冲区', (t) => {
+  const name = 'docs/evidence/探针\t[v2].CSV'
+  const allowlist = 'docs/engineering/generated-allowlist.json'
+  const repo = prRepo(t, { head: {
+    [name]: '++raw\n'.repeat(1001),
+    'docs/binary.json': '\0' + '\n'.repeat(1500),
+    'src/sample.candidates.json': '++raw\n'.repeat(1001),
+    'docs/registered.log': 'row\n'.repeat(2500),
+    [allowlist]: [{ glob: allowlist, reason: '登记表', owner: '工程治理' }, { glob: 'docs/registered.log', reason: '验收合同', owner: '评审' }],
+  } })
+  const result = runPreflight(repo, { git: args => {
+    assert.ok(!args.includes('-U0'), '这组改动没有需要路由内容检查的路径')
+    return repo.git(args)
+  } })
+  assert.equal(result.code, 1)
+  assert.ok(result.out.includes(`${name} 新增 1001 行`), result.out)
+  assert.match(result.out, /合计新增 2002 行/)
+  assert.doesNotMatch(result.out, /机器产出 docs\/(?:registered\.log|binary\.json)/)
+  const changes = prChanges({ git: repo.git, base: repo.baseSha, head: repo.headSha })
+  assert.deepEqual(changes.files.find(f => f.path === 'docs/binary.json'), { path: 'docs/binary.json', status: 'A', additions: 0, binary: true })
 })

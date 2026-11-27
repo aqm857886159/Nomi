@@ -228,3 +228,57 @@ test('拍板图认领还没 implemented：推送档只提醒，合并档判红�
   assert.equal(oddPush.ok, false)
   assert.match(oddPush.lines.join('\n'), /a 还是 deferred[\s\S]*b 还是 half-done/)
 })
+
+test('机器产出重量：47 个真实 PR 的裁决及白名单后的新增量', async (t) => {
+  const { default: replay } = await import('./fixtures/pr-weight-replay-45prs.json', { with: { type: 'json' } })
+  const red = new Map([[1702, [9112, 10384]], [1703, [11455, 12134]], [1666, [1536, 6176]], [1668, [1002, 1562]]])
+  assert.equal(new Set(replay.map(pr => pr.number)).size, 47)
+  assert.equal(replay.filter(pr => pr.state === 'MERGED').length, 45)
+  for (const number of [...red.keys(), 1667, 1697, 1709]) assert.ok(replay.some(pr => pr.number === number))
+  for (const { number, files } of replay) {
+    await t.test(`#${number}`, () => {
+      const { weight } = evaluatePrBody({ body: STAR, files, evidence: {} })
+      assert.equal(weight.ok, !red.has(number))
+      if (red.has(number)) {
+        const [largest, total] = red.get(number)
+        assert.equal(weight.total, total)
+        assert.match(weight.lines.join('\n'), new RegExp(String(largest)))
+      }
+    })
+  }
+})
+
+test('推送档与合并档执行同一机器产出重量判据，白名单读取 PR 数据', () => {
+  const file = (path, additions, extra) => ({ path, additions, status: 'A', ...extra })
+  for (const stage of ['push', 'merge']) {
+    const judge = (files, options = {}) => evaluatePrBody({ stage, files, body: STAR, evidence: {}, ...options })
+    for (const extension of ['JSON', 'tXt', 'LOG', 'HTML', 'Csv', 'NDJSON']) {
+      const name = `docs\\evidence\\probe.${extension}`
+      assert.equal(judge([file(name, 1000)]).blocked, false)
+      const over = judge([file(name, 1001)])
+      assert.equal(over.blocked, true)
+      assert.ok(over.lines.some(line => line.includes(name.replaceAll('\\', '/')) && line.includes('1001')))
+      assert.ok(over.lines.some(line => line.includes('原始转储留在本机工作树、不提交；报告里写结论和数字；确实要进仓库的，登记进 docs/engineering/generated-allowlist.json 并写理由')))
+    }
+    for (const name of ['a.candidates.json', 'nested/a.candidates.json']) assert.equal(judge([file(name, 1001)]).blocked, true)
+    const pair = [file('docs/a.txt', 1000), file('docs/b.txt', 1000)]
+    assert.equal(judge(pair).blocked, false)
+    assert.equal(judge([...pair, file('docs/c.txt', 1)]).blocked, true)
+    const aggregate = judge(['a', 'b', 'c'].map(n => file(`docs/${n}.log`, 700)))
+    assert.equal(aggregate.blocked, true)
+    assert.match(aggregate.lines.join('\n'), /合计新增 2100 行/)
+    assert.equal(judge([
+      file('docs/screenshot.png', 9000, { binary: true }), file('docs/binary.json', 9000, { binary: true }),
+      file('docs/removed.json', 9000, { status: 'D' }), file('config/data.json', 9000),
+      ...['engineering/x.json', 'engineering/a/b/x.json', 'fixes/x.root-cause.json', 'design/boards/x/x.board.json',
+        'design/boards/x/y/a.board.json', 'design/boards/x/y/source/a.html', 'design/boards/x/preview/v1/a.txt'].map(p => file(`docs/${p}`, 9000)),
+    ]).weight.ok, true)
+    for (const key of ['glob', 'reason', 'owner']) {
+      for (const value of [undefined, '   ']) {
+        const invalid = judge([], { allowlist: [{ glob: 'docs/**', reason: '验收', owner: '协调', [key]: value }] })
+        assert.equal(invalid.blocked, true)
+        assert.ok(invalid.lines.some(line => line.includes(key)))
+      }
+    }
+  }
+})
