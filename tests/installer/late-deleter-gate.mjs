@@ -6,6 +6,7 @@ import crypto from 'node:crypto'
 import process from 'node:process'
 import { spawn } from 'node:child_process'
 import { setTimeout } from 'node:timers/promises'
+import { writeFileAtomicSync } from '../../scripts/lib/atomicFile.mjs'
 
 const divider = process.argv.indexOf('--')
 const stateIndex = process.argv.indexOf('--state')
@@ -14,9 +15,7 @@ const dir = process.argv[stateIndex + 1]
 const [originalImage, ...args] = process.argv.slice(divider + 1)
 const image = path.join(dir, 'captured-uninstaller.exe')
 const write = (name, value) => {
-  const file = path.join(dir, name)
-  fs.writeFileSync(`${file}.tmp`, JSON.stringify(value))
-  fs.renameSync(`${file}.tmp`, file)
+  writeFileAtomicSync(path.join(dir, name), JSON.stringify(value))
 }
 try {
   fs.copyFileSync(originalImage, image)
