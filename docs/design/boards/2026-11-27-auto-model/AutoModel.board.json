@@ -1,0 +1,99 @@
+{
+  "board": "AutoModel",
+  "stage": "explored",
+  "approvedOn": "2026-11-27",
+  "approval": {
+    "date": "2026-11-27",
+    "quote": "然后那些东西都按你的推荐走就好了。",
+    "source": "11-27 决策轮：S-G 这一行探索图（设置 2 行、节点模型框「自动」行、边界、图片一行三选一）连同 D-1127-auto-image-row（选 A：文生图、改图都用 Sunburst）、D-1127-new-card-default（新卡写「自动（实际模型名）」）一起按推荐定。",
+    "canvas": "https://claude.ai/artifact/7NFyqLcynqwNXZ89zPsFds",
+    "canvasVersion": "1795802526-3831，第 6 行 S-G（SG-policy / SG-policy-en-dark / SG-image-abc / SG-node / SG-edges）"
+  },
+  "exploration": {
+    "canvas": "https://claude.ai/artifact/7NFyqLcynqwNXZ89zPsFds",
+    "note": "S-G 一行 5 张。SG-image-abc 是三选一的对照图，用户选 A，只作决定记录，不是实现合同；实现只照 A。"
+  },
+  "artboards": ["SG-policy", "SG-policy-en-dark", "SG-node", "SG-edges", "SG-image-abc"],
+  "sourceBoundary": "板源是 source/ 里 5 份画布原稿（.dc.html，静态、无变量），preview/ 里是去掉画布外壳后的同名 HTML 和无界面浏览器按原尺寸拍的 PNG。画布上的模型名单、能力芯片和「新」标是 11-27 目录的示意，实现以目录为准；「自动」后面写的名字以推荐梯队表和本机可用连接算出的结果为准。",
+  "designIntent": "「自动」不再是一个看不见底的词：设置页、节点模型框、下拉首项都写出这一刻实际会用的模型名。设置页「新建节点默认用哪个模型」从按 4 个功能各一行收成图片、视频 2 行：图片一行同时管文字出图和改图，视频一行同时管文字出视频和图片出视频。新卡建出来写「自动（实际模型名）」，不跟着上一张卡变。",
+  "designCard": "#1586 S-G 合成稿 7201448968 与更正 7201482157；Gemini G-4 方案 7200639854",
+  "decisions": [
+    { "id": "SG-1", "text": "图片一行文字出图、改图都用 GPT Image 2.6 Sunburst（选项 A）：同价、细节和改图一致性最好；一个名字管两件事，卡不用加「跟随自动」状态", "source": "D-1127-auto-image-row，用户 2026-11-27「然后那些东西都按你的推荐走就好了。」" },
+    { "id": "SG-2", "text": "新卡默认写「自动（实际模型名）」，不随上一张卡变；取代 ModelSurfaces Q5「跟上次一样」", "source": "D-1127-new-card-default，用户 2026-11-27 同一句" },
+    { "id": "SG-3", "text": "老用户旧的 4 行默认设置不迁，升级后回到「自动」，行里照样写出实际模型名", "source": "用户 2026-11-09「可以 按你的推荐做 老用户那个没事 也没那么重要」；协调更正 7201482157" },
+    { "id": "SG-4", "text": "Agent 弹层不放默认模型行，只放一行指向设置 › AI 策略", "source": "ModelSurfaces 清单 Q12、元素 brain.policy-pointer（2026-11-07 拍板）" }
+  ],
+  "constraints": [
+    { "id": "auto.name-is-what-runs", "text": "「自动 · X」里的 X 必须是这次真会发出去的模型：按推荐梯队表 + 本机可用连接 + 连败避让算，和真正发送时用同一个解析函数，不另算一份。" },
+    { "id": "auto.no-name-for-unusable", "text": "推荐的模型本机用不了时，写本机实际会用的那个，不印用不了的名字；一个能用的都没有时写「暂无可用模型」并给「去接入供应商」。" }
+  ],
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "product": "LibTV",
+      "screenshotSha256": "b7dfa26683eff3aa0981feeaf5d9f6e86d27280a2e5ea80b9e509d073ad9b98e",
+      "seenOn": "2026-11-14",
+      "differences": [
+        { "what": "LibTV 新图片节点的生成框直接写一个具体模型名（Lib Image 2.5 Pro），没有「自动」这一档", "why": "Nomi 接的是多家目录、模型会更新，留「自动」让新卡跟着推荐走；但照它的做法把实际模型名写出来，所以是「自动 · 实际模型名」" },
+        { "what": "LibTV 一个模型名同时管文字出图和上传图片改图（输入框提示两种用法写在一起）", "why": "确认了选项 A：图片一行一个名字管两件事，不拆成两个" },
+        { "what": "LibTV 没有单独的「新建节点默认用哪个模型」设置页", "why": "Nomi 有多家连接和自定义模型，默认放在设置 › AI 策略一处；收成 2 行，和 LibTV 节点上只看到一个名字的体验对齐" }
+      ]
+    },
+    {
+      "url": "https://help.runwayml.com/hc/en-us/articles/51601639579667-Creating-with-Runway-Agent",
+      "takeaway": "Runway Agent 生成前确认的计划里逐步写明实际要用的具体模型和估价，对话模型和生成模型偏好分开。",
+      "decisionImpact": "确认了：「自动」后面写实际模型名；手选的模型做不了这件事时，在行里如实写出改用谁（SG-edges 手选只能做一件事的模型）。"
+    },
+    {
+      "url": "https://docs.midjourney.com/hc/en-us/articles/32199405667853-Version",
+      "takeaway": "Midjourney 官方直接点名当前默认版本；用户改了默认后各入口同步，单次仍可显式指定。",
+      "decisionImpact": "确认了：设置页一处改、新卡处处跟着变；节点上仍可单张手选覆盖。"
+    },
+    {
+      "url": "https://helpx.adobe.com/photoshop/desktop/whats-new/photoshop-on-desktop-release-notes.html",
+      "takeaway": "Photoshop 发版说明里记过「升级后意外留着旧默认 Firefly Image 3、没切到新默认」的回归。",
+      "decisionImpact": "确认了：老用户旧的 4 行设置不带过来，升级后统一回到「自动」，避免静默留着旧默认（和用户 11-09 定的一致）。"
+    }
+  ],
+  "priorDecisions": [
+    { "what": "新节点默认 =「跟上次一样」（ModelSurfaces 清单 Q5、元素 policy.defaults 画的 4 行「跟上次一样 · 某模型 / 固定 · 某模型」）", "source": "2026-11-07 协调记录 17 题按推荐项；ModelSurfaces.board.json", "stillValid": "不算数了：被 2026-11-27 D-1127-new-card-default 取代，新卡写「自动（实际模型名）」。policy.defaults 的 4 行布局由本板 policy.default-image-row / policy.default-video-row 取代。" },
+    { "what": "「自动」= 目录推荐的模型，并写出名字", "source": "用户 2026-11-09", "stillValid": "算数，本板就是它的样子" },
+    { "what": "老用户 4 行设置不迁", "source": "用户 2026-11-09「老用户那个没事 也没那么重要」", "stillValid": "算数（SG-3）" },
+    { "what": "Agent 弹层只放一行指向设置，不放默认模型行", "source": "ModelSurfaces Q12、brain.policy-pointer", "stillValid": "算数（SG-4），本板不画 Agent 弹层" },
+    { "what": "模型下拉：平铺 + 搜索 + 能力芯片，不按任务分组；「新」标 14 天", "source": "ModelSurfaces Q7、picker.row", "stillValid": "算数，本板只在下拉最上面加「自动 · 实际模型名」这一行，其余照 picker.row" }
+  ],
+  "components": [
+    "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+  ],
+  "appearsIn": [
+    { "place": "设置 › AI 策略「新建节点默认用哪个模型」", "files": ["src/workbench/settings/AiModelsSection.tsx"], "board": "AutoModel", "element": "policy.default-image-row" },
+    { "place": "画布节点生成框左下的模型名和下拉", "files": ["src/workbench/generationCanvas/nodes/LazyNodeGenerationComposer.tsx", "src/workbench/generationCanvas/nodes/composerAnchor.tsx"], "board": "AutoModel", "element": "node.model-chip-auto" }
+  ],
+  "appearsInExcluded": [
+    { "file": "src/devlab/designLab/nodeComposerBar/nodeComposerB3LabKit.tsx", "reason": "设计实验室的生成框样张屏，复用同一组件；模型名跟着组件走，不单独出图" },
+    { "file": "src/devlab/designLab/nodeComposerBar/nodeComposerBarLabKit.tsx", "reason": "同上，设计实验室样张屏" },
+    { "file": "src/devlab/designLab/nodeComposerBar/yieldHistoryLab.tsx", "reason": "设计实验室的让位历史屏，不展示模型名" }
+  ],
+  "boundarySheet": [
+    { "where": "设置页默认行右侧的模型名胶囊", "max": "「自动 · GPT Image 2.6 Sunburst」（目前最长的推荐名）；英文「Auto · GPT Image 2.6 Sunburst」", "source": "推荐梯队表与目录显示名", "layout": "胶囊不截断模型名；左侧功能名和副标让位、副标折两行（preview/SG-policy.png、SG-policy-en-dark.png）", "board": "AutoModel", "element": "policy.default-image-row" },
+    { "where": "节点生成框左下的模型名胶囊", "max": "英文窄节点「Auto · GPT Image 2.6 Sunburst」", "source": "同上", "layout": "放不下就把参数胶囊换到下一行，模型名不截断（preview/SG-edges.png 右下）", "board": "AutoModel", "element": "node.model-chip-auto" },
+    { "where": "手选了只能做一件事的模型时，图片行的副标", "max": "「只能文字出图；改图时用自动（GPT Image 2.6 Sunburst）」", "source": "目录能力声明 + 推荐梯队表", "layout": "副标折行，不截断（preview/SG-edges.png 左下）", "board": "AutoModel", "element": "edge.single-capability-pick" }
+  ],
+  "elements": [
+    { "id": "policy.default-image-row", "artboard": "SG-policy", "label": "「新建节点默认用哪个模型」图片一行：功能名「图片」+ 副标「文字出图 · 改图」+ 右侧胶囊「自动 · 实际模型名」（推荐 GPT Image 2.6 Sunburst）；一行同时写文字出图和改图两类默认", "change": "changed", "states": ["selected", "hover", "dark", "zh-en", "long-text"], "component": "src/workbench/settings/DefaultGenerationModelsSection.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "policy.default-video-row", "artboard": "SG-policy", "label": "视频一行：「视频」+ 副标「文字出视频 · 图片出视频」+「自动 · Seedance 2.5」；一行同时写两类视频默认", "change": "changed", "states": ["selected", "dark", "zh-en"], "component": "src/workbench/settings/DefaultGenerationModelsSection.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "policy.auto-caption", "artboard": "SG-policy", "label": "两行下面一句说明：「「自动」用这件事现在最强的模型；写出来的就是实际会用的那个。」/ \"Auto uses the strongest model for the task; the name shown is the one that runs.\"", "change": "new", "states": ["dark", "zh-en"], "component": "src/workbench/settings/DefaultGenerationModelsSection.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "policy.picker-auto-option", "artboard": "SG-policy", "label": "默认行下拉最上面一行「自动 · 实际模型名」+ 副标「这件事现在最强的」，选中打勾；下面一条分隔线后是平铺模型列表（照 ModelSurfaces picker.row）", "change": "new", "states": ["selected", "hover", "zh-en"], "component": "src/workbench/settings/DefaultGenerationModelsSection.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "node.model-chip-auto", "artboard": "SG-node", "label": "新卡生成框左下模型名胶囊写「自动 · 实际模型名」，不随上一张卡变；加参考图从文字出图变改图时名字不变（选项 A）", "change": "changed", "states": ["selected", "zh-en", "narrow", "long-text"], "component": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "node.picker-auto-option", "artboard": "SG-node", "label": "节点模型下拉最上面一行「自动 · 实际模型名」+ 副标「按设置里的默认 · 这件事现在最强的」", "change": "new", "states": ["selected", "hover", "zh-en"], "component": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "edge.vendor-fallback", "artboard": "SG-edges", "label": "推荐的模型本机用不了（例：只接了 Kie，2.6 只有 APIMart 有）：写本机实际会用的模型（GPT Image 2.5 Sunburst），不印用不了的名字", "change": "new", "states": ["disabled", "zh-en"], "component": "src/workbench/settings/DefaultGenerationModelsSection.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "edge.none-available", "artboard": "SG-edges", "label": "一个能用的都没有：两行都写「自动 · 暂无可用模型」，下面「去接入供应商」", "change": "new", "states": ["empty", "zh-en"], "component": "src/workbench/settings/DefaultGenerationModelsSection.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" },
+    { "id": "edge.single-capability-pick", "artboard": "SG-edges", "label": "手选了只能做一件事的模型（例：Z-Image Turbo 只能文字出图）：胶囊写手选的名字，副标改成「只能文字出图；改图时用自动（实际模型名）」", "change": "new", "states": ["selected", "zh-en", "long-text"], "component": "src/workbench/settings/DefaultGenerationModelsSection.tsx", "anchor": "未定", "status": "missing", "owner": "S-G" }
+  ],
+  "functionCensus": [
+    { "censusId": "SG-01", "function": "按 4 个功能分别设默认模型（文字出图 / 改图 / 文字出视频 / 图片出视频 各一行）", "before": "设置 › AI 策略 4 行，每行「自动」或一个固定模型", "after": "policy.default-image-row", "afterNote": "收成图片、视频 2 行；一行写两类。老用户旧 4 行不迁（SG-3）。", "placement": "direct", "ifRemoved": "不能改默认，想一直用某个模型的人每建一张卡都要手选" },
+    { "censusId": "SG-02", "function": "视频的两类默认", "before": "文字出视频、图片出视频各一行", "after": "policy.default-video-row", "afterNote": "收成一行", "placement": "direct", "ifRemoved": "同上" },
+    { "censusId": "SG-03", "function": "「自动」到底用的是谁", "before": "只写「自动」，看不出实际模型", "after": "node.model-chip-auto", "afterNote": "处处写出实际模型名", "placement": "direct", "ifRemoved": "创作者不知道这张卡会用谁、花多少，出了图才发现不是想要的模型" }
+  ]
+}
