@@ -446,10 +446,79 @@ export function checkBoundaryCoverage({ board, manifest, date }) {
 }
 
 // R12 only consumes literal relative module references and the names crossing a barrel.
-// Skip comments and quoted content before matching a declaration or runtime module load.
+// Skip comments and non-interpolated string/template text while still lexing ${...} expressions.
+function tokenizeModuleSource(text) {
+  const words = []
+  const templateStack = []
+  let braceDepth = 0
+  let i = 0
+  const readTemplateChunk = (isHead) => {
+    const start = i
+    i += 1
+    while (i < text.length) {
+      const ch = text[i]
+      if (ch === '\\') { i += 2; continue }
+      if (ch === '`') {
+        i += 1
+        if (isHead) words.push(text.slice(start, i))
+        return
+      }
+      if (ch === '$' && text[i + 1] === '{') {
+        i += 2
+        templateStack.push(braceDepth)
+        return
+      }
+      i += 1
+    }
+  }
+  while (i < text.length) {
+    const ch = text[i]
+    if (/\s/.test(ch)) { i += 1; continue }
+    if (ch === '/' && text[i + 1] === '/') {
+      i += 2
+      while (i < text.length && text[i] !== '\n') i += 1
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2)
+      i = end < 0 ? text.length : end + 2
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      const quote = ch
+      const start = i
+      i += 1
+      while (i < text.length) {
+        if (text[i] === '\\') { i += 2; continue }
+        if (text[i] === quote) { i += 1; break }
+        i += 1
+      }
+      words.push(text.slice(start, i))
+      continue
+    }
+    if (ch === '`') { readTemplateChunk(true); continue }
+    if (ch === '{') { braceDepth += 1; words.push('{'); i += 1; continue }
+    if (ch === '}') {
+      if (templateStack.length > 0 && templateStack[templateStack.length - 1] === braceDepth) {
+        templateStack.pop()
+        readTemplateChunk(false)
+        continue
+      }
+      if (braceDepth > 0) braceDepth -= 1
+      words.push('}')
+      i += 1
+      continue
+    }
+    const ident = /^[$\w]+/.exec(text.slice(i))
+    if (ident) { words.push(ident[0]); i += ident[0].length; continue }
+    words.push(ch)
+    i += 1
+  }
+  return words
+}
+
 function* relativeModuleReferences(text) {
-  const tokens = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|[$\w]+|[^\s]/g
-  const words = Array.from(text.matchAll(tokens), match => match[0]).filter(word => !word.startsWith('//') && !word.startsWith('/*'))
+  const words = tokenizeModuleSource(text)
   const relative = word => /^(?:['"]\.{1,2}\/|`\.{1,2}\/(?:\\.|[^`$\\])*`$)/.test(word ?? '')
   for (let i = 0; i < words.length; i++) {
     const kind = words[i]
@@ -458,7 +527,7 @@ function* relativeModuleReferences(text) {
     if (words[j] === '(' && relative(words[j + 1])) {
       // TS import types name an exported type; runtime import returns a Promise.
       const member = words[j + 3] === '.' ? words[j + 4] : null
-      if (kind === 'import' && (words[i - 1] === 'typeof' || (member && !['then', 'catch', 'finally'].includes(member)))) continue
+      if (kind === 'import' && words[i - 1] !== 'await' && (words[i - 1] === 'typeof' || (member && !['then', 'catch', 'finally'].includes(member)))) continue
       yield { specifier: words[j + 1].slice(1, -1), kind: 'import', names: '*' }
       continue
     }
@@ -562,6 +631,11 @@ export function checkBoardManifest({ board, manifest, date, boardNames, referrer
   if (!manifest || typeof manifest !== 'object') return [tag('清单缺失或不是对象')]
   if (manifest.board !== board) errors.push(tag(`清单里的 board 字段是 ${manifest.board}，应为 ${board}`))
   if (!BOARD_STAGES.includes(manifest.stage)) errors.push(tag(`stage 只能是 ${BOARD_STAGES.join(' / ')}，当前 ${manifest.stage}`))
+  if (Object.hasOwn(manifest, 'manifestOnly') && typeof manifest.manifestOnly !== 'boolean') {
+    errors.push(tag('manifestOnly 必须是布尔值'))
+  } else if (manifest.manifestOnly === true && manifest.__hasArtboard === true) {
+    errors.push(tag('声明了 manifestOnly 却包含源图或预览文件'))
+  }
   errors.push(...checkPriorArt({ board, manifest, date }))
   errors.push(...checkBoundarySheet({ board, manifest, date, boardNames }))
   errors.push(...checkSameSurfacePriorArt({ board, manifest, date }))
@@ -678,8 +752,11 @@ export function checkPrBoardClaims(body, manifests, { pending } = {}) {
         // 只有「还在等验收」的合法状态能进 pending；非法状态、缺用户原话的 deferred / dropped 不是在等验收，推送档也红
         const awaiting = el.status === 'missing' || el.status === 'in-progress'
         ;(awaiting && pending ? pending : errors).push(`[${board}] 认领的元素 ${id} 还是 ${el.status}：合并前必须 implemented，或带用户原话的 deferred / dropped`)
-      } else if (el.status === 'implemented' && !manifest.manifestOnly && el.change !== 'remove' && el.anchor !== expectedBoardAnchor(id)) {
-        errors.push(`[${board}] 认领的元素 ${id} 是 implemented，anchor 必须是 ${expectedBoardAnchor(id)}（当前 ${el.anchor ?? '缺失'}）`)
+      } else if (el.status === 'implemented' && el.change !== 'remove') {
+        const isManifestOnly = manifest.__hasArtboard !== undefined ? !manifest.__hasArtboard : manifest.manifestOnly === true
+        if (!isManifestOnly && el.anchor !== expectedBoardAnchor(id)) {
+          errors.push(`[${board}] 认领的元素 ${id} 是 implemented，anchor 必须是 ${expectedBoardAnchor(id)}（当前 ${el.anchor ?? '缺失'}）`)
+        }
       }
     }
   }
@@ -722,6 +799,22 @@ export function loadManifests(dir = BOARDS_DIR, root = path.dirname(dir)) {
  * 仓库内所有已批板清单的唯一读取入口（同时覆盖 BOARDS_DIR 与所有其它日期目录）。
  * check:board-parity 与 delivery:preflight 欠账汇总共用这一份，不另写第二份板读取器。
  */
+function boardDirHasArtboard(boardDir) {
+  for (const sub of ['preview', 'source']) {
+    const target = path.join(boardDir, sub)
+    if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) continue
+    const stack = [target]
+    while (stack.length) {
+      const current = stack.pop()
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        if (entry.isDirectory()) stack.push(path.join(current, entry.name))
+        else if (/\.(?:html|svg)$/i.test(entry.name)) return true
+      }
+    }
+  }
+  return false
+}
+
 export function listBoardManifests({ dir = BOARDS_DIR, root = path.dirname(dir) } = {}) {
   const boards = [
     ...boardNamesIn(dir).map(board => ({ board, dir })),
@@ -730,6 +823,12 @@ export function listBoardManifests({ dir = BOARDS_DIR, root = path.dirname(dir) 
   return boards.map(({ board, dir: boardDir }) => {
     const file = path.join(boardDir, `${board}.board.json`)
     const manifest = JSON.parse(fs.readFileSync(file, 'utf8'))
+    Object.defineProperty(manifest, '__hasArtboard', {
+      value: boardDirHasArtboard(boardDir),
+      configurable: true,
+      writable: true,
+      enumerable: false,
+    })
     const dirName = path.basename(boardDir)
     return { board, dir: boardDir, dirName, boardKey: `${dirName}/${board}`, file, manifest, approvedOn: approvedDateOf(dirName, manifest) }
   })

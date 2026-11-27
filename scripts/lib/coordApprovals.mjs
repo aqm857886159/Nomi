@@ -51,7 +51,7 @@ export function normalizeBoard(manifest) {
   return out
 }
 
-const withoutElements = (board) => Object.fromEntries(Object.entries(board ?? {}).filter(([key]) => key !== 'elements' && key !== 'artboardFiles'))
+const withoutElements = (board) => Object.fromEntries(Object.entries(board ?? {}).filter(([key]) => key !== 'elements' && key !== '__artboardBlobs'))
 const sameContent = (a, b) => canonicalJson(a) === canonicalJson(b)
 
 /**
@@ -74,7 +74,7 @@ export function boardApprovalSubject(name, baseManifest, headManifest) {
   const baseLevel = withoutElements(base)
   const headLevel = withoutElements(head)
   const boardLevel = !sameContent(baseLevel, headLevel)
-  const artboardChanged = !sameContent(base?.artboardFiles ?? null, head?.artboardFiles ?? null)
+  const artboardChanged = !sameContent(base?.__artboardBlobs ?? null, head?.__artboardBlobs ?? null)
   const needsApproval = !sameContent(base, head)
   return {
     needsApproval,

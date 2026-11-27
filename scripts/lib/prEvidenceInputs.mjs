@@ -173,9 +173,16 @@ export function boardsAtHead({ git, sha }) {
     const manifests = loadManifests(path.join(tmp, 'docs/design/boards/2026-10-08'))
     for (const { dirRel, boardName } of boardDirs.values()) {
       const manifest = manifests[boardName]
-      const artboardFiles = artboardsByDir.get(dirRel)
-      if (manifest && !manifest.ambiguous && artboardFiles && Object.keys(artboardFiles).length > 0) {
-        manifest.artboardFiles = artboardFiles
+      const artboardBlobs = artboardsByDir.get(dirRel)
+      const hasArtboard = Boolean(artboardBlobs && Object.keys(artboardBlobs).length > 0)
+      if (manifest && !manifest.ambiguous) {
+        Object.defineProperty(manifest, '__hasArtboard', {
+          value: hasArtboard,
+          configurable: true,
+          writable: true,
+          enumerable: false,
+        })
+        if (hasArtboard) manifest.__artboardBlobs = artboardBlobs
       }
     }
     return manifests

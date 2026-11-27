@@ -406,6 +406,7 @@ describe('R12 引用方扫描（makeReferrerScanner）：只看直接引用；�
     write('src/workbench/TypeOnly.tsx', "import type { ThingProps } from '../design/Thing'\nexport type D = ThingProps\n")
     write('src/workbench/Lazy.tsx', "export const load = () => import('../design/Thing')\n")
     write('src/workbench/LazyTemplate.tsx', 'export const load = () => import(`../design/Thing`)\n')
+    write('src/workbench/Interpolated.tsx', 'export const render = async () => `${(await import(\'../design/Thing\')).Thing()}`\n')
     write('src/workbench/TypeQuery.ts', "type T = import('../design/Thing').ThingProps\ntype Module = typeof import('../design/Thing')\n")
     write('src/workbench/Notes.ts', "const note = `import { Thing } from '../design/Thing'` // import('../design/Thing')\n")
     write('src/workbench/Direct.test.tsx', "import { Thing } from '../design/Thing'\n")
@@ -415,7 +416,7 @@ describe('R12 引用方扫描（makeReferrerScanner）：只看直接引用；�
     const got = scan('src/design/Thing.tsx')
     assert.ok(scan('src/design/Ghost.tsx') === null)
     fs.rmSync(root, { recursive: true, force: true })
-    assert.deepEqual(got, ['src/devlab/designLab/thing/thingLabKit.tsx', 'src/workbench/Direct.tsx', 'src/workbench/Lazy.tsx', 'src/workbench/LazyTemplate.tsx', 'src/workbench/ViaBarrel.tsx'])
+    assert.deepEqual(got, ['src/devlab/designLab/thing/thingLabKit.tsx', 'src/workbench/Direct.tsx', 'src/workbench/Interpolated.tsx', 'src/workbench/Lazy.tsx', 'src/workbench/LazyTemplate.tsx', 'src/workbench/ViaBarrel.tsx'])
   })
 })
 
@@ -454,12 +455,17 @@ describe('R8 PR 认领的拍板图元素必须有去处', () => {
     const manifests = { Main: base() }
     assert.match(checkPrBoardClaims('## 拍板图\n- Main: 不存在的元素', manifests).join('\n'), /不在清单里/)
   })
-  it('正例：认领的元素是 implemented 且带显式 anchor → 绿；anchor 仍为 未定 → 红', () => {
+  it('正例：认领的元素是 implemented 且带显式 anchor → 绿；anchor 仍为 未定 或伪造 manifestOnly="false" → 红；真实无画稿板自动豁免', () => {
     const manifests = { Main: base() }
     assert.deepEqual(checkPrBoardClaims('## 拍板图\n- Main: topbar.title', manifests), [])
     const unanchored = base()
     unanchored.elements[0].anchor = '未定'
+    unanchored.manifestOnly = 'false'
+    assert.match(run(unanchored).join('\n'), /manifestOnly 必须是布尔值/)
     assert.match(checkPrBoardClaims('## 拍板图\n- Main: topbar.title', { Main: unanchored }).join('\n'), /anchor 必须是 \[data-board="topbar\.title"\]/)
+    const realManifests = loadManifests()
+    assert.equal(realManifests.AgentPermissionTiers.__hasArtboard, false)
+    assert.equal(realManifests.Onboarding.__hasArtboard, true)
   })
   it('pending 收集器：还没 implemented 的认领进 pending、不进 errors；清单里没有的照样进 errors', () => {
     const manifests = { Main: base() }
