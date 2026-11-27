@@ -2123,8 +2123,7 @@
         "read-project",
         "receipt-recovery",
         "replay-events",
-        "restore-store",
-        "save-migrated"
+        "restore-store"
       ],
       "reason": "打开项目在渲染层的计时阶段名（User Timing measure 名的后缀，前缀 nomi:open:）：按 hydrateProject 的真实步骤顺序命名，只给真实规模性能跑器按名取数，不参与任何判定、不落盘；默认关闭（localStorage nomi:perf-marks）。不复用项目水合或 Agent lane 的状态词表——那些是状态，这里是计时段。",
       "site": "src/workbench/project/projectOpenTimeline.ts::type:ProjectOpenStage/type-union"

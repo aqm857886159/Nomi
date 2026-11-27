@@ -1,0 +1,148 @@
+{
+  "runId": "canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai",
+  "jobId": "generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0",
+  "runtimeTaskId": "runtime-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0-attempt-1",
+  "contractHash": "95faaf939bfed4e0ba767df1d18fa26aac33fecaa5f1babc25c7245689ff847c",
+  "providerIdempotencyKey": "generation:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0:95faaf939bfed4e0ba767df1d18fa26aac33fecaa5f1babc25c7245689ff847c:attempt-1",
+  "requestFingerprint": "319e68aeac40f111d050396b978ffc85fcac53e12b3f48de7df090e06d3b9aab",
+  "request": {
+    "moduleId": "generation.canvas",
+    "providerId": "canvas:apimart",
+    "modelId": "doubao-seedream-5-0-pro",
+    "mode": "text_to_image",
+    "prompt": "孤岛悬崖石砌废墟灯塔角色与场景设定图",
+    "parameters": {
+      "vendor": "apimart",
+      "request": {
+        "kind": "text_to_image",
+        "prompt": "孤岛悬崖石砌废墟灯塔角色与场景设定图",
+        "extras": {
+          "modelKey": "doubao-seedream-5-0-pro",
+          "modelAlias": "doubao-seedream-5-0-pro",
+          "modelVendor": "apimart",
+          "vendor": "apimart",
+          "modelLabel": "Seedream 5.0 Pro",
+          "size": "1:1",
+          "resolution": "2K",
+          "imageModel": "doubao-seedream-5-0-pro",
+          "imageModelVendor": "apimart",
+          "archetype": {
+            "id": "seedream-5-pro",
+            "modeId": "t2i"
+          },
+          "nodeId": "gen-v2-image-mwxps026-xhip",
+          "nodeKind": "image",
+          "idempotencyKey": "run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai",
+          "archetypeInput": {},
+          "projectId": "project-1795707318198-ebv6ef"
+        }
+      }
+    },
+    "references": [],
+    "contractHash": "95faaf939bfed4e0ba767df1d18fa26aac33fecaa5f1babc25c7245689ff847c",
+    "idempotencyKey": "generation:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0:95faaf939bfed4e0ba767df1d18fa26aac33fecaa5f1babc25c7245689ff847c:attempt-1",
+    "requestFingerprint": "319e68aeac40f111d050396b978ffc85fcac53e12b3f48de7df090e06d3b9aab",
+    "executionBinding": {
+      "immutableProjectUuid": "d218fa19-2df4-4ef2-8c42-6dc9ee70dff6",
+      "projectGeneration": 1,
+      "runId": "canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai",
+      "shotId": "generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0",
+      "contractHash": "95faaf939bfed4e0ba767df1d18fa26aac33fecaa5f1babc25c7245689ff847c",
+      "runtimeTaskId": "runtime-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0-attempt-1",
+      "providerNamespace": "canvas:apimart",
+      "providerIdempotencyKey": "generation:canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai:generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0:95faaf939bfed4e0ba767df1d18fa26aac33fecaa5f1babc25c7245689ff847c:attempt-1",
+      "requestFingerprint": "319e68aeac40f111d050396b978ffc85fcac53e12b3f48de7df090e06d3b9aab",
+      "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai/jobs/generation-canvas-run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai-95faaf939bfed4e0/runtime-envelope.json",
+      "fencingEpoch": 1
+    }
+  },
+  "schemaVersion": 1,
+  "state": "materialized",
+  "updatedAt": "2026-11-26T15:35:30.305Z",
+  "providerTaskId": "s-walk-image-4",
+  "rawReceipt": {
+    "id": "s-walk-image-4",
+    "kind": "text_to_image",
+    "status": "queued",
+    "assets": [],
+    "raw": {
+      "code": 200,
+      "data": [
+        {
+          "status": "submitted",
+          "task_id": "s-walk-image-4"
+        }
+      ]
+    }
+  },
+  "lastPoll": {
+    "status": "succeeded",
+    "revision": 2,
+    "raw": {
+      "id": "s-walk-image-4",
+      "kind": "text_to_image",
+      "status": "succeeded",
+      "assets": [
+        {
+          "type": "image",
+          "url": "nomi-local://asset/project-1795707318198-ebv6ef/assets/generated/2026-11-26/image-1795707330232.png",
+          "thumbnailUrl": null,
+          "previewState": "source",
+          "assetId": "asset-b49d5ab9406553d66f19",
+          "assetName": "image-1795707330232.png",
+          "width": 640,
+          "height": 360,
+          "providerUrl": "http://127.0.0.1:64319/fixture/image-2.png"
+        }
+      ],
+      "raw": {
+        "code": 200,
+        "data": {
+          "id": "s-walk-image-4",
+          "status": "completed",
+          "result": {
+            "images": [
+              {
+                "id": "s-walk-image-4",
+                "url": [
+                  "http://127.0.0.1:64319/fixture/image-2.png"
+                ],
+                "filename": "fixture-image-2.png"
+              }
+            ]
+          }
+        }
+      },
+      "provenance": {
+        "provider": "apimart",
+        "modelKey": "doubao-seedream-5-0-pro",
+        "prompt": "孤岛悬崖石砌废墟灯塔角色与场景设定图",
+        "params": {
+          "extras": {
+            "size": "1:1",
+            "resolution": "2K",
+            "modelKey": "doubao-seedream-5-0-pro",
+            "modelAlias": "doubao-seedream-5-0-pro",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "Seedream 5.0 Pro",
+            "imageModel": "doubao-seedream-5-0-pro",
+            "imageModelVendor": "apimart",
+            "archetype": {
+              "id": "seedream-5-pro",
+              "modeId": "t2i"
+            },
+            "nodeId": "gen-v2-image-mwxps026-xhip",
+            "nodeKind": "image",
+            "idempotencyKey": "run-gen-v2-image-mwxps026-xhip-1795707327141-8b7nai",
+            "archetypeInput": {},
+            "projectId": "project-1795707318198-ebv6ef"
+          }
+        },
+        "vendorRequestId": "s-walk-image-4",
+        "timestamp": 1795707330256
+      }
+    },
+    "observedAt": "2026-11-26T15:35:30.256Z"
+  }
+}

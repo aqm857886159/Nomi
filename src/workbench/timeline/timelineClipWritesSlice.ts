@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import { setClipFraming } from './timelineEdit'
+import { setClipFraming, type ClipOrigin } from './timelineEdit'
 import type { ClipFraming } from './clipFraming'
 import { applyTimelineOperation } from './kernel/timelineKernel'
 import type { TimelineClipAudio, TimelineState } from './timelineTypes'
@@ -17,6 +17,7 @@ import type { createTimelineHistory } from '../history/historyMiddleware'
  *    所以走 applyTimelineOperation 并压撤销栈，一次 ⌘Z 能还原。
  */
 export type TimelineClipWritesSlice = {
+  commitTimelineClipDrag: (origins: ClipOrigin[], token: symbol) => void
   /** 设置 clip 取景。拖动/连续缩放传 commit:false，落定 commit:true 落盘一次。 */
   setTimelineClipFraming: (clipId: string, patch: Partial<ClipFraming>, options?: { commit?: boolean }) => void
   /** 写入 clip.audio，经内核校验；图片片段直接忽略（clip_audio_unsupported）。 */
@@ -36,6 +37,15 @@ type ClipWritesHostState = {
 } & TimelineClipWritesSlice
 
 export const createTimelineClipWritesSlice: StateCreator<ClipWritesHostState, [['zustand/subscribeWithSelector', never]], [], TimelineClipWritesSlice> = (set) => ({
+  commitTimelineClipDrag: (origins, token) => {
+    set((state) => {
+      const starts = new Map(origins.map(({ id, startFrame }) => [id, startFrame]))
+      const moved = state.timeline.tracks.some(track => track.clips.some(clip => starts.has(clip.id) && starts.get(clip.id) !== clip.startFrame))
+      if (moved) return { persistRevision: state.persistRevision + 1 }
+      state.timelineHistory.cancelGesture(token)
+      return state
+    })
+  },
   cancelTimelineGesture: (token) => {
     set((state) => {
       const timeline = state.timelineHistory.cancelGesture(token)

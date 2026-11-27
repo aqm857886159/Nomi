@@ -16,12 +16,12 @@ export function readCurrentWorkbenchProjectContent(): WorkbenchProjectContent {
   return {
     workbenchDocuments: workbench.workbenchDocuments,
     activeDocumentId: workbench.activeDocumentId,
-    timeline: workbench.timeline,
+    timeline: { ...workbench.timeline, scale: workbench.persistedTimelineScale },
     previewAspect: workbench.previewAspect,
     // S5-b-0:持久化走 document 视图(选区是会话态不进项目文件)
     generationCanvas: generation.readDocumentSnapshot(),
     categories: workbench.categories,
-    // S5-b-1:尾部重放游标(append 回执维护;回执延迟导致略旧也安全——reducer 幂等)
+    // 当前已确认游标；保存队列会等待这份快照所覆盖的追加回执。
     generationCanvasLastSeq: getCanvasEventLastSeq(),
     storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
     editingPanelLayout: workbench.editingPanelLayout,
@@ -47,6 +47,7 @@ export const PROJECT_SESSION_FIELD_ROLES: Readonly<Record<string, Readonly<Recor
     storyboardDesignsByDocumentId: 'content', editingPanelLayout: 'content',
     projectAgentDraft: 'pending', projectAgentDraftDisplayText: 'pending', projectAgentDraftIntent: 'pending',
     projectAgentAttachments: 'pending', projectAgentReferences: 'pending', selectedLibraryPrompt: 'pending', creationActiveSkill: 'pending',
+    persistedTimelineScale: { none: '手动确认的时间轴缩放数值' },
     timelineHistory: 'session-undo', detachedTimelineClips: 'session-undo',
     workspaceMode: UI_STATE, activeCategoryId: UI_STATE, categoryViewports: UI_STATE, canvasFitNonce: UI_STATE, canvasFitCategoryId: UI_STATE,
     creationAiModeId: UI_STATE, storyboardPlannerLauncher: { none: '视图发布的回调函数，不是数据' },

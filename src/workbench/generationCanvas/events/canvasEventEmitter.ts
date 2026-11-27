@@ -4,6 +4,7 @@
 // 纪律(总方案 §4.4):payload 在入口深拷贝成 plain JSON(禁 immer draft 引用)并 freeze;
 // 50ms/20 条先到先 flush;bridge 缺失(测试/旧 preload)或 IO 失败一律静默——绝不影响画布。
 import { getDesktopBridge } from '../../../desktop/bridge'
+import type { CanvasProjection } from './canvasEventReducer'
 import { observeCanvasHistoryGesture } from './canvasPatchHistory'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
@@ -22,12 +23,14 @@ const FLUSH_MS = 50
 const FLUSH_COUNT = 20
 
 let projectIdProvider: () => string | null = () => null
-let buffer: CanvasShadowEvent[] = []
+type AppendBatch = { projectId: string; events: CanvasShadowEvent[]; receipt?: Promise<number> }
+let buffer: AppendBatch | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 let testSink: ((events: readonly CanvasShadowEvent[]) => void) | null = null
 
-/** NomiStudioApp 在 hydrate 时注入(flush 时刻取值,防切换期错绑)。 */
+/** NomiStudioApp 注入当前项目（在手势发生时取值）。 */
 export function setCanvasEventProjectIdProvider(provider: () => string | null): void {
+  flushNow()
   projectIdProvider = provider
 }
 
@@ -38,18 +41,24 @@ export function setCanvasEventSinkForTests(sink: ((events: readonly CanvasShadow
 
 const mintId = () => `evt_${crypto.randomUUID().slice(0, 12)}`
 
-// 该项目日志的最后已知 seq(append 回执维护)——写进项目快照,hydrate 时重放其后的尾巴。
-// 注意:回执异步到达,save 可能读到略旧的值 → 尾部重放会重看几条已在快照里的事件,
-// 因此 reducer 的全部 case 必须幂等(canvasEventReducer 已逐 case 保证)。
-let lastAppliedSeq = 0
+// An append receipt belongs to one opening. An outgoing save can still await it after cutover.
+type CanvasEventSession = { projectId: string; lastSeq: number; pending?: Promise<number>; genesis: CanvasProjection | null }
+let session: CanvasEventSession | null = null
+const appends = new Map<string, Promise<number>>()
 
 export function getCanvasEventLastSeq(): number {
-  return lastAppliedSeq
+  return session?.lastSeq ?? 0
 }
 
-/** hydrate 时以快照里的 seq 起步(尾部重放后再被 append 回执推进)。 */
-export function seedCanvasEventLastSeq(seq: number): void {
-  lastAppliedSeq = Math.max(0, Number(seq) || 0)
+/** The immutable post-replay snapshot belongs to this opening, even when the same project is reopened. */
+export function beginCanvasEventSession(projectId: string, lastSeq: number) {
+  flushNow()
+  const opened: CanvasEventSession = { projectId, lastSeq: Math.max(0, lastSeq), genesis: null }
+  session = opened
+  return (replayedSeq: number, snapshot: CanvasProjection): void => {
+    opened.lastSeq = Math.max(opened.lastSeq, replayedSeq)
+    opened.genesis = snapshot
+  }
 }
 
 function flushNow(): void {
@@ -57,18 +66,43 @@ function flushNow(): void {
     clearTimeout(timer)
     timer = null
   }
-  if (buffer.length === 0) return
+  if (!buffer) return
   const batch = buffer
-  buffer = []
-  const projectId = projectIdProvider()
+  buffer = null
+  const owner = session?.projectId === batch.projectId ? session : null
   const api = getDesktopBridge()?.events
-  if (!projectId || !api) return
-  void api
-    .append(projectId, batch)
-    .then((result) => {
-      if (result?.lastSeq) lastAppliedSeq = Math.max(lastAppliedSeq, result.lastSeq)
-    })
-    .catch(() => {})
+  if (!api) return
+  const append = async () => {
+    try {
+      const result = await api.append(batch.projectId, batch.events)
+      if (result.lastSeq > 0) {
+        if (owner) owner.lastSeq = result.lastSeq
+        return result.lastSeq
+      }
+    } catch { /* The project manifest can still be saved if the shadow log is unavailable. */ }
+    return 0
+  }
+  const previous = appends.get(batch.projectId)
+  const written = previous ? previous.then(append) : append()
+  appends.set(batch.projectId, written)
+  void written.then(() => {
+    if (appends.get(batch.projectId) === written) appends.delete(batch.projectId)
+  })
+  batch.receipt = written
+  if (owner) owner.pending = written.then(() => owner.lastSeq)
+}
+
+/** Capture the prefix now, flush it on demand. A single append assigns consecutive seqs. */
+export function captureCanvasEventCursor(projectId: string): () => number | Promise<number> {
+  const owner = session?.projectId === projectId ? session : null
+  const previous = owner?.pending ?? owner?.lastSeq ?? 0
+  const batch = buffer?.projectId === projectId ? buffer : null
+  if (!batch) return () => previous
+  const end = batch.events.length
+  return () => {
+    if (buffer === batch) flushNow()
+    return batch.receipt?.then(last => last ? last - (batch.events.length - end) : previous) ?? previous
+  }
 }
 
 /**
@@ -100,22 +134,36 @@ export function emitCanvasGesture(
       payload: JSON.parse(JSON.stringify(event.payload)) as Record<string, unknown>,
     }),
   )
+  const projectId = projectIdProvider()
   observeCanvasHistoryGesture(out)
-  testSink?.(out)
-  buffer.push(...out)
-  if (buffer.length >= FLUSH_COUNT) flushNow()
-  else if (!timer) timer = setTimeout(flushNow, FLUSH_MS)
-  for (const hook of afterGestureHooks) hook()
+  // Genesis is a replay checkpoint, outside the editable gesture and its Agent transaction.
+  const batch: CanvasShadowEvent[] = out
+  if (session && session.projectId === projectId && session.genesis) {
+    batch.unshift(Object.freeze({
+      id: mintId(), txnId: `txn_${crypto.randomUUID().slice(0, 10)}`, source: 'runtime',
+      type: 'canvas.snapshot.restored', payload: { snapshot: JSON.parse(JSON.stringify(session.genesis)) as CanvasProjection },
+    }))
+    session.genesis = null
+  }
+  testSink?.(batch)
+  if (projectId) {
+    if (buffer?.projectId !== projectId) flushNow()
+    buffer ??= { projectId, events: [] }
+    buffer.events.push(...batch)
+    if (buffer.events.length >= FLUSH_COUNT) flushNow()
+    else if (!timer) timer = setTimeout(flushNow, FLUSH_MS)
+  }
+  for (const hook of afterGestureHooks) hook(projectId)
 }
 
-const afterGestureHooks = new Set<() => void>()
+const afterGestureHooks = new Set<(projectId: string | null) => void>()
 
 /**
  * 一笔手势的事件记进撤销日志**之后**才做的派生写。store 订阅在 set() 里同步触发，比 action 打撤销点、发事件都早——
  * 在那里直接写，派生那笔会落在撤销点前面，⌘Z 撤了手势却撤不回它（2026-11-12 连线后撤销，方式偏好没回来）。
  * 订阅只记「有活要做」，真正的写挂在这里，落在这笔手势之后、下一个撤销点之前，撤销时一起回去。
  */
-export function onAfterCanvasGesture(hook: () => void): () => void {
+export function onAfterCanvasGesture(hook: (projectId: string | null) => void): () => void {
   afterGestureHooks.add(hook)
   return () => afterGestureHooks.delete(hook)
 }
