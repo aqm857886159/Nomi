@@ -19,7 +19,7 @@ import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload
 import { unlocalizedTaskAsset } from "../tasks/unlocalizedTaskAsset";
 import { assertLayerSplitNotScriptRouted, taskTemplateParams } from "./taskParams";
 import { LAYER_SPLIT_MODE_ID } from "../shared/modelArchetypes/modeForInputs";
-import { EVERY_VARIANT, resolveModelArchetype } from "../shared/modelArchetypes";
+import { resolveModelArchetype } from "../shared/modelArchetypes";
 import { collectCustomCallAssets, CustomCallScriptError, joinCustomCallUrl, runCustomCallScript } from "./customCallRunner";
 import { readCatalog } from "./catalogStore";
 import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
@@ -75,7 +75,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
   const resolvedMode = modeId === LAYER_SPLIT_MODE_ID
     ? { layerSplit: { maxLayers: 1 } }
     : modeId
-      ? resolveModelArchetype(model, { variant: EVERY_VARIANT })?.modes.find((candidate) => candidate.id === modeId)
+      ? resolveModelArchetype(model, { variant: { variantId: request.extras?.variantId, modelId: request.extras?.model } })?.modes.find((candidate) => candidate.id === modeId)
       : undefined;
   assertLayerSplitNotScriptRouted(resolvedMode, { sends: "script" });
   // S8 指纹缓存同语义：脚本内容进 recipe（改脚本=新配方），mappingId 槽复用为脚本指纹。
