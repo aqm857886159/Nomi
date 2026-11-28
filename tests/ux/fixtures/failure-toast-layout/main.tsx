@@ -90,9 +90,38 @@ Object.assign(window, { __toastFixture: {
   openPanel: (name: 'model' | 'tasks' | 'director') => {
     const marker = document.createElement('div')
     marker.setAttribute('data-nomi-right-panel', name)
+    if (name === 'tasks') {
+      marker.style.cssText = 'position:fixed;top:48px;right:12px;width:380px;height:420px;pointer-events:none;'
+    }
     document.body.appendChild(marker)
   },
-  closePanels: () => { document.querySelectorAll('[data-nomi-right-panel]').forEach((marker) => marker.remove()) },
+  /** Mirrors ShellAgentHost + AssistantPane DOM when the resident Agent is docked, floating, or collapsed. */
+  setAgentForm: (form: 'dock' | 'float' | 'collapsed' | null, panelWidthPx = 390) => {
+    document.querySelectorAll('[data-shell-agent-layer], [data-assistant-pane]').forEach((node) => node.remove())
+    if (!form) return
+    const layer = document.createElement('div')
+    layer.setAttribute('data-shell-agent-layer', '')
+    layer.setAttribute('data-agent-form', form)
+    layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;'
+    document.body.appendChild(layer)
+    if (form === 'dock') {
+      const pane = document.createElement('aside')
+      pane.setAttribute('data-assistant-pane', 'true')
+      pane.style.cssText = `position:fixed;top:40px;right:8px;bottom:8px;width:${panelWidthPx + 8}px;padding-left:8px;box-sizing:border-box;pointer-events:none;`
+      const portal = document.createElement('div')
+      portal.setAttribute('data-agent-portal', 'true')
+      portal.style.cssText = 'width:100%;height:100%;'
+      const panel = document.createElement('div')
+      panel.id = 'project-agent-resident'
+      panel.style.cssText = 'width:100%;height:100%;'
+      portal.appendChild(panel)
+      pane.appendChild(portal)
+      document.body.appendChild(pane)
+    }
+  },
+  closePanels: () => {
+    document.querySelectorAll('[data-nomi-right-panel], [data-shell-agent-layer], [data-assistant-pane]').forEach((marker) => marker.remove())
+  },
 } })
 
 createRoot(document.getElementById('root')!).render(

@@ -8,6 +8,11 @@ import { I18nextProvider } from 'react-i18next'
 import { RootErrorBoundary } from './ui/ErrorBoundary'
 import { FEEDBACK_LAYER_Z_INDEX } from './ui/feedbackLayer'
 import { TOAST_MAX_HEIGHT } from './ui/toast'
+import {
+  AGENT_DOCK_INSET_DEFAULT_CSS_VAR,
+  DEFAULT_AGENT_DOCK_RIGHT_INSET,
+  useDockedAgentRightInset,
+} from './ui/app-shell/toastRightOffset'
 import { buildNomiTheme, nomiCssVariablesResolver } from './theme/nomiTheme'
 import { useNomiColorScheme } from './theme/colorScheme'
 import i18n from './i18n'
@@ -26,6 +31,7 @@ const nomiTheme = buildNomiTheme()
 export function NomiAppProviders({ children }: { children: React.ReactNode }): JSX.Element {
   const { colorScheme } = useNomiColorScheme()
   const notificationTopOffset = currentWorkbenchFloatingTopOffset(12)
+  useDockedAgentRightInset()
 
   return (
     <MotionConfig reducedMotion="user">
@@ -33,8 +39,11 @@ export function NomiAppProviders({ children }: { children: React.ReactNode }): J
         <MantineProvider theme={nomiTheme} cssVariablesResolver={nomiCssVariablesResolver} forceColorScheme={colorScheme} defaultColorScheme={colorScheme}>
           <ModalsProvider>
             <Notifications
-              className="pointer-events-none [&[data-position=top-right]]:!right-3 [&[data-position=top-right]]:grid [&[data-position=top-right]]:grid-cols-[minmax(0,1fr)] [&[data-position=top-right]]:gap-2 [body:has([data-nomi-right-panel=model])_&]:!right-[344px] [body:has([data-nomi-right-panel=tasks])_&]:!right-[404px] [body:has([data-nomi-right-panel=director])_&]:!right-[calc(var(--nomi-director-side-width,320px)_+_24px)]"
-              style={{ top: notificationTopOffset }}
+              className="pointer-events-none [&[data-position=top-right]]:grid [&[data-position=top-right]]:grid-cols-[minmax(0,1fr)] [&[data-position=top-right]]:gap-2 [&[data-position=top-right]]:!right-[min(max(12px,var(--nomi-toast-right-agent,0px),var(--nomi-toast-right-panel,0px)),max(12px,calc(100vw_-_356px)))] [body:has([data-shell-agent-layer][data-agent-form=dock])_&]:[--nomi-toast-right-agent:calc(var(--nomi-agent-dock-inset,var(--nomi-agent-dock-inset-default,406px))_+_12px)] [body:has([data-nomi-right-panel=model])_&]:[--nomi-toast-right-panel:344px] [body:has([data-nomi-right-panel=tasks])_&]:[--nomi-toast-right-panel:404px] [body:has([data-nomi-right-panel=director])_&]:[--nomi-toast-right-panel:calc(var(--nomi-director-side-width,320px)_+_24px)]"
+              style={{
+                top: notificationTopOffset,
+                [AGENT_DOCK_INSET_DEFAULT_CSS_VAR]: `${DEFAULT_AGENT_DOCK_RIGHT_INSET}px`,
+              } as React.CSSProperties}
               classNames={{ notification: 'pointer-events-auto !mt-0' }}
               position="top-right"
               zIndex={FEEDBACK_LAYER_Z_INDEX}
