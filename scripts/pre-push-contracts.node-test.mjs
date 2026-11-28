@@ -129,7 +129,7 @@ const RED_PROBES = Object.freeze([
     files: ['electron/main.ts'],
     apply: () => {
       const file = path.join(work, 'electron/main.ts')
-      fs.appendFileSync(file, `${Array.from({ length: 80 }, (_, i) => `export const prepushPadding${i} = ${i}`).join('\n')}\n`)
+      fs.appendFileSync(file, `${Array.from({ length: 200 }, (_, i) => `export const prepushPadding${i} = ${i}`).join('\n')}\n`)
     },
   },
   {
@@ -277,7 +277,7 @@ test('钩子入口不接受缩小门岗集合的参数：--only 被拒、空值�
 })
 
 test('真入口：分离 HEAD 推分支（本地 ref 写 HEAD）照样跑门岗；红了就拦', () => {
-  commitChange(() => fs.appendFileSync(path.join(work, 'electron/main.ts'), `${Array.from({ length: 80 }, (_, i) => `export const detached${i} = ${i}`).join('\n')}\n`))
+  commitChange(() => fs.appendFileSync(path.join(work, 'electron/main.ts'), `${Array.from({ length: 200 }, (_, i) => `export const detached${i} = ${i}`).join('\n')}\n`))
   const result = prePush({ refLine: (sha) => `HEAD ${sha} refs/heads/topic ${ZERO}\n` })
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:filesize/)
@@ -291,7 +291,7 @@ test('真入口：删分支（本地 SHA 为零）跳过，不跑门岗', () => 
 })
 
 test('真入口：推 tag——指向的提交不在 origin/main 就跑门岗；已在 origin/main 里才跳过', () => {
-  commitChange(() => fs.appendFileSync(path.join(work, 'electron/main.ts'), `${Array.from({ length: 80 }, (_, i) => `export const tagged${i} = ${i}`).join('\n')}\n`))
+  commitChange(() => fs.appendFileSync(path.join(work, 'electron/main.ts'), `${Array.from({ length: 200 }, (_, i) => `export const tagged${i} = ${i}`).join('\n')}\n`))
   const tagLine = (sha) => `refs/tags/v9 ${sha} refs/tags/v9 ${ZERO}\n`
   const fresh = prePush({ refLine: tagLine })
   assert.equal(fresh.status, 1, fresh.stderr)
