@@ -54,6 +54,7 @@ const getWin = () => {
 const resize = async () => {
   const bw = await app.browserWindow(getWin())
   await bw.evaluate((w, s) => { w.setBounds({ x: 0, y: 0, ...s }); w.center() }, { width: 1680, height: 1050 })
+  await getWin().setViewportSize({ width: 1680, height: 1050 })
   await getWin().waitForTimeout(400)
 }
 const snap = async (name) => {
