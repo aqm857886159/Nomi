@@ -212,6 +212,7 @@ describe('看门狗 / pi 自己判的失败 → 人话', () => {
     ['Nomi model first-response timeout after 90000ms', 'agentResident.faultFirstResponse'],
     ['Stream ended without finish_reason', 'agentResident.faultStreamCut'],
     ['Assistant request exceeded the context window', 'agentResident.faultContextOverflow'],
+    ["Nomi stopped this reply: the model's output reached its length cap while it was writing a tool call, so the incomplete tool call was not run.", 'agentResident.faultOutputTruncatedToolCall'],
   ] as const
   it.each(cases)('%s → %s，原文不进界面，也不算「认不出」', (raw, expected) => {
     const fault = laneAssistantFaultOf(raw)

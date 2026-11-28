@@ -35,10 +35,13 @@ export const PI_STREAM_CUT_MESSAGE = 'Stream ended without finish_reason'
  */
 export const PI_CONTEXT_OVERFLOW_MESSAGE = 'Assistant request exceeded the context window'
 
+export const NOMI_TRUNCATED_TOOL_CALL_PREFIX = "Nomi stopped this reply: the model's output reached its length cap while it was writing a tool call"
+
 export type LaneAssistantFault =
   | Readonly<{ kind: 'model-timeout'; phase: LaneModelTimeoutPhase; seconds: number }>
   | Readonly<{ kind: 'stream-cut' }>
   | Readonly<{ kind: 'context-overflow' }>
+  | Readonly<{ kind: 'output-truncated'; cutToolCall?: true }>
 
 /**
  * 上游 HTTP 失败的**结构化载荷**挂在 pi `AssistantMessage.diagnostics` 里的类型名（2026-10-27）。
@@ -52,7 +55,7 @@ export const LANE_VENDOR_FAILURE_DIAGNOSTIC = 'nomi.vendor-failure'
 
 /**
  * 一条带工具调用的回复写到输出上限被截断、本机把它改成失败收场时，挂在 `diagnostics` 上的类型名（S4，2026-11-22）。
- * `details.reason` 是内部原因码（`output_cap_tool_call`），只给排错与以后的界面文字那一刀读；不进 `errorMessage`、不新增失败种类。
+ * `details.reason` 是内部原因码（`output_cap_tool_call`），由投影层认成 `output-truncated`（`cutToolCall: true`）故障并展示人话指引。
  */
 export const LANE_OUTPUT_TRUNCATED_DIAGNOSTIC = 'nomi.output-truncated'
 
@@ -69,12 +72,24 @@ export function laneVendorFailureText(message: { readonly diagnostics?: readonly
   return undefined
 }
 
+/** 助手消息是否带有输出上限截断诊断标记。 */
+export function laneOutputTruncatedOf(message: { readonly diagnostics?: readonly DiagnosticLike[] }): boolean {
+  return Boolean((message.diagnostics ?? []).some((diagnostic) => diagnostic?.type === LANE_OUTPUT_TRUNCATED_DIAGNOSTIC))
+}
+
 /**
  * 出错的助手消息 → 事实；认不出就 `undefined`（那是服务商原话，归生成域分类器管）。
  * `contextOverflow` 是宿主用 pi 的 `isContextOverflow` 判好的结论（各家服务商的溢出原话由 pi 那张表认）。
  */
-export function laneAssistantFaultOf(errorMessage: string | undefined, contextOverflow = false): LaneAssistantFault | undefined {
+export function laneAssistantFaultOf(
+  errorMessage: string | undefined,
+  contextOverflow = false,
+  outputTruncated = false,
+): LaneAssistantFault | undefined {
   const text = (errorMessage ?? '').trim()
+  if (outputTruncated || text.startsWith(NOMI_TRUNCATED_TOOL_CALL_PREFIX)) {
+    return { kind: 'output-truncated', cutToolCall: true }
+  }
   if (contextOverflow || text.startsWith(PI_CONTEXT_OVERFLOW_MESSAGE)) return { kind: 'context-overflow' }
   const timeout = MODEL_TIMEOUT.exec(text)
   if (timeout) return { kind: 'model-timeout', phase: timeout[1] as LaneModelTimeoutPhase, seconds: Math.round(Number(timeout[2]) / 1000) }

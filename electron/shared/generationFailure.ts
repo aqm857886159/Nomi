@@ -10,7 +10,7 @@ import { withoutIpcInvokeWrapper } from './contracts/ipcInvokeFailure'
 import { type FailureLocale } from './generationFailureCopy'
 import { ERROR_KEY_BY_KIND, actionsOfKind, isVendorSideKind, shotClaimCopy, type GenerationErrorAction, type GenerationErrorKind } from './generationFailureKinds'
 import { parseVendorErrorFromMessage, stripVendorErrorMarker, confirmPublicError } from './generationFailureWire'
-import { cleanProviderMessage, extractReadableErrorLine, isTechnicalErrorLine, unknownCopyParams, truncateLine, STRUCTURED_KINDS, detectMissingImageReference, legacyEvidence, detectLegacyErrorKind, detectModelNotOpen, detectImageRouteDisabled, detectAccountGate, detectBalance, detectContentModerationTarget, detectAssetUploadFailed, detectAssetTooLarge, vendorOriginatedText, detectModelUnavailableUpstream, detectModelRetired, detectModelKindMismatch, detectNoTextBrain, isInLocale } from './generationFailureDetect'
+import { cleanProviderMessage, extractReadableErrorLine, isTechnicalErrorLine, unknownCopyParams, truncateLine, STRUCTURED_KINDS, detectMissingImageReference, legacyEvidence, detectLegacyErrorKind, detectModelNotOpen, detectImageRouteDisabled, detectAccountGate, detectBalance, detectContentModerationTarget, detectContextLengthExceeded, detectAssetUploadFailed, detectAssetTooLarge, vendorOriginatedText, detectModelUnavailableUpstream, detectModelRetired, detectModelKindMismatch, detectNoTextBrain, isInLocale } from './generationFailureDetect'
 
 export type { FailureLocale } from './generationFailureCopy'
 export * from './generationFailureKinds'
@@ -220,6 +220,13 @@ function classify(message: string, locale: FailureLocale): Draft {
   // 素材本身不合格（读不到 / 认不出 / 不是真媒体）只认机器码：它来自我们自己的本机检查，
   // 服务商没被请求到，不能落进 unknown 被说成「服务商临时故障或额度问题」（2026-09-27 用户截图）。
   if (outboundCode === 'asset-invalid') return reportFor('asset-invalid', cleanRaw, undefined)
+  if (outboundCode !== 'asset-too-large' && detectContextLengthExceeded(structured?.upstreamCode, upstream)) {
+    return {
+      ...reportFor('input', stripVendorErrorMarker(message), upstream),
+      reason: { key: 'generationCommon.observability.error.contextLengthExceeded.reason' },
+      hint: { key: 'generationCommon.observability.error.contextLengthExceeded.hint' },
+    }
+  }
   if (detectAssetTooLarge(cleanRaw)) return reportFor('asset-too-large', cleanRaw, undefined)
   if (detectAssetUploadFailed(cleanRaw)) return reportFor('asset-upload-failed', cleanRaw, undefined)
   // 模型那一侧去拉参考图的临时链接、拉不到（过期 / 防盗链 / 地区限制）：失败在**链接**这一跳。必须先于 category 判——
@@ -230,7 +237,7 @@ function classify(message: string, locale: FailureLocale): Draft {
   }
   // 内容安全拦截先于 category 判——审核拒绝走 HTTP 400，会被派生成「参数不被接受·检查比例/尺寸」
   // 并配一个必然再撞的「重试」（理由见 detectContentModerationTarget）。
-  const moderated = detectContentModerationTarget(upstream, cleanRaw)
+  const moderated = detectContentModerationTarget(upstream, cleanRaw, structured?.upstreamCode)
   if (moderated) {
     return reportFor(moderated === 'image' ? 'input-image-blocked' : 'content-policy', cleanRaw, upstream)
   }

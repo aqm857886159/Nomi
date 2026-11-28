@@ -151,12 +151,16 @@ describe("上游 HTTP 失败：按这一次调用的传输事实铸结构化载�
     });
   });
 
-  it("200 里 SSE 报错（没有 HTTP 失败事实）：不挂载荷，交 pi 原样那句", async () => {
-    await withUpstream("openai-compatible", () => reply.sseError("relay exploded"), async (model) => {
+  it.each(["openai-compatible", "openai-responses", "anthropic"] as const)("%s：200 里 SSE 结构化报错 → 同样按传输层抓到的协议错误帧铸造载荷，不再因外层 200 漏进未知错误", async (protocol) => {
+    await withUpstream(protocol, () => reply.sseError("relay exploded"), async (model) => {
       const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", signal: new AbortController().signal });
       expect(message.stopReason).toBe("error");
-      expect(vendorFailures(message)).toHaveLength(0);
-      expect(laneVendorFailureText(message)).toBeUndefined();
+      expect(vendorFailures(message)).toHaveLength(1);
+      const text = laneVendorFailureText(message)!;
+      expect(parseVendorErrorFromMessage(text)).toMatchObject({ vendorKey: "fixture", category: "server", retryable: true,
+        upstreamMsg: "relay exploded" });
+      expect(classifyGenerationError(text).kind).toBe("server");
+      expect(message.errorMessage).not.toContain("NOMI_VENDOR_ERR_B64");
     });
   });
 
