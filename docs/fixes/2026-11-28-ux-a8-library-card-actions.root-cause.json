@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-ux-a8-library-card-actions",
+  "problem_type": "项目库工具栏空维度筛选常驻与项目卡破坏性操作压封面分裂",
+  "symptom": "仅存在本地项目时，项目库顶栏仍常驻包含「外部文件夹 0 / Folders 0」的三段来源筛选胶囊；悬停项目卡时，红色删除按钮压在封面缩略图右上角（top-[9px] right-[9px]），与标题行右侧的重命名和打开文件夹按钮分裂，且纯键盘聚焦卡片无法触达。",
+  "direct_cause": "ProjectLibraryPage.tsx 仅按 !firstRun 无条件渲染三段来源筛选（计数来自搜索后的 searchedProjects）且缺少外部目录清空时的自动复位；项目卡删除按钮写在封面遮罩层内并仅靠 group-hover 露出。",
+  "class_root": "工具栏来源筛选显隐未由原始项目集合的真实来源维度驱动，且项目卡对象级管理动作未统一收敛到标题行动作容器与键盘聚焦可见契约。",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-28",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/library/ProjectLibraryPage.tsx",
+    "tests": [
+      "src/workbench/library/ProjectLibraryPage.filterAndActions.test.tsx",
+      "src/workbench/library/ProjectLibraryPage.folderMissing.test.tsx"
+    ],
+    "why": "ProjectLibraryPage 是项目库来源筛选显隐与项目卡动作落点（concept library.project-card-actions）的唯一视图宿主，单测直接验证原始列表驱动显隐、搜索不闪隐、外部目录清空复位及封面零删除钮与标题行统一动作区。"
+  },
+  "affected_population": [
+    "仅使用本地新建项目、未挂载外部文件夹的创作者",
+    "在项目库悬停点击封面打开项目或使用键盘 Tab 浏览项目卡的所有桌面端用户"
+  ],
+  "scope_paths": [
+    "src/workbench/library/ProjectLibraryPage.tsx"
+  ],
+  "entry_points": [
+    "src/workbench/library/ProjectLibraryPage.tsx#ProjectLibraryPage（顶栏来源筛选胶囊与项目卡标题行动作区）"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "该不变量约束项目库页的数据驱动工具栏显隐逻辑与设计系统 §1.5.3「动作不许压在内容上」的内部组件契约，不依赖外部协议或第三方库行为。",
+  "invariants": [
+    "来源筛选胶囊仅在原始项目列表 projects.some(project => project.source === 'folder') 为真时渲染；搜索不触发筛选条闪隐；外部文件夹项目清空后有效筛选恒回落为 'all' 并复位 sourceFilter。",
+    "项目卡封面遮罩内零管理或破坏性按钮；删除入口统一位于标题行右侧动作区，对正常卡与不可用灰卡均保留 library.deleteNamedProject 名称与 title，平时静音样式并在 group-hover / group-focus-within / focus-visible 下可见，仅在按钮自身 hover / focus-visible 时呈现危险色。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/updateReminder/updateReminderLabKit.tsx",
+      "symbol": "onDeleteProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "onDeleteProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "onDeleteProject"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "NomiStudioApp.tsx 是生产宿主回调注入方，updateReminderLabKit.tsx 是设计实验室预览壳，ProjectLibraryPage.tsx 是唯一触发 onDeleteProject 的项目卡宿主；本次同提交删除封面浮钮并迁入标题行动作区，维持单一写入口。"
+  },
+  "generality_proof": "项目库页唯一宿主 ProjectLibraryPage 统一按原始 projects 列表计算 hasFolderProjects 与 effectiveSourceFilter，并在同一标题行动作容器中承载重命名、打开文件夹与删除按钮，覆盖全部正常卡、外部目录卡及缺失/不可读灰卡，不存在旁路或双份实现。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "ProjectLibraryPage",
+      "responsibility": "唯一拥有项目库来源筛选显隐与自动复位（hasFolderProjects / effectiveSourceFilter）以及项目卡标题行动作区（含删除入口），保证封面遮罩零管理按钮。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "entry_point": "ProjectLibraryPage",
+      "disposition": "enforced",
+      "evidence": "单来源库隐藏 sourceFilter 并在清空外部目录时复位为 all；删除按钮从封面遮罩移除并统一收敛至标题行右侧动作区，正常卡与不可用灰卡均可触发 onDeleteProject。"
+    },
+    {
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "entry_point": "AssetLibraryPanel",
+      "disposition": "not-affected",
+      "evidence": "项目内素材库的 sourceFilter 在当前项目与跨项目资产之间切换，始终存在两个有效维度，且不共用项目卡封面遮罩删除模式。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "所有仅使用本地项目的创作者每次进入项目库都会看到无意义的「外部文件夹 0」筛选项，且悬停任意项目卡准备打开时都会在封面右上角触发红色删除浮钮热区。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs src/workbench/library/ProjectLibraryPage.tsx 核实全部消费者仅 NomiStudioApp.tsx 与 updateReminderLabKit.tsx。",
+      "node scripts/door-map.mjs onDeleteProject 核实唯一触发端为 ProjectLibraryPage.tsx。",
+      "node scripts/door-map.mjs sourceFilter 核对 AssetLibraryPanel.tsx / AssetLibraryToolbar.tsx 与 ProjectLibraryPage.tsx。",
+      "git grep 全仓扫描 library.deleteNamedProject 与 board:Library/library.card.delete，覆盖 shell-redesign.walk.mjs、project-location-owner.walk.mjs、library-delete-copy.test.mjs 与 walks-never-trash-projects.test.mjs。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/library/ProjectLibraryPage.tsx",
+    "invariant": "单来源库隐藏来源筛选并自动复位为 all；项目卡封面零破坏性按钮，删除入口统一位于标题行右侧动作区并支持键盘 focus-within 露出。",
+    "failure_mode": "外部目录项目全部移除时 effectiveSourceFilter 立即回落为 all，避免空态锁死；删除动作继续经 onDeleteProject 走既有二次确认与回收站路径。",
+    "exception_policy": "none",
+    "strategy": "在唯一宿主组件内将来源筛选显隐绑定至原始 projects 集合，同提交移除封面删除浮钮并统一放进标题行动作区，以特征单测与真实 Electron 走查防回归。",
+    "artifacts": [
+      "src/workbench/library/ProjectLibraryPage.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/library/ProjectLibraryPage.filterAndActions.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/library/ProjectLibraryPage.filterAndActions.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/library/ProjectLibraryPage.tsx"
+    ],
+    "rationale": "同提交删除了封面遮罩层内 top-[9px] right-[9px] 红色删除按钮及单来源库无条件渲染三段来源筛选的旧逻辑。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "改动完全位于自有项目库 React 组件内，不涉及第三方依赖行为或版本升级。",
+    "exit_criteria": []
+  },
+  "migration": "纯界面布局与筛选显隐收敛，不改动项目清单、设置或本地存储格式；老用户的本地项目、外部目录项目及缺失目录灰卡升级后照常可用。",
+  "residual_risks": [
+    "本次按协调裁定落地方案 2B（标题行直排图标，零额外点击、原生兼容 Library.board.json），未引入卡片右键菜单（方案 2A）；后续若项目卡管理动作增加至超过 3 项，需再统一收敛至菜单。"
+  ]
+}
