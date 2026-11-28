@@ -8,6 +8,11 @@ import {
   ensureChecklistFirstShownAt,
   isChecklistExpired,
   CHECKLIST_TTL_MS,
+  hasCompletedFirstAgentTurn,
+  markFirstAgentTurnCompleted,
+  canAskFirstAgentConsent,
+  markAgentConsentAsked,
+  ONBOARDING_STATE_SYNC_EVENT,
   trackOnboardingPromptShownOnce,
   tryConsumeFirstGenerationTelemetry,
   resetOnboardingTelemetrySessionForTests,
@@ -103,5 +108,54 @@ describe('onboardingState', () => {
     store.clear()
     markChecklistStep('generated')
     expect(tryConsumeFirstGenerationTelemetry()).toBe(false)
+  })
+
+  it('canAskFirstAgentConsent 在未达成首次生成或首轮对话前保持 false，达成任一后变 true 且问过即关', () => {
+    expect(hasCompletedFirstAgentTurn()).toBe(false)
+    expect(canAskFirstAgentConsent()).toBe(false)
+
+    // 仅完成接入模型或建分镜不足以触发首次遥测询问
+    markChecklistStep('model')
+    markChecklistStep('storyboard')
+    expect(canAskFirstAgentConsent()).toBe(false)
+
+    // 首次生成达成 → 解锁
+    markChecklistStep('generated')
+    expect(canAskFirstAgentConsent()).toBe(true)
+
+    // 问过一次 → 永久关闭
+    markAgentConsentAsked()
+    expect(canAskFirstAgentConsent()).toBe(false)
+  })
+
+  it('首轮 Agent 对话完成或存在历史线程可解锁首次遥测询问，且派发同步事件', () => {
+    const events: string[] = []
+    vi.stubGlobal('window', {
+      localStorage: localStorageStub,
+      dispatchEvent: (event: Event) => {
+        events.push(event.type)
+        return true
+      },
+    })
+
+    expect(canAskFirstAgentConsent()).toBe(false)
+    expect(canAskFirstAgentConsent({ hasHistoricalAgentThread: true })).toBe(true)
+
+    markFirstAgentTurnCompleted()
+    expect(hasCompletedFirstAgentTurn()).toBe(true)
+    expect(canAskFirstAgentConsent()).toBe(true)
+    expect(events).toContain(ONBOARDING_STATE_SYNC_EVENT)
+  })
+
+  it('localStorage 不可用时 canAskFirstAgentConsent fail-closed 返回 false', () => {
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: () => { throw new Error('blocked') },
+        setItem: () => { throw new Error('blocked') },
+      },
+    })
+    expect(hasCompletedFirstAgentTurn()).toBe(false)
+    expect(canAskFirstAgentConsent()).toBe(false)
+    expect(canAskFirstAgentConsent({ hasHistoricalAgentThread: true })).toBe(false)
   })
 })
