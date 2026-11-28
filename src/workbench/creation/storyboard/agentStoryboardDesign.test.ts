@@ -240,5 +240,32 @@ describe('Agent / 划词拆镜新建方案的默认画幅跟随当前项目画�
     const savedUniform = designs().find(d => d.id === 'op-uniform')!.plan
     expect(savedUniform.aspectRatio).toBeUndefined()
     expect(planDefaultAspect(savedUniform)).toBe('1:1')
+
+    upsert('op-profile', { ...plan('ShortDrama', 'C'), profileKey: 'genre.short-drama' })
+    const savedProfile = designs().find(d => d.id === 'op-profile')!.plan
+    expect(savedProfile.aspectRatio).toBeUndefined()
+    expect(planDefaultAspect(savedProfile)).toBe('9:16')
+  })
+
+  it('替换已有方案时不回填项目画幅', () => {
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({
+      doc: [{
+        id: 'op-existing',
+        documentId: 'doc',
+        title: 'Old',
+        plan: plan('Old', 'A'),
+        committed: false,
+        status: 'draft',
+        sourceDocumentUpdatedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      }],
+    })
+    useWorkbenchStore.getState().setPreviewAspectRatio('9:16')
+    upsert('op-existing', plan('Old revised', 'B'))
+    const replaced = designs().find(d => d.id === 'op-existing')!.plan
+    expect(replaced.title).toBe('Old revised')
+    expect(replaced.aspectRatio).toBeUndefined()
+    expect(planDefaultAspect(replaced)).toBe('')
   })
 })
