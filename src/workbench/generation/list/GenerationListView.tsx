@@ -123,7 +123,7 @@ export function GenerationListView(): JSX.Element {
     return (
       <div ref={rootRef} className="flex h-full min-h-0 bg-nomi-paper" data-generation-list data-list-layout="detail" aria-label={t('generationList.aria')}>
         {showRail ? <DetailRail sections={model.sections} activeKey={card.key} onSelect={(key) => setInspectorKey(key)} /> : null}
-        <GenerationListDetail card={card} onBack={() => setInspectorKey(null)} />
+        <GenerationListDetail key={card.nodeId} card={card} onBack={() => setInspectorKey(null)} />
       </div>
     )
   }

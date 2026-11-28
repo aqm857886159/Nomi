@@ -51,6 +51,8 @@ async function resolveTargetVersionDimensions(
   }
 }
 
+const latestSwitchSeqByNode = new Map<string, number>()
+
 export async function switchNodeMainVersion(
   nodeId: string,
   identity: string,
@@ -59,37 +61,44 @@ export async function switchNodeMainVersion(
   if (options.readOnly) return false
   const project = withProjectAction((loaded) => loaded)
   if (options.requireOpenProject && !project) return false
+  const switchSeq = (latestSwitchSeqByNode.get(nodeId) ?? 0) + 1
+  latestSwitchSeqByNode.set(nodeId, switchSeq)
+  const isLatestRequest = () => latestSwitchSeqByNode.get(nodeId) === switchSeq
   const isCurrentProject = () => (project ? isProjectExecutionContextCurrent(project) : true)
-  if (!(await finishWhiteboard(nodeId)) || !isCurrentProject()) return false
+  try {
+    if (!(await finishWhiteboard(nodeId)) || !isCurrentProject() || !isLatestRequest()) return false
 
-  const live = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
-  const target = live ? listNodeResultVersions(live).find((candidate) => resultIdentity(candidate) === identity) : undefined
-  if (!live || !target) return false
+    const live = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+    const target = live ? listNodeResultVersions(live).find((candidate) => resultIdentity(candidate) === identity) : undefined
+    if (!live || !target) return false
 
-  const { aborted, dimensions } = await resolveTargetVersionDimensions(
-    project?.binding.projectId ?? null,
-    isCurrentProject,
-    target,
-  )
-  if (aborted || !isCurrentProject()) return false
+    const { aborted, dimensions } = await resolveTargetVersionDimensions(
+      project?.binding.projectId ?? null,
+      isCurrentProject,
+      target,
+    )
+    if (aborted || !isCurrentProject() || !isLatestRequest()) return false
 
-  const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
-  if (!current) return false
-  const patch = dimensions
-    ? computeMediaMetaPatch({
-        resultType: target.type,
-        meta: current.meta || {},
-        ...dimensions,
-        durationSeconds: target.durationSeconds,
-      })
-    : null
+    const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+    if (!current) return false
+    const patch = dimensions
+      ? computeMediaMetaPatch({
+          resultType: target.type,
+          meta: current.meta || {},
+          ...dimensions,
+          durationSeconds: target.durationSeconds,
+        })
+      : null
 
-  useGenerationCanvasStore.getState().setNodeMainResult(nodeId, identity, patch?.meta)
-  if (options.onSwitched) {
-    const downstreamCount = new Set(
-      useGenerationCanvasStore.getState().edges.filter((edge) => edge.source === nodeId).map((edge) => edge.target),
-    ).size
-    options.onSwitched({ versionNo: target.versionNo ?? 1, downstreamCount })
+    useGenerationCanvasStore.getState().setNodeMainResult(nodeId, identity, patch?.meta)
+    if (options.onSwitched) {
+      const downstreamCount = new Set(
+        useGenerationCanvasStore.getState().edges.filter((edge) => edge.source === nodeId).map((edge) => edge.target),
+      ).size
+      options.onSwitched({ versionNo: target.versionNo ?? 1, downstreamCount })
+    }
+    return true
+  } finally {
+    if (isLatestRequest()) latestSwitchSeqByNode.delete(nodeId)
   }
-  return true
 }

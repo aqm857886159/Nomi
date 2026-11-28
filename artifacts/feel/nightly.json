@@ -1,0 +1,1349 @@
+{
+  "generatedAt": "2026-09-08T19:55:13.766Z",
+  "provider": "loopback",
+  "findingCount": 10,
+  "records": [
+    {
+      "label": "agent-panel:idle:light",
+      "findings": [],
+      "screenshot": "agent-panel-idle-light.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "agent-panel:idle:dark",
+      "findings": [],
+      "screenshot": "agent-panel-idle-dark.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "agent-panel:thinking:light",
+      "findings": [
+        {
+          "rule": "text-overlap",
+          "target": [
+            "span",
+            "span"
+          ],
+          "text": [
+            "Thinking metadata",
+            "Message content"
+          ],
+          "rects": [
+            {
+              "x": 24,
+              "y": 24,
+              "width": 131.640625,
+              "height": 18,
+              "top": 24,
+              "right": 155.640625,
+              "bottom": 42,
+              "left": 24
+            },
+            {
+              "x": 24,
+              "y": 24,
+              "width": 121.859375,
+              "height": 18,
+              "top": 24,
+              "right": 145.859375,
+              "bottom": 42,
+              "left": 24
+            }
+          ]
+        }
+      ],
+      "screenshot": "agent-panel-thinking-light.png",
+      "owner": "agent-panel",
+      "knownSymptom": "Agent 面板文字层叠",
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "agent-panel:thinking:dark",
+      "findings": [
+        {
+          "rule": "text-overlap",
+          "target": [
+            "span",
+            "span"
+          ],
+          "text": [
+            "Thinking metadata",
+            "Message content"
+          ],
+          "rects": [
+            {
+              "x": 24,
+              "y": 24,
+              "width": 131.640625,
+              "height": 18,
+              "top": 24,
+              "right": 155.640625,
+              "bottom": 42,
+              "left": 24
+            },
+            {
+              "x": 24,
+              "y": 24,
+              "width": 121.859375,
+              "height": 18,
+              "top": 24,
+              "right": 145.859375,
+              "bottom": 42,
+              "left": 24
+            }
+          ]
+        }
+      ],
+      "screenshot": "agent-panel-thinking-dark.png",
+      "owner": "agent-panel",
+      "knownSymptom": "Agent 面板文字层叠",
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "agent-panel:tool-receipt:light",
+      "findings": [
+        {
+          "rule": "font-size",
+          "target": [
+            "p"
+          ],
+          "text": [
+            "Tool receipt text"
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 8,
+              "width": 1424,
+              "height": 10,
+              "top": 8,
+              "right": 1432,
+              "bottom": 18,
+              "left": 8
+            }
+          ]
+        }
+      ],
+      "screenshot": "agent-panel-tool-receipt-light.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "agent-panel:tool-receipt:dark",
+      "findings": [
+        {
+          "rule": "font-size",
+          "target": [
+            "p"
+          ],
+          "text": [
+            "Tool receipt text"
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 8,
+              "width": 1424,
+              "height": 10,
+              "top": 8,
+              "right": 1432,
+              "bottom": 18,
+              "left": 8
+            }
+          ]
+        }
+      ],
+      "screenshot": "agent-panel-tool-receipt-dark.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:html:light",
+      "findings": [
+        {
+          "rule": "clipped-content",
+          "target": [
+            "div"
+          ],
+          "text": [
+            "HTML content cannot be fully read"
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 8,
+              "width": 1424,
+              "height": 8,
+              "top": 8,
+              "right": 1432,
+              "bottom": 16,
+              "left": 8
+            }
+          ]
+        },
+        {
+          "rule": "unreachable-interaction",
+          "target": [
+            "button"
+          ],
+          "text": [
+            "Interact"
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 16,
+              "width": 60.46875,
+              "height": 21,
+              "top": 16,
+              "right": 68.46875,
+              "bottom": 37,
+              "left": 8
+            }
+          ]
+        }
+      ],
+      "screenshot": "artifact-products-html-light.png",
+      "owner": "artifact-preview",
+      "knownSymptom": "HTML 截断/不可滚动/不可交互",
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:html:dark",
+      "findings": [
+        {
+          "rule": "clipped-content",
+          "target": [
+            "div"
+          ],
+          "text": [
+            "HTML content cannot be fully read"
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 8,
+              "width": 1424,
+              "height": 8,
+              "top": 8,
+              "right": 1432,
+              "bottom": 16,
+              "left": 8
+            }
+          ]
+        },
+        {
+          "rule": "unreachable-interaction",
+          "target": [
+            "button"
+          ],
+          "text": [
+            "Interact"
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 16,
+              "width": 60.46875,
+              "height": 21,
+              "top": 16,
+              "right": 68.46875,
+              "bottom": 37,
+              "left": 8
+            }
+          ]
+        }
+      ],
+      "screenshot": "artifact-products-html-dark.png",
+      "owner": "artifact-preview",
+      "knownSymptom": "HTML 截断/不可滚动/不可交互",
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:svg:light",
+      "findings": [],
+      "screenshot": "artifact-products-svg-light.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:svg:dark",
+      "findings": [],
+      "screenshot": "artifact-products-svg-dark.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:markdown:light",
+      "findings": [],
+      "screenshot": "artifact-products-markdown-light.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:markdown:dark",
+      "findings": [],
+      "screenshot": "artifact-products-markdown-dark.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:3d:light",
+      "findings": [
+        {
+          "rule": "unreachable-interaction",
+          "target": [
+            "canvas"
+          ],
+          "text": [
+            ""
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 8,
+              "width": 300,
+              "height": 200,
+              "top": 8,
+              "right": 308,
+              "bottom": 208,
+              "left": 8
+            }
+          ]
+        }
+      ],
+      "screenshot": "artifact-products-3d-light.png",
+      "owner": "artifact-preview",
+      "knownSymptom": "3D 产物不可交互",
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "artifact-products:3d:dark",
+      "findings": [
+        {
+          "rule": "unreachable-interaction",
+          "target": [
+            "canvas"
+          ],
+          "text": [
+            ""
+          ],
+          "rects": [
+            {
+              "x": 8,
+              "y": 8,
+              "width": 300,
+              "height": 200,
+              "top": 8,
+              "right": 308,
+              "bottom": 208,
+              "left": 8
+            }
+          ]
+        }
+      ],
+      "screenshot": "artifact-products-3d-dark.png",
+      "owner": "artifact-preview",
+      "knownSymptom": "3D 产物不可交互",
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "storyboard-timeline-export:storyboard:light",
+      "findings": [],
+      "screenshot": "storyboard-timeline-export-storyboard-light.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "storyboard-timeline-export:storyboard:dark",
+      "findings": [],
+      "screenshot": "storyboard-timeline-export-storyboard-dark.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "storyboard-timeline-export:timeline:light",
+      "findings": [],
+      "screenshot": "storyboard-timeline-export-timeline-light.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "storyboard-timeline-export:timeline:dark",
+      "findings": [],
+      "screenshot": "storyboard-timeline-export-timeline-dark.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "storyboard-timeline-export:export:light",
+      "findings": [],
+      "screenshot": "storyboard-timeline-export-export-light.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    },
+    {
+      "label": "storyboard-timeline-export:export:dark",
+      "findings": [],
+      "screenshot": "storyboard-timeline-export-export-dark.png",
+      "owner": "ux-feel-mechanism",
+      "knownSymptom": null,
+      "evidence": "rendered-fixture-not-product-walkthrough",
+      "drift": [],
+      "rubric": [
+        {
+          "question": "舒服吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "能点吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "看得全吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        },
+        {
+          "question": "读得清吗",
+          "scale": {
+            "0": "阻断任务",
+            "1": "明显摩擦",
+            "2": "轻微摩擦",
+            "3": "顺畅"
+          },
+          "score": null,
+          "status": "needs-human-or-visual-judge"
+        }
+      ]
+    }
+  ]
+}

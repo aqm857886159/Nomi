@@ -2,7 +2,7 @@ import { canvasWindowInput } from '../../../shortcutSurface'
 // 版本卡片接进节点（V2）：图片右上角的数字角标入口（10-07） + 原地铺开的宫格 + 悬停条的三个动作 + 预览。
 //
 // 数据只从唯一主人读写：版本列表 / 编号 / 主图 → model/nodeResultLifecycle.ts；铺开状态 → store.setNodeResultStackOpen；
-// 设主图 → store.setNodeMainResult（一个撤销步）；删一版 → assets/removeAssetVersion（原文件保留）。
+// 设主图 → switchNodeMainVersion（白板落盘 + 真实尺寸回填 + store.setNodeMainResult 一个撤销步）；删一版 → assets/removeAssetVersion（原文件保留）。
 // The toast owns its original edit only while its project and head token still match.
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'

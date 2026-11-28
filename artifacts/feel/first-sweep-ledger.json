@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "purpose": "首轮总账种子，不是门岗；原数及来源原样保留，不可跨平台录基线",
+  "seeds": [
+    {
+      "label": "eval-iso:screenshot:j1-promo-t1-error.png",
+      "rule": "clipped-content",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-cdbc6a4f-0b47-4d86-aa71-b57be0e07294/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j1-promo-t1-error.png",
+      "rule": "font-size",
+      "count": 10,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-cdbc6a4f-0b47-4d86-aa71-b57be0e07294/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j2-story-styling-t1-error.png",
+      "rule": "clipped-content",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-2238a81e-8c9e-463f-a4fe-a8158321af61/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j2-story-styling-t1-error.png",
+      "rule": "font-size",
+      "count": 10,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-2238a81e-8c9e-463f-a4fe-a8158321af61/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j3-first-success-t1-guided-canvas.png",
+      "rule": "blocked-interaction",
+      "count": 3,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883 (CI-safe user journeys log)",
+      "mode": "record",
+      "platform": "linux"
+    },
+    {
+      "label": "eval-iso:screenshot:j3-first-success-t1-guided-canvas.png",
+      "rule": "clipped-content",
+      "count": 4,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883 (CI-safe user journeys log)",
+      "mode": "record",
+      "platform": "linux"
+    },
+    {
+      "label": "eval-iso:screenshot:j3-first-success-t1-guided-canvas.png",
+      "rule": "font-size",
+      "count": 45,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883 (CI-safe user journeys log)",
+      "mode": "record",
+      "platform": "linux"
+    },
+    {
+      "label": "eval-iso:screenshot:j3-first-success-t1-guided-canvas.png",
+      "rule": "text-overlap",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883 (CI-safe user journeys log)",
+      "mode": "record",
+      "platform": "linux"
+    },
+    {
+      "label": "eval-iso:screenshot:j3-first-success-t1-inspect-node.png",
+      "rule": "clipped-content",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-b62e1cf7-8481-4878-9192-40084c0db7aa/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j3-first-success-t1-inspect-node.png",
+      "rule": "font-size",
+      "count": 37,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-b62e1cf7-8481-4878-9192-40084c0db7aa/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j3-first-success-t1-inspect-node.png",
+      "rule": "text-overlap",
+      "count": 3,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-b62e1cf7-8481-4878-9192-40084c0db7aa/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j4-reference-t1-error.png",
+      "rule": "clipped-content",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-4c327a1e-3e8c-4de9-ab3a-ebf0d4f05af8/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j4-reference-t1-error.png",
+      "rule": "font-size",
+      "count": 10,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-4c327a1e-3e8c-4de9-ab3a-ebf0d4f05af8/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-composer-usable-at-min-window.png",
+      "rule": "blocked-interaction",
+      "count": 2,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-68d470ac-f984-424d-88e2-10731b73f6b3/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-composer-usable-at-min-window.png",
+      "rule": "clipped-content",
+      "count": 2,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-68d470ac-f984-424d-88e2-10731b73f6b3/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-composer-usable-at-min-window.png",
+      "rule": "font-size",
+      "count": 11,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-68d470ac-f984-424d-88e2-10731b73f6b3/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-modify-project.png",
+      "rule": "clipped-content",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883/artifacts/10077076816",
+      "mode": "record",
+      "platform": "linux"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-modify-project.png",
+      "rule": "font-size",
+      "count": 14,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883/artifacts/10077076816",
+      "mode": "record",
+      "platform": "linux"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-reopen-project.png",
+      "rule": "clipped-content",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-68d470ac-f984-424d-88e2-10731b73f6b3/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-reopen-project.png",
+      "rule": "font-size",
+      "count": 11,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "artifacts/feel/eval-iso-68d470ac-f984-424d-88e2-10731b73f6b3/contact-sheet.json",
+      "mode": "record",
+      "platform": "darwin"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-error.png",
+      "rule": "font-size",
+      "count": 14,
+      "owner": "design-system",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883/artifacts/10077076816",
+      "mode": "record",
+      "platform": "linux"
+    },
+    {
+      "label": "eval-iso:screenshot:j5-edit-export-t1-error.png",
+      "rule": "clipped-content",
+      "count": 1,
+      "owner": "canvas",
+      "reason": "首轮基线，待清账",
+      "evidence": "https://github.com/aqm857886159/Nomi/actions/runs/34279293883/artifacts/10077076816",
+      "mode": "record",
+      "platform": "linux"
+    }
+  ],
+  "records": []
+}

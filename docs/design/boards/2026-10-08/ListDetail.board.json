@@ -373,7 +373,7 @@
       "label": "大详情同源节点舞台（可编辑正文、真音频播放与转写 SRT、失败/可找回恢复、内联后处理工具栏）",
       "anchor": "[data-board=\"detail.stage-surface\"]",
       "component": "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
-      "status": "in-progress",
+      "status": "implemented",
       "owner": "impl-view-parity",
       "states": [
         "zh-en",

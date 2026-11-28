@@ -1,16 +1,21 @@
+// @vitest-environment jsdom
 import fs from 'node:fs'
 import path from 'node:path'
-import React from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import React, { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../../i18n'
 import type { ModelOption } from '../../../config/models'
+import { useWorkbenchStore } from '../../workbenchStore'
+import { reconcileModeSwitchParams } from '../../generationCanvas/agent/plannedNodeMeta'
 import type { PlanShot } from '../../generationCanvas/agent/storyboardPlan'
 import type { PlanShotPatch } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { GENERATION_NODE_KINDS } from '../../generationCanvas/model/generationNodeKinds'
 import { createGenerationNode } from '../../generationCanvas/model/graphOps'
+import { NodeStageHostContext } from '../../generationCanvas/nodes/nodeStageHostContext'
+import ImageCropGridActionBar from '../../generationCanvas/nodes/render/ImageCropGridActionBar'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import {
   cancelCanvasPickMode,
@@ -26,6 +31,8 @@ import { GenerationListView } from './GenerationListView'
 import ShotComposerBar from '../../creation/storyboard/shotRow/ShotComposerBar'
 import { NODE_SURFACE_CONTRACTS } from '../../generationCanvas/nodes/nodeSurfaceContract'
 import { switchNodeMainVersion } from '../../generationCanvas/nodes/versionCards/switchNodeMainVersion'
+import type { NodeImageEditing } from '../../generationCanvas/nodes/useNodeImageEditing'
+import type { ModelParameterControl } from '../../../../electron/shared/videoCapabilities/types'
 
 type CapturedSelect = {
   ariaLabel?: string
@@ -47,34 +54,47 @@ vi.mock('../../../design', async (importOriginal) => {
   }
 })
 
-function withSyncedServerSnapshot<T>(run: () => T): T {
-  const serverCanvas = useGenerationCanvasStore.getInitialState() as unknown as Record<string, unknown>
-  const serverView = useGenerationViewStore.getInitialState() as unknown as Record<string, unknown>
-  const savedNodes = serverCanvas.nodes
-  const savedEdges = serverCanvas.edges
-  const savedGroups = serverCanvas.groups
-  const savedInspector = serverView.inspectorKey
-  const savedView = serverView.view
-  const liveCanvas = useGenerationCanvasStore.getState()
-  const liveView = useGenerationViewStore.getState()
-  serverCanvas.nodes = liveCanvas.nodes
-  serverCanvas.edges = liveCanvas.edges
-  serverCanvas.groups = liveCanvas.groups
-  serverView.inspectorKey = liveView.inspectorKey
-  serverView.view = liveView.view
+async function renderUi(element: React.ReactNode): Promise<string> {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
   try {
-    return run()
+    await act(async () => {
+      root.render(React.createElement(MantineProvider, { env: 'test' }, element))
+    })
+    return container.innerHTML
   } finally {
-    serverCanvas.nodes = savedNodes
-    serverCanvas.edges = savedEdges
-    serverCanvas.groups = savedGroups
-    serverView.inspectorKey = savedInspector
-    serverView.view = savedView
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
   }
 }
 
-const renderUi = (element: React.ReactNode): string =>
-  withSyncedServerSnapshot(() => renderToStaticMarkup(React.createElement(MantineProvider, { env: 'test' }, element)))
+;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  })
+}
+
+if (typeof globalThis.ResizeObserver !== 'function') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+}
 
 beforeEach(async () => {
   await i18n.changeLanguage('zh-CN')
@@ -85,7 +105,7 @@ beforeEach(async () => {
 })
 
 describe('Three Generation Surfaces Parity — Goal Contract', () => {
-  it('1a. GenerationListParts deletes fake TextPreview & 48-bar AudioStrip, and GenerationListDetail mounts real editable text + real audio/transcript + recoverable dual actions + media toolbars outside ReactFlowProvider', () => {
+  it('1a. GenerationListParts deletes fake TextPreview & 48-bar AudioStrip, and GenerationListDetail mounts real editable text + real audio/transcript + recoverable dual actions + media toolbars outside ReactFlowProvider', async () => {
     const partsSource = fs.readFileSync(path.join(__dirname, 'GenerationListParts.tsx'), 'utf8')
     expect(partsSource).not.toContain('function TextPreview')
     expect(partsSource).not.toContain('function AudioStrip')
@@ -138,33 +158,33 @@ describe('Three Generation Surfaces Parity — Goal Contract', () => {
     })
     const cardOf = (id: string) => listModel.sections[0]!.cards.find((card) => card.nodeId === id)!
 
-    const textHtml = renderUi(React.createElement(GenerationListDetail, { card: cardOf('text-1'), onBack: () => {} }))
+    const textHtml = await renderUi(React.createElement(GenerationListDetail, { card: cardOf('text-1'), onBack: () => {} }))
     expect(textHtml).toContain(i18n.t('generationCommon.textDocument.label'))
     expect(textHtml).not.toContain('line-clamp-4')
 
-    const audioHtml = renderUi(React.createElement(GenerationListDetail, { card: cardOf('audio-1'), onBack: () => {} }))
+    const audioHtml = await renderUi(React.createElement(GenerationListDetail, { card: cardOf('audio-1'), onBack: () => {} }))
     expect(audioHtml).toContain('<audio')
     expect(audioHtml).toContain(`aria-label="${i18n.t('generationCommon.audio.play')}"`)
     expect(audioHtml).toContain(`aria-label="${i18n.t('generationCommon.audio.progress')}"`)
 
-    const transcriptHtml = renderUi(React.createElement(GenerationListDetail, { card: cardOf('audio-srt'), onBack: () => {} }))
+    const transcriptHtml = await renderUi(React.createElement(GenerationListDetail, { card: cardOf('audio-srt'), onBack: () => {} }))
     expect(transcriptHtml).toContain('听见脚步声了吗？就在门外。')
     expect(transcriptHtml).toContain(i18n.t('generationCommon.audio.copy'))
     expect(transcriptHtml).toContain(i18n.t('generationCommon.audio.generateSubtitle'))
 
-    const recoverableHtml = renderUi(React.createElement(GenerationListDetail, { card: cardOf('rec-1'), onBack: () => {} }))
+    const recoverableHtml = await renderUi(React.createElement(GenerationListDetail, { card: cardOf('rec-1'), onBack: () => {} }))
     expect(recoverableHtml).toContain(i18n.t('generationCommon.production.runAction.retry-retrieval'))
     expect(recoverableHtml).toContain(i18n.t('generationCommon.observability.action.releaseRegenerate.main'))
 
-    const imageHtml = renderUi(React.createElement(GenerationListDetail, { card: cardOf('img-1'), onBack: () => {} }))
+    const imageHtml = await renderUi(React.createElement(GenerationListDetail, { card: cardOf('img-1'), onBack: () => {} }))
     expect(imageHtml).toContain('data-toolbar-action="add-to-timeline"')
     expect(imageHtml).toContain('data-toolbar-action="toggle-frozen"')
     expect(imageHtml).toContain(i18n.t('generationCommon.node.duplicateVariant'))
     expect(imageHtml).toContain('max-w-[600px]')
   })
 
-  it('1b. GenerationListView exposes direct node creation and file import in both empty and populated grid states', () => {
-    const emptyHtml = renderUi(React.createElement(GenerationListView))
+  it('1b. GenerationListView exposes direct node creation and file import in both empty and populated grid states', async () => {
+    const emptyHtml = await renderUi(React.createElement(GenerationListView))
     expect(emptyHtml).toContain('data-list-layout="empty"')
     expect(emptyHtml).toContain('data-add-intent="image"')
     expect(emptyHtml).toContain('data-add-intent="text"')
@@ -172,7 +192,7 @@ describe('Three Generation Surfaces Parity — Goal Contract', () => {
 
     const shotNode = createGenerationNode({ id: 'grid-shot-1', kind: 'image', title: '镜 1' })
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [shotNode], edges: [], groups: [], selectedNodeIds: [] })
-    const gridHtml = renderUi(React.createElement(GenerationListView))
+    const gridHtml = await renderUi(React.createElement(GenerationListView))
     expect(gridHtml).toContain('data-list-layout="grid"')
     expect(gridHtml).toContain('data-list-create-bar')
     expect(gridHtml).toContain('data-add-intent="image"')
@@ -245,7 +265,7 @@ describe('Three Generation Surfaces Parity — Goal Contract', () => {
     expect(useGenerationViewStore.getState()).toMatchObject({ view: 'list', inspectorKey: 'shot-target' })
   })
 
-  it('3a. ShotComposerBar mode switch preserves compatible parameters and drops unknown ones via resolveModelParams instead of wiping params: undefined', () => {
+  it('3a. ShotComposerBar mode switch preserves compatible parameters and drops unknown ones via resolveModelParams instead of wiping params: undefined', async () => {
     const gptImage: ModelOption = {
       value: 'gpt-image-2',
       label: 'GPT Image 2',
@@ -266,7 +286,7 @@ describe('Three Generation Surfaces Parity — Goal Contract', () => {
       params: { resolution: '2K', aspect_ratio: '9:16', stale_mode_only_param: 'drop-me' },
     }
     const patches: PlanShotPatch[] = []
-    renderUi(
+    await renderUi(
       React.createElement(ShotComposerBar, {
         shot,
         modelOptions: [gptImage],
@@ -285,12 +305,12 @@ describe('Three Generation Surfaces Parity — Goal Contract', () => {
     expect(patches[0]!.params).toEqual({ resolution: '2K', aspect_ratio: '9:16' })
   })
 
-  it('3b. Exhaustive NODE_SURFACE_CONTRACTS covers every GenerationNodeKind and canvas-only kinds render explicit pointer stage in list-detail', () => {
+  it('3b. Exhaustive NODE_SURFACE_CONTRACTS covers every GenerationNodeKind and canvas-only kinds render explicit pointer stage in list-detail', async () => {
     expect(Object.keys(NODE_SURFACE_CONTRACTS).sort()).toEqual([...GENERATION_NODE_KINDS].sort())
 
     const directorNode = createGenerationNode({ id: 'dir-1', kind: 'director', title: 'fixture-director-stage' })
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [directorNode], edges: [], groups: [], selectedNodeIds: [] })
-    const html = renderUi(
+    const html = await renderUi(
       React.createElement(GenerationListDetail, {
         card: {
           key: 'dir-1',
@@ -307,5 +327,166 @@ describe('Three Generation Surfaces Parity — Goal Contract', () => {
     )
     expect(html).toContain('data-node-stage-canvas-only="director"')
     expect(html).toContain(i18n.t('generationList.openInCanvas'))
+  })
+
+  it('4a. [B1/B2] ImageCropGridActionBar renders inline in list-detail (never clipped off-viewport) and TextDocumentNode uses flex-col containment for focused formatting toolbar', async () => {
+    const fakeEditing: NodeImageEditing = {
+      editGrid: { rows: 1, cols: 1 },
+      draft: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+      imageOpBusy: false,
+      openEdit: () => {},
+      cancelEdit: () => {},
+      reportDraft: () => {},
+      handleEditConfirm: async () => {},
+      handleImageTransform: async () => {},
+      handleRemoveBackground: async () => {},
+    }
+
+    const detailBarHtml = await renderUi(
+      React.createElement(
+        NodeStageHostContext.Provider,
+        { value: 'list-detail' },
+        React.createElement(ImageCropGridActionBar, { editing: fakeEditing }),
+      ),
+    )
+    expect(detailBarHtml).toContain('data-crop-grid-action-bar="list-detail"')
+    expect(detailBarHtml).toContain('mt-2 flex w-full justify-center')
+    expect(detailBarHtml).not.toContain('top-[calc(100%+8px)]')
+
+    const canvasBarHtml = await renderUi(
+      React.createElement(
+        NodeStageHostContext.Provider,
+        { value: 'canvas' },
+        React.createElement(ImageCropGridActionBar, { editing: fakeEditing }),
+      ),
+    )
+    expect(canvasBarHtml).toContain('data-crop-grid-action-bar="canvas"')
+    expect(canvasBarHtml).toContain('top-[calc(100%+8px)]')
+
+    // B2 structural guard: TextDocumentNode wraps inline formatting bar + body card in flex-col with min-h-0 flex-1
+    const textDocSource = fs.readFileSync(
+      path.join(__dirname, '../../generationCanvas/nodes/render/TextDocumentNode.tsx'),
+      'utf8',
+    )
+    expect(textDocSource).toContain('className="relative flex h-full w-full flex-col"')
+    expect(textDocSource).toContain('className="flex min-h-0 w-full flex-1 flex-col overflow-hidden')
+  })
+
+  it('4b. [B3] Switching cards in DetailRail remounts GenerationListDetail by nodeId so audio/editing local state never leaks across nodes', async () => {
+    const audioA: GenerationCanvasNode = {
+      ...createGenerationNode({ id: 'audio-a', kind: 'audio', title: '旁白 A' }),
+      status: 'success',
+      result: { id: 'res-a', type: 'audio', url: 'https://fixture.invalid/a.wav', createdAt: 1 },
+      meta: { durationSec: 10 },
+    }
+    const audioB: GenerationCanvasNode = {
+      ...createGenerationNode({ id: 'audio-b', kind: 'audio', title: '旁白 B' }),
+      status: 'success',
+      result: { id: 'res-b', type: 'audio', url: 'https://fixture.invalid/b.wav', createdAt: 2 },
+      meta: { durationSec: 20 },
+    }
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [audioA, audioB], edges: [], groups: [], selectedNodeIds: [] })
+    useGenerationViewStore.setState({ view: 'list', inspectorKey: 'audio-a' })
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    try {
+      await act(async () => {
+        root.render(React.createElement(MantineProvider, { env: 'test' }, React.createElement(GenerationListView)))
+      })
+      const audioElA = container.querySelector('audio')
+      expect(audioElA).not.toBeNull()
+      expect(audioElA?.getAttribute('src')).toBe('https://fixture.invalid/a.wav')
+
+      // Switch to audio-b via store (simulating clicking another card in DetailRail)
+      await act(async () => {
+        useGenerationViewStore.setState({ view: 'list', inspectorKey: 'audio-b' })
+      })
+      const audioElB = container.querySelector('audio')
+      expect(audioElB).not.toBeNull()
+      expect(audioElB?.getAttribute('src')).toBe('https://fixture.invalid/b.wav')
+      // Previous <audio> DOM node must be unmounted and replaced with a fresh instance (zero cross-node local state leak)
+      expect(audioElB).not.toBe(audioElA)
+      expect(audioElA?.isConnected).toBe(false)
+    } finally {
+      await act(async () => {
+        root.unmount()
+      })
+      container.remove()
+    }
+  })
+
+  it('4c. [N1/N2/N3] reconcileModeSwitchParams rejects unsupported aspect_ratio, canvasPickMode scopes unmount grace & external exits, and switchNodeMainVersion guards stale async races', async () => {
+    // N1: unsupported aspect_ratio on a non-aspect_ratio ratio control (size) must NOT be resurrected
+    const sizeControls: ModelParameterControl[] = [
+      {
+        key: 'size',
+        label: 'Size',
+        type: 'select',
+        defaultValue: '1024:1024',
+        options: [
+          { value: '1024:1024', label: '1:1' },
+          { value: '720:1280', label: '9:16' },
+        ],
+      },
+    ]
+    const droppedOnly = reconcileModeSwitchParams(sizeControls, { aspect_ratio: '21:9' })
+    expect(droppedOnly?.aspect_ratio).toBeUndefined()
+
+    const fallbackFromInvalidSize = reconcileModeSwitchParams(sizeControls, { aspect_ratio: '21:9', size: '999:999' })
+    expect(fallbackFromInvalidSize?.aspect_ratio).toBeUndefined()
+    expect(fallbackFromInvalidSize?.size).toBe('1024:1024')
+
+    const validResult = reconcileModeSwitchParams(sizeControls, { aspect_ratio: '9:16' })
+    expect(validResult).toEqual({ aspect_ratio: '9:16' })
+
+    // N2a: one-shot list unmount grace only absorbs the first unmount cleanup; a second dispose cancels
+    useGenerationViewStore.setState({ view: 'list', inspectorKey: 'shot-1' })
+    const disposeScoped = enterCanvasPickMode({ eligible: () => true, onPick: () => {} })
+    disposeScoped()
+    expect(isCanvasPickModeActive()).toBe(true)
+    disposeScoped()
+    expect(isCanvasPickModeActive()).toBe(false)
+
+    // N2b: resident caller (e.g. ProjectAgentResidentShell) cancels immediately on first dispose even when launched from list
+    useGenerationViewStore.setState({ view: 'list', inspectorKey: 'shot-1' })
+    const disposeResident = enterCanvasPickMode({ resident: true, eligible: () => true, onPick: () => {} })
+    expect(useGenerationViewStore.getState().view).toBe('canvas')
+    disposeResident()
+    expect(isCanvasPickModeActive()).toBe(false)
+
+    // N2c: manually navigating back to list or leaving generation workspace cancels active pick without trapping view
+    let externalCancels = 0
+    useGenerationViewStore.setState({ view: 'list', inspectorKey: 'shot-1' })
+    enterCanvasPickMode({ eligible: () => true, onPick: () => {}, onCancel: () => { externalCancels += 1 } })
+    useGenerationViewStore.getState().setView('list')
+    expect(isCanvasPickModeActive()).toBe(false)
+    expect(externalCancels).toBe(1)
+
+    useGenerationViewStore.setState({ view: 'canvas', inspectorKey: null })
+    useWorkbenchStore.getState().setWorkspaceMode('generation')
+    enterCanvasPickMode({ eligible: () => true, onPick: () => {}, onCancel: () => { externalCancels += 1 } })
+    useWorkbenchStore.getState().setWorkspaceMode('creation')
+    expect(isCanvasPickModeActive()).toBe(false)
+    expect(externalCancels).toBe(2)
+
+    // N3: stale slower switchNodeMainVersion request cannot overwrite a newer faster switch on the same node
+    const v3 = { id: 'v3', type: 'image' as const, url: 'https://fixture.invalid/v3.png', width: 1024, height: 1024, versionNo: 3, createdAt: 30 }
+    const v2 = { id: 'v2', type: 'image' as const, url: 'https://fixture.invalid/v2.png', width: 1920, height: 1080, versionNo: 2, createdAt: 20 }
+    const v1 = { id: 'v1', type: 'image' as const, url: 'https://fixture.invalid/v1.png', width: 1080, height: 1920, versionNo: 1, createdAt: 10 }
+    const raceNode: GenerationCanvasNode = {
+      ...createGenerationNode({ id: 'race-node', kind: 'image' }),
+      status: 'success',
+      result: v3,
+      history: [v3, v2, v1],
+    }
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [raceNode], edges: [], groups: [], selectedNodeIds: [] })
+    const p1 = switchNodeMainVersion('race-node', 'v1')
+    const p2 = switchNodeMainVersion('race-node', 'v2')
+    const [ok1, ok2] = await Promise.all([p1, p2])
+    expect(ok1).toBe(false)
+    expect(ok2).toBe(true)
+    expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'race-node')?.result?.id).toBe('v2')
   })
 })

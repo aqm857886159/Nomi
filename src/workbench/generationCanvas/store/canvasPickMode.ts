@@ -19,6 +19,8 @@ export type CanvasPickRequest = {
   onPick: (nodeId: string) => void
   /** Esc / 点空白 / 被下一次点选顶掉：调一次。 */
   onCancel?: () => void
+  /** 常驻壳（如右侧 Agent 面板）发起的点选不会因列表切画布卸载，其 disposer 始终立即生效。 */
+  resident?: boolean
 }
 
 export type CanvasPickReturnToList = Readonly<{ inspectorKey: string | null }>
@@ -26,9 +28,15 @@ export type CanvasPickReturnToList = Readonly<{ inspectorKey: string | null }>
 type CanvasPickModeState = {
   request: CanvasPickRequest | null
   returnToList: CanvasPickReturnToList | null
+  /** 列表视图切去画布点选时，列表节点生成框会立即卸载一次；仅豁免这一次预期卸载，不影响后续取消。 */
+  listUnmountGrace: boolean
 }
 
-export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({ request: null, returnToList: null }))
+export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({
+  request: null,
+  returnToList: null,
+  listUnmountGrace: false,
+}))
 
 /**
  * 寿命（切项目要不要清它）：`request` 是 project——它的 `eligible` / `onPick` 是调用方捕获了**当前项目里某张卡的 id**的闭包
@@ -37,8 +45,23 @@ export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({ reque
  */
 export const canvasPickModeStoreLifetime = declareStoreLifetime({
   store: 'useCanvasPickModeStore',
-  fields: { request: 'project', returnToList: 'project' },
-  releaseProject: () => useCanvasPickModeStore.setState({ request: null, returnToList: null }),
+  fields: { request: 'project', returnToList: 'project', listUnmountGrace: 'project' },
+  releaseProject: () => useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false }),
+})
+
+function cancelPickOnExternalNavigation(): void {
+  const { request } = useCanvasPickModeStore.getState()
+  if (!request) return
+  useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
+  request.onCancel?.()
+}
+
+// 用户手动点顶栏切回列表或切离生成页时，自动退出活跃点选（不把视图再拉回），避免再次进画布残留点选遮罩。
+useGenerationViewStore.subscribe((state, prev) => {
+  if (prev.view === 'canvas' && state.view !== 'canvas') cancelPickOnExternalNavigation()
+})
+useWorkbenchStore.subscribe((state, prev) => {
+  if (prev.workspaceMode === 'generation' && state.workspaceMode !== 'generation') cancelPickOnExternalNavigation()
 })
 
 function restoreListViewIfNeeded(returnToList: CanvasPickReturnToList | null): void {
@@ -55,18 +78,23 @@ export function isCanvasPickReturningToList(): boolean {
 export function enterCanvasPickMode(request: CanvasPickRequest): () => void {
   const prevState = useCanvasPickModeStore.getState()
   const currentView = useGenerationViewStore.getState()
-  const returnToList: CanvasPickReturnToList | null = currentView.view === 'list'
+  const cameFromList = currentView.view === 'list'
+  const returnToList: CanvasPickReturnToList | null = cameFromList
     ? { inspectorKey: currentView.inspectorKey }
     : (prevState.request ? prevState.returnToList : null)
-  useCanvasPickModeStore.setState({ request, returnToList })
+  const listUnmountGrace = cameFromList && !request.resident
+  useCanvasPickModeStore.setState({ request, returnToList, listUnmountGrace })
   useWorkbenchStore.getState().setWorkspaceMode('generation')
   useGenerationViewStore.getState().setView('canvas')
   prevState.request?.onCancel?.()
   return () => {
     const current = useCanvasPickModeStore.getState()
-    if (current.request === request && !current.returnToList) {
-      useCanvasPickModeStore.setState({ request: null, returnToList: null })
+    if (current.request !== request) return
+    if (current.listUnmountGrace) {
+      useCanvasPickModeStore.setState({ listUnmountGrace: false })
+      return
     }
+    useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
   }
 }
 
@@ -89,7 +117,7 @@ export function useCanvasPickNodeState(nodeId: string): boolean | null {
 export function pickCanvasNode(nodeId: string): boolean {
   const { request, returnToList } = useCanvasPickModeStore.getState()
   if (!request || !request.eligible(nodeId)) return false
-  useCanvasPickModeStore.setState({ request: null, returnToList: null })
+  useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
   request.onPick(nodeId)
   restoreListViewIfNeeded(returnToList)
   return true
@@ -99,7 +127,7 @@ export function pickCanvasNode(nodeId: string): boolean {
 export function cancelCanvasPickMode(): boolean {
   const { request, returnToList } = useCanvasPickModeStore.getState()
   if (!request) return false
-  useCanvasPickModeStore.setState({ request: null, returnToList: null })
+  useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
   request.onCancel?.()
   restoreListViewIfNeeded(returnToList)
   return true

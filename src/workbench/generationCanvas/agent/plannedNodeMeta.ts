@@ -230,18 +230,22 @@ export function reconcileModeSwitchParams(
   if (!currentParams || Object.keys(currentParams).length === 0) return undefined;
   if (!controls.length) return { ...currentParams };
   const ratioControls = aspectRatioControlsOf(controls);
-  const placed = placeAspectRatio({ ...currentParams }, ratioControls).parameters;
+  const placement = placeAspectRatio({ ...currentParams }, ratioControls);
   const { params } = resolveModelParams({
     controls,
     intent: {},
-    previousParams: placed,
+    previousParams: placement.parameters,
     policy: { author: '发送复查', invalid: '钳+说明', durationRange: null },
   });
   const ratioKey = aspectRatioControlKey(ratioControls);
   if ('aspect_ratio' in currentParams && ratioKey && ratioKey !== 'aspect_ratio' && ratioKey in params) {
     const mapped = params[ratioKey];
-    delete params[ratioKey];
-    if (typeof currentParams.aspect_ratio === 'string' && mapped !== undefined) {
+    if (
+      placement.outcome === 'placed' &&
+      Object.is(mapped, placement.parameters[ratioKey]) &&
+      typeof currentParams.aspect_ratio === 'string'
+    ) {
+      delete params[ratioKey];
       params.aspect_ratio = currentParams.aspect_ratio;
     }
   }

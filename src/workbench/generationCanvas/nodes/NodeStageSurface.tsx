@@ -383,7 +383,7 @@ function NodeStageSurfaceBody({
 }
 
 export function NodeStageSurface(props: NodeStageSurfaceProps): JSX.Element {
-  const content = <NodeStageSurfaceBody {...props} />
+  const content = <NodeStageSurfaceBody key={props.node.id} {...props} />
   const withVideoSession = props.host === 'list-detail' && props.node.result?.type === 'video'
     ? (
         <NodeVideoSessionProvider key={`${props.node.id}:${props.node.result?.url}`} node={props.node} writable={!props.readOnly}>
