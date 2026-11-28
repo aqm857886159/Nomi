@@ -1,3 +1,5 @@
+import { shouldReduceMotion } from '../../../design/motion'
+import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -6,14 +8,8 @@ import { cn } from '../../../utils/cn'
 import {
   ICON_TIERS,
   NomiSelect,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-  WorkbenchButton,
   type NomiSelectOption,
 } from '../../../design'
-import { openApimartConnect } from '../../../ui/onboarding/apimartConnectRoute'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { ModelOption } from '../../../config/models'
 import type { ModelCatalogStatus } from '../../../config/modelCatalogStatus'
@@ -29,14 +25,35 @@ import { nomiSelectTriggerText } from '../../../design/NomiSelect'
 import { ComposerSendButton, COMPOSER_SEND_FRAME } from './ComposerSendButton'
 import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldPick, modeHasIcon, sameComposerYieldStep, type ComposerYieldStep } from './composerBarYield'
 import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
-import {
-  ParameterOptionGroup,
-  ParameterPanelGroup,
-} from './controls/ParameterControlBody'
 import { AdvancedSettingsIconButton, AdvancedSettingsSection } from './controls/AdvancedSettings'
 import { NodePromptToolCluster } from './NodePromptToolCluster'
-import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
-import { PANEL_W, revealInScrollParent, useStaticParameterPopover } from './useStaticParameterPopover'
+import { resolveAnchoredPopoverPlacement } from '../../../design/anchoredPopoverPlacement'
+import {
+  ComposerFooterConnectButton,
+  EmptyModelCatalogControl,
+  ParameterPanelScrollContent,
+} from './InlineParameterBarParts'
+
+const PANEL_W = 320
+const PANEL_GAP = 6
+
+function revealInScrollParent(el: HTMLElement): void {
+  let scroller: HTMLElement | null = el.parentElement
+  while (scroller) {
+    const overflowY = getComputedStyle(scroller).overflowY
+    if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break
+    scroller = scroller.parentElement
+  }
+  if (!scroller) return
+  const box = el.getBoundingClientRect()
+  const view = scroller.getBoundingClientRect()
+  const viewTop = view.top + scroller.clientTop
+  const viewBottom = viewTop + scroller.clientHeight
+  if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
+  const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
+  const reduce = shouldReduceMotion()
+  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
+}
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
@@ -335,14 +352,80 @@ export default function InlineParameterBar({
   const summaryText = fitCandidates ? fitCandidates[Math.min(yieldStep.summaryIndex, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
   const yieldContext = React.useMemo(() => ({ sendIconOnly: yieldStep.sendIconOnly }), [yieldStep.sendIconOnly])
 
-  // ── 参数浮层：静止定位（打开定位一次，绝不跟随，见 useStaticParameterPopover）。 ──
-  const { panelOpen, panelInit, triggerRef, panelRef, openPanel, closePanel } = useStaticParameterPopover()
+  // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
+  const [panelOpen, setPanelOpen] = React.useState(false)
+  const [panelInit, setPanelInit] = React.useState<{
+    left: number
+    top: number
+    maxHeight: number | undefined
+    side: 'above' | 'below'
+    measured: boolean
+  } | null>(null)
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
+  const panelRef = React.useRef<HTMLDivElement | null>(null)
+  const openPanel = (): void => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const vw = window.innerWidth
+    const left = Math.min(Math.max(8, rect.left + rect.width / 2 - PANEL_W / 2), Math.max(8, vw - PANEL_W - 8))
+    setPanelInit({ left, top: 0, maxHeight: undefined, side: 'above', measured: false })
+    setPanelOpen(true)
+  }
+  React.useLayoutEffect(() => {
+    if (!panelOpen || !panelInit || panelInit.measured) return
+    const trigger = triggerRef.current
+    const scroller = panelRef.current?.firstElementChild as HTMLElement | null | undefined
+    if (!trigger || !scroller) return
+    const rect = trigger.getBoundingClientRect()
+    const vh = window.innerHeight
+    const work = trigger.closest('[data-shell-main]')?.getBoundingClientRect()
+    const boundsTop = Math.max(0, work?.top ?? 0)
+    const boundsBottom = Math.min(vh, work?.bottom ?? vh)
+    const placed = resolveAnchoredPopoverPlacement(
+      rect,
+      { width: PANEL_W, height: scroller.scrollHeight + 2 },
+      'center',
+      PANEL_GAP,
+      { width: window.innerWidth, height: boundsBottom - boundsTop, top: boundsTop },
+      'top',
+    )
+    const side: 'above' | 'below' = placed.top < rect.top ? 'above' : 'below'
+    const room = side === 'above' ? rect.top - PANEL_GAP - boundsTop - 8 : boundsBottom - 8 - rect.bottom - PANEL_GAP
+    setPanelInit({
+      left: panelInit.left,
+      top: side === 'above' ? vh - rect.top + PANEL_GAP : rect.bottom + PANEL_GAP,
+      maxHeight: Math.max(0, room - 2),
+      side,
+      measured: true,
+    })
+  }, [panelOpen, panelInit])
+  const closePanel = React.useCallback((): void => {
+    setPanelOpen(false)
+    setPanelInit(null)
+  }, [])
+  React.useEffect(() => {
+    if (!panelOpen) return
+    const onPointerDown = (event: PointerEvent): void => {
+      if (!workspaceInputSurfaceIsActive(triggerRef.current) || !panelRef.current) return
+      const target = event.target as Node
+      if (panelRef.current.contains(target) || triggerRef.current?.contains(target)) return
+      closePanel()
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!workspaceInputSurfaceIsActive(triggerRef.current) || event.key !== 'Escape') return
+      if (event.target instanceof Element && event.target.closest('[data-nomi-select-dropdown], [data-mantine-stop-propagation="true"]')) return
+      event.stopPropagation()
+      closePanel()
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      window.removeEventListener('keydown', onKeyDown, true)
+    }
+  }, [panelOpen, closePanel])
 
-
-  // 「改一个参数写到哪儿去」三件一组传下去：面板、高级设置、每个参数组共用同一份，
-  // 谁也别再自己接一遍（P1）。
   const controlWiring = { meta, onCatalogControlChange, onParameterControlChange }
-
   const showFooterConnect = modelOptions.length === 0 && modelCatalogStatus.status !== 'loading' && Boolean(footer?.send)
 
   /** 有底栏就把参数格放进整条底栏（四处同一份排法）；没有就只交参数格。 */
@@ -353,7 +436,6 @@ export default function InlineParameterBar({
       <div className={cn('flex w-full min-w-0 shrink-0 flex-col', footer.className)} {...footer.attrs}>
         <div ref={footerRowRef} data-node-composer-footer className={cn('flex w-full min-w-0 items-center gap-2', (footer.wrap || autoWrapOnCramp) ? 'flex-wrap' : 'flex-nowrap')}>
           <div data-bar-segment="model-params" className={cn('flex flex-1 items-center', !autoWrapOnCramp && 'min-w-0')}>{params}</div>
-          {/* 右边那排图标：提示词工具在前，高级设置在后（画板 T：图标之间隔 2、到「走」钮隔 8）。这个方式没有那五类 → 不出这颗。 */}
           {footer.tools || hasAdvanced ? (
             <NodePromptToolCluster ariaLabel={footer.toolsLabel ?? t('generationCommon.composerBarV1.promptTools')}>
               {footer.tools}
@@ -365,29 +447,7 @@ export default function InlineParameterBar({
           {footer.trailing}
           <span data-yield-action className="contents">
             {showFooterConnect ? (
-              <TooltipProvider delayDuration={150}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <WorkbenchButton
-                      variant="primary"
-                      className="shrink-0 rounded-pill px-3.5 font-semibold"
-                      data-bar-segment="generate"
-                      data-board="entry.composer-connect"
-                      data-composer-connect="true"
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        openApimartConnect()
-                      }}
-                    >
-                      {t('onboardingProviders.entries.connectModel')}
-                    </WorkbenchButton>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end" data-composer-connect-tooltip="true">
-                    {footer.connectTooltip ?? t('onboardingProviders.entries.composerTooltipGeneric')}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <ComposerFooterConnectButton connectTooltip={footer.connectTooltip} />
             ) : (
               <ComposerBarYieldContext.Provider value={yieldContext}>
                 {footer.send ? <ComposerSendButton {...footer.send} /> : null}
@@ -402,113 +462,55 @@ export default function InlineParameterBar({
   }
 
   if (modelOptions.length === 0) {
-    // 「还没有清单」和「清单里有但加载中」是两回事：后者画骨架，别画「未连模型 · 连接模型」，
-    // 否则点节点的瞬间会先闪一下空态再跳真实芯片（2026-10-11 走查第 4 条）。
-    if (modelCatalogStatus.status === 'loading') {
-      return wrapFooter(
-        <span
-          aria-hidden="true"
-          data-model-chip-loading="true"
-          className="inline-flex h-7 w-28 items-center rounded-full border border-nomi-line bg-nomi-ink-05 animate-pulse"
-        />,
-      )
-    }
     return wrapFooter(
-      !hideModel ? (
-        <NomiSelect
-          ariaLabel={t('generationCommon.parameters.model')}
-          placeholder={t('onboardingProviders.entries.modelChipEmpty')}
-          triggerMaxWidth={wrap ? 260 : 200}
-          className="shrink-0 text-nomi-ink-60"
-          value=""
-          options={modelSelect.modelOptions}
-          onChange={modelSelect.onModelPick}
-        />
-      ) : (
-        <WorkbenchButton
-          size="sm"
-          variant="primary"
-          className="shrink-0 rounded-pill px-3 font-semibold"
-          data-board="entry.composer-connect"
-          data-composer-connect="true"
-          onClick={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            openApimartConnect()
-          }}
-        >
-          {t('onboardingProviders.entries.connectModel')}
-        </WorkbenchButton>
-      ),
+      <EmptyModelCatalogControl
+        status={modelCatalogStatus.status}
+        hideModel={hideModel}
+        wrap={wrap}
+        options={modelSelect.modelOptions}
+        onModelPick={modelSelect.onModelPick}
+      />,
     )
   }
-
-  // 控件长什么样住在 `controls/ParameterControlBody.tsx`（R9：这个文件只留编排）。
 
   const hasProvider = modelSelect.providerOptions.length > 1
-  // 触发器只在**里面真有东西**时出现：参数、供应商、生成方式一件都没有的模型，
-  // 留一颗点开是空白的触发器比不留更糟。
   const hasPanel = panelControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect) || Boolean(panelFooter)
-  const renderParameterPanel = (): JSX.Element => {
-    // 只有一项也是同一块面板（带小标题、320 宽）：2026-09-11 那条「单参数直出」的贴字宽窄条
-    // （可灵编辑只剩一列比例，68 宽、没有标题，2026-11-13 验收报告）随这一版全摊开删掉。
-    const content = (
-      <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'flex flex-col gap-3 overflow-y-auto overscroll-contain rounded-nomi-lg p-3')} style={{ maxHeight: panelInit?.maxHeight }}>
-        {modeChoices?.length && onModeSelect ? (
-          <div className="flex flex-col gap-1.5" data-agent-generation-mode="true">
-            <div className="text-micro font-semibold leading-none text-nomi-ink-40">
-              {modeLabel || t('generationCommon.parameters.generationMode')}
-            </div>
-            <ParameterOptionGroup
-              ariaLabel={modeLabel || t('generationCommon.parameters.generationMode')}
-              value={activeModeId}
-              rawOptions={modeChoices.map((choice) => ({ value: choice.id, text: choice.label, ...(choice.limitTip ? { hint: choice.limitTip } : {}) }))}
-              onChange={onModeSelect}
-            />
-          </div>
-        ) : null}
-        {/* 全部参数都在这里（摘要 pill 只是读，不占走任何一个）。 */}
-        {panelControls.map((control) => (
-          <ParameterPanelGroup key={control.key} control={control} notice={controlNotices?.[control.key]} {...controlWiring} />
-        ))}
-        {hasProvider ? (
-          <div className="flex flex-col gap-1.5">
-            <div className="text-micro font-semibold leading-none text-nomi-ink-40">
-              {t('generationCommon.parameters.provider')}
-            </div>
-            <ParameterOptionGroup
-              ariaLabel={t('generationCommon.parameters.provider')}
-              value={modelSelect.providerValue}
-              rawOptions={modelSelect.providerOptions.map((o) => ({ value: o.value, text: o.label }))}
-              onChange={modelSelect.onProviderPick}
-              requestedPurpose="provider"
-            />
-          </div>
-        ) : null}
-        {panelFooter ? <div className="border-t border-nomi-line-soft pt-2 text-micro text-nomi-ink-40" data-parameter-panel-footer="true">{panelFooter}</div> : null}
-      </div>
-    )
-    return (
-      <div
-        ref={panelRef}
-        role="group"
-        aria-label={t('generationCommon.parameters.panel')}
-        data-agent-parameter-panel="true"
-        data-board={summaryBoardAnchor === 'layers.composer-cell' ? 'layers.params-panel' : undefined}
-        className="nokey fixed rounded-nomi-lg border border-nomi-line bg-nomi-paper"
-        style={{
-          zIndex: 600,
-          left: panelInit?.left,
-          ...(panelInit?.measured ? {} : { visibility: 'hidden' as const }),
-          ...(panelInit?.side === 'above' && panelInit.measured ? { bottom: panelInit.top } : { top: panelInit?.top }),
-          width: PANEL_W,
-          boxShadow: 'var(--workbench-shadow-pop)',
-        }}
-      >
-        {content}
-      </div>
-    )
-  }
+  const renderParameterPanel = (): JSX.Element => (
+    <div
+      ref={panelRef}
+      role="group"
+      aria-label={t('generationCommon.parameters.panel')}
+      data-agent-parameter-panel="true"
+      data-board={summaryBoardAnchor === 'layers.composer-cell' ? 'layers.params-panel' : undefined}
+      className="nokey fixed rounded-nomi-lg border border-nomi-line bg-nomi-paper"
+      style={{
+        zIndex: 600,
+        left: panelInit?.left,
+        ...(panelInit?.measured ? {} : { visibility: 'hidden' as const }),
+        ...(panelInit?.side === 'above' && panelInit.measured ? { bottom: panelInit.top } : { top: panelInit?.top }),
+        width: PANEL_W,
+        boxShadow: 'var(--workbench-shadow-pop)',
+      }}
+    >
+      <ParameterPanelScrollContent
+        maxHeight={panelInit?.maxHeight}
+        modeChoices={modeChoices}
+        activeModeId={activeModeId}
+        modeLabel={modeLabel}
+        onModeSelect={onModeSelect}
+        panelControls={panelControls}
+        controlNotices={controlNotices}
+        meta={meta}
+        onCatalogControlChange={onCatalogControlChange}
+        onParameterControlChange={onParameterControlChange}
+        hasProvider={hasProvider}
+        providerValue={modelSelect.providerValue}
+        providerOptions={modelSelect.providerOptions}
+        onProviderPick={modelSelect.onProviderPick}
+        panelFooter={panelFooter}
+      />
+    </div>
+  )
 
   // 分镜行最窄一档（wrap）放不下就整颗换行，身份两枚不缩——模型是这一行的一等决策（§1.5.4）。
   // 有底栏（四处）时谁留下由重要性清单说了算（composerBarYield.ts）：模型名放得下就模型、方式、摘要都不缩，
