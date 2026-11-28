@@ -132,8 +132,9 @@ export type NomiAgentPose = 'idle' | 'unread' | 'running' | 'done' | 'failed'
 type NomiAgentFaceProps = {
   pose?: NomiAgentPose
   /**
-   * live = 顶栏 Nomi 入口的活形象：28 个形象单位的方舞台贴在宿主右缘，状态之间连续形变、眨眼、在跑转弧；
-   * mark = 静态脸（聊天身份行）：填满 size×size 的方框，空闲那一副长相，没有任何动效、没有状态。
+   * live = 活形象（开合移交舞台：收起时在顶栏 ShellNomiEntry 值班，打开时坐镇 AgentPanelV4Panel 头部）：
+   *   28 个形象单位的方舞台贴在宿主右缘，状态之间连续形变、眨眼、在跑转弧；
+   * mark = 静态脸：填满 size×size 的方框，空闲那一副长相，没有任何动效、没有状态。
    */
   variant?: 'live' | 'mark'
   /** live：舞台边长（默认 26 = 顶栏入口的脸）；mark：方框边长（默认 16）。 */
@@ -208,7 +209,7 @@ function smileStyle(pose: NomiAgentPose, side: 0 | 1): CSSProperties {
 function useAgentBlink(root: React.RefObject<HTMLSpanElement | null>, enabled: boolean): void {
   React.useEffect(() => {
     const element = root.current
-    if (!enabled || !element) return undefined
+    if (!enabled || !element || typeof element.setAttribute !== 'function' || typeof element.removeAttribute !== 'function') return undefined
     let open: ReturnType<typeof setTimeout> | undefined
     const tick = (): void => {
       if (document.hidden || shouldReduceMotion()) return
@@ -251,6 +252,7 @@ export function NomiAgentFace({ pose = 'idle', variant = 'live', size, ringProps
       ref={root}
       aria-hidden="true"
       data-nomi-agent-face={pose}
+      data-persona-stage="live"
       className={cn('nomi-agent-face', 'group/agent-face pointer-events-none absolute inset-0 block', className)}
       style={{ '--nomi-agent-u': `${stage / AGENT_STAGE_UNITS}px` } as CSSProperties}
     >

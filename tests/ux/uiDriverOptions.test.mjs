@@ -78,7 +78,7 @@ describe('ui-driver defaults', () => {
     const launch = buildLaunchOptions(options, { tempRoot: '/tmp/nomi-ui-driver-w' })
     expect(launch.viewportSize).toEqual({ width: 700, height: 720 })
     expect(launch.initialLocalStorage).toMatchObject({ 'nomi:locale:v1': 'en', 'nomi-color-scheme': 'dark' })
-    expect(Object.keys(SIZE_PRESETS)).toEqual(expect.arrayContaining(['1280x800', '1100x720', '1100x690', '700x720']))
+    expect(Object.keys(SIZE_PRESETS)).toEqual(expect.arrayContaining(['1440x900', '1280x800', '1100x720', '1100x690', '700x720']))
     expect(() => parseDriverArgs(['--size', '999x999'], {})).toThrow(/不认识的尺寸/)
   })
 

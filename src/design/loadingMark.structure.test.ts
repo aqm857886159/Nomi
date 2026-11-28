@@ -28,12 +28,12 @@ describe('加载标不换形象脸（Q10）', () => {
     expect(body).not.toMatch(/NomiAgentFace|AgentFace|NOMI_AGENT_POSES/)
   })
 
-  it('形象脸只被顶栏 Nomi 入口和聊天身份行画出来（别处当加载标 / 装饰用就红）', () => {
+  it('形象脸只被顶栏 Nomi 入口和常驻面板头部画出来（别处当加载标 / 装饰用就红）', () => {
     const users = walk(path.join(process.cwd(), 'src'))
       .filter((file) => !file.includes(`${path.sep}devlab${path.sep}`))
       .filter((file) => /<NomiAgentFace\b/.test(stripComments(fs.readFileSync(file, 'utf8'))))
       .map((file) => path.relative(process.cwd(), file).split(path.sep).join('/'))
       .sort()
-    expect(users).toEqual(['src/ui/app-shell/shell/ShellNomiEntry.tsx', 'src/workbench/ai/NomiIdentityRow.tsx'])
+    expect(users).toEqual(['src/ui/app-shell/shell/ShellNomiEntry.tsx', 'src/workbench/ai/v4/AgentPanelV4Panel.tsx'])
   })
 })

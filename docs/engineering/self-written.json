@@ -573,10 +573,6 @@
       "reason": "没有可用文本模型时的恢复卡"
     },
     {
-      "path": "src/workbench/ai/NomiIdentityRow*",
-      "reason": "Nomi 助手身份行"
-    },
-    {
       "path": "src/workbench/ai/ProjectAgentResidentShell*",
       "reason": "常驻 Agent 外壳：把项目、画布与对话接在一起"
     },

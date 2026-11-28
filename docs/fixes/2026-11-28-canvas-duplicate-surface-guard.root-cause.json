@@ -1,0 +1,289 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-canvas-duplicate-surface-guard",
+  "problem_type": "Cross-component whole-viewport duplicate persona/brand marks and duplicate isomorphic action bar",
+  "symptom": "On the 1440x900 generation canvas empty state with the resident Agent dock open, three dark brand/persona squares appear simultaneously (top-left [N], topbar-right live persona, and dock header [N] Nomi 30px below) plus a fourth inner NomiIdentityRow on NoTextModelRecoveryCard, while two identical 7-item node-creation surfaces (central starter tiles and bottom floating toolbar) co-mount on a 0-node canvas.",
+  "direct_cause": "1) Topbar ShellNomiEntry and open AgentPanelV4Panel header rendered separate dark marks simultaneously without stage handoff, while NoTextModelRecoveryCard also retained a pre-v4 NomiIdentityRow header. 2) GenerationCanvasReactFlow mounted CanvasToolbar whenever !readOnly regardless of nodes.length, while GenerationCanvasReactFlowOverlays mounted CanvasEmptyState when nodes.length === 0. 3) _feel.mjs and _feel-observer.mjs lacked whole-viewport rules for duplicate live persona stages, container-header duplication, and isomorphic action bars.",
+  "class_root": "Component-isolated rendering and unit tests validate each subtree's local mark or action list without a single-owner stage handoff for open-vs-collapsed chrome, empty-vs-populated toolbar exclusivity, or a whole-viewport structural duplicate detector.",
+  "affected_population": [
+    "All creators opening or collapsing the resident Agent panel across Creation, Generation, and Preview workspaces",
+    "All new or unconfigured creators opening the resident Agent panel without a text model",
+    "All creators opening a blank generation canvas or deleting the last node in a category (0 nodes)"
+  ],
+  "scope_paths": [
+    "src/design/identity.tsx",
+    "src/design/loadingMark.structure.test.ts",
+    "src/i18n/locales/agentPanelV4.ts",
+    "src/ui/app-shell/shell/nomiEntryLook.ts",
+    "src/ui/app-shell/shell/ShellNomiEntry.tsx",
+    "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+    "src/workbench/ai/NomiIdentityRow.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/v4/agentPanelV4Labels.ts",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
+    "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+    "src/devlab/designLab/primitivesActions/states/01-workbench.tsx",
+    "docs/design/boards/2026-11-22-nomi-entry-topbar/NomiEntryTopbar.board.json",
+    "docs/design/boards/2026-10-27-agent-persona/AgentPersona.board.json",
+    "docs/design/boards/2026-10-27-agent-persona/AgentIdentityRow.board.json",
+    "docs/engineering/self-written.json",
+    "tests/ux/_shell.mjs",
+    "tests/ux/_feel.mjs",
+    "tests/ux/_feel-observer.mjs",
+    "tests/ux/nomi-entry-topbar.walk.mjs",
+    "tests/ux/uiDriverOptions.mjs",
+    "tests/ux/ui.mjs",
+    "scripts/check-feel.mjs",
+    "scripts/file-size-baseline.json"
+  ],
+  "entry_points": [
+    "ShellTopBar mounts NomiEntryButton via useNomiEntry while ShellAgentHost mounts ProjectAgentResidentShell and AgentPanelV4Panel",
+    "ProjectAgentResidentShell mounts NoTextModelRecoveryCard inside AgentPanelV4Panel (emptyOverride and flowTail)",
+    "GenerationCanvasReactFlowOverlays mounts CanvasEmptyState or CanvasToolbar on the generation canvas",
+    "installFeelObserver and scanFeel inspect full-viewport DOM geometry on screenshots and state waits"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Persona stage handoff, panel header ownership, empty-vs-populated canvas toolbar exclusivity, and the generic DOM feel scanner are internal UI composition invariants of this repository.",
+  "invariants": [
+    "Software logo NomiLogoMark stays at app-level positions and never renders in AgentPanelV4Panel header; at most one live NomiAgentFace renders in the window at any time (topbar ShellNomiEntry when collapsed, AgentPanelV4Panel header with live status phrase when open, and zero inner NomiIdentityRow headers in panel cards).",
+    "On the generation canvas, interactive creation surfaces are mutually exclusive: readOnly renders neither, nodes.length === 0 renders only CanvasEmptyState, and nodes.length > 0 renders only CanvasToolbar while preserving CanvasNavigationStack.",
+    "Full-viewport feel scans detect duplicate live persona stages (duplicate-persona-stage), container-header duplication (duplicate-nearby-header), and non-item isomorphic action bars (duplicate-action-bar) with zero budget on ratchet journeys and zero product-specific selectors."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasAddMenu/states/01-add-menu.tsx",
+      "symbol": "CanvasToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasAddMenu/states/01-add-menu.tsx",
+      "symbol": "NodeAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/nodePointer/states/01-node-pointer.tsx",
+      "symbol": "NomiEntryPreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/spendCard/spendCardLabKit.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/b2cFormFixtures.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/01-vocabulary.tsx",
+      "symbol": "NomiEntryPreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/03-flow.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/03-flow.tsx",
+      "symbol": "NomiEntryPreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/agentFormProbe.testkit.ts",
+      "symbol": "NomiEntryButton"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/ShellTopBar.tsx",
+      "symbol": "NomiEntryButton"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "AgentPanelV4Panel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "NoTextModelRecoveryCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "CanvasEmptyState"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "CanvasToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "NodeAddMenu"
+    }
+  ],
+  "door_reduction": {
+    "before": 19,
+    "after": 18,
+    "why_not": "Deleted zero-caller NomiIdentityRow.tsx (removing 1 door); remaining production hosts are unique per surface (ShellTopBar for topbar entry, ProjectAgentResidentShell for resident panel and recovery card, GenerationCanvasReactFlowOverlays for mutually exclusive empty starter vs bottom toolbar), and the rest are Design Lab specimens and testkit probes."
+  },
+  "generality_proof": "nomiEntryLook + AgentPanelHeaderSlotContext.collapsed structurally guarantee at most one live NomiAgentFace across collapsed and open states on all three workspace modes; deleting NomiIdentityRow and removing inner headers from NoTextModelRecoveryCard eliminate inner duplicate headers; resolveCanvasCreationSurface makes empty-starter and bottom-toolbar co-mounting impossible; and scanFeel/_feel-observer enforce duplicate-persona-stage, duplicate-nearby-header, and duplicate-action-bar across every viewport checkpoint.",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/app-shell/shell/nomiEntryLook.ts",
+      "symbol": "nomiEntryLook",
+      "responsibility": "Single decision owner mapping open/collapsed state to quiet toggle icon vs live persona face/capsule on the topbar."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "symbol": "AgentPanelV4Panel",
+      "responsibility": "Hosts the sole live NomiAgentFace and real-time status phrase in the panel header when open, unmounting the face when collapsed into the hidden portal."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
+      "symbol": "resolveCanvasCreationSurface",
+      "responsibility": "Single decision owner determining whether the empty-canvas starter row, the bottom floating toolbar, or neither (readOnly) may mount."
+    },
+    {
+      "path": "tests/ux/_feel.mjs",
+      "symbol": "scanFeel",
+      "responsibility": "Scans any rendered viewport for duplicate-persona-stage, duplicate-nearby-header, and duplicate-action-bar using pure DOM geometry and generic stage semantics."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/app-shell/shell/ShellNomiEntry.tsx",
+      "entry_point": "NomiEntryButton",
+      "disposition": "enforced",
+      "evidence": "Renders quiet IconLayoutSidebarRightCollapse (shape=toggle, no face/badge/dot) whenever open=true, restoring live NomiAgentFace/capsule when collapsed."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "entry_point": "AgentPanelV4Panel",
+      "disposition": "enforced",
+      "evidence": "Removed NomiBrand software logo from header; mounts live NomiAgentFace + real-time status only when !headerSlot?.collapsed."
+    },
+    {
+      "path": "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "entry_point": "NoTextModelRecoveryCard",
+      "disposition": "enforced",
+      "evidence": "Removed all inner NomiIdentityRow headers and deleted NomiIdentityRow.tsx."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "entry_point": "GenerationCanvasReactFlowOverlays",
+      "disposition": "enforced",
+      "evidence": "Mounts CanvasEmptyState and CanvasToolbar via mutually exclusive resolveCanvasCreationSurface ternary."
+    },
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "entry_point": "ProjectLibraryPage",
+      "disposition": "not-affected",
+      "evidence": "Library omits topbar Nomi entry and already hides top-right new-project button when empty starter cards are shown."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Independent subtrees (topbar entry, panel header, recovery card, empty-state overlay, persistent bottom dock) evolve separately and pass isolated component tests unless governed by single-stage handoff predicates and whole-viewport feel scanning.",
+    "same_class_scan": [
+      "loadingMark.structure.test.ts census across src/: <NomiAgentFace> is restricted to ShellNomiEntry.tsx and AgentPanelV4Panel.tsx, which are mutually exclusive by open/collapsed state; NomiIdentityRow.tsx is deleted.",
+      "door-map on CanvasToolbar and CanvasEmptyState: GenerationCanvasReactFlowOverlays.tsx is the sole production canvas overlay host; ProjectLibraryPage already enforces empty-vs-header button exclusivity."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/app-shell/shell/nomiEntryLook.ts",
+    "invariant": "Open/collapsed persona stage handoff via nomiEntryLook and AgentPanelV4Panel guarantees <= 1 live NomiAgentFace, resolveCanvasCreationSurface guarantees <= 1 canvas creation surface, loadingMark.structure.test.ts locks NomiAgentFace callers, and _feel-observer ratchets duplicate-persona-stage, duplicate-nearby-header, and duplicate-action-bar at 0.",
+    "failure_mode": "Structure/unit tests fail on extra NomiAgentFace callers or dual toolbars, and Playwright feel observer throws Feel baseline drift on any ratchet checkpoint with >= 2 visible live personas, duplicate nearby headers, or duplicate action bars.",
+    "exception_policy": "none",
+    "strategy": "Hand off the single live NomiAgentFace between ShellNomiEntry (collapsed) and AgentPanelV4Panel header (open), delete NomiIdentityRow.tsx, gate CanvasEmptyState vs CanvasToolbar via resolveCanvasCreationSurface, and enforce three viewport-wide duplicate rules in _feel.mjs and _feel-observer.mjs.",
+    "artifacts": [
+      "src/design/identity.tsx",
+      "src/design/loadingMark.structure.test.ts",
+      "src/ui/app-shell/shell/nomiEntryLook.ts",
+      "src/ui/app-shell/shell/ShellNomiEntry.tsx",
+      "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "tests/ux/_feel.mjs",
+      "tests/ux/_feel-observer.mjs",
+      "scripts/check-feel.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/design/loadingMark.structure.test.ts",
+    "src/ui/app-shell/shell/nomiEntryLook.test.ts",
+    "src/ui/app-shell/shell/ShellNomiEntry.wiring.test.tsx",
+    "src/ui/onboarding/onboardingS7aEntries.test.tsx",
+    "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+    "tests/ux/_feel.browser.mjs",
+    "tests/ux/_feel-observer.browser.mjs",
+    "tests/ux/feel-policy.test.mjs",
+    "tests/ux/uiDriverOptions.test.mjs",
+    "tests/ux/nomi-entry-topbar.walk.mjs",
+    "tests/ux/window-narrow-shell.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/design/loadingMark.structure.test.ts",
+    "src/ui/app-shell/shell/nomiEntryLook.test.ts",
+    "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+    "tests/ux/feel-policy.test.mjs",
+    "tests/ux/_feel.browser.mjs",
+    "tests/ux/_feel-observer.browser.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/NomiIdentityRow.tsx",
+      "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+    ],
+    "rationale": "Deleted zero-caller NomiIdentityRow.tsx, removed NomiBrand software logo from AgentPanelV4Panel header, removed topbar face/badge when panel is open, and removed unconditional CanvasToolbar mounting on 0-node empty canvases."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party package controls persona stage handoff, panel header deduplication, empty-canvas toolbar gating, or DOM geometry scanning.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted project data, catalog records, or user preferences change shape; walkthrough helpers in tests/ux/_shell.mjs and tests/ux/nomi-entry-topbar.walk.mjs align with stage handoff and active creation surface resolution.",
+  "residual_risks": [
+    "Record-mode ad-hoc walkthroughs outside catalog ratchet journeys write duplicate-persona-stage, duplicate-nearby-header, and duplicate-action-bar findings to new-surfaces.json rather than throwing immediately, while smoke and catalog journeys throw immediately at budget 0."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-28",
+  "invariant_owner_layer": {
+    "layer": "src/ui/app-shell/shell/nomiEntryLook.ts",
+    "tests": [
+      "src/ui/app-shell/shell/nomiEntryLook.test.ts",
+      "src/ui/app-shell/shell/ShellNomiEntry.wiring.test.tsx",
+      "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+      "tests/ux/_feel.browser.mjs"
+    ]
+  }
+}

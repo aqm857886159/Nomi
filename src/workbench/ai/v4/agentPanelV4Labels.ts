@@ -102,6 +102,13 @@ function buildV4Labels(t: TFunction) {
       done: t('agentPanelV4.dockDone'),
       failed: t('agentPanelV4.dockFailed'),
     } satisfies V4DockLabels,
+    /** 面板头部紧挨 Nomi 字标的实时状态短句（不重复前缀「Nomi」）。 */
+    headerStatus: {
+      running: t('agentPanelV4.headerRunning'),
+      needsConfirm: (count: number) => t('agentPanelV4.dockNeedsConfirm', { count }),
+      done: t('agentPanelV4.dockDone'),
+      failed: t('agentPanelV4.dockFailed'),
+    },
   }
 }
 
