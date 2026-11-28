@@ -1,0 +1,227 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-three-generation-surfaces-parity",
+  "change_kind": "corrective",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-28",
+  "recurrence_of": null,
+  "problem_type": "cross-surface-capability-and-command-drift",
+  "symptom": "Switching between Storyboard, Canvas, and List exposed capability and layout drift: List Detail rendered read-only 4-line truncated text and 48 fake static audio bars without inline toolbars, recoverable dual actions, or version dimension backfill; clicking pick-on-canvas from List immediately cancelled on unmount and failed to return; switching modes in Storyboard wiped compatible parameters.",
+  "direct_cause": "GenerationListParts and GenerationListDetail maintained handwritten read-only preview subsets and bare setNodeMainResult calls because Canvas node toolbars/controls called @xyflow/react useViewport() unconditionally, canvasPickMode lacked list round-trip state, and ShotComposerBar passed params: undefined on mode changes.",
+  "class_root": "Node stage capabilities, main-version switching side effects, cross-view canvas picking, and mode-switch parameter reconciliation lacked coordinate-free shared boundaries and a compile-time exhaustive GenerationNodeKind surface contract.",
+  "affected_population": [
+    "Creators switching between Storyboard, Generation Canvas, and Generation List (including List Detail) across macOS/Windows in zh-CN and en"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
+    "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generation/list/GenerationListDetail.tsx",
+    "src/workbench/generation/list/GenerationListParts.tsx",
+    "src/workbench/generationCanvas/nodes/versionCards/switchNodeMainVersion.ts",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+    "src/workbench/generationCanvas/store/canvasPickMode.ts",
+    "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+    "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+    "src/workbench/generation/list/threeSurfacesParity.goal.test.tsx",
+    "src/workbench/creation/storyboard/shotRow/ShotComposerBar.imageMode.test.ts"
+  ],
+  "entry_points": [
+    "Generation Canvas node rendering and version switching (BaseGenerationNode, NodeVersionCardsHost)",
+    "Generation List grid creation/import and List Detail coaxial stage (GenerationListView, GenerationListDetail, GenerationListParts)",
+    "Cross-view reference picking from List composer to Canvas (canvasPickMode)",
+    "Creation Storyboard shot and anchor mode switching (ShotComposerBar, StoryboardShotRow, StoryboardAnchorRow)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/hooks/use-viewport",
+      "checked_at": "2026-11-28",
+      "purpose": "Confirm useViewport requires ReactFlowProvider context, motivating host-separated toolbar/control wrappers via NodeStageHostContext."
+    }
+  ],
+  "invariants": [
+    "Every GenerationNodeKind must satisfy Record<GenerationNodeKind, NodeSurfaceContract> so no view maintains unguarded kind subsets.",
+    "Both BaseGenerationNode and GenerationListDetail render node content, error/recoverable cards, inline/floating toolbars, and sample rows through coordinate-free NodeStageSurface.",
+    "Switching a node's primary version always executes through switchNodeMainVersion (single production write door to setNodeMainResult).",
+    "Entering canvas pick mode from List preserves active pick across list unmount and restores list + inspectorKey upon pick or cancel.",
+    "Storyboard mode switches reconcile parameters via resolveModelParams rather than wiping params to undefined."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
+      "symbol": "NODE_SURFACE_CONTRACTS"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
+      "symbol": "getNodeSurfaceContract"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "NodeStageSurface"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/GenerationListDetail.tsx",
+      "symbol": "switchNodeMainVersion"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/list/GenerationListParts.tsx",
+      "symbol": "useCanvasAddIntentAction"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/switchNodeMainVersion.ts",
+      "symbol": "setNodeMainResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "switchNodeMainVersion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasPickMode.ts",
+      "symbol": "enterCanvasPickMode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "reconcileModeSwitchParams"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "symbol": "buildStoryboardModeChangeParams"
+    }
+  ],
+  "door_reduction": {
+    "before": 12,
+    "after": 10
+  },
+  "generality_proof": "Extracting coordinate-free NodeStageSurface with NodeStageHostContext, consolidating switchNodeMainVersion (setNodeMainResult write doors 2 -> 1) and canvasPickMode list round-trip, routing Storyboard mode switches through resolveModelParams, and locking all 17 GenerationNodeKind entries with satisfies Record<GenerationNodeKind, NodeSurfaceContract> eliminates view-local subsets structurally.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
+      "symbol": "NODE_SURFACE_CONTRACTS",
+      "responsibility": "Compile-time exhaustive capability and stage-mode contract for every GenerationNodeKind across Canvas and List."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
+      "symbol": "NodeStageSurface",
+      "responsibility": "Single coordinate-free host for node body, editable rich text, audio/transcript SRT, failure/recoverable recovery, media toolbars, and sample row across canvas and list-detail."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/versionCards/switchNodeMainVersion.ts",
+      "symbol": "switchNodeMainVersion",
+      "responsibility": "Single domain command committing active whiteboard state and backfilling media dimensions before calling setNodeMainResult."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasPickMode.ts",
+      "symbol": "enterCanvasPickMode",
+      "responsibility": "Cross-view reference pick state machine preserving active pick across list-to-canvas unmount and restoring list inspector state on pick or cancel."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "buildStoryboardModeChangeParams",
+      "responsibility": "Shared Storyboard mode-switch parameter adapter backed by resolveModelParams so compatible parameters survive mode changes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "entry_point": "BaseGenerationNode",
+      "disposition": "enforced",
+      "evidence": "Canvas node shell delegates node body, error/recoverable cards, media toolbars, and sample row to NodeStageSurface(host=\"canvas\")."
+    },
+    {
+      "path": "src/workbench/generation/list/GenerationListDetail.tsx",
+      "entry_point": "GenerationListDetail",
+      "disposition": "enforced",
+      "evidence": "List inspector mounts NodeStageSurface(host=\"list-detail\") on a coaxial 600px stage and delegates version switching to switchNodeMainVersion."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "entry_point": "NodeVersionCardsHost",
+      "disposition": "enforced",
+      "evidence": "Canvas version grid delegates primary version switching to switchNodeMainVersion instead of duplicating dimension backfill and setNodeMainResult."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "entry_point": "ShotComposerBar",
+      "disposition": "enforced",
+      "evidence": "Storyboard shot bar delegates mode switching to buildStoryboardModeChangeParams backed by resolveModelParams."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "entry_point": "StoryboardAnchorRow",
+      "disposition": "enforced",
+      "evidence": "Storyboard visual anchor bar and reference strip delegate mode switching to buildStoryboardModeChangeParams."
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
+    "tests": [
+      "src/workbench/generation/list/threeSurfacesParity.goal.test.tsx",
+      "src/workbench/generationCanvas/nodes/resolveRenderKind.test.ts",
+      "src/workbench/creation/storyboard/shotRow/ShotComposerBar.imageMode.test.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every node capability added on Canvas (rich-text selection rewrite, real audio/transcript SRT, recoverable retrieval vs resend, post-processing toolbars, version dimension backfill, parameter retention) drifted in List and Storyboard because parallel view-local subsets existed.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs setNodeMainResult -> reduced from 2 write doors (GenerationListDetail, NodeVersionCardsHost) to 1 (switchNodeMainVersion)",
+      "node scripts/door-map.mjs enterCanvasPickMode -> checked all 3 callers (ProjectAgentResidentShell, nodeSlotReferencePick, nodeInputActions) for list-to-canvas unmount survival and round-trip",
+      "git grep onModeChange / onSwitchMode across src/workbench/creation/storyboard/ -> routed ShotComposerBar, StoryboardShotRow, and StoryboardAnchorRow through buildStoryboardModeChangeParams",
+      "git grep useViewport across src/workbench/generationCanvas/nodes/ -> wrapped NodeFloatingToolbar, NodeVideoClipPanel, and NodeVideoControls via NodeStageHostContext"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "poka_yoke_tier": "impossible-by-construction",
+    "source_mechanism": "type-or-schema",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
+    "invariant": "Every GenerationNodeKind must satisfy Record<GenerationNodeKind, NodeSurfaceContract>, both Canvas and List Detail render node stages through NodeStageSurface, and setNodeMainResult is written only through switchNodeMainVersion.",
+    "failure_mode": "Adding an unregistered GenerationNodeKind fails TypeScript compilation; reintroducing fake list previews, bare setNodeMainResult calls, or mode-switch parameter wipes fails threeSurfacesParity.goal.test.tsx.",
+    "exception_policy": "none",
+    "strategy": "Combine satisfies Record<GenerationNodeKind, NodeSurfaceContract> compile-time exhaustiveness with coordinate-free NodeStageSurface, single-door switchNodeMainVersion, list-aware canvasPickMode round-trip, and resolveModelParams mode reconciliation.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
+      "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
+      "src/workbench/generationCanvas/nodes/versionCards/switchNodeMainVersion.ts",
+      "src/workbench/generationCanvas/store/canvasPickMode.ts",
+      "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generation/list/GenerationListParts.tsx",
+      "src/workbench/generation/list/GenerationListDetail.tsx",
+      "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx"
+    ],
+    "rationale": "Deleted handwritten read-only TextPreview and 48-bar fake AudioStrip from GenerationListParts.tsx, deleted DetailPreview and bare setNodeMainResult from GenerationListDetail.tsx, and deleted params: undefined mode-switch wipe from ShotComposerBar.tsx."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "All defects originated in internal view/command boundaries; zero external npm packages were added or modified.",
+    "exit_criteria": []
+  },
+  "migration": "No persistent project schema changed; existing text, audio/transcript, image/video, multi-version history, and storyboard PlanShot records render directly through the shared stage and parameter resolver.",
+  "residual_risks": [
+    "Spatial canvas-only tools (director 3D stage, clip timeline node, shot_table) intentionally display an explicit Open-in-Canvas pointer in List Detail rather than embedding multi-node spatial canvases inside a 600px column.",
+    "Windows native rendering was not verified on this macOS host and relies on CI cross-platform checks."
+  ],
+  "regression_tests": [
+    "src/workbench/generation/list/threeSurfacesParity.goal.test.tsx",
+    "src/workbench/creation/storyboard/shotRow/ShotComposerBar.imageMode.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generation/list/threeSurfacesParity.goal.test.tsx"
+  ]
+}

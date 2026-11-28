@@ -5,7 +5,10 @@ import type { DynamicModelControl } from '../../../generationCanvas/nodes/contro
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC, planModelSelection, shotKindPatch, shotTypeOf, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
+import { findModelOptionByIdentifier } from '../../../../config/modelOptionResolvers'
+import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import StoryboardComposerParams from './StoryboardComposerParams'
+import { buildStoryboardModeChangeParams } from './storyboardComposerModel'
 
 /**
  * 镜头行提示词框下方的底栏：**左边是画布节点同一套参数区，右边是「生成」**。
@@ -45,6 +48,11 @@ export default function ShotComposerBar({
   const { t } = useTranslation()
   const isImageShot = shotTypeOf(shot) === 'image'
   const duration = effectiveShotDurationSec(shot)
+  const orderedVendorKeys = useVendorPreferenceOrder()
+  const currentOption = React.useMemo(
+    () => findModelOptionByIdentifier(modelOptions ?? [], shot.modelKey, shot.modelVendor, orderedVendorKeys),
+    [modelOptions, orderedVendorKeys, shot.modelKey, shot.modelVendor],
+  )
   const modelGroupLabels = React.useMemo(() => ({ image: t('storyboardEditor.imageModels'), video: t('storyboardEditor.videoModels') }), [t])
 
   // 发出去时携带的参数 = 行写着的 + 生效画幅（整片默认在这里合进来，与 `resolveShotParams` 同一语义）。
@@ -84,7 +92,10 @@ export default function ShotComposerBar({
           const nextKind = selected?.kind === 'image' ? 'image' : selected?.kind === 'video' ? 'video' : undefined
           onUpdate({ ...(value && nextKind && nextKind !== (isImageShot ? 'image' : 'video') ? shotKindPatch(shot, nextKind) : {}), ...planModelSelection(value, vendor) })
         }}
-        onModeChange={(modeId) => onUpdate({ modeId, params: undefined })}
+        onModeChange={(modeId) => onUpdate({
+          modeId,
+          params: buildStoryboardModeChangeParams(currentOption, shot.params, modeId, isImageShot ? 'image' : 'video'),
+        })}
         onChange={(change) => {
           if (change.kind === 'aspect') onChangeAspect(change.value)
           else if (change.kind === 'duration') onUpdate({ durationSec: change.value })

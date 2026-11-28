@@ -1,0 +1,65 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 16GB",
+  "commit": "98166887c",
+  "head": "98166887c8c1bd08deb931436ee2e0e9df697df3",
+  "dirty": false,
+  "sourceTree": "e3427021d45e1d7e58c30587bf08b6583bb75031",
+  "date": "2026-11-28",
+  "runs": 5,
+  "results": [
+    {
+      "id": "workbench-switch-canvas-list",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 47.1,
+          "p95": 48.3
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          21.1,
+          24.6,
+          23.5,
+          23.6,
+          24.3
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [
+          44.6,
+          46.9,
+          47.6,
+          48.5,
+          47.1
+        ],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 53.3,
+        "p95": 55.2,
+        "runs": 5,
+        "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
+        "date": "2026-10-16",
+        "commit": "94724f860"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

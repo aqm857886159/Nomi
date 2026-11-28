@@ -49,10 +49,15 @@ describe('分镜图片镜：存成改图、没有参考 → 这一行切得回�
     expect(select!.options.map((option) => option.value)).toEqual(expect.arrayContaining(['t2i', 'i2i']))
   })
 
-  it('选文生图 → 方式写回方案（参数随方式清掉，和视频镜同一条写法）', () => {
+  it('选文生图 → 方式写回方案，无参数时保持 undefined，兼容参数保留、未知参数按 resolveModelParams 丢弃', () => {
     const patches: PlanShotPatch[] = []
     const select = modeSelectOf(imageShot(), (patch) => patches.push(patch))
     select?.onChange('t2i')
     expect(patches).toEqual([{ modeId: 't2i', params: undefined }])
+
+    const withParams: PlanShotPatch[] = []
+    const selectWithParams = modeSelectOf(imageShot({ params: { resolution: '2K', aspect_ratio: '9:16', unknown_legacy_key: 'stale' } }), (patch) => withParams.push(patch))
+    selectWithParams?.onChange('t2i')
+    expect(withParams).toEqual([{ modeId: 't2i', params: { resolution: '2K', aspect_ratio: '9:16' } }])
   })
 })

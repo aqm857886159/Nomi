@@ -19,11 +19,25 @@ export type CanvasPickRequest = {
   onPick: (nodeId: string) => void
   /** Esc / 点空白 / 被下一次点选顶掉：调一次。 */
   onCancel?: () => void
+  /** 常驻壳（如右侧 Agent 面板）发起的点选不会因列表切画布卸载，其 disposer 始终立即生效。 */
+  resident?: boolean
 }
 
-type CanvasPickModeState = { request: CanvasPickRequest | null }
+export type CanvasPickReturnToList = Readonly<{
+  inspectorKey: string | null
+  /** 列表视图切去画布点选时，列表节点生成框会立即卸载一次；仅豁免这一次预期卸载，不影响后续取消。 */
+  unmountGracePending?: boolean
+}>
 
-export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({ request: null }))
+type CanvasPickModeState = {
+  request: CanvasPickRequest | null
+  returnToList: CanvasPickReturnToList | null
+}
+
+export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({
+  request: null,
+  returnToList: null,
+}))
 
 /**
  * 寿命（切项目要不要清它）：`request` 是 project——它的 `eligible` / `onPick` 是调用方捕获了**当前项目里某张卡的 id**的闭包
@@ -32,19 +46,57 @@ export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({ reque
  */
 export const canvasPickModeStoreLifetime = declareStoreLifetime({
   store: 'useCanvasPickModeStore',
-  fields: { request: 'project' },
-  releaseProject: () => useCanvasPickModeStore.setState({ request: null }),
+  fields: { request: 'project', returnToList: 'project' },
+  releaseProject: () => useCanvasPickModeStore.setState({ request: null, returnToList: null }),
 })
 
-/** 进入点选。返回的函数只退出**这一次**点选（被后来者顶掉之后再调是空操作）。 */
+function cancelPickOnExternalNavigation(): void {
+  const { request } = useCanvasPickModeStore.getState()
+  if (!request) return
+  useCanvasPickModeStore.setState({ request: null, returnToList: null })
+  request.onCancel?.()
+}
+
+// 用户手动点顶栏切回列表或切离生成页时，自动退出活跃点选（不把视图再拉回），避免再次进画布残留点选遮罩。
+useGenerationViewStore.subscribe((state, prev) => {
+  if (prev.view === 'canvas' && state.view !== 'canvas') cancelPickOnExternalNavigation()
+})
+useWorkbenchStore.subscribe((state, prev) => {
+  if (prev.workspaceMode === 'generation' && state.workspaceMode !== 'generation') cancelPickOnExternalNavigation()
+})
+
+function restoreListViewIfNeeded(returnToList: CanvasPickReturnToList | null): void {
+  if (!returnToList) return
+  useGenerationViewStore.setState({ view: 'list', inspectorKey: returnToList.inspectorKey })
+}
+
+/** 本次点选是否从列表视图暂切而来（列表视图因此预期卸载，生成框清理函数据此保留本次点选）。 */
+export function isCanvasPickReturningToList(): boolean {
+  return useCanvasPickModeStore.getState().returnToList !== null
+}
+
+/** 进入点选。若从列表视图发起，自动暂切到可见画布并在点选成功或取消后回到列表原详情。 */
 export function enterCanvasPickMode(request: CanvasPickRequest): () => void {
+  const prevState = useCanvasPickModeStore.getState()
+  const currentView = useGenerationViewStore.getState()
+  const cameFromList = currentView.view === 'list'
+  const returnToList: CanvasPickReturnToList | null = cameFromList
+    ? { inspectorKey: currentView.inspectorKey, unmountGracePending: !request.resident }
+    : (prevState.request ? prevState.returnToList : null)
+  useCanvasPickModeStore.setState({ request, returnToList })
   useWorkbenchStore.getState().setWorkspaceMode('generation')
   useGenerationViewStore.getState().setView('canvas')
-  const previous = useCanvasPickModeStore.getState().request
-  useCanvasPickModeStore.setState({ request })
-  previous?.onCancel?.()
+  prevState.request?.onCancel?.()
   return () => {
-    if (useCanvasPickModeStore.getState().request === request) useCanvasPickModeStore.setState({ request: null })
+    const current = useCanvasPickModeStore.getState()
+    if (current.request !== request) return
+    if (current.returnToList?.unmountGracePending) {
+      useCanvasPickModeStore.setState({
+        returnToList: { inspectorKey: current.returnToList.inspectorKey, unmountGracePending: false },
+      })
+      return
+    }
+    useCanvasPickModeStore.setState({ request: null, returnToList: null })
   }
 }
 
@@ -63,21 +115,23 @@ export function useCanvasPickNodeState(nodeId: string): boolean | null {
   return useCanvasPickModeStore((state) => canvasPickNodeState(nodeId, state.request))
 }
 
-/** 点了一张卡：可点 → 退出并回调一次，返回 true；不可点 / 没在点选 → false（不可点时留在点选里）。 */
+/** 点了一张卡：可点 → 退出并回调一次（若从列表来则自动切回列表），返回 true；不可点 / 没在点选 → false。 */
 export function pickCanvasNode(nodeId: string): boolean {
-  const request = useCanvasPickModeStore.getState().request
+  const { request, returnToList } = useCanvasPickModeStore.getState()
   if (!request || !request.eligible(nodeId)) return false
-  useCanvasPickModeStore.setState({ request: null })
+  useCanvasPickModeStore.setState({ request: null, returnToList: null })
   request.onPick(nodeId)
+  restoreListViewIfNeeded(returnToList)
   return true
 }
 
-/** 取消点选（Esc / 点空白）。没在点选 → false。 */
+/** 取消点选（Esc / 点空白）。若从列表发起则自动切回列表并保留原详情。没在点选 → false。 */
 export function cancelCanvasPickMode(): boolean {
-  const request = useCanvasPickModeStore.getState().request
+  const { request, returnToList } = useCanvasPickModeStore.getState()
   if (!request) return false
-  useCanvasPickModeStore.setState({ request: null })
+  useCanvasPickModeStore.setState({ request: null, returnToList: null })
   request.onCancel?.()
+  restoreListViewIfNeeded(returnToList)
   return true
 }
 

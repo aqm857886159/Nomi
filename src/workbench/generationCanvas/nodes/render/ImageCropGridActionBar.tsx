@@ -1,6 +1,7 @@
 import { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DecisionBar } from '../../../../design'
+import { useNodeStageHost } from '../nodeStageHostContext'
 import type { NodeImageEditing } from '../useNodeImageEditing'
 
 /**
@@ -13,13 +14,19 @@ import type { NodeImageEditing } from '../useNodeImageEditing'
  */
 export default function ImageCropGridActionBar({ editing }: { editing: NodeImageEditing }): JSX.Element | null {
   const { t } = useTranslation()
+  const host = useNodeStageHost()
   const gridSize = editing.editGrid
   const draft = editing.draft
   if (!gridSize || !draft) return null
   const cropOnly = gridSize.rows === 1 && gridSize.cols === 1
   return (
     <div
-      className="absolute inset-x-0 top-[calc(100%+8px)] z-[15] flex justify-center"
+      data-crop-grid-action-bar={host}
+      className={
+        host === 'list-detail'
+          ? 'mt-2 flex w-full justify-center'
+          : 'absolute inset-x-0 top-[calc(100%+8px)] z-[15] flex justify-center'
+      }
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >

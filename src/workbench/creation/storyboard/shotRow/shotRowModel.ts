@@ -8,6 +8,7 @@ import { defaultCarrierForKind } from '../../../generationCanvas/agent/storyboar
 import { slotAsArray } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import { firstFrameEdgeSlot } from '../../../generationCanvas/runner/referenceSlots'
 import { bindingsOf, type ReferenceBindingMap } from './shotReferenceSlots'
+import { buildStoryboardModeChangeParams } from './storyboardComposerModel'
 
 /**
  * 分镜行的**纯 derive 层**（v5 表形态）：画面格红态与参考区三形态都从「该行模型的档案 mode」
@@ -115,4 +116,16 @@ export function effectiveShotValue(shot: PlanShot, node: GenerationCanvasNode | 
   if (node && overriddenShotFields(node).includes(field)) return nodeShotField(node, field)
   if (field.startsWith('params.')) return shot.params?.[field.slice(7)]
   return shot[field as keyof PlanShot]
+}
+
+/** 逐镜切换模式时的 patch：只收敛该镜自身写着的行级参数，不把整片默认盖成行级覆盖。 */
+export function buildShotModeChangePatch(
+  modelOption: ModelOption | null | undefined,
+  shot: PlanShot,
+  modeId: string,
+): { modeId: string; params: Record<string, unknown> | undefined } {
+  return {
+    modeId,
+    params: buildStoryboardModeChangeParams(modelOption, shot.params, modeId, shot.shotKind === 'image' ? 'image' : 'video'),
+  }
 }

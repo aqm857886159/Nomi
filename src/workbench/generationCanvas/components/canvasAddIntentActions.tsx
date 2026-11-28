@@ -86,16 +86,19 @@ export function useLocalFilePicker(onFiles: (files: File[]) => void): { input: J
  * 执行一个意图：建节点意图 → 在期望落点建这一类空节点（避让由 store.addNode 统一做）；「导入」→ 系统文件选择器 →
  * **画布现有那条本地文件路径**（拖进画布走的同一条：复制进项目 + 上传 + 建素材卡），不另建一套（P1）。
  */
-export function useCanvasAddIntentAction({ getInsertionPosition, categoryId }: {
+export function useCanvasAddIntentAction({ getInsertionPosition, categoryId, onCreatedNode }: {
   getInsertionPosition: () => { x: number; y: number }
   categoryId?: string
+  onCreatedNode?: (created: { id: string; kind: GenerationNodeKind }) => void
 }): { run: (intent: CanvasAddIntent) => void; pickerInput: JSX.Element } {
   const picker = useLocalFilePicker((files) => {
     void importLocalFilesToGenerationCanvas(files, { basePosition: getInsertionPosition(), categoryId })
   })
   const run = (intent: CanvasAddIntent) => {
-    if (intent.kind) useGenerationCanvasStore.getState().addNode({ kind: intent.kind, categoryId })
-    else picker.open()
+    if (intent.kind) {
+      const created = useGenerationCanvasStore.getState().addNode({ kind: intent.kind, categoryId })
+      onCreatedNode?.({ id: created.id, kind: intent.kind })
+    } else picker.open()
   }
   return { run, pickerInput: picker.input }
 }

@@ -369,6 +369,20 @@
       "note": "列表 / 列表详情在做（#1128）"
     },
     {
+      "id": "detail.stage-surface",
+      "label": "大详情同源节点舞台（可编辑正文、真音频播放与转写 SRT、失败/可找回恢复、内联后处理工具栏）",
+      "anchor": "[data-board=\"detail.stage-surface\"]",
+      "component": "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
+      "status": "implemented",
+      "owner": "impl-view-parity",
+      "states": [
+        "zh-en",
+        "dark",
+        "error"
+      ],
+      "note": "三处生成同源收口：抽出坐标无关 NodeStageSurface，与底部 600px 生成框居中同中线对齐"
+    },
+    {
       "id": "detail.version.prev",
       "label": "版本 上一版",
       "anchor": "未定",

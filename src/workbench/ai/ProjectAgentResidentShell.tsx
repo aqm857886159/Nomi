@@ -322,7 +322,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       const node = useGenerationCanvasStore.getState().nodes.find(item => item.id === nodeId)
       return node && canvasNodeToAssetRefs(node).slice(0, 1).find(asset => asset.kind !== 'model3d' && listNodeMediaResults(node).some(result=>result.url===asset.renderUrl))
     }
-    cancelReferencePick.current = enterCanvasPickMode({ eligible: nodeId => Boolean(candidate(nodeId)), onPick: nodeId => {
+    cancelReferencePick.current = enterCanvasPickMode({ resident: true, eligible: nodeId => Boolean(candidate(nodeId)), onPick: nodeId => {
       const asset = candidate(nodeId)
       if (asset) addInlineReference(asset)
     } })

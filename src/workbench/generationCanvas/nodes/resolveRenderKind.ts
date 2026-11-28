@@ -1,6 +1,7 @@
 // 节点渲染分发（renderKind）的单一真相源——决定一个画布节点走哪个 body 组件。
 // 抽成纯函数以便单测 + 收口「按 kind 还是按 categoryId 渲染」的优先级规则。
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
+import { getNodeSurfaceContract } from "./nodeSurfaceContract";
 
 /** 走「卡片」式 body（非纯图片预览）的 renderKind 集合。 */
 export const CARD_RENDER_KINDS = ["character-card", "scene-card", "prop-card", "audio-strip", "whiteboard-card"] as const;
@@ -48,18 +49,7 @@ export function isCardRenderKind(renderKind: string | undefined): boolean {
   return CARD_RENDER_KINDS.includes(renderKind as (typeof CARD_RENDER_KINDS)[number]);
 }
 
-/**
- * 这些 kind **不挂 prompt composer**：它们的正文就是功能本体（画板、3D 编辑器、全景查看器），
- * 或者它们承载的是已有的文件而不是待生成的东西（素材、Agent 手艺产物）——对着它们弹一个
- * 「描述你要生成的画面」输入框，是在问一个它答不了的问题。
- *
- * 收在这里而不是壳里：这份「谁没有 composer」原本是 BaseGenerationNode 里逐个 kind 排下来的
- * 五行否定判断，每加一种承载型 kind 就长一行，而它和上面 renderKind 的 asset/agent-artifact
- * 特例说的是同一件事。一份定义，两处消费。
- */
-const KINDS_WITHOUT_GENERATION_COMPOSER = new Set(["panorama", "director", "whiteboard", "asset", "agent-artifact"]);
-
-/** 该 kind 是否应该在选中时浮出生成 composer。 */
+/** 该 kind 是否应该在选中或大详情时挂出生成 composer（真相源归 nodeSurfaceContract 编译期穷尽表）。 */
 export function nodeHasGenerationComposer(kind: string): boolean {
-  return !KINDS_WITHOUT_GENERATION_COMPOSER.has(kind);
+  return getNodeSurfaceContract(kind).hasGenerationComposer;
 }

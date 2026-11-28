@@ -28,6 +28,7 @@ import { currentReferenceMedia } from '../../generationCanvas/nodes/mentionCandi
 import { sameFlatRecords, useContentStable, useComposerGraph } from '../../generationCanvas/nodes/composerGraphSnapshot'
 import { getGenerationNodeExecutionKind, getGenerationNodeLabel } from '../../generationCanvas/model/generationNodeKinds'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
+import { selectCanvasNodeById } from '../../generationCanvas/store/canvasNodeGenerationIndex'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { ListCardMedia, ListStatusTag } from './GenerationListParts'
 import { formatSeconds, readAspect, readDurationSeconds } from './generationListMediaFacts'
@@ -38,7 +39,7 @@ import { shotLabel, type GenerationListCard } from './generationListModel'
 /** 卡上的参考小图（取代卡间的链接图标）：最多 3 张，其余 +N。 */
 export function ReferenceThumbs({ nodeIds, size = 20 }: { nodeIds: readonly string[]; size?: number }): JSX.Element | null {
   const { t } = useTranslation()
-  const references = useGenerationCanvasStore((state) => nodeIds.map((id) => state.nodes.find((node) => node.id === id)).filter(Boolean) as GenerationCanvasNode[])
+  const references = useGenerationCanvasStore((state) => nodeIds.map((id) => selectCanvasNodeById(state, id)).filter(Boolean) as GenerationCanvasNode[])
   if (!references.length) return null
   const shown = references.slice(0, 3)
   return (
@@ -155,7 +156,7 @@ export function GenerationListCardView({
   onOpenInCanvas: () => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === card.nodeId))
+  const node = useGenerationCanvasStore((state) => selectCanvasNodeById(state, card.nodeId))
   const queued = useGenerationQueueStore((state) => selectIsNodeQueued(state, card.nodeId))
   if (card.variant === 'tool') return <ToolCard card={card} node={node} onOpenInCanvas={onOpenInCanvas} />
   const kind = node?.kind ?? 'video'

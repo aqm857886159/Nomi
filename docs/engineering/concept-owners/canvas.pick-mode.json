@@ -1,0 +1,39 @@
+{
+  "name": "画布点选参考节点交互（含列表暂切画布点选与自动往返）",
+  "subject": "canvas.pick-mode",
+  "lifecycle": "live-interaction",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/store/canvasPickMode.ts",
+    "symbol": "enterCanvasPickMode"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasPickMode.ts",
+      "symbol": "enterCanvasPickMode"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasPickMode.ts",
+      "symbol": "pickCanvasNode"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasPickMode.ts",
+      "symbol": "cancelCanvasPickMode"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generation/list/threeSurfacesParity.goal.test.tsx",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/nodeSlotReferencePick.ts",
+    "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/generationCanvas/components/CanvasPickModeLayer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+  ],
+  "since": "2026-11-28",
+  "notes": "设计卡 docs/plan/2026-11-28-three-generation-surfaces-parity.md。从列表发起点选时记下 returnToList，列表切画布的预期卸载不取消点选，点选成功或 Esc/空白取消后自动切回列表并恢复原 inspectorKey。"
+}

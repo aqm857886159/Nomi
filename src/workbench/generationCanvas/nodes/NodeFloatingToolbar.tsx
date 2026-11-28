@@ -14,6 +14,7 @@ import { canDragGenerationNodeToTimeline } from '../model/timelineDragAffordance
 import { addGenerationNodeToTimelineEnd } from '../../timeline/addNodeToTimelineEnd'
 import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_MIME } from '../../timeline/timelineDragPayload'
 import { ICON_TIERS } from '../../../design'
+import { useNodeStageHost } from './nodeStageHostContext'
 
 // 节点浮动工具栏的**单一共享实现**（P1 收口）：图片编辑 / 视频抽帧 / 全景 / 下载三+条以前是三份
 // 几乎一字不差的拷贝、且各自带一堆 token 违规（rgba 硬编码 / gap-[7px] / 图标 16/1.8…）。这里一次性
@@ -33,10 +34,32 @@ const ICON = ICON_TIERS.bar
 type FloatingToolbarShellProps = { ariaLabel: string; nodeId: string | null; children: React.ReactNode; side?: 'above' | 'below'; centerOnNode?: boolean; avoidBottomDocks?: boolean; toolbarRef?: React.RefObject<HTMLDivElement | null> }
 
 export function FloatingToolbarShell(props: FloatingToolbarShellProps): JSX.Element {
+  const host = useNodeStageHost()
   return (
     <FloatingToolbarBoundary label={props.ariaLabel}>
-      <FloatingToolbarFrame {...props} />
+      {host === 'list-detail' ? <InlineStageToolbarFrame {...props} /> : <FloatingToolbarFrame {...props} />}
     </FloatingToolbarBoundary>
+  )
+}
+
+function InlineStageToolbarFrame({ ariaLabel, nodeId, children, toolbarRef }: FloatingToolbarShellProps): JSX.Element {
+  return (
+    <div
+      ref={(element) => { if (toolbarRef) toolbarRef.current = element }}
+      className={cn(
+        'my-2 mx-auto inline-flex shrink-0 w-fit max-w-full flex-wrap items-center justify-center gap-1 min-h-9 px-1.5 py-1',
+        'border border-nomi-line rounded-nomi bg-nomi-paper shadow-nomi-sm',
+      )}
+      data-node-floating-toolbar="true"
+      data-node-stage-inline-toolbar="true"
+      role="toolbar"
+      aria-label={ariaLabel}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {children}
+      {nodeId ? <ToolbarTimelineButton nodeId={nodeId} /> : null}
+    </div>
   )
 }
 

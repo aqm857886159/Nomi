@@ -129,9 +129,10 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
   const footer = running ? 'running' : splitCount !== null ? 'split' : characterCount >= LONG_TEXT_CHARACTERS ? 'long' : null
 
   return (
-    // 外层 overflow 可见，让格式条能浮到节点上方；圆角/阴影/裁剪都收进内层 body。
-    <div className="relative h-full w-full">
-      {/* 浮动格式条：编辑时浮在节点上方（不占节点高度），走节点浮条的共享外壳。 */}
+    // 外层 flex-col + overflow 可见：画布宿主下格式条 absolute 浮在节点上方（不占高度），
+    // 列表大详情宿主下流式内联格式条排在正文上方，正文卡片经 min-h-0 flex-1 自动让位不顶出容器。
+    <div className="relative flex h-full w-full flex-col">
+      {/* 浮动格式条：编辑时浮在节点上方（画布）/ 流式顶置（列表大详情），走节点浮条的共享外壳。 */}
       {editor && isFocused ? (
         <FloatingToolbarShell ariaLabel={t('generationCommon.textDocument.formattingAria')} nodeId={null}>
           <TooltipProvider delayDuration={250} disableHoverableContent>
@@ -142,7 +143,7 @@ function TextDocumentNodeImpl({ node, onEditingChange }: Props): JSX.Element {
         </FloatingToolbarShell>
       ) : null}
 
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-nomi bg-nomi-paper shadow-nomi-md ring-1 ring-inset ring-nomi-line">
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-nomi bg-nomi-paper shadow-nomi-md ring-1 ring-inset ring-nomi-line">
         {/* 拖拽手柄：非 contenteditable，pointerdown 冒泡到 BaseGenerationNode 触发拖动。 */}
         <header
           className={cn(

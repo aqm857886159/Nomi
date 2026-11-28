@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCut, IconDownload, IconLayoutRows, IconMaximize, IconPhoto, IconPlayerTrackNext, IconPlayerTrackPrev, IconTable } from '@tabler/icons-react'
+import { IconCheck, IconCut, IconDownload, IconLayoutRows, IconMaximize, IconPhoto, IconPlayerTrackNext, IconPlayerTrackPrev, IconSparkles, IconTable } from '@tabler/icons-react'
+import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
 import {
   FloatingToolbarShell,
   TOOLBAR_ICON as I,
@@ -105,6 +106,18 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
       />
       <NodeDepthActionButton reportFeedback={reportFeedback} node={node} disabled={busy} />
       <ToolbarDuplicateVariantButton nodeId={node.id} />
+      {(() => {
+        const freeze = anchorFreezeToolbarProps(node)
+        return freeze.canFreezeShot && freeze.onToggleFreeze ? (
+          <ToolbarIconButton
+            actionId="toggle-frozen"
+            icon={freeze.frozen ? <IconCheck size={I.size} stroke={I.stroke} /> : <IconSparkles size={I.size} stroke={I.stroke} />}
+            title={freeze.frozen ? t('generationCommon.imageToolbar.shotFinalizedHint') : t('generationCommon.imageToolbar.shotFinalizeHint')}
+            ariaLabel={freeze.frozen ? t('generationCommon.imageToolbar.shotFinalized') : t('generationCommon.imageToolbar.shotFinalize')}
+            onClick={freeze.onToggleFreeze}
+          />
+        ) : null
+      })()}
       <ToolbarDivider />
       <ToolbarIconButton
         icon={<IconMaximize size={I.size} stroke={I.stroke} />}

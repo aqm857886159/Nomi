@@ -14,6 +14,10 @@
     {
       "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
       "symbol": "storyboardComposerMeta"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "buildStoryboardModeChangeParams"
     }
   ],
   "forbidden_derivations": [

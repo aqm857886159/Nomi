@@ -7,11 +7,24 @@ import { WorkbenchIconButton } from '../../../design/actions'
 import { frameTimecode } from './frameTimecode'
 import { markNodeVideoUserPlayback } from './nodeVideoPlayback'
 import { useNodeVideoClock, useNodeVideoSession } from './useNodeVideoSession'
+import { useNodeStageHost } from './nodeStageHostContext'
 
 const BUTTON = 'shrink-0 text-nomi-media-ink hover:text-nomi-media-ink hover:bg-nomi-media-ink/20'
+
 export function NodeVideoControls({ reportFeedback }: { reportFeedback: (message: string) => void }): React.JSX.Element {
-  const { t } = useTranslation()
+  const host = useNodeStageHost()
+  return host === 'list-detail'
+    ? <NodeVideoControlsBody reportFeedback={reportFeedback} zoom={1} />
+    : <CanvasNodeVideoControls reportFeedback={reportFeedback} />
+}
+
+function CanvasNodeVideoControls({ reportFeedback }: { reportFeedback: (message: string) => void }): React.JSX.Element {
   const { zoom } = useViewport()
+  return <NodeVideoControlsBody reportFeedback={reportFeedback} zoom={zoom || 1} />
+}
+
+function NodeVideoControlsBody({ reportFeedback, zoom }: { reportFeedback: (message: string) => void; zoom: number }): React.JSX.Element {
+  const { t } = useTranslation()
   const session = useNodeVideoSession()
   const { player } = session
   const clock = useNodeVideoClock(player)

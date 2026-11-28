@@ -9,6 +9,7 @@
 // （F15 破案 case D：半个 meta spread 是隐形的第二个坑）。
 
 import { ANCHOR_META_KEYS, isVisualAnchorNode, isAnchorFrozen, type AnchorFrozenMark } from '../model/anchorBibleKeys'
+import { hasUsableResult } from '../runner/generationScopeFacts'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
@@ -48,17 +49,47 @@ export function toggleAnchorLook(nodeId: string): void {
 }
 
 /**
- * 锚卡浮条的「创作主动作」三件套（isAnchor/frozen/onToggleFreeze），一次算好回给巨壳 spread。
- * isAnchor 时浮条最左显「定妆」（放行下游镜头）。
+ * 节点 `meta.frozen` 统一开关（分镜行 / 参考卡 / 画布与列表节点工具栏唯一写口）：
+ * - 视觉锚：确认形象（放行引用它的下游镜头进批量）；
+ * - 普通已生成镜头：标记定稿（跳过批量重跑，仍可单独重生成；非编辑锁）。
+ */
+export function toggleNodeBatchFrozen(nodeId: string): void {
+  const store = useGenerationCanvasStore.getState()
+  const node = store.nodes.find((candidate) => candidate.id === nodeId)
+  if (!node) return
+  if (isAnchorFrozen(node)) {
+    const nextMeta = { ...(node.meta || {}) }
+    delete nextMeta[ANCHOR_META_KEYS.frozen]
+    store.updateNode(nodeId, { meta: nextMeta })
+    return
+  }
+  if (!hasUsableResult(node)) return
+  const frozen: AnchorFrozenMark = { at: Date.now(), by: 'user' }
+  store.updateNode(nodeId, { meta: { ...(node.meta || {}), [ANCHOR_META_KEYS.frozen]: frozen } })
+}
+
+const NON_BATCH_FREEZE_KINDS = new Set(['asset', 'panorama', 'whiteboard', 'agent-artifact', 'director', 'clip', 'shot_table'])
+
+/**
+ * 节点工具栏的「定妆（视觉锚）/ 定稿跳过批量（普通已出片节点）」属性集。
+ * isAnchor 时最左显文字钮「定妆」；普通已出片节点显紧凑图标钮 `toggle-frozen`（守 4 颗文字钮行宽预算）。
  */
 export function anchorFreezeToolbarProps(node: GenerationCanvasNode): {
   isAnchor: boolean
+  canFreezeShot: boolean
   frozen: boolean
-  onToggleFreeze: () => void
+  onToggleFreeze?: () => void
 } {
+  const isAnchor = isVisualAnchorNode(node)
+  const canFreezeShot = !isAnchor && hasUsableResult(node) && !NON_BATCH_FREEZE_KINDS.has(node.kind)
   return {
-    isAnchor: isVisualAnchorNode(node),
+    isAnchor,
+    canFreezeShot,
     frozen: isAnchorFrozen(node),
-    onToggleFreeze: () => toggleAnchorLook(node.id),
+    onToggleFreeze: isAnchor
+      ? () => toggleAnchorLook(node.id)
+      : canFreezeShot
+        ? () => toggleNodeBatchFrozen(node.id)
+        : undefined,
   }
 }

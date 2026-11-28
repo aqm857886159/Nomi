@@ -1,12 +1,15 @@
 import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
-// 生成页「列表」视图（样张板 List / ListDetail，2026-10-08 22:40Z 拍板）。
-//   - 不套框：卡片定宽 256，按可用宽度排列数，留白优先；分区标题一行；
-//   - 只显示已落画布的节点，和画布一一对应；没有批量条、卡上没有勾选，批量只有分区头的「生成全部」；
-//   - 点卡 = 大详情：左边收成 288 窄列（同一份列表，点别的镜即切换），右边大预览 + 生成框 + 「生成」。
-// 数据只有画布 store 里那一份（投影见 generationListModel.ts）；改东西只在大详情里，改的就是那个节点。
+// 生成页「列表」视图（样张板 List / ListDetail）：
+//   - 不套框：卡片定宽 256，按可用宽度排列数，留白优先；顶栏与空态均提供同源新建节点 / 导入素材入口；
+//   - 只显示已落画布的节点，和画布一一对应；批量走分区头的「生成全部」；
+//   - 点卡 = 大详情：左边收成 288 窄列（同一份列表，点别的镜即切换），右边居中 600px 同轴舞台（同源 NodeStageSurface + 生成框）。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import type { GenerationNodeKind } from '../../generationCanvas/model/generationCanvasTypes'
+import { getNodeSurfaceContract } from '../../generationCanvas/nodes/nodeSurfaceContract'
+import { useCanvasMenuPreferenceStore } from '../../generationCanvas/store/canvasMenuPreferenceStore'
+import { selectCanvasNodeById } from '../../generationCanvas/store/canvasNodeGenerationIndex'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { planDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
@@ -16,16 +19,14 @@ import { useGenerationViewStore } from './generationViewStore'
 import { GenerationListCardView } from './GenerationListCard'
 import { useModelLabels } from './generationListModelLabels'
 import { DetailRail, GenerationListDetail } from './GenerationListDetail'
-import { GenerationListEmpty, UnreferencedAssetStrip } from './GenerationListParts'
+import { GenerationListEmpty, ListCreateBar, UnreferencedAssetStrip } from './GenerationListParts'
 import { GenerationListSectionHeader } from './GenerationListSectionHeader'
 
 /** 窗口窄到放不下窄列 + 详情时，窄列让位（详情独占，「返回」回列表）。 */
 const RAIL_MIN_TOTAL_WIDTH = 760
-/** 内容区顶 / 底的呼吸（「画布 | 列表」切换在 40px 顶栏里，时间轴收成底边窄条，都不压内容）。 */
-const TOP_LEAD = 12
+const TOP_LEAD = 8
 const BOTTOM_LEAD = 24
 
-/** 每个分区的默认画幅（分镜分区 = 这份分镜的默认；其余分区 = 项目里第一份分镜的默认；都没有 = 不标）。 */
 function useSectionDefaultAspects(sections: readonly GenerationListSection[]): Map<string, string | null> {
   const designsByDocumentId = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)
   return React.useMemo(() => {
@@ -54,13 +55,22 @@ export function GenerationListView(): JSX.Element {
   const defaults = useSectionDefaultAspects(model.sections)
   const modelLabel = useModelLabels()
   const listed = inspectorKey ? findGenerationListCard(model, inspectorKey) : null
-  const inspectorNodeTitle = useGenerationCanvasStore((state) => (inspectorKey ? state.nodes.find((node) => node.id === inspectorKey)?.title : undefined))
+  const inspectorNodeTitle = useGenerationCanvasStore((state) => (inspectorKey ? selectCanvasNodeById(state, inspectorKey)?.title : undefined))
   // 只开着一张不在列表里的节点（参考素材、视觉锚）时，大详情用一张临时卡显示它。
   const card: GenerationListCard | null = React.useMemo(() => listed ?? (inspectorKey && inspectorNodeTitle !== undefined
     ? { key: inspectorKey, nodeId: inspectorKey, variant: 'generation', storyboardShotNumber: null, storyboardScope: null, title: inspectorNodeTitle, status: null, referenceNodeIds: [] }
     : null), [listed, inspectorKey, inspectorNodeTitle])
 
-  // 大详情那张卡不见了（节点被删）→ 收起；Esc 回列表。
+  const handleCreatedNode = React.useCallback(
+    ({ id, kind }: { id: string; kind: GenerationNodeKind }) => {
+      if (getNodeSurfaceContract(kind).stageMode === 'canvas-only') viewNodeInCanvas(id)
+      else setInspectorKey(id)
+    },
+    [setInspectorKey],
+  )
+
+  React.useEffect(() => { void useCanvasMenuPreferenceStore.getState().load().catch(() => {}) }, [])
+
   React.useEffect(() => { if (inspectorKey && !card) setInspectorKey(null) }, [card, inspectorKey, setInspectorKey])
   React.useEffect(() => {
     if (!inspectorKey) return undefined
@@ -101,7 +111,11 @@ export function GenerationListView(): JSX.Element {
   })
 
   if (!model.sections.length && !card) {
-    return <div ref={rootRef} className="h-full bg-nomi-paper p-4" data-generation-list data-list-layout="empty"><GenerationListEmpty onBackToCanvas={() => setView('canvas')} /></div>
+    return (
+      <div ref={rootRef} className="h-full bg-nomi-paper p-4" data-generation-list data-list-layout="empty">
+        <GenerationListEmpty onBackToCanvas={() => setView('canvas')} onCreatedNode={handleCreatedNode} />
+      </div>
+    )
   }
 
   if (card) {
@@ -109,13 +123,19 @@ export function GenerationListView(): JSX.Element {
     return (
       <div ref={rootRef} className="flex h-full min-h-0 bg-nomi-paper" data-generation-list data-list-layout="detail" aria-label={t('generationList.aria')}>
         {showRail ? <DetailRail sections={model.sections} activeKey={card.key} onSelect={(key) => setInspectorKey(key)} /> : null}
-        <GenerationListDetail card={card} onBack={() => setInspectorKey(null)} />
+        <GenerationListDetail key={card.nodeId} card={card} onBack={() => setInspectorKey(null)} />
       </div>
     )
   }
 
   return (
     <div ref={rootRef} className="flex h-full min-h-0 flex-col bg-nomi-paper" data-generation-list data-list-layout="grid" aria-label={t('generationList.aria')}>
+      <div
+        className="flex shrink-0 items-center border-b border-nomi-line-soft py-2.5"
+        style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}
+      >
+        <ListCreateBar variant="toolbar" onCreatedNode={handleCreatedNode} />
+      </div>
       <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto" data-list-scroll>
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() + TOP_LEAD + BOTTOM_LEAD }}>
           {virtualizer.getVirtualItems().map((item) => {

@@ -12,6 +12,8 @@
 //     没有任何卡引用的，收进未分组末尾一条「未被引用的素材」，上传的东西不会凭空消失。
 import type { ModelOption } from '../../../config/models'
 import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../../generationCanvas/model/generationCanvasTypes'
+import { getNodeSurfaceContract } from '../../generationCanvas/nodes/nodeSurfaceContract'
+import { docToPlainText } from '../../generationCanvas/runner/textGenerationDocument'
 import type { StoryboardDesign } from '../../workbenchTypes'
 import { isVisualAnchor } from '../../generationCanvas/agent/storyboardPromptCompiler'
 import {
@@ -29,19 +31,18 @@ export type GenerationListCardVariant = 'generation' | 'tool'
 /** 节点在列表里的归类（每个节点恰好落进一类）。 */
 type GenerationListRole = 'generation' | 'tool' | 'asset'
 
-const TOOL_KINDS: ReadonlySet<string> = new Set(['clip', 'director', 'model3d', 'panorama', 'whiteboard', 'output', 'agent-artifact', 'shot_table', 'shot'])
-const REFERENCE_KINDS: ReadonlySet<string> = new Set(['asset', 'character', 'scene'])
 const REFERENCE_CATEGORIES: ReadonlySet<string> = new Set(['cast', 'scene', 'prop'])
 
 function metaOf(node: GenerationCanvasNode): Record<string, unknown> {
   return node.meta && typeof node.meta === 'object' && !Array.isArray(node.meta) ? node.meta as Record<string, unknown> : {}
 }
 
-/** 这个节点在列表里是哪一类。判据只看节点自己，不看它在不在分镜里。 */
+/** 这个节点在列表里是哪一类。判据读 nodeSurfaceContract 编译期穷尽表 + 节点自身分类/参考标记，不手抄第二份 kind 名单。 */
 export function generationListRole(node: GenerationCanvasNode): GenerationListRole {
-  if (TOOL_KINDS.has(node.kind)) return 'tool'
+  const defaultRole = getNodeSurfaceContract(node.kind).defaultListRole
+  if (defaultRole === 'tool') return 'tool'
   const meta = metaOf(node)
-  if (REFERENCE_KINDS.has(node.kind) || meta.referenceSheet === true || meta.storyboardKeyframe === true) return 'asset'
+  if (defaultRole === 'asset' || meta.referenceSheet === true || meta.storyboardKeyframe === true) return 'asset'
   if (REFERENCE_CATEGORIES.has(node.categoryId ?? 'shots')) return 'asset'
   return 'generation'
 }
@@ -89,11 +90,13 @@ type GenerationListInput = {
   videoModelOptions: readonly ModelOption[]
 }
 
-/** 行状态词表只认媒体结果；文本节点的「结果」是它写出来的那段字。 */
+/** 行状态词表默认只认媒体 URL；文本正文（contentJson）或语音转写文本（result.text）已有内容时均视为已完成。 */
 function listNodeStatus(node: GenerationCanvasNode): ShotRowStatus {
   const status = deriveNodeRowExec(node).status
-  if (status !== 'ready' || node.kind !== 'text') return status
-  return node.result?.text?.trim() ? 'done' : status
+  if (status !== 'ready') return status
+  if (node.result?.text?.trim()) return 'done'
+  if (node.kind === 'text' && docToPlainText(node.contentJson).trim()) return 'done'
+  return status
 }
 
 function nodeCard(node: GenerationCanvasNode, referenceNodeIds: string[]): GenerationListCard {

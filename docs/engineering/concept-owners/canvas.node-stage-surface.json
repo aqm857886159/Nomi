@@ -1,0 +1,34 @@
+{
+  "name": "节点内容与动作同源舞台（画布与列表大详情唯一宿主及种类穷尽表）",
+  "subject": "canvas.node-stage-surface",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
+    "symbol": "NodeStageSurface"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx",
+      "symbol": "NodeStageSurface"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
+      "symbol": "NODE_SURFACE_CONTRACTS"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generation/list/threeSurfacesParity.goal.test.tsx",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generation/list/GenerationListDetail.tsx",
+    "src/workbench/generation/list/GenerationListView.tsx",
+    "src/workbench/generation/list/generationListModel.ts",
+    "src/workbench/generationCanvas/nodes/resolveRenderKind.ts"
+  ],
+  "since": "2026-11-28",
+  "notes": "设计卡 docs/plan/2026-11-28-three-generation-surfaces-parity.md。画布节点与列表大详情共用与 React Flow 坐标解耦的唯一 NodeStageSurface（经 NodeStageHostContext 区分浮条与流式内联条），全部 GenerationNodeKind 由 NODE_SURFACE_CONTRACTS 编译期穷尽锁死，删掉列表手写的只读 TextPreview 与假波形 AudioStrip。"
+}

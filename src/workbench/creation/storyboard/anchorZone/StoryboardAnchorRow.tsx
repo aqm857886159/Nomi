@@ -28,6 +28,7 @@ import { storyboardFailureCopy } from '../exec/storyboardFailureCopy'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
 import ShotReferenceStrip from '../shotRow/ShotReferenceStrip'
 import StoryboardComposerParams from '../shotRow/StoryboardComposerParams'
+import { buildStoryboardModeChangeParams } from '../shotRow/storyboardComposerModel'
 import { removeBinding } from '../shotRow/shotReferenceSlots'
 import { containedBox, densityBox, frameMediaBox, isPortraitBox, sameAspectAsBox, visualColumnWidth } from '../shotRow/shotFrameGeometry'
 import { useStoryboardRowNarrow } from '../shotRow/storyboardRowDensity'
@@ -218,7 +219,10 @@ export default function StoryboardAnchorRow({
               bindings={anchor.referenceBindings}
               onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
               onRemove={(slotKey, index) => { const next = removeBinding(anchor.referenceBindings, slotKey, index); if (next) onUpdate({ referenceBindings: next }) }}
-              onSwitchMode={runtime.resultUrl || runtime.generating ? undefined : (modeId) => onUpdate({ modeId })}
+              onSwitchMode={runtime.resultUrl || runtime.generating ? undefined : (modeId) => onUpdate({
+                modeId,
+                params: buildStoryboardModeChangeParams(modelOption, anchor.params, modeId, 'image'),
+              })}
               layout={portrait
                 ? { placement: 'right', columnWidth: visualColumnWidth(filmBox), frameWidth: filmBox.width, frameHeight: filmBox.height }
                 : { placement: 'below', width: filmBox.width }}
@@ -269,7 +273,10 @@ export default function StoryboardAnchorRow({
                   kind="image"
                   modelOptions={modelOptions}
                   onModelChange={(value, vendor) => onUpdate(planModelSelection(value, vendor))}
-                  onModeChange={(modeId) => onUpdate({ modeId })}
+                  onModeChange={(modeId) => onUpdate({
+                    modeId,
+                    params: buildStoryboardModeChangeParams(modelOption, anchor.params, modeId, 'image'),
+                  })}
                   onChange={(change) => {
                     // 锚没有整片默认那一段：比例就写进它自己的参数（语义槽 aspect_ratio，落地时按模式翻成真实键）。
                     const key = change.kind === 'param' ? change.key : 'aspect_ratio'

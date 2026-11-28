@@ -1,7 +1,7 @@
 import type { ModelOption } from '../../../../config/models'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import { buildAgentModelEntries } from '../../../generationCanvas/agent/availableModels'
-import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
+import { buildModelEntryIndex, buildPlannedNodeMeta, reconcileModeSwitchParams } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
 import { resolveRenderedControls } from '../../../generationCanvas/nodes/nodeModelArchetype'
 import { isParameterControl, type DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
@@ -92,4 +92,27 @@ export function storyboardComposerChange(
   const seconds = control.key === 'duration' ? admitNumber(value) : undefined
   if (seconds !== undefined) return { kind: 'duration', value: seconds }
   return { kind: 'param', key: control.key, value }
+}
+
+/**
+ * 分镜行 / 参考卡切换生成模式时的参数收敛（与画布/发送复查共用唯一核 `resolveModelParams`）：
+ * 保留目标模式合法参数、夹紧数值范围、回退非法枚举、剔除旧模式专属未知键，绝不粗暴写 `params: undefined` 把用户已选参数清空。
+ */
+export function buildStoryboardModeChangeParams(
+  option: ModelOption | null | undefined,
+  currentParams: Readonly<Record<string, unknown>> | undefined,
+  nextModeId: string,
+  kind: 'image' | 'video',
+): Record<string, unknown> | undefined {
+  if (!currentParams || Object.keys(currentParams).length === 0) return undefined
+  if (!option) return { ...currentParams }
+  const entries = composerEntryIndex(option)
+  const nextMeta = storyboardComposerMeta({
+    modelKey: option.modelKey || option.value,
+    modelVendor: option.vendor,
+    modeId: nextModeId,
+    params: {},
+  }, entries)
+  const controls = storyboardComposerControls(option, nextMeta, kind).filter(isParameterControl)
+  return reconcileModeSwitchParams(controls, currentParams)
 }

@@ -383,6 +383,11 @@ export function NodeFailureReport({ node, onFeedback, summaryVisible = true }: {
   />
   if (node.status === 'recoverable') return <NodeRecoverableReport node={node}
     onRecover={() => { withProjectAction((project) => { void recoverNodeResult(node.id, project) }) }}
+    onReleaseRegenerate={() => {
+      void confirmAndRunNode(node.id, { initiator: 'user', resend: true }).catch((error) => {
+        onFeedback(error instanceof Error ? error.message : String(error))
+      })
+    }}
     onDismiss={() => dismissRecoverableNode(node.id)} />
   return null
 }

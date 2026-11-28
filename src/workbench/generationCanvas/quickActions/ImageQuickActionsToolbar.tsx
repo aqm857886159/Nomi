@@ -77,6 +77,7 @@ export type ImageQuickActionsToolbarProps = {
   onPreview: () => void
   onOpenProvenance: () => void
   isAnchor?: boolean
+  canFreezeShot?: boolean
   frozen?: boolean
   onToggleFreeze?: () => void
   /** 点不了的快捷动作与原因（效果库缺条目 …）：灰掉、第二行写原因。 */
@@ -128,7 +129,7 @@ const menuIcon = (component: unknown): WorkbenchMenuIcon => component as Workben
 export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbarProps): JSX.Element {
   const {
     reportFeedback, node, editGrid, imageOpBusy, onGridSplit, onCrop, onTransform, onRemoveBackground,
-    removeBackgroundBusy = false, onPreview, onOpenProvenance, isAnchor = false, frozen = false, onToggleFreeze,
+    removeBackgroundBusy = false, onPreview, onOpenProvenance, isAnchor = false, canFreezeShot = false, frozen = false, onToggleFreeze,
     quickActionBlocked, quickActionGuides, onQuickAction,
   } = props
   const { t } = useTranslation()
@@ -179,6 +180,7 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
         {isAnchor && onToggleFreeze ? (
           <>
             <ToolbarButton
+              actionId="toggle-frozen"
               icon={frozen ? <IconCheck size={I.size} stroke={I.stroke} /> : <IconSparkles size={I.size} stroke={I.stroke} />}
               label={frozen ? t('generationCommon.imageToolbar.frozen') : t('generationCommon.imageToolbar.freeze')}
               accent={!frozen}
@@ -189,6 +191,15 @@ export default function ImageQuickActionsToolbar(props: ImageQuickActionsToolbar
           </>
         ) : null}
         <ToolbarDuplicateVariantButton nodeId={node.id} />
+        {!isAnchor && canFreezeShot && onToggleFreeze ? (
+          <ToolbarIconButton
+            actionId="toggle-frozen"
+            icon={frozen ? <IconCheck size={I.size} stroke={I.stroke} /> : <IconSparkles size={I.size} stroke={I.stroke} />}
+            title={frozen ? t('generationCommon.imageToolbar.shotFinalizedHint') : t('generationCommon.imageToolbar.shotFinalizeHint')}
+            ariaLabel={frozen ? t('generationCommon.imageToolbar.shotFinalized') : t('generationCommon.imageToolbar.shotFinalize')}
+            onClick={onToggleFreeze}
+          />
+        ) : null}
         {derivedGrid ? (
           <ToolbarButton
             icon={<IconLayoutGrid size={I.size} stroke={I.stroke} />}
