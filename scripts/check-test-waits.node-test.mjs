@@ -18,6 +18,33 @@ test('injected product deadlines reject real clocks across unit test paths', () 
   assert.deepEqual([...injectedDeadlineWaitLines('vi.useFakeTimers(); trial(args, { pollTimeoutMs: 100 });', 'electron/other.test.ts')], [0])
   assert.deepEqual([...injectedDeadlineWaitLines('trial(args, { pollTimeoutMs: 100 });', 'electron/model.ts')], [])
   assert.deepEqual([...injectedDeadlineWaitLines('const defaults = { pollTimeoutMs: 100 };', 'src/runner.ts')], [])
+  // Sibling describe/it fake timers must not exempt an unrelated real-clock suite or test.
+  const siblingDescribe = [
+    'describe("real-clock suite", () => {',
+    '  async function run(pollTimeoutMs = 5_000) { return pollTimeoutMs; }',
+    '  it("slow", () => run(150));',
+    '});',
+    'describe("fake-clock suite", () => {',
+    '  it("cap", () => { vi.useFakeTimers(); try {} finally { vi.useRealTimers(); } });',
+    '});',
+  ].join('\n')
+  assert.deepEqual([...injectedDeadlineWaitLines(siblingDescribe, 'electron/async.test.ts')], [1])
+  const siblingIt = [
+    'describe("mixed suite", () => {',
+    '  it("real-clock", () => trial(args, { pollTimeoutMs: 150 }));',
+    '  it("fake-clock", () => { vi.useFakeTimers(); try {} finally { vi.useRealTimers(); } });',
+    '});',
+  ].join('\n')
+  assert.deepEqual([...injectedDeadlineWaitLines(siblingIt, 'electron/mixed.test.ts')], [1])
+  const scopedDescribe = [
+    'describe("controlled suite", () => {',
+    '  beforeEach(() => vi.useFakeTimers());',
+    '  afterEach(() => vi.useRealTimers());',
+    '  async function run(pollTimeoutMs = 2_000) { return pollTimeoutMs; }',
+    '  it("slow", () => run(150));',
+    '});',
+  ].join('\n')
+  assert.deepEqual([...injectedDeadlineWaitLines(scopedDescribe, 'electron/scoped.test.ts')], [])
 })
 
 test('lane cleanup rejects rm-first hooks and separate or unawaited close hooks', () => {
