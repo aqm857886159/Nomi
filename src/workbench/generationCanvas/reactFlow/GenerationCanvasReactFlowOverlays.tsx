@@ -119,7 +119,7 @@ export function GenerationCanvasReactFlowOverlays({
   return (
     <>
       {screenshotOverlay}
-      {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} getInsertionPosition={getInsertionPosition} /> : null}
+      {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} getInsertionPosition={getInsertionPosition} readOnly={readOnly} /> : null}
       <CanvasPickModeLayer />
       {contextNodeMenu && contextNodeMenu.target !== 'blank' ? (
         // 刀 1：这一个菜单走 `WorkbenchMenu`（Portal 到 body + 视口坐标），

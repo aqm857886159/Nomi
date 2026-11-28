@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "scenarioId": "canvas-image",
+  "date": "2026-11-28",
+  "verifier": {
+    "line": "impl-canvas-dup-guard",
+    "kind": "实现线实窗自验（待独立盲验线复核）"
+  },
+  "change": {
+    "title": "消除常驻面板双 Nomi 身份头与空画布双 7 钮创建条并补齐整屏体感门岗",
+    "headSha": "80f39f88e8ee66174856536974b8c539410a00c2",
+    "headNote": "分支起点基线，提交后由 PR HEAD 与独立盲验线锚定",
+    "userCan": "在 1440×900 生成画布空态只看到唯一一套中央 7 项创建入口、右侧常驻面板只看到顶部唯一 Nomi 身份头，新建首个节点后底部工具条立即接管",
+    "added": [
+      "整屏体感扫描规则 duplicate-nearby-header 与 duplicate-action-bar（棘轮零容忍）",
+      "画布创建入口互斥纯函数 resolveCanvasCreationSurface"
+    ],
+    "changed": [
+      "0 节点空画布仅展示中央 7 张起步卡，≥1 节点才展示底部 CanvasToolbar",
+      "NoTextModelRecoveryCard 移除卡片内冗余 NomiIdentityRow"
+    ],
+    "removed": [
+      "常驻面板未连模型卡内重复的第二个 Nomi 身份头",
+      "0 节点空画布正下方同屏重复挂载的底部 7 钮创建条"
+    ]
+  },
+  "machine": {
+    "source": "report",
+    "env": {
+      "device": "darwin-arm64",
+      "window": "1440×900",
+      "language": "zh-CN / en",
+      "theme": "light / dark",
+      "boundary": "隔离临时资料目录 + 本机新鲜构建静默实窗"
+    },
+    "attempts": [
+      {
+        "label": "1440×900 空画布 + 右侧未连模型常驻面板整屏巡检（zh-CN light/dark + en light/dark）",
+        "result": "pass",
+        "note": "panelWordmarks=1, assistantIdentityRows=0, emptyTasks=1, bottomToolbar=0, zoomBar=1"
+      },
+      {
+        "label": "空画布点击中央「图片」卡新建首节点并切换到底部工具条",
+        "result": "pass",
+        "note": "emptyTasks=0, bottomToolbar=1, imageNodes=1, zoomBar=1"
+      },
+      {
+        "label": "smoke.e2e.mjs 实窗 18 项断言与体感观察器棘轮全链路验证",
+        "result": "pass",
+        "note": "0→1 图片节点、超长提示词滚动、导演台展开全通，duplicate-nearby-header=0, duplicate-action-bar=0"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "右侧面板 Nomi 品牌头个数",
+        "unit": "个",
+        "baseline": 2,
+        "current": 1,
+        "n": 4,
+        "basis": "script-count",
+        "note": "zh-CN/en × light/dark 四态实窗 DOM 实测"
+      },
+      {
+        "name": "0 节点空画布同屏 7 钮创建条套数",
+        "unit": "套",
+        "baseline": 2,
+        "current": 1,
+        "n": 4,
+        "basis": "script-count",
+        "note": "0 节点仅留中央起步排，≥1 节点切换到底部工具条"
+      },
+      {
+        "name": "整屏重复头部/动作条体感违规数",
+        "unit": "项",
+        "baseline": 2,
+        "current": 0,
+        "n": 16,
+        "basis": "measured",
+        "note": "smoke.e2e.mjs 16 个棘轮检查点实测"
+      }
+    ]
+  },
+  "human": {
+    "seq": null,
+    "events": {
+      "misclicks": null,
+      "backtracks": null,
+      "helpRequests": null,
+      "firstAttemptSuccess": null
+    },
+    "note": "本次为 AI 实现线实窗自验，真人 SEQ 与人工观察项留 null 不代填，交用户过目前后对比真截图确认"
+  },
+  "guardrails": [
+    {
+      "name": "左下缩放簇（100% / 适应视图 / 视图选项）在 0 节点与有节点态均常驻可达",
+      "result": "pass",
+      "evidence": "zoomBar=1（1440×900 实窗探针与截图核实）"
+    },
+    {
+      "name": "未连模型指路卡与已配 Key 停用模型一键启用按钮零退化",
+      "result": "pass",
+      "evidence": "src/ui/onboarding/onboardingS7aEntries.test.tsx (6/6)"
+    },
+    {
+      "name": "多节点画布、右键菜单与消息列表操作钮零误伤",
+      "result": "pass",
+      "evidence": "tests/ux/_feel.browser.mjs (29/29) + tests/ux/smoke.e2e.mjs (18/18)"
+    }
+  ],
+  "friction": {
+    "moment": "此前 0 节点空画布中央 7 卡与正下方底部 7 钮同时出现，右侧面板顶栏 Nomi 下方约 22px 又出现第二个 Nomi，首屏焦点分裂",
+    "decision": "删掉恢复卡内冗余身份头，并用 resolveCanvasCreationSurface 让空态起步格与底部工具条按节点数严格互斥，同时在 _feel-observer 棘轮零容忍守卫"
+  },
+  "unverified": [
+    {
+      "item": "Windows 原生标题栏下 1440×900 实窗渲染",
+      "owner": "CI windows-latest / 发版前桌面巡检",
+      "recheck": "下次 Windows 桌面冒烟走查时核对"
+    }
+  ],
+  "evidence": [
+    "docs/plan/2026-11-28-canvas-duplicate-surface-guard.md",
+    "docs/fixes/2026-11-28-canvas-duplicate-surface-guard.root-cause.json",
+    "tests/ux/_feel.browser.mjs",
+    "tests/ux/_feel-observer.browser.mjs"
+  ]
+}

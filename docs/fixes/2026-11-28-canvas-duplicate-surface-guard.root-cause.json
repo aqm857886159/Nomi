@@ -1,0 +1,200 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-canvas-duplicate-surface-guard",
+  "problem_type": "Cross-component whole-viewport duplicate identity header and duplicate isomorphic action bar",
+  "symptom": "On the 1440x900 generation canvas empty state with the resident Agent dock open and no model connected, two [N] Nomi headers appear ~22px apart at the top of the Agent dock, and two identical 7-item node-creation surfaces (central starter tiles and bottom floating toolbar) appear simultaneously on the empty canvas.",
+  "direct_cause": "1) NoTextModelRecoveryCard retained a pre-v4 NomiIdentityRow header inside a card mounted directly beneath AgentPanelV4Panel's permanent NomiBrand header. 2) GenerationCanvasReactFlow mounted CanvasToolbar whenever !readOnly regardless of nodes.length, while GenerationCanvasReactFlowOverlays mounted CanvasEmptyState when nodes.length === 0. 3) _feel.mjs and _feel-observer.mjs lacked whole-viewport rules for container-header duplication and isomorphic action bars.",
+  "class_root": "Component-isolated rendering and unit tests validate each subtree's local header or action list without a shared exclusivity boundary for empty-vs-populated workspace chrome or a whole-viewport structural duplicate detector.",
+  "affected_population": [
+    "All new or unconfigured creators opening the resident Agent panel without a text model",
+    "All creators opening a blank generation canvas or deleting the last node in a category (0 nodes)"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+    "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+    "src/devlab/designLab/primitivesActions/states/01-workbench.tsx",
+    "tests/ux/_shell.mjs",
+    "tests/ux/_feel.mjs",
+    "tests/ux/_feel-observer.mjs",
+    "tests/ux/uiDriverOptions.mjs",
+    "tests/ux/ui.mjs",
+    "scripts/check-feel.mjs"
+  ],
+  "entry_points": [
+    "ProjectAgentResidentShell mounts NoTextModelRecoveryCard inside AgentPanelV4Panel (emptyOverride and flowTail)",
+    "GenerationCanvasReactFlow and GenerationCanvasReactFlowOverlays mount CanvasToolbar and CanvasEmptyState on the generation canvas",
+    "installFeelObserver and scanFeel inspect full-viewport DOM geometry on screenshots and state waits"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Panel header ownership, empty-vs-populated canvas toolbar exclusivity, and the generic DOM feel scanner are internal UI composition invariants of this repository.",
+  "invariants": [
+    "Inside AgentPanelV4Panel, the panel header is the sole Nomi brand header; recovery and pointer cards in the flow body never render a second Nomi identity row.",
+    "On the generation canvas, interactive creation surfaces are mutually exclusive: readOnly renders neither, nodes.length === 0 renders only CanvasEmptyState, and nodes.length > 0 renders only CanvasToolbar while preserving CanvasNavigationStack.",
+    "Full-viewport feel scans detect container-header duplication (duplicate-nearby-header) and non-item isomorphic action bars (duplicate-action-bar) with zero budget on ratchet journeys and zero product-specific selectors."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasAddMenu/states/01-add-menu.tsx",
+      "symbol": "CanvasToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasAddMenu/states/01-add-menu.tsx",
+      "symbol": "NodeAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "NoTextModelRecoveryCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "CanvasToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "CanvasEmptyState"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "NodeAddMenu"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 9,
+    "why_not": "ProjectAgentResidentShell is already the single host of NoTextModelRecoveryCard; GenerationCanvasReactFlow (populated dock), GenerationCanvasReactFlowOverlays (empty starter and context NodeAddMenu), CanvasEmptyState/CanvasToolbar (shared CanvasMoreAddMenu), and the Design Lab specimen screen serve distinct UI surfaces, while empty-vs-populated creation surface visibility is now governed by one shared resolveCanvasCreationSurface predicate."
+  },
+  "generality_proof": "Removing NomiIdentityRow from NoTextModelRecoveryCard eliminates duplicate panel identity across all three recovery card states; gating CanvasEmptyState and CanvasToolbar through resolveCanvasCreationSurface makes co-mounting structurally impossible for any category or node mutation; and generic DOM rules in scanFeel/_feel-observer catch any future panel/dialog duplicate header or duplicate stage toolbar across the entire app without product selectors.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "symbol": "resolveCanvasCreationSurface",
+      "responsibility": "Single decision owner determining whether the empty-canvas starter row, the bottom floating toolbar, or neither (readOnly) may mount."
+    },
+    {
+      "path": "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "symbol": "NoTextModelRecoveryCard",
+      "responsibility": "Renders model-missing pointer and one-click recovery cards inside AgentPanelV4Panel without duplicating the panel header's Nomi identity."
+    },
+    {
+      "path": "tests/ux/_feel.mjs",
+      "symbol": "scanFeel",
+      "responsibility": "Scans any rendered viewport for duplicate-nearby-header and duplicate-action-bar using pure DOM geometry and accessible semantics."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "entry_point": "NoTextModelRecoveryCard",
+      "disposition": "enforced",
+      "evidence": "All three branches (done, recoverable brain, and APIMart pointer) removed inner NomiIdentityRow headers so AgentPanelV4Panel header remains unique."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "GenerationCanvasReactFlow",
+      "disposition": "enforced",
+      "evidence": "CanvasToolbar mounts only when resolveCanvasCreationSurface({ readOnly, nodeCount: nodes.length }) === 'toolbar'."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "entry_point": "GenerationCanvasReactFlowOverlays",
+      "disposition": "enforced",
+      "evidence": "CanvasEmptyState interactive starter tiles mount only when resolveCanvasCreationSurface({ readOnly, nodeCount: nodes.length }) === 'empty-starter'."
+    },
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "entry_point": "ProjectLibraryPage",
+      "disposition": "not-affected",
+      "evidence": "Library already hides the top-right new-project button when empty starter cards are shown."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Independent subtrees (panel header vs empty/recovery card, empty-state overlay vs persistent bottom dock) routinely evolve in separate slices and pass isolated component tests unless enforced by shared state exclusivity and whole-viewport feel scanning.",
+    "same_class_scan": [
+      "git grep NomiIdentityRow across src/: NoTextModelRecoveryCard.tsx was the sole production caller; V4AssistantMessage and V4EmptyState already omit per-row identity headers.",
+      "door-map on CanvasToolbar and CanvasEmptyState: GenerationCanvasReactFlow.tsx and GenerationCanvasReactFlowOverlays.tsx are the sole production canvas hosts; ProjectLibraryPage already enforces empty-vs-header button exclusivity."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+    "invariant": "Canvas creation surfaces are mutually exclusive via resolveCanvasCreationSurface, NoTextModelRecoveryCard never renders an inner Nomi header inside AgentPanelV4Panel, and _feel-observer ratchets duplicate-nearby-header and duplicate-action-bar at 0.",
+    "failure_mode": "Unit tests fail if dual Nomi headers or dual creation toolbars co-render, and Playwright feel observer throws Feel baseline drift on any ratchet checkpoint with duplicate nearby headers or isomorphic action bars.",
+    "exception_policy": "none",
+    "strategy": "Consolidate creation-surface visibility into resolveCanvasCreationSurface, delete inner NomiIdentityRow usage in NoTextModelRecoveryCard, and enforce generic viewport-wide duplicate header/toolbar detection in _feel.mjs and _feel-observer.mjs.",
+    "artifacts": [
+      "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "tests/ux/_feel.mjs",
+      "tests/ux/_feel-observer.mjs",
+      "scripts/check-feel.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/onboarding/onboardingS7aEntries.test.tsx",
+    "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+    "tests/ux/_feel.browser.mjs",
+    "tests/ux/_feel-observer.browser.mjs",
+    "tests/ux/feel-policy.test.mjs",
+    "tests/ux/uiDriverOptions.test.mjs",
+    "tests/ux/window-narrow-shell.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+    "tests/ux/_feel.browser.mjs",
+    "tests/ux/_feel-observer.browser.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+    ],
+    "rationale": "Removed legacy pre-v4 NomiIdentityRow headers inside NoTextModelRecoveryCard and removed unconditional CanvasToolbar mounting on 0-node empty canvases."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party package controls panel header deduplication, empty-canvas toolbar gating, or DOM geometry scanning.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted project data, catalog records, or user preferences change shape; walkthrough helper canvasAddBar in tests/ux/_shell.mjs resolves the active creation surface across 0-node and >=1-node states.",
+  "residual_risks": [
+    "Record-mode ad-hoc walkthroughs outside catalog ratchet journeys write duplicate-nearby-header and duplicate-action-bar findings to new-surfaces.json rather than throwing immediately, while smoke and catalog journeys throw immediately at budget 0."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-28",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+      "src/ui/onboarding/onboardingS7aEntries.test.tsx",
+      "tests/ux/_feel.browser.mjs"
+    ]
+  }
+}

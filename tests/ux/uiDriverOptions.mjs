@@ -13,6 +13,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 
 /** 能直接点名的窗口内容尺寸（宽 × 高，CSS 像素）。 */
 export const SIZE_PRESETS = Object.freeze({
+  '1440x900': Object.freeze({ width: 1440, height: 900 }),
   '1280x800': Object.freeze({ width: 1280, height: 800 }),
   '1100x690': Object.freeze({ width: 1100, height: 690 }),
   '1100x720': Object.freeze({ width: 1100, height: 720 }),

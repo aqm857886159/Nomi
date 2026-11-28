@@ -18,7 +18,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import {
-  AGENT_PANEL, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, COLLAPSE_BUTTON, closeRailDrawer, closeSettings, ensureAgentPanelOpen, openRailDrawer, openSettings,
+  AGENT_PANEL, CANVAS_ADD_SURFACE, CANVAS_ZOOM_BAR, COLLAPSE_BUTTON, closeRailDrawer, closeSettings, ensureAgentPanelOpen, openRailDrawer, openSettings,
   NOMI_ENTRY, NOMI_ENTRY_COLLAPSED, railDrawerPanel, settingsDialog, switchWorkspace,
 } from './_shell.mjs'
 import { COMPOSER, COMPOSER_INPUT } from './agent-runtime-walk-support.mjs'
@@ -478,7 +478,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     const L1_COMMON = ['[data-shell-stage-center]', '[data-shell-project-menu]', '[data-task-center-trigger]', '[data-shell-settings]', '[data-shell-rail]']
     const L1_PAGE = {
       creation: [],
-      generation: [CANVAS_STAGE_SELECTOR, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, '[data-timeline-strip]'],
+      generation: [CANVAS_STAGE_SELECTOR, CANVAS_ADD_SURFACE, CANVAS_ZOOM_BAR, '[data-timeline-strip]'],
       preview: [],
     }
     // 页面主体（同一张板 creation.editor-grid、creation.toolbar-overflow、preview.grid-rows，页面线已合入主线）：和外壳一起判红。

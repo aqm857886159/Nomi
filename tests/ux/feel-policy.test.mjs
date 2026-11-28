@@ -122,3 +122,13 @@ test('exemption ratchet: an extra element of the same kind on the surface is sti
   expect(exemptionEvidenceGrowth(old, [old[0], extra])).toEqual([extra])
   expect(exemptionEvidenceGrowth(old, [{ ...old[0], fontSizes: [10] }])).toHaveLength(1)
 })
+
+test('duplicate-nearby-header and duplicate-action-bar ratchet at zero budget without requiring manual baseline entries', () => {
+  for (const rule of ['duplicate-nearby-header', 'duplicate-action-bar']) {
+    const hit = { rule, target: ['div', 'div'], text: ['Brand', 'Brand'], fontSizes: [14, 12] }
+    expect(compareFeelBaseline(result([hit], 'unlisted-step'), { entries: [] })).toEqual([
+      { rule, actual: 1, allowed: 0, kind: 'new' },
+    ])
+    expect(compareFeelBaseline({ ...result([hit], 'unlisted-step'), journey: 'eval-iso' }, { entries: [] })).toEqual([])
+  }
+})

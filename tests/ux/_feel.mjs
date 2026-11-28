@@ -5,6 +5,8 @@ export const DEFAULT_RULES = {
   viewport: true,
   clipping: true,
   hittable: true,
+  duplicateNearbyHeader: true,
+  duplicateActionBar: true,
   interactiveTags: ['BUTTON', 'A', 'CANVAS', 'INPUT', 'SELECT', 'TEXTAREA'],
 }
 
@@ -147,6 +149,205 @@ export async function scanFeel(root, { rules = {}, label = 'page' } = {}) {
     ]
     if (config.overlapArea !== false) textOverlap()
     for (const el of elements) for (const rule of rules) if (rule.enabled) rule.run(el)
+
+    const elementSet = new Set(elements)
+    const norm = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase()
+    const interactiveControlSelector = 'button, a, input, select, textarea, label, [contenteditable="true"], [role="button"], [role="tab"], [role="menuitem"], [role="option"]'
+    const paintedNodes = []
+    for (const el of elements) {
+      for (const node of el.childNodes) {
+        if (node.nodeType !== 3 || !node.textContent.trim()) continue
+        const range = doc.createRange()
+        range.selectNodeContents(node)
+        const rects = [...range.getClientRects()]
+          .map((rect) => visibleRect(el, rect, true))
+          .filter((rect) => rect && area(intersect(rect, viewport)) > 0)
+        if (rects.length) paintedNodes.push({ el, text: node.textContent, rects })
+      }
+    }
+    const unionRects = (rects) => rects.length
+      ? rects.reduce((acc, r) => ({
+        left: Math.min(acc.left, r.left),
+        top: Math.min(acc.top, r.top),
+        right: Math.max(acc.right, r.right),
+        bottom: Math.max(acc.bottom, r.bottom),
+      }))
+      : null
+    const nonInteractiveSummary = (rootEl) => {
+      const parts = []
+      const rects = []
+      for (const item of paintedNodes) {
+        if (!rootEl.contains(item.el)) continue
+        const ctrl = item.el.closest(interactiveControlSelector)
+        if (ctrl && rootEl.contains(ctrl)) continue
+        parts.push(item.text)
+        rects.push(...item.rects)
+      }
+      for (const gfx of rootEl.querySelectorAll('svg, img')) {
+        if (!elementSet.has(gfx)) continue
+        const ctrl = gfx.closest(interactiveControlSelector)
+        if (ctrl && rootEl.contains(ctrl)) continue
+        const r = visibleRect(gfx)
+        if (r && area(intersect(r, viewport)) > 0) rects.push(r)
+      }
+      return { text: norm(parts.join('')), rect: unionRects(rects), hasGraphic: [...rootEl.querySelectorAll('svg, img')].some((gfx) => elementSet.has(gfx) && !(gfx.closest(interactiveControlSelector) && rootEl.contains(gfx.closest(interactiveControlSelector)))) }
+    }
+
+    function duplicateNearbyHeader() {
+      const headingSelector = 'h1, h2, h3, h4, h5, h6, [role="heading"], strong'
+      const headers = elements.filter((el) => el.matches('header, [role="banner"]'))
+      headers.forEach((header, headerIndex) => {
+        if (view.getComputedStyle(header).position === 'absolute') return
+        const hRect = visibleRect(header)
+        const parent = header.parentElement
+        const pRect = parent ? visibleRect(parent) : null
+        if (!hRect || !pRect || hRect.height > 64 || hRect.top < pRect.top - 2) return
+        const units = new Map()
+        for (const u of [header, ...header.querySelectorAll('*')]) {
+          if (!elementSet.has(u) || u.closest(interactiveControlSelector)) continue
+          const info = nonInteractiveSummary(u)
+          if (info.text.length < 2 || info.text.length > 32 || !info.rect) continue
+          const w = info.rect.right - info.rect.left
+          const h = info.rect.bottom - info.rect.top
+          if (w > 260 || h > 44) continue
+          const isHeading = u !== header && u.matches(headingSelector)
+          if (!isHeading && !info.hasGraphic) continue
+          const prev = units.get(info.text)
+          if (!prev || (prev.el === header && u !== header)) units.set(info.text, { el: u, rect: info.rect })
+        }
+        if (!units.size) return
+        const reported = new Set()
+        const candidates = [...parent.querySelectorAll('*')].filter((cand) =>
+          !header.contains(cand) && elementSet.has(cand) && !cand.closest(interactiveControlSelector),
+        )
+        for (const cand of candidates) {
+          const isHeading = cand.matches(headingSelector)
+          const info = nonInteractiveSummary(cand)
+          if (!info.rect || (!isHeading && !info.hasGraphic)) continue
+          if (reported.has(info.text) || !units.has(info.text)) continue
+          const box = visibleRect(cand)
+          if (!box || box.height > 44) continue
+          const w = info.rect.right - info.rect.left
+          const h = info.rect.bottom - info.rect.top
+          if (w > 280 || h > 44) continue
+          const dy = info.rect.top - hRect.bottom
+          const hUnit = units.get(info.text)
+          if (dy < -2 || dy > 96 || Math.abs(info.rect.left - hUnit.rect.left) > 64) continue
+          reported.add(`${headerIndex}:${info.text}`)
+          reported.add(info.text)
+          report('duplicate-nearby-header', [hUnit.el, cand])
+        }
+      })
+    }
+
+    function duplicateActionBar() {
+      const menuScope = '[role="menu"], [role="listbox"], [role="tree"], [role="grid"], table'
+      const buttonSignature = (btn) => {
+        const aria = norm(btn.getAttribute('aria-label') || '')
+        const txt = norm(btn.textContent || '')
+        const title = norm(btn.getAttribute('title') || '')
+        const names = [...new Set([aria, txt, title].filter((v) => v.length >= 1))]
+        const svg = btn.querySelector('svg')
+        const iconSig = svg
+          ? [...svg.querySelectorAll('path, rect, circle, line, polyline, polygon')]
+            .map((shape) => `${shape.tagName.toLowerCase()}:${['d', 'x', 'y', 'width', 'height', 'rx', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'points'].map((k) => shape.getAttribute(k) || '').filter(Boolean).join(',')}`)
+            .join('|')
+            .replace(/\s+/g, ' ')
+          : ''
+        return { el: btn, names, iconSig }
+      }
+      const buttonsMatch = (a, b) =>
+        a.names.some((name) => b.names.includes(name)) || (a.iconSig.length >= 10 && a.iconSig === b.iconSig)
+
+      const rawBars = []
+      for (const el of elements) {
+        if (el.closest(menuScope)) continue
+        const r = visibleRect(el)
+        if (!r || (r.bottom - r.top > 180 && r.right - r.left > 120)) continue
+        const children = [...el.children].filter((child) => {
+          if (!elementSet.has(child)) return false
+          if (child.tagName === 'INPUT' && child.getAttribute('type') === 'file') return false
+          if (child.getAttribute('role') === 'separator') return false
+          const cr = visibleRect(child)
+          return Boolean(cr && cr.right - cr.left > 2 && cr.bottom - cr.top > 2)
+        })
+        if (children.length < 4 || children.length > 16) continue
+        const buttons = []
+        for (const slot of children) {
+          if (slot.tagName === 'BUTTON' || slot.getAttribute('role') === 'button') {
+            buttons.push(slot)
+            continue
+          }
+          const cr = visibleRect(slot)
+          if (!cr || cr.right - cr.left > 120 || cr.bottom - cr.top > 120) continue
+          if (slot.querySelector('input:not([type="hidden"]), textarea, select, [contenteditable="true"]')) continue
+          const inner = [...slot.querySelectorAll('button, [role="button"]')].filter((b) => elementSet.has(b))
+          if (inner.length === 1) buttons.push(inner[0])
+        }
+        if (buttons.length < 4 || buttons.length > 16 || buttons.length / children.length < 0.8) continue
+        rawBars.push({ el, buttons: buttons.map(buttonSignature) })
+      }
+
+      const bars = rawBars.filter((bar, idx) => !rawBars.some((other, otherIdx) =>
+        idx !== otherIdx
+        && bar.el.contains(other.el)
+        && bar.buttons.length === other.buttons.length
+        && bar.buttons.every((b, i) => b.el === other.buttons[i].el),
+      ))
+
+      const lcaBranches = (a, b) => {
+        const ancestors = new Set()
+        for (let cur = a; cur; cur = cur.parentElement) ancestors.add(cur)
+        let lca = b
+        while (lca && !ancestors.has(lca)) lca = lca.parentElement
+        if (!lca) return null
+        let branchA = a
+        while (branchA.parentElement && branchA.parentElement !== lca) branchA = branchA.parentElement
+        let branchB = b
+        while (branchB.parentElement && branchB.parentElement !== lca) branchB = branchB.parentElement
+        return { lca, branchA, branchB }
+      }
+      const hasOwnItemBody = (branch, barEl) => {
+        if (branch === barEl) return false
+        for (const item of paintedNodes) {
+          if (branch.contains(item.el) && !barEl.contains(item.el) && norm(item.text).length >= 2) return true
+        }
+        return [...branch.querySelectorAll('img, video, canvas, input:not([type="hidden"]), textarea, [contenteditable="true"]')]
+          .some((media) => elementSet.has(media) && !barEl.contains(media))
+      }
+
+      for (let i = 0; i < bars.length; i++) {
+        for (let j = i + 1; j < bars.length; j++) {
+          const barA = bars[i]
+          const barB = bars[j]
+          if (barA.el.contains(barB.el) || barB.el.contains(barA.el)) continue
+          const minLen = Math.min(barA.buttons.length, barB.buttons.length)
+          const maxLen = Math.max(barA.buttons.length, barB.buttons.length)
+          if (minLen / maxLen < 0.75) continue
+          const usedB = new Set()
+          let matched = 0
+          for (const btnA of barA.buttons) {
+            const idxB = barB.buttons.findIndex((btnB, k) => !usedB.has(k) && buttonsMatch(btnA, btnB))
+            if (idxB >= 0) {
+              usedB.add(idxB)
+              matched++
+            }
+          }
+          if (matched < Math.max(4, Math.ceil(maxLen * 0.8))) continue
+          const itemSelector = 'tr, li, article, [role="row"], [role="listitem"]'
+          if (barA.el.closest(itemSelector) !== barB.el.closest(itemSelector)) continue
+          const rel = lcaBranches(barA.el, barB.el)
+          if (rel && rel.branchA !== barA.el && rel.branchB !== barB.el
+            && rel.branchA.tagName === rel.branchB.tagName
+            && hasOwnItemBody(rel.branchA, barA.el)
+            && hasOwnItemBody(rel.branchB, barB.el)) continue
+          report('duplicate-action-bar', [barA.el, barB.el])
+        }
+      }
+    }
+
+    if (config.duplicateNearbyHeader) duplicateNearbyHeader()
+    if (config.duplicateActionBar) duplicateActionBar()
     return { label, findings }
   }, { config: { ...DEFAULT_RULES, ...rules }, label })
 }

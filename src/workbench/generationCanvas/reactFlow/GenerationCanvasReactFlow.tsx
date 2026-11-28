@@ -51,6 +51,7 @@ import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { hasPendingDirectorCameraMoveCapture, hasPendingDirectorStagingCapture } from '../components/directorCaptureHostActivation'
 import CanvasToolbar from '../components/CanvasToolbar'
+import { resolveCanvasCreationSurface } from '../components/CanvasEmptyState'
 import { CANVAS_DROP_ACTIVE_CLASS_NAME, watchCanvasDropActive } from '../components/canvasDropActiveFlag'
 import { acceptsClipDropTypes } from '../nodes/clipNodeDrop'
 import { CANVAS_DRAGGING_OWNER, beginCanvasDragging, type CanvasDragLease } from '../components/canvasDraggingFlag'
@@ -654,7 +655,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
           {hasPendingCameraMoveCapture ? <CameraMoveCaptureHost /> : null}
         </React.Suspense>
       ) : null}
-      {!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} stageWidth={stageSize.width || undefined} /> : null}
+      {resolveCanvasCreationSurface({ readOnly, nodeCount: nodes.length }) === 'toolbar' ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} stageWidth={stageSize.width || undefined} /> : null}
       <GenerationFlowHandleMenuScope open={openHandleMenu}>
       <GenerationCanvasReactFlowViewport
         projection={flowProjection}

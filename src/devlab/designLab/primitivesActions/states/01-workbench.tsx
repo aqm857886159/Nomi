@@ -74,7 +74,7 @@ export const WORKBENCH_ACTION_STATES: readonly LabState[] = [
     source: SOURCE_ACTIONS,
     mirrors: [
       'src/workbench/generationCanvas/nodes/ClipNode.tsx:582',
-      'src/workbench/ai/NoTextModelRecoveryCard.tsx:105',
+      'src/workbench/ai/NoTextModelRecoveryCard.tsx:126',
       'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx:417',
     ],
     coverage: 'shell',

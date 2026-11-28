@@ -122,3 +122,32 @@ test('repeated rows records five tool steps without ratcheting even with a regis
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('observer ratchets duplicate-nearby-header and duplicate-action-bar automatically on smoke/catalog journeys', async () => {
+  const browser = await chromium.launch({ headless: true })
+  const dir = makeTempDir('feel-dup-ratchet-')
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    installFeelObserver(page, { name: 'smoke', outputDir: dir, baseline: { entries: [] }, exemptions: { entries: [] } })
+    const icon = '<svg width="16" height="16" viewBox="0 0 24 24"><rect width="20" height="20" rx="5" fill="black"/></svg>'
+    await page.setContent(`
+      <section style="width:390px;display:flex;flex-direction:column">
+        <header style="height:40px;display:flex;align-items:center">${icon}<span>BrandTitle</span></header>
+        <div style="padding:12px"><div style="display:flex;align-items:center">${icon}<span>BrandTitle</span></div></div>
+      </section>
+    `)
+    await expect(page.screenshot({ path: path.join(dir, 'dup-header.png') })).rejects.toThrow(/Feel baseline drift.*duplicate-nearby-header/)
+
+    const mkBar = (size) => [1, 2, 3, 4, 5].map((n) => `<button type="button" aria-label="Action ${n}" style="width:${size}px;height:${size}px"><svg viewBox="0 0 24 24"><path d="M${n} 4h14v14z"/></svg></button>`).join('')
+    await page.setContent(`
+      <main style="position:relative;width:900px;height:700px">
+        <div style="position:absolute;left:240px;top:260px;display:flex;gap:8px">${mkBar(64)}</div>
+        <div style="position:absolute;left:300px;bottom:16px;display:flex;gap:4px">${mkBar(32)}</div>
+      </main>
+    `)
+    await expect(page.screenshot({ path: path.join(dir, 'dup-bar.png') })).rejects.toThrow(/Feel baseline drift.*duplicate-action-bar/)
+  } finally {
+    await browser.close()
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
