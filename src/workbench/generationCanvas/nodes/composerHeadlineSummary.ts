@@ -20,6 +20,8 @@ import {
   type DynamicModelControl,
 } from './controls/parameterControlModel'
 import { localizeAutoOption } from './parameterOptionPresentation'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
+import { LAYER_COUNT_KEY, LAYER_SIZE_KEY } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 
 /**
  * 各执行类的「头两个值」按**控件 key** 挑，不按下标。
@@ -97,4 +99,71 @@ export function summaryFitCandidates(parts: readonly { text: string; dropRank: n
   const out = [parts.map((part) => part.text).join(' · ')]
   for (const rank of ranks.slice(0, -1)) out.push(parts.filter((part) => part.dropRank > rank).map((part) => part.text).join(' · '))
   return out
+}
+
+/**
+ * 图层分离那一格（板 2026-11-26-layer-split · layers.composer-cell；裁定 C-E5）：一格 = 方式名 · 层数 · 清晰度。
+ * 归参数摘要那一档让位：清晰度先退，层数后退，方式名不退（再挤就只剩叠层图标，由底栏加一档「只剩图标」）。
+ * 层数写死的模型（5.0 Pro：没有层数参数）写「最多 N 层」，不带 ▾（调用方据 `fixed` 画成静态格）。
+ * 文案留给调用方翻译，本模块不碰 i18n。
+ */
+export function layerSplitHeadlineParts({ modeName, controls, meta, maxLayers, formatLayers, formatUpTo, autoLabel }: {
+  modeName: string
+  controls: readonly DynamicModelControl[]
+  meta: Record<string, unknown>
+  /** 方式声明的层数上限（含底图）；层数可选时不用它。 */
+  maxLayers: number
+  formatLayers: (count: string) => string
+  formatUpTo: (count: number) => string
+  autoLabel: string
+}): { parts: HeadlinePart[]; fixed: boolean } {
+  const count = controls.find((control) => control.key === LAYER_COUNT_KEY)
+  const size = controls.find((control) => control.key === LAYER_SIZE_KEY)
+  const head: HeadlinePart = { key: 'layer_split', text: modeName, dropRank: 9 }
+  if (!count) return { parts: [head, { key: LAYER_COUNT_KEY, text: formatUpTo(maxLayers), dropRank: 1 }], fixed: true }
+  const countText = controlDisplayValue(count, meta, autoLabel)
+  const sizeText = size ? controlDisplayValue(size, meta, autoLabel) : ''
+  return {
+    parts: [
+      head,
+      ...(countText ? [{ key: LAYER_COUNT_KEY, text: formatLayers(countText), dropRank: 1 }] : []),
+      ...(sizeText ? [{ key: LAYER_SIZE_KEY, text: sizeText, dropRank: 0 }] : []),
+    ],
+    fixed: false,
+  }
+}
+
+/**
+ * 摘要 pill 的单参数短文本：当前值的纯 label（不带价签）。boolean=开显示参数名/关跳过；空值跳过。
+ * 从 InlineParameterBar 搬来（按职责：摘要文字都在这一处算），行为不变。
+ */
+function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>, autoLabel: string): string {
+  if (!isParameterControl(control)) {
+    const value = catalogControlInitialValue(control, meta)
+    const matched = control.options.find((o) => optionValue(o) === value)
+    const label = matched ? (typeof matched === 'string' ? matched : matched.label) : value
+    return localizeAutoOption(value, label, autoLabel).text
+  }
+  if (control.type === 'boolean') {
+    return (controlInitialValue(control, meta) || 'false') === 'true'
+      ? translateModelDisplayText(control.label)
+      : ''
+  }
+  const value = controlInitialValue(control, meta)
+  if (!value) return ''
+  const matched = control.options.find((o) => controlValueToString(o.value) === value)
+  return localizeAutoOption(value, matched ? matched.label : value, autoLabel).text
+}
+
+/**
+ * 没有拍板过「那几个值」的执行类（声音 / 文本 / 3D）的摘要：面板里各参数的当前值，每个值是一个整值，
+ * 放不下从后往前整值地减（2026-11-14 验收条件 2：Eleven v3 曾被截成「JBFqnCBs… · … · B…」）。
+ * 自由文本（音色 ID 这类）不进摘要：它在摘要里读不出意思，点开面板看全。
+ */
+export function fallbackSummaryParts(controls: readonly DynamicModelControl[], meta: Record<string, unknown>, autoLabel: string): { text: string; dropRank: number }[] {
+  const texts = controls
+    .filter((control) => !(isParameterControl(control) && control.type === 'text'))
+    .map((control) => summaryPart(control, meta, autoLabel))
+    .filter(Boolean)
+  return texts.map((text, index) => ({ text, dropRank: texts.length - index }))
 }

@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "change": {
+    "title": "图层分离 PR1：改图 ▾ → 图层分离，派生节点 → 一次花钱 → 画板里可编辑的层 → 完成成新一版",
+    "headSha": "f280a1bcd",
+    "headNote": "实现线 I-SE-layer-split；真截图与走查在提交 f280a1bcd 的构建上跑（已合入 origin/main ac7126cf9），假 APIMart 替身，0 花费",
+    "userCan": "在一张满意的图上点「改图 ▾ → 图层分离」，右边多出一个定好方式的节点；点发送花一次钱，拆出的底图和透明图层落进画板，每层能选、拖角等比缩放、删掉、接着画，点「完成」成为新一版；没有能拆图层的模型时，菜单第二行告诉你去接哪一家，点了打开接入页",
+    "added": [
+      "改图菜单「生成新图」组第一项「图层分离」（IconStack2）",
+      "生成框一格「图层分离 · 30 层 · 自动」与参数面板（8 / 16 / 30 / 自定义、清晰度、识别文字、≥50 层的提醒）",
+      "发送键约价按层数上限印「≤」，悬停写清按上限预扣、按实际层数结算",
+      "拆出的层落成一张可编辑白板，节点下方「N 层」",
+      "性能场景 inline-whiteboard-split-100-open"
+    ],
+    "changed": [
+      "画笔每一笔自建一层，当前层被删 / 锁住时也能落笔（今天落不下去）"
+    ],
+    "removed": []
+  },
+  "scenarioId": "canvas-image-generate",
+  "verifier": {
+    "line": "I-SE-layer-split（实现线自测；独立验收线待协调指定）",
+    "kind": "实现线自测"
+  },
+  "date": "2026-11-26",
+  "compiledBy": "I-SE-layer-split，按本次走查日志、反例红绿日志与性能场景原始结果填写",
+  "machine": {
+    "source": "walk-log",
+    "env": {
+      "device": "Mac（Apple M5，24GB），开发构建（electron .），隔离资料目录",
+      "window": "默认窗（中文浅色）与 1100×690（英文暗色）",
+      "language": "zh-CN 与 en，浅 / 暗",
+      "boundary": "假 APIMart 替身（底图 + 2 层、一层带字；5.5 假价目 30 层自动 = 8.46 积分），不花钱"
+    },
+    "attempts": [
+      {
+        "label": "layer-split 走查（换模型后「拆图层」没跟过去）",
+        "result": "fail",
+        "note": "在 5.5 和 5.0 Pro 之间换模型，图层分离落成了普通改图；已修，archetypeMeta.layerSplitCarry.test.ts 守住",
+        "evidence": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.layerSplitCarry.test.ts"
+      },
+      {
+        "label": "layer-split 走查（删层后画笔）",
+        "result": "fail",
+        "note": "删掉当前层后画笔落不下去（今天所有画板都有）；已修，whiteboardStateOps.test.ts 三条守住",
+        "evidence": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardStateOps.test.ts"
+      },
+      {
+        "label": "layer-split 走查 walk9 zh 浅色 / en 暗色 1100×690（「≤」之前的构建 e3fff40be）",
+        "result": "pass",
+        "evidence": "tests/ux/layer-split.walk.mjs"
+      },
+      {
+        "label": "layer-split 走查 walk11 zh 浅色（最终构建 f280a1bcd）",
+        "result": "pass",
+        "evidence": "tests/ux/layer-split.walk.mjs"
+      },
+      {
+        "label": "layer-split 走查 walk11 en 暗色 1100×690（最终构建 f280a1bcd）",
+        "result": "pass",
+        "evidence": "tests/ux/layer-split.walk.mjs --locale en --theme dark --size 1100x690"
+      },
+      {
+        "label": "付费走查免费演练（no-key）",
+        "result": "pass",
+        "evidence": "tests/ux/layer-split-real.paid.mjs（NOMI_PAID_REHEARSAL=no-key）"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "从满意的图到派生出定好方式的节点的点击",
+        "unit": "次",
+        "baseline": null,
+        "current": 2,
+        "n": 1,
+        "basis": "script-count",
+        "note": "「改图 ▾」→「图层分离」；改前没有这个入口（只能整张重生成或去别的软件抠图）"
+      },
+      {
+        "name": "一次图层分离发给供应商的请求",
+        "unit": "次",
+        "baseline": null,
+        "current": 1,
+        "n": 1,
+        "basis": "script-count",
+        "note": "替身记下的 POST 数（vendor-requests.json）；派生那一步 0 次"
+      },
+      {
+        "name": "打开 100 层拆出的画板到能操作",
+        "unit": "ms",
+        "baseline": null,
+        "current": 370.3,
+        "n": 5,
+        "basis": "measured",
+        "note": "perf:scenarios inline-whiteboard-split-100-open，中位数；p95 372.7，预算 1000，提交 f280a1bcd（工作树干净），原始结果 docs/evidence/2026-11-26-layer-split/perf-inline-whiteboard-split-100-open.json"
+      },
+      {
+        "name": "图层面板列出 101 行",
+        "unit": "ms",
+        "baseline": null,
+        "current": 30.5,
+        "n": 5,
+        "basis": "measured",
+        "note": "同一场景，中位数；p95 38.1，只打印不设预算"
+      }
+    ]
+  },
+  "human": {
+    "seq": null,
+    "events": {
+      "misclicks": null,
+      "backtracks": null,
+      "helpRequests": null,
+      "firstAttemptSuccess": null
+    },
+    "note": "还没有真人试过"
+  },
+  "guardrails": [
+    {
+      "name": "派生不花钱：点「图层分离」只建节点，不发请求",
+      "result": "pass",
+      "evidence": "走查 LS02 + vendor-requests.json；deriveFromNode.run.test.ts「★9-1」"
+    },
+    {
+      "name": "线缆拆不了就不发：不悄悄发成一次普通改图",
+      "result": "pass",
+      "evidence": "electron/catalog/taskParams.modeInputRoutes.test.ts"
+    },
+    {
+      "name": "约价不冒充实价：按上限印「≤」，算不出不印数、不印 0",
+      "result": "pass",
+      "evidence": "sendCostFormat.test.ts、vendorPricePreview.test.ts；走查断言键上「≤8.46」与悬停那一句"
+    },
+    {
+      "name": "普通改图、普通画板、老节点照旧",
+      "result": "pass",
+      "evidence": "canvasModeOldUser.* 在真实 0.24.1 旧数据上 73 条全过；sendCostFormat.test.ts 原有用例全过"
+    },
+    {
+      "name": "老画板数据（真实旧版本）",
+      "result": "unverified",
+      "evidence": "tests/fixtures/old-user-data/ 里没有带画板的旧项目；只读不改形状，手写形状由 whiteboardStateOps.test.ts 覆盖"
+    }
+  ],
+  "friction": {
+    "moment": "拆完以后图层面板仍挂在工具条下面，要自己点开；行上没有缩略图，层多了靠名字找",
+    "decision": "面板挪到节点旁、有可编辑层时默认打开（D-1126-se-default-open-B）、缩略图与排序都进 PR2（D-1126-se-split-prs）"
+  },
+  "coordinatorDecision": "待协调验收",
+  "unverified": [
+    {
+      "item": "真付费一次（2 层 · 1K · 1 张源图）：回来的层是裁好的小图还是整幅透明图、z_index 方向、按输出张数实扣",
+      "owner": "协调会话（C-E10）",
+      "recheck": "协调跑 tests/ux/layer-split-real.paid.mjs 那一次"
+    },
+    {
+      "item": "真人首次尝试",
+      "owner": "协调会话",
+      "recheck": "下一次有人试用时补 SEQ 和人工事件"
+    },
+    {
+      "item": "停靠 Agent 的 1100×690、1440×900、Windows、键盘全程、干净安装",
+      "owner": "独立验收线 / PR2",
+      "recheck": "PR2 面板挪位后一起重跑"
+    }
+  ],
+  "evidence": [
+    "tests/ux/layer-split.walk.mjs",
+    "tests/ux/layer-split-real.paid.mjs",
+    "docs/evidence/2026-11-26-layer-split/side-by-side/INDEX.md",
+    "docs/plan/2026-11-26-layer-split.md ★9",
+    "docs/design/boards/2026-11-26-layer-split/LayerSplit.board.json",
+    "tests/perf/scenarios/inline-whiteboard-split-100-open.json"
+  ]
+}

@@ -69,7 +69,8 @@ export function resolveInsertionPosition(
     && base.x >= visibleArea.x && base.x <= visibleArea.x + visibleArea.width
     && base.y >= visibleArea.y && base.y <= visibleArea.y + visibleArea.height
   if (visibleArea && baseInView) {
-    const inView = resolveInsertionPositionInAreaWith(footprint, newKind, base, occupied, visibleArea, newSize)
+    // 判「整张卡在可见区里」要新节点自己的大小：调用方没给就按这一种的名义大小量（不拿带间距的足迹顶替）。
+    const inView = resolveInsertionPositionInAreaWith(footprint, newKind, base, occupied, visibleArea, newSize ?? occupiedSize({ kind: newKind }))
     if (inView) return inView
   }
   return resolveInsertionPositionWith(footprint, newKind, base, occupied, maxRings, newSize)

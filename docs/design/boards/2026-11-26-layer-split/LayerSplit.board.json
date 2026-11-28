@@ -1,0 +1,877 @@
+{
+  "$comment": "清单入库于 PR1（D-1126-se-split-prs）。候选由 scripts/board-extract.mjs 从 preview/LayerSplit.html 抽出；preview 是 Main / Setup1440 / Dark1440En / Boundary 四张自有板的拼页，LibTV 实拍板整块不入库（同类产品截图只记 sha256）。",
+  "board": "LayerSplit",
+  "stage": "explored",
+  "exploration": {
+    "canvas": "https://claude.ai/artifact/BD3qvonT9rkWCqWsycKLfL",
+    "note": "第 13 版。本地源与发布版逐文件 sha256 全部核过（五张板 + canvas.json）。用户 11-26 拍板；决策 D-1126-sdse-libtv。"
+  },
+  "approvedOn": "2026-11-26",
+  "approval": {
+    "date": "2026-11-26",
+    "quote": "用户 11-26「两个设计有没有去看LibTV上的相关的设计啊？你看一下，然后微调一下，然后就去做就好了。」「重点是参考它的交互呀、设计呀、名称呀、Icon呀什么的。那么具体的这些逻辑还要基于我们的中转站去做。」",
+    "source": "D-1126-sdse-libtv",
+    "canvas": "https://claude.ai/artifact/BD3qvonT9rkWCqWsycKLfL"
+  },
+  "supersedes": [
+    {
+      "board": "11-24 旧稿（伙伴 LayerDecompose.draft-board.json，未入仓库）",
+      "element": "layers.quick-action-entry / layers.stack-list / layers.stack-row",
+      "was": "「图层分解」、节点下方「图层栈 N」开关、节点右侧图层栈面板",
+      "now": "「图层分离」、节点下方只一行状态「N 层」、图层并进画板的图层面板",
+      "reason": "用户 11-26 拍板照 LibTV"
+    }
+  ],
+  "artboards": [
+    "LibTV",
+    "Main",
+    "Setup1440",
+    "Dark1440En",
+    "Boundary"
+  ],
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "product": "LibTV",
+      "screenshotSha256": "5cb9410d6abe4cbf68298d6a901c3c080e09069dbf312d0ba790141a7d74b58e",
+      "seenOn": "2026-11-26",
+      "files": [
+        {
+          "name": "se-1-layer-mode.png",
+          "sha256": "5cb9410d6abe4cbf68298d6a901c3c080e09069dbf312d0ba790141a7d74b58e"
+        },
+        {
+          "name": "se-2-image-toolbar.png",
+          "sha256": "3e9ca6bd66cde266da35c3c3a5500dff4b9d7243c3661ff866d5402bfd7e987c"
+        },
+        {
+          "name": "se-2b-toolbar-zoom.png",
+          "sha256": "0365a23f52bfac21bf23e6147ae8214137e95fda9b6df03edd9a6b8303b579b8"
+        },
+        {
+          "name": "se-3-all-features-image.png",
+          "sha256": "695db430ac1fa750284375bdb4b2ef685eb8b2cdfab4ce7f2b0a8922648b4571"
+        },
+        {
+          "name": "se-4-result-feature-updates.png",
+          "sha256": "4f6fe8e728d0a485a6a5d65844154c7501872d3040599864a104fbea146968a4"
+        }
+      ],
+      "differences": [
+        {
+          "what": "LibTV 浮条一级「图层分离」",
+          "why": "1100 停靠 Agent 浮条 647/画布 684，加一颗约 751 放不下，退到改图 ▾ 第一项"
+        },
+        {
+          "what": "LibTV 点了原节点就地进模式",
+          "why": "deriveFromNode 10-05 拍板：改图类动作派生新节点、不动原节点"
+        },
+        {
+          "what": "LibTV 有框选「框选你想要拆分的物体」",
+          "why": "APIMart 没有区域输入，不做"
+        },
+        {
+          "what": "LibTV 固定价 ⚡6",
+          "why": "APIMart 按输出张数计，发送键印「≤ 价」"
+        },
+        {
+          "what": "LibTV 层数不给选、没看到清晰度和识别文字",
+          "why": "按张计费层数就是花费上限；供应商文档列的能力都露出"
+        },
+        {
+          "what": "LibTV 拆完真界面没看到（更新记录配图：每层蓝框带控制点）",
+          "why": "用现有画板；缩放/调前后能做的照抄，旋转/景深做不到，照实写"
+        }
+      ]
+    },
+    {
+      "url": "https://docs.tapnow.ai/en/docs/canvas/generate-and-edit-video",
+      "screenshotNote": "伙伴 11-24，tapnow-image-quick-split.png sha256 110aeb938e51…d464（仓库外）",
+      "takeaway": "浮条上的拆分动作只把要的子图拆成下游节点",
+      "decisionImpact": "确认了：选了才拆出，拆的才上画布"
+    },
+    {
+      "url": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation.md",
+      "localCopy": "docs/models/capabilities/seedream-5-5.md",
+      "takeaway": "按输出张数计，max_images 2–100 默认 30 含底图；text_recognition 默认 false；size 只收 auto/1K/1.5K/2K；返回 url[0] 底图、layers[i] 带 z_index/name/bounding_box；无框选/区域",
+      "decisionImpact": "改了：层数/清晰度/识别文字露出；不画框选"
+    }
+  ],
+  "boundarySheet": [
+    {
+      "where": "层数",
+      "max": "100（含底图）",
+      "source": "APIMart max_images 2–100",
+      "layout": "画板图层面板虚拟列表；英文暗色板滚到底 + 选 5 层",
+      "board": "LayerSplit",
+      "element": "layers.panel-virtual",
+      "artboard": "Dark1440En"
+    },
+    {
+      "where": "生成框一行（600 宽带价）",
+      "max": "「图层分离 · 30 层 · 自动」差约 8px；英文差约 9px；「图层分离 · 100 层 · 2K」差约 7px、英文差约 6px",
+      "source": "画稿字体量；实现后按真宽再量",
+      "layout": "按让位规则从后往前退",
+      "board": "LayerSplit",
+      "element": "layers.composer-cell",
+      "artboard": "Boundary"
+    },
+    {
+      "where": "拆出节点数",
+      "max": "不设上限（=选中层数）",
+      "source": "canvas bounds",
+      "layout": "≥4 层进分组框",
+      "board": "LayerSplit",
+      "element": "layers.extract-result",
+      "artboard": "Boundary"
+    },
+    {
+      "where": "节点宽 + 镜头名",
+      "max": "最窄 240、名字 28 字",
+      "source": "MIN_NODE_WIDTH=240（nodeSizing.ts:22）",
+      "layout": "图层面板不跟节点缩，贴右边",
+      "board": "LayerSplit",
+      "element": "layers.whiteboard-panel",
+      "artboard": "Boundary"
+    },
+    {
+      "where": "层名",
+      "max": "英文最长「A SUMMER ALONE」（识别文字）",
+      "source": "Dark1440En",
+      "layout": "一行截断",
+      "board": "LayerSplit",
+      "element": "layers.panel-row",
+      "artboard": "Dark1440En"
+    },
+    {
+      "where": "参数面板",
+      "max": "英文最长说明「Default 30 layers, incl. base. It is a maximum; you may get fewer.」+ ≥50 层提醒「More layers cost more: up to 100 images are charged, about …」",
+      "source": "src/i18n 实际文案（layerSplitComposer.costReminderEstimate / 参数说明）；E1 英文弹层",
+      "layout": "面板固定宽，说明文字换行不截断；提醒在最下一行",
+      "board": "LayerSplit",
+      "artboard": "Boundary",
+      "element": "layers.params-panel"
+    },
+    {
+      "where": "提示词占位句",
+      "max": "英文「Describe the layers to split, or leave it empty to split automatically」",
+      "source": "src/i18n layerSplitComposer.placeholder；Setup1440",
+      "layout": "多行输入框里换行，不截断",
+      "board": "LayerSplit",
+      "artboard": "Setup1440",
+      "element": "layers.prompt-placeholder"
+    },
+    {
+      "where": "5.0 Pro 写死格",
+      "max": "格「Split layers · up to 17」；换模型一句「Seedream 5.0 Pro gives one base image plus up to 16 transparent layers. You can't pick the layer count, and it doesn't read text.」（第 10 项改成整句，板上原画是旧短句）",
+      "source": "src/i18n layerSplitComposer.cellUpTo / fixedModel；E2 英文最长",
+      "layout": "与带价一行同一让位规则：从后往前退",
+      "board": "LayerSplit",
+      "artboard": "Boundary",
+      "element": "layers.pro-fixed"
+    }
+  ],
+  "elements": [
+    {
+      "id": "layers.entry",
+      "artboard": "Boundary",
+      "region": "① 入口；板上依据：D-1126-sdse-libtv：浮条一级入口（1100 量宽放不下才退回改图▾第一项）；设计线实测放不下",
+      "label": "改图 ▾「生成新图」组第一项「图层分离」（IconStack2）；只建好连着原图的新节点，不生成不花钱；浮条一级放不下（1100 停靠 Agent：浮条 647、画布 684，加一颗约 751）",
+      "change": "added",
+      "states": [
+        "hover",
+        "disabled",
+        "dark",
+        "zh-en",
+        "narrow"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx:152-153（refineItems「生成新图」组）、quickActionCatalog.ts:67-75（QUICK_ACTIONS 加一项，requires 需新增取值）",
+      "status": "implemented",
+      "assertion": "is in the refine menu and enabled",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.entry\"]"
+    },
+    {
+      "id": "layers.entry-whiteboard-hint",
+      "artboard": "Boundary",
+      "region": "⑪ 浮条；板上依据：Boundary ⑪",
+      "label": "拆过的节点上浮条「画板」图标的悬停提示改成「在画板中编辑图层」；未拆的节点仍是「在画板中编辑（自动导入当前图片）」",
+      "change": "changed",
+      "states": [
+        "hover",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx:235-237（actionId=whiteboard-open）、src/i18n/locales/generationCommon.ts:541 whiteboardHint",
+      "status": "implemented",
+      "assertion": "whiteboard hint says it edits the layers",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.entry-whiteboard-hint\"]"
+    },
+    {
+      "id": "layers.derived-node",
+      "artboard": "Setup1440",
+      "region": "左：原海报；右：派生节点；板上依据：10-05 deriveFromNode 拍板；Setup 注 1",
+      "label": "点「图层分离」后右边建好连着原图的新节点：参考 1 张原图、提示词空、角标「已备好 · 未生成」、标签「图层分离」；不生成不花钱",
+      "change": "added",
+      "states": [
+        "empty",
+        "selected",
+        "dark",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/quickActions/deriveFromNode.ts + useQuickActionHost.ts:74；DerivedReadyBadge.tsx",
+      "status": "implemented",
+      "assertion": "derived node lands right of the source on the same row",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.derived-node\"]"
+    },
+    {
+      "id": "layers.composer-cell",
+      "artboard": "Setup1440 / Boundary",
+      "region": "生成框底栏（占比例格位置）；板上依据：Setup 注 2；Boundary ② ⑤ ⑥ E1–E3",
+      "label": "一格「图层分离 · 30 层 · 自动 ▾」（叠层图标）；比例格与效果小胶囊收起；600 宽带价时「· 自动」差约 8px 先退，只剩「30 层」；英文「Split layers · 30 · Auto」差约 9px 退成「Split layers · 30」",
+      "change": "changed",
+      "states": [
+        "empty",
+        "narrow",
+        "dark",
+        "zh-en",
+        "long-text",
+        "disabled"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx（底栏）+ composerBarYield.ts（让位清单新增一档，见 conflicts C-E5）",
+      "status": "implemented",
+      "assertion": "composer cell reads",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.composer-cell\"]"
+    },
+    {
+      "id": "layers.params-panel",
+      "artboard": "Setup1440 / Boundary",
+      "region": "点开的参数面板；板上依据：Setup 注 3；Boundary ⑤ E1",
+      "label": "拆成几层 8 / 16 / 30（默认）/ 自定义 2–100（含底图，是上限）；清晰度 自动 / 1K / 1.5K / 2K（「2K 价更高」）；识别文字开关默认关；自定义 ≥50 层出提醒「层数多就贵：最多按 60 张图扣。」（不拦）",
+      "change": "added",
+      "states": [
+        "selected",
+        "disabled",
+        "dark",
+        "zh-en",
+        "long-text"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:653 参数面板 + controls/ParameterControlBody.tsx；档案新建（electron/shared/modelArchetypes/seedream55.ts）",
+      "status": "implemented",
+      "assertion": "params panel shows the read-text switch",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "note": "清晰度小字补「自动」：「2K / 自动 价更高」/「2K / Auto cost more」，依据 APIMart 官方 1K/1.5K 低档、2K/auto 高档预扣（2026-11-26 取）；D-1126-se-auto-tier。≥50 层提醒只提醒、不拦（协调裁定）。",
+      "anchor": "[data-board=\"layers.params-panel\"]"
+    },
+    {
+      "id": "layers.prompt-placeholder",
+      "artboard": "Setup1440 / Boundary",
+      "region": "生成框输入区；板上依据：LibTV 对照；APIMart 分离时提示词可选",
+      "label": "占位「描述希望拆分的图层，留空将自动识别并拆分」；提示词可空，发送键仍亮",
+      "change": "changed",
+      "states": [
+        "empty",
+        "dark",
+        "zh-en",
+        "long-text"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "生成框提示词输入（NodeGenerationComposer.tsx）；空提示词可发的放行点要新增",
+      "status": "implemented",
+      "assertion": "prompt box shows the layer-split placeholder",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.prompt-placeholder\"]"
+    },
+    {
+      "id": "layers.send-price",
+      "artboard": "Setup1440 / Boundary",
+      "region": "发送键；板上依据：cost.send-pill + 「≤」；Setup 注 4",
+      "label": "发送键印「≤ 价」：层数上限 × 单张档价 + 一次输入图费；5.0 Pro 另算；算不出不印数不写 0；0 张图时灰且价照印",
+      "change": "added",
+      "states": [
+        "disabled",
+        "hover",
+        "empty",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx:105-121；算价（今天对带参考图的请求算不出）",
+      "status": "implemented",
+      "assertion": "send key prints the upper-bound estimate",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "note": "约价只印在发送键上，确认卡不变（确认卡对所有模型都不印金额）；单位跟发送键，不写死 ¥；5.0 Pro 不印数。",
+      "anchor": "[data-board=\"layers.send-price\"]"
+    },
+    {
+      "id": "layers.no-image-hint",
+      "artboard": "Boundary",
+      "region": "② / E3；板上依据：Boundary ② E3",
+      "label": "0 张图（参考被拿掉）：发送键灰、键上约价照印；悬停先说缺什么「先放一张要拆的图」/「Add one image to split first」，下一行接发送键通用的约价说明（C-D13）",
+      "change": "changed",
+      "states": [
+        "disabled",
+        "hover",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "ComposerSendButton 的通用规则：禁用时悬停先说为什么点不了、再说约价（出处 3d96e7254 花费显示第一步，清单 cost.hover）；原因句来自生成框的禁用原因，本板不另画、不改共用发送键（C-D13）",
+      "status": "implemented",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.no-image-hint\"]",
+      "assertion": "0 images disables send and hover shows the missing-image reason with upper-bound cost"
+    },
+    {
+      "id": "layers.two-images-hint",
+      "artboard": "Boundary",
+      "region": "③；板上依据：Boundary ③；warn-then-send",
+      "label": "放了 2 张图：发送前一句话「图层分离一次只拆 1 张：拆第 1 张，第 2 张这次不用。」照样能发，不拦",
+      "change": "added",
+      "states": [
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "生成框内提示行（复用现有警示行样式）",
+      "status": "in-progress",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.pro-fixed",
+      "artboard": "Boundary",
+      "region": "④ E2；板上依据：canvas ask ③（用户「就去做」认可推荐）",
+      "label": "换成 Seedream 5.0 Pro：层数格写死「图层分离 · 最多 17 层」/「Split layers · up to 17」，不带 ▾、点不开、无识别文字；换模型时一句话「5.0 Pro：一张底图 + 最多 16 张透明层，层数不能选，也不识别文字。」",
+      "change": "added",
+      "states": [
+        "disabled",
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "electron/shared/modelArchetypes/seedream5Pro.ts；InlineParameterBar 格",
+      "status": "implemented",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.pro-fixed\"]",
+      "assertion": "Seedream 5.0 Pro renders a static up-to-17 cell that does not open the parameter panel"
+    },
+    {
+      "id": "layers.node-status",
+      "artboard": "Main / Boundary",
+      "region": "节点上方的标签行，紧跟标题（协调裁定 C-D12 覆盖 C-D8 的「节点下方」）；板上依据：canvas ask ①；§4.1",
+      "label": "拆完：节点下方一行状态「20 层」/「Layers 100 · incl. base」（叠层图标），只是状态不是开关；缩放 <40% 随标签行隐藏",
+      "change": "added",
+      "states": [
+        "empty",
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "NodeLayerSplitStatus.tsx 作为 NodeLabelRow 的子元素，排在标题与「已备好 · 未生成」（DerivedReadyBadge）之后，两者是同一处状态的前后两态、不同时出现；缩放 <40% 随标签行隐藏；位置见 C-D12",
+      "status": "implemented",
+      "assertion": "layer status sits in the label row above the node",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.node-status\"]"
+    },
+    {
+      "id": "layers.node-composite",
+      "artboard": "Main",
+      "region": "节点画面；板上依据：canvas 1；APIMart layers[i].z_index / bounding_box",
+      "label": "拆完图层留在本节点，节点画面是各层按 z_index 叠好的样子；每层按接口 bounding_box 摆放",
+      "change": "added",
+      "states": [
+        "loading",
+        "error",
+        "dark"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSceneRender.ts + whiteboardStatePreview.ts:39（卡片预览）；图层写入画板数据新建",
+      "status": "implemented",
+      "assertion": "split result carries its own whiteboard state",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.node-composite\"]"
+    },
+    {
+      "id": "layers.running",
+      "artboard": "Boundary",
+      "region": "⑦；板上依据：Boundary ⑦",
+      "label": "拆图层中：用今天的等待面和状态条，不画假进度；拆完才出现「20 层」那一行",
+      "change": "unchanged",
+      "states": [
+        "loading"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "复用 GenerationWaitingSurface.tsx",
+      "status": "implemented",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.running\"]",
+      "assertion": "in-flight layer split shows the waiting surface without prematurely rendering the layer-count badge"
+    },
+    {
+      "id": "layers.failed",
+      "artboard": "Boundary",
+      "region": "⑧；板上依据：Boundary ⑧",
+      "label": "没拆成：「没拆成：上游超时，没扣费。」整句写在节点下面；再点生成框的 ↑ 就是重试",
+      "change": "added",
+      "states": [
+        "error",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "失败文案词条 + noChargeClaims 门岗登记",
+      "status": "missing",
+      "owner": "I-SE 后续",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.whiteboard-panel",
+      "artboard": "Main / Dark1440En / Boundary",
+      "region": "Main ②；⑩ ⑬；板上依据：D-1126-sdse-libtv：拆完照 LibTV 在节点内挪/缩/调层级——用现有画板",
+      "label": "画板图层面板：挪到节点右边（今天压在画面下半、挂在工具条下）；一行一层从上到下 = 叠放顺序；头「图层 20 层 · 含底图」；窄节点 240 时仍贴右边不跟节点缩",
+      "change": "changed",
+      "states": [
+        "empty",
+        "narrow",
+        "dark",
+        "zh-en",
+        "long-text",
+        "selected"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx:571（panel===layers 分支，300 宽、max-h 320）+ WhiteboardEditingToolbar.tsx:107,122-132（ToolbarActionPanel 下弹）",
+      "status": "missing",
+      "owner": "I-SE PR2（D-1126-se-split-prs，PR1 合入后另起任务书）",
+      "note": "PR2 合入前面板仍挂在工具条下面（D-1126-se-split-prs）。默认展开规则 D-1126-se-default-open-B：底下的原图 / 底图不算，上面至少一层才默认展开。",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.panel-row",
+      "artboard": "Main / Boundary",
+      "region": "⑫ ⑬；板上依据：Boundary ⑫；canvas census「原样不动」",
+      "label": "图层行：缩略图 + 拖动把手（悬停出）+ 名字（接口 name → 识别出的字 →「图层 n」，n=叠放序号）+ 显隐眼睛 + 今天的删除钮（画稿未画，照今天）；无名无框的一层铺满整张",
+      "change": "changed",
+      "states": [
+        "hover",
+        "selected",
+        "long-text",
+        "dark",
+        "zh-en",
+        "disabled"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "WhiteboardDrawingTool.tsx:571-590 行渲染；名字取法新建",
+      "status": "in-progress",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.panel-reorder",
+      "artboard": "Boundary",
+      "region": "⑬；板上依据：Boundary ⑬（今天没有，要加）",
+      "label": "拖动调前后：悬停出把手，拖到两行之间放下，蓝线标位置；放下后画面跟着变；底图也能挪、「背景」锁在最下",
+      "change": "added",
+      "states": [
+        "hover",
+        "selected",
+        "disabled"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "新建（今天 state.layers 的数组顺序即叠放顺序：whiteboardState.ts / whiteboardStateOps.ts）",
+      "status": "missing",
+      "owner": "I-SE PR2（D-1126-se-split-prs，PR1 合入后另起任务书）",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.panel-multiselect",
+      "artboard": "Dark1440En",
+      "region": "整板；板上依据：Dark 注 2",
+      "label": "画板多选：Shift / ⌘ 点行或点画面选多层，底图在选中里时选框是整张图；选框用画板自己的",
+      "change": "changed",
+      "states": [
+        "selected",
+        "dark",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "WhiteboardLeaferCanvas.tsx:336 multipleSelect:false；今天另有自写的多选（useWhiteboardBoxSelection.ts、WhiteboardEditingToolbar.tsx:112 selectedTargets>1），见 conflicts C-E3",
+      "status": "missing",
+      "owner": "I-SE PR2（D-1126-se-split-prs，PR1 合入后另起任务书）",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.panel-virtual",
+      "artboard": "Dark1440En",
+      "region": "注 1；板上依据：Dark 注 1；层数上限 100",
+      "label": "100 层：图层面板只渲染看得见的几行，滚到底是 Layer 9…Layer 1、底图，最下面是锁着不可选的「背景」",
+      "change": "added",
+      "states": [
+        "long-text",
+        "dark",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "新建虚拟列表（今天没有）",
+      "status": "missing",
+      "owner": "I-SE PR2（D-1126-se-split-prs，PR1 合入后另起任务书）",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.extract-button",
+      "artboard": "Main / Dark1440En / Boundary",
+      "region": "Main 注 4；⑩；板上依据：Main 注 4；Dark 注 3；Boundary ⑩",
+      "label": "「拆出 N 层」/「Extract 5」次按钮（画板主动作是「完成」/「Done」）；旁注「本机拆，不花积分」/「Free, on this device」；没选时灰并写「先选要拆的层」；悬停名「Extract 5 selected layers as new nodes」",
+      "change": "added",
+      "states": [
+        "disabled",
+        "hover",
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "新建（画板里 selected→新节点：今天 WhiteboardDrawingTool 无此动作）",
+      "status": "missing",
+      "owner": "I-SE 后续",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.extract-result",
+      "artboard": "Boundary",
+      "region": "⑨ ⑨b；板上依据：canvas prior GroupFrame §4.4",
+      "label": "拆出：选中的每层各成一个图片节点接在原节点右边，名字「原图名 · 层名」；4 层以上自动收进分组框，组名「海报：海边短片 · 图层」",
+      "change": "added",
+      "states": [
+        "selected",
+        "dark",
+        "zh-en",
+        "long-text"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "复用 src/workbench/generationCanvas/components/GroupFrame.tsx:204 GroupFrameList；节点创建走画布 store",
+      "status": "missing",
+      "owner": "I-SE 后续",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.done",
+      "artboard": "Main / Boundary",
+      "region": "画板工具条；板上依据：canvas census「原样不动」",
+      "label": "画板「完成」：本节点多一版新图（今天行为不变）；工具条在节点下方，原样",
+      "change": "unchanged",
+      "states": [
+        "hover",
+        "loading",
+        "disabled",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardEditingToolbar.tsx:120（whiteboard-done）",
+      "status": "in-progress",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.whiteboard-scale",
+      "artboard": "Main",
+      "region": "注 3；板上依据：canvas unverified：真窗口没看到手柄",
+      "label": "画板里图片层四角手柄等比缩放；不能旋转（画板数据没有角度字段）",
+      "change": "changed",
+      "states": [
+        "selected",
+        "hover"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "whiteboardSceneRender.ts:278-283（每层 resizeable、lockRatio）；全局 WhiteboardLeaferCanvas.tsx:329 resizeable:false；自写 whiteboardCanvasGeometry.ts:336 isPointNearSingleAssetResizeHandle",
+      "status": "implemented",
+      "assertion": "corner drag keeps the ratio",
+      "owner": "feat/se-layer-split（I-SE-layer-split PR1）",
+      "anchor": "[data-board=\"layers.whiteboard-scale\"]"
+    },
+    {
+      "id": "layers.base-row",
+      "artboard": "Dark1440En / Setup",
+      "region": "LibTV 板对照表末行；板上依据：LibTV 板对照表「图层栈并进画板」",
+      "label": "底图那一行顶替今天的「原图」；今天预建的空画笔层「图层 1」不预建（第一次用画笔再建、编号接着排）",
+      "change": "changed",
+      "states": [
+        "empty",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx:278（addImageToCanvas … originalImage）、whiteboardState.ts createDefaultWhiteboardState",
+      "status": "missing",
+      "owner": "I-SE PR2（D-1126-se-split-prs，PR1 合入后另起任务书）",
+      "note": "「底图顶替原图」的行名 PR1 已做；「不预建图层 1」与面板挪位、默认展开（D-1126-se-default-open-B）留 PR2。",
+      "anchor": "未定"
+    },
+    {
+      "id": "layers.agent-pointer",
+      "artboard": "Main / Setup1440",
+      "region": "右侧 Agent 面板；板上依据：Setup 注 5；§1.0",
+      "label": "Agent 只指路：聊天说「拆成图层」时 Nomi 建同一个派生节点并指过去，层数还在生成框里改；拆完回复「点节点浮条上的「画板」…选中后点「拆出」」",
+      "change": "unchanged",
+      "states": [
+        "dark",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "复用现有 Agent 消息与节点引用条",
+      "status": "missing",
+      "owner": "I-SE 后续",
+      "anchor": "未定"
+    }
+  ],
+  "functionCensus": [
+    {
+      "censusId": "SE-1",
+      "function": "把一张图拆成可单独动的图层",
+      "before": "没有（图片元素拆解走 Replicate qwen-image-layered 旧链路，见 onboardingProviders.ts:570）",
+      "after": "layers.entry",
+      "placement": "menu",
+      "frequency": "不知道（新功能）",
+      "peerPlacement": "LibTV 把它放浮条一级；1100 放不下，我们放改图 ▾ 第一项",
+      "ifRemoved": "创作者想单独动人物或标题字，只能重做整张图"
+    },
+    {
+      "censusId": "SE-2",
+      "function": "选拆几层 / 清晰度 / 识别文字",
+      "before": "无",
+      "after": "layers.params-panel",
+      "placement": "direct",
+      "frequency": "不知道（新功能）",
+      "ifRemoved": "层数是花费上限，看不见就是盲花钱"
+    },
+    {
+      "censusId": "SE-3",
+      "function": "拆完在图里挪/缩/调前后",
+      "before": "画板今天只有「原图/图层 1/背景」",
+      "after": "layers.whiteboard-panel",
+      "placement": "direct",
+      "frequency": "不知道（新功能）",
+      "ifRemoved": "拆出来的层没法摆回去，只能一个个拿出来"
+    },
+    {
+      "censusId": "SE-4",
+      "function": "把选中的层拿出来变新图片节点",
+      "before": "无",
+      "after": "layers.extract-button",
+      "placement": "direct",
+      "frequency": "不知道（新功能）",
+      "ifRemoved": "层只能留在本节点里，没法单独用"
+    }
+  ],
+  "components": [
+    "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+    "src/workbench/generationCanvas/quickActions/quickActionCatalog.ts",
+    "src/workbench/generationCanvas/quickActions/deriveFromNode.ts",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardEditingToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardLeaferCanvas.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSceneRender.ts",
+    "src/workbench/generationCanvas/components/GroupFrame.tsx"
+  ],
+  "appearsIn": [
+    {
+      "place": "画布图片节点浮条「改图 ▾」",
+      "files": [
+        "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbarHost.tsx",
+        "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts"
+      ],
+      "board": "LayerSplit",
+      "element": "layers.entry",
+      "artboard": "Boundary"
+    },
+    {
+      "place": "画板（唯一一处挂载：InlineWhiteboard ← NodeInlineWhiteboardHost ← BaseGenerationNode）",
+      "files": [
+        "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
+        "src/workbench/generationCanvas/nodes/whiteboard/NodeInlineWhiteboardHost.tsx"
+      ],
+      "board": "LayerSplit",
+      "element": "layers.whiteboard-panel",
+      "artboard": "Main"
+    },
+    {
+      "place": "画布节点上「已备好 · 未生成」角标与派生节点",
+      "files": [
+        "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+        "src/workbench/generationCanvas/quickActions/DerivedReadyBadge.tsx"
+      ],
+      "board": "LayerSplit",
+      "artboard": "Setup1440",
+      "element": "layers.derived-node"
+    },
+    {
+      "place": "画布节点生成框参数条（「图层分离 · 30 层 · 自动」一格）",
+      "files": [
+        "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+      ],
+      "board": "LayerSplit",
+      "artboard": "Setup1440",
+      "element": "layers.composer-cell"
+    },
+    {
+      "place": "节点画面（画板各层叠好后的预览图）",
+      "files": [
+        "src/workbench/generationCanvas/nodes/whiteboard/whiteboardStatePreview.ts"
+      ],
+      "board": "LayerSplit",
+      "artboard": "Main",
+      "element": "layers.node-composite"
+    }
+  ],
+  "appearsInExcluded": [
+    {
+      "file": "src/devlab/designLab/nodeQuickActions/nodeQuickActionsLabKit.tsx",
+      "reason": "设计实验室的改图浮条屏直接渲染生产 ImageQuickActionsToolbar + 同一份目录，「图层分离」随目录自动出现，不是创作者看得到的另一处"
+    },
+    {
+      "file": "src/devlab/nodeTimelineInteraction.tsx",
+      "reason": "开发用的节点时间线交互样机，只测浮条交互，创作者看不到"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/sameCapabilityAlternative.ts",
+      "reason": "换模型时算同能力替代的纯函数（「拆图层」只带到新档案的图层分离），不渲染界面"
+    },
+    {
+      "file": "src/devlab/designLab/nodeComposerBar/nodeComposerBarLabKit.tsx",
+      "reason": "设计实验室的生成框屏复用参数条的通用渲染；图层分离这一格本 PR 没进实验室屏，真窗口走查覆盖"
+    },
+    {
+      "file": "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+      "reason": "分镜行的参数条；图层分离只能从画布节点的改图菜单派生，分镜行不出这一格"
+    },
+    {
+      "file": "src/devlab/designLab/canvasFrame/canvasFrameLabKit.tsx",
+      "reason": "分组框自己的实验室屏；图层分离只在「拆出 ≥4 层」借用分组框（拆出属 I-SE 后续）"
+    },
+    {
+      "file": "src/devlab/designLab/canvasGroupHeader/canvasGroupHeaderLabKit.tsx",
+      "reason": "同上：分组框标题的实验室屏，不出现图层分离"
+    },
+    {
+      "file": "src/devlab/designLab/canvasGrouping/canvasGroupingLabKit.tsx",
+      "reason": "同上：分组操作的实验室屏，不出现图层分离"
+    },
+    {
+      "file": "src/workbench/generationCanvas/components/CanvasGroupProjectionLayer.tsx",
+      "reason": "画布所有分组框的投影层；图层分离的拆出分组（I-SE 后续）落地时才算一处，本 PR 不碰"
+    }
+  ],
+  "priorDecisions": [
+    {
+      "what": "deriveFromNode：改图类动作只建好下游节点、连好、填好，不生成不花钱",
+      "source": "用户 2026-10-05",
+      "stillValid": "算数"
+    },
+    {
+      "what": "浮条一行四颗文字钮",
+      "source": "ImageQuickActionsToolbar 注释，2026-10-05",
+      "stillValid": "算数；入口因此留在改图 ▾"
+    },
+    {
+      "what": "§1.0 一个东西一个家",
+      "source": "design system §1.0",
+      "stillValid": "算数：层数/清晰度/识别文字只在生成框；图层只在画板面板"
+    },
+    {
+      "what": "P0 不新写编辑器，用现有画板（leafer-ui + @leafer-in/editor）",
+      "source": "CLAUDE.md P0",
+      "stillValid": "算数"
+    },
+    {
+      "what": "§1.8 一屏一个主动作",
+      "source": "design system §1.8",
+      "stillValid": "算数：画板主动作「完成」，「拆出 N 层」次按钮"
+    },
+    {
+      "what": "§6 图标登记：IconStack2",
+      "source": "design system §6 line 1261",
+      "stillValid": "部分：登记行写的是「全能参考」，「图层」只在说明里顺带提（conflicts C-E8）"
+    },
+    {
+      "what": "GroupFrame §4.4：拆出 ≥4 层收进组框",
+      "source": "canvas prior",
+      "stillValid": "待实现线核 §4.4 原文"
+    },
+    {
+      "what": "C-D12 协调裁定 11-27：层数状态放进节点上方的标签行（本元素覆盖 C-D8 的位置）；依据：用户 09-25 生成框钉在节点正下方，选中时会盖住下方一行",
+      "source": "协调裁定 2026-11-27（依据用户 2026-09-25 生成框位置拍板）",
+      "stillValid": "算数：layers.node-status 的 region / component 照此改，status 不动"
+    },
+    {
+      "what": "C-D13 协调裁定 11-27：没放图时悬停沿用发送键通用规则（先说为什么点不了，再说约价；出处 3d96e7254 / cost.hover），本板不另画、不改共用发送键",
+      "source": "协调裁定 2026-11-27（依据用户批过的发送键约价 3d96e7254，ModelSurfaces 清单 cost.hover）",
+      "stillValid": "算数：layers.no-image-hint 的 label / component 照此改，status 不动；英文跟着通用规则走"
+    }
+  ],
+  "unverified": [
+    "积分全是示意（实现按 APIMart 价目算约价；真扣费以一次付费形状核验为准）",
+    "每层返回图是裁到 bounding_box 还是和底图一样大的整幅透明图：文档没写死，实现两种都落对（整幅透明图铺满、裁好的小图缩进框，读不到尺寸按框；单测 layerSplitBoard.test.ts）；真回的是哪种待协调那一次付费形状核验",
+    "5.0 Pro 分离时 size 收哪些档：没查到（5.0 Pro 格写死、标未验证）",
+    "LibTV 拆完的真界面没看到",
+    "100 层面板滚动性能：PR2 做虚拟列表时量",
+    "浮条与生成框宽度是画稿量的；实现后的真宽见走查截图"
+  ],
+  "artboardFiles": [
+    {
+      "name": "LibTV",
+      "sourceSha256": "77c0bce0dd51c3d2d9d56c97b162639cddf8d48770deaf4711f64dafc0e2f84c"
+    },
+    {
+      "name": "Main",
+      "sourceSha256": "f6903629738a297c4cc84752d58926d5c27a013d5c88fdedb17fd39ef083b3a9"
+    },
+    {
+      "name": "Setup1440",
+      "sourceSha256": "8dab408c1f528b3aacbcd71050321b83bdf5924bf8c9d4590d8966e786970be6"
+    },
+    {
+      "name": "Dark1440En",
+      "sourceSha256": "a7284195ee3e89f3da061c1bf469f009ecd901c944eb39ed1aed29613cd197bf"
+    },
+    {
+      "name": "Boundary",
+      "sourceSha256": "e0546956ee8045e9f32b8ccc8cf928adb932eba21d14b3bfc5b9529a99b59821"
+    }
+  ],
+  "libtvCrops": {
+    "note": "裁图留在仓库外，清单只记文件名、sha256、拍摄日期 2026-11-26；不放图片路径",
+    "files": [
+      {
+        "name": "se-1-layer-mode.png",
+        "sha256": "5cb9410d6abe4cbf68298d6a901c3c080e09069dbf312d0ba790141a7d74b58e",
+        "shotOn": "2026-11-26"
+      },
+      {
+        "name": "se-2-image-toolbar.png",
+        "sha256": "3e9ca6bd66cde266da35c3c3a5500dff4b9d7243c3661ff866d5402bfd7e987c",
+        "shotOn": "2026-11-26"
+      },
+      {
+        "name": "se-2b-toolbar-zoom.png",
+        "sha256": "0365a23f52bfac21bf23e6147ae8214137e95fda9b6df03edd9a6b8303b579b8",
+        "shotOn": "2026-11-26"
+      },
+      {
+        "name": "se-3-all-features-image.png",
+        "sha256": "695db430ac1fa750284375bdb4b2ef685eb8b2cdfab4ce7f2b0a8922648b4571",
+        "shotOn": "2026-11-26"
+      },
+      {
+        "name": "se-4-result-feature-updates.png",
+        "sha256": "4f6fe8e728d0a485a6a5d65844154c7501872d3040599864a104fbea146968a4",
+        "shotOn": "2026-11-26"
+      }
+    ]
+  },
+  "designCard": "docs/plan/2026-11-26-layer-split.md"
+}

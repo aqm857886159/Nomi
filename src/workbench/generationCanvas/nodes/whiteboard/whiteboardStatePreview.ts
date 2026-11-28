@@ -26,11 +26,13 @@ export function whiteboardStatePreviewPixelRatio({ width, height }: CanvasDimens
  * Draw the board once off screen and return the PNG. A one-off Leafer (no view, no editor) is filled by the same
  * renderWhiteboardScene the editor uses and destroyed as soon as the export is back. No fill: where the background
  * layer is hidden, the card's paper shows through, as it does behind the editor.
+ * `pixelRatio` defaults to the bounded card preview; the layer-split landing passes its own so the result keeps the
+ * base image's resolution (layerSplitCompositePixelRatio).
  */
-export async function renderWhiteboardStatePreview(state: WhiteboardState): Promise<Blob> {
+export async function renderWhiteboardStatePreview(state: WhiteboardState, options: { pixelRatio?: number } = {}): Promise<Blob> {
   const [leafer] = await Promise.all([import('leafer-ui'), import('@leafer-in/export')])
   const dimensions = whiteboardCanvasDimensions(state)
-  const pixelRatio = whiteboardStatePreviewPixelRatio(dimensions)
+  const pixelRatio = options.pixelRatio ?? whiteboardStatePreviewPixelRatio(dimensions)
   const board = new leafer.Leafer({ width: dimensions.width, height: dimensions.height, pixelRatio, type: 'draw' })
   try {
     const rootGroup = new leafer.Group()

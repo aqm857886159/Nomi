@@ -7,7 +7,7 @@ import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 
 // 防线：每个 APIMart 图片 / 视频型号的参数面板，默认值必须在声明的选项里，选项必须是官方取值的子集。
 // 官方取值是手抄的（不从档案里推）：出处是 APIMart 官方文档页（2026-11-07 取），
-// 原文快照 /Users/aoqimin/Nomi-coord/tmp/R-apimart-agent-tools/llms-full.txt 里同名页面（GPT Image 2.6 在 6285-6340 行附近）。
+// 原文快照见仓库外归档的官方文档镜像同名页面（GPT Image 2.6 在 6285-6340 行附近）。
 // 档案把官方取值抄错一档（比如质量默认值写成官方没有的 ultra）、或多声明一档官方不认的值，这里当场红。
 // 写法是「类」级：下面循环所有已声明的 APIMart 型号，不为任何一个型号写特例；表里缺这个型号的官方取值，也红。
 
@@ -87,6 +87,10 @@ export const OFFICIAL_VALUES: Record<string, Official> = {
     resolution: ["1k", "1.5k", "2k"],
     background: ["auto", "transparent", "opaque"],
     output_format: ["png", "jpeg"],
+    // 2026-11-26 图层分离（同页 layer_decomposition 段）：max_images 2–100（默认 30，含底图，是上限）；
+    // 分层时 size 只收档位「accepts only 1K / 1.5K / 2K / auto」（档案存在 layer_size，线缆写成 size）。
+    layer_count: { min: 2, max: 100 },
+    layer_size: ["auto", "1k", "1.5k", "2k"],
   },
   // ── 视频 ──
   "kling-v4": { aspect_ratio: ["16:9", "9:16", "1:1", "21:9", "auto"], resolution: ["720p", "1080p"], duration: { min: 3, max: 30 } },

@@ -23,6 +23,55 @@
           "quote": "Up to 10 references for image generation; exactly 1 input for layer decomposition."
         }
       }
+    },
+    "layers": {
+      "why": "图层分离：一张图拆成底图 + 透明图层",
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 1,
+          "min": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+          "fetchedAt": "2026-11-26",
+          "quote": "Up to 10 references for image generation; exactly 1 input for layer decomposition."
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "layer_decomposition"
+          ],
+          "b": [
+            "background"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+          "fetchedAt": "2026-11-26",
+          "quote": "Requires exactly one input image and no `background` field."
+        }
+      ],
+      "discriminators": [
+        {
+          "key": "layer_decomposition",
+          "values": [
+            "true"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+          "fetchedAt": "2026-11-26",
+          "quote": "Set to `true` to separate the input into a base image and transparent layers."
+        },
+        {
+          "key": "size",
+          "values": [
+            "1K",
+            "1.5K",
+            "2K",
+            "auto"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+          "fetchedAt": "2026-11-26",
+          "quote": "Layer decomposition defaults to `auto` and accepts only `1K` / `1.5K` / `2K` / `auto`"
+        }
+      ]
     }
   },
   "requestFields": [

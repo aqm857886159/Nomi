@@ -2,6 +2,7 @@ import { captureSceneTransforms, restoreSceneTransforms } from './whiteboardCanv
 import { getCanvasObjectRenderBounds } from './whiteboardCanvasGeometry'
 import type { CanvasAsset, LayerItem } from './lib/canvas'
 import type { CanvasObjectTarget } from './WhiteboardLeaferCanvas'
+import type { CanvasStroke } from './whiteboardCanvasTypes'
 import type { WhiteboardState } from './whiteboardTypes'
 import { createWhiteboardId } from './whiteboardState'
 
@@ -92,7 +93,7 @@ export function groupTargetsIntoLayer(state: WhiteboardState, targets: CanvasObj
   const nextLayers: LayerItem[] = [
     ...state.layers.filter((layer) =>
       !sourceLayerIds.has(layer.id) ||
-      layer.id === 'drawing-layer-1' ||
+      layer.id === LEGACY_DRAWING_LAYER_ID ||
       layerHasElement(layer.id),
     ),
     {
@@ -158,14 +159,58 @@ export function deleteTargetFromState(state: WhiteboardState, target: CanvasObje
     nextTexts.some((text) => text.layerId === targetLayerId) ||
     nextAssets.some((asset) => asset.layerId === targetLayerId) ||
     nextStrokes.some((stroke) => stroke.layerId === targetLayerId && stroke.tool !== 'eraser')
-  const removeLayer = targetLayerId !== 'drawing-layer-1' && !layerStillHasElement
+  const removeLayer = targetLayerId !== LEGACY_DRAWING_LAYER_ID && !layerStillHasElement
+  const layers = removeLayer ? state.layers.filter((item) => item.id !== targetLayerId) : state.layers
   return {
     ...state,
     texts: nextTexts,
     canvasAssets: nextAssets,
     strokes: removeLayer ? nextStrokes.filter((stroke) => stroke.layerId !== targetLayerId) : nextStrokes,
-    layers: removeLayer ? state.layers.filter((item) => item.id !== targetLayerId) : state.layers,
-    activeLayerId: 'drawing-layer-1',
+    layers,
+    activeLayerId: fallbackActiveLayerId(layers),
+  }
+}
+
+/** 老项目新建画板时预建的那一层（今天的新画板也还有；图层分离的画板没有）。有它就照旧回它。 */
+export const LEGACY_DRAWING_LAYER_ID = 'drawing-layer-1'
+
+/**
+ * 删掉东西之后当前层落到哪（当前层的唯一回退口径）：老项目还有「图层 1」就回它（与今天一样）；
+ * 没有就落到最上面一层没锁的；全锁了（只剩背景）给空串——画笔每一笔自己建层，不靠当前层。
+ */
+export function fallbackActiveLayerId(layers: readonly LayerItem[]): string {
+  if (layers.some((layer) => layer.id === LEGACY_DRAWING_LAYER_ID)) return LEGACY_DRAWING_LAYER_ID
+  return [...layers].reverse().find((layer) => !layer.locked && layer.kind !== 'background')?.id ?? ''
+}
+
+/**
+ * 这一笔能不能落下：画笔每一笔自己新建一层（commitBrushStroke），不看当前层在不在、锁没锁；
+ * 橡皮擦落在当前层上，当前层得在、且没锁。
+ */
+export function canDrawOnLayer(tool: string, activeLayer: LayerItem | undefined): boolean {
+  if (tool === 'brush') return true
+  if (tool === 'eraser') return Boolean(activeLayer && !activeLayer.locked)
+  return false
+}
+
+/** 画笔一笔落成新的一层（叠在最上面、成为当前层）；橡皮擦留在它擦的那一层。 */
+export function commitStrokeToState(
+  state: WhiteboardState,
+  stroke: CanvasStroke,
+  brushLayerName: (index: number) => string,
+  createId: (prefix: string) => string = createWhiteboardId,
+): WhiteboardState {
+  if (stroke.tool !== 'brush') return { ...state, strokes: [...state.strokes, stroke] }
+  const layerId = createId('stroke-layer')
+  const strokeIndex = state.layers.filter((layer) => layer.id.startsWith('stroke-layer')).length + 1
+  return {
+    ...state,
+    activeLayerId: layerId,
+    strokes: [...state.strokes, { ...stroke, layerId }],
+    layers: [
+      ...state.layers,
+      { id: layerId, name: brushLayerName(strokeIndex), visible: true, locked: false, opacity: 1, kind: 'drawing', thumbnail: 'checker' },
+    ],
   }
 }
 

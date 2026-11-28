@@ -186,7 +186,8 @@ async function runCatalog(entry: ReturnType<typeof buildCells>[number]): Promise
       vendorKey: "apimart",
       modelId: row.modelKey,
       mode: cell.taskKind,
-      ...(cell.kind === "video" ? { modeId: mode.id } : {}),
+      // 图层分离是人选的任务（按输入挑方式绝不落到它），Run 路也要点名方式才发得出——与画布路同一个口径量。
+      ...(cell.kind === "video" || mode.layerSplit ? { modeId: mode.id } : {}),
       prompt: "一个镜头",
       parameters: {},
       references: refs as never,

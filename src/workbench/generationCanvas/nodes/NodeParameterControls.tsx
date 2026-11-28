@@ -91,7 +91,8 @@ import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
 import InlineParameterBar, { type ComposerFooterSlots } from './InlineParameterBar'
-import { composerHeadlineParts } from './composerHeadlineSummary'
+import { composerBarSummary } from './composerBarSummary'
+import { isLayerSplitMode } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import { buildAspectRatioNodePatch } from './nodeSizing'
@@ -508,26 +509,17 @@ export default function NodeParameterControls({
   // section="parameters"：底栏 = 模型芯片 + 变体 + 摘要 pill + 统一参数面板（实现见 InlineParameterBar）。
   // 摘要 pill + 面板（含比例小图形）：2026-09-11 04:30 用户纠正，同日 02:10 的逐参数 chip 节点这一处退回原样。
   if (section === 'parameters') {
-    // 导入的 ComfyUI 工作流：参数名是作者随手起的（采样步数/帧率/Float (duration)…），
-    // 把当前值串成 pill（`15 · 24`）没人认得出那是自己勾的东西。改成报名字+条数。
-    // 判据取 meta.comfyWorkflowImport 是否存在——它只由导入流程写入，档案模型不会有。
-    const workflowSummary = isImportedComfyWorkflowModel(selectedModelOption?.meta) && renderedControls.length > 0
-      ? t('generationCommon.parameters.workflowParams', { count: panelRenderedControls.length })
-      : undefined
-    // v1.1 底栏：档案模型的 pill 只报「最影响结果和价格的两个值」（视频=比例+时长、图=比例+清晰度），
-    // 其余参数一个不少、仍在同一块弹层里。走 summaryOverride 这条**已有的**缝（导入工作流那支
-    // 在用同一个入口），不新造第二条摘要通路。工作流的口径优先——它连「值串出来没人认得」
-    // 这个更基本的问题都还没解决，轮不到再挑两个。
-    // 摘要按整值给出（带退让顺序）：底栏挤时只退这一格、一个值不截半截（K4）。
-    const headlineParts = workflowSummary ? [] : composerHeadlineParts({
+    // 摘要那一格报什么（导入工作流 / 图层分离 / 档案模型三种口径）收在 composerBarSummary。
+    const summary = composerBarSummary({
+      t,
+      workflowParamCount: isImportedComfyWorkflowModel(selectedModelOption?.meta) && renderedControls.length > 0 ? panelRenderedControls.length : undefined,
       isImageLike,
       isVideoLike,
       controls: panelRenderedControls,
       meta,
-      formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
-      autoLabel: t('generationCommon.parameters.auto'),
+      mode: archMode,
+      sendCost: footer?.send?.cost,
     })
-    const summaryOverride = workflowSummary ?? (headlineParts.length ? headlineParts.map((part) => part.text).join(' · ') : undefined)
     return (
       <InlineParameterBar
         modelOptions={modelOptions}
@@ -541,8 +533,7 @@ export default function NodeParameterControls({
         onParameterControlChange={handleParameterControlChange}
         variantMenu={variantMenu}
         {...(footer ? { footer } : {})}
-        summaryOverride={summaryOverride}
-        {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
+        {...summary}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。
         {...(modeMenu ? {
           modeMenu: {
@@ -609,7 +600,9 @@ export default function NodeParameterControls({
 
   // 行尾：模型自己放不下（任何方式都收不下全部）→ 报数；方式刚因为加多被换掉 → 「放了 N 张，已改成 X」；图片节点放了图 → 「按图改」。
   const inputCount = modeInputs?.inputs.length ?? 0
-  const modelLimit = modeInputs ? modelLimitNotice(modelOptions, selectedModelOption, modeResolution, inputCount) : null
+  // 图层分离放多了只拆第 1 张：那一句在底栏上方（layers.two-images-hint），行尾不再重复报「最多用 1 张」，也不写「按图改」。
+  const splitting = Boolean(archMode && isLayerSplitMode(archMode))
+  const modelLimit = modeInputs && !splitting ? modelLimitNotice(modelOptions, selectedModelOption, modeResolution, inputCount) : null
   const switchedRow = modeMenu && archMode ? modeMenu.rows.find((row) => row.id === archMode.id) : undefined
   const switchNoticeMeta = modeInputs && archMode ? liveModeSwitchNotice(meta, inputCount, archMode.id) : null
   const tail = referenceRowTail(t, {
@@ -617,7 +610,7 @@ export default function NodeParameterControls({
     switchNotice: switchNoticeMeta && switchedRow
       ? { count: switchNoticeMeta.count, allImages: Boolean(modeInputs?.inputs.every((input) => input.asset === 'image')), modeName: modeRowName(t, switchedRow) }
       : null,
-    imageEdit: isImageLike && arrayCount > 0,
+    imageEdit: isImageLike && arrayCount > 0 && !splitting,
   })
 
   // 当前方式一个收图的槽都没有（文生，或渠道发不出这些槽）时，参考列表里的图照样要看得见——淡显「未用到」，

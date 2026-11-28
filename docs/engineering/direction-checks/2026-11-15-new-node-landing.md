@@ -64,3 +64,10 @@
 - `src/workbench/generationCanvas/store/canvasVisibleArea.structure.test.ts`：store 无第二份停靠条 / 底栏高度、落点算式无按种类分支。
 - `electron/capabilityCore/nodeKindDomain.equivalence.test.ts`：`src` registry 与 `electron` 镜像逐项等价。
 - `tests/ux/new-node-composer-in-view.walk.mjs`：真窗口三种尺寸、中英两轨（视频零豁免）。
+
+## 补记 2026-11-27：同一类的第二个入口（派生节点落点）
+
+- 现象：PR #1703 验收，1280×800 下对一张图选「图层分离」，派生节点落到原图**左边**；右边其实放得下（多 7px）。
+- 直接原因：派生 / 新建节点经 `addNode` → `resolveInsertionPosition` → `electron/shared/canvas/canvasNodeLayout.ts` 的 `resolveInsertionPositionInAreaWith`（可见区内扫空位）。它判「整张卡装不装得进可见区」时用的是避让足迹（名义尺寸 + `NODE_RENDER_SAFETY` 64），和本复盘第 2 条「落点借用避让足迹」是同一类：64px 是节点之间的间距，不是这张卡的大小。
+- 改法（换，不加分支）：同一函数里分开两把尺——判装不装得下、扫描边界用新节点自己的大小（调用方传 `occupiedSize(新节点)`，参数改为必填）；判和别的节点相不相撞、扫描步长仍用足迹。删掉「拿足迹判装下」那一处，没有按窗宽或按种类的特例。
+- 钉住：`src/workbench/generationCanvas/store/resolveInsertionPosition.test.ts` 的 1280×800 / 700×720 字面量（改回旧判定即红）；`tests/ux/layer-split.walk.mjs` 量真窗口里派生节点在原图右边同一行、右边放得下时整张在可见区、放不下时出「新节点在右侧」边缘提示（09-25 不平移）。

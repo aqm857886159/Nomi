@@ -23,7 +23,9 @@ import { referenceValueCount, validateModeConstraints, type ModeInputEvidence, t
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from "../shared/modelArchetypes/types";
 import { declarationForMode } from "../shared/generationLowering/declarationForMode";
 import { SLOT_ACCEPTS } from "../shared/modelArchetypes/anchorPolicy";
-import { modeInputRefusal } from "./modeInputRefusal";
+import { ModeRouteMissingError, modeInputRefusal } from "./modeInputRefusal";
+import { isLayerSplitMode, layerSplitWireReady } from "../shared/modelArchetypes/modeForInputs";
+import { desktopT } from "../desktopStrings";
 import { encodeParamsForWire } from "../shared/videoCapabilities/paramValue";
 import { findArchetypeMode } from "../shared/videoCapabilities/sampleMode";
 export { ModeInputMissingError } from "./modeInputRefusal";
@@ -165,6 +167,12 @@ export function applyHeadlessParamDefaults(
   const wireArchetype = archetype ?? resolveModelArchetype({
     modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
   }, { variant });
+  // 图层分离：① 自定义调用脚本只返回裸媒体地址、带不回图层坐标与顺序，在付费前直接拒发；
+  // ② 按 mapping body 发、而这份 body 不读开关键 = 发出去只是一次普通改图（花了钱只拿回一张图）→ 发送前拒。
+  assertLayerSplitNotScriptRouted(mode, route);
+  if (mode && isLayerSplitMode(mode) && !layerSplitWireReady(bodyReferencedParamKeys(createBody))) {
+    throw new ModeRouteMissingError(desktopT("modeInput.layerSplitWireMissing"));
+  }
   const encoded = encodeParamsForWire(mode ? mode.params : wireArchetype?.modes.flatMap((candidate) => candidate.params) ?? [], owned);
   const withDefaults = applyWireDefaults(encoded, mappingDefaults);
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
@@ -188,6 +196,15 @@ export type SendRoute = { readonly sends: "mapping-body" } | { readonly sends: "
 const MAPPING_BODY_ROUTE: SendRoute = { sends: "mapping-body" };
 export function sendRouteFor(customCallScript: string | undefined): SendRoute {
   return customCallScript ? { sends: "script" } : MAPPING_BODY_ROUTE;
+}
+/** 自定义调用脚本不承载结构化图层契约：发送预检与脚本执行器共用同一道拒发闸（P1）。 */
+export function assertLayerSplitNotScriptRouted(
+  mode: Pick<ArchetypeMode, "layerSplit"> | null | undefined,
+  route: SendRoute,
+): void {
+  if (mode && isLayerSplitMode(mode) && route.sends === "script") {
+    throw new ModeRouteMissingError(desktopT("modeInput.layerSplitCustomScriptUnsupported"));
+  }
 }
 /** 这条路真要发出去的 create body（脚本接管 = 没有）。 */
 export function dispatchedCreateBody(route: SendRoute, createBody: unknown): unknown {

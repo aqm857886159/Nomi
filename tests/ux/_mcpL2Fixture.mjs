@@ -21,12 +21,38 @@ function mediaFixture() {
     '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=teal:s=64x64:d=1',
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', videoPath,
   ])
-  const image = buildTinyPng()
+  const image = buildPng(16, 16, [32, 160, 160, 255])
   const poster = image
   const referencePath = path.join(root, 'reference.png')
   fs.writeFileSync(referencePath, image)
-  return { image, video: fs.readFileSync(videoPath), poster, referencePath, root }
+  return { image, video: fs.readFileSync(videoPath), poster, referencePath, root, layers: LAYER_SPLIT_FIXTURE.map((layer) => buildPng(layer.width, layer.height, layer.rgba)) }
 }
+
+/**
+ * 图层分离的替身回话（设计卡 docs/plan/2026-11-26-layer-split.md）：底图 + 2 层，一层带识别出的字。
+ * 形状照 APIMart Seedream 5.5 文档（docs.apimart.ai/en/api-reference/images/seedream-5-5/generation，2026-11-26 取）：
+ * `data.result.images[0].url[]`（0 = 底图）与 `layers[]` 按下标平行；z_index 底图 0、升序叠；bounding_box.absolute 是底图像素 [左, 上, 右, 下]。
+ * 每层这里给的是「裁到框」的那种图（文档没写死裁不裁，真付费那一跑定案）。
+ */
+export const LAYER_SPLIT_FIXTURE = [
+  { width: 640, height: 360, rgba: [40, 70, 110, 255], layer: { z_index: 0, name: 'background' } },
+  { width: 200, height: 140, rgba: [230, 120, 40, 255], layer: { z_index: 1, name: '人物', bounding_box: { absolute: [60, 140, 260, 280] } } },
+  { width: 240, height: 60, rgba: [250, 250, 250, 220], layer: { z_index: 2, name: '标题文字', bounding_box: { absolute: [340, 40, 580, 100] }, text_recognition: { text: 'NOMI' } } },
+]
+
+/**
+ * 假价目（只给 Seedream 5.5 的图层分离用；字段形状照 APIMart 公开价目接口，数是编的）：auto 按高档，30 层 ≈ 30 × 0.0282 美元，
+ * 首张输入图免费 → 发送键印 8.46 积分。别的模型照旧 404（价未知，不印数）。
+ */
+const LAYER_SPLIT_PRICE = {
+  success: true,
+  data: {
+    model_name: 'seedream-5-5', membership: { category: 'image' },
+    layer_decomposition_paid_prices: { '1K': 0.0141, '2K': 0.0282 }, layer_decomposition_max_images: 100,
+    input_image_paid_price: 0.0035, input_image_first_free: true,
+  },
+}
+const IMAGE_PRICE_LIST = { success: true, data: { models: { image: [{ id: 'seedream-5-5', specification: 'image', fixed_prices: { unit: 'usd_per_image' } }] } } }
 
 // APIMart Seedance 2.5 的两步（docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation，2026-11-26 取），替身照官方规则回：
 //   · `draft: true` 只收 480p（「resolution must be 480p … any other resolution, including 4k, returns HTTP 400」）；
@@ -86,6 +112,13 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
       if (req.url === '/fixture/video.mp4') {
         res.writeHead(200, { 'content-type': 'video/mp4', 'content-length': media.video.length }); res.end(media.video); return
       }
+      const layerFile = /^\/fixture\/layer-(\d+)\.png$/.exec(req.url || '')
+      if (layerFile && media.layers[Number(layerFile[1])]) {
+        const bytes = media.layers[Number(layerFile[1])]
+        res.writeHead(200, { 'content-type': 'image/png', 'content-length': bytes.length }); res.end(bytes); return
+      }
+      if (req.method === 'GET' && req.url === '/api/pricing/model?model=seedream-5-5') { json(LAYER_SPLIT_PRICE); return }
+      if (req.method === 'GET' && req.url === '/api/pricing/models/all') { json(IMAGE_PRICE_LIST); return }
       if (req.url === '/v1/uploads/images') {
         setTimeout(() => json({ url: `${origin}/fixture/image.png` }), 25)
         return
@@ -105,7 +138,8 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
         // 前 failTasks 个建好的任务：查询时报供应商一侧的普通失败（可重试），用来和「结果未知」并排。
         const failed = failsLeft > 0
         if (failed) failsLeft -= 1
-        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body, failed, draft: parsedBody?.draft === true })
+        const layerSplit = create[1] === 'images' && parsedBody?.layer_decomposition === true
+        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body, failed, layerSplit, draft: parsedBody?.draft === true })
         created.push({ taskId, url: req.url, body: parsedBody })
         json({ code: 200, data: [{ status: 'submitted', task_id: taskId }] }); return
       }
@@ -117,7 +151,9 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
         if (task.failed) { json({ code: 200, data: { id: query[1], status: 'failed', error: { message: 'generation failed upstream' } } }); return }
         const entry = task.kind === 'video'
           ? { id: query[1], url: [`${origin}/fixture/video.mp4`], thumbnail_url: `${origin}/fixture/poster.png`, filename: 'fixture.mp4' }
-          : { id: query[1], url: [`${origin}/fixture/image.png`], filename: 'fixture.png' }
+          : task.layerSplit
+            ? { id: query[1], url: LAYER_SPLIT_FIXTURE.map((_, index) => `${origin}/fixture/layer-${index}.png`), filename: 'layers.png', layers: LAYER_SPLIT_FIXTURE.map((item) => item.layer) }
+            : { id: query[1], url: [`${origin}/fixture/image.png`], filename: 'fixture.png' }
         json({ code: 200, data: { id: query[1], status: 'completed', result: task.kind === 'video' ? { videos: [entry] } : { images: [entry] } } }); return
       }
       json({ error: 'not found' }, 404)
@@ -171,10 +207,10 @@ export function writeFakeApimartCatalog(settingsDir, userDataDir, _origin = '', 
   return { apiKeysByVendor: withKey ? { apimart: record } : {} }
 }
 
-function buildTinyPng() {
-  const zlib = require('node:zlib'); const width = 16; const height = 16
+function buildPng(width, height, [r, g, b, a]) {
+  const zlib = require('node:zlib')
   const raw = Buffer.alloc(height * (1 + width * 4))
-  for (let y = 0; y < height; y += 1) { const row = y * (1 + width * 4); raw[row] = 0; for (let x = 0; x < width; x += 1) { const p = row + 1 + x * 4; raw[p] = 32; raw[p + 1] = 160; raw[p + 2] = 160; raw[p + 3] = 255 } }
+  for (let y = 0; y < height; y += 1) { const row = y * (1 + width * 4); raw[row] = 0; for (let x = 0; x < width; x += 1) { const p = row + 1 + x * 4; raw[p] = r; raw[p + 1] = g; raw[p + 2] = b; raw[p + 3] = a } }
   const crcTable = new Int32Array(256); for (let n = 0; n < 256; n += 1) { let c = n; for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crcTable[n] = c }
   const crc32 = (buf) => { let crc = -1; for (const byte of buf) crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 0xff]; return crc ^ -1 }
   const chunk = (type, data) => { const t = Buffer.from(type); const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(Buffer.concat([t, data])) >>> 0); return Buffer.concat([len, t, data, crc]) }

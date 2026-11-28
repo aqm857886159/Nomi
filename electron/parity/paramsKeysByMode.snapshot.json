@@ -1,6 +1,6 @@
 {
  "summary": {
-  "samples": 614,
+  "samples": 630,
   "archetypes": 96,
   "samplesWithLeaks": {
    "canvas": 0,
@@ -9,7 +9,7 @@
   },
   "archetypesWithLeaks": 0,
   "topLeakedKeys": [],
-  "archetypesWithDefaultCarried": 0,
+  "archetypesWithDefaultCarried": 1,
   "emptyDuration": {
    "canvas": 0,
    "run": 0,
@@ -1482,14 +1482,30 @@
   "seedance-2|runway|seedance2|t2v->first",
   "seedance-2|runway|seedance2|t2v->firstlast",
   "seedance-2|runway|seedance2|t2v->omni",
+  "seedream-5-5|apimart|seedream-5-5|edit->layers",
   "seedream-5-5|apimart|seedream-5-5|edit->t2i",
+  "seedream-5-5|apimart|seedream-5-5|layers->edit",
+  "seedream-5-5|apimart|seedream-5-5|layers->t2i",
   "seedream-5-5|apimart|seedream-5-5|t2i->edit",
+  "seedream-5-5|apimart|seedream-5-5|t2i->layers",
+  "seedream-5-pro|apimart|doubao-seedream-5-0-pro|edit->layers",
   "seedream-5-pro|apimart|doubao-seedream-5-0-pro|edit->t2i",
+  "seedream-5-pro|apimart|doubao-seedream-5-0-pro|layers->edit",
+  "seedream-5-pro|apimart|doubao-seedream-5-0-pro|layers->t2i",
   "seedream-5-pro|apimart|doubao-seedream-5-0-pro|t2i->edit",
+  "seedream-5-pro|apimart|doubao-seedream-5-0-pro|t2i->layers",
+  "seedream-5-pro|fal|bytedance/seedream/v5/pro|edit->layers",
   "seedream-5-pro|fal|bytedance/seedream/v5/pro|edit->t2i",
+  "seedream-5-pro|fal|bytedance/seedream/v5/pro|layers->edit",
+  "seedream-5-pro|fal|bytedance/seedream/v5/pro|layers->t2i",
   "seedream-5-pro|fal|bytedance/seedream/v5/pro|t2i->edit",
+  "seedream-5-pro|fal|bytedance/seedream/v5/pro|t2i->layers",
+  "seedream-5-pro|runway|seedream5_pro|edit->layers",
   "seedream-5-pro|runway|seedream5_pro|edit->t2i",
+  "seedream-5-pro|runway|seedream5_pro|layers->edit",
+  "seedream-5-pro|runway|seedream5_pro|layers->t2i",
   "seedream-5-pro|runway|seedream5_pro|t2i->edit",
+  "seedream-5-pro|runway|seedream5_pro|t2i->layers",
   "seedream|apimart|doubao-seedream-4.5|edit->t2i",
   "seedream|apimart|doubao-seedream-4.5|t2i->edit",
   "seedream|kie|seedream|edit->t2i",
@@ -4772,6 +4788,85 @@
    }
   },
   {
+   "id": "seedream-5-5|apimart|seedream-5-5|edit->layers",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [
+     {
+      "key": "size",
+      "fields": [
+       "size"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [
+     {
+      "key": "size",
+      "fields": [
+       "size"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedream-5-5|apimart|seedream-5-5|layers->t2i",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedream-5-5|apimart|seedream-5-5|t2i->layers",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [
+     {
+      "key": "size",
+      "fields": [
+       "size"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [
+     {
+      "key": "size",
+      "fields": [
+       "size"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   }
+  },
+  {
    "id": "seedream-5-pro|apimart|doubao-seedream-5-0-pro|edit->t2i",
    "canvas": {
     "status": "sent",
@@ -4783,6 +4878,74 @@
    "run": {
     "status": "sent",
     "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedream-5-pro|fal|bytedance/seedream/v5/pro|edit->layers",
+   "canvas": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedream-5-pro|fal|bytedance/seedream/v5/pro|t2i->layers",
+   "canvas": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedream-5-pro|runway|seedream5_pro|edit->layers",
+   "canvas": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedream-5-pro|runway|seedream5_pro|t2i->layers",
+   "canvas": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_route_missing",
+    "statusWithParams": "refused:mode_route_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null

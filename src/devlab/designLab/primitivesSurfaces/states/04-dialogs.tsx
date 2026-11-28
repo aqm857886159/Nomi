@@ -271,7 +271,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-29-custom-dialog',
     name: 'custom · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/CustomCallEditor.tsx:784'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/CustomCallEditor.tsx:759'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="custom" />,
   },
   {

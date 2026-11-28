@@ -181,11 +181,12 @@ export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, 
 }
 
 /** 仅图标的工具栏按钮（方形）。 */
-export function ToolbarIconButton({ icon, disabled, title, ariaLabel, actionId, onClick, draggable, onDragStart }: Omit<ToolbarButtonProps, 'label' | 'accent'>): JSX.Element {
+export function ToolbarIconButton({ icon, disabled, title, ariaLabel, actionId, dataBoard, onClick, draggable, onDragStart }: Omit<ToolbarButtonProps, 'label' | 'accent'> & { dataBoard?: string }): JSX.Element {
   return (
     <button
       type="button"
       data-toolbar-action={actionId}
+      data-board={dataBoard}
       className={cn(toolbarButtonClass(false), 'w-8')}
       title={title}
       aria-label={ariaLabel}

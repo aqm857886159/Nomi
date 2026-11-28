@@ -35,6 +35,13 @@ export type ModelParameterControl = {
   step?: number;
   placeholder?: string;
   /**
+   * 数字参数的常用档（面板里摊成一排可点项，末尾一格「自定义」打开数字框，范围仍是 min–max）。只给 number 用；
+   * 没有 = 照旧按区间画滑杆 / 数字框。
+   */
+  presets?: number[];
+  /** 面板里这一项下面的一行小字（说明这个值的后果，如「是上限，可能拆得更少」）；界面按 modelDisplayText 翻译。 */
+  note?: string;
+  /**
    * 报文写法，只由声明门（paramValue.ts 的 normalizeDeclaredControls）写：供应商文档要字符串数字（`"5"`）的下拉，门里用数字档，
    * 出口（taskParams 的 encodeParamsForWire）按它编回字符串。没有 = 报文就是内部类型本身。档案里不手写。
    */
@@ -118,6 +125,12 @@ export type ArchetypeMode = {
    */
   combineSlotsInto?: { key: string; flat?: boolean; kinds?: ArchetypeReferenceSlotKind[] };
   fixedParams?: Record<string, string>;
+  /**
+   * 图层分离方式（一张图 → 底图 + 透明图层，结果落成画板里的一组层）。`maxLayers` 含底图。
+   * 有它的方式是**人选的任务**、不是图的摆法：按输入挑方式时绝不自动落到它，人手选了也不因多放一张图就被换走
+   * （modeForInputs）。名字与判据也在 modelArchetypes/modeForInputs.ts 的图层分离段。
+   */
+  layerSplit?: { maxLayers: number };
 };
 
 export type ModelArchetypeVariant = {

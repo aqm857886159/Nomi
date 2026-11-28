@@ -34,8 +34,10 @@ export function NodeGeneratingOverlay({ node, reportFeedback }: { reportFeedback
   // 不套生成等待层——它会连带把生成的状态语义一起带上来。
   if (node.meta?.uploadStatus === 'uploading') return <NodeImportingOverlay node={node} />
   if (sampleRowOwns || (!feedback?.active && !(waiting && completed))) return null
+  const archetypeMeta = (node.meta as Record<string, unknown> | undefined)?.archetype as { modeId?: unknown } | undefined
+  const boardAnchor = archetypeMeta?.modeId === 'layers' ? 'layers.running' : undefined
   return <div ref={viewport.ref} className="absolute inset-0 z-[3] pointer-events-none" data-generating-placement="surface">
-    <GenerationWaitingSurface audio={node.kind === 'audio'} previewUrl={previewUrl} previewLabel={feedback?.previewLabel ?? ''} percent={feedback?.percent} finalUrl={finalUrl} completed={completed} onComplete={finish} zoom={zoom} inViewport={viewport.visible} />
+    <GenerationWaitingSurface audio={node.kind === 'audio'} previewUrl={previewUrl} previewLabel={feedback?.previewLabel ?? ''} percent={feedback?.percent} finalUrl={finalUrl} completed={completed} onComplete={finish} zoom={zoom} inViewport={viewport.visible} boardAnchor={boardAnchor} />
     {feedback?.active && node.kind === 'video' && !previewUrl ? <GenerationTimingHint node={node} /> : null}
     {feedback?.active && canInterruptGenerationTask(node) ? <div className="absolute right-3 bottom-3"><GeneratingCancelButton onCancel={handleCancel} /></div> : null}
   </div>

@@ -43,7 +43,7 @@ export const STRUCTURE_STATES: readonly LabState[] = [
       'src/ui/app-shell/shell/ShellTopBar.tsx:340',
       'src/ui/app-shell/shell/ShellTopBar.tsx:369',
       'src/workbench/promptLibrary/PromptLibraryPanel.tsx:288',
-      'src/workbench/generationCanvas/nodes/render/CardCommon.tsx:379',
+      'src/workbench/generationCanvas/nodes/render/CardCommon.tsx:380',
     ],
     coverage: 'shell',
     // 字标中间的 m 永远 accent 色是品牌不变量（`NomiWordmark` 是它的唯一真相源）。

@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-agent-param-keys",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-11",
+  "problem_type": "Hand-copied strict boundary key table silently diverges from the shared type it validates",
+  "symptom": "Core Flow Smoke spend-confirm times out with 'Timed out waiting for generation draft request' (CI runs 45885580423 / 45885618959, local tests/ux/core-smoke-spend-confirm.walk.mjs on the PR build); the renderer logs agent_lane_execute_failed with 'Unrecognized key(s) in object: note' and the Agent sends no text request at all.",
+  "direct_cause": "PR #1703 added the optional keys presets and note to ModelParameterControl (electron/shared/videoCapabilities/types.ts) and used them in the Seedream 5.5 layer-split mode. Both projections copy mode.params as-is into AgentModelEntry, and agentModelEntrySchema validates params with .strict() against a key list written by hand, so parseLaneComposerContext rejects the whole turn input.",
+  "class_root": "The boundary key table was a hand-written copy of ModelParameterControl. z.ZodType<AgentModelEntry> only checks that the schema output fits the type, so a new optional key on the type compiles and is rejected at runtime, failing every Agent turn whose catalog contains a model that uses the key. 2026-11-14 (optionConstraints when.slotEmpty) was the previous instance of the same class.",
+  "migration": "No persisted data changes. The hand-written params object literal is replaced in the same commit by agentParamShape, bound to keyof ModelParameterControl with satisfies; no second copy remains. Agent list_models now also shows presets and note for the one model that declares them (Seedream 5.5 layer split; plain explanatory sentences, not i18n keys).",
+  "affected_population": [
+    "Every creator whose model catalog contains APIMart Seedream 5.5 (built-in seed): every canvas Agent turn is rejected before the first request",
+    "Any future archetype or ComfyUI-imported control that carries a key or mediaKind the hand-written table did not list"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/availableModelsSchema.ts",
+    "electron/shared/agentCapabilities/agentModelEntryBoundary.class.test.ts"
+  ],
+  "entry_points": [
+    "electron/agentLane/laneDesktopInput.ts parseLaneComposerContext: the per-turn composer context (availableModels) sent by the canvas Agent panel",
+    "electron/shared/agentCapabilities/verbs/readVerbs.ts list_models outputSchema: the model-detail modes reuse the entry schema"
+  ],
+  "internal_only_reason": "The invariant is between two of our own files (a TypeScript type and the zod table that validates it at our IPC boundary); no third-party behavior decides it. zod's strict() and satisfies behave as documented and are not the cause.",
+  "invariants": [
+    "The params key table at the Agent model-entry boundary has exactly the keys of ModelParameterControl; adding or removing a key on either side fails typecheck.",
+    "Every built-in archetype's every mode, projected by both real producers, passes both real boundaries.",
+    "Unknown keys are still rejected (the boundary stays strict)."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+    "tests": [
+      "electron/shared/agentCapabilities/agentModelEntryBoundary.class.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "agentModelEntrySchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+      "symbol": "agentParamShape"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/readVerbs.ts",
+      "symbol": "agentModelEntrySchema"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "agentParamShape is the one key table (before the fix the same place held the hand-written literal); laneDesktopInput validates the turn input coming from the renderer and readVerbs reuses the same shape as the list_models output contract. They are one table behind two necessary, different boundaries, so there is nothing to merge."
+  },
+  "generality_proof": "The key table is now typed against keyof ModelParameterControl, so the whole class (a new, renamed or removed control key) cannot compile without someone deciding the boundary shape; the class test walks every built-in archetype through both real producers and both real boundaries, so a value-level mismatch (like mediaKind audio) or a new archetype also fails CI by name.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+      "symbol": "agentParamShape",
+      "responsibility": "Own the one params key table for the Agent model-entry boundary, bound at compile time to ModelParameterControl and kept strict."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/availableModels.ts",
+      "entry_point": "buildAgentModelEntries",
+      "disposition": "enforced",
+      "evidence": "Projects mode.params as-is; agentModelEntryBoundary.class.test.ts feeds every seeded catalog row plus every built-in archetype through it and parses through agentModelEntrySchema and parseLaneComposerContext."
+    },
+    {
+      "path": "electron/catalog/agentModelEntriesFromCatalog.ts",
+      "entry_point": "agentModelEntriesFromCatalog",
+      "disposition": "enforced",
+      "evidence": "Projects mode.params as-is; the class test parses every entry of the seeded catalog and its list_models row and detail."
+    },
+    {
+      "path": "electron/providerAdapter/declarationCard.ts",
+      "entry_point": "declaration card params schema",
+      "disposition": "not-affected",
+      "evidence": "Validates what an Agent submits for relay onboarding; it is an input contract of its own, not a copy of ModelParameterControl, and archetype controls never flow into it."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new optional key or value on ModelParameterControl (archetype work lands weekly) reaches the strict table through the raw projections; it already happened with slotEmpty on 2026-11-14 and with presets / note here, and mediaKind audio (ComfyUI LoadAudio) was a latent third.",
+    "same_class_scan": [
+      "grep wireEncoding and placeholder inside zod definitions across electron, src and scripts: availableModelsSchema.ts is the only zod copy of the control key list",
+      "tmp probe: every built-in archetype (132) projected through agentModelEntrySchema before the fix: only seedream-5-5 mode layers rejected (presets, note)",
+      "type vs table diff: mediaKind allows audio in the type (ComfyUI LoadAudio, commit ac9c78b46) but the table only allowed image / video; fixed in the same table",
+      "node scripts/eng-metrics.mjs --candidates docs/fixes/2026-09-09-agent-lane-models-block.root-cause.json: no prior contract owns this key table"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+    "invariant": "agentParamShape satisfies Record<keyof ModelParameterControl, ZodTypeAny> and is used with strict().",
+    "failure_mode": "A key added to or removed from ModelParameterControl without the table fails typecheck (TS1360); dropping strict() fails the class test.",
+    "exception_policy": "none",
+    "strategy": "Replace the hand-copied object literal with a table the compiler checks against the type, and add a class test over every built-in archetype and both producers / boundaries.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/availableModelsSchema.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentCapabilities/agentModelEntryBoundary.class.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/agentCapabilities/agentModelEntryBoundary.class.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/agentCapabilities/availableModelsSchema.ts"
+    ],
+    "rationale": "The inline hand-written params object literal is deleted in the same commit; agentParamShape is the only table."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "zod and TypeScript satisfies work as documented; the gap was our duplicated key list.",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "Value-level ranges are still copied by hand (the enum for type, the literal for wireEncoding); only keys are compile-checked. The class test catches a mismatch only when a built-in archetype or seeded model actually uses the value.",
+    "list_models detail variants carry modelKey while readVerbs' detail variants table does not list it (pre-existing, outside this class: output schemas there serve provenance only, no runtime parse found); left for the Agent-channel owner.",
+    "Custom / relay-declared models with unusual control shapes are not in the seeded catalog, so the class test does not see them."
+  ]
+}

@@ -20,6 +20,7 @@ export async function launchNomiApp() {
   }
 }
 export function exitIfWalkSkipped(error) { throw error }
+export function cleanupTempRoot(root) { if (root) fs.rmSync(root, { recursive: true, force: true }) }
 
 const dir = process.env.NOMI_UI_DIR
 const jsonFiles = ['req.json', 'res.json', 'state.json']

@@ -21,6 +21,7 @@ import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
 import { firstString, trim, type JsonRecord } from "./jsonUtils";
 import { taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
+import { layersForLandedResult } from "./tasks/taskLayerReading";
 import { taskCache } from "./tasks/taskCache";
 import { tagNomiError } from "./shared/nomiErrorCodes";
 import { isTerminalTaskStatus, type TaskStatus } from "./shared/contracts/taskStatus";
@@ -105,25 +106,18 @@ export {
 } from "./catalog/catalogCommit";
 // 请求与工作缓存两份形状住在 ./taskTypes（R9：runtime.ts 是编排层）；re-export 保住既有 import 面。
 export type { CachedTask, TaskRequest } from "./taskTypes";
-import type { CachedTask, TaskRequest } from "./taskTypes";
+import type { CachedTask, TaskRequest, TaskResultAsset } from "./taskTypes";
 export type TaskResult = {
   id: string;
   kind: ProfileKind;
   status: TaskStatus;
-  assets: Array<import("./shared/canvas/canvasMediaPreview").TaskAssetPreviewFields & {
-    type: "image" | "video" | "audio" | "model3d";
-    url: string;
-    assetId?: string | null;
-    assetRefId?: string | null;
-    assetName?: string | null;
-    /** 原始 CDN URL（https://...）。供后续生成直接用，无需上传。可能过期，过期后退回本地字节。 */
-    providerUrl?: string | null;
-    durationSeconds?: number;
-    /** 落盘边界 ffprobe 出来的源像素尺寸；画布拿到它就不必解码原图才知道有多大。 */
-    width?: number;
-    height?: number;
-  }>;
+  assets: TaskResultAsset[];
   raw: unknown;
+  /**
+   * 这一笔是一组图层（图层分离）：与 assets 按下标平行，assets[i] 就是第 i 层的图。只由 tasks/taskLayerReading 按线缆声明读出；
+   * 没有 = 普通产物。
+   */
+  layers?: import("./tasks/taskLayerReading").TaskResultLayer[];
   /**
    * 文本任务的收尾原因（AI SDK 的 `finishReason`：`stop` / `length` / `content-filter`…）。
    * **截断这一类问题在下游只能靠它自证**——没有它，「模型答不出来」和「我们自己把它截断了」长得一模一样。
@@ -249,6 +243,7 @@ export async function buildProfileTaskResult(input: {
       ? localizeTaskAsset(input.projectId, url, type, input.nodeId, input.vendor, certification.evidence[index])
       : Promise.resolve(unlocalizedTaskAsset(type, url)) });
   const actualCost = extractProviderCostActual(input.vendor?.key || "", input.response);
+  const layers = status === "succeeded" ? layersForLandedResult(response, responseMapping, assetUrls.length, assets.length) : null;
   return {
     providerMeta,
     unrecognizedStatus,
@@ -259,6 +254,7 @@ export async function buildProfileTaskResult(input: {
       status,
       assets,
       raw: input.response,
+      ...(layers ? { layers } : {}),
       ...(status === "failed" ? { error: taskFailureMessageFromResponse(response, responseMapping) } : {}),
       ...(status === "succeeded" && input.vendor && input.model
         ? { provenance: buildTaskProvenance({ vendor: input.vendor, model: input.model, request: input.request, vendorRequestId: taskId, actualCost }) }

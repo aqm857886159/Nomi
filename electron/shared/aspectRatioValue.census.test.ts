@@ -58,14 +58,18 @@ describe("全目录普查（档案 × 变体 × 供应商分层 × 模式）", (
   // 2026-11-15 −1 个有比例控件（组合数不变）：可灵 3.0 的 APIMart 图生，比例跟首 / 尾帧走，档案不再声明。
   // （Veo 3.1 三个变体 × 参考图 / 首尾帧的比例照官方页露出并发出，不在这次减数里。）
   // 2026-11-26 +6 个组合：Seedance 2.5 样片档案的六个方式（由 2.5 推出），文生 / 全能参考 2 个有比例控件，另 4 个没有。
-  it("总数与「有比例控件」的数和验收线对得上：426 个组合，按共享判据 290 个有比例控件", () => {
-    expect(combos).toHaveLength(426);
+  // 2026-11-26 +4 个组合、都没有比例控件：Seedream 5.5 / 5.0 Pro 的「图层分离」方式（各 × 供应商分层）——分离时官方不收比例
+  // （发了回 400），拆出的层跟随输入图（设计卡 docs/plan/2026-11-26-layer-split.md ★6）。
+  it("总数与「有比例控件」的数和验收线对得上：430 个组合，按共享判据 290 个有比例控件", () => {
+    expect(combos).toHaveLength(430);
     expect(combos.filter((combo) => combo.controls.some((control) => optionsAreAspectRatios(control.options)))).toHaveLength(290);
   });
 
-  it("宿主翻译多认 13 个（Runway 上带「自动 + 分辨率档」的 Wan 3.0 / Seedream 5 Pro / Grok Imagine 图像），123 个没有比例选择，没有一个组合有两个比例控件", () => {
+  it("宿主翻译多认 13 个（Runway 上带「自动 + 分辨率档」的 Wan 3.0 / Seedream 5 Pro / Grok Imagine 图像），127 个没有比例选择，没有一个组合有两个比例控件", () => {
     const outcomes = combos.map((combo) => resolveAspectRatioChoice("16:9", combo.controls));
-    expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "no_ratio_control")).toHaveLength(123);
+    expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "no_ratio_control")).toHaveLength(127);
+    // 多出来的 4 个就是图层分离那几格（别的方式没变）。
+    expect(combos.filter((combo) => combo.id.includes("layers") && !combo.controls.some((control) => optionsAreAspectRatios(control.options)))).toHaveLength(4);
     expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "ambiguous")).toHaveLength(0);
   });
 

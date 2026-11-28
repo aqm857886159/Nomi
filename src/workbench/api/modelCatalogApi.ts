@@ -118,6 +118,9 @@ export type ModelCatalogModelDto = {
    * 目录没写就是 `undefined`：环画灰、不给百分比，**不编一个默认窗口**。
    */
   contextWindow?: number
+  customCall?: {
+    modes?: Readonly<Record<string, { readonly script?: string } | undefined>>
+  }
   pricing?: {
     cost: number
     enabled: boolean
