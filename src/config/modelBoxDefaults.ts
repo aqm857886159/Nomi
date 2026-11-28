@@ -20,6 +20,8 @@ import type { DedupedModel } from './modelIdentity'
 const DEFAULT_ORDER: readonly string[] = [
   // 视频
   'doubao-seedance-2.5',
+  // 样片模式紧跟 2.5（LibTV 同位置；协调 11-26 裁定 C-D5）。
+  'doubao-seedance-2.5-sample',
   'doubao-seedance-2.0#standard',
   'wan3.0-video',
   'kling-v4',

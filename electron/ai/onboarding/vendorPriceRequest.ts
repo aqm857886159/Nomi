@@ -32,6 +32,8 @@ export const PRICE_UNQUOTABLE_KEYS: Readonly<Record<string, string>> = {
   steps: 'flux-3-image-klein 的采样步数，计费页没核过',
   source_task_id: 'MiniMax-H3-Regeneration 的重生成来源任务，按来源任务计费，约价不会处理',
   background: '图片只有 auto 才不改价（priceQueryFromRequest 里单独放行），其余值会改价',
+  draft: '样片 / 出高清按父行约价（sampleBillingRequest 先换成父行的 480p / 1080p），直接带这个键的请求体不报价',
+  draft_task_id: '样片 / 出高清按父行约价（sampleBillingRequest 先换成父行的 480p / 1080p），直接带这个键的请求体不报价',
 }
 
 /** 约价怎么对待一个请求体的键。unclassified = 没人登记过，目录新加了键会落到这里。 */

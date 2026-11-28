@@ -49,6 +49,8 @@ import {
   type UnmetReferenceDependency,
 } from '../nodes/controls/referenceDependency'
 import { dispatchedAttempt, resolveTaskArchetype } from './catalogTaskResolve'
+import { failedSampleFinalOf, finalsMadeFrom, sampleByTaskId, sampleFinalExecutionNode, type SampleFinalRequest } from '../model/sampleFacts'
+import { sampleFinalCredits } from '../spend/useSendCost'
 import i18n from '../../../i18n'
 
 import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
@@ -102,6 +104,11 @@ export type RunGenerationNodeOptions = {
    * 输入齐不齐（`generationNodeInputsReady`）照判。缺省 = 照常预判（节点 ↑、框选生成）。
    */
   claimAdmittedByHost?: true
+  /**
+   * 出高清：从节点版本栈里这条样片出成片，只带样片号和目标清晰度。身份照样片那一行（不看节点现在选着谁），
+   * 不要上游输入、不带提示词和参考；运行记录记下样片号（attempt.draftTaskId）。缺省 = 普通发送。
+   */
+  sampleFinal?: SampleFinalRequest
 }
 
 type GenerationRunContext = {
@@ -122,13 +129,16 @@ export async function runGenerationNode(
   const initialState = await readRunGraph(target)
   const initialNode = initialState?.nodes.find((node) => node.id === id)
   if (!initialState || !initialNode) throw new Error('node not found')
+  const sample = options.sampleFinal ? sampleByTaskId(initialNode, options.sampleFinal.draftTaskId) : null
+  if (options.sampleFinal && !sample) throw new Error(i18n.t('generationCommon.sample.missing'))
   // 3D-BOX 预演闸（方案 §8）：要花钱的单镜 Run 路由主进程准入问它（appIntegrationCanvasShot）；不花钱的本地 / 文本路在这里问。
   const previewBlock = options.ledger === 'run' ? null : directorPreviewSpendBlock(id, initialState.nodes)
   if (previewBlock) {
     throw new Error(i18n.t(directorPreviewSpendBlockMessageKey(previewBlock)))
   }
   const runnable = options.claimAdmittedByHost ? generationNodeInputsReady : canRunGenerationNode
-  if (!runnable(initialNode, { nodes: initialState.nodes, edges: initialState.edges })) {
+  // 出高清不要上游输入（样片号带着样片的一切），上游图删了也照样能出。
+  if (!sample && !runnable(initialNode, { nodes: initialState.nodes, edges: initialState.edges })) {
     throw new Error(
       initialNode.kind === 'video'
         ? '视频节点缺少上游真实图片或视频资产 URL。请先生成或选择首帧/参考图后再生成视频。'
@@ -138,12 +148,13 @@ export async function runGenerationNode(
     )
   }
 
-  whenRunTargetLoaded(target, () => stampUpstreamRefSnapshot(id, { nodes: initialState.nodes, edges: initialState.edges }))
+  if (!sample) whenRunTargetLoaded(target, () => stampUpstreamRefSnapshot(id, { nodes: initialState.nodes, edges: initialState.edges }))
 
   // 队列登记：批量路径由 runGenerationNodesByPlan 预先整批登记（含后续波次），单发路径自建 1 节点批次。
   // markRunning 只把 queued 翻成 running（幂等），所以两条路都能安全调。
   const ownsBatch = !options.batchId
-  const batchId = options.batchId ?? beginSingletonBatch(id, target.projectId)
+  // 出高清只走单发（confirmAndRunNode 不传 batchId），自建批次那一行带上样片号：任务中心按它认出高清、重试只带样片号。
+  const batchId = options.batchId ?? beginSingletonBatch(id, target.projectId, sample?.draftTaskId)
   const queue = useGenerationQueueStore.getState()
   for (const entry of queue.entries) {
     if (entry.nodeId === id && entry.batchId !== batchId && entry.state === 'queued'
@@ -156,7 +167,9 @@ export async function runGenerationNode(
   // attempt = 这次发给哪家的哪个模型（提交那一刻从被执行的节点读出）：失败提示点名的是它，
   // 健康记账记到的也是它——不是「失败时节点碰巧选着谁」（运行期间用户可以换家）。
   // 花钱前的确认已冻结 (模型, 供应商)（captureApprovedGenerationInputs）。
-  const attempt = dispatchedAttempt(initialNode)
+  const attempt = sample
+    ? { vendorKey: sample.vendorKey, modelKey: sample.modelKey, draftTaskId: sample.draftTaskId }
+    : dispatchedAttempt(initialNode)
   const run = { id: options.runRecordId ?? createRunId(id), status: 'queued' as const, startedAt: now, updatedAt: now, projectId: target.projectId, ...(attempt ? { attempt } : {}) }
   let runFailure: unknown
   // 这次自己的结局（准入前只占显示、准入后按号收账）都经它投：runOwnOutcomes.ts。
@@ -177,20 +190,23 @@ export async function runGenerationNode(
     if (!state || !node) throw new Error('node not found')
     options.assertApprovedInputs?.(state, id, run.id)
     const nodeMeta = (node.meta || {}) as Record<string, unknown>
-    const dialogueArchetype = resolveTaskArchetype(nodeMeta)
+    // 出高清不带提示词：台词后缀、QA 后缀都不追加。
+    const dialogueArchetype = sample ? null : resolveTaskArchetype(nodeMeta)
     const dialogueMode = dialogueArchetype ? effectiveArchetypeMode(dialogueArchetype, node, state).mode : null
-    const dialoguePromptSuffix = buildDialoguePromptSuffix(dialogueMode, nodeMeta, nodeMeta.dialogue)
+    const dialoguePromptSuffix = sample ? '' : buildDialoguePromptSuffix(dialogueMode, nodeMeta, nodeMeta.dialogue)
+    const promptSuffix = sample ? '' : [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n')
     let mediaDimensions: MediaDimensions | undefined
     // Text generation consumes the content captured when this run started.
-    const executionNode = node.kind === 'text' ? { ...node, contentJson: initialNode.contentJson } : node
+    const executionNode = sample && options.sampleFinal
+      ? sampleFinalExecutionNode(node, sample, options.sampleFinal)
+      : node.kind === 'text' ? { ...node, contentJson: initialNode.contentJson } : node
     const results = await executor(executionNode, {
-      nodes: state.nodes,
-      edges: state.edges,
+      nodes: sample ? [executionNode] : state.nodes,
+      edges: sample ? [] : state.edges,
       projectTarget: target,
       ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id, ...(options.initiator === 'user' && options.resendDecisionId ? { resendDecisionId: options.resendDecisionId } : {}) } } : {}),
-      ...(options.promptSuffix || dialoguePromptSuffix
-        ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
-        : {}),
+      ...(promptSuffix ? { promptSuffix } : {}),
+      ...(sample && options.sampleFinal ? { sampleFinal: options.sampleFinal } : {}),
       // 主进程账本按本次运行号认领提交。
       idempotencyKey: run.id,
       // S2:catalog 任务各阶段回报 → 节点进度(人话已由 narrate 翻好)。
@@ -391,7 +407,19 @@ export async function runGenerationNodesBatch(
  * rerun=true 是「基于此生成变体」：先复制出新节点再跑；普通重新生成走 regenerateNodeInPlace。
  */
 const preparingSingleGeneration = new Map<string, symbol>()
-export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean; title?: string; confirmLabel?: string; prepareDependencies?: () => boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
+type SingleNodeRunOptions = {
+  rerun?: boolean
+  title?: string
+  confirmLabel?: string
+  prepareDependencies?: () => boolean
+  deferredMaterialization?: DeferredNodeMaterialization
+  /**
+   * 出高清（节点下方那一行的按钮）：从这条样片出成片，只带样片号和目标清晰度。第一次不问、按下就发（和单个生成一样）；
+   * 本节点版本栈里已有这条样片出的高清版 → 先弹「再发一次」卡（只换文案、主按钮印价），取消什么都不发。
+   */
+  sampleFinal?: SampleFinalRequest
+}
+export async function confirmAndRunNode(nodeId: string, opts: SingleNodeRunOptions & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
   if (preparingSingleGeneration.has(nodeId)) return 'nothing-to-run'
   const intent = Symbol()
   preparingSingleGeneration.set(nodeId, intent)
@@ -404,7 +432,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean;
   try { return await confirmAndRunSingleNode(nodeId, opts, ready) } finally { ready() }
 }
 
-async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; title?: string; confirmLabel?: string; prepareDependencies?: () => boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards, ready: (preparing?: boolean) => boolean): Promise<GenerationRunOutcome> {
+async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOptions & GenerationConfirmationGuards, ready: (preparing?: boolean) => boolean): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前（确认卡）换了项目 = 取消，没花钱；
   // 一旦提交，运行归原项目（target），之后切页/切项目都不取消它。
   const project = withProjectAction((issued) => issued)
@@ -414,18 +442,23 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     ? undefined
     : captureApprovedGenerationInputs([nodeId])
   const node = opts.deferredMaterialization?.draftNode ?? useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
-  const hasRun = !opts.rerun && generationNodeLedger(node)
   // 要不要问、放行哪几笔只由主进程定（canvasResendDecide）；这里只报「我想再发一次」和身份，照它的判定弹现成那张卡。
   const decideResend = (resend: boolean): Promise<CanvasResendDecision> => {
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
     const productionRunId = productionMetaOf({ meta: current?.meta })?.runId
     return canvasResendDecide({
       projectId, nodeId, resend, initiator: opts.initiator ?? '',
-      resultUnknown: Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate'),
+      // 出高清没成时节点照成功画、原因只在记录上（failedSampleFinalOf），也要按它判「结果不明」。
+      resultUnknown: (() => {
+        const failure = current?.error || failedSampleFinalOf(current?.runs)?.error
+        return Boolean(failure && classifyGenerationError(failure).primary === 'release-regenerate')
+      })(),
       ...(productionRunId ? { production: { runId: productionRunId } } : {}),
     })
   }
-  const first: CanvasResendDecision = hasRun || opts.resend ? await decideResend(Boolean(opts.resend)) : { action: 'send' }
+  // 高清原单是否可附着由 submit 按样片号决定。先按节点问 openRuns 会给同一笔在途单误弹重发卡。
+  const checkNodeResend = !opts.sampleFinal && (opts.resend || (!opts.rerun && generationNodeLedger(node)))
+  const first: CanvasResendDecision = checkNodeResend ? await decideResend(Boolean(opts.resend)) : { action: 'send' }
   if (first.action === 'refuse') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
   if (opts.prepareDependencies?.()) return 'nothing-to-run'
   let resendDecisionId: string | undefined
@@ -433,7 +466,15 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     synchronizeCanvasOpenRuns(decision.open)
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
-    const confirmed = await confirmGenerationResend({ resultUnknown: decision.resultUnknown, kind: current ? spendCostKind(current.kind) : 'image' })
+    const final = opts.sampleFinal
+    let secondSampleFinal: Parameters<typeof confirmGenerationResend>[0]['secondSampleFinal']
+    if (final && current && !decision.resultUnknown && !decision.open.length && finalsMadeFrom(current, final.draftTaskId).length) {
+      const sample = sampleByTaskId(current, final.draftTaskId)
+      const price = sample && await sampleFinalCredits(sample, final.resolution, i18n.language)
+      if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+      secondSampleFinal = { resolution: final.resolution, ...(price ? { credits: price.text, unit: price.unit } : {}) }
+    }
+    const confirmed = await confirmGenerationResend({ resultUnknown: decision.resultUnknown, kind: current ? spendCostKind(current.kind) : 'image', secondSampleFinal })
     if (!confirmed) return 'declined'
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     try {
@@ -480,7 +521,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
   }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(generationNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, resendDecisionId, target: project.binding })
+      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(opts.sampleFinal || generationNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, resendDecisionId, target: project.binding, ...(opts.sampleFinal ? { sampleFinal: opts.sampleFinal } : {}) })
       ready()
       const result = await work
       whenRunTargetLoaded(project.binding, () => {

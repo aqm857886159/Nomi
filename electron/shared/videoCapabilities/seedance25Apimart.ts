@@ -47,9 +47,20 @@ export const SEEDANCE_2_5_APIMART_ARCHETYPE: ModelArchetype = {
       vendorKey: "apimart",
       covers:
         "reference channels, first/last-frame roles, parameter ranges and task constraints; resolution 480p / 720p(default) / 1080p " +
-        "(4k and 2k return 400; draft / draft_task_id two-step flow not declared)",
+        "(4k and 2k return 400)",
+    },
+    {
+      url: "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+      checkedAt: "2026-11-26",
+      vendorKey: "apimart",
+      covers:
+        "draft two-step flow (sampleMode): draft:true makes a 480p draft valid for 3 days; draft_task_id makes the final video " +
+        "without resending inherited fields; drafts bill as normal 480p, finals bill at the requested resolution",
     },
   ],
+  // 样片两步流程：文档「draft: Set to true to generate a 480p draft ... Drafts are valid for 3 days」、
+  // 「draft_task_id: Generate a 1080p final video from a completed draft」。4k 成片要原样片的通道支持，查不到，先不放（能力表「待定」）。
+  sampleMode: { ttlHours: 72, draftResolution: "480p", finalResolutions: ["1080p"] },
   defaultModeId: "t2v",
   transportTaskKind: "text_to_video",
   identifierPatterns: ["doubao-seedance-2.5", "doubao-seedance-2-5"],

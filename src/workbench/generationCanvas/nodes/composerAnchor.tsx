@@ -2,6 +2,7 @@ import React, { type JSX } from 'react'
 import type { NodeComposerHost } from './NodeGenerationComposer'
 import { composerCanvasPlacement } from './composerCanvasPlacement'
 import { useCanvasLiveZoom } from '../reactFlow/canvasViewportScale'
+import { NodeBelowRowSpace } from './nodeOutsideRows'
 
 export type ComposerAnchorProps = Omit<React.HTMLAttributes<HTMLDivElement>, 'onPointerDown' | 'onWheel' | 'onClick'> & {
   /** 在普通内容流里（面板 / 列表详情宿主）：不是钉在画布节点下沿的定位锚。 */
@@ -36,5 +37,6 @@ export function ComposerAnchor({ inFlow, anchorRef, visualSize, placement, ...re
  */
 function CanvasComposerAnchor({ anchorRef, visualSize, style, placement = 'standard', ...rest }: Omit<ComposerAnchorProps, 'inFlow'>): JSX.Element {
   const canvasZoom = useCanvasLiveZoom()
-  return <div ref={anchorRef} {...rest} style={{ ...composerCanvasPlacement(visualSize, canvasZoom, placement), ...style }} />
+  const below = React.useContext(NodeBelowRowSpace)
+  return <div ref={anchorRef} {...rest} style={{ ...composerCanvasPlacement(visualSize, canvasZoom, placement, below), ...style }} />
 }

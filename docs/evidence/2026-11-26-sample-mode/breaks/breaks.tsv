@@ -1,0 +1,6 @@
+1	去掉样片行	src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx	红（站对）	sample	board:SampleMode/sample.below-row：样片出完节点下方出这一行
+2	出高清带上 prompt	electron/catalog/apimartVideos.ts	红（站对）	hd	出高清请求体键集合：{"model":"seedance-2.5","prompt":"","draft_task_id":"mcp-l2-1","resolution":"1080p"}
+3	不检查第二次出高清	src/workbench/generationCanvas/runner/generationRunController.ts	红（站对）	second	board:SampleMode/sample.confirm-second-hd：第二次先弹确认
+4	普通 2.5 也算样片	src/workbench/generationCanvas/model/sampleFacts.ts	红（站对）	plain	board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行（基线已证：样片节点下方那一行在（探针认得出这一行））
+5	约价印 0	src/workbench/generationCanvas/spend/useSendCost.ts	红（站对）	sample	board:SampleMode/sample.send-price：算不出价不印数（基线已证：生成框里的发送键在（约价记号挂在它这一处））
+6	遮罩不认 draftTaskId	src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx	红（站对）	hd	board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住（基线已证：这张节点上样片的等待面在）

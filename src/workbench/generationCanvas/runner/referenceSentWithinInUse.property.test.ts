@@ -244,7 +244,8 @@ function declaredScalarKeys(): Set<string> {
   // resolveWireModel 在 taskTemplateParams 最后一步写入，是标量；不带身份的探针拿不到这个键，会把它错归成参考键。
   const keys = new Set<string>(Object.keys(taskTemplateParams({ extras: {} }, { vendorKey: 'census', modelKey: 'census' })))
   for (const archetype of MODEL_ARCHETYPES) {
-    for (const mode of archetype.modes) {
+    // 样片档案的「出高清」方式不进方式菜单（不在 modes 里），它的参数（样片任务号、成片清晰度）同样是档案声明过的标量。
+    for (const mode of [...archetype.modes, ...(archetype.sampleOf ? [archetype.sampleOf.final] : [])]) {
       for (const param of mode.params ?? []) keys.add(param.key)
       for (const params of Object.values(mode.vendorParams ?? {})) for (const param of params) keys.add(param.key)
       for (const key of Object.keys(mode.fixedParams ?? {})) keys.add(key)

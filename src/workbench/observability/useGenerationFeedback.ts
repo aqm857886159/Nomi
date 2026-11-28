@@ -42,6 +42,15 @@ export function useGenerationFeedbackClock(active = true): number {
   return useSyncExternalStore(active ? subscribe : inactiveSubscribe, snapshot, snapshot)
 }
 
+/**
+ * 同一格时钟算出来的一个值：每秒算一次，只在值变了才重渲（例：样片「剩 N 天」一天才变一次，
+ * 画布上几十个样片不该每秒各重渲一遍）。`read` 必须只依赖传进来的时刻，返回可按 `Object.is` 比较的值。
+ */
+export function useGenerationFeedbackClockValue<T extends string | number | boolean | null>(read: (now: number) => T, active = true): T {
+  const value = () => read(now)
+  return useSyncExternalStore(active ? subscribe : inactiveSubscribe, value, value)
+}
+
 /** Both the shot and its prerequisite keyframe may own the current operation. */
 export function selectGenerationFeedbackNode(node: GenerationCanvasNode | null | undefined, keyframeNode: GenerationCanvasNode | null | undefined, entries: readonly GenerationQueueEntry[]) {
   const candidates = [node, keyframeNode].filter((candidate): candidate is GenerationCanvasNode => Boolean(candidate))

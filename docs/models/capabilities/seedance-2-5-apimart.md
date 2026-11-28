@@ -35,6 +35,7 @@
 | model | `Fixed value: seedance-2.5` | 不露出 | `reason:管道` |
 | 时长 -1（模型自选，按 30 秒预扣） | `-1: model picks duration (pre-charge at the 30s cap; settle to actual length after completion)` | 待定 | `pending:数字控件没有「自动」这一档，需要新的控件形状；其余方式不受影响` |
 | 联网搜索 tools: web_search | `tools: Tool list for enhancements such as web search. "tools": [{"type": "web_search"}]` | 待定 | `pending:要把布尔开关翻成 tools 数组，参数翻译器只收字符串 / 数字、只产标量，需要先扩翻译器` |
-| 样片模式 draft | `draft: Set to true to generate a 480p draft ... Drafts are valid for 3 days` | 待定 | `pending:两步流程（样片任务号回传、再发 1080p 成片），超出单次请求形状，需要新的任务流程` |
-| 样片转成片 draft_task_id | `draft_task_id: Generate a 1080p final video from a completed draft.` | 待定 | `pending:同上，属于样片的第二步` |
+| 样片模式 draft | `Set to true to generate a 480p draft. Only seedance-2.5 supports this option.` / `Drafts are valid for 3 days from creation and can produce a 1080p / 4k final video after successful completion` | 露出 | `sample:draft=480p` `sample:ttl=72`（目录独立一行「Seedance 2.5（样片模式）」，档案由本档案推出、清晰度只剩 480p，见 seedance25ApimartSample.ts；2026-11-26 取） |
+| 样片转成片 draft_task_id | `Generate a 1080p / 4k final video from a completed draft.` / `do not resend inherited fields such as prompt, reference media, or duration` | 露出 | `sample:final=1080p`（节点下方「出高清」，请求只带 model / draft_task_id / resolution） |
+| 样片成片 4k | `Rendering a 4K final video requires the original draft's channel to support 4K.` / `Otherwise submission returns HTTP 400 without creating a task or charging.` | 待定 | `pending:要原样片的通道支持 4K，我们查不到样片走的是哪条通道；先只给 1080p，成片清晰度在档案里是列表，确认后加一档` |
 | 私有素材库 asset:// | `Reference approved assets with asset:// in image_urls / image_with_roles / video_urls / audio_urls` | 不露出 | `reason:现在做不到` `condition:账号要先通过平台的素材上传与审核流程，拿到可引用的素材库条目；有了这个入口才能露出一个「选素材库素材」的槽` |

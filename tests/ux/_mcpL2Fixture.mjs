@@ -28,12 +28,43 @@ function mediaFixture() {
   return { image, video: fs.readFileSync(videoPath), poster, referencePath, root }
 }
 
-export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0, failTasks = 0 } = {}) {
+// APIMart Seedance 2.5 的两步（docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation，2026-11-26 取），替身照官方规则回：
+//   · `draft: true` 只收 480p（「resolution must be 480p … any other resolution, including 4k, returns HTTP 400」）；
+//   · `draft_task_id` 只收 model / draft_task_id / resolution（「do not resend inherited fields」「even identical values return 400」），
+//     不能和 draft: true 同发；样片号必须是本替身出过、没过期的样片（「an expired draft returns 400 … without creating a task」）；
+//     成片清晰度 1080p / 4k，不写按 1080p。一个样片可以出多次成片，每次是独立任务。
+// 400 不建任务——和官方「不建任务、不扣费」一致。`expiredDrafts`：把这些样片号当成已过期（走查不用真等 3 天）。
+const SAMPLE_FINAL_KEYS = new Set(['model', 'draft_task_id', 'resolution'])
+function draftRuleViolation(parsed, tasks, expiredDrafts) {
+  if (!parsed || typeof parsed !== 'object') return null
+  if (parsed.draft_task_id !== undefined) {
+    if (parsed.draft === true) return 'draft_task_id cannot be combined with draft: true'
+    const inherited = Object.keys(parsed).filter((key) => !SAMPLE_FINAL_KEYS.has(key))
+    if (inherited.length) return `do not resend inherited fields: ${inherited.sort().join(', ')}`
+    const draft = tasks.get(String(parsed.draft_task_id))
+    if (!draft?.draft) return `draft task not found: ${parsed.draft_task_id}`
+    if (expiredDrafts.has(String(parsed.draft_task_id))) return `draft expired: ${parsed.draft_task_id}`
+    if (parsed.resolution !== undefined && !['1080p', '4k'].includes(parsed.resolution)) return `draft_task_id supports 1080p / 4k, got ${parsed.resolution}`
+    return null
+  }
+  if (parsed.draft === true && parsed.resolution !== undefined && parsed.resolution !== '480p') return `draft: true requires resolution 480p, got ${parsed.resolution}`
+  return null
+}
+
+function parseJsonBody(body) {
+  try { return JSON.parse(body) } catch { return null }
+}
+
+export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0, failTasks = 0, expiredDrafts = [] } = {}) {
+  const expired = new Set(expiredDrafts.map(String))
+  let holdProcessing = false
   let dropsLeft = dropSubmits
   let failsLeft = failTasks
   const media = mediaFixture()
   const tasks = new Map()
   const hits = []
+  /** 真建成的任务（被 400 拒掉的不算）：任务号 + 请求体，按建的先后。 */
+  const created = []
   let sequence = 0
   const socketEvents = []
   const server = http.createServer((req, res) => {
@@ -66,19 +97,23 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
         req.socket.destroy()
         return
       }
+      const parsedBody = create ? parseJsonBody(body) : null
+      const violation = create ? draftRuleViolation(parsedBody, tasks, expired) : null
+      if (violation) { json({ code: 400, error: { message: violation, type: 'invalid_request_error' } }, 400); return }
       if (create) {
         const taskId = `mcp-l2-${++sequence}`
         // 前 failTasks 个建好的任务：查询时报供应商一侧的普通失败（可重试），用来和「结果未知」并排。
         const failed = failsLeft > 0
         if (failed) failsLeft -= 1
-        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body, failed })
+        tasks.set(taskId, { kind: create[1] === 'videos' ? 'video' : 'image', remaining: pendingPolls, body, failed, draft: parsedBody?.draft === true })
+        created.push({ taskId, url: req.url, body: parsedBody })
         json({ code: 200, data: [{ status: 'submitted', task_id: taskId }] }); return
       }
       const query = /^\/v1\/tasks\/([^/]+)$/.exec(req.url || '')
       if (query) {
         const task = tasks.get(query[1])
         if (!task) { json({ code: 404, data: { status: 'failed', error: { message: 'unknown task' } } }, 404); return }
-        if (task.remaining > 0) { task.remaining -= 1; json({ code: 200, data: { id: query[1], status: 'processing' } }); return }
+        if (holdProcessing || task.remaining > 0) { task.remaining = Math.max(0, task.remaining - 1); json({ code: 200, data: { id: query[1], status: 'processing' } }); return }
         if (task.failed) { json({ code: 200, data: { id: query[1], status: 'failed', error: { message: 'generation failed upstream' } } }); return }
         const entry = task.kind === 'video'
           ? { id: query[1], url: [`${origin}/fixture/video.mp4`], thumbnail_url: `${origin}/fixture/poster.png`, filename: 'fixture.mp4' }
@@ -106,7 +141,11 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
   return {
     origin,
     hits,
+    created,
     socketEvents,
+    /** 走查中途把某个样片号标成已过期（官方 3 天有效期，走查不真等）。 */
+    expireDraft: (taskId) => { expired.add(String(taskId)) },
+    setProcessingHold: (held) => { holdProcessing = held },
     /** Node 默认 5s 就把闲置的 keep-alive 连接关掉；把它记下来，好判断空窗期是不是跨过了它。 */
     keepAliveTimeoutMs: server.keepAliveTimeout,
     referencePath: media.referencePath,

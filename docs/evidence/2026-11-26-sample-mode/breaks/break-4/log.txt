@@ -1,0 +1,16 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ zh-CN/light menu
+✓ zh-CN/light sample
+✓ zh-CN/light hd
+  [量] 二次出高清标题：{"scrollWidth":281,"clientWidth":281,"dialogWidth":380,"text":"这条样片已经出过 1080p 高清版"} → 放得下
+✓ zh-CN/light second
+✗ zh-CN/light plain
+board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行（基线已证：样片节点下方那一行在（探针认得出这一行））
+
+expect(locator).toHaveCount(expected) failed
+
+Locator:  locator('.react-flow__node[data-id="gen-v2-video-mwxxye5z-fpsa"]').first().locator('[data-sample-row]')
+Expected: 0
+Received: 1
+Timeout:  15000ms
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks-46/break-4

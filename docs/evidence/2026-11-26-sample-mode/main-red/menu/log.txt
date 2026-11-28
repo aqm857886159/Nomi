@@ -1,0 +1,11 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✗ zh-CN/light menu
+board:SampleMode/sample.picker-row：「Seedance 2.5」下一行不是「Seedance 2.5（样片模式）」（是「Seedance 2.0」）
++ actual - expected
+
++ 'Seedance 2.0'
+- 'Seedance 2.5（样片模式）'
+              ^
+
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/main-red/menu
+exit 1

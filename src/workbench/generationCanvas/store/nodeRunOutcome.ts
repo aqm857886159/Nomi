@@ -13,6 +13,7 @@ import { createProgress, getResultTaskKind, mergeRunRecord, type NodeProgressInp
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { appendNodeResultVersion } from '../model/nodeResultLifecycle'
 import { isProductionRunRecord } from '../../../../electron/shared/productionShotPhase'
+import { failedSampleFinalOf } from '../model/sampleFacts'
 
 export type NodeRunOutcome = (
   | Readonly<{ kind: 'result'; result: GenerationNodeResult; mediaDimensions?: MediaDimensions }>
@@ -85,6 +86,8 @@ export function projectNodeDisplay(node: Pick<GenerationCanvasNode, 'status' | '
   const latest = runs[0]
   if (!latest) return { status: node.result ? 'success' : 'idle', error: undefined, progress: undefined }
   if (latest.status === 'success') return { status: 'success', error: undefined, progress: undefined }
+  // 出高清没成不是这一镜失败：样片还在，节点照成功画；原因只挂在记录上，由节点下方那一行说（failedSampleFinalOf）。
+  if (latest.status === 'error' && node.result && failedSampleFinalOf(runs)) return { status: 'success', error: undefined, progress: undefined }
   if (latest.status === 'error') return { status: 'error', error: latest.error || describeOpaqueFailure(null), progress: undefined }
   if (latest.status === 'recoverable') return { status: 'recoverable', error: latest.error || undefined, progress: undefined }
   return { status: 'idle', error: undefined, progress: undefined }

@@ -63,6 +63,7 @@ import { collectLocalAssetUrls } from './referenceUrl'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
 import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchetypes/referenceKeys'
 import { effectiveModeParams } from '../../../../electron/shared/modelArchetypes/modeParams'
+import { SAMPLE_FINAL_MODE_ID } from '../../../../electron/shared/videoCapabilities/sampleMode'
 import { isTerminalTaskStatus } from '../../../../electron/shared/taskStatus'
 
 // 重导出：实现已拆到 catalogTaskResolve（节点→vendor/model/kind 选择）与
@@ -307,10 +308,49 @@ function buildReferenceExtras(
   return exactComfyParameters ? { ...derived, ...parameterInputs } : { ...parameterInputs, ...derived }
 }
 
+/**
+ * 出高清那一次的请求（样片两步的第二步）：只带样片号和目标清晰度，提示词为空、参考一律不带——
+ * 供应商要求「不重发继承字段」，样片的提示词、参考、时长都由样片号带过去。身份读被执行的节点
+ * （控制器已把它换成样片那一行，见 sampleFinalExecutionNode），方式是档案的出高清方式，任务种类照那个方式。
+ */
+function buildSampleFinalRequest(
+  node: GenerationCanvasNode,
+  sampleFinal: NonNullable<CatalogTaskActionOptions['sampleFinal']>,
+): { vendor: string; request: TaskRequestDto } {
+  const vendor = selectedVendor(node)
+  const modelKey = selectedModelKey(node)
+  const archetype = resolveTaskArchetype(parameterContractRequestMeta(node.meta || {}))
+  const final = archetype?.sampleOf?.final
+  if (!vendor || !modelKey || !archetype || !final) throw new Error('这条样片的模型认不出来了，出不了高清。')
+  const selection = { archetype, modeId: final.id }
+  const stored = { draft_task_id: sampleFinal.draftTaskId, resolution: sampleFinal.resolution }
+  const params = fixDropdownsBeforeSend(selection, effectiveModeParams({ ...selection, stored }).params)
+  return {
+    vendor,
+    request: {
+      kind: (final.transportTaskKind ?? 'text_to_video') as TaskKind,
+      prompt: '',
+      extras: {
+        ...params,
+        archetype: { id: archetype.id, modeId: final.id },
+        modelKey,
+        modelAlias: modelKey,
+        modelVendor: vendor,
+        vendor,
+        nodeId: node.id,
+        nodeKind: node.kind,
+      },
+    },
+  }
+}
+
 export function buildCatalogTaskRequest(
   node: GenerationCanvasNode,
   options: CatalogTaskActionOptions = {},
 ): { vendor: string; request: TaskRequestDto } {
+  if (options.sampleFinal) return buildSampleFinalRequest(node, options.sampleFinal)
+  // 出高清方式只从「出高清」那一下进来（带样片号、过第二次确认）；节点上万一留着这个方式，普通发送一律不发。
+  if ((node.meta?.archetype as { modeId?: unknown } | undefined)?.modeId === SAMPLE_FINAL_MODE_ID) throw new Error('sample_final_needs_draft')
   const vendor = selectedVendor(node)
   if (!vendor) throw new Error('请先在模型管理里选择一个可用模型')
   const modelKey = selectedModelKey(node)

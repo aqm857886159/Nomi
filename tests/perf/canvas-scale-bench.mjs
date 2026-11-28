@@ -353,6 +353,9 @@ async function zoomToWorkingScale(page, target = 0.95) {
     await sleep(page, 60)
   }
   await sleep(page, 500)
+  // 适应视图是点缩放簇那颗钮做的，焦点还停在钮上：接下来的空格（平移手势）松开时会按一下它、又适应视图一次，
+  // 量完读回的缩放就成了适应视图那档（实测 0.543 量完读回 0.2）。滚轮不挪焦点，所以放大完让焦点离开那颗钮。
+  await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur() })
   return readViewport(page)
 }
 
@@ -885,6 +888,13 @@ async function main() {
               const working = await zoomToWorkingScale(page, gestureZoom ?? undefined)
               console.log(`    · 工作缩放：zoom=${working.zoom} mounted=${working.mountedNodes}`)
             }
+          }
+          // 带样片的档（V200S50）：量之前节点下方那一行真画出来了（只有整卡画这一行，远看的轻量卡没有，所以在放大之后查），
+          // 免得夹具形状变了、或缩放没到整卡线，量的其实是普通视频画布（防空断言）。至少 5 行：样片挤在一处、视口里只画出一两行也不算。
+          if (ALL_SCALES[scale]?.sampleCount) {
+            await page.waitForFunction(() => document.querySelectorAll('[data-sample-row]').length >= 5, undefined, { timeout: 15_000 })
+              .catch(async () => { throw new Error(`${scale}：画布上只画出 ${await page.evaluate(() => document.querySelectorAll('[data-sample-row]').length)} 行「样片 · 剩 N 天」（要 ≥ 5）——夹具的样片来历没被认出来、样片没撒开、或缩放没到整卡线（要带 --gesture-zoom），量的不是样片画布`) })
+            console.log(`    · 样片行 ${await page.evaluate(() => document.querySelectorAll('[data-sample-row]').length)} 行在 DOM 里`)
           }
           await page.evaluate(PROBE_SOURCE)
           const wantProfile = withProfile && runIndex === warmup

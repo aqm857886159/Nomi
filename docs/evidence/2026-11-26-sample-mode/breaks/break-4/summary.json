@@ -1,0 +1,36 @@
+{
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks-46/break-4",
+  "stations": [
+    {
+      "run": "zh-CN-light",
+      "station": "menu",
+      "ok": true,
+      "ms": 907
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "sample",
+      "ok": true,
+      "ms": 17719
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "hd",
+      "ok": true,
+      "ms": 13404
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "second",
+      "ok": true,
+      "ms": 14732
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "plain",
+      "ok": false,
+      "ms": 26603,
+      "error": "board:SampleMode/sample.plain-480p：普通 2.5 选 480p 没有样片行（基线已证：样片节点下方那一行在（探针认得出这一行））\n\nexpect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.react-flow__node[data-id=\"gen-v2-video-mwxxye5z-fpsa\"]').first().locator('[data-sample-row]')\nExpected: 0"
+    }
+  ]
+}

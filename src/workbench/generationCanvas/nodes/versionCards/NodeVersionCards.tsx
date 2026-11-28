@@ -26,6 +26,8 @@ export type VersionCardEntry = Readonly<{
   previewUrl: CanvasImageSource | ''
   /** 原始地址（视频卡悬停播放、Alt 拖出复制用）。 */
   url?: string
+  /** 这一版是从样片出的高清版：卡上叫「高清版」（板 sample.version-hd），不叫「第 N 版」。 */
+  sampleFinal?: true
 }>
 
 /** 按下到松开移动超过这么多屏幕像素，就是一次拖动（拖整组）而不是点卡预览。 */
@@ -366,7 +368,7 @@ export function NodeVersionGrid({
                   ? <VersionVideoMedia entry={entry} active={hovered} />
                   : entry.previewUrl ? <DeferredNodeImage src={entry.previewUrl} alt="" draggable={false} className="h-full w-full object-contain" /> : null}
                 <span className={cn('absolute rounded-pill bg-nomi-overlay-chip px-1.5 py-0.5 text-micro font-semibold tabular-nums text-nomi-media-ink', entry.type === 'video' ? 'right-1.5 top-1.5' : 'bottom-1.5 left-1.5')} data-version-card-number>
-                  {node.width < 200 ? t('generationCommon.versionCards.versionTiny', { n: entry.versionNo }) : t('generationCommon.versionCards.versionShort', { n: entry.versionNo })}
+                  {node.width < 200 ? t('generationCommon.versionCards.versionTiny', { n: entry.versionNo }) : entry.sampleFinal ? t('generationCommon.sample.finalLabel') : t('generationCommon.versionCards.versionShort', { n: entry.versionNo })}
                 </span>
                 {primary ? (
                   <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-pill bg-nomi-accent px-1.5 py-0.5 text-micro font-semibold text-nomi-paper" data-version-card-primary>

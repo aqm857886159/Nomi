@@ -1,0 +1,919 @@
+{
+  "$comment": "出表线 M-SDSE-map 草稿（11-26）由实现线 I-SD-sample-mode 入库：板源五张（LibTV 对照板不入库，只记指纹）在 source/，preview/SampleMode.html 是五张拼成的一页、供 board-extract 抽候选。同类产品截图不进仓库，只记文件名与 sha256。协调裁定 C-D1～C-D11 见 decisions；实现线只把元素标到 in-progress，implemented 由独立验收线翻。",
+  "board": "SampleMode",
+  "stage": "explored",
+  "exploration": {
+    "canvas": "https://claude.ai/artifact/8whUqf2fPJsSNQQ1gr3x7F",
+    "note": "第 12 版。本地源与发布版逐文件 sha256 全部核过（六张板 + canvas.json）。用户 11-26 拍板；决策 D-1126-sdse-libtv。"
+  },
+  "approvedOn": "2026-11-26",
+  "approval": {
+    "date": "2026-11-26",
+    "quote": "用户 11-26「两个设计有没有去看LibTV上的相关的设计啊？你看一下，然后微调一下，然后就去做就好了。」「重点是参考它的交互呀、设计呀、名称呀、Icon呀什么的。那么具体的这些逻辑还要基于我们的中转站去做。」",
+    "source": "D-1126-sdse-libtv",
+    "canvas": "https://claude.ai/artifact/8whUqf2fPJsSNQQ1gr3x7F"
+  },
+  "supersedes": [
+    {
+      "board": "docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json",
+      "element": "picker.draft-row",
+      "was": "草稿档单独一行（如 Seedance 2.5 草稿：480p、便宜、可转正）",
+      "now": "sample.picker-row：「Seedance 2.5（样片模式）」；「草稿」「正片」「升正片」三词都不再用",
+      "reason": "用户 11-26 拍板照 LibTV 命名；ModelSurfaces Q9（样片单独一行、不把普通 480p 变成样片）仍算数"
+    }
+  ],
+  "artboards": [
+    "Main",
+    "Menu1440",
+    "Dark1440En",
+    "Confirm",
+    "States"
+  ],
+  "priorArt": [
+    {
+      "kind": "same-surface",
+      "product": "LibTV",
+      "screenshotSha256": "43afe601694e25d2e0cde2c23cd1383a168e8e54a9dd7ed6bbfb2d70d3b94bb4",
+      "seenOn": "2026-11-26",
+      "files": [
+        {
+          "name": "sd-1-model-menu.png",
+          "sha256": "43afe601694e25d2e0cde2c23cd1383a168e8e54a9dd7ed6bbfb2d70d3b94bb4"
+        },
+        {
+          "name": "sd-2-composer.png",
+          "sha256": "2fea60518dee61b34eb59e8af5ccd6d841772d1f023352a5d319bca6651b2456"
+        },
+        {
+          "name": "libtv-seedance-25-flash.png（伙伴 11-24）",
+          "sha256": "ebb12f829cab0134cc12c4cc98b3ecae4d4a5ae5d96965eda8109c334545acea"
+        }
+      ],
+      "differences": [
+        {
+          "what": "LibTV 选中后底栏缩写「SD2.5(样片)」",
+          "why": "一个东西一个名字：我们生成框模型格写全名，挤了按让位规则退"
+        },
+        {
+          "what": "LibTV 菜单右侧有耗时列（1min / 2min）",
+          "why": "今天的模型菜单没有耗时列，不加"
+        },
+        {
+          "what": "LibTV 说明「480P 低成本试片，满意后直出高清版本」",
+          "why": "用我们菜单的行式：「480p 低成本试片 · 满意后出 1080p · 最长 30 秒」"
+        },
+        {
+          "what": "LibTV 样片出来后怎么出高清、出完什么样：没看到（要花积分）",
+          "why": "按 APIMart 文档：draft_task_id 出 1080p，写进本节点版本栈"
+        }
+      ]
+    },
+    {
+      "url": "https://docs.tapnow.ai/en/docs/canvas/generate-and-edit-video",
+      "takeaway": "TapNow Draft mode：先出 480p 草稿，满意点 Generate Final Video 出 1080p，草稿保留（伙伴 11-24，截图 sha256 407663b9…42146）",
+      "decisionImpact": "确认了：出高清保留样片；改了：不另建节点，写进本节点版本栈"
+    },
+    {
+      "url": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation.md",
+      "localCopy": "tests/fixtures/vendor-official/apimart/doubao-seedance-2.5.json",
+      "takeaway": "draft:true 出 480p，样片号 3 天有效；draft_task_id 出 1080p，两步各自计费，同一样片号再发一次再扣一次",
+      "decisionImpact": "确认了：有效期按档案读、<2 小时提醒色、过期给重拍、第二次出高清先问"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "C-D1",
+      "text": "别家模型照今天真窗口用品牌图标；板上字母方块只是占位",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D2",
+      "text": "版本栈不设上限，照今天的做法",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D3",
+      "text": "有效期文字：≥24 小时「剩 N 天」向下取整；1–24 小时「剩 N 小时」向下取整；<1 小时「剩 N 分钟」向上取整不出 0；<2 小时提醒色；到期「已过期」；英文 N d / N h / N min left、Expired",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D4",
+      "text": "样片规格写在档案上（有效期小时数、可出清晰度）；APIMart Seedance 2.5 = 72 小时、1080p；读不到就不显示剩余时间",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D5",
+      "text": "目录里独立一行，紧跟 Seedance 2.5；分镜菜单也有；出高清只在画布节点下方；成片只做 1080p；确认框正文不写价格数字、不写积分",
+      "source": "协调裁定 11-26（含补裁）"
+    },
+    {
+      "id": "C-D6",
+      "text": "「再出高清 · 价」可以；「高清生成中」是状态文字",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D7",
+      "text": "板上没画的三处状态用今天节点通用的状态显示，本板不认领（见 unclaimed）",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D8",
+      "text": "这一行在节点框正下方；列表详情显示同一行；远景轻量节点不显示",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D9/C-D10",
+      "text": "英文、暗色与全部状态格用实现截图对板（实现线补拍真窗口）",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "C-D11",
+      "text": "第二次出高清复用 confirmGenerationResend，只换文案和主按钮",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "D-1126-1665-type-scale",
+      "text": "板上字号对到字阶 11/12/13/14/16/20/24/28（取最近、等距取小）：11 → micro（菜单说明行、版本角标、参数面板组名）；12 → caption（有效期小标、出高清 / 重拍钮、高清生成中、没成那一行、悬停）；13 → body-sm（模型格、发送键价、确认框正文与按钮）；16 → title（确认框标题）。板上字号全在字阶上，没有取近的；走查按 token 断言计算后的字号",
+      "source": "协调 Msg3（D-1126-1665-type-scale）"
+    },
+    {
+      "id": "D-1126-sd-hd-failure-copy",
+      "text": "出高清没成：失败目录原因 +「样片还在。」/「Your draft is kept.」，不写「没扣费」",
+      "source": "协调裁定 11-26；用户 10-02 / 11-15"
+    },
+    {
+      "id": "D-1126-sd-hd-retry-route",
+      "text": "出高清没成节点照成功画；批量「全部重试」按记录种类分路，出高清那几行只用样片号重发高清；样片过期或不在了就照实说没成，不兜底",
+      "source": "协调裁定 11-26"
+    },
+    {
+      "id": "D-1126-sd-cost-unit",
+      "text": "合入 main 后发送键约价多了显示单位（积分 / 人民币 / 美元）。出高清钮、重拍钮和第二次出高清确认框主钮的价跟发送键同一个单位：积分带硬币，人民币 / 美元只写 ≈ 数、不带硬币。板上只画了积分",
+      "source": "实现线 11-26 按「同一个价同一个写法」定，已报协调"
+    }
+  ],
+  "boundarySheet": [
+    {
+      "where": "生成框模型格",
+      "max": "「Seedance 2.5（样片模式）」/「Seedance 2.5 (Draft mode)」，生成框定宽 600",
+      "source": "NODE_COMPOSER_WIDTH=600（nodeSizing.ts:92）",
+      "layout": "方式格退成图标、摘要退成「5s」，模型名最后让",
+      "board": "SampleMode",
+      "element": "sample.composer-yield"
+    },
+    {
+      "where": "节点下方一行",
+      "max": "中文约 247 宽、英文约 266 宽（「Draft · 48 min left」+「Make HD」）",
+      "source": "画稿字体量；实现后在真窗口量（走查 sample-mode.walk.mjs 记真宽）",
+      "layout": "窄节点（竖版 260 / 最小 240）折两行、按钮靠右，不截断",
+      "board": "SampleMode",
+      "element": "sample.below-row"
+    },
+    {
+      "where": "镜头名（标签行）",
+      "max": "28 字",
+      "source": "States ⑩",
+      "layout": "标签行截断；下方这一行不截断",
+      "board": "SampleMode",
+      "element": "sample.below-row"
+    },
+    {
+      "where": "有效期",
+      "max": "APIMart 72 小时「剩 2 天」/ 别家 24 小时「剩 21 小时」/ 剩不到 2 小时「剩 48 分钟」/ 已过期",
+      "source": "档案；别家 24 小时是假设值",
+      "layout": "<2 小时换提醒色",
+      "board": "SampleMode",
+      "element": "sample.expiry-chip"
+    },
+    {
+      "where": "版本栈",
+      "max": "不设上限（C-D2）；样片 + 高清版时角标 2，再出一次高清 = 第 3 版",
+      "source": "States ⑦；协调裁定 C-D2",
+      "layout": "角标写当前共几版",
+      "board": "SampleMode",
+      "element": "sample.version-hd"
+    },
+    {
+      "where": "只有一个取值的清晰度",
+      "max": "480p",
+      "source": "States ⑪",
+      "layout": "照样占一组、亮着",
+      "board": "SampleMode",
+      "element": "sample.params-panel"
+    },
+    {
+      "where": "模型菜单样片行",
+      "max": "名「Seedance 2.5（样片模式）」/「Seedance 2.5 (Draft mode)」；说明「480p 低成本试片 · 满意后出 1080p · 最长 30 秒」/「Low-cost 480p draft · 1080p when it works · Up to 30 s」",
+      "source": "modelDisplayText.ts、generationCommon.ts capabilityLine.sampleDraft / sampleFinal / maxSeconds",
+      "layout": "说明行照菜单今天的截断规则，名字不截",
+      "board": "SampleMode",
+      "element": "sample.picker-row"
+    },
+    {
+      "where": "生成框模型格（全名）",
+      "max": "「Seedance 2.5 (Draft mode)」（英文最长）",
+      "source": "NODE_COMPOSER_WIDTH=600",
+      "layout": "按让位清单方式格、摘要先让，模型名最后让",
+      "board": "SampleMode",
+      "element": "sample.picker-chip"
+    },
+    {
+      "where": "出高清按钮",
+      "max": "「Make HD」+ 价（积分 / ≈¥ / ≈$，跟发送键单位）",
+      "source": "generationCommon.sample.makeFinal；发送键显示单位",
+      "layout": "窄节点时折到第二行靠右，不截断",
+      "board": "SampleMode",
+      "element": "sample.hd-button"
+    },
+    {
+      "where": "出高清没成那一行",
+      "max": "英文「The HD version didn’t finish: <失败目录最长原因>. Your draft is kept.」",
+      "source": "generationCommon.sample.failed + 失败目录",
+      "layout": "整句折行（overflow-wrap:anywhere），不截断",
+      "board": "SampleMode",
+      "element": "sample.hd-failure"
+    },
+    {
+      "where": "第二次出高清确认框",
+      "max": "英文标题「This draft already has a 1080p HD version」+ 主钮「Redo HD · 价」",
+      "source": "generationCommon.sample.secondFinal",
+      "layout": "确认框今天的宽度，标题折行",
+      "board": "SampleMode",
+      "element": "sample.confirm-second-hd"
+    },
+    {
+      "where": "镜头名 28 字时节点下方这一行",
+      "max": "「雨后清晨的海边栈道上少女缓缓转身回望远处灯塔慢推近景特写」",
+      "source": "States ⑩；★9-7",
+      "layout": "标签行截断，下方这一行不受影响",
+      "board": "SampleMode",
+      "element": "sample.expiry-chip"
+    }
+  ],
+  "elements": [
+    {
+      "id": "sample.picker-row",
+      "artboard": "Menu1440",
+      "region": "模型下拉第 2 行（紧跟「Seedance 2.5」）；板上依据：D-1126-sdse-libtv：「Seedance 2.5（样片模式）」，说明「480p 低成本试片 · 满意后出 1080p · 最长 30 秒」",
+      "label": "模型菜单行「Seedance 2.5（样片模式）」：同 Seedance 2.5 的品牌图标，说明行「480p 低成本试片 · 满意后出 1080p · 最长 30 秒」，不加小胶囊、不加「新」标；选中后不进别的模式",
+      "change": "added",
+      "states": [
+        "hover",
+        "selected",
+        "dark",
+        "zh-en",
+        "long-text",
+        "disabled"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/common/useDedupedModelSelect.ts（档案变体行，紧跟 Seedance 2.5）；electron/catalog/apimartVideos.ts（目录行 doubao-seedance-2.5-sample）；electron/shared/videoCapabilities/seedance25ApimartSample.ts（由 2.5 派生的样片档案）；src/config/modelCapabilityLine.ts（说明行从档案样片规格读）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "note": "C-D5：目录里独立一行，模型菜单、隐藏模型、设置里的模型框整理、分镜菜单都有；出高清只在画布节点下方",
+      "assertion": "board:SampleMode/sample.picker-row",
+      "anchor": "[data-board=\"sample.picker-row\"]",
+      "assertions": [
+        "board:SampleMode/sample.picker-row"
+      ]
+    },
+    {
+      "id": "sample.picker-chip",
+      "artboard": "Main / Menu1440 / Dark1440En",
+      "region": "生成框左下第一格；板上依据：D-1126-sdse-libtv：生成框模型格同一个名字，不另起缩写",
+      "label": "生成框模型格：与菜单同名全名「Seedance 2.5（样片模式）」/「Seedance 2.5 (Draft mode)」，不另起缩写",
+      "change": "added",
+      "states": [
+        "selected",
+        "dark",
+        "zh-en",
+        "long-text",
+        "narrow"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx（模型格，名字同菜单）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.picker-chip",
+      "anchor": "[data-board=\"sample.picker-chip\"]",
+      "assertions": [
+        "board:SampleMode/sample.picker-chip"
+      ]
+    },
+    {
+      "id": "sample.composer-yield",
+      "artboard": "Main / Menu1440 / Dark1440En",
+      "region": "生成框底栏；板上依据：D-1126-sdse-libtv；CLAUDE 底栏让位 D-1121-bar-yield-priority-list",
+      "label": "600 宽底栏让位结果：模型名写全、方式格收成图标（悬停/读屏「文生视频」/「Text to video」）、摘要只剩「5s」，480p 进参数面板",
+      "change": "changed",
+      "states": [
+        "narrow",
+        "dark",
+        "zh-en",
+        "long-text"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/composerBarYield.ts（今天的让位清单，本线没改）",
+      "status": "in-progress",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.composer-yield",
+      "anchor": "未定",
+      "assertions": [
+        "board:SampleMode/sample.composer-yield"
+      ]
+    },
+    {
+      "id": "sample.send-price",
+      "artboard": "Main / Menu1440 / Dark1440En",
+      "region": "生成框发送键；板上依据：cost.send-pill（11-22）；板上价为示意",
+      "label": "发送键印样片价（金币 + 积分数，示意 5.4）；算不出不印数不写 0",
+      "change": "unchanged",
+      "states": [
+        "empty",
+        "loading",
+        "disabled",
+        "hover",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx；src/workbench/generationCanvas/spend/useNodePricePreview.ts（样片约价只走 electron/shared/videoCapabilities/sampleMode.ts sampleBillingRequest 一个家）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.send-price",
+      "anchor": "[data-board=\"sample.send-price\"]",
+      "assertions": [
+        "board:SampleMode/sample.send-price"
+      ]
+    },
+    {
+      "id": "sample.params-panel",
+      "artboard": "States",
+      "region": "⑪ 参数面板；板上依据：States 板 ⑪；今天只有一个取值的参数照样显示的规则",
+      "label": "参数面板：清晰度只有一个取值 480p 照样显示一组、亮着、不画锁；比例/时长(5)/生成音频照普通版",
+      "change": "unchanged",
+      "states": [
+        "selected",
+        "dark",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx 参数面板；src/workbench/generationCanvas/nodes/controls/ParameterControlBody.tsx（只有一个取值照样显示）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.params-panel",
+      "anchor": "[data-board=\"sample.params-panel\"]",
+      "assertions": [
+        "board:SampleMode/sample.params-panel"
+      ]
+    },
+    {
+      "id": "sample.below-row",
+      "artboard": "Main / Menu1440 / States",
+      "region": "节点下方、画面与生成框之间；板上依据：Main 注 2/3；States ⑩ E5；§4.1",
+      "label": "节点下方新一行（容器）：左「样片 · 剩 N」、右「出高清 · 价」；放在画面外；缩放 <40% 与标签行一起隐藏；中文最长约 247 宽、英文约 266 宽，窄节点折两行不截断",
+      "change": "added",
+      "states": [
+        "empty",
+        "loading",
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx（NodeSampleRow）；src/workbench/generationCanvas/nodes/nodeOutsideRows.ts（缩放 <40% 与标签行一起藏）；src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts（生成框接在这一行下面）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "note": "C-D8：放在节点框正下方，不压画面；列表详情显示同一行；远景轻量节点不显示",
+      "assertion": "board:SampleMode/sample.below-row",
+      "anchor": "[data-board=\"sample.below-row\"]",
+      "assertions": [
+        "board:SampleMode/sample.below-row"
+      ]
+    },
+    {
+      "id": "sample.expiry-chip",
+      "artboard": "States",
+      "region": "② ③ ④ ⑤ E1 E2；板上依据：States 注；APIMart 文档 draft 3 天",
+      "label": "有效期小标「样片 · 剩 2 天」/「剩 21 小时」/「剩 48 分钟」（<2 小时换 warning 四档提醒色）/「已过期」置灰；剩多久按模型档案（APIMart 72 小时）现算",
+      "change": "added",
+      "states": [
+        "loading",
+        "disabled",
+        "dark",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx ExpiryChip；src/workbench/generationCanvas/model/sampleFacts.ts（剩多久按档案 sampleOf.spec.ttlHours 现算）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.expiry-chip",
+      "anchor": "[data-board=\"sample.expiry-chip\"]",
+      "assertions": [
+        "board:SampleMode/sample.expiry-chip"
+      ]
+    },
+    {
+      "id": "sample.expiry-tooltip",
+      "artboard": "States",
+      "region": "③ ⑤ E2；板上依据：States ③⑤ E2",
+      "label": "悬停小标：「样片 21 小时后过期。过期后不能再出高清，要重拍一条样片。」/ 过期「样片超过 3 天已失效，不能再出高清。重拍一条样片再出高清。」/ 英文 E2",
+      "change": "added",
+      "states": [
+        "hover",
+        "zh-en",
+        "dark"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx ExpiryChip 的 Tooltip",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.expiry-tooltip",
+      "anchor": "[data-board=\"sample.expiry-tooltip\"]",
+      "assertions": [
+        "board:SampleMode/sample.expiry-tooltip"
+      ]
+    },
+    {
+      "id": "sample.hd-button",
+      "artboard": "Main / States / Dark1440En",
+      "region": "节点下方一行右侧；板上依据：Main 注 3；Dark 注 2；§1.8（按钮字 ≤4 字）",
+      "label": "「出高清」描边次按钮 + 价（与发送键同一个显示单位；积分带硬币）；悬停名/读屏名「出 1080p 高清版」；英文「Make HD」/「Make 1080p HD version」；第一次点了不弹框直接发",
+      "change": "added",
+      "states": [
+        "hover",
+        "loading",
+        "disabled",
+        "dark",
+        "zh-en",
+        "narrow",
+        "long-text"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx MakeFinalButton → src/workbench/generationCanvas/runner/generationRunController.ts（只带样片号 + 清晰度）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.hd-button",
+      "anchor": "[data-board=\"sample.hd-button\"]",
+      "assertions": [
+        "board:SampleMode/sample.hd-button"
+      ]
+    },
+    {
+      "id": "sample.hd-no-price",
+      "artboard": "States",
+      "region": "⑨；板上依据：States ⑨；cost.send-pill",
+      "label": "估不出价：按钮只写「出高清」不印数、不写 0，悬停「暂时估不出这次用量」",
+      "change": "added",
+      "states": [
+        "hover",
+        "disabled",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx RowButton（cost.credits 缺省 = 不印数）；悬停复用 generationCommon.composer.sendCost.priceUnknown",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.hd-no-price",
+      "anchor": "[data-board=\"sample.hd-no-price\"]",
+      "assertions": [
+        "board:SampleMode/sample.hd-no-price"
+      ]
+    },
+    {
+      "id": "sample.redraft-button",
+      "artboard": "States",
+      "region": "⑤ E2；板上依据：States ⑤ E2",
+      "label": "过期后按钮换成「重拍样片」/「Redraft」+ 样片价（示意 5.4），按下即生成；不留点不动的灰按钮",
+      "change": "added",
+      "states": [
+        "hover",
+        "disabled",
+        "zh-en",
+        "dark"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx RedraftButton",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.redraft-button",
+      "anchor": "[data-board=\"sample.redraft-button\"]",
+      "assertions": [
+        "board:SampleMode/sample.redraft-button"
+      ]
+    },
+    {
+      "id": "sample.hd-progress",
+      "artboard": "States",
+      "region": "⑥；板上依据：States ⑥",
+      "label": "高清生成中：按钮位置改写「高清生成中」，不画假进度；样片照常能看能播",
+      "change": "added",
+      "states": [
+        "loading",
+        "zh-en"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx（data-sample-final-progress）；src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx（出高清时不盖样片）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.hd-progress",
+      "anchor": "[data-board=\"sample.hd-progress\"]",
+      "assertions": [
+        "board:SampleMode/sample.hd-progress"
+      ]
+    },
+    {
+      "id": "sample.hd-failure",
+      "artboard": "States",
+      "region": "⑧ E3；板上依据：States ⑧ E3",
+      "label": "出高清没成：一行「出高清没成：<失败目录原因>。样片还在。」/「The HD version didn’t finish: <reason>. Your draft is kept.」写在这一行下面；按钮不变，再点即重试；节点照成功画",
+      "change": "added",
+      "states": [
+        "error",
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx（data-sample-final-failure）；src/workbench/generationCanvas/store/nodeRunOutcome.ts（出高清没成，节点照成功画）",
+      "status": "in-progress",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "note": "样张『没扣费』半句删去，依据用户 10-02 界面不断言扣费结果 + 11-15 只放估价；D-1126-sd-hd-failure-copy",
+      "assertion": "board:SampleMode/sample.hd-failure",
+      "anchor": "未定",
+      "assertions": [
+        "board:SampleMode/sample.hd-failure"
+      ]
+    },
+    {
+      "id": "sample.generating",
+      "artboard": "States",
+      "region": "①；板上依据：States ①",
+      "label": "样片生成中：用今天的等待面和状态条；节点下方这一行出了结果才出现",
+      "change": "unchanged",
+      "states": [
+        "loading"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx（今天的等待面，样片生成时原样）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.generating",
+      "anchor": "[data-board=\"sample.generating\"]",
+      "assertions": [
+        "board:SampleMode/sample.generating"
+      ]
+    },
+    {
+      "id": "sample.version-hd",
+      "artboard": "States / Dark1440En",
+      "region": "⑦ 与英文暗色右节点；板上依据：版本角标（10-07）；States ⑦ Dark 注 3",
+      "label": "已出高清版：版本栈里第 2 版叫「高清版」/「HD version」，当主图，右上角版本角标 2；高清版是普通视频、下方无这一行",
+      "change": "changed",
+      "states": [
+        "selected",
+        "dark",
+        "zh-en",
+        "hover"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCards.tsx；src/workbench/generationCanvas/nodes/versionCards/nodeVersionEntries.ts（第 2 版叫「高清版」）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "note": "C-D2：版本栈不设上限，照今天的做法；板上画 2 版只是样片 + 高清版这个场景",
+      "assertion": "board:SampleMode/sample.version-hd",
+      "anchor": "[data-board=\"sample.version-hd\"]",
+      "assertions": [
+        "board:SampleMode/sample.version-hd"
+      ]
+    },
+    {
+      "id": "sample.confirm-second-hd",
+      "artboard": "Confirm / States",
+      "region": "Confirm 全板、E4；板上依据：Confirm 注 1–3",
+      "label": "同一条样片第二次出高清的确认框：标题「这条样片已经出过 1080p 高清版」，正文「再出一次会按 1080p 全价再扣一次。」；取消 / 再出高清 · 价（价与发送键同一个显示单位）；正文不写价格数字、不写积分；回车=右钮；Esc/取消=不发；第一次不问",
+      "change": "added",
+      "states": [
+        "hover",
+        "dark",
+        "zh-en",
+        "long-text",
+        "narrow"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/spend/spendConfirm.ts confirmGenerationResend（secondSampleFinal）；src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx；src/workbench/generationCanvas/runner/generationRunController.ts",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "note": "C-D11：复用 confirmGenerationResend，只换这一处文案与主按钮；英文正文进 COST_LABEL_EXACT 登记",
+      "assertion": "board:SampleMode/sample.confirm-second-hd",
+      "anchor": "[data-board=\"sample.confirm-second-hd\"]",
+      "assertions": [
+        "board:SampleMode/sample.confirm-second-hd"
+      ]
+    },
+    {
+      "id": "sample.plain-480p",
+      "artboard": "States",
+      "region": "⑫；板上依据：ModelSurfaces Q9；States ⑫",
+      "label": "普通 Seedance 2.5 选 480p：永久成片，无下面这一行，不会过期、不出高清；老项目里的 480p 视频同样",
+      "change": "added",
+      "states": [
+        "empty"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/model/sampleFacts.ts（没有样片号 = 不是样片）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.plain-480p",
+      "anchor": "[data-board=\"sample.plain-480p\"]",
+      "assertions": [
+        "board:SampleMode/sample.plain-480p"
+      ]
+    },
+    {
+      "id": "sample.old-node",
+      "artboard": "Menu1440",
+      "region": "注 3；板上依据：Menu1440 注 3；old-user-migration",
+      "label": "老项目节点原样不变：用普通 Seedance 2.5 出的 480p 不出现节点下方这一行；只有从样片行生成的才有",
+      "change": "added",
+      "states": [
+        "empty"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "src/workbench/generationCanvas/model/sampleFacts.ts（老数据没有样片号 = 不是样片，不迁移）",
+      "status": "implemented",
+      "owner": "I-SD-sample-mode（feat/sd-sample-mode）",
+      "assertion": "board:SampleMode/sample.old-node",
+      "anchor": "[data-board=\"sample.old-node\"]",
+      "assertions": [
+        "board:SampleMode/sample.old-node"
+      ]
+    },
+    {
+      "id": "sample.agent-pointer",
+      "artboard": "Main / Dark1440En",
+      "region": "右侧 Agent 面板；板上依据：§1.0 Agent 只指路；Main 板右侧",
+      "label": "Agent 面板只放指路文字（「样片好了…点节点下面的「出高清」」）和指向节点的引用条；不放分辨率开关、不放出高清按钮",
+      "change": "unchanged",
+      "states": [
+        "dark",
+        "zh-en",
+        "narrow"
+      ],
+      "source": "D-1126-sdse-libtv",
+      "component": "复用现有 Agent 消息与节点引用条（不新建）",
+      "status": "missing",
+      "owner": "未认领：Agent 指路文字（C-X1；交协调派，I-SD-sample-mode 不改 Agent）",
+      "note": "C-X1：Agent 只指路，不做样片专用卡；指路那句话是模型自己说的，本线没有改 Agent，走查断言不了",
+      "anchor": "未定"
+    }
+  ],
+  "functionCensus": [
+    {
+      "censusId": "SD-1",
+      "function": "选一个便宜的试片档",
+      "before": "普通 Seedance 2.5 直接选 480p（永久成片，贵）",
+      "after": "sample.picker-row",
+      "placement": "direct",
+      "frequency": "不知道（新功能）",
+      "ifRemoved": "创作者每次试动作都要付 1080p 全价"
+    },
+    {
+      "censusId": "SD-2",
+      "function": "样片满意后出 1080p",
+      "before": "没有",
+      "after": "sample.hd-button",
+      "placement": "direct",
+      "frequency": "不知道（新功能）",
+      "ifRemoved": "样片看完只能重来一次，白花 480p 的钱"
+    },
+    {
+      "censusId": "SD-3",
+      "function": "看样片还剩多久",
+      "before": "没有",
+      "after": "sample.expiry-chip",
+      "placement": "direct",
+      "frequency": "不知道（新功能）",
+      "ifRemoved": "创作者不知道样片会过期，到点点出高清才发现"
+    },
+    {
+      "censusId": "SD-4",
+      "function": "防同一样片重复扣全价",
+      "before": "没有",
+      "after": "sample.confirm-second-hd",
+      "placement": "direct",
+      "frequency": "不知道（新功能）",
+      "ifRemoved": "同一样片号再发一次再扣一次，没人提醒"
+    }
+  ],
+  "components": [
+    "src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx",
+    "src/workbench/common/useDedupedModelSelect.ts",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/ComposerSendButton.tsx",
+    "src/workbench/generationCanvas/nodes/composerBarYield.ts",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCards.tsx",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx"
+  ],
+  "appearsIn": [
+    {
+      "place": "画布节点下方这一行",
+      "files": [
+        "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx"
+      ],
+      "board": "SampleMode",
+      "element": "sample.below-row"
+    },
+    {
+      "place": "画布列表详情（C-D8：显示同一行）",
+      "files": [
+        "src/workbench/generation/list/GenerationListDetail.tsx"
+      ],
+      "board": "SampleMode",
+      "element": "sample.below-row"
+    },
+    {
+      "place": "画布节点生成框（模型格、菜单、参数面板、发送键）",
+      "files": [
+        "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+      ],
+      "board": "SampleMode",
+      "element": "sample.picker-chip"
+    },
+    {
+      "place": "分镜行生成条的模型菜单（C-D5：有这一行，不放出高清）",
+      "files": [
+        "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx"
+      ],
+      "board": "SampleMode",
+      "element": "sample.picker-row"
+    },
+    {
+      "place": "设置里的模型框整理（C-D5：独立一行，隐藏互不连带）",
+      "files": [
+        "src/workbench/settings/ModelBoxOrderSection.tsx"
+      ],
+      "board": "SampleMode",
+      "element": "sample.picker-row"
+    },
+    {
+      "place": "节点版本铺开（第 2 版「高清版」）",
+      "files": [
+        "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx"
+      ],
+      "board": "SampleMode",
+      "element": "sample.version-hd"
+    },
+    {
+      "place": "全局付费确认框（第二次出高清）",
+      "files": [
+        "src/workbench/NomiStudioApp.tsx"
+      ],
+      "board": "SampleMode",
+      "element": "sample.confirm-second-hd"
+    }
+  ],
+  "appearsInExcluded": [
+    {
+      "file": "src/workbench/generationCanvas/nodes/shotTable/DeconstructModelPicker.tsx",
+      "reason": "拆解模型选择器只选文本 / 分析模型，不选视频生成模型；只取「接入新服务」常量与打开目录"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/shotTable/deconstructLegChoice.ts",
+      "reason": "只取「接入新服务」常量，不画模型行"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/controls/referenceRowTail.tsx",
+      "reason": "参考行尾只读模型显示名；样片行的名字随档案 label 走，不另画"
+    },
+    {
+      "file": "src/devlab/designLab/vendorOrder/vendorOrderLabKit.tsx",
+      "reason": "设计实验室的供应商排序样张，不画样片行"
+    },
+    {
+      "file": "src/devlab/designLab/nodeComposerBar/nodeComposerBarLabKit.tsx",
+      "reason": "设计实验室的生成框样张，固定假数据，不画样片模式"
+    },
+    {
+      "file": "src/devlab/designLab/primitivesSurfaces/states/04-dialogs.tsx",
+      "reason": "设计实验室的通用确认框样张，不画第二次出高清这一种"
+    }
+  ],
+  "priorDecisions": [
+    {
+      "what": "ModelSurfaces Q9：草稿档单独一行，不把普通 Seedance 2.5 的 480p 变成会过期的样片",
+      "source": "2026-11-07 协调记录；ModelSurfaces.board.json decisions Q9",
+      "stillValid": "算数（词换了）"
+    },
+    {
+      "what": "cost.send-pill：发送键 = 金币 + 积分数，算不出不印数",
+      "source": "2026-11-22 合并",
+      "stillValid": "算数；main 之后加了显示单位（积分 / 人民币 / 美元），出高清钮与确认框的价跟同一个单位（见 decisions D-1126-sd-cost-unit）"
+    },
+    {
+      "what": "版本角标：画面右上内侧一颗数字角标就是版本入口",
+      "source": "用户 2026-10-07",
+      "stillValid": "算数"
+    },
+    {
+      "what": "§4.1 常驻信息不压在画面上",
+      "source": "design system §4.1",
+      "stillValid": "算数；协调裁定 C-D8：这一行放在节点框正下方"
+    },
+    {
+      "what": "§1.8 一屏一个主动作、按钮字 ≤4 字、动词开头",
+      "source": "design system §1.8",
+      "stillValid": "算数；协调裁定 C-D6：「再出高清」4 字可带「· 价」，「高清生成中」是状态文字不受限"
+    },
+    {
+      "what": "生成框让位清单 ①模型名 ②方式 ③摘要 ④发送钮字",
+      "source": "composerBarYield.ts；D-1121-bar-yield-priority-list",
+      "stillValid": "算数"
+    },
+    {
+      "what": "只有一个取值的参数照样显示",
+      "source": "今天的规则",
+      "stillValid": "算数"
+    },
+    {
+      "what": "Agent 只指路",
+      "source": "design system §1.0；2026-10-22 拍板",
+      "stillValid": "算数"
+    },
+    {
+      "what": "界面不断言扣费结果；钱在界面只放估价",
+      "source": "用户 2026-10-02；2026-11-15",
+      "stillValid": "算数：失败行删去样张的「没扣费」半句（D-1126-sd-hd-failure-copy）"
+    }
+  ],
+  "unclaimed": [
+    {
+      "what": "样片行 + 节点接了首帧 / 参考",
+      "how": "用今天菜单与生成框的通用状态（C-D7 ①）"
+    },
+    {
+      "what": "出高清估不出价时能不能点、点了弹不弹",
+      "how": "能点，第一次不弹，和有价时同一条路（C-D7 ②）"
+    },
+    {
+      "what": "出高清失败但已扣费 / 不知道扣没扣",
+      "how": "失败行只说原因 + 样片还在，不断言扣费；结果不明走今天的「再发一次」判定（C-D7 ③）"
+    },
+    {
+      "what": "取消在路上的出高清",
+      "how": "走任务中心今天的取消（协调 Msg4）"
+    },
+    {
+      "what": "分镜行生成条里的样片行",
+      "how": "菜单有这一行，分镜行不放出高清钮（C-D5）"
+    }
+  ],
+  "unverified": [
+    "未验证：2.5 无公开估价（三个非价格键不在 PRICE_FIELDS）——真窗口里发送键、出高清钮、确认框主钮今天都只能拍「估不出」那一态；有价那一态只在单测里用带价的假数据钉住",
+    "「别家 24 小时」是假设的档案值（板 States ③），今天只有 APIMart 72 小时一家",
+    "样片模式能否配首帧 / 参考、比例 / 时长 / 音频限制：APIMart 文档没写（C-D7 ①，未认领）",
+    "LibTV 样片出来后怎么出高清：没看到（要花积分）",
+    "真付费没跑：样片 480p 与出高清 1080p 的真实返回形状、真实扣费只在免费演练（替身）里走过"
+  ],
+  "artboardFiles": [
+    {
+      "name": "Main",
+      "sourceSha256": "129668f12996b32f129dcf933686c4488113583071fc1ec79d611355921668e3"
+    },
+    {
+      "name": "Menu1440",
+      "sourceSha256": "33be93f295e6b3c98bb461bbbca0a2a580253aa1171387c282c54d7ae71e2f99"
+    },
+    {
+      "name": "Dark1440En",
+      "sourceSha256": "22894ad4b6a0d70ca3a9a3f45c64a76e4f359089884280cea45fd107b6ea3ee3"
+    },
+    {
+      "name": "Confirm",
+      "sourceSha256": "1bfaa4df4774187e29edcb9cb9ab3da8c4f3e3e4d37a50b0efc16a1c472c7677"
+    },
+    {
+      "name": "States",
+      "sourceSha256": "28275a4af1165ab2ab0d42bcd0d2d20ce73eacc55024330540ac659f0774e72e"
+    }
+  ],
+  "libtvCrops": {
+    "note": "LibTV 对照板与裁图都留在仓库外；清单只记文件名、sha256、拍摄日期 2026-11-26，不放路径",
+    "files": [
+      {
+        "name": "sd-1-model-menu.png",
+        "sha256": "43afe601694e25d2e0cde2c23cd1383a168e8e54a9dd7ed6bbfb2d70d3b94bb4",
+        "shotOn": "2026-11-26"
+      },
+      {
+        "name": "sd-2-composer.png",
+        "sha256": "2fea60518dee61b34eb59e8af5ccd6d841772d1f023352a5d319bca6651b2456",
+        "shotOn": "2026-11-26"
+      },
+      {
+        "name": "LibTV.dc.html（对照板）",
+        "sha256": "8fa617eebc61fb13c3c50d1b72102b5a072f41d5360b477ac26d988acd76a529",
+        "shotOn": "2026-11-26"
+      }
+    ]
+  }
+}

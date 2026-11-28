@@ -9,6 +9,7 @@ import { narrateTaskOutcome } from '../observability/narrate'
 //   generationQueueStore → 调度：谁被登记了、第几波、有没有被取消、批次刹没刹车
 //   node（canvas store） → 执行：标题、进度、跑起来之后的状态（running/error/recoverable）
 import type { GenerationCanvasNode, GenerationNodeStatus } from '../generationCanvas/model/generationCanvasTypes'
+import { finalsMadeFrom, sampleFinalRetryOf } from '../generationCanvas/model/sampleFacts'
 import type { GenerationQueueBatch, GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
 import { TASK_CENTER_GROUPS, type GenerationTaskCenterProjection, type TaskCancelKind, type TaskCenterGroup, type TaskCenterProjection } from './taskCenterProjection'
 import { canInterruptGenerationTask } from '../generationCanvas/model/taskCancellation'
@@ -61,15 +62,20 @@ function outcomeFor(state: GenerationQueueEntry['state']): TaskCenterRow['outcom
  */
 function generationRowState(
   entry: GenerationQueueEntry,
-  nodeStatus: GenerationNodeStatus | undefined,
+  node: Pick<GenerationCanvasNode, 'status' | 'result' | 'history'> | undefined,
   isLatestForNode: boolean,
 ): { group: TaskCenterGroup; outcome?: TaskCenterRow['outcome']; recoverable: boolean } {
+  const nodeStatus: GenerationNodeStatus | undefined = node?.status
   if (entry.state === 'running') return { group: 'running', recoverable: false }
   if (entry.state === 'queued') return { group: 'queued', recoverable: false }
   if (entry.state === 'error' && isLatestForNode) {
     if (nodeStatus === 'recoverable') return { group: 'attention', outcome: 'error', recoverable: true }
     if (nodeStatus === 'running') return { group: 'running', recoverable: false }
-    if (nodeStatus === 'success') return { group: 'done', outcome: 'success', recoverable: false }
+    // 出高清没成时节点照成功画（样片还在）：这一行看的是这条样片的高清版到没到（找回到了 = 成），不看节点。
+    const landed = entry.draftTaskId
+      ? Boolean(node && finalsMadeFrom(node, entry.draftTaskId).some((result) => result.createdAt >= entry.enqueuedAt))
+      : nodeStatus === 'success'
+    if (landed) return { group: 'done', outcome: 'success', recoverable: false }
   }
   return { group: 'done', outcome: outcomeFor(entry.state), recoverable: false }
 }
@@ -90,6 +96,16 @@ export function summarizeTaskCenterRows(rows: readonly TaskCenterProjection[], p
 
 
 /**
+ * 失败那一行的「重试」按这一行的种类走（D-1126-sd-hd-retry-route）：出高清那一行（带样片号）再出高清、只带样片号，
+ * 更早的出高清行也一样；样片不在了 / 过期了就不给重试（如实留着失败）。别的照节点设置重新生成。
+ */
+function retryActionFor(entry: GenerationQueueEntry, node: GenerationCanvasNode | undefined, now: number): GenerationTaskCenterProjection['action'] {
+  if (!entry.draftTaskId) return { kind: 'retry_generation', nodeId: entry.nodeId }
+  const sampleFinal = node ? sampleFinalRetryOf(node, entry.draftTaskId, now) : null
+  return sampleFinal ? { kind: 'retry_sample_final', nodeId: entry.nodeId, sampleFinal } : null
+}
+
+/**
  * 把队列条目 + 画布节点合成面板要画的行。
  * 排序：进行中（先开跑的在前）→ 排队中（按波次再按入队序）→ 已完成（新的在前）。
  */
@@ -106,7 +122,7 @@ export function buildTaskCenterView(input: {
 
   const rows: TaskCenterRow[] = entries.map((entry) => {
     const node = nodeById.get(entry.nodeId)
-    const { group, outcome, recoverable } = generationRowState(entry, node?.status, latestEntryByNode.get(entry.nodeId) === entry)
+    const { group, outcome, recoverable } = generationRowState(entry, node, latestEntryByNode.get(entry.nodeId) === entry)
     const live = group === 'running' || group === 'queued'
     return {
       id: entry.id,
@@ -132,7 +148,7 @@ export function buildTaskCenterView(input: {
         : group === 'running' && resolveRunningCancelKind(node) === 'interrupt'
           ? { kind: 'interrupt_generation' as const, nodeId: entry.nodeId }
           : group === 'done' && outcome === 'error' && generationFailureActions(node?.error || entry.error || '', node?.runs?.[0]).canRetry
-            ? { kind: 'retry_generation' as const, nodeId: entry.nodeId }
+            ? retryActionFor(entry, node, now)
             // 「等你处理」组必须把它在等的那个动作摆出来：不然用户只能点进画布找节点上的按钮。
             : recoverable
               ? { kind: 'recover_generation' as const, nodeId: entry.nodeId }

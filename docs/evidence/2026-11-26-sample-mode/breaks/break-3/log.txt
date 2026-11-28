@@ -1,0 +1,14 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ zh-CN/light menu
+✓ zh-CN/light sample
+✓ zh-CN/light hd
+✗ zh-CN/light second
+board:SampleMode/sample.confirm-second-hd：第二次先弹确认
+
+expect(locator).toBeVisible() failed
+
+Locator: locator('[role="dialog"]').filter({ hasText: '这条样片已经出过 1080p 高清版' }).first()
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-3

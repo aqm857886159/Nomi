@@ -67,6 +67,8 @@ export const COST_LABEL_EXACT = Object.freeze({
   'generationCommon.composer.sendCost.outputEstimateCny': Object.freeze({ 'zh-CN': '仅输出约 {{cny}}（{{value}} 积分）。按人民银行中间价（{{date}}，{{pair}}）估，实际按 token 结算。', en: 'Output estimate {{cny}} ({{value}} credits). Converted at PBOC midpoint ({{date}}, {{pair}}), billed by actual tokens.' }),
   'generationCommon.composer.sendCost.outputEstimateUsd': Object.freeze({ 'zh-CN': '仅输出约 {{usd}}（{{value}} 积分）。按 APIMart 公开价估，实际按 token 结算。', en: 'Output estimate {{usd}} ({{value}} credits). Estimated at the APIMart public rate, billed by actual tokens.' }),
   'generationCommon.composer.sendCost.priceUnknown': Object.freeze({ 'zh-CN': '暂时估不出这次用量', en: 'No usage estimate yet' }),
+  // 同一条样片第二次出高清的确认框（板 SampleMode sample.confirm-second-hd，用户 2026-11-26 拍板原文；正文不印数）：只认这一句。
+  'generationCommon.sample.secondFinal.message': Object.freeze({ 'zh-CN': '再出一次会按 {{resolution}} 全价再扣一次。', en: 'Another one charges the full {{resolution}} price again.' }),
   'generationCommon.composer.sendCost.unitCredits': Object.freeze({ 'zh-CN': '积分', en: 'Credits' }),
   'generationCommon.composer.sendCostLowBalance.shortfall': Object.freeze({ 'zh-CN': '还差 {{value}} 积分', en: 'Short {{value}} credits' }),
   'generationCommon.composer.sendCostLowBalance.topUp': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
