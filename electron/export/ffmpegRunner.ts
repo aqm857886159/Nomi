@@ -9,8 +9,11 @@ import { asarUnpackedPath } from "../shared/asarUnpackedPath";
 import { buildWebmToMp4Args } from "./ffmpegCommandBuilder";
 import { parseFfmpegProgressChunk, progressFromOutTime } from "./ffmpegProgress";
 import { desktopT } from "../i18n";
+import { ExportCancelledError, isExportCancelledError } from "../shared/contracts/exportTypes";
 import type { ExportProfile } from "./exportTypes";
 import type { FfmpegFiltergraphPlan } from "./ffmpegFiltergraph";
+
+export { ExportCancelledError };
 
 export type FfmpegProcessResult = {
   code: number | null;
@@ -114,18 +117,6 @@ function commandExists(command: string, pathEnv = process.env.PATH || ""): boole
 
 const STDERR_SUMMARY_LIMIT = 16 * 1024;
 
-export class ExportCancelledError extends Error {
-  constructor(message = "Export cancelled") {
-    super(message);
-    this.name = "ExportCancelledError";
-  }
-}
-
-function isAbortLikeError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return error.name === "AbortError" || error.name === "ExportCancelledError";
-}
-
 function cappedTail(existing: string, chunk: string, limit = STDERR_SUMMARY_LIMIT): string {
   const next = existing + chunk;
   if (next.length <= limit) return next;
@@ -214,19 +205,63 @@ function defaultRunProcess(command: string, args: string[], options: RunFfmpegPr
     }
 
     ensureExecutable(command);
-    const child = spawn(command, args, { windowsHide: true });
+    // 预热动态加载（避免与 mediaProbe.ts 顶层静态 import "./ffmpegRunner" 形成 check:boundaries 硬环，同时消除取消瞬间首次加载延迟）
+    const mediaProbePromise = import("./mediaProbe.js");
+    const child = spawn(command, args, {
+      shell: false,
+      windowsHide: true,
+      detached: process.platform !== "win32",
+    });
     let stderr = "";
     let settled = false;
-    let onAbort: (() => void) | undefined;
+    let aborted = false;
+    let closeSeen = false;
+    let closeCode: number | null = null;
+    let cleanupPending = 0;
+    let forceTimer: ReturnType<typeof setTimeout> | undefined;
+    let finalTimer: ReturnType<typeof setTimeout> | undefined;
+
     const cleanup = () => {
-      if (onAbort) options.signal?.removeEventListener("abort", onAbort);
+      if (forceTimer) clearTimeout(forceTimer);
+      if (finalTimer) clearTimeout(finalTimer);
+      options.signal?.removeEventListener("abort", onAbort);
     };
-    onAbort = () => {
-      if (settled) return;
-      child.kill();
+
+    const finish = () => {
+      if (settled || !closeSeen || cleanupPending > 0) return;
       settled = true;
       cleanup();
-      reject(new ExportCancelledError());
+      if (aborted) reject(new ExportCancelledError());
+      else resolve({ code: closeCode, stderr });
+    };
+
+    const terminate = (force: boolean) => {
+      cleanupPending += 1;
+      void mediaProbePromise
+        .then(({ terminateProcessTree }) => terminateProcessTree(child, force))
+        .catch(() => {
+          if (!child.killed) child.kill(force ? "SIGKILL" : "SIGTERM");
+        })
+        .finally(() => {
+          cleanupPending -= 1;
+          finish();
+        });
+    };
+
+    const onAbort = () => {
+      if (settled || aborted) return;
+      aborted = true;
+      child.stdin?.destroy();
+      terminate(false);
+      forceTimer = setTimeout(() => {
+        if (!closeSeen) terminate(true);
+      }, 250);
+      finalTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new ExportCancelledError());
+      }, 2_500);
     };
     options.signal?.addEventListener("abort", onAbort, { once: true });
 
@@ -239,14 +274,19 @@ function defaultRunProcess(command: string, args: string[], options: RunFfmpegPr
       if (settled) return;
       settled = true;
       cleanup();
-      reject(error);
+      reject(aborted ? new ExportCancelledError() : error);
     });
     child.on("close", (code) => {
       if (settled) return;
-      settled = true;
-      cleanup();
-      resolve({ code, stderr });
+      closeSeen = true;
+      closeCode = code;
+      if (forceTimer) clearTimeout(forceTimer);
+      finish();
     });
+
+    if (options.signal?.aborted) {
+      onAbort();
+    }
   });
 }
 
@@ -288,11 +328,11 @@ async function runFfmpegMp4Export(params: RunFfmpegMp4ExportParams): Promise<Tim
       stderrSummary = cappedTail(stderrSummary, result.stderr);
       appendLog(stderrLogPath, result.stderr);
     }
+    if (signal?.aborted) throw new ExportCancelledError();
     if (result.code !== 0) {
       const detail = stderrSummaryForError(stderrSummary) || `ffmpeg exited with code ${result.code}`;
       throw new Error(desktopT("export.detail", { detail }));
     }
-    if (signal?.aborted) throw new ExportCancelledError();
     if (!fs.existsSync(partialOutputPath)) throw new Error(desktopT("export.mp4NotProduced"));
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
@@ -305,7 +345,7 @@ async function runFfmpegMp4Export(params: RunFfmpegMp4ExportParams): Promise<Tim
       size: finalStat.size,
     };
   } catch (error) {
-    if (isAbortLikeError(error) || signal?.aborted) {
+    if (isExportCancelledError(error) || signal?.aborted) {
       throw new ExportCancelledError(error instanceof Error && error.message ? error.message : undefined);
     }
     throw error;

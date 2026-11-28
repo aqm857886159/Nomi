@@ -2255,11 +2255,6 @@
       "count": 1
     }
   },
-  "tests/ux/preview-export-busy.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/probe-generate.mjs": {
     "no-empty": {
       "count": 2

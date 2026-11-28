@@ -1,0 +1,28 @@
+{
+  "name": "预览顶栏导出取消双向事件通道与收尾防重入状态",
+  "subject": "preview.export-cancel-channel",
+  "lifecycle": "projection",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/previewExportRequest.ts",
+    "symbol": "requestPreviewExportCancel"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/previewExportRequest.ts",
+      "symbol": "requestPreviewExportCancel"
+    },
+    {
+      "path": "src/workbench/preview/previewExportRequest.ts",
+      "symbol": "registerPreviewExportCancelHandler"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/ui/app-shell/shell/ShellTopBar.previewExport.test.tsx",
+  "allowed_consumers": [],
+  "since": "2026-11-28",
+  "notes": "设计卡 docs/plan/2026-11-28-ux-b1-export-cancel-and-resolution.md（UX-B1 / U-21）：顶栏导出单胶囊在忙态点击触发 requestPreviewExportCancel 通知 TimelinePreview 中止当前导出作业，并在收尾期透出 cancelling 防连点重入。"
+}
