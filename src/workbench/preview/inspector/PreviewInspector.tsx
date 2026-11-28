@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAdjustments, IconChevronDown, IconMovie, IconMusic, IconPhoto, IconSubtitles } from '@tabler/icons-react'
-import { WorkbenchButton, WorkbenchIconButton, NomiSelect } from '../../../design'
+import { DesignNumberInput, DesignSwitch, NomiSegmented, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { resolveClipAudio } from '../../timeline/clipAudio'
@@ -29,7 +29,66 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
 // 两列网格：名字列至少放下它最长的词、其余空间都归它；控件列按内容宽，只有名字折到最窄后才缩，缩的是滑块——读数、输入框、下拉不被裁。
 // 不用弹性布局分差额：那样名字一折行，控件组也会被分走零点几像素，下拉里的「1080p」就成了「108…」。
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }): JSX.Element {
-  return <label className="grid grid-cols-[minmax(min-content,1fr)_minmax(0,max-content)] items-center gap-2 text-caption text-[var(--workbench-muted)]" title={hint}><span>{label}</span><span className="flex min-w-0 items-center justify-end gap-1 [&>input[type=range]]:min-w-0">{children}</span></label>
+  return <div className="grid grid-cols-[minmax(min-content,1fr)_minmax(0,max-content)] items-center gap-2 text-caption text-[var(--workbench-muted)]" title={hint}><span>{label}</span><span className="flex min-w-0 items-center justify-end gap-1 [&>input[type=range]]:min-w-0">{children}</span></div>
+}
+
+function InspectorNumberInput({
+  value,
+  min,
+  max,
+  step = 1,
+  decimalScale = 0,
+  fixedDecimalScale = false,
+  ariaLabel,
+  className,
+  onCommit,
+}: {
+  value: number
+  min: number
+  max?: number
+  step?: number
+  decimalScale?: number
+  fixedDecimalScale?: boolean
+  ariaLabel: string
+  className?: string
+  onCommit: (next: number) => void
+}): JSX.Element {
+  const [draft, setDraft] = React.useState<string | number>(value)
+  React.useEffect(() => { setDraft(value) }, [value])
+  return (
+    <DesignNumberInput
+      value={draft}
+      min={min}
+      max={max}
+      step={step}
+      decimalScale={decimalScale}
+      fixedDecimalScale={fixedDecimalScale}
+      allowDecimal={decimalScale > 0}
+      clampBehavior="blur"
+      hideControls
+      size="xs"
+      aria-label={ariaLabel}
+      className={className}
+      classNames={{ input: 'text-right text-micro tabular-nums' }}
+      styles={{ input: { height: 24, minHeight: 24, paddingInline: 6 } }}
+      onChange={(next) => {
+        setDraft(next)
+        if (typeof next === 'number' && Number.isFinite(next) && next >= min && (max === undefined || next <= max)) {
+          onCommit(next)
+        }
+      }}
+      onBlur={() => {
+        const numeric = typeof draft === 'number' ? draft : Number(draft)
+        if (!Number.isFinite(numeric)) {
+          setDraft(value)
+          return
+        }
+        const clamped = Math.max(min, max === undefined ? numeric : Math.min(max, numeric))
+        setDraft(clamped)
+        if (clamped !== value) onCommit(clamped)
+      }}
+    />
+  )
 }
 
 function TypeIcon({ type }: { type: 'video' | 'image' | 'text' }): JSX.Element {
@@ -80,7 +139,7 @@ export default function PreviewInspector({ timeline, collapsed, onExpand, onColl
   const durationFrames = target ? target.endFrame - target.startFrame : computeTimelineDuration(timeline)
   const objectDuration = `${(durationFrames / fps).toFixed(1)}${t('timelinePreview.previewInspector.seconds')}`
   // 收起态与素材栏共用同一个 PanelRail：宽度由面板系统的 collapsedSize 决定，组件里不再各写一个 w-8。
-  if (collapsed) return <PanelRail icon={<IconAdjustments size={16} />} label={t('timelinePreview.previewInspector.title')} title={t('timelinePreview.previewInspector.expand')} onClick={onExpand} />
+  if (collapsed) return <PanelRail icon={<IconAdjustments size={16} />} label={t('timelinePreview.previewInspector.railLabel')} title={t('timelinePreview.previewInspector.expand')} horizontalLabel onClick={onExpand} />
   return <aside className="flex h-full min-w-0 flex-col overflow-y-auto border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]" aria-label={t('timelinePreview.previewInspector.aria')}>
     <header className="flex h-10 flex-none items-center justify-between border-b border-[var(--workbench-border)] px-3"><div className="flex items-center gap-2 text-body-sm font-semibold"><IconAdjustments size={16} />{t('timelinePreview.previewInspector.title')}</div><WorkbenchIconButton label={t('timelinePreview.previewInspector.collapse')} title={t('timelinePreview.previewInspector.collapse')} icon={<IconChevronDown size={16} />} onClick={onCollapse} /></header>
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -104,9 +163,81 @@ export default function PreviewInspector({ timeline, collapsed, onExpand, onColl
         <Section title={t('timelinePreview.previewInspector.groups.text')}><TextClipFields clip={textClip} /></Section>
         <Section title={t('timelinePreview.previewInspector.groups.time')}><Field label={t('timelinePreview.previewInspector.start')}><span className="tabular-nums">{timelineTimecodePrecise(textClip.startFrame, fps)}</span></Field><Field label={t('timelinePreview.previewInspector.duration')}><span className="tabular-nums">{((textClip.endFrame - textClip.startFrame) / fps).toFixed(1)}{t('timelinePreview.previewInspector.seconds')}</span></Field></Section>
       </> : clip ? <>
-        <Section title={t('timelinePreview.previewInspector.groups.display')}><Field label={t('timelinePreview.previewInspector.fit')}><div className="flex overflow-hidden rounded-nomi-sm border border-[var(--workbench-border)]"><button type="button" className={cn('px-2 py-1 text-micro', framing.fit === 'contain' && 'bg-[var(--workbench-accent-soft)]')} onClick={() => setFraming(clip.id, { fit: 'contain' })}>{t('timelinePreview.contain')}</button><button type="button" className={cn('px-2 py-1 text-micro', framing.fit === 'cover' && 'bg-[var(--workbench-accent-soft)]')} onClick={() => setFraming(clip.id, { fit: 'cover' })}>{t('timelinePreview.cover')}</button></div></Field><Field label={t('timelinePreview.previewInspector.scale')}><input aria-label={t('timelinePreview.previewInspector.scale')} type="range" min={0.5} max={3} step={0.05} value={framing.scale} className="w-20" onChange={(event) => setFraming(clip.id, { scale: Number(event.target.value) })} /><span className="w-10 tabular-nums text-right">{Math.round(framing.scale * 100)}%</span></Field><Field label={t('timelinePreview.previewInspector.reset')}><WorkbenchButton className="h-6 px-2 text-micro" onClick={() => setFraming(clip.id, { fit: 'contain', scale: 1, offsetX: 0, offsetY: 0 })}>{t('timelinePreview.previewInspector.reset')}</WorkbenchButton></Field></Section>
+        <Section title={t('timelinePreview.previewInspector.groups.display')}>
+          <Field label={t('timelinePreview.previewInspector.fit')}>
+            <NomiSegmented
+              ariaLabel={t('timelinePreview.previewInspector.fit')}
+              density="compact"
+              fit="content"
+              className="gap-0.5 p-0.5"
+              itemClassName="px-2 py-0.5 text-micro"
+              value={framing.fit}
+              options={[
+                { value: 'contain', label: t('timelinePreview.contain') },
+                { value: 'cover', label: t('timelinePreview.cover') },
+              ]}
+              onChange={(value) => setFraming(clip.id, { fit: value as 'contain' | 'cover' })}
+            />
+          </Field>
+          <Field label={t('timelinePreview.previewInspector.scale')}>
+            <input aria-label={t('timelinePreview.previewInspector.scale')} type="range" min={0.5} max={3} step={0.05} value={framing.scale} className="w-20" onChange={(event) => setFraming(clip.id, { scale: Number(event.target.value) })} />
+            <span className="w-10 text-right tabular-nums">{Math.round(framing.scale * 100)}%</span>
+          </Field>
+          <Field label={t('timelinePreview.previewInspector.reset')}>
+            <WorkbenchButton className="h-6 px-2 text-micro" onClick={() => setFraming(clip.id, { fit: 'contain', scale: 1, offsetX: 0, offsetY: 0 })}>{t('timelinePreview.previewInspector.reset')}</WorkbenchButton>
+          </Field>
+        </Section>
         <Section title={t('timelinePreview.previewInspector.groups.time')}><Field label={t('timelinePreview.previewInspector.start')}><span className="tabular-nums">{timelineTimecodePrecise(clip.startFrame, fps)}</span></Field><Field label={t('timelinePreview.previewInspector.duration')}><span className="tabular-nums">{((clip.endFrame - clip.startFrame) / fps).toFixed(1)}{t('timelinePreview.previewInspector.seconds')}</span></Field><Field label={t('timelinePreview.previewInspector.sourceWindow')}><span className="tabular-nums text-micro">{clip.offsetStartFrame}–{clip.frameCount - clip.offsetEndFrame}{t('timelinePreview.previewInspector.frames')}</span></Field></Section>
-        {clip.type !== 'image' ? <Section title={t('timelinePreview.previewInspector.groups.audio')}><Field label={t('timelinePreview.previewInspector.volumeDb')}><input aria-label={t('timelinePreview.previewInspector.volumeDb')} type="range" min={-60} max={0} step={1} value={audio.gainDb} className="w-20" onChange={(event) => setAudio(clip.id, { gainDb: Number(event.target.value) })} /><input aria-label={t('timelinePreview.previewInspector.volumeDbInput')} type="number" min={-60} max={0} value={audio.gainDb} className="w-12 rounded-nomi-sm border border-[var(--workbench-border)] bg-transparent px-1 text-right text-micro" onChange={(event) => setAudio(clip.id, { gainDb: Number(event.target.value) })} /></Field><Field label={t('timelinePreview.previewInspector.muted')}><input type="checkbox" checked={audio.muted} aria-label={t('timelinePreview.previewInspector.muted')} onChange={(event) => setAudio(clip.id, { muted: event.target.checked })} /></Field><Field label={t('timelinePreview.previewInspector.fadeIn')}><input type="number" min={0} value={(audio.fadeInFrames / fps).toFixed(2)} className="w-14 rounded-nomi-sm border border-[var(--workbench-border)] bg-transparent px-1 text-right text-micro" onChange={(event) => setAudio(clip.id, { fadeInFrames: Math.max(0, Math.round(Number(event.target.value) * fps)) })} /><span className="text-micro">{t('timelinePreview.previewInspector.seconds')}</span></Field><Field label={t('timelinePreview.previewInspector.fadeOut')}><input type="number" min={0} value={(audio.fadeOutFrames / fps).toFixed(2)} className="w-14 rounded-nomi-sm border border-[var(--workbench-border)] bg-transparent px-1 text-right text-micro" onChange={(event) => setAudio(clip.id, { fadeOutFrames: Math.max(0, Math.round(Number(event.target.value) * fps)) })} /><span className="text-micro">{t('timelinePreview.previewInspector.seconds')}</span></Field></Section> : null}
+        {clip.type !== 'image' ? (
+          <Section title={t('timelinePreview.previewInspector.groups.audio')}>
+            <Field label={t('timelinePreview.previewInspector.volumeDb')}>
+              <input aria-label={t('timelinePreview.previewInspector.volumeDb')} type="range" min={-60} max={0} step={1} value={audio.gainDb} className="w-20" onChange={(event) => setAudio(clip.id, { gainDb: Number(event.target.value) })} />
+              <InspectorNumberInput
+                value={audio.gainDb}
+                min={-60}
+                max={0}
+                step={1}
+                ariaLabel={t('timelinePreview.previewInspector.volumeDbInput')}
+                className="w-12"
+                onCommit={(gainDb) => setAudio(clip.id, { gainDb })}
+              />
+            </Field>
+            <Field label={t('timelinePreview.previewInspector.muted')}>
+              <DesignSwitch
+                size="xs"
+                checked={audio.muted}
+                aria-label={t('timelinePreview.previewInspector.muted')}
+                onChange={(event) => setAudio(clip.id, { muted: event.currentTarget.checked })}
+              />
+            </Field>
+            <Field label={t('timelinePreview.previewInspector.fadeIn')}>
+              <InspectorNumberInput
+                value={Number((audio.fadeInFrames / fps).toFixed(2))}
+                min={0}
+                step={0.1}
+                decimalScale={2}
+                fixedDecimalScale
+                ariaLabel={t('timelinePreview.previewInspector.fadeIn')}
+                className="w-14"
+                onCommit={(seconds) => setAudio(clip.id, { fadeInFrames: Math.max(0, Math.round(seconds * fps)) })}
+              />
+              <span className="text-micro">{t('timelinePreview.previewInspector.seconds')}</span>
+            </Field>
+            <Field label={t('timelinePreview.previewInspector.fadeOut')}>
+              <InspectorNumberInput
+                value={Number((audio.fadeOutFrames / fps).toFixed(2))}
+                min={0}
+                step={0.1}
+                decimalScale={2}
+                fixedDecimalScale
+                ariaLabel={t('timelinePreview.previewInspector.fadeOut')}
+                className="w-14"
+                onCommit={(seconds) => setAudio(clip.id, { fadeOutFrames: Math.max(0, Math.round(seconds * fps)) })}
+              />
+              <span className="text-micro">{t('timelinePreview.previewInspector.seconds')}</span>
+            </Field>
+          </Section>
+        ) : null}
         <Section title={t('timelinePreview.previewInspector.groups.transition')}><ClipTransitionFields clip={clip} timeline={timeline} /></Section>
       </> : null}
     </div>

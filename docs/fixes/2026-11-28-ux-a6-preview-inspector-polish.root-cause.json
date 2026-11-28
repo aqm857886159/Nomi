@@ -1,0 +1,173 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-ux-a6-preview-inspector-polish",
+  "problem_type": "Preview inspector collapsed rail orientation drift, Chinese copy mistranslation, and bare native form inputs outside the design system.",
+  "symptom": "Collapsed PreviewInspector rendered English 'Inspector' rotated 90 degrees via vertical-rl inside the 32px rail unlike the upright left Clips rail; clip fit label was mistranslated in Chinese as '画面分段'; clip audio mute and numeric controls rendered bare native checkbox and number inputs instead of design system primitives.",
+  "direct_cause": "PanelRail defaulted horizontalLabel to false and PreviewInspector omitted both horizontalLabel and a short railLabel; zhTimelinePreview.previewInspector.fit held '画面分段'; PreviewInspector.tsx rendered raw <input type=\"checkbox\">, <input type=\"number\">, and ad-hoc fit buttons instead of DesignSwitch, DesignNumberInput, and NomiSegmented.",
+  "class_root": "Collapsed preview rails lacked an upright-by-default orientation invariant at the shared PanelRail boundary, and PreviewInspector bypassed src/design form primitives for clip display and audio controls.",
+  "affected_population": [
+    "Creators using Preview on 1280px or narrower viewports with Nomi docked where the inspector auto-collapses into a 32px rail",
+    "Chinese and English creators inspecting and editing clip display framing and audio controls in PreviewInspector"
+  ],
+  "scope_paths": [
+    "src/workbench/preview/PanelRail.tsx",
+    "src/workbench/preview/inspector/PreviewInspector.tsx",
+    "src/i18n/locales/timelinePreview.ts"
+  ],
+  "entry_points": [
+    "Collapsed right inspector rail in PreviewWorkspace",
+    "Expanded PreviewInspector clip display and audio sections"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The collapsed rail orientation, Chinese inspector terminology, and design-system form primitive usage are internal Nomi UI contracts owned by PanelRail, timelinePreview locales, and src/design/forms.tsx.",
+  "invariants": [
+    "PanelRail renders upright horizontal short labels by default so no collapsed preview rail rotates Latin labels into vertical-rl.",
+    "PreviewInspector clip display and audio fields use src/design primitives (NomiSegmented, DesignSwitch, DesignNumberInput) with preserved aria-labels and zero horizontal overflow at the 200px minimum inspector width."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "PanelRail"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PanelRail.tsx",
+      "symbol": "PanelRail"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewSourcePanel.tsx",
+      "symbol": "PanelRail"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/editing/states/02-inspector.tsx",
+      "symbol": "PreviewInspector"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "PreviewInspector"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "setTimelineClipAudio"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineContextMenu.tsx",
+      "symbol": "setTimelineClipAudio"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineContextMenu.tsx",
+      "symbol": "setTimelineClipAudio"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/timelinePreview.ts",
+      "symbol": "zhTimelinePreview"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhTimelinePreview"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 10,
+    "why_not": "PanelRail is shared by the two distinct side panels (PreviewSourcePanel and PreviewInspector); PreviewInspector is mounted in both PreviewWorkspace and its Design Lab harness; clip audio mute/gain can be edited from both PreviewInspector and TimelineContextMenu; zhTimelinePreview is defined in timelinePreview.ts and registered in i18n/resources.ts. Each entry serves a distinct UI or registry surface and converges on the shared PanelRail component, locale dictionary, and store mutator."
+  },
+  "generality_proof": "Making PanelRail upright by default eliminates vertical-rl drift for every current and future collapsed rail caller, while migrating PreviewInspector controls to src/design primitives and unit-testing the rendered DOM prevents regression across both zh-CN and en locales.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/preview/PanelRail.tsx",
+      "symbol": "PanelRail",
+      "responsibility": "Own the collapsed 32px panel rail layout and enforce upright horizontal short labels by default."
+    },
+    {
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "PreviewInspector",
+      "responsibility": "Own clip display and audio inspector controls using src/design primitives with accessible labels and narrow-width layout safety."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "entry_point": "PreviewInspector",
+      "disposition": "enforced",
+      "evidence": "Updated collapsed rail to pass railLabel and horizontalLabel and migrated fit, mute, volume, fade-in, and fade-out controls to NomiSegmented, DesignSwitch, and DesignNumberInput."
+    },
+    {
+      "path": "src/workbench/preview/PreviewSourcePanel.tsx",
+      "entry_point": "PreviewSourcePanel",
+      "disposition": "enforced",
+      "evidence": "Already passes short railLabel and horizontalLabel to the shared PanelRail boundary."
+    },
+    {
+      "path": "src/workbench/preview/inspector/TextClipFields.tsx",
+      "entry_point": "TextClipFields",
+      "disposition": "not-affected",
+      "evidence": "Uses NomiSelect and WorkbenchIconButton for text clips; does not render a PanelRail, fit copy, or bare native audio checkbox/number inputs."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Defaulting PanelRail to vertical-rl allowed any new or existing collapsed panel rail caller to silently regress into rotated English text, and hand-rolling bare native inputs in inspector sections bypasses design-system theming in light and dark modes.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs PanelRail",
+      "node scripts/door-map.mjs PreviewInspector",
+      "node scripts/door-map.mjs setTimelineClipAudio",
+      "git grep -n \"画面分段\" across repository",
+      "git grep -n \"horizontalLabel|vertical-rl\" across src/ and tests/"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/preview/PanelRail.tsx",
+    "invariant": "PanelRail defaults horizontalLabel to true so every collapsed rail renders upright short labels, and PreviewInspector renders clip framing and audio controls exclusively via src/design primitives.",
+    "failure_mode": "Invalid or out-of-range numeric edits in clip audio fields are clamped or ignored without writing NaN or negative frame counts to store; omitting horizontalLabel still renders upright horizontal rail text.",
+    "exception_policy": "none",
+    "strategy": "Enforce upright horizontal labels at PanelRail by default, supply dedicated short railLabel keys in timelinePreview locales, and replace bare native inputs in PreviewInspector with DesignSwitch, DesignNumberInput, and NomiSegmented guarded by unit tests and narrow-panel walkthroughs.",
+    "artifacts": [
+      "src/workbench/preview/PanelRail.tsx",
+      "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "src/i18n/locales/timelinePreview.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/preview/previewUxLabels.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/preview/previewUxLabels.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/preview/PanelRail.tsx",
+      "src/workbench/preview/inspector/PreviewInspector.tsx"
+    ],
+    "rationale": "Replaced default vertical-rl label orientation in PanelRail and removed bare native checkbox, number inputs, and ad-hoc fit toggle buttons in PreviewInspector in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "All controls reuse existing @mantine/core wrappers in src/design/forms.tsx and NomiSegmented without introducing or changing third-party dependencies.",
+    "exit_criteria": []
+  },
+  "migration": "No persistence or schema migration is needed because project timelines, clip audio fields, and editing panel layouts keep their exact stored formats.",
+  "residual_risks": [
+    "Design Lab static screenshots outside this PR are regenerated separately when Design Lab baselines are refreshed."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-28",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/preview/PanelRail.tsx",
+    "tests": [
+      "src/workbench/preview/previewUxLabels.test.tsx"
+    ]
+  }
+}

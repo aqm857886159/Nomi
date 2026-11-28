@@ -17,8 +17,8 @@ const root = path.resolve(import.meta.dirname, '../..')
 const evidence = path.join(root, '.tmp', 'failure-toast-layout-evidence')
 fs.mkdirSync(evidence, { recursive: true })
 
-/** Supported window sizes: the everyday laptop size, and the smallest window the app allows (electron/shared/mainWindowSize.json). */
-const SIZES = [{ width: 1280, height: 800 }, { ...MIN_WINDOW }]
+/** Supported window sizes: everyday laptop, dockable compact desktop, and narrowest window (electron/shared/mainWindowSize.json). */
+const SIZES = [{ width: 1280, height: 800 }, { width: 1100, height: 690 }, { ...MIN_WINDOW }]
 
 const server = await createServer({ root, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 5299, strictPort: true } })
 await server.listen()
@@ -146,6 +146,63 @@ try {
         await expect(toasts).toHaveCount(1)
         await expectInside('失败提示（右侧面板打开）')
         await screenshotSettled(page, { path: path.join(evidence, `${tag}-with-right-panel.png`) })
+        await page.evaluate(() => window.__toastFixture.closePanels())
+      })
+
+      await check('with docked resident Agent open the toast clears the Agent dock with zero overlap (default and resized widths)', async () => {
+        const overlapWith = async (selector) => page.evaluate((sel) => {
+          const toast = document.querySelector('.mantine-Notification-root')?.getBoundingClientRect()
+          const target = document.querySelector(sel)?.getBoundingClientRect()
+          if (!toast || !target) return -1
+          const w = Math.max(0, Math.min(toast.right, target.right) - Math.max(toast.left, target.left))
+          const h = Math.max(0, Math.min(toast.bottom, target.bottom) - Math.max(toast.top, target.top))
+          return Math.round(w * h)
+        }, selector)
+
+        if (size.width >= 1060) {
+          for (const dockWidth of [390, 340, 480]) {
+            await page.evaluate((width) => {
+              window.__toastFixture.clear()
+              window.__toastFixture.setAgentForm('dock', width)
+              window.__toastFixture.showFailure()
+            }, dockWidth)
+            await expect(toasts).toHaveCount(1)
+            await expectInside(`失败提示（常驻 Agent 停靠 ${dockWidth}px）`)
+            assert.equal(await overlapWith('#project-agent-resident'), 0, `Agent 停靠 ${dockWidth}px 时右上 Toast 与 Agent 顶栏存在重叠`)
+          }
+
+          // Combined with Task Center: toast clears BOTH panels regardless of which is wider.
+          for (const dockWidth of [300, 480]) {
+            await page.evaluate((width) => {
+              window.__toastFixture.clear()
+              window.__toastFixture.setAgentForm('dock', width)
+              window.__toastFixture.openPanel('tasks')
+              window.__toastFixture.showFailure()
+            }, dockWidth)
+            await expect(toasts).toHaveCount(1)
+            await expectInside(`失败提示（Agent 停靠 ${dockWidth}px + 任务中心）`)
+            assert.equal(await overlapWith('#project-agent-resident'), 0, `Agent 停靠 ${dockWidth}px + 任务中心时 Toast 重叠 Agent`)
+            assert.equal(await overlapWith('[data-nomi-right-panel="tasks"]'), 0, `Agent 停靠 ${dockWidth}px + 任务中心时 Toast 重叠任务中心`)
+          }
+        }
+
+        // Collapsed / floating Agent must NOT cause a false right-side offset.
+        for (const form of ['collapsed', 'float']) {
+          await page.evaluate((nextForm) => {
+            window.__toastFixture.clear()
+            window.__toastFixture.closePanels()
+            window.__toastFixture.setAgentForm(nextForm)
+            window.__toastFixture.showFailure()
+          }, form)
+          await expect(toasts).toHaveCount(1)
+          await expectInside(`失败提示（Agent ${form} 态不误偏移）`)
+          const rightGap = await page.evaluate(() => {
+            const toast = document.querySelector('.mantine-Notification-root')?.getBoundingClientRect()
+            return toast ? Math.round(window.innerWidth - toast.right) : -1
+          })
+          assert.ok(rightGap >= 10 && rightGap <= 16, `Agent ${form} 态下 Toast 应贴窗口右上角（约 12px），实测 rightGap=${rightGap}px`)
+        }
+
         await page.evaluate(() => window.__toastFixture.closePanels())
       })
 
