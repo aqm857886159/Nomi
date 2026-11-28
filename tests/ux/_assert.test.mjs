@@ -4,7 +4,7 @@
 // `expectAbsent` 没有 provenBy 就得当场抛错。这条一旦松了，整套加固就退回成一句口号——
 // 因为「没有基线的『没看到』」正是本仓 94% 的「不存在」断言在犯的错，也是我两天内栽的两次。
 import { describe, expect, it } from 'vitest'
-import { countLineBoxes, expectAbsent, holdAbsent, proveProbe, stripCommentsAndStrings } from './_assert.mjs'
+import { countLineBoxes, expectAbsent, expectVisibleText, holdAbsent, proveProbe, stripCommentsAndStrings } from './_assert.mjs'
 
 /** 假 locator：这些测试只验签名契约，不碰真浏览器。 */
 const fakeLocator = { toString: () => 'locator(fake)' }
@@ -73,6 +73,15 @@ describe('proveProbe 要求说人话的 label', () => {
   it('不给 label → 抛错：失败信息里没有人话，等于让人对着 selector 猜', async () => {
     await expect(proveProbe(fakeLocator)).rejects.toThrow(/label 必填/)
     await expect(proveProbe(fakeLocator, '')).rejects.toThrow(/label 必填/)
+  })
+})
+
+describe('expectVisibleText 参数契约', () => {
+  it('空白字符串或非 string/RegExp → 抛错，杜绝空串匹配任意元素的假绿', async () => {
+    await expect(expectVisibleText(fakeLocator, '')).rejects.toThrow(/不能为空白串/)
+    await expect(expectVisibleText(fakeLocator, '   \n\t ')).rejects.toThrow(/不能为空白串/)
+    await expect(expectVisibleText(fakeLocator, null)).rejects.toThrow(/string 或 RegExp/)
+    await expect(expectVisibleText(fakeLocator, 123)).rejects.toThrow(/string 或 RegExp/)
   })
 })
 
