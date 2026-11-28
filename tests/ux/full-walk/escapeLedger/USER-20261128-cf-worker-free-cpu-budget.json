@@ -8,7 +8,7 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "rootCauseContract": "docs/fixes/2026-11-28-cloudflare-worker-free-cpu-budget.root-cause.json",
   "classCheck": {
@@ -24,5 +24,6 @@
   ],
   "completionCommits": [
     "018d87866"
-  ]
+  ],
+  "fixedInPr": 1750
 }
