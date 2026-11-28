@@ -1,5 +1,7 @@
 # 撤掉节点锁（短版设计卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 先查别人
 - `src/workbench/generationCanvas/nodes/NodeLockBadge.tsx:1-2`、`generationCanvasTypes.ts:190-193`：这个锁是 2026-06 为防助手误改加的软门，只有创作者手点才会锁。
 - `src/workbench/generationCanvas/runner` 生成路径不读 `locked`：锁只拦助手改提示词、删除、接线，生成从来不看（`applyCanvasToolCall.ts:700` 是唯一的拦截）。

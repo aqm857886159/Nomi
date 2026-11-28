@@ -1,5 +1,7 @@
 # 短版设计卡：Q-walk-real-signal（走查断言量真信号结构修）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：走查断言量真信号结构修（`Q-walk-real-signal`） · 线/负责人：`impl-q-walk-real-signal` · 类别：[其他]（纯测试/走查断言与夹具加固，不改 `src/` / `electron/` 产品代码，不碰用户可见界面）
 
 ## 变更意图

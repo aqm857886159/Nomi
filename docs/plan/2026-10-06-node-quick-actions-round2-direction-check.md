@@ -1,5 +1,7 @@
 # 方向检查 · 节点快捷动作第二轮（用户 2026-10-06 四条）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 模板：`docs/engineering/direction-check-template.md`。触发：`fix-churn` 命中 `NodeFloatingToolbar.tsx`（14 天第 6 个 fix）、`StoryboardAnchorRow.tsx`（第 7 个）、`AnchoredPopover.tsx`（第 4 个）、`useNodeImageEditing.ts` / `CardCommon.tsx`（第 3 个）。实现线 L-qa2。
 > 用户原话四条：① 多机位九宫格、改图参考宫格，下拉 icon 中间不要隔线，点出来的框不能遮挡原来的按钮；② 抠图没法使用；③ 高清没有模型怎么办；④ 为什么会出这种问题，修底层机制。
 

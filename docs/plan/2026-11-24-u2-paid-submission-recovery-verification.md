@@ -1,5 +1,7 @@
 # U-2 付费提交恢复独立验收
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 验收线为 u2-receipt-acceptance。量具是 `electron/capabilityCore/paidSubmissionRecovery.integration.test.ts`。本地 HTTP 服务读完请求体才把生成 POST 计入表中。重启取故障点当时的项目目录，重新加载模块并重建仓库、Run 服务和观察者。已受理的用例须在恢复时登记原 Run 的观察者，取回本次提交特有的字节，并从首次受理时的磁盘快照读到模型身份、基础地址、原始答复和受理时间。
 
 | 场景 | 基线观察 | 修复后的观察 | 生成 POST（首次 / 机器恢复 / 人工重试） |

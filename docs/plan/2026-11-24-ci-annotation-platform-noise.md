@@ -1,5 +1,7 @@
 # Q-ci-noise · GitHub 平台基础设施抖动注解归源委派
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 协作看板 #1586 · #7121704908 · 实现线 q-ci-noise-impl。纯 CI 脚本，不起 Nomi 窗口。
 
 ## 短版设计卡

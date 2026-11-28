@@ -1,5 +1,7 @@
 # 设计卡 · UX-A6 预览检查器收起轨横排短标、画面填充正名与音频设计系统控件
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：UX-A6 预览检查器一致性与母语纠偏（U-20） | 线/负责人：impl-ux-a6 | 类别：[其他]（标准档 · `PreviewInspector.tsx` 与 `timelinePreview.ts` 改动）
 
 拍板图清单：`docs/design/boards/2026-11-04-preview-narrow-panels/PreviewNarrowPanels.board.json`（只复用既有 `rule.readable-or-rail`、`rule.rail-click-swaps` 与 `row.1440-nomi-open` 200px 窄栏不溢出约束，不改拍板结构）

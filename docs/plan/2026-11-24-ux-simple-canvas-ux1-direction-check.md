@@ -1,5 +1,7 @@
 # UX1 方向检查 · 选中节点之后能直接生成
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 基线 `8ac07cffb`。独立复盘依据为 Phase 1 的 J05、J07、J09 真窗记录、两次协调裁决（7126279479、7126560423）和改前源码。
 
 **全图**　取景交接在 `docs/engineering/seams.json` 表外。创作选句 → 建卡、选中、切工作区 → 打开分类适应 → React Flow 设置视口。另一条路径为右环 → `createConnectedNode` → 选中新卡 → 显示生成框。两条路的生成框都经 `ComposerAnchor` 锚在卡片下方。首帧画幅另属于已登记的 `archetype-panel-request` 交接。[档案到请求的现有全图](2026-11-15-archetype-single-entry.md)

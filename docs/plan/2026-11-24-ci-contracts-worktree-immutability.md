@@ -1,5 +1,7 @@
 # CI Contracts 工作树与 HEAD 不变量
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 实现线 `q-ci-tree-impl`。纯 CI 修复，短档。
 
 ## 短版设计卡

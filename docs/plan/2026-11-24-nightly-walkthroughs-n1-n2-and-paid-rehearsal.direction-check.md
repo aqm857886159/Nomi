@@ -1,5 +1,7 @@
 # 方向检查 · 夜跑走查证据目录 · 2026-11-24
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 提交钩子命中 `delivery.test-temp-roots`，近 14 天已有 3 个 fix，本次第 4 个，命中单位是概念。用户指定每次走查默认在 `os.tmpdir()` 分配独立目录并保留证据，要求提交时带复盘 trailer。
 
 **全图**　交接处表外。夜跑和本地直跑进入同一个走查脚本，由 `walkEvidenceDir` 选择证据位置，临时路径由 `makeTempDir` 发放，夜跑树守卫检查执行前后的构建输入。七个入口见 [启动合同](../fixes/2026-11-24-nightly-walk-prerequisites.root-cause.json)。

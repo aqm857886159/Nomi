@@ -1,5 +1,7 @@
 # T-8 raw rename consolidation
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## ★0 Prior art
 
 - Node exposes synchronous and promise-based rename for already staged files. This confirms that publication can stay on the same native operation and preserve errno identity. [Node filesystem API](https://nodejs.org/api/fs.html#fspromisesrenameoldpath-newpath)

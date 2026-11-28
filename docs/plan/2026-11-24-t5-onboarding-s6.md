@@ -1,5 +1,7 @@
 # T-5 S6 · 从官网回到草稿
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 实现线 t5-onboarding-s6-impl，关联 #1586、D-1124-onboarding-s6-balance。适用整窗接入与可打断交互。
 
 ## ★0 先查别人

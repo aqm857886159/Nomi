@@ -1,5 +1,7 @@
 # Validation Scope 检出瞬断修复
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - ★1 目标。Quality Gate 要按事件指定的两端提交分配验证车道。工作流子进程测试量出准确 SHA、真实 Git rename diff、profile 输出、尝试次数、退出码和注解标记。空基线与全零基线继续按各自原有的全量策略执行，无应用数据迁移。
 - ★2 归属。Git 提供提交和比较，`jobs.scope` 负责空工作区的检出和最终失败。检出后由 `select-quality-gate-profile.mjs` 读取范围并写输出。`door-map.mjs resolveProfileFromEnvironment writeGithubOutput --roots=scripts` 数到同一文件里的读、写各一扇。已检出的脚本继续由 `transientRetry.mjs` 统一管理重试，工作流测试对照冷启动的 Git 错误判定及默认次数。
 - ★3 取舍。#1158 已把脚本网络瞬断收进共享边界。空工作区无法导入该模块。沿用 checkout action 会保留全历史和其中间输出，删除检出则失去分类脚本与比较数据。选内联启动步骤，用 Git 一次抓取最多两个深度为 1 的提交，直接执行实际步骤作为验收。

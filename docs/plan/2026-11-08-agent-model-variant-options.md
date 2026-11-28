@@ -1,5 +1,7 @@
 # 模型详情里的变体参数
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - ★1 创作者要求 Fast、4K、无音频，只起草。实际 V4 Flash 读了 Seedance 通用 t2v 的 4K，把它用在 Fast，第一次 draft_shots 被拒。量具是只允许文字费的 P06、已有 modelSpecParity.class 的全型号对照和产物参数。合格条件是 Fast 详情只能把 480p／720p 列为合法清晰度，标准档仍可选 4K；无媒体请求。存量草稿及自建无档案条目不迁移。
 - ★2 变体参数的合法范围归现有 specializeArchetypeForVariant；说明书只投影它的结果。应用内与 MCP 共享详情。薄名单不增加参数。
 - ★3 历史上 modelSpecProjection 已把两个端的模型说明合为一份。只改提示词无法告诉模型实际范围，删掉变体会失去 Fast；沿用同一档案取值，比从准入错误反推参数更早。

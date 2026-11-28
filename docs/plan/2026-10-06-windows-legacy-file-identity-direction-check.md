@@ -1,5 +1,7 @@
 # 方向检查：文件身份比较（lane-legacy-migration 登记，30 天第 4 个 fix）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ### 0. 一句话根因
 「是不是同一个文件」没有共享实现：三个模块各写各的，Windows 上 Node 的 stat 在不同 libuv 版本下 dev 不一致、ino 还丢精度，每个新写这种检查的模块都会再踩。
 

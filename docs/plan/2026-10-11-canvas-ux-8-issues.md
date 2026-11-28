@@ -1,5 +1,7 @@
 # 方案卡：画布体验 8 条走查问题的根因与修法
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：canvas-ux-8　　线：画布交互　　类别：[修 bug][交互重做][待拍板]　　日期：2026-10-11
 来源：用户 2026-10-11 01:57 走查（对照 TapNow 画布文档 https://docs.tapnow.ai/zh/docs/canvas/generate-and-edit-video ）
 

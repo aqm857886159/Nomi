@@ -1,5 +1,7 @@
 # 设计卡：档案派生表改成发送时现算 · 删 13 份生成文件、生成脚本、自动同步工作流
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 2026-11-15。前置：#1533（档案单入口 `resolveModelArchetype` / `everyBuiltInArchetype`，`electron/shared/modelArchetypes/entry.ts`）。
 > 四类：碰**花钱**（无界面 / Agent / MCP 发起生成时 Run 路的合法参数表、size 比例闸都在发送路上），9 格全填。
 > 分三段提交，每段各自是绿的、能单独留下：①默认值表 ②身份表 ③方式表。

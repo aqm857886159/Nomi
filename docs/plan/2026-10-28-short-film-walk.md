@@ -1,5 +1,7 @@
 # 短片走查在 Mac 和夜跑上都量得到「运行中 / 停止 / 重开」（I-short-film-walk）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：`agent-v4-short-film` 走查的两处过期前提 + `agent-spend-priced-card` 走查漏 await　　线：I-short-film-walk　　类别：[其他]（测试 / 走查；不碰 `src/`、`electron/`）
 
 > 纯走查改动：按 `docs/engineering/design-card.md` 只填带 ★ 的 5 格（1、2、3、4、9）。不新增功能、不改界面，所以 ★0 / ★7 / 格 5–8 不适用，理由写在各格里。

@@ -1,5 +1,7 @@
 # 方向检查：项目库工具栏空维度筛选与卡片动作压封面
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发：`node scripts/fix-churn.mjs src/workbench/library/ProjectLibraryPage.tsx` 命中目录口径（`src/workbench/library/` 近 14 天已有 2 个 fix 提交、仅涉 2 个文件，本次准备落项目库交互改动计为第 3 个；`ProjectLibraryPage.tsx` 文件本身近 14 天 fix 数为 0）。`src/workbench/library/` 位于 `docs/engineering/self-written.json:652` 的 `domainRoots`，不涉及通用区自写登记条目。
 
 **这一处的全图在哪**：表外（`docs/engineering/seams.json` 无 `src/workbench/library/` 条目；设计契约见 `docs/design/nomi-design-system.md:161-244` 与 `docs/design/boards/2026-10-08/Library.board.json`）。

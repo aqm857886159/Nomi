@@ -1,5 +1,7 @@
 # 版本卡片 · 样张 ↔ 今天的界面对账 + 设计卡（2026-10-06）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 线 L-vcard，分支 `feat/version-cards`。方案正本 [2026-09-28-version-cards.md](2026-09-28-version-cards.md)，样张 [mockups/2026-09-28-version-cards](../design/mockups/2026-09-28-version-cards/README.md)。
 今天的真机截图（开发版 Electron、隔离资料、真实素材、窗口在屏外）：[now-2026-10-06/](../design/mockups/2026-09-28-version-cards/now-2026-10-06/)，中英各 3 张（收起态 / 选中态 / 制作镜头选中态）。
 

@@ -1,5 +1,7 @@
 # U-1 草稿编辑与生成的方向检查
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 入口图见 [根因合同](../fixes/2026-11-23-agent-turn-generation-hold.root-cause.json) 的门表。命中的是「参数准入」概念，`generationTransportAdapters.ts` 本身未命中文件阈值。该文件只删去候选修改进入代答的路径，沿用 P1 的概念级替换例外。
 
 ## 0–2. 现象、范围、根因

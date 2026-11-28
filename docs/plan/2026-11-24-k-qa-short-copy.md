@@ -1,5 +1,7 @@
 # 审片未校验单镜与多镜行内短文案收口统一（`ReconcileDeviationCard`）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：`ReconcileDeviationCard` 未校验行内按钮短文案统一并删除重复词条  
 实现线：`k-qa-copy-impl`  
 验收线：`k-qa-copy-verify`  
