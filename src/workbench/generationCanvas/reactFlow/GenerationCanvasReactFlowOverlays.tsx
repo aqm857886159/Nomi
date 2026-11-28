@@ -12,6 +12,7 @@ import { SelectionPromptSaveController } from '../components/SelectionPromptSave
 import { CanvasArrivalHint } from '../components/CanvasArrivalHint'
 import type { ArrivalHint } from '../components/canvasArrivalModel'
 import { hasClipboardContent } from '../store/canvasClipboard'
+import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { CanvasAssetInputPicker, CanvasConnectionCreateMenu } from './useGenerationCanvasReactFlowMenus'
@@ -109,6 +110,11 @@ export function GenerationCanvasReactFlowOverlays({
   // 选区在浮层这一层自己订阅（右键菜单的「编组 / 复制变体」、小地图的选中高亮），画布壳不因选中重渲。
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
   const selectedSet = React.useMemo(() => new Set(selectedNodeIds), [selectedNodeIds])
+  // 添加菜单偏好在共同宿主层加载一次：0 节点空画布起步格、有节点底部工具条与空白右键菜单共用同一份显隐/排序，0→1 节点切换无异步迟滞重排。
+  React.useEffect(() => {
+    if (readOnly) return
+    void useCanvasMenuPreferenceStore.getState().load().catch(() => {})
+  }, [readOnly])
   // 「从素材库添加…」选择器上传期间保持打开（显示上传中）；完成时它还开着才接线。
   const [uploadingInput, setUploadingInput] = React.useState(false)
   const latestPickerRef = React.useRef(assetInputPicker)

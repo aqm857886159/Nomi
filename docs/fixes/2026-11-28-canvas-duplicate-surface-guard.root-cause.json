@@ -23,6 +23,7 @@
     "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
     "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
     "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
     "src/devlab/designLab/primitivesActions/states/01-workbench.tsx",
