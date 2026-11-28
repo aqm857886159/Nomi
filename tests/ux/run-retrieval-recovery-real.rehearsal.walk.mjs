@@ -82,6 +82,8 @@ const common = {
   node: { kind: 'video', vendor: FIXTURE_VENDOR, modelKey: 'pf-video', prompt: 'A blue marble rolling on a table' },
   faultOff: async () => { provider.setQueryFault(false); finishJobs() },
   posts: () => provider.jobs.length,
+  postInitiatedAt: () => provider.postInitiatedAt(),
+  inFlightPosts: () => provider.inFlightPosts(),
   gets: () => provider.jobs.reduce((sum, job) => sum + job.queries, 0),
   shot: async (name, locator) => { await locator.screenshot({ path: path.join(evidence, `${locale}-${name}.png`) }) },
 }

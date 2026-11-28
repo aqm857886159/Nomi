@@ -23,6 +23,7 @@ import { NODE_TOOLBAR_CLICK_TARGETS } from '../catalog.mjs'
 import { uiText } from '../invariants.mjs'
 import { clickBlank, selectNode } from '../actions.mjs'
 import { startPlaybook } from '../launch.mjs'
+import { probeInlineWhiteboardCanvas } from '../whiteboardCanvasProbe.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -107,11 +108,21 @@ const targetOf = (id) => {
 async function readPage() {
   const project = await monitor.readProject()
   const canvas = project?.payload?.generationCanvas ?? project?.generationCanvas ?? {}
-  const nodes = (canvas.nodes ?? []).map((node) => ({
-    id: node.id, kind: node.kind, status: node.status, hasResult: Boolean(node.result?.url), resultUrl: node.result?.url ?? null,
-    whiteboardAssetUrls: (node.meta?.whiteboardState?.canvasAssets ?? []).map((asset) => asset?.url).filter(Boolean),
-    versions: (node.history ?? []).length, prompt: String(node.prompt ?? ''), model: node.meta?.modelKey ?? null, vendor: node.meta?.modelVendor ?? null, width: node.meta?.imageWidth ?? null, height: node.meta?.imageHeight ?? null,
-  }))
+  const nodes = (canvas.nodes ?? []).map((node) => {
+    const whiteboardLayers = new Map((node.meta?.whiteboardState?.layers ?? []).map((layer) => [layer.id, layer]))
+    const whiteboardAssets = node.meta?.whiteboardState?.canvasAssets ?? []
+    return {
+      id: node.id, kind: node.kind, status: node.status, hasResult: Boolean(node.result?.url), resultUrl: node.result?.url ?? null,
+      whiteboardAssetUrls: whiteboardAssets.map((asset) => asset?.url).filter(Boolean),
+      visibleWhiteboardAssetUrls: whiteboardAssets
+        .filter((asset) => {
+          const layer = whiteboardLayers.get(asset?.layerId)
+          return Boolean(asset?.url) && layer?.visible === true && (layer?.opacity ?? 1) > 0
+        })
+        .map((asset) => asset.url),
+      versions: (node.history ?? []).length, prompt: String(node.prompt ?? ''), model: node.meta?.modelKey ?? null, vendor: node.meta?.modelVendor ?? null, width: node.meta?.imageWidth ?? null, height: node.meta?.imageHeight ?? null,
+    }
+  })
   const dom = await win().evaluate(() => {
     const visible = (element) => {
       if (!element) return false
@@ -127,7 +138,8 @@ async function readPage() {
       feedback: [...document.querySelectorAll('[role="status"], [data-node-feedback], [data-canvas-toast]')].filter(visible).map((element) => element.textContent?.trim()).filter(Boolean).slice(0, 4),
     }
   })
-  return { nodes, edges: (canvas.edges ?? []).map((edge) => ({ source: edge.source, target: edge.target })), groups: (canvas.groups ?? []).length, providerImages: fixture.images.length, ...dom }
+  const whiteboardCanvas = dom.whiteboard ? await win().evaluate(probeInlineWhiteboardCanvas) : null
+  return { nodes, edges: (canvas.edges ?? []).map((edge) => ({ source: edge.source, target: edge.target })), groups: (canvas.groups ?? []).length, providerImages: fixture.images.length, ...dom, whiteboardCanvas }
 }
 const nodeOf = (snapshot, id) => snapshot.nodes.find((node) => node.id === id)
 const newNodes = (before, after) => after.nodes.filter((node) => !before.nodes.some((old) => old.id === node.id))
@@ -336,12 +348,30 @@ try {
       await expect(win().locator('[data-nomi-inline-whiteboard="true"]').first(), '画板打开').toBeVisible({ timeout: stationTimeout() })
       await expect(win().locator('[data-toolbar-action="whiteboard-importImage"]').first(), '画板初始加载就绪').toBeEnabled({ timeout: stationTimeout() })
       await expect.poll(async () => nodeOf(await readPage(), SRC)?.whiteboardAssetUrls ?? [], { timeout: stationTimeout(), message: '源节点原图已载入内联画板' }).toContain(expectedUrl)
+      await expect.poll(async () => nodeOf(await readPage(), SRC)?.visibleWhiteboardAssetUrls ?? [], { timeout: stationTimeout(), message: '源节点原图所在画板图层可见' }).toContain(expectedUrl)
+      await expect.poll(async () => (await readPage()).whiteboardCanvas?.hasRenderedContent ?? false, { timeout: stationTimeout(), message: '内联画板 <canvas> 已真实绘出非透明非空白源图像素' }).toBe(true)
     },
     judge: (before, after) => {
       const srcUrl = nodeOf(before, SRC)?.resultUrl
-      const seeded = Boolean(srcUrl) && (nodeOf(after, SRC)?.whiteboardAssetUrls ?? []).includes(srcUrl)
-      const ok = after.whiteboard && seeded
-      return { ok, actual: !after.whiteboard ? '画板没打开' : seeded ? '画板打开且已放入原图' : '画板打开了，但原图未进入画板' }
+      const afterNode = nodeOf(after, SRC)
+      const seeded = Boolean(srcUrl) && (afterNode?.whiteboardAssetUrls ?? []).includes(srcUrl)
+      const layerVisible = Boolean(srcUrl) && (afterNode?.visibleWhiteboardAssetUrls ?? []).includes(srcUrl)
+      const canvas = after.whiteboardCanvas
+      const rendered = Boolean(canvas?.hasRenderedContent)
+      const ok = after.whiteboard && seeded && layerVisible && rendered
+      const canvasSummary = canvas?.bestCanvas
+        ? `canvas ${canvas.bestCanvas.width}×${canvas.bestCanvas.height} 非透明=${canvas.bestCanvas.nonTransparentSamples}/${canvas.bestCanvas.totalSamples} 色档=${canvas.bestCanvas.distinctColors} 非背景变化=${canvas.bestCanvas.nonUniformSamples}`
+        : `canvasCount=${canvas?.canvasCount ?? 0} visible=${canvas?.visibleCanvasCount ?? 0} tainted=${canvas?.taintedCount ?? 0}`
+      const actual = !after.whiteboard
+        ? '画板没打开'
+        : !seeded
+          ? '画板打开了，但原图未进入画板'
+          : !layerVisible
+            ? '画板打开且写入了原图，但原图所在图层不可见'
+            : !rendered
+              ? `画板打开且图层可见，但 <canvas> 为空白/全透明/不可读（${canvasSummary}）`
+              : `画板打开、图层可见且已真实绘出原图（${canvasSummary}）`
+      return { ok, actual }
     },
   })
   await monitor.step('关上画板（复原）', async () => {

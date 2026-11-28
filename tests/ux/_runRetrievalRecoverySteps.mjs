@@ -5,7 +5,8 @@
 // 窗口一直开着、单还在跑时渲染层放手给观察者（windowOpenJourney：3797fde0c 再发弹确认卡，c05ac86b4 观察者收完自动按号落回镜头）。
 import fs from 'node:fs'
 import path from 'node:path'
-import { expect, expectAbsent, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
+import { performance } from 'node:perf_hooks'
+import { expect, expectAbsent, expectVisibleText, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
 import { readProductionRuns } from './_paidRun.mjs'
 import { closeRailDrawer, openRailDrawer } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -99,6 +100,43 @@ async function retrieveAndWait(page, id, retrieve) {
   await expect(retrieve()).toBeVisible({ timeout: stationTimeout({ operations: 4 }) })
 }
 
+/**
+ * 确认点击前守卫：核对已记账笔数、HTTP 入口已发起笔数与在途挂起 POST 均为预期值，
+ * 防止「确认前已发起 HTTP POST 但尚未读完 body」逃过 `posts()` 取样。
+ */
+export function assertNoPostBeforeConfirm({ posts, postInitiatedAt, inFlightPosts, expectedBefore, stage = 'before confirm' }) {
+  if (typeof postInitiatedAt !== 'function' || typeof inFlightPosts !== 'function') {
+    throw new Error(`${stage}: postInitiatedAt 与 inFlightPosts 必填，才能证明确认前没有已发起或在途 POST`)
+  }
+  const initiated = postInitiatedAt()
+  expect(posts(), `${stage}: recorded POST count`).toBe(expectedBefore)
+  expect(initiated.length, `${stage}: initiated POST count at HTTP entry`).toBe(expectedBefore)
+  expect(inFlightPosts(), `${stage}: no in-flight POST reading body`).toBe(0)
+}
+
+/**
+ * 确认点击后守卫：证明第 N 笔 POST 的 HTTP 入口到达时刻严格 ≥ 确认点击前时刻 `confirmClickedAt`。
+ */
+export function assertPostInitiatedAfterConfirm({ posts, postInitiatedAt, inFlightPosts, expectedCount, confirmClickedAt, stage = 'after confirm' }) {
+  if (typeof postInitiatedAt !== 'function' || typeof inFlightPosts !== 'function') {
+    throw new Error(`${stage}: postInitiatedAt 与 inFlightPosts 必填，才能证明确认后发起时序`)
+  }
+  if (typeof confirmClickedAt !== 'number' || !Number.isFinite(confirmClickedAt)) {
+    throw new Error(`${stage}: confirmClickedAt 必须是有限单调时间戳`)
+  }
+  const initiated = postInitiatedAt()
+  expect(posts(), `${stage}: recorded POST count`).toBe(expectedCount)
+  expect(initiated.length, `${stage}: initiated POST count at HTTP entry`).toBe(expectedCount)
+  expect(inFlightPosts(), `${stage}: no lingering in-flight POST`).toBe(0)
+  const newestInitiatedAt = initiated[expectedCount - 1]
+  expect(typeof newestInitiatedAt === 'number' && Number.isFinite(newestInitiatedAt), `${stage}: POST #${expectedCount} timestamp missing`).toBe(true)
+  expect(
+    newestInitiatedAt,
+    `${stage}: POST #${expectedCount} arrived at ${newestInitiatedAt} before confirm click (${confirmClickedAt})`,
+  ).toBeGreaterThanOrEqual(confirmClickedAt)
+  return newestInitiatedAt
+}
+
 export async function recoveryJourney(ctx) {
   const { locale, page: firstPage, interrupt, faultOff, posts, gets, shot, projectRoot, scenario } = ctx
   const labels = labelsFor(locale)
@@ -170,7 +208,7 @@ export async function unavailableJourney(ctx) {
     page = await interrupt(page, runRecordId)
     await waitStoppedForRetrieval(projectRoot, runRecordId)
     await expect(retrieve()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
-    await expect(card()).toContainText(labels.timedOut)
+    await expectVisibleText(card(), labels.timedOut, { message: 'recoverable card shows timeout title visibly' })
     await settledShot(`${scenario}-1-first-look`)
     const getsBefore = gets()
     await retrieveAndWait(page, id, retrieve)
@@ -211,7 +249,7 @@ export async function unavailableJourney(ctx) {
  * - c：单还在跑时标记失败并确认再发，这才发第二单；观察者收完第一单后原单产物仍在项目与素材抽屉里。
  */
 export async function windowOpenJourney(ctx) {
-  const { locale, page, imageNode, finishJobs, posts, gets, shot, projectRoot, scenario } = ctx
+  const { locale, page, imageNode, finishJobs, posts, postInitiatedAt, inFlightPosts, now = () => performance.now(), gets, shot, projectRoot, scenario } = ctx
   const labels = labelsFor(locale)
   const report = { scenario }
   const postsAtStart = posts()
@@ -231,7 +269,7 @@ export async function windowOpenJourney(ctx) {
   const settledShot = async (name, locator) => { await page.mouse.move(2, 2); await waitForVisualQuiescence(page); await shot(name, locator) }
 
   for (const node of [a, b, c]) await expect.poll(() => status(node), { timeout: stationTimeout({ operations: 12 }) }).toBe('recoverable')
-  expect(posts()).toBe(postsAtStart + 3)
+  assertNoPostBeforeConfirm({ posts, postInitiatedAt, inFlightPosts, expectedBefore: postsAtStart + 3, stage: 'after initial 3 submissions' })
   // 三个节点都不轮询了，查询还在长：是观察者接手了。
   const getsWhenRendererStopped = gets()
   await expect.poll(gets, { timeout: stationTimeout({ operations: 4 }) }).toBeGreaterThan(getsWhenRendererStopped)
@@ -242,15 +280,16 @@ export async function windowOpenJourney(ctx) {
   await expect(button(a, labels.retry)).toBeVisible({ timeout: stationTimeout() })
   await button(a, labels.retry).click()
   await expect(resendDialog).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
-  await expect(resendDialog).toContainText(labels.stillRunningTitle)
-  await expect(resendDialog).toContainText(labels.stillRunning)
+  await expectVisibleText(resendDialog, labels.stillRunningTitle, { message: 'resend dialog title is visible for a' })
+  await expectVisibleText(resendDialog, labels.stillRunning, { message: 'resend dialog still-running notice is visible for a' })
+  await expectVisibleText(resendDialog, labels.mightChargeAgain, { message: 'resend dialog double-charge warning is visible for a' })
   const proof = await proveProbe(resendDialog, 'the resend dialog warns this task is still running')
   await expectAbsent(page.getByText('node_generation_in_flight'), { provenBy: proof, message: 'the raw error code never reaches the UI' })
-  expect(posts()).toBe(postsAtStart + 3)
+  assertNoPostBeforeConfirm({ posts, postInitiatedAt, inFlightPosts, expectedBefore: postsAtStart + 3, stage: 'before canceling resend for a' })
   await settledShot(`${scenario}-1-still-running`, resendDialog)
   await resendDialog.locator('[data-spend-confirm-action="cancel"]').click()
   await expect(resendDialog).toHaveCount(0, { timeout: stationTimeout() })
-  expect(posts()).toBe(postsAtStart + 3)
+  assertNoPostBeforeConfirm({ posts, postInitiatedAt, inFlightPosts, expectedBefore: postsAtStart + 3, stage: 'after canceling resend for a' })
 
   // c：人在确认卡上明确选再发才发第二单；第一单仍由主进程观察者盯到收尾，产物不丢。
   await focus(c)
@@ -259,12 +298,21 @@ export async function windowOpenJourney(ctx) {
   await settledShot(`${scenario}-4-finished-marked-failed`, card(c))
   await button(c, labels.retry).click()
   await expect(resendDialog).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
-  await expect(resendDialog).toContainText(labels.stillRunningTitle)
-  await expect(resendDialog).toContainText(labels.stillRunning)
-  await expect(resendDialog).toContainText(labels.mightChargeAgain)
-  expect(posts()).toBe(postsAtStart + 3)
+  await expectVisibleText(resendDialog, labels.stillRunningTitle, { message: 'resend dialog title is visible for c' })
+  await expectVisibleText(resendDialog, labels.stillRunning, { message: 'resend dialog still-running notice is visible for c' })
+  await expectVisibleText(resendDialog, labels.mightChargeAgain, { message: 'resend dialog double-charge warning is visible for c' })
+  assertNoPostBeforeConfirm({ posts, postInitiatedAt, inFlightPosts, expectedBefore: postsAtStart + 3, stage: 'before confirming resend for c' })
+  const confirmClickedAt = now()
   await resendDialog.locator('[data-spend-confirm-action="confirm"]').click()
   await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(postsAtStart + 4)
+  assertPostInitiatedAfterConfirm({
+    posts,
+    postInitiatedAt,
+    inFlightPosts,
+    expectedCount: postsAtStart + 4,
+    confirmClickedAt,
+    stage: 'after confirming resend for c',
+  })
   await expect.poll(async () => (await nodeFact(page, c.id)).runRecordId, { timeout: stationTimeout({ operations: 2 }) }).not.toBe(c.runRecordId)
   const secondRunRecordId = (await nodeFact(page, c.id)).runRecordId
   expect(secondRunRecordId).toBeTruthy()
