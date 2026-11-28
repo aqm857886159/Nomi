@@ -59,7 +59,6 @@ export function previewExportStageKey(
 
 let previewExportState: PreviewExportState = PREVIEW_EXPORT_IDLE
 const listeners = new Set<() => void>()
-const cancelHandlers = new Set<() => void>()
 
 function subscribePreviewExportState(listener: () => void): () => void {
   listeners.add(listener)
@@ -94,9 +93,13 @@ export function usePreviewExportState(): PreviewExportState {
 }
 
 export function registerPreviewExportCancelHandler(handler: () => void): () => void {
-  cancelHandlers.add(handler)
+  if (typeof window === 'undefined') return () => {}
+  const listener = () => {
+    handler()
+  }
+  window.addEventListener(PREVIEW_EXPORT_CANCEL_EVENT, listener)
   return () => {
-    cancelHandlers.delete(handler)
+    window.removeEventListener(PREVIEW_EXPORT_CANCEL_EVENT, listener)
   }
 }
 
@@ -105,10 +108,6 @@ export function requestPreviewExport(): void {
 }
 
 export function requestPreviewExportCancel(): void {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event(PREVIEW_EXPORT_CANCEL_EVENT))
-  }
-  for (const handler of [...cancelHandlers]) {
-    handler()
-  }
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(PREVIEW_EXPORT_CANCEL_EVENT))
 }
