@@ -9,6 +9,9 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   DETECTED_BY,
+  POKA_YOKE_SINCE,
+  POKA_YOKE_SOURCE_MECHANISMS,
+  POKA_YOKE_TIERS,
   classifyFindings,
   inheritLegacyContractHashes,
   isHighRiskProductionFile,
@@ -999,4 +1002,144 @@ test("recurrence_of: 可选且支持 null / slug / 文件名 / 字符串数组�
   assert.match(missing.join(" | "), /does not exist in docs\/fixes\//);
   assert.equal(classifyFindings(missing).blocking.length, missing.length);
   assert.equal(classifyFindings(missing).warnings.length, 0);
+});
+
+test("poka-yoke: 新合同强制区分源头结构不可发生与事后扫描拦截，纯文字/规则文档或无理由事后门岗一律硬红阻断", () => {
+  assert.equal(POKA_YOKE_SINCE, "2026-11-29");
+  assert.deepEqual(POKA_YOKE_TIERS, ["impossible-by-construction", "post-hoc-gate"]);
+  assert.deepEqual(POKA_YOKE_SOURCE_MECHANISMS, ["route-deletion", "type-or-schema", "shared-core"]);
+
+  const contractFile = "docs/fixes/2026-11-29-poka-yoke-fixture.root-cause.json";
+  const ownerFile = "electron/catalog/assetLocalization.ts";
+  const retiredFile = "electron/catalog/legacyAssetPath.ts";
+  const testFile = "electron/catalog/assetLocalization.test.ts";
+  const ruleJson = "docs/engineering/rules.json";
+  const skillMd = ".agents/skills/root-cause-remediation/SKILL.md";
+
+  const baseFiles = [contractFile, ownerFile, testFile];
+  const existingFiles = new Set([contractFile, ownerFile, testFile, ruleJson, skillMd]);
+  const fileContents = new Map([
+    [ownerFile, "export function localizeAssetsForVendor() {}\n"],
+  ]);
+
+  const makeContract = (overrides = {}, preventionOverrides = {}) => ({
+    ...completeContract,
+    __file: contractFile,
+    id: "2026-11-29-poka-yoke-fixture",
+    detected_by: "ci",
+    recurrence_check_on: "2026-12-29",
+    invariant_owner_layer: { layer: ownerFile, tests: [testFile] },
+    doors: [{ kind: "write", path: ownerFile, symbol: "localizeAssetsForVendor" }],
+    door_reduction: { before: 1, after: 1 },
+    prevention: {
+      ...completeContract.prevention,
+      poka_yoke_tier: "impossible-by-construction",
+      source_mechanism: "shared-core",
+      ...preventionOverrides,
+    },
+    ...overrides,
+  });
+
+  const run = (contract, extraChanged = []) => validateRootCauseChange({
+    changedFiles: [...baseFiles, ...extraChanged],
+    contracts: [contract],
+    existingFiles,
+    fileContents,
+  });
+
+  // 正例 1：源头共用唯一解析核 / 类型或 Schema 不可表达 → 绿
+  const okShared = run(makeContract());
+  assert.deepEqual(okShared.errors, []);
+  const okType = run(makeContract({}, { kind: "type-system", source_mechanism: "type-or-schema" }));
+  assert.deepEqual(okType.errors, []);
+
+  // 正例 2：源头删分叉路径（有减门或删旧路径证据）→ 绿
+  const okDeletedDoor = run(makeContract({ door_reduction: { before: 2, after: 1 } }, { source_mechanism: "route-deletion" }));
+  assert.deepEqual(okDeletedDoor.errors, []);
+  const okDeletedLegacy = run(
+    makeContract(
+      {
+        scope_paths: ["electron/catalog/"],
+        legacy_paths: { status: "removed", removed_paths: [retiredFile], rationale: "同提交删除旧旁路文件" },
+      },
+      { source_mechanism: "route-deletion" },
+    ),
+    [retiredFile],
+  );
+  assert.deepEqual(okDeletedLegacy.errors, []);
+
+  // 正例 3：事后扫描门岗但写明为何无法在源头消灭（>=16 字、无 TODO）→ 绿
+  const okPostHoc = run(makeContract({}, {
+    kind: "static-gate",
+    poka_yoke_tier: "post-hoc-gate",
+    source_mechanism: undefined,
+    why_not_impossible_by_construction: "跨进程工作流 YAML 与 shell 字符串无法由 TS 类型表达，只能在静态门岗层统一核对。",
+  }));
+  assert.deepEqual(okPostHoc.errors, []);
+
+  // 反例 1：阈值后的新合同漏写 poka_yoke_tier → 硬红阻断
+  const missingTierContract = makeContract();
+  delete missingTierContract.prevention.poka_yoke_tier;
+  delete missingTierContract.prevention.source_mechanism;
+  const missingTier = run(missingTierContract);
+  assert.match(missingTier.errors.join("\n"), /poka_yoke_tier is required/);
+  assert.equal(classifyFindings(missingTier.errors).blocking.length, missingTier.errors.length);
+
+  // 反例 2：static-gate 或 runtime-assertion 冒充 impossible-by-construction → 硬红阻断
+  for (const postHocKind of ["static-gate", "runtime-assertion"]) {
+    const fakeSource = run(makeContract({}, { kind: postHocKind, poka_yoke_tier: "impossible-by-construction", source_mechanism: "shared-core" }));
+    assert.match(fakeSource.errors.join("\n"), /cannot use post-hoc kind/);
+    assert.equal(classifyFindings(fakeSource.errors).blocking.length, fakeSource.errors.length);
+  }
+
+  // 反例 3：宣称 route-deletion 却既没删旧路径也没减门 → 硬红阻断
+  const fakeDelete = run(makeContract({ door_reduction: { before: 1, after: 1 } }, { source_mechanism: "route-deletion" }));
+  assert.match(fakeDelete.errors.join("\n"), /requires concrete deletion evidence/);
+  assert.equal(classifyFindings(fakeDelete.errors).blocking.length, fakeDelete.errors.length);
+
+  // 反例 4：post-hoc-gate 未说明为何不能在源头消灭，或带 TODO / 太短 → 硬红阻断
+  for (const badWhy of [undefined, "太短了", "TODO: 以后补上为什么不能用类型系统消除"]) {
+    const noWhy = run(makeContract({}, {
+      kind: "static-gate",
+      poka_yoke_tier: "post-hoc-gate",
+      source_mechanism: undefined,
+      why_not_impossible_by_construction: badWhy,
+    }));
+    assert.match(noWhy.errors.join("\n"), /why_not_impossible_by_construction/);
+    assert.equal(classifyFindings(noWhy.errors).blocking.length, noWhy.errors.length);
+  }
+
+  // 反例 5：只写文字纪律 / 规则 JSON / 技能文档充当防线（即便在阈值前也立即硬红阻断）
+  const proseContract = makeContract({
+    __file: "docs/fixes/2026-11-20-prose-only.root-cause.json",
+    scope_paths: ["docs/engineering/", "electron/catalog/"],
+    shared_boundaries: [{ path: ruleJson, symbol: "P2", responsibility: "写进规则表提醒大家注意" }],
+  }, {
+    poka_yoke_tier: undefined,
+    source_mechanism: undefined,
+    enforcement_path: ruleJson,
+    artifacts: [ruleJson, skillMd, testFile],
+  });
+  const proseResult = validateRootCauseChange({
+    changedFiles: [proseContract.__file, ownerFile, ruleJson, skillMd, testFile],
+    contracts: [proseContract],
+    existingFiles: new Set([proseContract.__file, ownerFile, ruleJson, skillMd, testFile]),
+    fileContents,
+  });
+  assert.match(proseResult.errors.join("\n"), /cannot be prose, rule docs, or skill markdown/);
+  assert.match(proseResult.errors.join("\n"), /changed structural prevention/);
+  assert.ok(classifyFindings(proseResult.errors).blocking.length >= 2);
+
+  // 兼容：阈值之前且未显式携带 poka_yoke_tier 的存量/在途 v3 合同保持零误伤
+  const legacyV3 = makeContract({ __file: "docs/fixes/2026-11-28-in-flight.root-cause.json" }, {
+    poka_yoke_tier: undefined,
+    source_mechanism: undefined,
+  });
+  const okLegacy = validateRootCauseChange({
+    changedFiles: [legacyV3.__file, ownerFile, testFile],
+    contracts: [legacyV3],
+    existingFiles: new Set([legacyV3.__file, ownerFile, testFile]),
+    fileContents,
+  });
+  assert.deepEqual(okLegacy.errors, []);
 });

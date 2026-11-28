@@ -1,0 +1,5 @@
+{
+  "$comment": "外部经验结构化候选清单（R5）。调研中学到、对长期体验或架构有价值但本次未接入的做法必须登记在此（只留在报告正文等于没学）。证据等级（evidence_tier）从强到弱固定五档：measured-product（有数据的作品）> open-source-code（开源代码）> official-spec（官方规则/规范）> tutorial（教程）> opinion（观点）。每条含：{ id, practice, evidence_tier, source, how_to_trial, target_area, added_on, status: 'candidate'|'adopted'|'rejected' }。",
+  "schema_version": 1,
+  "candidates": []
+}
