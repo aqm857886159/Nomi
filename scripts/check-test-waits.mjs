@@ -163,37 +163,53 @@ export function builtArtifactImportLines(source, file) {
   return lines
 }
 
-// Poll/query budget injection in unit tests must use a controlled clock, regardless of the test's filename.
+// Poll/query budget injection in unit tests must use a controlled clock in an enclosing suite/test scope,
+// never relying on vi.useFakeTimers() in an unrelated sibling describe/it block.
 export function injectedDeadlineWaitLines(source, file) {
   const lines = new Set()
   if (!/\.(?:test|spec|node-test)\.[cm]?[jt]sx?$/.test(file)) return lines
   const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
-  let fake = false
-  let restored = false
   const positiveLiteral = node => ts.isNumericLiteral(node) && Number(node.text.replaceAll('_', '')) > 0
+  const rootName = expr => {
+    while (ts.isCallExpression(expr) || ts.isPropertyAccessExpression(expr) || ts.isElementAccessExpression(expr)) expr = expr.expression
+    return ts.isIdentifier(expr) ? expr.text : ''
+  }
+  const boundaries = new Set()
+  const markBoundaries = node => {
+    if (ts.isCallExpression(node) && ['describe', 'it', 'test'].includes(rootName(node.expression))) {
+      for (const arg of node.arguments) {
+        let cb = arg
+        while (ts.isParenthesizedExpression(cb)) cb = cb.expression
+        if (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) boundaries.add(cb)
+      }
+    }
+    ts.forEachChild(node, markBoundaries)
+  }
+  markBoundaries(parsed)
+  const hits = []
+  const scopes = [{ fake: false, real: false }]
   const visit = node => {
-    if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
-      && positiveLiteral(node.initializer)) {
-      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
-    }
-    if (ts.isParameter(node) && ts.isIdentifier(node.name) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
-      && node.initializer && positiveLiteral(node.initializer)) {
-      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
-    }
-    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
-      && ts.isPropertyAccessExpression(node.left) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.left.name.text)
-      && positiveLiteral(node.right)) {
-      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
-    }
+    const enter = boundaries.has(node)
+    if (enter) scopes.push({ fake: false, real: false })
+    const current = scopes[scopes.length - 1]
+    const deadlineHit =
+      (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text) && positiveLiteral(node.initializer)) ||
+      (ts.isParameter(node) && ts.isIdentifier(node.name) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text) && node.initializer && positiveLiteral(node.initializer)) ||
+      (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(node.left) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.left.name.text) && positiveLiteral(node.right))
+    if (deadlineHit) hits.push({ line: parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line, chain: [...scopes] })
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
       && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'vi') {
-      if (node.expression.name.text === 'useFakeTimers') fake = true
-      if (node.expression.name.text === 'useRealTimers') restored = true
+      if (node.expression.name.text === 'useFakeTimers') current.fake = true
+      if (node.expression.name.text === 'useRealTimers') current.real = true
     }
     ts.forEachChild(node, visit)
+    if (enter) scopes.pop()
   }
   visit(parsed)
-  return fake && restored ? new Set() : lines
+  for (const hit of hits) {
+    if (!hit.chain.some(scope => scope.fake) || !hit.chain.some(scope => scope.real)) lines.add(hit.line)
+  }
+  return lines
 }
 
 // Unit perf files own deterministic work/results; real timing belongs to tests/perf.
