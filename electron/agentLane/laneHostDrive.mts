@@ -32,7 +32,6 @@ import {
 } from './laneContextBudget.mjs';
 import type { openLaneHistoryPage } from './laneHistoryPage.mjs';
 import {
-  createLaneStreamFn,
   interruptedToolCalls,
   omitFailedAssistantAttempt,
   renderLaneAuthoritySection,
@@ -43,6 +42,7 @@ import {
   type LiveLaneOperation,
   type QueuedMessageRecord,
 } from './laneHostRecovery.mjs';
+import { createLaneStreamFn } from './laneProviderGuard.mjs';
 import { laneInputIntent, type LaneActiveRunMeta } from './laneInputIntent.mjs';
 import { laneOriginalText } from './laneOriginalInput.mjs';
 import type { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';

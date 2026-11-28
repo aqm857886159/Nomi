@@ -1,13 +1,6 @@
 // Agent lane · 流式包装、中断工具恢复、失败尝试折叠与工具结算辅助（从 `laneHostDrive.mts` 拆出，单文件 < 300 行）
-import type { AgentMessage, AgentOptions, AgentTool } from '@earendil-works/pi-agent-core';
-import {
-  createAssistantMessageEventStream,
-  type AssistantMessage,
-  type AssistantMessageEventStream,
-  type JsonObject,
-  type JsonValue,
-  type Models,
-} from '@earendil-works/pi-ai';
+import type { AgentMessage, AgentTool } from '@earendil-works/pi-agent-core';
+import type { AssistantMessage, JsonValue } from '@earendil-works/pi-ai';
 import { logWarn } from '../logging/logger.js';
 import type { LaneRunningToolSnapshot, LaneSnapshot } from '../shared/agentLane/laneSnapshotTypes.js';
 import type { createLaneApprovalGate } from './laneApprovalGate.js';
@@ -98,68 +91,6 @@ export function interruptedToolCalls(snapshot: LaneSnapshot): {
   return { ids: [...allCalled], assistantMessage: lastAssistant, unpairedCalls };
 }
 
-const NON_OBJECT_ARGS_PREFIX = 'Tool arguments must be a JSON object\n\nReceived arguments:\n';
-
-function unwrapNonObjectToolCallArgs(message: AssistantMessage): AssistantMessage {
-  let changed = false;
-  const content = message.content.map((block) => {
-    if (block.type !== 'toolCall' || !block.argumentsError?.startsWith(NON_OBJECT_ARGS_PREFIX)) {
-      return block;
-    }
-    const rawJson = block.argumentsError.slice(NON_OBJECT_ARGS_PREFIX.length);
-    try {
-      const parsed = JSON.parse(rawJson) as unknown;
-      changed = true;
-      const { argumentsError: _omitted, ...rest } = block;
-      return { ...rest, arguments: parsed as JsonObject };
-    } catch {
-      return block;
-    }
-  });
-  return changed ? { ...message, content } : message;
-}
-
-export function createLaneStreamFn(
-  models: Models,
-  options: OpenLaneOptions,
-): NonNullable<AgentOptions['streamFn']> {
-  return (chosenModel, ctx, streamOpts) => {
-    const rawStream = models.streamSimple(chosenModel, ctx, {
-      ...streamOpts,
-      onPayload: async (payload, selectedModel) => {
-        const rewritten = options.input ? options.input.rewritePayload(payload, selectedModel.api) : payload;
-        return (await streamOpts?.onPayload?.(rewritten, selectedModel)) ?? rewritten;
-      },
-    });
-    const wrapped: AssistantMessageEventStream = createAssistantMessageEventStream();
-    void (async () => {
-      try {
-        for await (const event of rawStream) {
-          if (event.type === 'done') {
-            wrapped.push({ ...event, message: unwrapNonObjectToolCallArgs(event.message) });
-          } else {
-            wrapped.push(event);
-          }
-        }
-        wrapped.end(unwrapNonObjectToolCallArgs(await rawStream.result()));
-      } catch (err) {
-        wrapped.end({
-          role: 'assistant',
-          content: [],
-          api: chosenModel.api,
-          provider: chosenModel.provider,
-          model: chosenModel.id,
-          usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-          stopReason: streamOpts?.signal?.aborted ? 'aborted' : 'error',
-          errorMessage: err instanceof Error ? err.message : String(err),
-          timestamp: Date.now(),
-        });
-      }
-    })();
-    return wrapped;
-  };
-}
-
 export function renderLaneAuthoritySection(
   gate: ReturnType<typeof createLaneApprovalGate> | undefined,
   currentTools: readonly AgentTool<object, unknown>[],
@@ -172,7 +103,7 @@ export function renderLaneAuthoritySection(
       const operation = (tool.parameters as unknown as { properties?: Record<string, { enum?: unknown[] }> }).properties?.operation;
       const operations = operation?.enum?.filter((value): value is string => typeof value === 'string') ?? [undefined];
       return operations.map((value) => {
-        let description = 'requires user confirmation';
+        let description: string;
         try {
           description = gate.describe({
             toolCallId: '',

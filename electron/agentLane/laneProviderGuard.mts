@@ -29,10 +29,12 @@
 // 由 `categorizeVendorFailure` 按状态码 + 上游自己给的 `error.code` / `error.type` 定，标记在 `laneModelProvider` 铸载荷时
 // 就贴上（`withClassifierMarker`）；这里的余额词表只管**没有 HTTP 结构**的那几种（200 里 SSE 报错、看门狗收场）。
 // 有结构时再按文字猜余额，会把「403 + 余额词」这类形状重新说成余额、绕过那张表（协调 11-22 定 A）。
+import type { AgentOptions } from '@earendil-works/pi-agent-core';
 import { createAssistantMessageEventStream, type Api, type AssistantMessage,
-  type AssistantMessageEventStream, type Model, type ProviderStreams } from '@earendil-works/pi-ai';
+  type AssistantMessageEventStream, type JsonObject, type Model, type Models, type ProviderStreams } from '@earendil-works/pi-ai';
 import { observeNativeStream, type NativeClock } from './laneStreamObserver.mjs';
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
+import type { OpenLaneOptions } from './laneRuntimePort.js';
 
 /** 一条流的三个预算。**没有默认值**：忘了配就是没有看门狗，而那正是 09 月的 bug。 */
 export interface NomiStreamGuard {
@@ -256,5 +258,71 @@ export function guardProviderStreams(base: ProviderStreams, guard: NomiStreamGua
       (activeSignal) => base.stream(model, context, { ...options, signal: activeSignal })),
     streamSimple: (model, context, options) => guardedStream(model, options?.signal, guard,
       (activeSignal) => base.streamSimple(model, context, { ...options, signal: activeSignal })),
+  };
+}
+
+const NON_OBJECT_ARGS_PREFIX = 'Tool arguments must be a JSON object\n\nReceived arguments:\n';
+
+function unwrapNonObjectToolCallArgs(message: AssistantMessage): AssistantMessage {
+  let changed = false;
+  const content = message.content.map((block) => {
+    if (block.type !== 'toolCall' || !block.argumentsError?.startsWith(NON_OBJECT_ARGS_PREFIX)) {
+      return block;
+    }
+    const rawJson = block.argumentsError.slice(NON_OBJECT_ARGS_PREFIX.length);
+    try {
+      const parsed = JSON.parse(rawJson) as unknown;
+      changed = true;
+      const { argumentsError: _omitted, ...rest } = block;
+      return { ...rest, arguments: parsed as JsonObject };
+    } catch {
+      return block;
+    }
+  });
+  return changed ? { ...message, content } : message;
+}
+
+/**
+ * Build the single `AgentOptions.streamFn` bridge over `Models.streamSimple` so all lane model
+ * requests stay inside the authorized transport owners (`laneModelCall` / `laneModelProvider` / `laneProviderGuard`).
+ */
+export function createLaneStreamFn(
+  models: Models,
+  options: OpenLaneOptions,
+): NonNullable<AgentOptions['streamFn']> {
+  return (chosenModel, ctx, streamOpts) => {
+    const rawStream = models.streamSimple(chosenModel, ctx, {
+      ...streamOpts,
+      onPayload: async (payload, selectedModel) => {
+        const rewritten = options.input ? options.input.rewritePayload(payload, selectedModel.api) : payload;
+        return (await streamOpts?.onPayload?.(rewritten, selectedModel)) ?? rewritten;
+      },
+    });
+    const wrapped: AssistantMessageEventStream = createAssistantMessageEventStream();
+    void (async () => {
+      try {
+        for await (const event of rawStream) {
+          if (event.type === 'done') {
+            wrapped.push({ ...event, message: unwrapNonObjectToolCallArgs(event.message) });
+          } else {
+            wrapped.push(event);
+          }
+        }
+        wrapped.end(unwrapNonObjectToolCallArgs(await rawStream.result()));
+      } catch (err) {
+        wrapped.end({
+          role: 'assistant',
+          content: [],
+          api: chosenModel.api,
+          provider: chosenModel.provider,
+          model: chosenModel.id,
+          usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+          stopReason: streamOpts?.signal?.aborted ? 'aborted' : 'error',
+          errorMessage: err instanceof Error ? err.message : String(err),
+          timestamp: Date.now(),
+        });
+      }
+    })();
+    return wrapped;
   };
 }
