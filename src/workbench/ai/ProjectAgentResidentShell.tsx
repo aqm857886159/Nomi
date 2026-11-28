@@ -400,6 +400,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
    * 否则关掉项目后入口还挂着上一个项目的未读。
    */
   const publishDockBadge = useResidentActivityStore((state) => state.setResidentDockBadge)
+  const projectedStatus = useResidentActivityStore((state) => state.dockStatus)
+  const projectedFace = useResidentActivityStore((state) => state.dockFaceStatus)
+  const projectedPending = useResidentActivityStore((state) => state.dockPendingCount)
   React.useEffect(() => {
     publishDockBadge(dockStatus, dockFaceStatus, dockPendingCount, dockUnreadCount)
   }, [dockFaceStatus, dockPendingCount, dockStatus, dockUnreadCount, publishDockBadge])
@@ -547,6 +550,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         queue={queue}
         queueHint={t(recovered.length ? 'agentPanelV4.recoveredDraftHint' : 'agentPanelV4.queueHint')}
         context={data.context}
+        persona={{
+          status: projectedStatus ?? dockStatus,
+          face: projectedFace ?? dockFaceStatus,
+          pendingCount: projectedStatus !== null ? projectedPending : dockPendingCount,
+        }}
         onHistory={() => setThreadsOpen((value) => !value)}
         onCollapse={() => setCollapsed(true)}
         flowHandlers={{

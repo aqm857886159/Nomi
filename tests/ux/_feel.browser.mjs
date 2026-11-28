@@ -455,3 +455,53 @@ test('duplicate-action-bar catches empty-canvas twin 7-button bars while sparing
     await browser.close()
   }
 })
+
+test('duplicate-persona-stage catches twin live personas while sparing stage handoff and hidden portals', async () => {
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const liveFace = '<span data-persona-stage="live" style="display:inline-block;width:24px;height:24px;background:#111;border-radius:6px"></span>'
+    const toggleIcon = '<svg width="18" height="18" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor"/></svg>'
+
+    // Positive: Topbar right AND open panel header both show a visible live persona at once
+    await page.setContent(`
+      <div style="display:flex;flex-direction:column;width:1400px;height:860px">
+        <header style="height:40px;display:flex;justify-content:flex-end;align-items:center;padding:0 8px">
+          <button type="button" style="width:28px;height:28px">${liveFace}</button>
+        </header>
+        <section style="margin-left:auto;width:390px;height:800px">
+          <header style="height:48px;display:flex;align-items:center;padding:0 12px">${liveFace}<span>Assistant</span></header>
+        </section>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-persona-stage')).toHaveLength(1)
+
+    // Negative 1 (Panel open): Topbar steps back to linear toggle icon, open panel header owns sole live persona
+    await page.setContent(`
+      <div style="display:flex;flex-direction:column;width:1400px;height:860px">
+        <header style="height:40px;display:flex;justify-content:flex-end;align-items:center;padding:0 8px">
+          <button type="button" style="width:28px;height:28px">${toggleIcon}</button>
+        </header>
+        <section style="margin-left:auto;width:390px;height:800px">
+          <header style="height:48px;display:flex;align-items:center;padding:0 12px">${liveFace}<span>Assistant</span></header>
+        </section>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-persona-stage')).toEqual([])
+
+    // Negative 2 (Panel collapsed): Topbar owns sole live persona, collapsed portal is hidden
+    await page.setContent(`
+      <div style="display:flex;flex-direction:column;width:1400px;height:860px">
+        <header style="height:40px;display:flex;justify-content:flex-end;align-items:center;padding:0 8px">
+          <button type="button" style="width:28px;height:28px">${liveFace}</button>
+        </header>
+        <div hidden>
+          <section style="width:390px;height:800px"><header>${liveFace}</header></section>
+        </div>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-persona-stage')).toEqual([])
+  } finally {
+    await browser.close()
+  }
+})

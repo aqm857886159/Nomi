@@ -108,7 +108,7 @@
       "status": "implemented",
       "component": "新品牌组件 NomiAgentFace（src/design/identity.tsx，§3.9 第七个品牌组件），AgentBallFace（src/ui/app-shell/shell/AgentBallFace.tsx）用它替换现在的 NomiLogoMark",
       "assertions": ["board:AgentPersona/persona.body"],
-      "note": "2026-11-22 起断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）。"
+      "note": "2026-11-22 起收起态断言落在顶栏最右的 Nomi 入口上（NomiEntryTopbar 板；走查 tests/ux/_agentPersonaWalk.mjs 量入口）；2026-11-28 方案 A 开合移交舞台：面板打开时唯一活小人坐镇 AgentPanelV4Panel 头部，顶栏退成安静线性侧栏开关，全屏最多 1 个活小人。"
     },
     {
       "id": "persona.size",

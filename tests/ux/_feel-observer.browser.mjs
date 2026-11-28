@@ -146,6 +146,14 @@ test('observer ratchets duplicate-nearby-header and duplicate-action-bar automat
       </main>
     `)
     await expect(page.screenshot({ path: path.join(dir, 'dup-bar.png') })).rejects.toThrow(/Feel baseline drift.*duplicate-action-bar/)
+
+    await page.setContent(`
+      <div style="display:flex;justify-content:space-between;width:800px;height:400px">
+        <span data-persona-stage="live" style="width:24px;height:24px;display:inline-block"></span>
+        <span data-persona-stage="live" style="width:24px;height:24px;display:inline-block"></span>
+      </div>
+    `)
+    await expect(page.screenshot({ path: path.join(dir, 'dup-persona.png') })).rejects.toThrow(/Feel baseline drift.*duplicate-persona-stage/)
   } finally {
     await browser.close()
     fs.rmSync(dir, { recursive: true, force: true })

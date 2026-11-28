@@ -12,7 +12,7 @@ export const feelMode = (journey) => ratchetJourneys.has(journey) ? 'ratchet' : 
 export const feelSurfaceKey = ({ journey, screenshotName, rule }) => JSON.stringify([journey, screenshotName, rule])
 const sameScreenshot = (entry, result) => entry.journey === result.journey && entry.screenshotName === result.screenshotName
 const recordOnlyRules = new Set(['repeated-rows'])
-const zeroBudgetRules = new Set(['duplicate-nearby-header', 'duplicate-action-bar'])
+const zeroBudgetRules = new Set(['duplicate-nearby-header', 'duplicate-action-bar', 'duplicate-persona-stage'])
 
 /** Density candidates need human action-value review; never a product-specific selector. */
 async function scanRepeatedRows(page) {

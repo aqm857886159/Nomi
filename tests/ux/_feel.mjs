@@ -7,6 +7,7 @@ export const DEFAULT_RULES = {
   hittable: true,
   duplicateNearbyHeader: true,
   duplicateActionBar: true,
+  duplicatePersonaStage: true,
   interactiveTags: ['BUTTON', 'A', 'CANVAS', 'INPUT', 'SELECT', 'TEXTAREA'],
 }
 
@@ -183,14 +184,15 @@ export async function scanFeel(root, { rules = {}, label = 'page' } = {}) {
         parts.push(item.text)
         rects.push(...item.rects)
       }
-      for (const gfx of rootEl.querySelectorAll('svg, img')) {
+      const graphicSelector = 'svg, img, [data-persona-stage]'
+      for (const gfx of rootEl.querySelectorAll(graphicSelector)) {
         if (!elementSet.has(gfx)) continue
         const ctrl = gfx.closest(interactiveControlSelector)
         if (ctrl && rootEl.contains(ctrl)) continue
         const r = visibleRect(gfx)
         if (r && area(intersect(r, viewport)) > 0) rects.push(r)
       }
-      return { text: norm(parts.join('')), rect: unionRects(rects), hasGraphic: [...rootEl.querySelectorAll('svg, img')].some((gfx) => elementSet.has(gfx) && !(gfx.closest(interactiveControlSelector) && rootEl.contains(gfx.closest(interactiveControlSelector)))) }
+      return { text: norm(parts.join('')), rect: unionRects(rects), hasGraphic: [...rootEl.querySelectorAll(graphicSelector)].some((gfx) => elementSet.has(gfx) && !(gfx.closest(interactiveControlSelector) && rootEl.contains(gfx.closest(interactiveControlSelector)))) }
     }
 
     function duplicateNearbyHeader() {
@@ -346,8 +348,14 @@ export async function scanFeel(root, { rules = {}, label = 'page' } = {}) {
       }
     }
 
+    function duplicatePersonaStage() {
+      const liveStages = elements.filter((el) => el.matches('[data-persona-stage="live"]'))
+      if (liveStages.length >= 2) report('duplicate-persona-stage', liveStages)
+    }
+
     if (config.duplicateNearbyHeader) duplicateNearbyHeader()
     if (config.duplicateActionBar) duplicateActionBar()
+    if (config.duplicatePersonaStage) duplicatePersonaStage()
     return { label, findings }
   }, { config: { ...DEFAULT_RULES, ...rules }, label })
 }

@@ -174,7 +174,7 @@ describe('T-5 S7a 全部剩余入口指路收口与 F-D 契约核对', () => {
     expect(pointerText).toContain(i18n.t('onboardingProviders.entries.agentPointerTitle'))
     expect(pointerText).toContain(i18n.t('onboardingProviders.entries.agentPointerSubtitle'))
 
-    // 整块常驻面板装配后：顶栏已有唯一 NomiBrand，面板内绝不能上下出现两个 Nomi 字标
+    // 整块常驻面板装配后：面板头展示唯一活形象 NomiAgentFace + Nomi 字标（软件标 [N] 退出面板头，面板内零重复身份头）
     const assembledPanelHtml = renderWithTheme(
       <AgentPanelV4Panel
         flow={[]}
@@ -184,7 +184,58 @@ describe('T-5 S7a 全部剩余入口指路收口与 F-D 契约核对', () => {
       />,
     )
     expect([...assembledPanelHtml.matchAll(/class="[^"]*nomi-wordmark\b/g)]).toHaveLength(1)
+    expect([...assembledPanelHtml.matchAll(/data-persona-stage="live"/g)]).toHaveLength(1)
+    expect(assembledPanelHtml).not.toContain('nomi-brand')
+    expect(assembledPanelHtml).not.toContain('nomi-logo-mark')
     expect(assembledPanelHtml).toContain('data-agent-pointer-action="apimart"')
+
+    // 面板头部五档实时状态（idle / running / needs-confirm / done / failed）与数据源一一对应
+    const runningHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'running', face: 'running', pendingCount: 0 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(runningHtml).toContain('data-nomi-agent-face="running"')
+    expect(runningHtml).toContain('data-v4-header-progress="true"')
+    expect(runningHtml).toContain('data-v4-header-status="running"')
+    expect(stripTags(runningHtml)).toContain(i18n.t('agentPanelV4.headerRunning'))
+
+    const confirmHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'needs-confirm', face: 'idle', pendingCount: 2 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(confirmHtml).toContain('data-v4-header-status="needs-confirm"')
+    expect(confirmHtml).toContain('data-v4-header-pending="2"')
+    expect(stripTags(confirmHtml)).toContain(i18n.t('agentPanelV4.dockNeedsConfirm', { count: 2 }))
+
+    const doneHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'done', face: 'done', pendingCount: 0 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(doneHtml).toContain('data-nomi-agent-face="done"')
+    expect(stripTags(doneHtml)).toContain(i18n.t('agentPanelV4.dockDone'))
+
+    const failedHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'failed', face: 'failed', pendingCount: 0 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(failedHtml).toContain('data-nomi-agent-face="failed"')
+    expect(stripTags(failedHtml)).toContain(i18n.t('agentPanelV4.dockFailed'))
 
     const popoverHtml = renderWithTheme(
       <V4ModelPopover rows={[]} onOpenLibrary={vi.fn()} onOpenAssisted={vi.fn()} />,

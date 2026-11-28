@@ -234,6 +234,8 @@ function measureBar(win) {
         dotColor: entry.querySelector('[data-nomi-entry-dot]') ? getComputedStyle(entry.querySelector('[data-nomi-entry-dot]')).backgroundColor : null,
         capsuleText: entry.querySelector('[data-nomi-entry-capsule]')?.textContent ?? null,
         capsuleClipped: (() => { const c = entry.querySelector('[data-nomi-entry-capsule]'); return c ? c.scrollWidth > c.clientWidth + 1 : null })(),
+        toggleIcon: Boolean(entry.querySelector('[data-nomi-entry-toggle]')),
+        hasFace: Boolean(entry.querySelector('[data-nomi-agent-face]')),
         faceSpinning: [...entry.querySelectorAll('*')].some((node) => getComputedStyle(node).animationName.includes('spin') && getComputedStyle(node).animationPlayState === 'running'),
         bg: entryStyle.backgroundColor,
       } : null,
@@ -605,7 +607,9 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await win.waitForTimeout(300)
       await setAgent({ pending: 2 })
       const bar = await measureBar(win)
-      check(`${BOARD.badge} C4 1440 面板停靠开着 + 等你确认 2：data-shape=face、aria-pressed=true、角标 2`, bar.entry?.shape === 'face' && bar.entry?.pressed === 'true' && bar.entry?.badge === '2', JSON.stringify(bar.entry && { shape: bar.entry.shape, pressed: bar.entry.pressed, badge: bar.entry.badge }))
+      const panelHeaderPending = await win.locator(`${AGENT_PANEL} [data-v4-header-status="needs-confirm"]`).first().textContent().catch(() => null)
+      const livePersonaCount = await win.locator('[data-persona-stage="live"]:visible').count().catch(() => 0)
+      check(`${BOARD.badge} C4 1440 面板停靠开着 + 等你确认 2：顶栏退成 toggle 开关（aria-pressed=true、无角标无脸），面板头承接唯一活小人与「等你确认 2 条」`, bar.entry?.shape === 'toggle' && bar.entry?.pressed === 'true' && bar.entry?.badge === null && bar.entry?.toggleIcon === true && bar.entry?.hasFace === false && panelHeaderPending === status('dockNeedsConfirm', { count: 2 }) && livePersonaCount === 1, JSON.stringify({ entry: bar.entry && { shape: bar.entry.shape, pressed: bar.entry.pressed, badge: bar.entry.badge, toggleIcon: bar.entry.toggleIcon, hasFace: bar.entry.hasFace }, panelHeaderPending, livePersonaCount }))
       const pressedBg = await win.evaluate(() => {
         const probe = document.createElement('div')
         probe.className = 'bg-nomi-ink-10'
@@ -656,7 +660,8 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await win.waitForTimeout(300)
       await setAgent({ pending: 2 })
       const narrow = await measureBar(win)
-      check(`${BOARD.badge} C5 700 浮窗开着 + 等你确认 2：data-shape=face、aria-pressed=true、角标 2`, narrow.entry?.shape === 'face' && narrow.entry?.pressed === 'true' && narrow.entry?.badge === '2', JSON.stringify(narrow.entry && { shape: narrow.entry.shape, pressed: narrow.entry.pressed, badge: narrow.entry.badge }))
+      const floatHeaderPending = await win.locator(`${AGENT_PANEL} [data-v4-header-pending="2"]`).count().catch(() => 0)
+      check(`${BOARD.badge} C5 700 浮窗开着 + 等你确认 2：顶栏退成 toggle 开关（aria-pressed=true、无角标无脸），浮窗头承接「等你确认 2 条」`, narrow.entry?.shape === 'toggle' && narrow.entry?.pressed === 'true' && narrow.entry?.badge === null && narrow.entry?.toggleIcon === true && narrow.entry?.hasFace === false && floatHeaderPending > 0, JSON.stringify({ entry: narrow.entry && { shape: narrow.entry.shape, pressed: narrow.entry.pressed, badge: narrow.entry.badge, toggleIcon: narrow.entry.toggleIcon, hasFace: narrow.entry.hasFace }, floatHeaderPending }))
       await shot(win, 'open-float-pending-2-700', true)
       await collapseAll()
       await win.waitForTimeout(200)

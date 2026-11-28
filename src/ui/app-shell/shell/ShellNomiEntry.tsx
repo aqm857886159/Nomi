@@ -1,10 +1,10 @@
-// 顶栏最右那颗 Nomi 入口（NomiEntryTopbar 板 nomi-entry；设计卡 docs/plan/2026-11-22-nomi-entry-topbar.md）。
-// 收起的面板只从这里叫回（取代内容区右下的小球，用户 2026-11-22「全部收进顶栏」）：点一下开 / 收，⌘J、⌘\、别处的「叫回」都落到同一个形态 store。
-//   脸：28px 图标钮里一张 26px 的 NomiAgentFace（live），五种状态；透明底，悬停 / 焦点 / 按下和旁边「设置」钮同一族（BAR_ICON_BUTTON）；
-//   等你确认 N：放得下（≥900、面板没开）时整颗钮长成浅橙胶囊「等你确认 N」，否则脸 + 右上角标（最多 9+）；
-//   点：有新消息蓝、有一步没成红（DotMark）；有待确认时角标占角，不出点。
+// 顶栏最右那颗 Nomi 入口（NomiEntryTopbar 板 nomi-entry；设计卡 docs/plan/2026-11-22-nomi-entry-topbar.md + 2026-11-28 方案 A 开合舞台移交）。
+// 收起的面板只从这里叫回（取代内容区右下的小球）：点一下开 / 收，⌘J、⌘\、别处的「叫回」都落到同一个形态 store。
+//   收起（!open）：28px 图标钮里一张 26px 的 NomiAgentFace（live），五种状态；放得下（≥900）且有待确认时整颗钮长成浅橙胶囊「等你确认 N」，否则脸 + 角标 / 红蓝点；
+//   打开（open）：活小人移交舞台至下方 AgentPanelV4Panel 头部，顶栏入口退成安静的线性侧栏开关图标（按下底色 ink-10，全屏最多 1 颗活小人）。
 // 长相判断只在 nomiEntryLook 里做一次；分两层：useNomiEntry（useNomiEntry.ts）读 store 算好，NomiEntryButton 只画（设计实验室经 NomiEntryPreview 用它）。
 import React, { type JSX } from 'react'
+import { IconLayoutSidebarRightCollapse } from '@tabler/icons-react'
 import { NomiAgentFace } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { BAR_ICON_BUTTON } from './barIconButton'
@@ -65,6 +65,8 @@ export const NomiEntryButton = React.forwardRef<HTMLButtonElement, NomiEntryButt
           </svg>
           <span className="whitespace-nowrap text-body-sm font-semibold tabular-nums" data-nomi-entry-capsule>{capsuleText}</span>
         </>
+      ) : look.shape === 'toggle' ? (
+        <IconLayoutSidebarRightCollapse aria-hidden="true" data-nomi-entry-toggle="" />
       ) : (
         <>
           {/* 脸的舞台下沿比上沿多留一个形象单位：整体上移 1px，让 22u 的身体在 28px 钮里正中。 */}
