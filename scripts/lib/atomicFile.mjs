@@ -1,18 +1,32 @@
 // 脚本与测试侧的唯一原子写入口：先在同目录写满暂存件，再原子改名公布。
 //
 // 为什么在 atomically@2.1.1 外面再包一层：
-//   · 异步路径传 Readable 给 atomically.writeFile，走 Node WriteStream 的 writeAll 循环保证整包写满，
+//   · 异步路径按需懒加载 atomically，把缓冲区包装为 Readable 传给 atomically.writeFile，走 Node WriteStream 的 writeAll 循环保证整包写满，
 //     并复用它的同目录暂存、重试改名与失败清理；
-//   · atomically@2.1.1 的同步 writeFileSync 只调一次 fs.writeSync 且丢弃返回字节数，磁盘满 / 配额短写时会把半包改名公布。
+//   · 同步路径 100% 只依赖 Node 内置模块（无 node_modules 的干净克隆 / 钩子沙箱也能直接 import 并运行）：
+//     atomically@2.1.1 的同步 writeFileSync 只调一次 fs.writeSync 且丢弃返回字节数，磁盘满 / 配额短写时会把半包改名公布。
 //     这里同步路径自己循环 writeSync 写满全部字节并核对 fstatSync 字节数，短写立刻抛 ESHORTWRITE 并同步清理暂存件，绝不改名。
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
-import { writeFile as atomicallyWriteFile } from 'atomically'
 
 const WINDOWS_RETRYABLE_RENAME_CODES = new Set(['EBUSY', 'EPERM', 'EACCES'])
 const WINDOWS_RENAME_RETRY_MS = 500
+let atomicallyWritePromise
+
+function loadAtomicallyWriteFile() {
+  if (!atomicallyWritePromise) {
+    atomicallyWritePromise = import('atomically').then(
+      ({ writeFile }) => writeFile,
+      (error) => {
+        atomicallyWritePromise = undefined
+        throw error
+      },
+    )
+  }
+  return atomicallyWritePromise
+}
 
 function toBuffer(content, encoding = 'utf8') {
   if (Buffer.isBuffer(content)) return content
@@ -127,6 +141,7 @@ export function writeFileAtomicSync(target, content, options = {}) {
 export async function writeFileAtomic(target, content, options = {}) {
   const { encoding = 'utf8', mode, fsync = true, tmpCreate = defaultAtomicTempPath, timeout } = normalizeOptions(options)
   const bytes = toBuffer(content, encoding)
+  const atomicallyWriteFile = await loadAtomicallyWriteFile()
   const stream = bytes.length > 0 ? Readable.from([bytes]) : Readable.from([])
   await atomicallyWriteFile(target, stream, {
     ...(mode !== undefined ? { mode } : {}),

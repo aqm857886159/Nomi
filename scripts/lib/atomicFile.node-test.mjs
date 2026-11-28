@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { makeTempDir } from '../_test-temp.mjs'
 import { writeFileAtomic, writeFileAtomicSync } from './atomicFile.mjs'
 
@@ -91,4 +93,21 @@ test('writeFileAtomic 异步原子写支持完整内容与空内容并清理暂�
   await writeFileAtomic(target, '', { fsync: false })
   assert.equal(fs.readFileSync(target, 'utf8'), '')
   assert.deepEqual(fs.readdirSync(path.dirname(target)), ['async.json'])
+})
+
+test('无 node_modules 的隔离目录可直接 import atomicFile.mjs 并运行 writeFileAtomicSync', () => {
+  const dir = makeTempDir('atomic-file-no-nm-')
+  const standalone = path.join(dir, 'atomicFile.mjs')
+  const target = path.join(dir, 'out.json')
+  fs.copyFileSync(fileURLToPath(new URL('./atomicFile.mjs', import.meta.url)), standalone)
+  execFileSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `import { writeFileAtomicSync } from ${JSON.stringify(pathToFileURL(standalone).href)}; writeFileAtomicSync(${JSON.stringify(target)}, '{"standalone":true}\\n', { fsync: false });`,
+    ],
+    { cwd: dir, stdio: 'pipe' },
+  )
+  assert.equal(fs.readFileSync(target, 'utf8'), '{"standalone":true}\n')
 })
