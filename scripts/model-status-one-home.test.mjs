@@ -129,10 +129,15 @@ function productionFiles(dir) {
 }
 it('every production exit has zero retired inputs, status words, preflight calls, or unregistered second predicates', () => {
   const files = ['src', 'electron'].flatMap(productionFiles)
-  const bypasses = files.flatMap(file => scanAvailabilityBypasses(file, fs.readFileSync(path.join(root, file), 'utf8')))
+  const bypasses = []
+  const unregisteredPredicates = []
+  for (const file of files) {
+    const text = fs.readFileSync(path.join(root, file), 'utf8')
+    bypasses.push(...scanAvailabilityBypasses(file, text))
+    if (file !== OWNER && file !== CATALOG_BINDING && !(file in VENDOR_CONNECTION_PREDICATES)) {
+      unregisteredPredicates.push(...scanSource(file, text))
+    }
+  }
   expect(bypasses).toEqual([])
-  const unregisteredPredicates = files
-    .filter(file => file !== OWNER && file !== CATALOG_BINDING && !(file in VENDOR_CONNECTION_PREDICATES))
-    .flatMap(file => scanSource(file, fs.readFileSync(path.join(root, file), 'utf8')))
   expect(unregisteredPredicates).toEqual([])
 })
