@@ -4,7 +4,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { chromium } from 'playwright'
 import { expect as pwExpect, expectVisibleText } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { probeInlineWhiteboardCanvas } from './full-walk/whiteboardCanvasProbe.mjs'
+
+const RESEND_TITLE = uiText('zh-CN', 'generationCommon.spend.resend.title.image')
+const [STILL_RUNNING, MIGHT_CHARGE_AGAIN] = uiText('zh-CN', 'generationCommon.spend.resend.waiting').split('\n')
 
 let browser
 beforeAll(async () => { browser = await chromium.launch({ headless: true }) }, 120_000)
@@ -20,15 +24,15 @@ describe('expectVisibleText：只认元素本身可见，隐藏后代必红', ()
   test('可见标题与多行提示文案（white-space: pre-line）→ 通过', async () => {
     const page = await htmlPage(`
       <div role="dialog">
-        <h2>再发一次这张图片？</h2>
-        <p style="white-space: pre-line">上一次还没结束。\n再发一次可能会再扣一次钱。</p>
+        <h2>${RESEND_TITLE}</h2>
+        <p style="white-space: pre-line">${STILL_RUNNING}\n${MIGHT_CHARGE_AGAIN}</p>
       </div>
     `)
     try {
       const dialog = page.getByRole('dialog')
-      await expectVisibleText(dialog, '再发一次这张图片？', { timeout: 1000 })
-      await expectVisibleText(dialog, '上一次还没结束。', { timeout: 1000 })
-      await expectVisibleText(dialog, '再发一次可能会再扣一次钱。', { timeout: 1000 })
+      await expectVisibleText(dialog, RESEND_TITLE, { timeout: 1000 })
+      await expectVisibleText(dialog, STILL_RUNNING, { timeout: 1000 })
+      await expectVisibleText(dialog, MIGHT_CHARGE_AGAIN, { timeout: 1000 })
     } finally {
       await page.close()
     }
@@ -37,18 +41,18 @@ describe('expectVisibleText：只认元素本身可见，隐藏后代必红', ()
   test('反例：外层弹窗可见但警示语在 display:none 后代里 → toContainText 假绿，expectVisibleText 必红', async () => {
     const page = await htmlPage(`
       <div role="dialog">
-        <h2>再发一次这张图片？</h2>
-        <p>上一次还没结束。</p>
-        <p style="display: none">再发一次可能会再扣一次钱。</p>
+        <h2>${RESEND_TITLE}</h2>
+        <p>${STILL_RUNNING}</p>
+        <p style="display: none">${MIGHT_CHARGE_AGAIN}</p>
       </div>
     `)
     try {
       const dialog = page.getByRole('dialog')
       // 对照：旧写法 toContainText 会把 display:none 后代当通过（假绿）
-      await pwExpect(dialog).toContainText('再发一次可能会再扣一次钱。', { timeout: 1000 })
+      await pwExpect(dialog).toContainText(MIGHT_CHARGE_AGAIN, { timeout: 1000 })
       // 新断言：必须报红失败
       await expect(
-        expectVisibleText(dialog, '再发一次可能会再扣一次钱。', { timeout: 400 }),
+        expectVisibleText(dialog, MIGHT_CHARGE_AGAIN, { timeout: 400 }),
       ).rejects.toThrow(/未找到自身可见的文本|toBeVisible/)
     } finally {
       await page.close()
@@ -58,19 +62,19 @@ describe('expectVisibleText：只认元素本身可见，隐藏后代必红', ()
   test('反例：警示语在 [hidden] 或 visibility:hidden 后代里 → 必红', async () => {
     const page = await htmlPage(`
       <div role="dialog">
-        <h2>再发一次这张图片？</h2>
-        <p hidden>再发一次可能会再扣一次钱。</p>
-        <p style="visibility: hidden">上一次还没结束。</p>
+        <h2>${RESEND_TITLE}</h2>
+        <p hidden>${MIGHT_CHARGE_AGAIN}</p>
+        <p style="visibility: hidden">${STILL_RUNNING}</p>
       </div>
     `)
     try {
       const dialog = page.getByRole('dialog')
-      await pwExpect(dialog).toContainText('再发一次可能会再扣一次钱。', { timeout: 1000 })
+      await pwExpect(dialog).toContainText(MIGHT_CHARGE_AGAIN, { timeout: 1000 })
       await expect(
-        expectVisibleText(dialog, '再发一次可能会再扣一次钱。', { timeout: 400 }),
+        expectVisibleText(dialog, MIGHT_CHARGE_AGAIN, { timeout: 400 }),
       ).rejects.toThrow(/未找到自身可见的文本|toBeVisible/)
       await expect(
-        expectVisibleText(dialog, '上一次还没结束。', { timeout: 400 }),
+        expectVisibleText(dialog, STILL_RUNNING, { timeout: 400 }),
       ).rejects.toThrow(/未找到自身可见的文本|toBeVisible/)
     } finally {
       await page.close()
@@ -80,13 +84,13 @@ describe('expectVisibleText：只认元素本身可见，隐藏后代必红', ()
   test('反例：可见 <p> 内嵌 display:none <span> 藏起警示语 → 必红', async () => {
     const page = await htmlPage(`
       <div role="dialog">
-        <p>上一次还没结束。<span style="display: none">再发一次可能会再扣一次钱。</span></p>
+        <p>${STILL_RUNNING}<span style="display: none">${MIGHT_CHARGE_AGAIN}</span></p>
       </div>
     `)
     try {
       const dialog = page.getByRole('dialog')
       await expect(
-        expectVisibleText(dialog, '再发一次可能会再扣一次钱。', { timeout: 400 }),
+        expectVisibleText(dialog, MIGHT_CHARGE_AGAIN, { timeout: 400 }),
       ).rejects.toThrow(/未找到自身可见的文本|toBeVisible/)
     } finally {
       await page.close()
@@ -96,25 +100,25 @@ describe('expectVisibleText：只认元素本身可见，隐藏后代必红', ()
   test('同容器里存在一份隐藏副本 + 一份真实可见元素 → 通过（不因 strict mode 假红）', async () => {
     const page = await htmlPage(`
       <div role="dialog">
-        <span style="display: none">再发一次可能会再扣一次钱。</span>
-        <p>再发一次可能会再扣一次钱。</p>
+        <span style="display: none">${MIGHT_CHARGE_AGAIN}</span>
+        <p>${MIGHT_CHARGE_AGAIN}</p>
       </div>
     `)
     try {
       const dialog = page.getByRole('dialog')
-      await expectVisibleText(dialog, '再发一次可能会再扣一次钱。', { timeout: 1000 })
+      await expectVisibleText(dialog, MIGHT_CHARGE_AGAIN, { timeout: 1000 })
     } finally {
       await page.close()
     }
   }, 60_000)
 
   test('exact: true 严格区分整段与子串', async () => {
-    const page = await htmlPage('<div role="dialog"><p>上一次还没结束。再发一次可能会再扣一次钱。</p></div>')
+    const page = await htmlPage(`<div role="dialog"><p>${STILL_RUNNING}${MIGHT_CHARGE_AGAIN}</p></div>`)
     try {
       const dialog = page.getByRole('dialog')
-      await expectVisibleText(dialog, '再发一次可能会再扣一次钱。', { exact: false, timeout: 1000 })
+      await expectVisibleText(dialog, MIGHT_CHARGE_AGAIN, { exact: false, timeout: 1000 })
       await expect(
-        expectVisibleText(dialog, '再发一次可能会再扣一次钱。', { exact: true, timeout: 400 }),
+        expectVisibleText(dialog, MIGHT_CHARGE_AGAIN, { exact: true, timeout: 400 }),
       ).rejects.toThrow(/未找到自身可见的文本|toBeVisible/)
     } finally {
       await page.close()
