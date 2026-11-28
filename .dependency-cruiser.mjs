@@ -184,6 +184,28 @@ export default {
       to: { path: ARCHETYPE_TABLE_PATH },
     },
 
+    // SM-gates-B2-2（迁自 check:llm-stream-owner）：禁止重新引入已卸载的 ai / @ai-sdk/* 第二套模型流式栈（硬零）。
+    {
+      name: 'no-vercel-ai-sdk',
+      comment:
+        'ai 与 @ai-sdk/* 已于 2026-10-21 整体卸载（统一走 pi-ai + electron/agentLane/laneModelCall.mts callModelOnce），禁止任何生产模块再次引入。当前零违规，硬零。',
+      severity: 'error',
+      from: {},
+      to: { path: '(?:^|/)node_modules/(?:ai/|@ai-sdk/)|^(?:ai|@ai-sdk/.+)$' },
+    },
+
+    // SM-gates-B2-6（迁自 check:outbound-policy 规则 3）：目的地私网分类器 networkHostPolicy（isPrivateHost）仅限唯一策略主人与受控入口引用（硬零）。
+    {
+      name: 'private-host-classifier-single-owner',
+      comment:
+        '目的地私网分类（electron/networkHostPolicy.ts 的 isPrivateHost）只允许唯一策略主人 electron/networkOutboundPolicy.ts 及已登记的系统代理/认证探测入口引用。当前零违规，硬零。',
+      severity: 'error',
+      from: {
+        pathNot: '^(?:electron/networkHostPolicy\\.ts|electron/networkOutboundPolicy\\.ts|electron/integrationCertification/httpConnector\\.ts|electron/systemProxy\\.ts)$',
+      },
+      to: { path: '^electron/networkHostPolicy\\.ts$' },
+    },
+
     // R-B4 禁新增「完全静态」循环。
     // viaOnly dependencyTypesNot=[dynamic-import,type-only]：只认「每条环边都不是懒加载、
     // 也不是纯类型」的硬环——即真·加载顺序风险。软的 499 个 lazy import() 环故意不入规则，

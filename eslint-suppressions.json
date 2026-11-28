@@ -579,11 +579,6 @@
       "count": 1
     }
   },
-  "scripts/check-mjs-parse.node-test.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "scripts/check-model-certification-coverage.mjs": {
     "no-useless-escape": {
       "count": 2
