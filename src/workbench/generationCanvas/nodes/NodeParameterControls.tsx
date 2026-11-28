@@ -96,7 +96,9 @@ import { parseAspectRatioValue } from '../../../../electron/shared/aspectRatioVa
 import { buildModeSwitchMeta } from './buildNodeModelChangePatch'
 import type { ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { isAspectRatioControl, parameterControlChangePatch } from './controls/parameterControlModel'
-import { useNodeAutoModelPicker } from './useNodeAutoModelPicker'
+import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
+import { getGenerationModelDefaults, subscribeGenerationModelDefaults } from '../model/generationModelDefaults'
+import { resolveNodeAutoModelPicker } from './nodeAutoModelPicker'
 
 type NodeParameterControlsProps = {
   node: GenerationCanvasNode
@@ -226,12 +228,21 @@ export default function NodeParameterControls({
     )
   }
 
-  const { isAutoModel, leadingAutoOption, handleModelChange } = useNodeAutoModelPicker({
+  const orderedVendorKeys = useVendorPreferenceOrder()
+  const savedDefaults = React.useSyncExternalStore(
+    subscribeGenerationModelDefaults,
+    getGenerationModelDefaults,
+    getGenerationModelDefaults,
+  )
+  const { isAutoModel, leadingAutoOption, handleModelChange } = resolveNodeAutoModelPicker({
     node,
     meta,
     modelOptions,
     isImageLike,
     isVideoLike,
+    orderedVendorKeys,
+    savedDefaults,
+    t,
     latestNode,
     updateNode,
   })

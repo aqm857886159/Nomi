@@ -124,7 +124,7 @@ try {
   await canvasAddBar(getWin()).waitFor()
   await clickOrFail(canvasAddBar(getWin()).locator('button[data-node-kind="image"]'), '工具条上的「图片」')
   await getWin().locator('[aria-label="模型"]').filter({ hasNotText: /^$/ }).first()
-    .waitFor({ state: 'visible', timeout: 15_000 })
+    .waitFor({ state: 'visible' })
   await getWin().waitForTimeout(400)
 
   const baseline = await readSelectedModel()

@@ -761,6 +761,10 @@
       "reason": "模型框偏好：画布模型下拉框的展示偏好（渲染层）"
     },
     {
+      "path": "src/config/autoGenerationModel*",
+      "reason": "「自动」档推荐梯队表与本机可用模型解析（AutoModel 板 SG-1 / auto.name-is-what-runs）：按 Nomi 接入的模型档案、跨供应商身份、供应商偏好序与连败避让算出实际执行的生成模型，纯 Nomi 领域规则（查证见 docs/plan/2026-11-28-s-g-auto-model-explicit.md ★0）"
+    },
+    {
       "path": "src/config/models*",
       "reason": "模型选项的领域配置"
     },
