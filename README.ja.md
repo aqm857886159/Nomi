@@ -23,7 +23,8 @@
   <a href="docs/integrate-with-your-agent-en.md">AI に接続してもらう</a> ·
   <a href="#コミュニティ">コミュニティ</a> ·
   <a href="README.md">English</a> ·
-  <a href="README.zh-CN.md">简体中文</a>
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="README.tr.md">Türkçe</a>
 </p>
 
 <p align="center">
