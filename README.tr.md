@@ -21,10 +21,16 @@
   <a href="#filmi-izle">90 saniyelik filmi izle</a> ·
   <a href="https://nomiaqm.com/en/quickstart">Hızlı başlangıç</a> ·
   <a href="docs/integrate-with-your-agent-en.md">Yapay zekânın bağlamasını sağla</a> ·
-  <a href="#topluluk">Topluluk</a> ·
+  <a href="#topluluk">Topluluk</a>
+  <br />
   <a href="README.md">English</a> ·
   <a href="README.zh-CN.md">简体中文</a> ·
-  <a href="README.ja.md">日本語</a>
+  <a href="README.ja.md">日本語</a> ·
+  <a href="README.ko.md">한국어</a> ·
+  <a href="README.es.md">Español</a> ·
+  <a href="README.fr.md">Français</a> ·
+  <a href="README.de.md">Deutsch</a> ·
+  <a href="README.pt-BR.md">Português</a>
 </p>
 
 <p align="center">
