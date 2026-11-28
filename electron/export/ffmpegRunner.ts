@@ -205,6 +205,8 @@ function defaultRunProcess(command: string, args: string[], options: RunFfmpegPr
     }
 
     ensureExecutable(command);
+    // 预热动态加载（避免与 mediaProbe.ts 顶层静态 import "./ffmpegRunner" 形成 check:boundaries 硬环，同时消除取消瞬间首次加载延迟）
+    const mediaProbePromise = import("./mediaProbe.js");
     const child = spawn(command, args, {
       shell: false,
       windowsHide: true,
@@ -235,7 +237,7 @@ function defaultRunProcess(command: string, args: string[], options: RunFfmpegPr
 
     const terminate = (force: boolean) => {
       cleanupPending += 1;
-      void import("./mediaProbe.js")
+      void mediaProbePromise
         .then(({ terminateProcessTree }) => terminateProcessTree(child, force))
         .catch(() => {
           if (!child.killed) child.kill(force ? "SIGKILL" : "SIGTERM");
@@ -326,11 +328,11 @@ async function runFfmpegMp4Export(params: RunFfmpegMp4ExportParams): Promise<Tim
       stderrSummary = cappedTail(stderrSummary, result.stderr);
       appendLog(stderrLogPath, result.stderr);
     }
+    if (signal?.aborted) throw new ExportCancelledError();
     if (result.code !== 0) {
       const detail = stderrSummaryForError(stderrSummary) || `ffmpeg exited with code ${result.code}`;
       throw new Error(desktopT("export.detail", { detail }));
     }
-    if (signal?.aborted) throw new ExportCancelledError();
     if (!fs.existsSync(partialOutputPath)) throw new Error(desktopT("export.mp4NotProduced"));
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));

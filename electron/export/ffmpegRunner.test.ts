@@ -338,29 +338,43 @@ describe("transcodeWebmToMp4", () => {
     const pidFile = path.join(projectDir, "child.pid");
     const wrapperPath = path.join(projectDir, process.platform === "win32" ? "fake-ffmpeg.cmd" : "fake-ffmpeg.sh");
     if (process.platform === "win32") {
-      fs.writeFileSync(wrapperPath, `@echo off\r\n"${process.execPath}" -e "const fs=require('fs');const out=process.argv.at(-1);fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));fs.writeFileSync(out,'partial');setInterval(()=>{},1000)" -- %*\r\n`);
+      fs.writeFileSync(wrapperPath, `@echo off\r\n"${process.execPath}" -e "const fs=require('fs');const out=process.argv.at(-1);fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));fs.writeFileSync(out,'partial');process.stderr.write('out_time_ms=0\\nprogress=continue\\n');setInterval(()=>{},1000)" -- %*\r\n`);
     } else {
       fs.writeFileSync(
         wrapperPath,
-        `#!/bin/sh\nexec "${process.execPath}" -e 'const fs=require("fs");const out=process.argv.at(-1);fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));fs.writeFileSync(out,"partial");process.on("SIGTERM",()=>{setTimeout(()=>process.exit(0),60)});setInterval(()=>{},1000)' -- "$@"\n`,
+        `#!/bin/sh\nexec "${process.execPath}" -e 'const fs=require("fs");const out=process.argv.at(-1);fs.writeFileSync(${JSON.stringify(pidFile)},String(process.pid));fs.writeFileSync(out,"partial");process.on("SIGTERM",()=>{setTimeout(()=>process.exit(0),60)});process.stderr.write("out_time_ms=0\\nprogress=continue\\n");setInterval(()=>{},1000)' -- "$@"\n`,
         { mode: 0o755 },
       );
     }
+
+    let notifyStarted!: () => void;
+    const childStarted = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
 
     const running = transcodeWebmToMp4({
       projectDir,
       inputBytes: Buffer.from("webm-bytes"),
       outputName: "RealAbort",
       ffmpegPath: wrapperPath,
+      durationMs: 1_000,
       signal: controller.signal,
+      onProgress: () => notifyStarted(),
     });
+    void running.catch(() => undefined);
 
-    await vi.waitFor(() => expect(fs.existsSync(pidFile)).toBe(true));
-    const childPid = Number(fs.readFileSync(pidFile, "utf8").trim());
-    expect(childPid).toBeGreaterThan(0);
+    let childPid!: number;
+    try {
+      await childStarted;
+      childPid = Number(fs.readFileSync(pidFile, "utf8").trim());
+      expect(childPid).toBeGreaterThan(0);
 
-    controller.abort();
-    await expect(running).rejects.toMatchObject({ name: "ExportCancelledError" });
+      controller.abort();
+      await expect(running).rejects.toMatchObject({ name: "ExportCancelledError" });
+    } finally {
+      controller.abort();
+      await running.catch(() => undefined);
+    }
 
     // Process must already have exited by the time the promise settles (not still lingering for 60ms!)
     let aliveAfterSettle = true;
