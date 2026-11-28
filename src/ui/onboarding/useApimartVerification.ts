@@ -3,6 +3,7 @@ import { isApimartKeyCandidate, type VendorBalanceCheck, type VendorBalanceFailu
 import { getDesktopBridge } from '../../desktop/bridge'
 import { refreshOnboardingModelAvailability } from './onboardingModelAvailability'
 import { APIMART_CONNECTED_EVENT, persistApimartOpenedAt } from './apimartConnectRoute'
+import { trackOnboardingStep } from '../../workbench/onboarding/onboardingState'
 
 type LocalStage = 'idle' | 'checking' | 'format' | 'keychain' | 'topup' | 'keyQuota' | 'passed'
 type Stage = LocalStage | VendorBalanceFailure
@@ -33,10 +34,13 @@ export function useApimartVerification(onSaved: () => void) {
   const check = React.useCallback(async (raw?: string) => {
     if (inFlight.current) return
     const key = raw?.trim()
-    if (raw !== undefined && (!key || !isApimartKeyCandidate(key))) {
+    const isDirectSubmission = raw !== undefined
+    if (isDirectSubmission && (!key || !isApimartKeyCandidate(key))) {
       candidate.current = ''
       setSuffix('')
       setStage('format')
+      trackOnboardingStep({ step: 'key_submitted', providerClass: 'builtin' })
+      trackOnboardingStep({ step: 'verify_failed', providerClass: 'builtin', failReason: 'invalid_format' })
       return
     }
     const catalog = getDesktopBridge()?.modelCatalog
@@ -44,6 +48,7 @@ export function useApimartVerification(onSaved: () => void) {
     if (key) {
       candidate.current = key
       setSuffix(key.slice(-4))
+      trackOnboardingStep({ step: 'key_submitted', providerClass: 'builtin' })
     }
     setReceived(null)
     setStage('checking')
@@ -64,17 +69,31 @@ export function useApimartVerification(onSaved: () => void) {
         if (quota && isExhaustedBalance(quota)) exhaustedQuotas.current.set(checkedKeyId, quota)
         else if (quota?.unlimited || (quota?.remainCredits ?? 0) > 0) exhaustedQuotas.current.delete(checkedKeyId)
         const verified = { ...result, keyQuota: exhaustedQuotas.current.get(checkedKeyId) ?? quota }
+        const settled = receivedStage(verified)
         setReceived(verified)
-        setStage(receivedStage(verified))
+        setStage(settled)
+        if (key) {
+          if (settled === 'passed') trackOnboardingStep({ step: 'verify_succeeded', providerClass: 'builtin' })
+          else trackOnboardingStep({ step: 'verify_failed', providerClass: 'builtin', failReason: 'zero_quota' })
+        }
       } else {
-        setStage(result?.status ?? 'unavailable')
+        const failedStage = result?.status ?? 'unavailable'
+        setStage(failedStage)
+        if (key) {
+          const failReason = failedStage === 'invalid' ? 'auth_failed' : failedStage === 'offline' ? 'network' : 'other'
+          trackOnboardingStep({ step: 'verify_failed', providerClass: 'builtin', failReason })
+        }
       }
     } catch (error) {
       if (!mounted.current) return
-      if (/system (keychain|secure storage)|could not be encrypted/i.test(String(error))) setStage('keychain')
-      else {
+      if (/system (keychain|secure storage)|could not be encrypted/i.test(String(error))) {
+        setStage('keychain')
+        if (key) trackOnboardingStep({ step: 'verify_failed', providerClass: 'builtin', failReason: 'other' })
+      } else {
         candidate.current = ''
-        setStage(String(error).includes('apimart-key-invalid') ? 'invalid' : 'unavailable')
+        const isInvalid = String(error).includes('apimart-key-invalid')
+        setStage(isInvalid ? 'invalid' : 'unavailable')
+        if (key) trackOnboardingStep({ step: 'verify_failed', providerClass: 'builtin', failReason: isInvalid ? 'auth_failed' : 'other' })
       }
     } finally {
       inFlight.current = false

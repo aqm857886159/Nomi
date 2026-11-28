@@ -9,9 +9,11 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/contex
 import { renameWithRetry } from '../jsonFile.js';
 import { redactDeep } from '../events/redact.js';
 import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
-import { LANE_APPROVAL_NOTE_TYPE } from '../shared/agentLane/laneContracts.js';
+import { isLaneApprovalNote, LANE_APPROVAL_NOTE_TYPE, type LaneApprovalDecision } from '../shared/agentLane/laneContracts.js';
 import { laneToolFailureOf } from '../shared/agentLane/laneToolFailureEnvelope.js';
-import { laneAssistantFaultOf } from '../shared/agentLane/laneAssistantFault.js';
+import { laneAssistantFaultOf, laneOutputTruncatedOf, laneVendorFailureText } from '../shared/agentLane/laneAssistantFault.js';
+import { parseVendorErrorFromMessage } from '../shared/generationFailureWire.js';
+import { TELEMETRY_IDENTIFIER_PATTERN } from '../shared/contracts/telemetry.js';
 import type { NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { LANE_DIR_MODE, LANE_FILE_MODE } from './laneFileSystem.mjs';
 
@@ -21,7 +23,7 @@ export interface LaneTraceRun {
   startedAt: number | null; endedAt: number; status: string;
   pricing: NomiPricingBasis; error: string | null;
   model: { provider: string; model: string };
-  tools: { toolCallId: string; durationMs: number }[];
+  tools: { toolCallId: string; durationMs?: number; failureCode?: string }[];
 }
 export interface LaneTraceTurn {
   schemaVersion: 1; sessionId: string; turnId: string; timestamp: number;
@@ -49,7 +51,56 @@ export function laneErrorKind(errorMessage: string): string {
   const fault = laneAssistantFaultOf(errorMessage);
   if (fault) return fault.kind === 'model-timeout' ? `model-timeout:${fault.phase}` : fault.kind;
   const marker = /\[nomi-classified: ([a-z_ ]{1,32})\]\s*$/.exec(errorMessage);
-  return marker ? marker[1]! : 'provider-error';
+  if (marker) return marker[1]!;
+  const trimmed = errorMessage.trim();
+  if (/^(?:HTTP\s+|status\s+)?(401|403)\b/i.test(trimmed)) return 'auth';
+  if (/^(?:HTTP\s+|status\s+)?402\b/i.test(trimmed)) return 'balance';
+  if (/^(?:HTTP\s+|status\s+)?429\b/i.test(trimmed)) return 'rate-limit';
+  if (/^(?:HTTP\s+|status\s+)?(?:408|504)\b/i.test(trimmed)) return 'timeout';
+  if (/^(?:HTTP\s+|status\s+)?4\d\d\b/i.test(trimmed)) return 'upstream-4xx';
+  if (/^(?:HTTP\s+|status\s+)?5\d\d\b/i.test(trimmed)) return 'upstream-5xx';
+  if (/invalid json|unexpected token|json parse|schema|protocol error/i.test(trimmed)) return 'protocol-error';
+  return 'provider-error';
+}
+
+function vendorDiagnosticErrorKind(message: { readonly diagnostics?: readonly { readonly type?: unknown; readonly details?: unknown }[] }): string | null {
+  const text = laneVendorFailureText(message);
+  if (!text) return null;
+  const structured = parseVendorErrorFromMessage(text);
+  if (!structured) return 'provider-error';
+  const status = typeof structured.httpStatus === 'number' ? structured.httpStatus : 0;
+  if (structured.category === 'auth' || status === 401 || status === 403) return 'auth';
+  if (structured.category === 'balance' || status === 402) return 'balance';
+  if (structured.category === 'quota' || status === 429) return 'rate-limit';
+  if (structured.category === 'timeout' || status === 408 || status === 504) return 'timeout';
+  if (structured.category === 'network') return 'network';
+  if (structured.category === 'input' || (status >= 400 && status < 500)) return 'upstream-4xx';
+  if (structured.category === 'server' || (status >= 500 && status < 600)) return 'upstream-5xx';
+  return 'provider-error';
+}
+
+function closedCode(candidate: string | undefined | null): string | null {
+  return typeof candidate === 'string' && TELEMETRY_IDENTIFIER_PATTERN.test(candidate) ? candidate : null;
+}
+
+function approvalFailureCode(decision: LaneApprovalDecision | undefined): string | null {
+  if (decision === 'denied-by-policy') return 'approval_denied_by_policy';
+  if (decision === 'denied') return 'approval_denied_by_user';
+  if (decision === 'cancelled') return 'tool_cancelled';
+  return null;
+}
+
+function immediateToolFailureCode(text: string): string | null {
+  const trimmed = text.trim();
+  const explicitHead = /\(([a-z][a-z0-9_]{0,47})\)(?::|\.)/.exec(trimmed.split('\n', 1)[0] ?? '');
+  if (explicitHead && TELEMETRY_IDENTIFIER_PATTERN.test(explicitHead[1]!)) return explicitHead[1]!;
+  if (/^Validation failed for tool "[^"]+"/.test(trimmed)) return 'tool_arguments_invalid';
+  if (/^surface_authority_denied:/.test(trimmed)) return 'surface_authority_denied';
+  if (/^Request coding before accessing project files\./.test(trimmed)) return 'coding_access_denied';
+  if (/does not do this:[\s\S]*\nUse [a-z][a-z0-9_]* instead\./.test(trimmed)) return 'wrong_verb';
+  if (/^Tool "[^"]+" (?:not found|is not available|is not active)|unknown tool/i.test(trimmed)) return 'unknown_tool';
+  if (/Tool execution was cancelled before completion/i.test(trimmed)) return 'tool_cancelled';
+  return null;
 }
 
 /** Strip binary parts before serialization; keep ordinary local manuscript text intact. */
@@ -66,6 +117,20 @@ export function traceSafeValue(value: unknown, secrets: readonly string[] = []):
 
 export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): LaneTraceTurn[] {
   const byId = new Map(entries.map(entry => [entry.id, entry]));
+  const approvalByCallId = new Map<string, LaneApprovalDecision>();
+  const recordedFailureByCallId = new Map<string, string>();
+  for (const entry of entries) {
+    if (entry.type === 'custom' && entry.customType === LANE_APPROVAL_NOTE_TYPE && isLaneApprovalNote(entry.data)) {
+      approvalByCallId.set(entry.data.toolCallId, entry.data.decision);
+    }
+    if (entry.type === 'custom' && entry.customType === LANE_TRACE_NOTE && entry.data && typeof entry.data === 'object') {
+      const run = entry.data as Partial<LaneTraceRun>;
+      for (const item of run.tools ?? []) {
+        const code = closedCode(item?.failureCode);
+        if (item?.toolCallId && code) recordedFailureByCallId.set(item.toolCallId, code);
+      }
+    }
+  }
   const turns = new Map<string, LaneTraceTurn>();
   const rawCosts = new Map<string, number>();
   const owner = (id: string | null): LaneTraceTurn | undefined => {
@@ -94,7 +159,10 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
       turn.requestInputs.push(message.usage.input + message.usage.cacheRead);
       rawCosts.set(turn.turnId, (rawCosts.get(turn.turnId) ?? 0) + message.usage.cost.total);
       turn.response += message.content.flatMap(part => part.type === 'text' ? [part.text] : []).join('');
-      if (message.errorMessage) turn.errors.push(laneErrorKind(message.errorMessage));
+      const diagnosticKind = vendorDiagnosticErrorKind(message);
+      const primaryKind = diagnosticKind ?? (message.errorMessage ? laneErrorKind(message.errorMessage) : null);
+      if (primaryKind) turn.errors.push(primaryKind);
+      if (laneOutputTruncatedOf(message) && primaryKind !== 'output-truncated') turn.errors.push('output-truncated');
       for (const part of message.content) if (part.type === 'toolCall') {
         turn.tools.push({ toolCallId: part.id, name: part.name, spanName: `execute_tool ${part.name}`,
           arguments: part.arguments, resultSummary: null, durationMs: null, failed: null, failureCode: null });
@@ -109,11 +177,17 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
       const message = entry.message;
       const tool = turn.tools.find(item => item.toolCallId === message.toolCallId);
       const text = message.content.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n');
-      const failureCode = message.isError ? laneToolFailureOf(message.details)?.code ?? null : null;
+      const coded = message.isError
+        ? closedCode(laneToolFailureOf(message.details)?.code)
+          ?? recordedFailureByCallId.get(message.toolCallId)
+          ?? approvalFailureCode(approvalByCallId.get(message.toolCallId))
+          ?? immediateToolFailureCode(text)
+        : null;
+      const failureCode = message.isError ? (coded ?? 'tool_failed') : null;
       // 失败工具的原文可能转述了上游原话（生成失败时）：轨迹落盘只留失败码，原文留在 pi 会话里给模型。
       if (tool) { tool.resultSummary = message.isError ? null : text.slice(0, 2000); tool.failed = message.isError;
         tool.failureCode = failureCode; }
-      if (message.isError) turn.errors.push(failureCode ?? 'tool-failed');
+      if (message.isError) turn.errors.push(coded ?? 'tool-failed');
     }
     if (entry.type === 'custom' && entry.customType === LANE_APPROVAL_NOTE_TYPE) turn.approvals.push(entry.data);
   }
@@ -138,7 +212,10 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
       turn.durationMs = run.startedAt === null ? null : Math.max(0, run.endedAt - Math.max(run.startedAt, turn.timestamp));
       // 旧会话里这一栏存过整段错误 JSON：不论新旧，轨迹只记「这次运行失败了」。
       if (run.error) turn.errors.push(LANE_RUN_FAILED);
-      for (const tool of turn.tools) tool.durationMs = run.tools.find(item => item.toolCallId === tool.toolCallId)?.durationMs ?? null;
+      for (const tool of turn.tools) {
+        const recorded = run.tools.find(item => item.toolCallId === tool.toolCallId);
+        tool.durationMs = recorded?.durationMs ?? null;
+      }
     }
   }
   return [...turns.values()];

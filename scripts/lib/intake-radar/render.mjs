@@ -53,7 +53,10 @@ function spikesMarkdown(spikes, window) {
 
 function launchesMarkdown(launches) {
   const byDate = launches.byDate.map((d) => `${d.date} × ${d.count}`).join('、') || '（无）'
-  return `启动事件共 ${launches.total} 条。按日期：${byDate}`
+  const byAge = Array.isArray(launches.byInstallAge) && launches.byInstallAge.length
+    ? `\n安装账龄分档：${launches.byInstallAge.map((row) => `${row.bucket} × ${row.count}`).join(' · ')}`
+    : ''
+  return `启动事件共 ${launches.total} 条。按日期：${byDate}${byAge}`
 }
 
 function updateActionsMarkdown(actions) {
@@ -104,6 +107,41 @@ function diagnosisMarkdown(d) {
     ? `带主进程停顿的会话汇总 ${m.sessions} 份；最长一次 ≥1 秒的 ${m.overOneSecond} 份（${share(m.overOneSecondShare)}，unknown = 监视器没在跑，不进分母）。\n\n- 最长一次：${tallyText(m.max)}\n- 次数（≥100ms）：${tallyText(m.count)}`
     : '（本轮缓存里没有带主进程停顿的会话汇总）'
   return `### 按补丁版的生成失败率\n\n${patch}\n\n### 说不清的占比\n\n${unknown}\n\n### 上一次异常退出\n\n${lastExit}\n\n### 主进程停顿\n\n${stall}`
+}
+
+function funnelMarkdown(funnel) {
+  if (!funnel) return '（未提供产品漏斗聚合）'
+  const ob = funnel.onboarding
+  const stepTable = ob.totalEvents
+    ? [
+        '| 步骤 | 会话数 | 事件数 |',
+        '|---|---|---|',
+        ...ob.byStep.map((row) => `| \`${row.step}\` | ${row.sessions} | ${row.events} |`),
+      ].join('\n')
+    : '（本轮缓存里没有 onboarding.step 事件）'
+  const obRates = ob.totalEvents
+    ? `转化率（按会话）：首屏引导→打开接入 ${share(ob.setupFromPromptRate)} · 打开接入→验证通过 ${share(ob.verifyFromSetupRate)} · 提交密钥→验证通过 ${share(ob.verifyFromSubmitRate)} · 验证通过→首次出片 ${share(ob.firstGenFromVerifyRate)} · 首屏引导→首次出片总转化 ${share(ob.activationFromPromptRate)}。\n验证失败原因：${ob.failReasons.map((r) => `\`${r.reason}\`×${r.count}（${pct(r.share)}）`).join(' · ') || '（无）'}。\n接入来源分类：${tallyText(ob.byProviderClass)}。`
+    : ''
+
+  const ag = funnel.agentTurns
+  const agentSection = ag.total
+    ? `总计 ${ag.total} 回合：成功 ${ag.success}（成功率 ${share(ag.successRate)}，剔除取消后 ${share(ag.decidedSuccessRate)}）、失败 ${ag.failure}、取消 ${ag.cancel}。\n- 一次做对率（\`retryCount === 0\` 且成功）：${ag.firstTrySuccessCount}/${ag.total}（${share(ag.firstTryRate)}；在成功回合中占 ${share(ag.firstTryAmongSuccessRate)}）\n- 零工具失败率：${ag.zeroToolFailureCount}/${ag.total}（${share(ag.zeroToolFailureRate)}）；触发熔断 ${ag.breakerTrippedCount} 回合；累计工具报错事件 ${ag.toolFailureEvents} 条\n- 失败回合原因分布：${ag.faultReasons.map((r) => `\`${r.reason}\`×${r.count}（${pct(r.share)}）`).join(' · ') || '（无）'}\n- 工具调用数分档：${tallyText(ag.byToolCallsBucket)} · 模型类别：${tallyText(ag.byModelClass)}`
+    : `（本轮缓存里没有 agent.turn.completed 事件；累计工具报错事件 ${ag.toolFailureEvents} 条）`
+
+  const ad = funnel.timelineAdoption
+  const capRows = ad.byCapability
+    .map((row) => `| ${row.capability} | ${row.generatedSuccess} | ${row.adoptedFromGeneration} | ${row.adoptedImport} | ${share(row.adoptionRate)} |`)
+    .join('\n')
+  const adoptionSection = ad.generationSuccess || ad.adoptedTotal
+    ? `成功生成 ${ad.generationSuccess} 次，生成结果采纳进时间轴 ${ad.adoptedFromGeneration} 次（采纳比例 ${share(ad.adoptionRate)}），另外部导入上轴 ${ad.adoptedImport} 次（合计上轴 ${ad.adoptedTotal} 次）。\n来源分布：${tallyText(ad.bySource)}。\n\n| 能力 | 成功生成 | 生成采纳上轴 | 外部导入上轴 | 生成采纳比例 |\n|---|---|---|---|---|\n${capRows}`
+    : '（本轮缓存里没有生成成功或 timeline.adopted 事件）'
+
+  const ex = funnel.exports
+  const exportSection = ex.total
+    ? `总计 ${ex.total} 次导出：成功 ${ex.success}（${share(ex.successRate)}）、失败 ${ex.failure}（${share(ex.failureRate)}）、取消 ${ex.cancel}。\n失败原因分布：${ex.failureReasons.map((r) => `\`${r.reason}\`×${r.count}（${pct(r.share)}）`).join(' · ') || '（无失败导出）'}`
+    : '（本轮缓存里没有 export.completed 事件）'
+
+  return `### 新手接入转化率\n\n${stepTable}${obRates ? `\n\n${obRates}` : ''}\n\n### Agent 回合成功率 / 一次做对率 / 零工具失败率\n\n${agentSection}\n\n### 生成后采纳进时间轴比例\n\n${adoptionSection}\n\n### 导出失败原因分布\n\n${exportSection}`
 }
 
 function dataQualityMarkdown(dq) {
@@ -189,6 +227,10 @@ ${updateActionsMarkdown(report.updateActions)}
 
 ${perfMarkdown(report.perf)}
 
+## 产品转化漏斗
+
+${funnelMarkdown(report.funnel)}
+
 ## 定位读数
 
 ${diagnosisMarkdown(report.diagnosis)}
@@ -231,6 +273,22 @@ export function renderTerminalSummary(report, { mdPath, jsonPath } = {}) {
     lines.push('  无明显突增')
   }
   if (report.perf.total) lines.push(`  卡不卡：${report.perf.total} 份会话汇总，偏慢 ${report.perf.slow}（${pct(report.perf.slowShare)}）`)
+  if (report.funnel) {
+    const { onboarding: ob, agentTurns: ag, timelineAdoption: ad, exports: ex } = report.funnel
+    if (ob.totalEvents) {
+      lines.push(`  新手接入：首屏引导→验证通过 ${share(ob.verifyFromSetupRate)} · 首屏引导→首次出片总转化 ${share(ob.activationFromPromptRate)}`)
+    }
+    if (ag.total) {
+      lines.push(`  Agent 回合：总计 ${ag.total}，成功率 ${share(ag.successRate)} · 一次做对率 ${share(ag.firstTryRate)} · 零工具失败率 ${share(ag.zeroToolFailureRate)}`)
+    }
+    if (ad.generationSuccess || ad.adoptedTotal) {
+      lines.push(`  上轴采纳：生成采纳 ${ad.adoptedFromGeneration}/${ad.generationSuccess}（${share(ad.adoptionRate)}，总上轴 ${ad.adoptedTotal}）`)
+    }
+    if (ex.total) {
+      const topExportFailures = ex.failureReasons.slice(0, 3).map((r) => `${r.reason}×${r.count}`).join(' · ')
+      lines.push(`  导出结果：总计 ${ex.total}，成功 ${share(ex.successRate)}${topExportFailures ? ` · 失败原因 ${topExportFailures}` : ''}`)
+    }
+  }
   const d = report.diagnosis
   if (d.unknown.withDetail) lines.push(`  失败说不清：上游 unknown ${d.unknown.unknownStatus}/${d.unknown.withDetail}（${share(d.unknown.unknownShare)}）· 本机规则 uncoded ${d.unknown.uncoded}/${d.unknown.notSent}（${share(d.unknown.uncodedShare)}）`)
   if (d.lastExit.known) lines.push(`  上次没正常结束：${d.lastExit.abnormal}/${d.lastExit.known}（${share(d.lastExit.abnormalRate)}）`)

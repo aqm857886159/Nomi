@@ -6,10 +6,15 @@
  * 开屏 SplashIntro 已按 Q18 删除，旧键 `nomi:splash:v1` 不再读写、留在老用户本机无害。
  */
 
+import { getDesktopBridge } from '../../desktop/bridge'
+import type { ModelClass, OnboardingFailReason, OnboardingStep } from '../../../electron/shared/contracts/telemetry'
+
 const CHECKLIST_KEY = 'nomi:checklist:v1'
 const CHECKLIST_FIRST_SHOWN_KEY = 'nomi:checklist-first-shown:v1'
 const CHECKLIST_DISMISSED_KEY = 'nomi:checklist-dismissed:v1'
 const JOURNEY_TOUR_KEY = 'nomi:journey-tour:v1'
+const FIRST_GENERATION_TELEMETRY_KEY = 'nomi:first-generation-telemetry:v1'
+let promptShownReportedThisSession = false
 /**
  * 「帮 Nomi 变好」那张首次询问卡问过没有（用户 09-15 拍板②：**只问一次**）。
  *
@@ -143,4 +148,60 @@ export function ensureChecklistFirstShownAt(now: number): number {
 export function isChecklistExpired(now: number): boolean {
   const firstShown = ensureChecklistFirstShownAt(now)
   return now - firstShown >= CHECKLIST_TTL_MS
+}
+
+/**
+ * 新手激活与模型接入闭合漏斗上报（仅枚举，零密钥 / URL / 文本内容）。
+ * `vendorKey` 只作 IPC 侧归类线索，由主进程 `withMainProcessFacts` 转成 `builtin | local | custom` 后丢弃。
+ */
+export function trackOnboardingStep(input: {
+  step: OnboardingStep
+  providerClass?: ModelClass
+  vendorKey?: string
+  failReason?: OnboardingFailReason
+}): void {
+  try {
+    const telemetry = getDesktopBridge()?.telemetry
+    if (!telemetry?.track) return
+    void telemetry.track({
+      eventName: 'onboarding.step',
+      props: {
+        step: input.step,
+        providerClass: input.providerClass ?? 'builtin',
+        ...(input.step === 'verify_failed' ? { failReason: input.failReason ?? 'other' } : {}),
+      },
+      ...(input.vendorKey ? { vendorKey: input.vendorKey } : {}),
+    })
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 首屏引导曝光去重：同一进程生命周期只记一次分母，避免 SWR 重验刷高分母。 */
+export function trackOnboardingPromptShownOnce(providerClass: ModelClass = 'builtin'): void {
+  if (promptShownReportedThisSession) return
+  promptShownReportedThisSession = true
+  trackOnboardingStep({ step: 'prompt_shown', providerClass })
+}
+
+/**
+ * 首次生成成功激活转化：同时检查 `readChecklist().generated`，避免升级前已出过片的老用户被误记成首日激活。
+ * 返回 true 表示本次是该装机第一次成功生成，调用方随即发一次 `first_generation_succeeded`。
+ */
+export function tryConsumeFirstGenerationTelemetry(): boolean {
+  try {
+    if (window.localStorage.getItem(FIRST_GENERATION_TELEMETRY_KEY) === '1') return false
+    if (readChecklist().generated) {
+      window.localStorage.setItem(FIRST_GENERATION_TELEMETRY_KEY, '1')
+      return false
+    }
+    window.localStorage.setItem(FIRST_GENERATION_TELEMETRY_KEY, '1')
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function resetOnboardingTelemetrySessionForTests(): void {
+  promptShownReportedThisSession = false
 }

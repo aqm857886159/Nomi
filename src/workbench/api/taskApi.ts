@@ -6,6 +6,7 @@ import { isTerminalTaskStatus, type TaskStatus } from '../../../electron/shared/
 import { classifyGenerationError } from '../observability/classifyError'
 import { describeOpaqueFailure } from '../observability/opaqueFailure'
 import { trackNodeSubmit } from '../generationCanvas/runner/nodeSubmitInFlight'
+import { tryConsumeFirstGenerationTelemetry } from '../onboarding/onboardingState'
 import { stripVendorErrorMarker } from '../../../electron/shared/generationFailure'
 import type { CanvasResendDecidePayload, CanvasResendDecision } from '../../../electron/shared/canvas/canvasResendDecide'
 import type { TaskResultLayer } from '../../../electron/shared/contracts/taskResultLayer'
@@ -195,6 +196,13 @@ function trackGenerationOutcome(desktop: DesktopBridge, context: GenerationTelem
     result,
     ...(result === 'failure' ? { errorType: failureTypeOf(failureMessage), failureMessage } : {}),
   }))
+  if (result === 'success' && tryConsumeFirstGenerationTelemetry()) {
+    void desktop.telemetry?.track({
+      eventName: 'onboarding.step',
+      props: { step: 'first_generation_succeeded', providerClass: 'custom' },
+      vendorKey: context.vendorKey,
+    })
+  }
 }
 
 /** 已提交、还没到终态的异步生成：任务 id → 提交时记下的事实。到终态报一次就删；上限防泄漏。 */

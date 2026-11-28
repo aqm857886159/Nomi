@@ -351,4 +351,41 @@ describe('exportTimelineToMp4', () => {
     expect(onProgress).not.toHaveBeenCalledWith({ status: 'converting', ratio: 0.5 })
     expect(unsubscribe).toHaveBeenCalledTimes(1)
   })
+
+  it('classifies export failures into closed failureReason enums and never leaks paths', async () => {
+    const { classifyExportFailureReason, exportTimelineToMp4, isExportCancelledError } = await import('./exportApi')
+
+    expect(classifyExportFailureReason(new Error('ENOENT: no such file /Users/me/shot.mp4'))).toBe('missing_media')
+    expect(classifyExportFailureReason(Object.assign(new Error('read failed'), { code: 'asset_unreadable' }))).toBe('missing_media')
+    expect(classifyExportFailureReason(new Error('ENOSPC: no space left on device'))).toBe('disk_or_permission')
+    expect(classifyExportFailureReason(new Error('ffmpeg filtergraph exited with code 1'))).toBe('ffmpeg_error')
+    expect(classifyExportFailureReason(new Error('unexpected internal state'))).toBe('other')
+    expect(isExportCancelledError(Object.assign(new Error('aborted'), { name: 'AbortError' }))).toBe(true)
+
+    const tracked: unknown[] = []
+    vi.stubGlobal('window', {
+      nomiDesktop: {
+        telemetry: {
+          track: (payload: unknown) => { tracked.push(payload); return Promise.resolve({ queued: true }) },
+        },
+        exports: {
+          startJob: vi.fn().mockResolvedValue({ jobId: 'job-err', backend: 'filtergraph' }),
+          writeTempInput: vi.fn(),
+          finishTempInput: vi.fn().mockRejectedValue(new Error('ffmpeg filtergraph failed on /Users/me/secret.mp4')),
+          cancel: vi.fn().mockResolvedValue({ ok: true }),
+        },
+      },
+    })
+
+    await expect(
+      exportTimelineToMp4({ projectId: 'project-1', timeline: makeTimeline(), aspectRatio: '16:9' }),
+    ).rejects.toThrow()
+
+    expect(tracked).toHaveLength(1)
+    expect(tracked[0]).toMatchObject({
+      eventName: 'export.completed',
+      props: { format: 'mp4', result: 'failure', failureReason: 'ffmpeg_error' },
+    })
+    expect(JSON.stringify(tracked)).not.toContain('/Users/me/secret.mp4')
+  })
 })

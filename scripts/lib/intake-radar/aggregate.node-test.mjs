@@ -17,6 +17,7 @@ import {
   rankFailureReasons,
   summarizePerf,
   summarizeDiagnosis,
+  summarizeProductFunnel,
   patchVersionOf,
 } from './aggregate.mjs'
 import { renderMarkdown, renderTerminalSummary } from './render.mjs'
@@ -571,5 +572,111 @@ test('定位读数进报告 Markdown 与终端摘要；报告里不再有轨迹�
   assert.match(terminal, /主进程停顿 ≥1 秒：1\/1 份会话/)
   assert.doesNotMatch(md + terminal, /轨迹/)
   assert.equal('trajectoriesCount' in report.totals, false)
+})
+
+test('产品全链路漏斗：新手接入转化率、Agent 一次做对率与零工具失败率、上轴采纳比例、导出失败分布与账龄分档', () => {
+  const baseSys = sys(25, 2)
+  const mk = (sessionId, eventName, props) => ({
+    schemaVersion: 1,
+    timestamp: '2026-11-28T00:00:00.000Z',
+    date: '2026-11-28',
+    sessionId,
+    eventName,
+    props,
+    systemProps: baseSys,
+  })
+  const events = [
+    // 启动账龄分档
+    mk('s1', 'app.started', { appMajor: 0, appMinor: 25, osFamily: 'macos', locale: 'zh-CN', lastExit: 'unknown', installAgeBucket: 'd0' }),
+    mk('s2', 'app.started', { appMajor: 0, appMinor: 25, osFamily: 'macos', locale: 'zh-CN', lastExit: 'clean', installAgeBucket: 'd1-7' }),
+    // 新手接入：4 个会话看到首屏提示 -> 3 个打开接入 -> 3 个提交 key（其中 s2 提交了 2 次） -> 2 个验证成功、2 次验证失败 -> 1 个首次出片成功
+    mk('s1', 'onboarding.step', { step: 'prompt_shown', providerClass: 'builtin' }),
+    mk('s2', 'onboarding.step', { step: 'prompt_shown', providerClass: 'builtin' }),
+    mk('s3', 'onboarding.step', { step: 'prompt_shown', providerClass: 'builtin' }),
+    mk('s4', 'onboarding.step', { step: 'prompt_shown', providerClass: 'builtin' }),
+    mk('s1', 'onboarding.step', { step: 'setup_opened', providerClass: 'builtin' }),
+    mk('s2', 'onboarding.step', { step: 'setup_opened', providerClass: 'builtin' }),
+    mk('s3', 'onboarding.step', { step: 'setup_opened', providerClass: 'custom' }),
+    mk('s1', 'onboarding.step', { step: 'key_submitted', providerClass: 'builtin' }),
+    mk('s1', 'onboarding.step', { step: 'verify_succeeded', providerClass: 'builtin' }),
+    mk('s1', 'onboarding.step', { step: 'first_generation_succeeded', providerClass: 'builtin' }),
+    mk('s2', 'onboarding.step', { step: 'key_submitted', providerClass: 'builtin' }),
+    mk('s2', 'onboarding.step', { step: 'verify_failed', providerClass: 'builtin', failReason: 'zero_quota' }),
+    mk('s2', 'onboarding.step', { step: 'key_submitted', providerClass: 'builtin' }),
+    mk('s2', 'onboarding.step', { step: 'verify_succeeded', providerClass: 'builtin' }),
+    mk('s3', 'onboarding.step', { step: 'key_submitted', providerClass: 'custom' }),
+    mk('s3', 'onboarding.step', { step: 'verify_failed', providerClass: 'custom', failReason: 'auth_failed' }),
+    // Agent 回合：4 回合（2 个一次做对成功、1 个重试 1 次后成功、1 个撞墙失败）
+    mk('s1', 'agent.turn.completed', { result: 'success', durationBucket: '1-5s', modelClass: 'builtin', toolCallsBucket: '1-2', retryCount: 0, breakerTripped: false }),
+    mk('s1', 'agent.turn.completed', { result: 'success', durationBucket: '<1s', modelClass: 'builtin', toolCallsBucket: '0', retryCount: 0, breakerTripped: false }),
+    mk('s2', 'agent.turn.completed', { result: 'success', durationBucket: '>5s', modelClass: 'builtin', toolCallsBucket: '3-5', retryCount: 1, breakerTripped: false }),
+    mk('s3', 'agent.turn.completed', { result: 'failure', durationBucket: '>5s', modelClass: 'custom', toolCallsBucket: '3-5', retryCount: 3, breakerTripped: true, faultCategory: 'tool_refused' }),
+    mk('s2', 'agent.tool.failed', { toolName: 'draft_shots', failureCode: 'tool_arguments_invalid', attempt: 1, breakerTripped: false, modelClass: 'builtin' }),
+    // 生成与时间轴采纳：4 次成功生成（3 视频 + 1 图片），2 次生成采纳上轴 + 1 次外部导入上轴
+    mk('s1', 'generation.completed', { capability: 'video', durationBucket: '>5s', result: 'success', mode: 'text', modelClass: 'builtin', submitDuration: '1-5s', waitDuration: '30-120s', upstreamStatus: 'ok' }),
+    mk('s1', 'generation.completed', { capability: 'video', durationBucket: '>5s', result: 'success', mode: 'text', modelClass: 'builtin', submitDuration: '1-5s', waitDuration: '30-120s', upstreamStatus: 'ok' }),
+    mk('s2', 'generation.completed', { capability: 'video', durationBucket: '>5s', result: 'success', mode: 'image', modelClass: 'builtin', submitDuration: '1-5s', waitDuration: '30-120s', upstreamStatus: 'ok' }),
+    mk('s2', 'generation.completed', { capability: 'image', durationBucket: '1-5s', result: 'success', mode: 'text', modelClass: 'builtin', submitDuration: 'lt-1s', waitDuration: '1-5s', upstreamStatus: 'ok' }),
+    mk('s1', 'timeline.adopted', { capability: 'video', source: 'canvas' }),
+    mk('s1', 'timeline.adopted', { capability: 'video', source: 'agent' }),
+    mk('s2', 'timeline.adopted', { capability: 'video', source: 'import' }),
+    // 导出：1 成功 + 2 失败（1 个 ffmpeg_error + 1 个旧版未带原因）
+    mk('s1', 'export.completed', { format: 'mp4', durationBucket: '1-5s', result: 'success' }),
+    mk('s2', 'export.completed', { format: 'mp4', durationBucket: '>5s', result: 'failure', failureReason: 'ffmpeg_error' }),
+    mk('s3', 'export.completed', { format: 'mp4', durationBucket: '>5s', result: 'failure' }),
+  ]
+
+  const funnel = summarizeProductFunnel(events)
+  assert.equal(funnel.onboarding.setupFromPromptRate, 75)
+  assert.equal(funnel.onboarding.verifyFromSetupRate, 66.7)
+  assert.equal(funnel.onboarding.verifyFromSubmitRate, 66.7)
+  assert.equal(funnel.onboarding.firstGenFromVerifyRate, 50)
+  assert.equal(funnel.onboarding.activationFromPromptRate, 25)
+  assert.deepEqual(funnel.onboarding.failReasons.map((r) => [r.reason, r.count]), [['auth_failed', 1], ['zero_quota', 1]])
+
+  assert.equal(funnel.agentTurns.total, 4)
+  assert.equal(funnel.agentTurns.successRate, 75)
+  assert.equal(funnel.agentTurns.firstTrySuccessCount, 2)
+  assert.equal(funnel.agentTurns.firstTryRate, 50)
+  assert.equal(funnel.agentTurns.zeroToolFailureCount, 2)
+  assert.equal(funnel.agentTurns.zeroToolFailureRate, 50)
+  assert.equal(funnel.agentTurns.breakerTrippedCount, 1)
+  assert.equal(funnel.agentTurns.toolFailureEvents, 1)
+  assert.deepEqual(funnel.agentTurns.faultReasons, [{ reason: 'tool_refused', count: 1, share: 100 }])
+
+  assert.equal(funnel.timelineAdoption.generationSuccess, 4)
+  assert.equal(funnel.timelineAdoption.adoptedFromGeneration, 2)
+  assert.equal(funnel.timelineAdoption.adoptedImport, 1)
+  assert.equal(funnel.timelineAdoption.adoptionRate, 50)
+
+  assert.equal(funnel.exports.total, 3)
+  assert.equal(funnel.exports.successRate, 33.3)
+  assert.deepEqual(funnel.exports.failureReasons.map((r) => [r.reason, r.count]), [['ffmpeg_error', 1], ['（旧版本未上报）', 1]])
+
+  assert.deepEqual(funnel.installAge.byBucket, [{ bucket: undefined, count: 0 }].slice(0, 0).concat([{ value: 'd0', count: 1 }, { value: 'd1-7', count: 1 }]))
+
+  const report = buildIntakeReport({
+    feedbackRecords: [],
+    eventRecords: [{ key: 'events/funnel.json', record: { payload: { events } } }],
+    newFeedbackKeys: [],
+    newEventKeys: [],
+    generatedAt: '2026-11-28T00:00:00.000Z',
+  })
+  const md = renderMarkdown(report)
+  const terminal = renderTerminalSummary(report, { mdPath: '/r/f.md', jsonPath: '/r/f.json' })
+  assert.match(md, /## 产品转化漏斗/)
+  assert.match(md, /首屏引导→首次出片总转化 25%/)
+  assert.match(md, /一次做对率（`retryCount === 0` 且成功）：2\/4（50%/)
+  assert.match(md, /生成结果采纳进时间轴 2 次（采纳比例 50%）/)
+  assert.match(md, /`ffmpeg_error`×1（50%）/)
+  assert.match(terminal, /新手接入：首屏引导→验证通过 66\.7% · 首屏引导→首次出片总转化 25%/)
+  assert.match(terminal, /Agent 回合：总计 4，成功率 75% · 一次做对率 50% · 零工具失败率 50%/)
+  assert.match(terminal, /上轴采纳：生成采纳 2\/4（50%，总上轴 3）/)
+  assert.match(terminal, /导出结果：总计 3，成功 33\.3% · 失败原因 ffmpeg_error×1 · （旧版本未上报）×1/)
+  assert.doesNotMatch(md + terminal, /轨迹/)
+  const tailLines = terminal.split('\n').slice(-5).join('\n')
+  assert.match(tailLines, /新增反馈 0 条/)
+  assert.match(tailLines, /待分诊 0 条/)
+  assert.equal(terminal.split('\n').at(-1), report.versionHealth.conclusion)
 })
 

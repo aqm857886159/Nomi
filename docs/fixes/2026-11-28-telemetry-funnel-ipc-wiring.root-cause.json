@@ -1,0 +1,29 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-telemetry-funnel-ipc-wiring",
+  "change_kind": "structural",
+  "scope_paths": [
+    "electron/ai/onboarding/onboardingIpc.ts",
+    "electron/providerAdapter/ipc.ts",
+    "electron/settings/telemetryIpc.ts"
+  ],
+  "regression_tests": [
+    "electron/settings/telemetryIpc.test.ts",
+    "electron/telemetry/telemetryEvents.test.ts"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/ai/onboarding/onboardingIpc.ts",
+      "electron/providerAdapter/ipc.ts",
+      "electron/settings/telemetryIpc.ts"
+    ],
+    "preserved_exports": [
+      { "path": "electron/ai/onboarding/onboardingIpc.ts", "name": "registerOnboardingIpc" },
+      { "path": "electron/providerAdapter/ipc.ts", "name": "registerProviderAdapterIpc" },
+      { "path": "electron/settings/telemetryIpc.ts", "name": "registerTelemetryIpc" },
+      { "path": "electron/settings/telemetryIpc.ts", "name": "withMainProcessFacts" }
+    ],
+    "behavior_preservation": "所有原有 IPC 通道名称、发送方受信校验（assertTrustedSender）、返回值与错误处理语义保持 100% 不变；仅在接入验证动作完成后旁路容错记录闭合 onboarding.step 枚举，并在 withMainProcessFacts 中把 onboarding.step 携带的 vendorKey 在主进程侧归一为闭合 providerClass 后丢弃。",
+    "verification_limits": "本合同覆盖主进程 IPC 侧的闭合枚举接线与白名单守卫；真实生产环境开启遥测后的端到端上报接收由后续版本发布后的 intake:radar 实测。"
+  }
+}

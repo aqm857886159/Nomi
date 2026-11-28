@@ -1,6 +1,6 @@
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopMp4ExportResult } from '../../desktop/bridge'
-import type { TelemetryResult } from '../../../electron/shared/contracts/telemetry'
+import type { ExportFailureReason, TelemetryResult } from '../../../electron/shared/contracts/telemetry'
 import i18n from '../../i18n'
 import type { TimelineState } from '../timeline/timelineTypes'
 import type { PreviewAspectRatio } from '../workbenchTypes'
@@ -69,6 +69,32 @@ export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJ
   })
 }
 
+export function isExportCancelledError(error: unknown): boolean {
+  if (!error) return false
+  const name = error instanceof Error ? error.name : ''
+  const code = typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : ''
+  const message = error instanceof Error ? error.message : String(error)
+  return name === 'AbortError' || name === 'ExportCancelledError' || code === 'EXPORT_CANCELLED' || /\b(?:export[_ -]?cancelled|aborted|canceled|cancelled)\b/i.test(message)
+}
+
+/** 导出失败 → 闭合四分类（原文、路径、文件名一个字都不进事件）。 */
+export function classifyExportFailureReason(error: unknown): ExportFailureReason {
+  const code = error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
+    ? (error as { code: string }).code
+    : ''
+  const text = `${code} ${error instanceof Error ? error.message : String(error ?? '')}`
+  if (/asset_unreadable|assetUnreadable|missing_output|inputMissing|inputEmpty|clip_unavailable|ENOENT|no such file|media.*missing|无法读取素材|找不到素材/i.test(text)) {
+    return 'missing_media'
+  }
+  if (/ENOSPC|EACCES|EPERM|EROFS|outside_project|disk full|no space left|permission denied|磁盘空间|权限不足/i.test(text)) {
+    return 'disk_or_permission'
+  }
+  if (/ffmpeg|filtergraph|codec|probe_unavailable|mp4NotProduced|mp4Empty|transcode|mux|exit code|转码失败/i.test(text)) {
+    return 'ffmpeg_error'
+  }
+  return 'other'
+}
+
 export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): Promise<DesktopMp4ExportResult> {
   const desktop = getDesktopBridge()
   if (!desktop?.exports?.startJob || !desktop.exports.writeTempInput || !desktop.exports.finishTempInput) {
@@ -76,10 +102,18 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
   }
   const { projectId, timeline: exportTimeline, manifest } = createTimelineExportManifest(options)
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const trackExport = (result: TelemetryResult): void => {
+  const trackExport = (result: TelemetryResult, failureReason?: ExportFailureReason): void => {
     const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
     const elapsed = endedAt - startedAt
-    void desktop.telemetry?.track({ eventName: 'export.completed', props: { format: 'mp4', durationBucket: elapsed < 1000 ? '<1s' : elapsed <= 5000 ? '1-5s' : '>5s', result } })
+    void desktop.telemetry?.track({
+      eventName: 'export.completed',
+      props: {
+        format: 'mp4',
+        durationBucket: elapsed < 1000 ? '<1s' : elapsed <= 5000 ? '1-5s' : '>5s',
+        result,
+        ...(result === 'failure' ? { failureReason: failureReason ?? 'other' } : {}),
+      },
+    })
   }
   const { jobId, backend } = await desktop.exports.startJob({
     projectId,
@@ -135,7 +169,8 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     trackExport('success')
     return result
   } catch (error) {
-    trackExport('failure')
+    if (isExportCancelledError(error)) trackExport('cancel')
+    else trackExport('failure', classifyExportFailureReason(error))
     if (!finishedTempInput && desktop.exports.cancel) {
       try {
         await desktop.exports.cancel(jobId)

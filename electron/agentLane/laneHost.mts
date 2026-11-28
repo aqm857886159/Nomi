@@ -2,7 +2,7 @@ import { createLaneInputAdmission } from './laneInputAdmission.mjs';
 import { originalLaneEntry, precedingLaneInput, resolveLaneReplay, laneOriginalText } from './laneOriginalInput.mjs';
 import { laneInputIntent, withRestoredTemplate } from './laneInputIntent.mjs';
 import { openLaneHistoryPage } from './laneHistoryPage.mjs';
-import { attachLaneTrace } from './laneTraceRecorder.mjs';
+import { attachLaneTrace, createLaneTraceFailureSink } from './laneTraceRecorder.mjs';
 import { logWarn } from '../logging/logger.js';
 import { capabilityContractById } from '../shared/agentCapabilities/registry.js';
 import { modelToolCapabilityId } from '../shared/agentCapabilities/modelFacingTools.js';
@@ -207,8 +207,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 连续撞同一堵墙的计数器，和入参边界共用一个：形状错（pi 的立即结果）、契约 parse 错、执行失败，同一处记数。
   const failures = createLaneRepeatedFailureTracker();
   const turn = createLaneTurnBudget(failures, options.limits?.maxModelRequests ?? LANE_MAX_MODEL_REQUESTS);
-  const toolInput = createLaneToolInputBoundary({ failures, specs: options.tools, onFailure: options.onToolFailure,
-    turn });
+  const traceFailures = createLaneTraceFailureSink();
+  const toolInput = createLaneToolInputBoundary({ failures, specs: options.tools, onFailure: traceFailures.wrap(options.onToolFailure), turn });
   // 立即结果没有 `details`，面板的信封按入参重推（`laneToolInputBoundary.failureOf`，按 toolCallId 记一份）。
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
@@ -564,7 +564,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     return message;
   }
 
-  const trace = attachLaneTrace({ harness, session, pricing: pricingBasis,
+  const trace = attachLaneTrace({ harness, session, pricing: pricingBasis, failureSink: traceFailures, isTurnOver: turn.isOver,
+    isContextOverflow: modelFacts.isContextOverflow, onTurnCompleted: options.onTurnCompleted,
     model: { provider: options.model.providerId, model: options.model.modelId },
     secrets: [options.model.apiKey ?? '', ...Object.values(options.model.headers ?? {})] });
   await trace.refresh().catch(() => undefined);

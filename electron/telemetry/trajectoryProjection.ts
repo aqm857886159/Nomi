@@ -17,6 +17,7 @@ import crypto from 'node:crypto'
 import { outboundVendor } from '../catalog/outboundVendor'
 import { redactLogValue } from '../logging/redact'
 import { isLaneApprovalNote } from '../shared/agentLane/laneContracts'
+import { TELEMETRY_IDENTIFIER_PATTERN } from '../shared/contracts/telemetry'
 import type {
   LaneTrajectoryEnvelope,
   LaneTrajectoryToolCall,
@@ -73,6 +74,12 @@ function argumentKeys(args: unknown): string[] {
   return Object.keys(args).slice(0, 40).map((key) => label(key, 'key')).sort()
 }
 
+function closedFailureCode(value: unknown): string | null {
+  if (typeof value !== 'string' || !value) return null
+  const clean = redactLogValue(value)
+  return TELEMETRY_IDENTIFIER_PATTERN.test(clean) ? clean : null
+}
+
 function projectToolCall(tool: TrajectoryTurnInput['tools'][number]): LaneTrajectoryToolCall {
   return {
     'gen_ai.operation.name': 'execute_tool',
@@ -80,7 +87,7 @@ function projectToolCall(tool: TrajectoryTurnInput['tools'][number]): LaneTrajec
     'gen_ai.tool.call.id': label(tool.toolCallId, 'unknown'),
     'nomi.tool.argument_keys': argumentKeys(tool.arguments),
     'nomi.tool.failed': typeof tool.failed === 'boolean' ? tool.failed : null,
-    'nomi.tool.failure_code': typeof tool.failureCode === 'string' && tool.failureCode ? label(tool.failureCode) : null,
+    'nomi.tool.failure_code': closedFailureCode(tool.failureCode),
     'nomi.tool.duration_ms': duration(tool.durationMs),
   }
 }
@@ -94,19 +101,39 @@ function approvalDecisions(approvals: readonly unknown[]): string[] {
   return approvals.slice(0, 20).filter(isLaneApprovalNote).map((note) => note.decision)
 }
 
-/** 出门的错误类别只有这一张闭合词表（与 `laneTrace.laneErrorKind` 产出的同名类别对齐）。 */
-const OUTBOUND_ERROR_KIND = /^(?:context-overflow|stream-cut|model-timeout:(?:first-response|first-token|idle))$/
+/** 旧派生记录里 `laneProviderGuard` 写下的分类标记 → 统一出门的 kebab-case 闭合词。 */
+const LEGACY_CLASSIFIER_KIND_MAP: Readonly<Record<string, string>> = {
+  insufficient_quota: 'balance',
+  'rate limit': 'rate-limit',
+  'server error': 'upstream-5xx',
+  'network error': 'network',
+}
+
+/** 出门的错误类别闭合词表（与 `laneTrace` 产出的闭合诊断类别对齐，物理拒绝自由文本）。 */
+const OUTBOUND_ERROR_KIND = /^(?:context-overflow|stream-cut|output-truncated|model-timeout:(?:first-response|first-token|idle)|auth|balance|rate-limit|timeout|network|protocol-error|upstream-4xx|upstream-5xx|provider-error|run-failed|tool-failed)$/
+
+function outboundErrorKind(raw: string): string | null {
+  const mapped = LEGACY_CLASSIFIER_KIND_MAP[raw] ?? raw
+  if (OUTBOUND_ERROR_KIND.test(mapped)) return redactLogValue(mapped)
+  if (mapped.startsWith('tool:')) {
+    const code = closedFailureCode(mapped.slice(5))
+    return code ? `tool:${code}` : null
+  }
+  const toolCode = closedFailureCode(mapped)
+  if (toolCode) return toolCode
+  const fault = laneAssistantFaultOf(raw)
+  if (!fault) return null
+  return fault.kind === 'model-timeout' ? `model-timeout:${fault.phase}` : fault.kind
+}
 
 /**
  * 轨迹里的错误 → 认得出的类别（闭合词表）；其余不出门。
- * 2026-10-22 起派生轨迹本身只存类别（`laneErrorKind`）；还没重建的旧轨迹存的是原文，照旧按原文认。
+ * 2026-10-22 起派生轨迹本身只存类别（`laneErrorKind`）；还没重建的旧轨迹存的是原文，照旧按确定性故障头认。
  */
 function errorKinds(errors: readonly string[]): string[] {
   return errors.slice(0, 20).flatMap((text) => {
-    if (OUTBOUND_ERROR_KIND.test(text)) return [text]
-    const fault = laneAssistantFaultOf(text)
-    if (!fault) return []
-    return [fault.kind === 'model-timeout' ? `model-timeout:${fault.phase}` : fault.kind]
+    const kind = outboundErrorKind(String(text ?? ''))
+    return kind ? [kind] : []
   })
 }
 

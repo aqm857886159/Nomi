@@ -87,8 +87,115 @@ test('policy denial and failed tool results remain explicit in the derived row',
   const [row] = await readTurns(await openLaneTraceDirectory(fixture.projectDir, 'main'));
   assert.equal(fixture.document.text(), before);
   assert.equal(row.tools[0].failed, true);
+  assert.equal(row.tools[0].failureCode, 'approval_denied_by_policy');
   assert.ok(row.errors.length > 0);
   assert.equal((row.approvals[0] as { decision: string }).decision, 'denied-by-policy');
+});
+
+test('immediate shape rejection, retry wall, and structured upstream vendor diagnostics derive closed failureCode and error kinds', async t => {
+  const { deriveLaneTrace } = await import('../../electron/agentLane/laneTrace.mjs');
+  const { describeAgentError } = await import('../../electron/ai/agentError.js');
+  const { VendorRequestError } = await import('../../electron/shared/vendorFailure.js');
+  const { LANE_OUTPUT_TRUNCATED_DIAGNOSTIC, LANE_VENDOR_FAILURE_DIAGNOSTIC } = await import('../../electron/shared/agentLane/laneAssistantFault.js');
+
+  const fixture = await createLaneFixture(t, [
+    { type: 'tool', calls: [{ id: 'bad-shape', name: 'write_script', arguments: { unexpected: 123 } }] },
+    { type: 'text', text: 'Fixed call skipped.' },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  await lane.execute({ kind: 'prompt', text: 'Try invalid tool arguments.' });
+  const [liveRow] = await readTurns(await openLaneTraceDirectory(fixture.projectDir, 'main'));
+  assert.equal(liveRow.tools[0].failed, true);
+  assert.equal(liveRow.tools[0].failureCode, 'tool_arguments_invalid');
+
+  const authPayload = describeAgentError(new VendorRequestError('HTTP 401', {
+    vendorKey: 'apimart',
+    method: 'POST',
+    url: 'https://api.example.com/v1/chat/completions',
+    httpStatus: 401,
+    category: 'auth',
+    retryable: false,
+    upstreamMsg: 'invalid key sk-secret-echo',
+  }));
+  const rateLimitPayload = describeAgentError(new VendorRequestError('HTTP 429', {
+    vendorKey: 'apimart',
+    method: 'POST',
+    url: 'https://api.example.com/v1/chat/completions',
+    httpStatus: 429,
+    category: 'quota',
+    retryable: true,
+    upstreamMsg: 'too many requests',
+  }));
+  const derived = deriveLaneTrace([
+    { id: 'u1', parentId: null, timestamp: 1000, type: 'message', message: { role: 'user', content: 'hi', timestamp: 1000 } },
+    {
+      id: 'a1', parentId: 'u1', timestamp: 1010, type: 'message',
+      message: {
+        role: 'assistant', provider: 'apimart', model: 'gpt-5.5', api: 'openai-completions', timestamp: 1010,
+        content: [{ type: 'toolCall', id: 'c-stop', name: 'write_script', arguments: {} }],
+        usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0, totalTokens: 15, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+        stopReason: 'error',
+        errorMessage: '401 Unauthorized',
+        diagnostics: [{ type: LANE_VENDOR_FAILURE_DIAGNOSTIC, timestamp: 1010, details: { message: authPayload } }],
+      },
+    },
+    {
+      id: 't1', parentId: 'a1', timestamp: 1012, type: 'message',
+      message: {
+        role: 'toolResult', toolCallId: 'c-stop', toolName: 'write_script', isError: true, timestamp: 1012,
+        content: [{ type: 'text', text: 'write_script was not run (tool_retry_stopped). Retry limit reached.' }],
+      },
+    },
+    {
+      id: 'a2', parentId: 't1', timestamp: 1020, type: 'message',
+      message: {
+        role: 'assistant', provider: 'apimart', model: 'gpt-5.5', api: 'openai-completions', timestamp: 1020,
+        content: [],
+        usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0, totalTokens: 15, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+        stopReason: 'error',
+        errorMessage: '429 Too Many Requests',
+        diagnostics: [
+          { type: LANE_VENDOR_FAILURE_DIAGNOSTIC, timestamp: 1020, details: { message: rateLimitPayload } },
+          { type: LANE_OUTPUT_TRUNCATED_DIAGNOSTIC, timestamp: 1020, details: { reason: 'output_cap_tool_call' } },
+        ],
+      },
+    },
+  ] as never, 'sess-1');
+  assert.equal(derived[0].tools[0].failureCode, 'tool_retry_stopped');
+  assert.deepEqual(derived[0].errors, ['auth', 'tool_retry_stopped', 'rate-limit', 'output-truncated']);
+});
+
+test('onTurnCompleted reports retryCount=0 on first-try success and breakerTripped=true on retry-wall stop', async t => {
+  const completed: Array<Record<string, unknown>> = [];
+  const fixture = await createLaneFixture(t, [
+    // Turn 1: 1 clean tool call -> retryCount: 0, result: 'success'
+    { type: 'tool', calls: [{ id: 'clean-read', name: 'read_script', arguments: {} }] },
+    { type: 'text', text: 'Done on first try.' },
+    // Turn 2: 4 consecutive invalid calls to hit the 3-strike retry wall -> breakerTripped: true, result: 'failure', faultCategory: 'tool_refused'
+    { type: 'tool', calls: [{ id: 'bad-1', name: 'write_script', arguments: { bad: 1 } }] },
+    { type: 'tool', calls: [{ id: 'bad-2', name: 'write_script', arguments: { bad: 2 } }] },
+    { type: 'tool', calls: [{ id: 'bad-3', name: 'write_script', arguments: { bad: 3 } }] },
+    { type: 'tool', calls: [{ id: 'bad-4', name: 'write_script', arguments: { bad: 4 } }] },
+    { type: 'text', text: 'Unreachable.' },
+  ]);
+  const lane = await fixture.openLane({
+    ...fixture.options,
+    onTurnCompleted: (turn) => { completed.push({ ...turn }); },
+  });
+  await lane.execute({ kind: 'prompt', text: 'Read cleanly.' });
+  await lane.execute({ kind: 'prompt', text: 'Keep calling invalid args.' }).catch(() => undefined);
+
+  assert.equal(completed.length, 2);
+  assert.equal(completed[0].result, 'success');
+  assert.equal(completed[0].retryCount, 0);
+  assert.equal(completed[0].toolCallCount, 1);
+  assert.equal(completed[0].breakerTripped, false);
+  assert.equal('faultCategory' in completed[0], false);
+
+  assert.equal(completed[1].result, 'failure');
+  assert.equal(completed[1].breakerTripped, true);
+  assert.equal(completed[1].faultCategory, 'tool_refused');
+  assert.ok((completed[1].retryCount as number) >= 3);
 });
 
 test('history-only owner can open and rebuild the trace without opening the native session twice', async t => {

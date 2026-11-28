@@ -124,6 +124,39 @@ describe('轨迹投影 · 金测试（阳性对照先立住）', () => {
     expect(JSON.stringify(turn)).not.toContain('/Users/aoqimin/secret')
   })
 
+  it('补齐闭合错误类别与工具失败码白名单：鉴权/余额/限流/协议/截断/上游 4xx-5xx/provider-error 全放行，自由文本与路径仍被拦', () => {
+    const [base] = fixtureTurns()
+    const turn = projectTrajectoryTurn({
+      ...base,
+      tools: [
+        { toolCallId: 'c1', name: 'draft_shots', arguments: { shots: [] }, durationMs: 4, failed: true, failureCode: 'tool_arguments_invalid' },
+        { toolCallId: 'c2', name: 'draft_shots', arguments: { shots: [] }, durationMs: 1, failed: true, failureCode: 'tool_retry_stopped' },
+        { toolCallId: 'c3', name: 'write_script', arguments: {}, durationMs: 2, failed: true, failureCode: '/Users/aoqimin/secret bad code' },
+      ],
+      errors: [
+        'auth', 'balance', 'rate-limit', 'timeout', 'network', 'protocol-error',
+        'output-truncated', 'upstream-4xx', 'upstream-5xx', 'provider-error',
+        'insufficient_quota', 'rate limit', 'server error', 'network error',
+        'run-failed', 'tool-failed', 'tool:tool_arguments_invalid',
+        '/Users/aoqimin/secret 401 Unauthorized sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf',
+      ],
+    })
+    expect(turn['nomi.turn.tool_calls'].map((call) => call['nomi.tool.failure_code'])).toEqual([
+      'tool_arguments_invalid',
+      'tool_retry_stopped',
+      null,
+    ])
+    expect(turn['nomi.turn.error_kinds']).toEqual([
+      'auth', 'balance', 'rate-limit', 'timeout', 'network', 'protocol-error',
+      'output-truncated', 'upstream-4xx', 'upstream-5xx', 'provider-error',
+      'balance', 'rate-limit', 'upstream-5xx', 'network',
+      'run-failed', 'tool-failed', 'tool:tool_arguments_invalid',
+    ])
+    const serialized = JSON.stringify(turn)
+    expect(serialized).not.toContain('/Users/aoqimin/secret')
+    expect(serialized).not.toContain('sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf')
+  })
+
   it('会话 id 哈希掉：它带着本机路径和用户给对话起的名字', () => {
     const [turn] = projectLaneTrajectory(fixtureTurns()).turns
     expect(turn['gen_ai.conversation.id']).toMatch(/^[0-9a-f]{16}$/)

@@ -66,6 +66,7 @@ export async function sendGenerationNodeToTimeline(
   if (!node) return { ok: false, nodeId: id || nodeId, error: 'node_not_found' }
 
   const outcome = await adoptGenerationNode(node, {
+    source: 'agent',
     // 保留旧 Agent 工具「缺省贴播放头」语义；UI 的节点按钮仍显式走 append。
     placement: {
       kind: 'frame',
