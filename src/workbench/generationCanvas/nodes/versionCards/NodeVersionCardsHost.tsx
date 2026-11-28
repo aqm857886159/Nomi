@@ -11,10 +11,7 @@ import { listNodeResultVersions, resultIdentity } from '../../model/nodeResultLi
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { removeAssetVersion } from '../../../assets/removeAssetVersion'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../../project/projectCanvasReadSurface'
-import { getDesktopBridge } from '../../../../desktop/bridge'
 import { logRendererError } from '../../../../desktop/rendererLog'
-import { findCanvasResultMediaDimensions } from '../../../project/projectMediaMigration'
-import { computeMediaMetaPatch } from '../nodeSizing'
 import { downloadNodeResult } from '../useResultDownload'
 import NodeMediaPreviewDialog from '../NodeMediaPreviewDialog'
 import { beginCanvasResultCopyDrag } from '../../components/canvasResultDrag'
@@ -26,6 +23,7 @@ import { chooseVersionGridPlacement, layoutVersionGrid, versionGridItems, type V
 import { escapeBelongsToVersionGrid, lastOpenedVersionGrid, publishVersionGridCoverage, registerOpenVersionGrid } from './versionGridCoverage'
 import { finishWhiteboard } from '../whiteboard/whiteboardSession'
 import { nodeVersionEntries } from './nodeVersionEntries'
+import { switchNodeMainVersion } from './switchNodeMainVersion'
 
 function useAltHeld(enabled: boolean): boolean {
   const [held, setHeld] = React.useState(false)
@@ -153,38 +151,17 @@ export function NodeVersionCardsHost({ node, readOnly, nodeSize, onFeedback, ent
   }, [expanded, node.id])
 
   const setPrimary = React.useCallback(async (entry: VersionCardEntry) => {
-    if (readOnly) return
-    const project = withProjectAction((loaded) => loaded)
-    if (!project || !await finishWhiteboard(node.id) || !isProjectExecutionContextCurrent(project)) return
-    const live = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
-    const target = live ? listNodeResultVersions(live).find((candidate) => resultIdentity(candidate) === entry.identity) : undefined
-    if (!live || !target) return
-    // 换主图时节点按这一版的真实比例重算尺寸元数据（读素材侧车里量过的像素；读不到照样能换）。
-    let meta: Record<string, unknown> | undefined
-    {
-      try {
-        const assets = [] as Array<{ id?: string; data?: Record<string, unknown> }>
-        let cursor: string | null = null
-        do {
-          const desktop = getDesktopBridge()
-          if (!desktop?.assets?.list) break
-          const page = await desktop.assets.list({ projectId: project.binding.projectId, cursor, limit: 500 })
-          if (!page) break
-          assets.push(...page.items)
-          cursor = page.cursor || null
-        } while (cursor)
-        if (!isProjectExecutionContextCurrent(project)) return
-        const dimensions = findCanvasResultMediaDimensions(target, assets)
-        const patch = dimensions ? computeMediaMetaPatch({ resultType: target.type, meta: live.meta || {}, ...dimensions, durationSeconds: target.durationSeconds }) : null
-        if (patch) meta = patch.meta
-      } catch (error) {
-        logRendererError('version-card-dimensions-unreadable', error)
-      }
-    }
-    if (!isProjectExecutionContextCurrent(project)) return
-    useGenerationCanvasStore.getState().setNodeMainResult(node.id, entry.identity, meta)
-    const downstream = new Set(useGenerationCanvasStore.getState().edges.filter((edge) => edge.source === node.id).map((edge) => edge.target)).size
-    notifyUndoable(`version-card:${node.id}`, t('generationCommon.versionCards.primarySet', { n: entry.versionNo, count: downstream }), t('generationCommon.versionCards.undo'))
+    await switchNodeMainVersion(node.id, entry.identity, {
+      readOnly,
+      requireOpenProject: true,
+      onSwitched: ({ downstreamCount }) => {
+        notifyUndoable(
+          `version-card:${node.id}`,
+          t('generationCommon.versionCards.primarySet', { n: entry.versionNo, count: downstreamCount }),
+          t('generationCommon.versionCards.undo'),
+        )
+      },
+    })
   }, [node.id, readOnly, t])
 
   const remove = React.useCallback(async (entry: VersionCardEntry) => {

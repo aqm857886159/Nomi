@@ -9,12 +9,23 @@ import { useNodeAttachedPanel } from './nodeAttachedPanel'
 import { MIN_TRIM_SECONDS } from './trimVideoToNode'
 import { useNodeVideoClock, useNodeVideoSession } from './useNodeVideoSession'
 import { VideoTrimFilmstrip } from './VideoTrimFilmstrip'
+import { useNodeStageHost } from './nodeStageHostContext'
 
 /** Selection lives below the card; the guarded source player is the only preview. */
-export default function NodeVideoClipPanel({ node, onClose }: { node: GenerationCanvasNode; onClose: () => void }): JSX.Element {
-  const { t } = useTranslation()
+export default function NodeVideoClipPanel(props: { node: GenerationCanvasNode; onClose: () => void }): JSX.Element {
+  const host = useNodeStageHost()
+  return host === 'list-detail'
+    ? <NodeVideoClipPanelBody {...props} zoom={1} inline />
+    : <CanvasNodeVideoClipPanel {...props} />
+}
+
+function CanvasNodeVideoClipPanel(props: { node: GenerationCanvasNode; onClose: () => void }): JSX.Element {
   const { zoom: canvasZoom } = useViewport()
-  const zoom = canvasZoom || 1
+  return <NodeVideoClipPanelBody {...props} zoom={canvasZoom || 1} inline={false} />
+}
+
+function NodeVideoClipPanelBody({ node, onClose, zoom, inline }: { node: GenerationCanvasNode; onClose: () => void; zoom: number; inline: boolean }): JSX.Element {
+  const { t } = useTranslation()
   useNodeAttachedPanel(node.id)
   const { player, setEditing, selection, seek } = useNodeVideoSession()
   const clock = useNodeVideoClock(player)
@@ -63,11 +74,16 @@ export default function NodeVideoClipPanel({ node, onClose }: { node: Generation
     seek(edge === 'end' ? Math.max(next.start, next.end - 0.001) : next.start)
   }
   const canEdit = Boolean(player && player.readyState >= 1 && !player.error && duration > 0 && range.end - range.start >= MIN_TRIM_SECONDS - 1e-9)
-  return <div className="absolute left-1/2 z-[20]" style={{ top: `calc(100% + ${14 / zoom}px)`, transform: `translateX(-50%) scale(${1 / zoom})`, transformOrigin: 'top center' }}>
-    <div role="dialog" aria-label={t('generationCommon.videoTrim.panelAria')} data-video-clip-panel className="nodrag nowheel flex flex-col gap-2" style={{ width: Math.max(260, node.size?.width ?? 340) }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key !== 'Escape') event.stopPropagation() }}>
-      <VideoTrimFilmstrip duration={duration || 1} range={range} time={clock.time} disabled={!canEdit} labels={{ seek: t('generationCommon.videoTrim.seek'), start: t('generationCommon.videoTrim.tcIn'), end: t('generationCommon.videoTrim.tcOut') }} onChange={change} onSeek={seek}>
-        {filmstrip?.status === 'ready' ? <NomiImage src={filmstrip.url} alt="" className="h-full w-full object-fill" /> : <span className="flex h-full w-full items-center justify-center px-3 text-micro text-nomi-ink-60">{t(filmstrip?.status === 'failed' ? 'generationCommon.videoTrim.filmstripFailed' : 'generationCommon.videoTrim.filmstripLoading')}</span>}
-      </VideoTrimFilmstrip>
+  return (
+    <div
+      className={inline ? 'mt-2 flex w-full justify-center' : 'absolute left-1/2 z-[20]'}
+      style={inline ? undefined : { top: `calc(100% + ${14 / zoom}px)`, transform: `translateX(-50%) scale(${1 / zoom})`, transformOrigin: 'top center' }}
+    >
+      <div role="dialog" aria-label={t('generationCommon.videoTrim.panelAria')} data-video-clip-panel className="nodrag nowheel flex flex-col gap-2" style={{ width: inline ? '100%' : Math.max(260, node.size?.width ?? 340) }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key !== 'Escape') event.stopPropagation() }}>
+        <VideoTrimFilmstrip duration={duration || 1} range={range} time={clock.time} disabled={!canEdit} labels={{ seek: t('generationCommon.videoTrim.seek'), start: t('generationCommon.videoTrim.tcIn'), end: t('generationCommon.videoTrim.tcOut') }} onChange={change} onSeek={seek}>
+          {filmstrip?.status === 'ready' ? <NomiImage src={filmstrip.url} alt="" className="h-full w-full object-fill" /> : <span className="flex h-full w-full items-center justify-center px-3 text-micro text-nomi-ink-60">{t(filmstrip?.status === 'failed' ? 'generationCommon.videoTrim.filmstripFailed' : 'generationCommon.videoTrim.filmstripLoading')}</span>}
+        </VideoTrimFilmstrip>
+      </div>
     </div>
-  </div>
+  )
 }

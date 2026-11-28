@@ -79,7 +79,7 @@ export const PROJECT_SESSION_FIELD_ROLES: Readonly<Record<string, Readonly<Recor
   'useAssetImportProgressStore': { byNode: UI_STATE, settled: UI_STATE },
   'useNodeExternalHighlightStore': { hoverNodeId: UI_STATE, claims: UI_STATE, flashNodeIds: UI_STATE },
   'useSpendConfirmStore': { pending: { none: '付费确认卡：参数来自节点本身（已在 content 里）' }, queue: { none: '同 pending' } },
-  'useCanvasPickModeStore': { request: UI_STATE },
+  'useCanvasPickModeStore': { request: UI_STATE, returnToList: UI_STATE },
   'useBatchPlanPreviewStore': { plan: { none: '批量生成预览：引用来自节点本身（已在 content 里）' }, running: UI_STATE },
   'useNodeLivePreviewStore': { byNode: { none: '生成中的实时预览帧，不是项目文件' } },
   'useResidentActivityStore': { dotClassName: UI_STATE, label: UI_STATE, dockStatus: UI_STATE, dockFaceStatus: UI_STATE, dockPendingCount: UI_STATE, dockUnreadCount: UI_STATE },

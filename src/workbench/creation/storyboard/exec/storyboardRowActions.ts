@@ -36,7 +36,8 @@ import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
 import { getVendorPreference } from '../../../api/vendorPreferenceApi'
-import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
+import { ANCHOR_META_KEYS } from '../../../generationCanvas/model/anchorBibleKeys'
+import { toggleNodeBatchFrozen } from '../../../generationCanvas/fixation/freezeAnchor'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import { deriveAnchorCardRuntimes, deriveStoryboardRowRuntimes, type StoryboardRowRuntime } from './storyboardRowStatus'
 import { storyboardComposerMeta } from '../shotRow/storyboardComposerModel'
@@ -324,18 +325,7 @@ export async function rerunShotRowWithFreshRefs(
  * anchorBibleKeys 单源）。定妆 = 满意了别动它：不进批量、不被表内重跑。只有已生成的可定妆。
  */
 export function toggleNodeFrozen(nodeId: string): void {
-  const store = useGenerationCanvasStore.getState()
-  const node = store.nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) return
-  if (isAnchorFrozen(node)) {
-    const nextMeta = { ...(node.meta || {}) }
-    delete nextMeta[ANCHOR_META_KEYS.frozen]
-    store.updateNode(nodeId, { meta: nextMeta })
-    return
-  }
-  if (!hasUsableResult(node)) return
-  const frozen: AnchorFrozenMark = { at: Date.now(), by: 'user' }
-  store.updateNode(nodeId, { meta: { ...(node.meta || {}), [ANCHOR_META_KEYS.frozen]: frozen } })
+  toggleNodeBatchFrozen(nodeId)
 }
 
 // ── 参考卡（锚）的就地生成（B3 图卡用；B1 先落通路）──

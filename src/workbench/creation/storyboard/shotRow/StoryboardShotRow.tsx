@@ -38,6 +38,7 @@ import { dropBindingsForUrls, removeReferenceWithMention } from './shotReference
 import { ReferenceNamesContext, clipReferenceName, dedupeChipNames } from '../../../assets/referenceNames'
 import { droppedMentionUrls } from '../../../assets/promptMentions'
 import ShotComposerBar from './ShotComposerBar'
+import { buildStoryboardModeChangeParams } from './storyboardComposerModel'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
 import type { NomiEditorSource } from '../../../common/useNomiRichTextEditor'
 import type { ShotVariant } from './shotVariants'
@@ -209,7 +210,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
 
   const isImageShot = shot.shotKind === 'image'
   // 档案按 (modelKey, modelVendor) 取：同名两家的档案/参数可以不同，按名字取会拿到另一家的模式表。
-  const resolved = resolveShotArchetypeMode(findModelOptionByIdentifier(modelOptions ?? [], shot.modelKey, shot.modelVendor, orderedVendorKeys), shot.modeId)
+  const modelOption = findModelOptionByIdentifier(modelOptions ?? [], shot.modelKey, shot.modelVendor, orderedVendorKeys)
+  const resolved = resolveShotArchetypeMode(modelOption, shot.modeId)
   const resolvedMode = resolved?.mode ?? null
   // 行上摆着、当前模式用不上的参考图：一句话点名（模式名与下拉同一个出口；换哪个模式才带得上也说出来）。
   const ignoredNames = (exec?.ignoredAnchors ?? []).map((anchor) => anchor.name).join(t('storyboardEditor.anchorPolicy.nameSeparator'))
@@ -427,7 +429,10 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           }}
           onInsertMention={mentionSearch ? insertMention : undefined}
           onTriggerMention={mentionSearch ? triggerAtMention : undefined}
-          onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({ modeId })}
+          onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({
+            modeId,
+            params: buildStoryboardModeChangeParams(modelOption, shot.params, modeId, isImageShot ? 'image' : 'video'),
+          })}
           planned={exec?.plannedFirstFrame ?? null}
           layout={{ placement: 'above' }}
         />

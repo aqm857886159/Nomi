@@ -1,6 +1,7 @@
 export const zhGenerationList = {
   view: { toList: '切到列表', toCanvas: '切到画布' },
   aria: '生成节点列表',
+  createBarAria: '在列表中添加节点或导入素材',
   anchorPending: '等定妆',
   storyboardSection: '分镜 · {{title}}',
   storyboardSubtitle: '{{count}} 镜 · 已生成 {{done}}',
@@ -29,7 +30,8 @@ export const zhGenerationList = {
     version: '第 {{n}} 版 · 共 {{total}} 版',
     olderVersion: '上一版',
     newerVersion: '下一版',
-    referenceOnly: '这是一张参考素材，生成框在画布上。',
+    referenceOnly: '这是一张参考素材，可直接被镜头引用。',
+    canvasOnly: '这一类空间与编排节点需要在画布舞台上交互操作。',
   },
   retiredTables: {
     notice: '旧版画布里的 {{count}} 张分镜表已收进生成页的列表，镜头都还在；点顶栏「生成」旁的切换图标就能看。',
@@ -39,6 +41,7 @@ export const zhGenerationList = {
 export const enGenerationList = {
   view: { toList: 'Switch to list', toCanvas: 'Switch to canvas' },
   aria: 'Generation node list',
+  createBarAria: 'Create nodes or import assets in list view',
   anchorPending: 'Awaiting look',
   storyboardSection: 'Storyboard · {{title}}',
   storyboardSubtitle: '{{count}} shots · {{done}} generated',
@@ -67,7 +70,8 @@ export const enGenerationList = {
     version: 'Version {{n}} of {{total}}',
     olderVersion: 'Older version',
     newerVersion: 'Newer version',
-    referenceOnly: 'This is a reference asset. Its generation box is on the canvas.',
+    referenceOnly: 'This is a reference asset ready to be linked by shots.',
+    canvasOnly: 'This spatial or arrangement node is edited on the canvas stage.',
   },
   retiredTables: {
     notice: '{{count}} storyboard tables from the old canvas now live in the generation list. Every shot is still there; use the switch icon next to Generate in the top bar.',

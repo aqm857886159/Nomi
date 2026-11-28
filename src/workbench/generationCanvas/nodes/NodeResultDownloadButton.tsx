@@ -1,8 +1,9 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconDownload } from '@tabler/icons-react'
+import { IconCheck, IconDownload, IconSparkles } from '@tabler/icons-react'
 import { useResultDownload } from './useResultDownload'
-import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDuplicateVariantButton, ToolbarProvenanceButton } from './NodeFloatingToolbar'
+import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDuplicateVariantButton, ToolbarIconButton, ToolbarProvenanceButton } from './NodeFloatingToolbar'
+import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
 import NodeVideoFrameToolbar from './NodeVideoFrameToolbar'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
@@ -40,6 +41,18 @@ export default function NodeResultDownloadButton({ reportFeedback, node, selecte
         onClick={download}
       />
       <ToolbarDuplicateVariantButton nodeId={node.id} />
+      {(() => {
+        const freeze = anchorFreezeToolbarProps(node)
+        return freeze.canFreezeShot && freeze.onToggleFreeze ? (
+          <ToolbarIconButton
+            actionId="toggle-frozen"
+            icon={freeze.frozen ? <IconCheck size={I.size} stroke={I.stroke} /> : <IconSparkles size={I.size} stroke={I.stroke} />}
+            title={freeze.frozen ? t('generationCommon.imageToolbar.shotFinalizedHint') : t('generationCommon.imageToolbar.shotFinalizeHint')}
+            ariaLabel={freeze.frozen ? t('generationCommon.imageToolbar.shotFinalized') : t('generationCommon.imageToolbar.shotFinalize')}
+            onClick={freeze.onToggleFreeze}
+          />
+        ) : null
+      })()}
       <ToolbarProvenanceButton onOpen={onOpenProvenance} />
     </FloatingToolbarShell>
   )

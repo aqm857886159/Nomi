@@ -26,6 +26,10 @@
     {
       "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts",
       "symbol": "normalizeNodeResultVersionNumbers"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/versionCards/switchNodeMainVersion.ts",
+      "symbol": "switchNodeMainVersion"
     }
   ],
   "forbidden_derivations": [],

@@ -11,6 +11,7 @@ import {
   type ArchetypeVariantPick,
   type ModelArchetype,
 } from "../../../../electron/shared/modelArchetypes";
+import type { ModelParameterControl } from "../../../../electron/shared/videoCapabilities/types";
 import { pickImplicitVendorMatch } from "../../../config/modelIdentity";
 import { aspectRatioControlKey, aspectRatioControlsOf, placeAspectRatio } from "../../../../electron/shared/aspectRatioValue";
 import { ASPECT_EXPLICIT_META_KEY } from "../nodes/aspectExplicit";
@@ -215,4 +216,34 @@ export function resolvePlannedNodeArgs(
     ...(archetype?.modeId ? { modeId: archetype.modeId } : {}),
     params,
   };
+}
+
+/**
+ * 切换模式时的参数规整（与 `buildPlannedNodeMeta` 共用唯一主人 `resolveModelParams`）：
+ * 保留目标模式合法参数、夹紧越界数值、回退非法枚举、丢弃旧模式专属未知键；
+ * 若入参使用语义键 `aspect_ratio` 且目标比例控件键名不同（如 `size` / `ratio`），在合法落位后保留语义键。
+ */
+export function reconcileModeSwitchParams(
+  controls: readonly ModelParameterControl[],
+  currentParams: Readonly<Record<string, unknown>> | undefined,
+): Record<string, unknown> | undefined {
+  if (!currentParams || Object.keys(currentParams).length === 0) return undefined;
+  if (!controls.length) return { ...currentParams };
+  const ratioControls = aspectRatioControlsOf(controls);
+  const placed = placeAspectRatio({ ...currentParams }, ratioControls).parameters;
+  const { params } = resolveModelParams({
+    controls,
+    intent: {},
+    previousParams: placed,
+    policy: { author: '发送复查', invalid: '钳+说明', durationRange: null },
+  });
+  const ratioKey = aspectRatioControlKey(ratioControls);
+  if ('aspect_ratio' in currentParams && ratioKey && ratioKey !== 'aspect_ratio' && ratioKey in params) {
+    const mapped = params[ratioKey];
+    delete params[ratioKey];
+    if (typeof currentParams.aspect_ratio === 'string' && mapped !== undefined) {
+      params.aspect_ratio = currentParams.aspect_ratio;
+    }
+  }
+  return Object.keys(params).length > 0 ? params : undefined;
 }

@@ -24,10 +24,12 @@ import { CopyDetailsButton, ProviderMessageNote, TechnicalDetailsBlock, Technica
 export function NodeRecoverableReport({
   node,
   onRecover,
+  onReleaseRegenerate,
   onDismiss,
 }: {
   node: Pick<GenerationCanvasNode, 'id' | 'runs' | 'error' | 'meta'>
   onRecover?: () => void
+  onReleaseRegenerate?: () => void
   onDismiss?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
@@ -91,6 +93,20 @@ export function NodeRecoverableReport({
           >
             <IconRefresh size={13} stroke={1.6} className={cn(pending && 'animate-spin')} />
             {pending ? t('generationCommon.recoverable.recovering') : t('generationCommon.production.runAction.retry-retrieval')}
+          </WorkbenchButton>
+        ) : null}
+        {onReleaseRegenerate ? (
+          <WorkbenchButton
+            size="sm"
+            variant="default"
+            onClick={(event) => {
+              event.stopPropagation()
+              onReleaseRegenerate()
+            }}
+            aria-label={t('generationCommon.observability.action.releaseRegenerate.main')}
+            className="shrink-0 whitespace-nowrap"
+          >
+            {t('generationCommon.observability.action.releaseRegenerate.main')}
           </WorkbenchButton>
         ) : null}
         {report ? <CopyDetailsButton raw={report.raw} /> : null}
