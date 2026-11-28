@@ -14,6 +14,18 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 
 export const FIXTURE_API_KEY = 'mcp-l2-loopback-key'
 
+/**
+ * 图层分离的替身回话（设计卡 docs/plan/2026-11-26-layer-split.md）：底图 + 2 层，一层带识别出的字。
+ * 形状照 APIMart Seedream 5.5 文档（docs.apimart.ai/en/api-reference/images/seedream-5-5/generation，2026-11-26 取）：
+ * `data.result.images[0].url[]`（0 = 底图）与 `layers[]` 按下标平行；z_index 底图 0、升序叠；bounding_box.absolute 是底图像素 [左, 上, 右, 下]。
+ * 每层这里给的是「裁到框」的那种图（文档没写死裁不裁，真付费那一跑定案）。
+ */
+export const LAYER_SPLIT_FIXTURE = [
+  { width: 640, height: 360, rgba: [40, 70, 110, 255], layer: { z_index: 0, name: 'background' } },
+  { width: 200, height: 140, rgba: [230, 120, 40, 255], layer: { z_index: 1, name: '人物', bounding_box: { absolute: [60, 140, 260, 280] } } },
+  { width: 240, height: 60, rgba: [250, 250, 250, 220], layer: { z_index: 2, name: '标题文字', bounding_box: { absolute: [340, 40, 580, 100] }, text_recognition: { text: 'NOMI' } } },
+]
+
 function mediaFixture() {
   const root = makeTempDir('nomi-mcp-l2-media-')
   const videoPath = path.join(root, 'fixture.mp4')
@@ -28,21 +40,12 @@ function mediaFixture() {
   return { image, video: fs.readFileSync(videoPath), poster, referencePath, root, layers: LAYER_SPLIT_FIXTURE.map((layer) => buildPng(layer.width, layer.height, layer.rgba)) }
 }
 
-/**
- * 图层分离的替身回话（设计卡 docs/plan/2026-11-26-layer-split.md）：底图 + 2 层，一层带识别出的字。
- * 形状照 APIMart Seedream 5.5 文档（docs.apimart.ai/en/api-reference/images/seedream-5-5/generation，2026-11-26 取）：
- * `data.result.images[0].url[]`（0 = 底图）与 `layers[]` 按下标平行；z_index 底图 0、升序叠；bounding_box.absolute 是底图像素 [左, 上, 右, 下]。
- * 每层这里给的是「裁到框」的那种图（文档没写死裁不裁，真付费那一跑定案）。
- */
-export const LAYER_SPLIT_FIXTURE = [
-  { width: 640, height: 360, rgba: [40, 70, 110, 255], layer: { z_index: 0, name: 'background' } },
-  { width: 200, height: 140, rgba: [230, 120, 40, 255], layer: { z_index: 1, name: '人物', bounding_box: { absolute: [60, 140, 260, 280] } } },
-  { width: 240, height: 60, rgba: [250, 250, 250, 220], layer: { z_index: 2, name: '标题文字', bounding_box: { absolute: [340, 40, 580, 100] }, text_recognition: { text: 'NOMI' } } },
-]
+// 真 APIMart 的公开价目（不带 Key 的 GET）在假供应商这里回放 11-26 录下的原始响应，设置页单价和发送键约价读到的都是各模型自己的价。
+const publicPricing = JSON.parse(fs.readFileSync(path.join(repoRoot, 'tests/fixtures/apimart/media-pricing-api.json'), 'utf8'))
 
 /**
  * 假价目（只给 Seedream 5.5 的图层分离用；字段形状照 APIMart 公开价目接口，数是编的）：auto 按高档，30 层 ≈ 30 × 0.0282 美元，
- * 首张输入图免费 → 发送键印 8.46 积分。别的模型照旧 404（价未知，不印数）。
+ * 首张输入图免费 → 发送键印 8.46 积分。别的模型回放录下的真实公开价目，未录的照旧 404（价未知，不印数）。
  */
 const LAYER_SPLIT_PRICE = {
   success: true,
@@ -52,7 +55,19 @@ const LAYER_SPLIT_PRICE = {
     input_image_paid_price: 0.0035, input_image_first_free: true,
   },
 }
-const IMAGE_PRICE_LIST = { success: true, data: { models: { image: [{ id: 'seedream-5-5', specification: 'image', fixed_prices: { unit: 'usd_per_image' } }] } } }
+const IMAGE_PRICE_LIST = {
+  ...publicPricing.list,
+  data: {
+    ...publicPricing.list.data,
+    models: {
+      ...publicPricing.list.data.models,
+      image: [
+        ...publicPricing.list.data.models.image,
+        { id: 'seedream-5-5', specification: 'image', fixed_prices: { unit: 'usd_per_image' } },
+      ],
+    },
+  },
+}
 
 // APIMart Seedance 2.5 的两步（docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation，2026-11-26 取），替身照官方规则回：
 //   · `draft: true` 只收 480p（「resolution must be 480p … any other resolution, including 4k, returns HTTP 400」）；
@@ -117,8 +132,16 @@ export async function startFakeApimartServer({ pendingPolls = 0, dropSubmits = 0
         const bytes = media.layers[Number(layerFile[1])]
         res.writeHead(200, { 'content-type': 'image/png', 'content-length': bytes.length }); res.end(bytes); return
       }
-      if (req.method === 'GET' && req.url === '/api/pricing/model?model=seedream-5-5') { json(LAYER_SPLIT_PRICE); return }
-      if (req.method === 'GET' && req.url === '/api/pricing/models/all') { json(IMAGE_PRICE_LIST); return }
+      const pricingUrl = new URL(req.url || '/', 'http://fixture')
+      if (req.method === 'GET' && pricingUrl.pathname === '/api/pricing/models/all') { json(IMAGE_PRICE_LIST); return }
+      if (req.method === 'GET' && pricingUrl.pathname === '/api/pricing/model') {
+        const model = pricingUrl.searchParams.get('model')
+        if (model === 'seedream-5-5') { json(LAYER_SPLIT_PRICE); return }
+        const recorded = publicPricing.models[model]
+        if (recorded) json(recorded)
+        else json({ success: false, message: 'model not found' }, 404)
+        return
+      }
       if (req.url === '/v1/uploads/images') {
         setTimeout(() => json({ url: `${origin}/fixture/image.png` }), 25)
         return

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { createEmptyStoryboardPlan, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { createEmptyStoryboardPlan, isEmptyStoryboardPlan, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { planDefaultAspect, setPlanDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
 import type { StoryboardDesign } from '../../workbenchTypes'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 
@@ -16,7 +17,7 @@ function design(documentId: string, value: StoryboardPlan, committed = false): S
   return { id: `${documentId}-${value.title}`, documentId, title: value.title, plan: value, committed, status: committed ? 'committed' : 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }
 }
 function reset() {
-  useWorkbenchStore.setState({ workbenchDocuments: [{ id: DOC, version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }], activeDocumentId: DOC, storyboardDesignsByDocumentId: {}, activeStoryboardId: null })
+  useWorkbenchStore.setState({ workbenchDocuments: [{ id: DOC, version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }], activeDocumentId: DOC, storyboardDesignsByDocumentId: {}, activeStoryboardId: null, previewAspect: undefined })
 }
 describe('分镜方案生命周期（单一 owner）', () => {
   beforeEach(reset)
@@ -111,6 +112,58 @@ describe('分镜方案生命周期（单一 owner）', () => {
       const revision = useWorkbenchStore.getState().persistRevision
       useWorkbenchStore.getState().hydrateStoryboardDesigns({ [DOC]: [design(DOC, conflicting)] })
       expectReconciled(active()?.plan)
+      expect(useWorkbenchStore.getState().persistRevision).toBe(revision)
+    })
+  })
+
+  describe('新建分镜方案默认画幅跟随项目画幅、存量与复制不强刷（UX-B3）', () => {
+    it('默认项目画幅下新建空白方案为 16:9，且仍视为未编辑空白起手式', () => {
+      const created = useWorkbenchStore.getState().addStoryboardDesign({ initiator: 'user', documentId: DOC })!
+      expect(created.plan.aspectRatio).toBe('16:9')
+      expect(planDefaultAspect(created.plan)).toBe('16:9')
+      expect(isEmptyStoryboardPlan(created.plan)).toBe(true)
+    })
+
+    it('项目预览画幅切为 9:16 后再新建方案，默认画幅跟随 9:16', () => {
+      useWorkbenchStore.getState().setPreviewAspectRatio('9:16')
+      const created = useWorkbenchStore.getState().addStoryboardDesign({ initiator: 'user', documentId: DOC })!
+      expect(created.plan.aspectRatio).toBe('9:16')
+      expect(planDefaultAspect(created.plan)).toBe('9:16')
+      expect(isEmptyStoryboardPlan(created.plan)).toBe(true)
+    })
+
+    it('新建方案可手动切回按模型默认（空串）', () => {
+      const created = useWorkbenchStore.getState().addStoryboardDesign({ initiator: 'user', documentId: DOC })!
+      const modelDefault = setPlanDefaultAspect(created.plan, '')
+      const saved = useWorkbenchStore.getState().setStoryboardPlan(modelDefault, DOC, created.id)!
+      expect(saved.plan.aspectRatio).toBe('')
+      expect(planDefaultAspect(saved.plan)).toBe('')
+    })
+
+    it('复制已有方案原样保留其画幅（显式按模型默认或存量未设均不强刷为项目画幅）', () => {
+      const store = useWorkbenchStore.getState()
+      store.setPreviewAspectRatio('9:16')
+      const explicitModelDefault: StoryboardPlan = { ...plan, title: '模型默认版', aspectRatio: '' }
+      const legacyUnset: StoryboardPlan = { ...plan, title: '老方案' }
+      store.hydrateStoryboardDesigns({
+        [DOC]: [design(DOC, explicitModelDefault), design(DOC, legacyUnset)],
+      })
+      const [first, second] = useWorkbenchStore.getState().storyboardDesignsByDocumentId[DOC]
+      const copyFirst = useWorkbenchStore.getState().duplicateStoryboardDesign(first.id, DOC)!
+      const copySecond = useWorkbenchStore.getState().duplicateStoryboardDesign(second.id, DOC)!
+      expect(copyFirst.plan.aspectRatio).toBe('')
+      expect(planDefaultAspect(copyFirst.plan)).toBe('')
+      expect(copySecond.plan.aspectRatio).toBeUndefined()
+      expect(planDefaultAspect(copySecond.plan)).toBe('')
+    })
+
+    it('载入存量无 aspectRatio 的老方案不回填、不标脏', () => {
+      const store = useWorkbenchStore.getState()
+      store.setPreviewAspectRatio('9:16')
+      const revision = useWorkbenchStore.getState().persistRevision
+      useWorkbenchStore.getState().hydrateStoryboardDesigns({ [DOC]: [design(DOC, plan)] })
+      expect(active()?.plan.aspectRatio).toBeUndefined()
+      expect(planDefaultAspect(active()!.plan)).toBe('')
       expect(useWorkbenchStore.getState().persistRevision).toBe(revision)
     })
   })

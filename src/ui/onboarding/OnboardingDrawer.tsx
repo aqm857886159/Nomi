@@ -41,12 +41,12 @@ import { useModelSettingsPageFocus } from './useModelSettingsPageFocus'
 import { useOnboardingDrawerCatalog } from './useOnboardingDrawerCatalog'
 import { DREAMINA_CONNECTION_KEY } from './onboardingDrawerConstants'
 import { canConfigureModelRequestScript } from './modelRequestScriptAvailability'
+import { OtherConnectionWays, ModelUsagePage } from './ModelSettingsWorkspacePages'
 import { ModelSettingsHome } from './ModelSettingsHome'
 import { KnownVendorKeyConnectPage } from './KnownVendorKeyConnectPage'
 import {
   buildExistingConnectionSummary,
   canAddModelsToConnection,
-  resolveKindGuessGap,
 } from './onboardingDrawerDerivations'
 import {
   backModelSettingsPage,
@@ -69,7 +69,7 @@ import { CertificationUiError, certificationFailureMessage } from './certificati
 import { IntegrationSelfCheckPanel, type IntegrationVerificationHandoff } from './IntegrationSelfCheckPanel'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
-export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPageRequest } = {}): JSX.Element {
+export function OnboardingDrawer({ pageRequest = null, dataSourceRequested = false }: { pageRequest?: ModelPageRequest; dataSourceRequested?: boolean } = {}): JSX.Element {
   const { t } = useTranslation()
   const adaptationIntentKey = React.useRef(new CertificationIntentKey())
   const [navigation, setNavigation] = React.useState(createModelSettingsNavigation)
@@ -88,7 +88,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   const openPage = React.useCallback((next: Exclude<ModelSettingsPage, { type: 'home' }>) => {
     setNavigation((current) => openModelSettingsPage(current, next))
   }, [])
-  useModelPageRequest(pageRequest, openPage)
+  useModelPageRequest(pageRequest, openPage, dataSourceRequested)
   const goBack = React.useCallback(() => setNavigation((current) => backModelSettingsPage(current)), [])
   useModelSettingsPageFocus(page, goBack)
   const openWizard = React.useCallback(
@@ -362,7 +362,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     antigravityEnabled,
     connectionTitle,
     homeConnections,
-    availableHomeConnections,
+    accounts, previous, localOptions,
   } = projectOnboardingConnections({
     models,
     vendorMeta,
@@ -374,7 +374,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       antigravity: t('antigravity.name'),
     },
   })
-  const kindGuessGap = resolveKindGuessGap(models)
   const renderVendorCard = (
     card: (typeof knownCards)[number],
     detailMode = false,
@@ -746,13 +745,21 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       </ModelSettingsDetailBoundary>,
     )
   }
+  if (page.type === 'usage') return <ModelUsagePage vendor={page.vendorKey} name={connectionTitle(page.vendorKey)} onBack={goBack} />
+  if (page.type === 'otherWays') return <OtherConnectionWays onBack={goBack} section={page.section}
+    local={localOptions} onCustomApi={() => openWizard('newapi')} onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}
+    onImported={refresh} dataSource={<TikhubConnectorCard />} network={<NetworkSection />}
+    footer={comfyuiConnected.length > 0 && <AddComfyuiInstanceButton onAdded={refresh} />} />
   return (
     <ModelSettingsHome
       connections={homeConnections}
-      availableConnections={availableHomeConnections}
+      accounts={accounts} previous={previous}
+      onUsage={vendorKey => openPage({ type: 'usage', vendorKey })}
+      onAddress={vendorKey => openPage({ type: 'connection', vendorKey, focus: { target: 'baseUrl', requestId: Date.now() } })}
+      onWays={() => openPage({ type: 'otherWays' })}
       loaded={loaded}
       bridgeMissing={bridgeMissing}
-      loadError={loadError} readOnly={readOnly} onImported={refresh}
+      loadError={loadError} readOnly={readOnly} onChanged={refresh}
       taskCount={visibleAdapterTaskRuns.length}
       adapterRuns={adapterRuns}
       taskContent={
@@ -764,31 +771,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
           }}
         />
       }
-      diagnostic={
-        kindGuessGap ? (
-          <div data-drawer-kind-gap className="border-l-2 border-nomi-warning bg-nomi-ink-05 px-3 py-2">
-            <div className="text-caption font-medium text-nomi-ink">
-              {t('onboardingProviders.drawer.kindGapTitle', {
-                kinds: kindGuessGap.missing.map((key) => t(key)).join(' / '),
-              })}
-            </div>
-            <div className="mt-0.5 text-micro leading-relaxed text-nomi-ink-60">
-              {t('onboardingProviders.drawer.kindGapBody', {
-                count: kindGuessGap.count,
-                kind: t(
-                  `onboardingProviders.modelControls.kind.${kindGuessGap.dominantKind}` as 'onboardingProviders.modelControls.kind.text',
-                ),
-              })}
-            </div>
-          </div>
-        ) : undefined
-      }
-      networkContent={<NetworkSection />}
-      dataSourceContent={<TikhubConnectorCard />}
-      availableFooter={comfyuiConnected.length > 0 ? <AddComfyuiInstanceButton onAdded={refresh} /> : undefined}
       onReload={reloadFromError}
-      onCustomApi={() => openWizard('newapi')}
-      onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}
     />
   )
 }

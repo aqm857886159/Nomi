@@ -25,6 +25,21 @@ const JOURNEY_TOUR_KEY = 'nomi:journey-tour:v1'
 const AGENT_CONSENT_KEY = 'nomi:agent-consent-asked:v1'
 /** 告知范围升到 v2（界面流畅度分档）后，对已同意的用户再确认一次问过没有。同样记「问过」，不记「同意」。 */
 const AGENT_CONSENT_SCOPE_KEY = 'nomi:agent-consent-scope-asked:v2'
+/** 用户是否已完成过至少一轮 Agent 对话（用于延后首次遥测询问卡，避免新建空项目首屏打断）。 */
+const FIRST_AGENT_TURN_KEY = 'nomi:first-agent-turn-completed:v1'
+
+/** 同窗口内跨组件同步 onboardingState 持久标记变更的事件名（例如画布完成首图生成后通知空态询问卡）。 */
+export const ONBOARDING_STATE_SYNC_EVENT = 'nomi-onboarding-state-sync'
+
+function notifyOnboardingStateChanged(): void {
+  try {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new Event(ONBOARDING_STATE_SYNC_EVENT))
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 /** 上手清单生命周期上限：首次显示满 2 天仍未完成 → 自动永久关闭，不再回来。 */
 export const CHECKLIST_TTL_MS = 2 * 24 * 60 * 60 * 1000
@@ -50,6 +65,7 @@ export function markChecklistStep(step: ChecklistStep): void {
     const state = readChecklist()
     state[step] = true
     window.localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state))
+    notifyOnboardingStateChanged()
   } catch {
     /* ignore */
   }
@@ -96,6 +112,7 @@ export function hasAskedAgentConsentScope(): boolean {
 export function markAgentConsentScopeAsked(): void {
   try {
     window.localStorage.setItem(AGENT_CONSENT_SCOPE_KEY, 'asked')
+    notifyOnboardingStateChanged()
   } catch {
     /* ignore */
   }
@@ -104,9 +121,39 @@ export function markAgentConsentScopeAsked(): void {
 export function markAgentConsentAsked(): void {
   try {
     window.localStorage.setItem(AGENT_CONSENT_KEY, 'asked')
+    notifyOnboardingStateChanged()
   } catch {
     /* ignore */
   }
+}
+
+/** 是否已完成过首轮 Agent 对话。localStorage 不可用时退化成 false。 */
+export function hasCompletedFirstAgentTurn(): boolean {
+  try {
+    return window.localStorage.getItem(FIRST_AGENT_TURN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** 记录首轮 Agent 对话已完成，并广播同窗同步事件。 */
+export function markFirstAgentTurnCompleted(): void {
+  try {
+    window.localStorage.setItem(FIRST_AGENT_TURN_KEY, '1')
+    notifyOnboardingStateChanged()
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * 首次遥测询问卡的唯一准入谓词（UX-A4）：
+ * 仅在未问过且已完成首次生成、首轮 Agent 对话或已有历史线程时返回 true。
+ * localStorage 不可用时 hasAskedAgentConsent() 退化为 true → 此处 fail-closed 返回 false。
+ */
+export function canAskFirstAgentConsent(options?: { hasHistoricalAgentThread?: boolean }): boolean {
+  if (hasAskedAgentConsent()) return false
+  return readChecklist().generated || hasCompletedFirstAgentTurn() || options?.hasHistoricalAgentThread === true
 }
 
 /** 上手清单是否已永久关闭（用户点「不再提示」或满 2 天自动过期）。关了不再回来。 */

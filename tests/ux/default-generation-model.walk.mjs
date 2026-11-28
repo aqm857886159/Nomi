@@ -141,7 +141,7 @@ try {
   console.log('  ✓ 「新建卡片默认模型」区块出现')
   await snap('02-settings-section.png')
 
-  await clickOrFail(section.locator('[aria-label="文生图 默认模型"]'), '文生图 默认模型下拉')
+  await clickOrFail(section.locator('[aria-label="文字出图 默认模型"]'), '文字出图 默认模型下拉')
   await getWin().waitForTimeout(400)
 
   // 挑一个**不是**基线的选项，这样「默认生效了」才可证伪。
@@ -151,7 +151,10 @@ try {
   const visibleOptions = getWin().locator('[role="option"]:visible')
   const optionTexts = (await visibleOptions.allTextContents()).map((text) => text.trim())
   const targetIndex = optionTexts.findIndex(
-    (text) => text && text !== '自动选择' && !text.startsWith(baseline),
+    (text) => {
+      const model = text.slice('固定 · '.length)
+      return text.startsWith('固定 · ') && model !== baseline && !model.startsWith(baseline + ' · ')
+    },
   )
   assert(targetIndex >= 0, '下拉里有可选的模型', JSON.stringify(optionTexts))
   const picked = optionTexts[targetIndex]
@@ -185,7 +188,7 @@ try {
   const newest = await readSelectedModel()
   await snap('04-new-card-inherits.png')
   assert(
-    Boolean(newest) && picked.startsWith(newest),
+    Boolean(newest) && newest !== baseline && (picked === '固定 · ' + newest || picked.startsWith('固定 · ' + newest + ' · ')),
     '新建的卡片继承了设置里的默认模型',
     `新卡是「${newest}」，设的是「${picked}」`,
   )

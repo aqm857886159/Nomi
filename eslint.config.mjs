@@ -5,7 +5,7 @@ import { compareMotionBaseline, isMotionSource, scanMotionTokens } from './scrip
 //   真能抓 bug 的规则设 error（红牌，阻断 CI）；风格 / any / 未用变量等存量问题
 //   设 warn（黄牌，只提示不阻断）。目标是「挡住新增的脏东西」，存量债逐步还，
 //   而不是一上来一片红把人吓退。详见 docs/audit/2026-06-04-full-codebase-review-6role.md。
-import { modelStatusOneHomeRule } from './scripts/check-model-availability.mjs'
+import { modelStatusOneHomeRule } from './scripts/model-status-one-home.mjs'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -522,8 +522,107 @@ const referenceLoweringOnly = (importName) => ({ 'reference-lowering-owner/narro
  */
 const restrictedSyntax = (...selectors) => ['error', ...selectors, ...playwrightNoWaitSelectors]
 
-/** 脚本、走查、评测：2026-10-22 起进 ESLint（之前整片忽略）。存量错误冻结在 eslint-suppressions.json，只减不增。 */
-export const SCRIPT_LIKE_FILES = ['scripts/**/*.{mjs,cjs,js}', 'tests/ux/**/*.{mjs,cjs,js}', 'evals/**/*.{mjs,cjs,js}']
+/** 脚本、走查、评测、传输探针：2026-10-22 起进 ESLint（2026-11-28 SM-gates-B2 补入 tests/transport-spike/*.{mjs,cjs}）。存量错误冻结在 eslint-suppressions.json，只减不增。 */
+export const SCRIPT_LIKE_FILES = ['scripts/**/*.{mjs,cjs,js}', 'tests/ux/**/*.{mjs,cjs,js}', 'evals/**/*.{mjs,cjs,js}', 'tests/transport-spike/**/*.{mjs,cjs}']
+
+// ── SM-gates-B2 迁入规则导出常量（供 gate-slimming.node-test.mjs 锁死白名单不扩散与正反变异测试）──────────
+export const LLM_STREAM_OWNER_FILES = Object.freeze([
+  'electron/agentLane/laneModelCall.mts',
+  'electron/agentLane/laneModelProvider.mts',
+  'electron/agentLane/laneProviderGuard.mts',
+])
+const LLM_SDK_BAN_MESSAGE =
+  'ai 与 @ai-sdk/* 已于 2026-10-21 整体卸载；要调一次模型请统一经 callModelOnce（electron/agentLane/laneModelCall.mts / CJS 侧 electron/ai/modelCallBridge.ts）。'
+const LLM_STREAM_OWNER_MESSAGE =
+  '直接对模型发单次请求（.streamSimple / .completeSimple）只允许出现在 electron/agentLane/laneModelCall.mts 及其两层传输包装（laneModelProvider.mts / laneProviderGuard.mts）中；业务请经 callModelOnce。'
+const LLM_SDK_MODULE_PATTERN = '/^(?:ai(?:\\/|$)|@ai-sdk\\/)/'
+export const LLM_SDK_BAN_SELECTORS = [
+  { selector: `ImportExpression > Literal.source[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `ImportExpression > TemplateLiteral.source[expressions.length=0] > TemplateElement[value.cooked=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `CallExpression[callee.name='require'] > Literal.arguments:first-child[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `CallExpression[callee.name='require'] > TemplateLiteral.arguments:first-child[expressions.length=0] > TemplateElement[value.cooked=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `TSImportEqualsDeclaration > TSExternalModuleReference.moduleReference > Literal.expression[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `TSImportType > Literal.source[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `:matches(ExportNamedDeclaration, ExportAllDeclaration) > Literal.source[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+]
+export const LLM_STREAM_OWNER_SELECTORS = [
+  { selector: "MemberExpression[computed=false][property.name=/^(streamSimple|completeSimple)$/]", message: LLM_STREAM_OWNER_MESSAGE },
+  { selector: "MemberExpression[computed=true][property.value=/^(streamSimple|completeSimple)$/]", message: LLM_STREAM_OWNER_MESSAGE },
+  { selector: "MemberExpression[computed=true] > TemplateLiteral.property[expressions.length=0] > TemplateElement[value.cooked=/^(streamSimple|completeSimple)$/]", message: LLM_STREAM_OWNER_MESSAGE },
+  { selector: "ObjectPattern > Property:matches([key.name=/^(streamSimple|completeSimple)$/], [key.value=/^(streamSimple|completeSimple)$/])", message: LLM_STREAM_OWNER_MESSAGE },
+]
+
+export const ADOPTION_BRIDGE_EXEMPT_FILES = Object.freeze([
+  'src/workbench/timeline/addAssetToTimeline.ts', // 素材库用户自有文件落轴唯一出口，不碰生成节点
+])
+const ADOPTION_BRIDGE_MESSAGE =
+  '生成画布 / 时间轴 / 预览不得绕过 Adoption Proposal 直接调用或解构 addTimelineClipAtFrame：请改走 adoption/adoptGenerationNode 或 adoption/adoptStoryboardBatch。'
+export const ADOPTION_BRIDGE_SELECTORS = [
+  { selector: "CallExpression[callee.name='addTimelineClipAtFrame']", message: ADOPTION_BRIDGE_MESSAGE },
+  { selector: "CallExpression > :matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression).callee :matches(Identifier[name='addTimelineClipAtFrame'])", message: ADOPTION_BRIDGE_MESSAGE },
+  { selector: "MemberExpression:matches([computed=false][property.name='addTimelineClipAtFrame'], [computed=true][property.value='addTimelineClipAtFrame'])", message: ADOPTION_BRIDGE_MESSAGE },
+  { selector: "MemberExpression[computed=true] > TemplateLiteral.property[expressions.length=0] > TemplateElement[value.cooked='addTimelineClipAtFrame']", message: ADOPTION_BRIDGE_MESSAGE },
+  { selector: "ObjectPattern > Property:matches([key.name='addTimelineClipAtFrame'], [key.value='addTimelineClipAtFrame'])", message: ADOPTION_BRIDGE_MESSAGE },
+]
+
+export const PRIVATE_HOST_IMPORT_OWNERS = Object.freeze([
+  'electron/networkHostPolicy.ts',
+  'electron/networkOutboundPolicy.ts',
+  'electron/integrationCertification/httpConnector.ts',
+  'electron/systemProxy.ts',
+])
+const OUTBOUND_ENV_ESCAPE_PATTERN = '/(?:ALLOW_LOCALHOST|ALLOW_PRIVATE|DISABLE_SSRF)/'
+const OUTBOUND_ENV_ESCAPE_MESSAGE =
+  '生产代码严禁读取 ALLOW_LOCALHOST / ALLOW_PRIVATE / DISABLE_SSRF 类出站安全逃生口 env 开关；实验室 loopback 请在 !app.isPackaged 时通过 setLabTrustedPrivateOrigins 报精确 origin。'
+export const OUTBOUND_ENV_ESCAPE_SELECTORS = [
+  { selector: `MemberExpression[computed=false][property.name=${OUTBOUND_ENV_ESCAPE_PATTERN}]`, message: OUTBOUND_ENV_ESCAPE_MESSAGE },
+  { selector: `MemberExpression[computed=true][property.value=${OUTBOUND_ENV_ESCAPE_PATTERN}]`, message: OUTBOUND_ENV_ESCAPE_MESSAGE },
+  { selector: `MemberExpression[computed=true] > TemplateLiteral.property[expressions.length=0] > TemplateElement[value.cooked=${OUTBOUND_ENV_ESCAPE_PATTERN}]`, message: OUTBOUND_ENV_ESCAPE_MESSAGE },
+  { selector: `ObjectPattern > Property:matches([key.name=${OUTBOUND_ENV_ESCAPE_PATTERN}], [key.value=${OUTBOUND_ENV_ESCAPE_PATTERN}])`, message: OUTBOUND_ENV_ESCAPE_MESSAGE },
+]
+const PRIVATE_HOST_OWNER_MESSAGE =
+  '目的地私网分类只允许唯一 owner（electron/networkOutboundPolicy.ts 及已登记的系统代理/认证探测入口）使用 isPrivateHost；抓取外部文本进模型请走 hardenedFetch 的 textEntersModelContext。'
+const LAUNDERED_FAILURE_LITERAL =
+  '/^\\s*(?:生成失败|未知错误|出错了|失败了|拉取结果失败|请求失败|操作失败|Generation failed|Unknown error|Something went wrong|Request failed)\\s*$/'
+const OUTBOUND_ERROR_LAUNDERING_MESSAGE =
+  '严禁在 || / ?? / ?: 错误兜底位硬编码「生成失败 / 未知错误 / Generation failed」等洗白文案（吞掉机器码与原错）；请改用 src/workbench/observability/opaqueFailure.ts 的 describeOpaqueFailure(error)。'
+export const OUTBOUND_ERROR_LAUNDERING_SELECTORS = [
+  { selector: `LogicalExpression[operator=/^(\\|\\||\\?\\?)$/] > Literal.right[value=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+  { selector: `LogicalExpression[operator=/^(\\|\\||\\?\\?)$/] > TemplateLiteral.right[expressions.length=0] > TemplateElement[value.cooked=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+  { selector: `LogicalExpression[operator=/^(\\|\\||\\?\\?)$/] > :matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression).right Literal[value=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+  { selector: `LogicalExpression[operator=/^(\\|\\||\\?\\?)$/] > :matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression).right TemplateLiteral[expressions.length=0] > TemplateElement[value.cooked=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+  { selector: `ConditionalExpression > :matches(Literal.alternate, Literal.consequent)[value=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+  { selector: `ConditionalExpression > :matches(TemplateLiteral.alternate, TemplateLiteral.consequent)[expressions.length=0] > TemplateElement[value.cooked=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+  { selector: `ConditionalExpression > :matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression):matches(.alternate, .consequent) Literal[value=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+  { selector: `ConditionalExpression > :matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression):matches(.alternate, .consequent) TemplateLiteral[expressions.length=0] > TemplateElement[value.cooked=${LAUNDERED_FAILURE_LITERAL}]`, message: OUTBOUND_ERROR_LAUNDERING_MESSAGE },
+]
+
+export const E2E_LAUNCH_OWNER = 'tests/ux/_launchApp.mjs'
+const E2E_LAUNCH_MESSAGE =
+  '走查 / 评测 / 脚本严禁直接调用 electron.launch（易漏 NOMI_E2E 隔离环境导致静默挂死）：请统一调用 tests/ux/_launchApp.mjs 的 launchNomiApp()。'
+export const E2E_LAUNCH_SELECTORS = [
+  { selector: "MemberExpression[computed=false][object.name=/^_?electron$/][property.name='launch']", message: E2E_LAUNCH_MESSAGE },
+  { selector: "MemberExpression[computed=true][object.name=/^_?electron$/][property.value='launch']", message: E2E_LAUNCH_MESSAGE },
+  { selector: "MemberExpression[computed=true][object.name=/^_?electron$/] > TemplateLiteral.property[expressions.length=0] > TemplateElement[value.cooked='launch']", message: E2E_LAUNCH_MESSAGE },
+  { selector: "VariableDeclarator[init.name=/^_?electron$/] > ObjectPattern > Property:matches([key.name='launch'], [key.value='launch'])", message: E2E_LAUNCH_MESSAGE },
+]
+
+export const RUN_GENERATION_NODE_HOMES = Object.freeze([
+  'src/workbench/generationCanvas/runner/generationRunController.ts',
+  'src/workbench/generationCanvas/agent/generationCanvasTools.ts',
+  'src/workbench/capability/capabilityApplyHandler.ts',
+])
+export const PRODUCTION_GENERATE_NODE_HOMES = Object.freeze([
+  'electron/productionRun/productionRunE2eFixture.ts',
+])
+const BATCH_RENDERER_SUBMIT_MESSAGE =
+  '禁止在白名单外调用 runGenerationNode() 新造渲染层批量循环：新批量能力请走语义调度器 multiShotBatchScheduler。'
+const BATCH_DURABLE_SUBMIT_MESSAGE =
+  "禁止在白名单外请求已退役的 'production.generate-node'：主进程批量提交统一经 createProductionGenerationSubmission（由 multiShotBatchScheduler 驱动）。"
+const RETIRED_SCOPE_NAMES_PATTERN =
+  '/^(?:buildDependencyWaves|eligibleGenerationNodeIds|groupEligibleNodeIds|nodesInCanvasProductionScope|dependencyWaves)$/'
+const SECOND_SCOPE_HOME_MESSAGE =
+  '「生成这一组」的成员、默认勾选、顺序与依赖分波只在 electron/shared/agentCapabilities/generationShotScope.ts 算一份：禁止重定义已退役范围函数或手写 waves.push 分波。'
 
 // Reviewed exemptions; each call site carries the same reason in a comment.
 const directQuitExemptionFiles = [
@@ -565,7 +664,7 @@ export default tseslint.config(
       'coverage/**',
       // 本地走查/探针输出目录（gitignored，含临时诊断 .mjs）——非源码，不 lint。
       '.pose-lab/**',
-      'tests/transport-spike/**',
+      'tests/transport-spike/**/*.ts',
       // 3D 预设动作校准台：仅 dev 工具（vite 不打包，独立 Three.js 渲染页），非产品源码，不纳入 lint/token 门禁。
       'src/devlab/**',
       // 技能(Claude Skill)安装产物:脚本是独立运行体(require/window/node 全局),非本项目源码,不纳入 lint。
@@ -634,6 +733,17 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
+    // SM-gates-B2-1（替代 check:mjs-parse）：放开 tests/transport-spike/**/*.{mjs,cjs} 进入单遍解析、no-redeclare、no-undef 与 unicode-bom，
+    // 关闭历史探针脚本的风格项避免制造存量噪音。
+    files: ['tests/transport-spike/**/*.{mjs,cjs}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'no-empty': 'off',
+      'no-useless-assignment': 'off',
+    },
+  },
+  {
     // 所有 JS 文件都至少带全仓选择器（Playwright 不等待）；TS 文件由下面的 TS 块带上。
     files: ['**/*.{js,mjs,cjs}'],
     rules: { 'no-restricted-syntax': restrictedSyntax() },
@@ -683,8 +793,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
-    ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: ['**/*.{test,spec}.{ts,tsx,mts,cts}', '**/*.d.ts'],
     plugins: { nomi: { rules: { 'model-status-one-home': modelStatusOneHomeRule } } },
     rules: { 'nomi/model-status-one-home': 'error' },
   },
@@ -1107,6 +1217,22 @@ export default tseslint.config(
           selector: "ObjectExpression:has(> Property[key.name='waves']):has(> Property[key.name='blocked'])",
           message: '手拼了一份带 waves + blocked 的执行计划：生成范围只在 generationShotScope 的共用主人里算，入口拿它的结论。',
         },
+        {
+          selector: `FunctionDeclaration[id.name=${RETIRED_SCOPE_NAMES_PATTERN}]`,
+          message: SECOND_SCOPE_HOME_MESSAGE,
+        },
+        {
+          selector: `VariableDeclarator[id.name=${RETIRED_SCOPE_NAMES_PATTERN}]`,
+          message: SECOND_SCOPE_HOME_MESSAGE,
+        },
+        {
+          selector: `:matches(MethodDefinition, Property[method=true]):matches([key.name=${RETIRED_SCOPE_NAMES_PATTERN}], [key.value=${RETIRED_SCOPE_NAMES_PATTERN}])`,
+          message: SECOND_SCOPE_HOME_MESSAGE,
+        },
+        {
+          selector: "CallExpression > MemberExpression.callee[object.type='Identifier'][object.name='waves']:matches([computed=false][property.name='push'], [computed=true][property.value='push'])",
+          message: SECOND_SCOPE_HOME_MESSAGE,
+        },
       ],
     },
   },
@@ -1203,6 +1329,166 @@ export default tseslint.config(
     },
     rules: { 'nomi-motion/tokens': 'error' },
   },
+  {
+    // B2-2（替代已退役的 check:llm-stream-owner）：全仓禁引已卸载的 ai / @ai-sdk/*，单次调模型只走 laneModelCall.mts。
+    files: [
+      'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      'electron/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      'workers/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      'scripts/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      'tests/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+    ],
+    ignores: [
+      '**/*.{test,spec}.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '**/*.node-test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '**/__tests__/**',
+    ],
+    plugins: { 'llm-sdk-ban': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'llm-sdk-ban/no-restricted-imports': ['error', {
+        paths: [{ name: 'ai', message: LLM_SDK_BAN_MESSAGE }],
+        patterns: [{ group: ['ai/*', '@ai-sdk/*'], message: LLM_SDK_BAN_MESSAGE }],
+      }],
+      'llm-sdk-ban/no-restricted-syntax': ['error', ...LLM_SDK_BAN_SELECTORS],
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}', 'electron/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'],
+    ignores: [
+      '**/*.{test,spec}.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '**/*.node-test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '**/__tests__/**',
+      ...LLM_STREAM_OWNER_FILES,
+    ],
+    plugins: { 'llm-stream-owner': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'llm-stream-owner/no-restricted-syntax': ['error', ...LLM_STREAM_OWNER_SELECTORS],
+    },
+  },
+  {
+    // B2-5（替代已退役的 check:adoption-bridge）：生成画布 / 时间轴 / 预览禁绕过 Proposal 直调 addTimelineClipAtFrame。
+    files: [
+      'src/workbench/generationCanvas/**/*.{ts,tsx,js,jsx}',
+      'src/workbench/timeline/**/*.{ts,tsx,js,jsx}',
+      'src/workbench/preview/**/*.{ts,tsx,js,jsx}',
+    ],
+    ignores: [
+      '**/*.{test,spec}.{ts,tsx,js,jsx}',
+      '**/__tests__/**',
+      '**/adoption/**',
+      ...ADOPTION_BRIDGE_EXEMPT_FILES,
+    ],
+    plugins: { 'adoption-bridge': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'adoption-bridge/no-restricted-syntax': ['error', ...ADOPTION_BRIDGE_SELECTORS],
+    },
+  },
+  {
+    // B2-6（替代已退役的 check:outbound-policy 规则 1 & 3）：禁出站 env 逃生口、锁死 isPrivateHost 唯一分类主人。
+    files: [
+      'electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'workers/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+    ],
+    ignores: [
+      ...GENERATION_BOUNDARY_TEST_FILES,
+      '**/*.{test,spec}.{js,mjs,cjs}',
+      '**/*.node-test.{ts,tsx,mts,cts,js,mjs,cjs}',
+    ],
+    plugins: { 'outbound-env-escape': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'outbound-env-escape/no-restricted-syntax': ['error', ...OUTBOUND_ENV_ESCAPE_SELECTORS],
+    },
+  },
+  {
+    files: [
+      'electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'workers/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+    ],
+    ignores: [
+      ...GENERATION_BOUNDARY_TEST_FILES,
+      '**/*.{test,spec}.{js,mjs,cjs}',
+      '**/*.node-test.{ts,tsx,mts,cts,js,mjs,cjs}',
+      ...PRIVATE_HOST_IMPORT_OWNERS,
+    ],
+    plugins: { 'outbound-private-host-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'outbound-private-host-owner/no-restricted-imports': ['error', {
+        patterns: [{ group: moduleSources('networkHostPolicy'), importNames: ['isPrivateHost'], message: PRIVATE_HOST_OWNER_MESSAGE }],
+      }],
+      'outbound-private-host-owner/no-restricted-syntax': [
+        'error',
+        ...dynamicModuleSelectors('networkHostPolicy', ['isPrivateHost'], PRIVATE_HOST_OWNER_MESSAGE),
+        { selector: 'TSImportType[source.value=/networkHostPolicy(\\.[cm]?[jt]s)?$/]', message: PRIVATE_HOST_OWNER_MESSAGE },
+      ],
+    },
+  },
+  {
+    // B2-6（替代已退役的 check:outbound-policy 规则 4）：生产代码禁通用失败文案兜底洗白。
+    files: [
+      'electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'workers/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      'scripts/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+    ],
+    ignores: [
+      ...GENERATION_BOUNDARY_TEST_FILES,
+      '**/*.{test,spec}.{js,mjs,cjs}',
+      '**/*.node-test.{ts,tsx,mts,cts,js,mjs,cjs}',
+      '**/i18n/**',
+      '**/locales/**',
+      '**/i18n.ts',
+      '**/locales.ts',
+    ],
+    plugins: { 'outbound-error-laundering': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'outbound-error-laundering/no-restricted-syntax': ['error', ...OUTBOUND_ERROR_LAUNDERING_SELECTORS],
+    },
+  },
+  {
+    // B2-7（替代已退役的 check:e2e-launch）：tests / evals / scripts 禁止直接调用 electron.launch，只走 _launchApp.mjs。
+    files: [
+      'tests/**/*.{js,mjs,cjs,ts,tsx,mts,cts}',
+      'evals/**/*.{js,mjs,cjs,ts,tsx,mts,cts}',
+      'scripts/**/*.{js,mjs,cjs,ts,tsx,mts,cts}',
+    ],
+    ignores: [E2E_LAUNCH_OWNER],
+    plugins: { 'e2e-launch': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'e2e-launch/no-restricted-syntax': ['error', ...E2E_LAUNCH_SELECTORS],
+    },
+  },
+  {
+    // B2-9（替代已退役的 check:batch-machines rogue-renderer-batch）：白名单外禁调 runGenerationNode()。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, ...RUN_GENERATION_NODE_HOMES],
+    plugins: { 'batch-renderer-submit': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'batch-renderer-submit/no-restricted-syntax': ['error',
+        { selector: "CallExpression[callee.name='runGenerationNode']", message: BATCH_RENDERER_SUBMIT_MESSAGE },
+        { selector: "CallExpression > :matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression).callee:has(Identifier[name='runGenerationNode']):not(:has(MemberExpression))", message: BATCH_RENDERER_SUBMIT_MESSAGE },
+      ],
+    },
+  },
+  {
+    // B2-9（替代已退役的 check:batch-machines rogue-durable-submit）：白名单外禁请求已退役 'production.generate-node'。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, ...PRODUCTION_GENERATE_NODE_HOMES],
+    plugins: { 'batch-durable-submit': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'batch-durable-submit/no-restricted-syntax': ['error',
+        { selector: "Literal[value='production.generate-node']", message: BATCH_DURABLE_SUBMIT_MESSAGE },
+        { selector: "TemplateLiteral[expressions.length=0] > TemplateElement[value.cooked='production.generate-node']", message: BATCH_DURABLE_SUBMIT_MESSAGE },
+      ],
+    },
+  },
   ...t8StructuralGuardBlocks,
   prettier,
+  {
+    // B2-1（替代已退役的 check:mjs-parse）：拒绝 UTF-8 BOM（Node 遇 \uFEFF + #! 加载即 SyntaxError，ESLint 默认剥离 BOM，须显式开启，置于 prettier 之后防覆盖）。
+    rules: { 'unicode-bom': ['error', 'never'] },
+  },
 )

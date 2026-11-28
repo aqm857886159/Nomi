@@ -9,6 +9,7 @@ import { vendorFieldLossNoticeAt } from '../../../electron/shared/vendorFieldLos
 
 export type OnboardingVendorMeta = {
   name: string
+  builtinPreset?: boolean
   hasApiKey: boolean
   credentialMaterialSaved?: boolean
   baseUrl: string
@@ -86,6 +87,7 @@ export function useOnboardingDrawerCatalog(): {
         const metaMap = new Map<string, OnboardingVendorMeta>()
         for (const vendor of storedVendors) {
           metaMap.set(String(vendor.key), {
+            builtinPreset: vendor.builtinPreset === true,
             name: String(vendor.name || vendor.key),
             hasApiKey: Boolean(vendor.hasApiKey),
             credentialMaterialSaved: vendor.credentialMaterialSaved === true,

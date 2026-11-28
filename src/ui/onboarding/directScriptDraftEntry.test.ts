@@ -19,12 +19,13 @@ describe('direct custom-call onboarding entry', () => {
     expect(mainDraft).toContain('customCallOnly: true')
   })
 
-  it('offers one entry on the model home and opens the shared script workspace in a model dialog', () => {
+  it('offers one entry under other connection ways and opens the shared script workspace in a model dialog', () => {
     const wizard = source('OnboardingWizard.tsx')
     const drawer = source('OnboardingDrawer.tsx')
     const home = source('ModelSettingsHome.tsx')
 
-    expect(home).toContain('data-model-home-direct-script')
+    expect(home).not.toContain('data-model-home-direct-script')
+    expect(source('ModelSettingsWorkspacePages.tsx')).toContain('data-model-home-direct-script')
     expect(drawer).toContain("onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}")
     expect(wizard).toContain('<DirectScriptDraftForm')
     expect(wizard).toContain("initialScreen?: 'form' | 'scriptDraft'")

@@ -22,8 +22,8 @@
     },
     "src/ui/onboarding/OnboardingDrawer.tsx": {
       "kind": "legacy",
-      "max": 845,
-      "reason": "Existing SettingsDialog shell now owns the durable integration handoff projection alongside the legacy model settings pages. Keep this reviewed baseline until the planned settings-surface extraction. (2026-08-29)；795（2026-09-21 合并 ① 按门岗提示拧紧，只减不增） → 845（2026-11-28 SM-3：零松弛按实测收紧）",
+      "max": 844,
+      "reason": "Existing SettingsDialog shell now owns the durable integration handoff projection alongside the legacy model settings pages. Keep this reviewed baseline until the planned settings-surface extraction. (2026-08-29)；795（2026-09-21 合并 ① 按门岗提示拧紧，只减不增） → 845（2026-11-28 SM-3：零松弛按实测收紧） → 844（2026-11-28 #1665 合入后零松弛同步收紧）",
       "topDeclarations": [
         {
           "name": "OnboardingDrawer",
@@ -332,21 +332,6 @@
         {
           "name": "inputCls",
           "lines": 2
-        }
-      ]
-    },
-    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx": {
-      "kind": "frozen",
-      "max": 804,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆。839→812：方式格下拉行（controls/modeMenuOptions.tsx）、首尾帧对调钮判据（referenceWrites.frameSwapControl）、参考行 AssetSlot 列表（controls/composerAssetSlots.ts）搬出 → 811（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线） → 804（2026-11-28 SM-3：零松弛按实测收紧）",
-      "topDeclarations": [
-        {
-          "name": "NodeParameterControls",
-          "lines": 687
-        },
-        {
-          "name": "NodeParameterControlsProps",
-          "lines": 9
         }
       ]
     },

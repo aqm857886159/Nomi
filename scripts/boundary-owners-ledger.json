@@ -960,6 +960,46 @@
         "symbol": "RunTaskPayload / GrantedTaskRequest"
       },
       "reason": "2026-11-28 SM-gates-B1：check:run-task-grant 退役并由 electron/runtime.ts runTask(RunTaskPayload / GrantedTaskRequest) 编译期必填 grantId 与 eslint.config.mjs run-task-grant AST 选择器双层接管，原独立脚本及单测同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-05-model-identity-vendor-key.root-cause.json",
+      "path": "scripts/check-model-identity.mjs",
+      "symbol": "check:model-identity",
+      "anchor": {
+        "path": "scripts/t8-structural-guards.mjs",
+        "symbol": "modelIdentityVendorRule / MODEL_IDENTITY_FROZEN_ALLOWLIST"
+      },
+      "reason": "2026-11-28 SM-gates-B2：check:model-identity 退役并折入 ESLint 单遍规则（scripts/t8-structural-guards.mjs modelIdentityVendorRule + MODEL_IDENTITY_FROZEN_ALLOWLIST，挂载于 eslint.config.mjs），原独立脚本与私有基线同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-07-outbound-owner-bypassed-and-errors-laundered.root-cause.json",
+      "path": "scripts/check-outbound-policy.mjs",
+      "symbol": "ERROR_LAUNDERING",
+      "anchor": {
+        "path": "eslint.config.mjs",
+        "symbol": "OUTBOUND_ERROR_LAUNDERING_SELECTORS"
+      },
+      "reason": "2026-11-28 SM-gates-B2：check:outbound-policy 规则 4（禁止通用失败文案兜底洗白）折入 eslint.config.mjs（outbound-error-laundering/no-restricted-syntax OUTBOUND_ERROR_LAUNDERING_SELECTORS），原独立脚本与私有基线同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json",
+      "path": "scripts/check-outbound-policy.mjs",
+      "symbol": "outbound policy ratchet",
+      "anchor": {
+        "path": "eslint.config.mjs",
+        "symbol": "OUTBOUND_ENV_ESCAPE_SELECTORS / PRIVATE_HOST_IMPORT_OWNERS"
+      },
+      "reason": "2026-11-28 SM-gates-B2：check:outbound-policy 规则 1（禁出站 env 逃生口）与规则 3（isPrivateHost 唯一分类主人）折入 eslint.config.mjs 与 .dependency-cruiser.mjs（private-host-classifier-single-owner），原独立脚本与私有基线同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-12-model-availability-single-owner.root-cause.json",
+      "path": "scripts/check-model-availability.mjs",
+      "symbol": "scanSource + READERS 普查表",
+      "anchor": {
+        "path": "scripts/model-status-one-home.mjs",
+        "symbol": "modelStatusOneHomeRule / scanSource / READERS"
+      },
+      "reason": "2026-11-28 SM-gates-B2：check:model-availability 退役并将同函数双判 scanSource 并入 scripts/model-status-one-home.mjs 的 ESLint 规则 modelStatusOneHomeRule，READERS 普查表存活断言并入 scripts/model-status-one-home.test.mjs，原独立 CLI 脚本与单测同提交删除。"
     }
   ],
   "retirements": [
@@ -1756,11 +1796,6 @@
       "symbol": "row surface click and data-selected"
     },
     {
-      "contract": "docs/fixes/2026-09-05-model-identity-vendor-key.root-cause.json",
-      "path": "scripts/check-model-identity.mjs",
-      "symbol": "check:model-identity"
-    },
-    {
       "contract": "docs/fixes/2026-09-05-resident-composer-receipt-journey.root-cause.json",
       "path": "tests/ux/resident-composer-receipt-fix.e2e.mjs",
       "symbol": "resident-composer-receipt real-user journey"
@@ -1829,11 +1864,6 @@
       "contract": "docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json",
       "path": "electron/shared/nomiErrorCodes.ts",
       "symbol": "NomiErrorCode 'outbound-blocked'"
-    },
-    {
-      "contract": "docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json",
-      "path": "scripts/check-outbound-policy.mjs",
-      "symbol": "outbound policy ratchet"
     },
     {
       "contract": "docs/fixes/2026-09-07-reference-conformance-not-required.root-cause.json",
@@ -1934,11 +1964,6 @@
       "contract": "docs/fixes/2026-09-11-pr720-walkthrough-reds.root-cause.json",
       "path": "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
       "symbol": "KnownVendorKeyConnectPage 成功卡的状态分支"
-    },
-    {
-      "contract": "docs/fixes/2026-09-12-model-availability-single-owner.root-cause.json",
-      "path": "scripts/check-model-availability.mjs",
-      "symbol": "scanSource + READERS 普查表"
     },
     {
       "contract": "docs/fixes/2026-09-12-storyboard-plan-defaults-passthrough.root-cause.json",

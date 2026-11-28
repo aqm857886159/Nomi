@@ -69,4 +69,13 @@ describe('editor drafts use the real store and persistence boundary', () => {
     plan.shots[0].durationSec = Infinity
     expect(() => persist(plan)).toThrow()
   })
+  it('fresh starter defaults to 16:9, accepts switching to 9:16 or model-default, and preserves legacy unset plans', () => {
+    const starter = createEmptyStoryboardPlan()
+    expect(starter.aspectRatio).toBe('16:9')
+    persist(starter)
+    persist(setPlanDefaultAspect(starter, '9:16'))
+    persist(setPlanDefaultAspect(starter, ''))
+    const legacyUnset: StoryboardPlan = { title: '', anchors: [], shots: starter.shots }
+    persist(legacyUnset)
+  })
 })

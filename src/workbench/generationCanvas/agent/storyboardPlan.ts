@@ -7,21 +7,24 @@ import {
   compileShotOutbound,
   isVisualAnchor,
 } from './storyboardPromptCompiler'
-import { resolveKeyframeParams, resolveShotParams } from './storyboardShotScope'
+import { planDefaultAspect, resolveKeyframeParams, resolveShotParams } from './storyboardShotScope'
 
 import { LEGACY_OMITTED_SHOT_KIND, type PlanAnchorKind, type PlanAnchor, type PlanShot, type StoryboardPlan } from '../../../../electron/shared/storyboard/storyboardPlan'
 import { stableShotId } from '../../../../electron/shared/storyboard/storyboardSubjectIdentity'
 export type { PlanAnchorKind, PlanAnchorCarrier, StoryboardPromptSkeletonSegment, StoryboardProfile, PromptSegmentRange, PlanAnchor, PlanReferenceBinding, PlanShot, StoryboardPlan } from '../../../../electron/shared/storyboard/storyboardPlan'
 
 /**
- * Blank starter rows for a newly-created project. These rows carry no authored
- * story content; they only make the first storyboard editing surface reachable
- * before the user (or Agent) supplies the actual prompts.
+ * Blank starter rows for a newly-created project or storyboard design. These rows
+ * carry no authored story content; they only make the first storyboard editing
+ * surface reachable before the user (or Agent) supplies the actual prompts.
+ * New plans default to the project aspect ratio (16:9 unless overridden by the caller).
  */
-export function createEmptyStoryboardPlan(): StoryboardPlan {
+export function createEmptyStoryboardPlan(defaultAspectRatio: string = '16:9'): StoryboardPlan {
+  const aspectRatio = defaultAspectRatio.trim()
   return {
     title: '',
     anchors: [],
+    ...(aspectRatio ? { aspectRatio } : {}),
     shots: [1, 2].map((index) => ({
       index,
       shotId: `shot-${index}`,
@@ -31,6 +34,18 @@ export function createEmptyStoryboardPlan(): StoryboardPlan {
       prompt: '',
     })),
   }
+}
+
+/**
+ * Fill the film default aspect ratio for a freshly created storyboard plan only
+ * when neither an explicit `aspectRatio` (including `''` for model default) nor a
+ * derived default (common shot aspect / profile) is already present.
+ * Never call on persisted/hydrated/duplicated plans so legacy plans stay untouched.
+ */
+export function withDefaultStoryboardAspect(plan: StoryboardPlan, defaultAspectRatio: string): StoryboardPlan {
+  const aspectRatio = defaultAspectRatio.trim()
+  if (!aspectRatio || plan.aspectRatio !== undefined || planDefaultAspect(plan)) return plan
+  return { ...plan, aspectRatio }
 }
 
 export function isEmptyStoryboardPlan(plan: StoryboardPlan): boolean {

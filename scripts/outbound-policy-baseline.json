@@ -1,8 +1,0 @@
-{
-  "privateHostImporters": [
-    "electron/integrationCertification/httpConnector.ts",
-    "electron/networkHostPolicy.test.ts",
-    "electron/networkOutboundPolicy.test.ts",
-    "electron/systemProxy.ts"
-  ]
-}

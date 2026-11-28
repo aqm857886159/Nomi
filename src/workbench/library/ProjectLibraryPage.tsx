@@ -41,13 +41,23 @@ const PromptLibraryContent = lazyWithChunkBoundary('i18n:sidebar.promptLibrary',
 /** 项目库左上页签（10-08 外壳拍板稿 Library 板）：项目库不放左栏，Skill / 提示词在这里是页签，进项目后在左栏抽屉里。 */
 type LibraryTab = 'projects' | 'skills' | 'prompts'
 
-const CARD_ACTION_CLASS = cn(
+const CARD_ACTION_BASE_CLASS = cn(
   'shrink-0 size-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
   'grid place-items-center text-nomi-ink-60 cursor-pointer',
   // 低频动作 hover/聚焦才显，不在每张卡常驻一颗带框按钮
-  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+  'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100',
   'transition-[background,border-color,color,opacity] duration-nomi-micro',
+)
+
+const CARD_ACTION_CLASS = cn(
+  CARD_ACTION_BASE_CLASS,
   'hover:bg-nomi-ink-05 hover:border-nomi-ink-20 hover:text-nomi-accent',
+)
+
+const CARD_DANGER_ACTION_CLASS = cn(
+  CARD_ACTION_BASE_CLASS,
+  'hover:bg-workbench-danger-soft hover:border-workbench-danger/30 hover:text-workbench-danger',
+  'focus-visible:bg-workbench-danger-soft focus-visible:border-workbench-danger/30 focus-visible:text-workbench-danger',
 )
 
 type Props = {
@@ -193,6 +203,15 @@ export default function ProjectLibraryPage({
     )
     return filterProjectLibraryItems(sorted, query)
   }, [projects, query, usageVersion])
+  // 来源筛选是否展示由原始项目列表决定，不按搜索结果计数判断，避免搜索未命中外部目录时筛选条闪隐。
+  const hasFolderProjects = React.useMemo(
+    () => projects.some((project) => project.source === 'folder'),
+    [projects],
+  )
+  React.useEffect(() => {
+    if (!hasFolderProjects && sourceFilter !== 'all') setSourceFilter('all')
+  }, [hasFolderProjects, sourceFilter])
+  const effectiveSourceFilter = hasFolderProjects ? sourceFilter : 'all'
   const sourceCounts = React.useMemo(
     () => ({
       all: searchedProjects.length,
@@ -202,10 +221,10 @@ export default function ProjectLibraryPage({
     [searchedProjects],
   )
   const filteredProjects =
-    sourceFilter === 'all'
+    effectiveSourceFilter === 'all'
       ? searchedProjects
       : searchedProjects.filter((project) =>
-          sourceFilter === 'folder' ? project.source === 'folder' : project.source !== 'folder',
+          effectiveSourceFilter === 'folder' ? project.source === 'folder' : project.source !== 'folder',
         )
   // 卡片上的同步状态在首屏画完之后才在后台查（调度规则见 projectSyncInspectScheduler.ts）：
   // 项目没变就不重查，聚焦也只是重新登记，不再每次全量发。
@@ -343,27 +362,29 @@ export default function ProjectLibraryPage({
           {libraryTab ? <div ref={setLibraryToolbar} className="contents" data-library-toolbar={tab} /> : null}
           {tab === 'projects' && !firstRun ? (
             <>
-              <div
-                className="ml-1 inline-flex h-7 items-center gap-0.5 rounded-pill bg-nomi-ink-05 p-0.5"
-                aria-label={t('library.sourceFilter')}
-              >
-                {sourceOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    aria-pressed={sourceFilter === option.id}
-                    onClick={() => setSourceFilter(option.id)}
-                    className={cn(
-                      'inline-flex h-6 items-center gap-1 rounded-pill border-0 bg-transparent px-2.5 text-caption font-inherit cursor-pointer',
-                      'text-nomi-ink-60 transition-[background,color,box-shadow] duration-nomi-micro hover:text-nomi-ink',
-                      sourceFilter === option.id && 'bg-nomi-paper font-medium text-nomi-ink shadow-nomi-sm',
-                    )}
-                  >
-                    {option.label}
-                    <span className="tabular-nums text-nomi-ink-40">{option.count}</span>
-                  </button>
-                ))}
-              </div>
+              {hasFolderProjects ? (
+                <div
+                  className="ml-1 inline-flex h-7 items-center gap-0.5 rounded-pill bg-nomi-ink-05 p-0.5"
+                  aria-label={t('library.sourceFilter')}
+                >
+                  {sourceOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={effectiveSourceFilter === option.id}
+                      onClick={() => setSourceFilter(option.id)}
+                      className={cn(
+                        'inline-flex h-6 items-center gap-1 rounded-pill border-0 bg-transparent px-2.5 text-caption font-inherit cursor-pointer',
+                        'text-nomi-ink-60 transition-[background,color,box-shadow] duration-nomi-micro hover:text-nomi-ink',
+                        effectiveSourceFilter === option.id && 'bg-nomi-paper font-medium text-nomi-ink shadow-nomi-sm',
+                      )}
+                    >
+                      {option.label}
+                      <span className="tabular-nums text-nomi-ink-40">{option.count}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <LibraryDiscoveryToolbar
                 query={query}
                 onQueryChange={setQuery}
@@ -504,7 +525,7 @@ export default function ProjectLibraryPage({
               title={
                 normalizedQuery
                   ? t('library.noMatchNamed', { query: query.trim() })
-                  : sourceFilter !== 'all'
+                  : effectiveSourceFilter !== 'all'
                     ? t('library.noProjectsInSource')
                     : // 首次空库（无搜索、来源=全部、零项目）：给行动指引指向正上方的「新建空白项目」卡，
                       // 别用「这个分类下还没有项目」的系统腔（首屏没有分类概念，2026-08-25 走查 F1）。
@@ -566,23 +587,6 @@ export default function ProjectLibraryPage({
                         'group-hover:opacity-100',
                       )}
                     >
-                      <button
-                        className={cn(
-                          'absolute top-[9px] right-[9px] size-8 rounded-nomi-sm border-none',
-                          'bg-workbench-danger-soft text-workbench-danger grid place-items-center cursor-pointer',
-                          'transition-[background,color] duration-nomi-micro',
-                          'hover:bg-workbench-danger hover:text-nomi-paper',
-                        )}
-                        type="button"
-                        aria-label={t('library.deleteNamedProject', { name: project.name })}
-                        title={t('library.deleteProject')}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onDeleteProject(project)
-                        }}
-                      >
-                        <IconTrash size={14} stroke={1.8} />
-                      </button>
                       {unavailable ? (
                         // 贴缩略图下沿、不居中：居中会压在占位胶片图标上，把字盖住（V-plibrary2 截图）。
                         <span
@@ -702,6 +706,18 @@ export default function ProjectLibraryPage({
                           <IconFolderShare size={15} stroke={1.6} aria-hidden="true" />
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        className={CARD_DANGER_ACTION_CLASS}
+                        aria-label={t('library.deleteNamedProject', { name: project.name })}
+                        title={t('library.deleteProject')}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteProject(project)
+                        }}
+                      >
+                        <IconTrash size={15} stroke={1.6} aria-hidden="true" />
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -1,0 +1,26 @@
+{
+  "id": "model-settings-usage-open",
+  "feature": "从模型账户卡打开用量，记录和公开单价均已显示",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/ux/t6a-model-settings.walk.mjs",
+    "--"
+  ],
+  "scale": "一个本机项目，42 份成功回执，内置 APIMart 目录与回环报价",
+  "metrics": [
+    "response"
+  ],
+  "budget": 100,
+  "p95Budget": 150,
+  "budgetStatus": "proposed",
+  "budgetBasis": "沿用交互到可见反馈的 100ms 中位数、150ms p95 预算，等待用量行和单价行都画出来。",
+  "baseline": {
+    "median": 64.9,
+    "p95": 65.1,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 16GB",
+    "date": "2026-11-24",
+    "commit": "cabce4bb8"
+  }
+}

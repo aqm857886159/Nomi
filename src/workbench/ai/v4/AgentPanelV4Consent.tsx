@@ -1,8 +1,8 @@
-// 「帮 Nomi 变好」首次询问卡（样张 A，用户 09-15 已拍板）。
+// 「帮 Nomi 变好」首次询问卡（样张 A，用户 09-15 已拍板；UX-A4 延后至首次生成或首轮对话后出现）。
 //
-// 只在**第一次打开 Agent 面板的空态**里出现一次。为什么是这一刻而不是安装第一屏
-// （用户拍板②，这里记下理由）：安装那一刻他还不知道 Nomi 是什么，一个不理解的同意
-// 不是同意，只是一次点击。第一次打开 Agent 面板时他已经在用了，这时候问才有意义。
+// 只在**创作者完成首次生成或首轮 Agent 对话后的空态**里出现一次（`canAskFirstAgentConsent()`）。
+// 新建第一个空白项目一字未写时不弹，避免首屏注意力被二选一打断；完成首个创作里程碑后再问，
+// 用户已理解 Nomi 在做什么，回答更有意义且只问一次。
 //
 // 卡面形状的三条硬约束（用户原话：「整个设计要考虑体验、简化流程、让用户理解我们不是
 // 做坏事只是为了真实优化产品」）：
@@ -23,7 +23,14 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DecisionBar } from '../../../design'
 import { getDesktopBridge } from '../../../desktop/bridge'
-import { hasAskedAgentConsent, hasAskedAgentConsentScope, markAgentConsentAsked, markAgentConsentScopeAsked } from '../../onboarding/onboardingState'
+import {
+  canAskFirstAgentConsent,
+  hasAskedAgentConsent,
+  hasAskedAgentConsentScope,
+  markAgentConsentAsked,
+  markAgentConsentScopeAsked,
+  ONBOARDING_STATE_SYNC_EVENT,
+} from '../../onboarding/onboardingState'
 
 type ConsentMode = 'first' | 'scope'
 
@@ -34,12 +41,27 @@ export function V4ConsentCard({
   force?: ConsentMode
 }): JSX.Element {
   const { t } = useTranslation()
-  // 初始值就读一次标记：渲染过一帧再消失会闪一下，那比不出现更糟。
-  const [mode, setMode] = React.useState<ConsentMode | null>(() => force ?? (hasAskedAgentConsent() ? null : 'first'))
+  // 初始值就读一次准入谓词：渲染过一帧再消失会闪一下，那比不出现更糟。
+  const [mode, setMode] = React.useState<ConsentMode | null>(() => force ?? (canAskFirstAgentConsent() ? 'first' : null))
+
+  // 未问过且尚未达成里程碑时监听状态变更：画布完成首图生成或首轮对话完成后，空态里立即现身且只问一次。
+  React.useEffect(() => {
+    if (force || mode !== null || hasAskedAgentConsent()) return
+    const sync = (): void => {
+      if (canAskFirstAgentConsent()) setMode('first')
+    }
+    sync()
+    window.addEventListener(ONBOARDING_STATE_SYNC_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(ONBOARDING_STATE_SYNC_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [force, mode])
 
   // 首次问过之后，才轮到「范围升级再确认」：开着遥测、但同意的还是旧范围、且这台机器没问过。
   React.useEffect(() => {
-    if (force || mode !== null || hasAskedAgentConsentScope()) return
+    if (force || mode !== null || !hasAskedAgentConsent() || hasAskedAgentConsentScope()) return
     let active = true
     void getDesktopBridge()?.settings?.telemetry?.get().then((view) => {
       if (active && view.enabled && view.scopeVersion < 2) setMode('scope')

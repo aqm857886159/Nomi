@@ -295,7 +295,9 @@ describe("runtime export job IPC functions", () => {
     await runnerStarted;
     await cancelExportJob(identity, jobId);
 
-    await expect(finishPromise).rejects.toThrow(/cancelled/i);
+    await expect(finishPromise).rejects.toMatchObject({ name: "ExportCancelledError" });
+    // Calling cancelExportJob again on an already-cancelled job is idempotent rather than throwing a state error
+    await expect(cancelExportJob(identity, jobId)).resolves.toEqual({ ok: true });
     const snapshot = getExportJobStatus(identity, jobId);
     expect(sawAbort).toBe(true);
     expect(snapshot.status).toBe("cancelled");
