@@ -17,7 +17,7 @@ import crypto from 'node:crypto'
 import { outboundVendor } from '../catalog/outboundVendor'
 import { redactLogValue } from '../logging/redact'
 import { isLaneApprovalNote } from '../shared/agentLane/laneContracts'
-import { TELEMETRY_IDENTIFIER_PATTERN } from '../shared/contracts/telemetry'
+import { isClosedTrajectoryToolFailureCode } from '../shared/agentLane/laneToolFailureEnvelope'
 import type {
   LaneTrajectoryEnvelope,
   LaneTrajectoryToolCall,
@@ -74,10 +74,11 @@ function argumentKeys(args: unknown): string[] {
   return Object.keys(args).slice(0, 40).map((key) => label(key, 'key')).sort()
 }
 
-function closedFailureCode(value: unknown): string | null {
+function closedFailureCode(value: unknown, failed: boolean | null | undefined): string | null {
   if (typeof value !== 'string' || !value) return null
   const clean = redactLogValue(value)
-  return TELEMETRY_IDENTIFIER_PATTERN.test(clean) ? clean : null
+  if (isClosedTrajectoryToolFailureCode(clean)) return clean
+  return failed === false ? null : 'unknown_tool_failure'
 }
 
 function projectToolCall(tool: TrajectoryTurnInput['tools'][number]): LaneTrajectoryToolCall {
@@ -87,7 +88,7 @@ function projectToolCall(tool: TrajectoryTurnInput['tools'][number]): LaneTrajec
     'gen_ai.tool.call.id': label(tool.toolCallId, 'unknown'),
     'nomi.tool.argument_keys': argumentKeys(tool.arguments),
     'nomi.tool.failed': typeof tool.failed === 'boolean' ? tool.failed : null,
-    'nomi.tool.failure_code': closedFailureCode(tool.failureCode),
+    'nomi.tool.failure_code': closedFailureCode(tool.failureCode, tool.failed),
     'nomi.tool.duration_ms': duration(tool.durationMs),
   }
 }
@@ -109,18 +110,34 @@ const LEGACY_CLASSIFIER_KIND_MAP: Readonly<Record<string, string>> = {
   'network error': 'network',
 }
 
-/** 出门的错误类别闭合词表（与 `laneTrace` 产出的闭合诊断类别对齐，物理拒绝自由文本）。 */
-const OUTBOUND_ERROR_KIND = /^(?:context-overflow|stream-cut|output-truncated|model-timeout:(?:first-response|first-token|idle)|auth|balance|rate-limit|timeout|network|protocol-error|upstream-4xx|upstream-5xx|provider-error|run-failed|tool-failed)$/
+/** 出门的错误类别闭合词表（显式 Set 硬锁，物理拒绝裸单词与自由文本）。 */
+const CLOSED_OUTBOUND_ERROR_KINDS: ReadonlySet<string> = new Set([
+  'context-overflow',
+  'stream-cut',
+  'output-truncated',
+  'model-timeout:first-response',
+  'model-timeout:first-token',
+  'model-timeout:idle',
+  'auth',
+  'balance',
+  'rate-limit',
+  'timeout',
+  'network',
+  'protocol-error',
+  'upstream-4xx',
+  'upstream-5xx',
+  'provider-error',
+  'run-failed',
+  'tool-failed',
+])
 
 function outboundErrorKind(raw: string): string | null {
   const mapped = LEGACY_CLASSIFIER_KIND_MAP[raw] ?? raw
-  if (OUTBOUND_ERROR_KIND.test(mapped)) return redactLogValue(mapped)
+  if (CLOSED_OUTBOUND_ERROR_KINDS.has(mapped)) return redactLogValue(mapped)
   if (mapped.startsWith('tool:')) {
-    const code = closedFailureCode(mapped.slice(5))
-    return code ? `tool:${code}` : null
+    const clean = redactLogValue(mapped.slice(5))
+    return isClosedTrajectoryToolFailureCode(clean) ? `tool:${clean}` : 'tool:unknown_tool_failure'
   }
-  const toolCode = closedFailureCode(mapped)
-  if (toolCode) return toolCode
   const fault = laneAssistantFaultOf(raw)
   if (!fault) return null
   return fault.kind === 'model-timeout' ? `model-timeout:${fault.phase}` : fault.kind

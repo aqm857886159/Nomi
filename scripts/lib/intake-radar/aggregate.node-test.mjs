@@ -606,9 +606,10 @@ test('产品全链路漏斗：新手接入转化率、Agent 一次做对率与�
     mk('s2', 'onboarding.step', { step: 'verify_succeeded', providerClass: 'builtin' }),
     mk('s3', 'onboarding.step', { step: 'key_submitted', providerClass: 'custom' }),
     mk('s3', 'onboarding.step', { step: 'verify_failed', providerClass: 'custom', failReason: 'auth_failed' }),
-    // Agent 回合：4 回合（2 个一次做对成功、1 个重试 1 次后成功、1 个撞墙失败）
+    // Agent 回合：5 回合（2 个一次做对成功、1 个 0 工具模型网络重试成功、1 个工具重试 1 次后成功、1 个撞墙失败）
     mk('s1', 'agent.turn.completed', { result: 'success', durationBucket: '1-5s', modelClass: 'builtin', toolCallsBucket: '1-2', retryCount: 0, breakerTripped: false }),
     mk('s1', 'agent.turn.completed', { result: 'success', durationBucket: '<1s', modelClass: 'builtin', toolCallsBucket: '0', retryCount: 0, breakerTripped: false }),
+    mk('s1', 'agent.turn.completed', { result: 'success', durationBucket: '1-5s', modelClass: 'builtin', toolCallsBucket: '0', retryCount: 1, breakerTripped: false }),
     mk('s2', 'agent.turn.completed', { result: 'success', durationBucket: '>5s', modelClass: 'builtin', toolCallsBucket: '3-5', retryCount: 1, breakerTripped: false }),
     mk('s3', 'agent.turn.completed', { result: 'failure', durationBucket: '>5s', modelClass: 'custom', toolCallsBucket: '3-5', retryCount: 3, breakerTripped: true, faultCategory: 'tool_refused' }),
     mk('s2', 'agent.tool.failed', { toolName: 'draft_shots', failureCode: 'tool_arguments_invalid', attempt: 1, breakerTripped: false, modelClass: 'builtin' }),
@@ -634,12 +635,12 @@ test('产品全链路漏斗：新手接入转化率、Agent 一次做对率与�
   assert.equal(funnel.onboarding.activationFromPromptRate, 25)
   assert.deepEqual(funnel.onboarding.failReasons.map((r) => [r.reason, r.count]), [['auth_failed', 1], ['zero_quota', 1]])
 
-  assert.equal(funnel.agentTurns.total, 4)
-  assert.equal(funnel.agentTurns.successRate, 75)
+  assert.equal(funnel.agentTurns.total, 5)
+  assert.equal(funnel.agentTurns.successRate, 80)
   assert.equal(funnel.agentTurns.firstTrySuccessCount, 2)
-  assert.equal(funnel.agentTurns.firstTryRate, 50)
-  assert.equal(funnel.agentTurns.zeroToolFailureCount, 2)
-  assert.equal(funnel.agentTurns.zeroToolFailureRate, 50)
+  assert.equal(funnel.agentTurns.firstTryRate, 40)
+  assert.equal(funnel.agentTurns.zeroToolFailureCount, 3)
+  assert.equal(funnel.agentTurns.zeroToolFailureRate, 60)
   assert.equal(funnel.agentTurns.breakerTrippedCount, 1)
   assert.equal(funnel.agentTurns.toolFailureEvents, 1)
   assert.deepEqual(funnel.agentTurns.faultReasons, [{ reason: 'tool_refused', count: 1, share: 100 }])
@@ -666,11 +667,11 @@ test('产品全链路漏斗：新手接入转化率、Agent 一次做对率与�
   const terminal = renderTerminalSummary(report, { mdPath: '/r/f.md', jsonPath: '/r/f.json' })
   assert.match(md, /## 产品转化漏斗/)
   assert.match(md, /首屏引导→首次出片总转化 25%/)
-  assert.match(md, /一次做对率（`retryCount === 0` 且成功）：2\/4（50%/)
+  assert.match(md, /一次做对率（`retryCount === 0` 且成功）：2\/5（40%/)
   assert.match(md, /生成结果采纳进时间轴 2 次（采纳比例 50%）/)
   assert.match(md, /`ffmpeg_error`×1（50%）/)
-  assert.match(terminal, /新手接入：首屏引导→验证通过 66\.7% · 首屏引导→首次出片总转化 25%/)
-  assert.match(terminal, /Agent 回合：总计 4，成功率 75% · 一次做对率 50% · 零工具失败率 50%/)
+  assert.match(terminal, /新手接入：打开接入→验证通过 66\.7% · 首屏引导→首次出片总转化 25%/)
+  assert.match(terminal, /Agent 回合：总计 5，成功率 80% · 一次做对率 40% · 零工具失败率 60%/)
   assert.match(terminal, /上轴采纳：生成采纳 2\/4（50%，总上轴 3）/)
   assert.match(terminal, /导出结果：总计 3，成功 33\.3% · 失败原因 ffmpeg_error×1 · （旧版本未上报）×1/)
   assert.doesNotMatch(md + terminal, /轨迹/)

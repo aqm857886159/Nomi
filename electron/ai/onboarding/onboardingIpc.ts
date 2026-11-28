@@ -124,11 +124,12 @@ export function registerOnboardingIpc(): void {
     const baseUrl =
       providerKind === "anthropic" && !rawBaseUrl ? "https://api.anthropic.com" : rawBaseUrl;
     const apiKey = String(payload?.apiKey || "").trim();
+    const providerClass = /^https?:\/\//i.test(baseUrl) ? providerClassFromEndpoint(baseUrl) : "custom";
+    recordOnboardingStepSafe("key_submitted", providerClass);
     if (!/^https?:\/\//i.test(baseUrl)) {
-      recordOnboardingStepSafe("verify_failed", "custom", "invalid_format");
+      recordOnboardingStepSafe("verify_failed", providerClass, "invalid_format");
       return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
     }
-    const providerClass = providerClassFromEndpoint(baseUrl);
     const extraHeaders = readExtraHeaders(payload?.headers);
     const proxyUrl = typeof payload?.proxyUrl === "string" ? payload.proxyUrl : undefined;
     const headers = buildAuthHeaders(providerKind, apiKey, extraHeaders, savedConnectionAuth(baseUrl, providerKind));

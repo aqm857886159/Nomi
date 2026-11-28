@@ -10,10 +10,9 @@ import { renameWithRetry } from '../jsonFile.js';
 import { redactDeep } from '../events/redact.js';
 import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import { isLaneApprovalNote, LANE_APPROVAL_NOTE_TYPE, type LaneApprovalDecision } from '../shared/agentLane/laneContracts.js';
-import { laneToolFailureOf } from '../shared/agentLane/laneToolFailureEnvelope.js';
+import { isClosedTrajectoryToolFailureCode, laneToolFailureOf } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import { laneAssistantFaultOf, laneOutputTruncatedOf, laneVendorFailureText } from '../shared/agentLane/laneAssistantFault.js';
 import { parseVendorErrorFromMessage } from '../shared/generationFailureWire.js';
-import { TELEMETRY_IDENTIFIER_PATTERN } from '../shared/contracts/telemetry.js';
 import type { NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { LANE_DIR_MODE, LANE_FILE_MODE } from './laneFileSystem.mjs';
 
@@ -80,7 +79,7 @@ function vendorDiagnosticErrorKind(message: { readonly diagnostics?: readonly { 
 }
 
 function closedCode(candidate: string | undefined | null): string | null {
-  return typeof candidate === 'string' && TELEMETRY_IDENTIFIER_PATTERN.test(candidate) ? candidate : null;
+  return isClosedTrajectoryToolFailureCode(candidate) ? candidate : null;
 }
 
 function approvalFailureCode(decision: LaneApprovalDecision | undefined): string | null {
@@ -92,14 +91,17 @@ function approvalFailureCode(decision: LaneApprovalDecision | undefined): string
 
 function immediateToolFailureCode(text: string): string | null {
   const trimmed = text.trim();
-  const explicitHead = /\(([a-z][a-z0-9_]{0,47})\)(?::|\.)/.exec(trimmed.split('\n', 1)[0] ?? '');
-  if (explicitHead && TELEMETRY_IDENTIFIER_PATTERN.test(explicitHead[1]!)) return explicitHead[1]!;
+  const firstLine = trimmed.split('\n', 1)[0] ?? '';
+  const validationHead = /^Validation failed for tool "[^"]+" \(([a-z][a-z0-9_]{0,47})\):/.exec(firstLine);
+  if (validationHead && isClosedTrajectoryToolFailureCode(validationHead[1])) return validationHead[1];
+  const stoppedHead = /^[a-zA-Z_][a-zA-Z0-9_-]* was not run \(([a-z][a-z0-9_]{0,47})\)\./.exec(firstLine);
+  if (stoppedHead && isClosedTrajectoryToolFailureCode(stoppedHead[1])) return stoppedHead[1];
   if (/^Validation failed for tool "[^"]+"/.test(trimmed)) return 'tool_arguments_invalid';
   if (/^surface_authority_denied:/.test(trimmed)) return 'surface_authority_denied';
   if (/^Request coding before accessing project files\./.test(trimmed)) return 'coding_access_denied';
   if (/does not do this:[\s\S]*\nUse [a-z][a-z0-9_]* instead\./.test(trimmed)) return 'wrong_verb';
-  if (/^Tool "[^"]+" (?:not found|is not available|is not active)|unknown tool/i.test(trimmed)) return 'unknown_tool';
-  if (/Tool execution was cancelled before completion/i.test(trimmed)) return 'tool_cancelled';
+  if (/^Tool "[^"]+" (?:not found|is not available|is not active)|^unknown tool\b/i.test(trimmed)) return 'unknown_tool';
+  if (/^Tool execution was cancelled before completion\b/i.test(trimmed)) return 'tool_cancelled';
   return null;
 }
 
@@ -183,11 +185,11 @@ export function deriveLaneTrace(entries: readonly Entry[], sessionId: string): L
           ?? approvalFailureCode(approvalByCallId.get(message.toolCallId))
           ?? immediateToolFailureCode(text)
         : null;
-      const failureCode = message.isError ? (coded ?? 'tool_failed') : null;
+      const failureCode = message.isError ? (coded ?? 'unknown_tool_failure') : null;
       // 失败工具的原文可能转述了上游原话（生成失败时）：轨迹落盘只留失败码，原文留在 pi 会话里给模型。
       if (tool) { tool.resultSummary = message.isError ? null : text.slice(0, 2000); tool.failed = message.isError;
         tool.failureCode = failureCode; }
-      if (message.isError) turn.errors.push(coded ?? 'tool-failed');
+      if (message.isError && failureCode) turn.errors.push(`tool:${failureCode}`);
     }
     if (entry.type === 'custom' && entry.customType === LANE_APPROVAL_NOTE_TYPE) turn.approvals.push(entry.data);
   }

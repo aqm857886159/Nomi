@@ -276,7 +276,7 @@ export function renderTerminalSummary(report, { mdPath, jsonPath } = {}) {
   if (report.funnel) {
     const { onboarding: ob, agentTurns: ag, timelineAdoption: ad, exports: ex } = report.funnel
     if (ob.totalEvents) {
-      lines.push(`  新手接入：首屏引导→验证通过 ${share(ob.verifyFromSetupRate)} · 首屏引导→首次出片总转化 ${share(ob.activationFromPromptRate)}`)
+      lines.push(`  新手接入：打开接入→验证通过 ${share(ob.verifyFromSetupRate)} · 首屏引导→首次出片总转化 ${share(ob.activationFromPromptRate)}`)
     }
     if (ag.total) {
       lines.push(`  Agent 回合：总计 ${ag.total}，成功率 ${share(ag.successRate)} · 一次做对率 ${share(ag.firstTryRate)} · 零工具失败率 ${share(ag.zeroToolFailureRate)}`)

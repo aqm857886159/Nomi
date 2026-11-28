@@ -24,6 +24,7 @@ export function useApimartVerification(onSaved: () => void) {
   const [received, setReceived] = React.useState<Extract<VendorBalanceCheck, {status: 'received'}> | null>(null)
   const candidate = React.useRef('')
   const exhaustedQuotas = React.useRef(new Map<string, VendorReportedBalance>())
+  const verifySucceededReported = React.useRef(false)
   const inFlight = React.useRef(false)
   const mounted = React.useRef(true)
   React.useEffect(() => {
@@ -37,6 +38,7 @@ export function useApimartVerification(onSaved: () => void) {
     const isDirectSubmission = raw !== undefined
     if (isDirectSubmission && (!key || !isApimartKeyCandidate(key))) {
       candidate.current = ''
+      verifySucceededReported.current = false
       setSuffix('')
       setStage('format')
       trackOnboardingStep({ step: 'key_submitted', providerClass: 'builtin' })
@@ -47,6 +49,7 @@ export function useApimartVerification(onSaved: () => void) {
     if (!catalog) { setStage('unavailable'); return }
     if (key) {
       candidate.current = key
+      verifySucceededReported.current = false
       setSuffix(key.slice(-4))
       trackOnboardingStep({ step: 'key_submitted', providerClass: 'builtin' })
     }
@@ -72,9 +75,13 @@ export function useApimartVerification(onSaved: () => void) {
         const settled = receivedStage(verified)
         setReceived(verified)
         setStage(settled)
-        if (key) {
-          if (settled === 'passed') trackOnboardingStep({ step: 'verify_succeeded', providerClass: 'builtin' })
-          else trackOnboardingStep({ step: 'verify_failed', providerClass: 'builtin', failReason: 'zero_quota' })
+        if (settled === 'passed') {
+          if (!verifySucceededReported.current) {
+            verifySucceededReported.current = true
+            trackOnboardingStep({ step: 'verify_succeeded', providerClass: 'builtin' })
+          }
+        } else if (key) {
+          trackOnboardingStep({ step: 'verify_failed', providerClass: 'builtin', failReason: 'zero_quota' })
         }
       } else {
         const failedStage = result?.status ?? 'unavailable'
@@ -124,5 +131,5 @@ export function useApimartVerification(onSaved: () => void) {
     return () => window.clearTimeout(timer)
   }, [stage, received, onSaved])
   return { stage, suffix, received, check, retry: () => check(stage === 'keychain' ? candidate.current : undefined),
-    reset: () => { setStage('idle'); setSuffix(''); candidate.current = '' } }
+    reset: () => { setStage('idle'); setSuffix(''); candidate.current = ''; verifySucceededReported.current = false } }
 }

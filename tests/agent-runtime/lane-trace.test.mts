@@ -132,7 +132,10 @@ test('immediate shape rejection, retry wall, and structured upstream vendor diag
       id: 'a1', parentId: 'u1', timestamp: 1010, type: 'message',
       message: {
         role: 'assistant', provider: 'apimart', model: 'gpt-5.5', api: 'openai-completions', timestamp: 1010,
-        content: [{ type: 'toolCall', id: 'c-stop', name: 'write_script', arguments: {} }],
+        content: [
+          { type: 'toolCall', id: 'c-stop', name: 'write_script', arguments: {} },
+          { type: 'toolCall', id: 'c-secret', name: 'read_script', arguments: {} },
+        ],
         usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0, totalTokens: 15, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
         stopReason: 'error',
         errorMessage: '401 Unauthorized',
@@ -147,7 +150,14 @@ test('immediate shape rejection, retry wall, and structured upstream vendor diag
       },
     },
     {
-      id: 'a2', parentId: 't1', timestamp: 1020, type: 'message',
+      id: 't2', parentId: 't1', timestamp: 1015, type: 'message',
+      message: {
+        role: 'toolResult', toolCallId: 'c-secret', toolName: 'read_script', isError: true, timestamp: 1015,
+        content: [{ type: 'text', text: 'Cannot open project (my_secret_slug): permission denied.' }],
+      },
+    },
+    {
+      id: 'a2', parentId: 't2', timestamp: 1020, type: 'message',
       message: {
         role: 'assistant', provider: 'apimart', model: 'gpt-5.5', api: 'openai-completions', timestamp: 1020,
         content: [],
@@ -162,16 +172,26 @@ test('immediate shape rejection, retry wall, and structured upstream vendor diag
     },
   ] as never, 'sess-1');
   assert.equal(derived[0].tools[0].failureCode, 'tool_retry_stopped');
-  assert.deepEqual(derived[0].errors, ['auth', 'tool_retry_stopped', 'rate-limit', 'output-truncated']);
+  assert.equal(derived[0].tools[1].failureCode, 'unknown_tool_failure');
+  assert.deepEqual(derived[0].errors, ['auth', 'tool:tool_retry_stopped', 'tool:unknown_tool_failure', 'rate-limit', 'output-truncated']);
+  assert.equal(JSON.stringify(derived).includes('my_secret_slug'), false);
 });
 
-test('onTurnCompleted reports retryCount=0 on first-try success and breakerTripped=true on retry-wall stop', async t => {
+test('onTurnCompleted reports retryCount=0 on first-try success, recovers after transient/3-strike warning, and sets breakerTripped=true only on actual retry-wall stop', async t => {
   const completed: Array<Record<string, unknown>> = [];
   const fixture = await createLaneFixture(t, [
     // Turn 1: 1 clean tool call -> retryCount: 0, result: 'success'
     { type: 'tool', calls: [{ id: 'clean-read', name: 'read_script', arguments: {} }] },
     { type: 'text', text: 'Done on first try.' },
-    // Turn 2: 4 consecutive invalid calls to hit the 3-strike retry wall -> breakerTripped: true, result: 'failure', faultCategory: 'tool_refused'
+    // Turn 2: 3 consecutive invalid calls (hits 3-strike warning, NOT stop wall) followed by clean recovery -> result: 'success', breakerTripped: false
+    { type: 'tool', calls: [{ id: 'warn-1', name: 'write_script', arguments: { bad: 1 } }] },
+    { type: 'tool', calls: [{ id: 'warn-2', name: 'write_script', arguments: { bad: 2 } }] },
+    { type: 'tool', calls: [{ id: 'warn-3', name: 'write_script', arguments: { bad: 3 } }] },
+    { type: 'text', text: 'Stopped calling write_script and answered cleanly.' },
+    // Turn 3: transient 429 on attempt 1, auto-retry succeeds on attempt 2 -> result: 'success', retryCount >= 1, breakerTripped: false
+    { type: 'error', status: 429, message: 'rate limit exceeded' },
+    { type: 'text', text: 'Recovered on retry.' },
+    // Turn 4: 4 consecutive invalid calls to hit the actual retry-wall stop -> breakerTripped: true, result: 'failure', faultCategory: 'tool_refused'
     { type: 'tool', calls: [{ id: 'bad-1', name: 'write_script', arguments: { bad: 1 } }] },
     { type: 'tool', calls: [{ id: 'bad-2', name: 'write_script', arguments: { bad: 2 } }] },
     { type: 'tool', calls: [{ id: 'bad-3', name: 'write_script', arguments: { bad: 3 } }] },
@@ -183,19 +203,31 @@ test('onTurnCompleted reports retryCount=0 on first-try success and breakerTripp
     onTurnCompleted: (turn) => { completed.push({ ...turn }); },
   });
   await lane.execute({ kind: 'prompt', text: 'Read cleanly.' });
+  await lane.execute({ kind: 'prompt', text: 'Three bad calls then recover.' });
+  await lane.execute({ kind: 'prompt', text: 'Transient 429 then recover.' });
   await lane.execute({ kind: 'prompt', text: 'Keep calling invalid args.' }).catch(() => undefined);
 
-  assert.equal(completed.length, 2);
+  assert.equal(completed.length, 4);
   assert.equal(completed[0].result, 'success');
   assert.equal(completed[0].retryCount, 0);
   assert.equal(completed[0].toolCallCount, 1);
   assert.equal(completed[0].breakerTripped, false);
   assert.equal('faultCategory' in completed[0], false);
 
-  assert.equal(completed[1].result, 'failure');
-  assert.equal(completed[1].breakerTripped, true);
-  assert.equal(completed[1].faultCategory, 'tool_refused');
-  assert.ok((completed[1].retryCount as number) >= 3);
+  assert.equal(completed[1].result, 'success');
+  assert.equal(completed[1].breakerTripped, false);
+  assert.equal(completed[1].retryCount, 3);
+  assert.equal('faultCategory' in completed[1], false);
+
+  assert.equal(completed[2].result, 'success');
+  assert.equal(completed[2].breakerTripped, false);
+  assert.ok((completed[2].retryCount as number) >= 1);
+  assert.equal('faultCategory' in completed[2], false);
+
+  assert.equal(completed[3].result, 'failure');
+  assert.equal(completed[3].breakerTripped, true);
+  assert.equal(completed[3].faultCategory, 'tool_refused');
+  assert.ok((completed[3].retryCount as number) >= 3);
 });
 
 test('history-only owner can open and rebuild the trace without opening the native session twice', async t => {

@@ -18,6 +18,7 @@
  * 而它不能把 `agentCapabilities/*` → zod 那条链拖进浏览器 bundle（#614 白屏）。
  */
 import { generationProblemOf, type GenerationProblem } from "../generationProblem";
+import { CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES } from "../surfacePortBinding";
 
 /**
  * 一条入参问题属于哪一类。面板按它出本地话（「没有这个字段，是不是要写 X」「要填 A、B 之一」……），
@@ -144,3 +145,26 @@ export const LANE_TOOL_OWN_FAILURE_CODE_LIST = [
 ] as const;
 
 export type LaneToolOwnFailureCode = (typeof LANE_TOOL_OWN_FAILURE_CODE_LIST)[number];
+
+/**
+ * 反馈包出站轨迹与会话派生允许保留的工具失败闭合码表（P0 隐私硬锁：表外值一律归为 `unknown_tool_failure`，绝不放行自由文本或裸标识符）。
+ */
+export const CLOSED_TRAJECTORY_TOOL_FAILURE_CODES: ReadonlySet<string> = new Set<string>([
+  ...CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES,
+  ...LANE_TOOL_OWN_FAILURE_CODE_LIST,
+  "approval_denied_by_policy",
+  "approval_denied_by_user",
+  "tool_cancelled",
+  "surface_authority_denied",
+  "coding_access_denied",
+  "unknown_tool",
+  "question_has_no_one_to_ask",
+  "director_preview_pending",
+  "generation_held_by_user",
+  "tool_failed",
+  "unknown_tool_failure",
+]);
+
+export function isClosedTrajectoryToolFailureCode(value: unknown): value is string {
+  return typeof value === "string" && CLOSED_TRAJECTORY_TOOL_FAILURE_CODES.has(value);
+}

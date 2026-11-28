@@ -387,5 +387,33 @@ describe('exportTimelineToMp4', () => {
       props: { format: 'mp4', result: 'failure', failureReason: 'ffmpeg_error' },
     })
     expect(JSON.stringify(tracked)).not.toContain('/Users/me/secret.mp4')
+
+    const startJobTracked: unknown[] = []
+    const cancelSpy = vi.fn()
+    vi.stubGlobal('window', {
+      nomiDesktop: {
+        telemetry: {
+          track: (payload: unknown) => { startJobTracked.push(payload); return Promise.resolve({ queued: true }) },
+        },
+        exports: {
+          startJob: vi.fn().mockRejectedValue(new Error('EACCES: permission denied')),
+          writeTempInput: vi.fn(),
+          finishTempInput: vi.fn(),
+          cancel: cancelSpy,
+        },
+      },
+    })
+
+    await expect(
+      exportTimelineToMp4({ projectId: 'project-1', timeline: makeTimeline(), aspectRatio: '16:9' }),
+    ).rejects.toThrow('EACCES: permission denied')
+
+    expect(cancelSpy).not.toHaveBeenCalled()
+    expect(startJobTracked).toEqual([
+      expect.objectContaining({
+        eventName: 'export.completed',
+        props: expect.objectContaining({ format: 'mp4', result: 'failure', failureReason: 'disk_or_permission' }),
+      }),
+    ])
   })
 })

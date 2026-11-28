@@ -611,7 +611,9 @@ export function summarizeProductFunnel(events) {
     const breaker = evt.props?.breakerTripped === true
     if (breaker) breakerTrippedCount += 1
     if (result === 'success' && retryCount === 0) firstTrySuccessCount += 1
-    if (retryCount === 0 && !breaker && evt.props?.faultCategory !== 'tool_refused') zeroToolFailureCount += 1
+    if ((evt.props?.toolCallsBucket === '0' || retryCount === 0) && !breaker && evt.props?.faultCategory !== 'tool_refused') {
+      zeroToolFailureCount += 1
+    }
   }
   const failedTurns = turnEvents.filter((e) => e.props?.result === 'failure')
   const toolFailureEvents = events.filter((e) => e.eventName === 'agent.tool.failed').length

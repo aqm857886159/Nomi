@@ -115,23 +115,26 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
       },
     })
   }
-  const { jobId, backend } = await desktop.exports.startJob({
-    projectId,
-    outputName: options.outputName,
-    manifest,
-  })
-  options.onJobStarted?.({ jobId, backend })
-
+  let jobId: string | null = null
   let webmBlob: Blob | null = null
   let finishedTempInput = false
-  const unsubscribe = desktop.exports.onEvent?.((event) => {
-    if (event.jobId !== jobId) return
-    const ratio = Math.max(0, Math.min(1, event.snapshot.progress.ratio))
-    const stage = event.snapshot.progress.stage
-    const status = stage === 'succeeded' ? 'done' : stage === 'encoding' || stage === 'muxing' || stage === 'finalizing' ? 'converting' : 'preparing'
-    options.onProgress?.({ status, ratio })
-  })
+  let unsubscribe: (() => void) | undefined
   try {
+    const started = await desktop.exports.startJob({
+      projectId,
+      outputName: options.outputName,
+      manifest,
+    })
+    jobId = started.jobId
+    const { backend } = started
+    options.onJobStarted?.({ jobId, backend })
+    unsubscribe = desktop.exports.onEvent?.((event) => {
+      if (event.jobId !== jobId) return
+      const ratio = Math.max(0, Math.min(1, event.snapshot.progress.ratio))
+      const stage = event.snapshot.progress.stage
+      const status = stage === 'succeeded' ? 'done' : stage === 'encoding' || stage === 'muxing' || stage === 'finalizing' ? 'converting' : 'preparing'
+      options.onProgress?.({ status, ratio })
+    })
     // 主路径：资产可本地解析 → 主进程 ffmpeg 直读源文件渲染（所见即所得）。renderer 不录 WebM。
     if (backend === 'filtergraph') {
       options.onProgress?.({ status: 'converting', ratio: 0.12 })
@@ -171,7 +174,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
   } catch (error) {
     if (isExportCancelledError(error)) trackExport('cancel')
     else trackExport('failure', classifyExportFailureReason(error))
-    if (!finishedTempInput && desktop.exports.cancel) {
+    if (jobId !== null && !finishedTempInput && desktop.exports.cancel) {
       try {
         await desktop.exports.cancel(jobId)
       } catch (cancelError) {

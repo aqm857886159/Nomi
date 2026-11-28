@@ -5,7 +5,8 @@ import type { JsonlSessionMetadata } from '@earendil-works/pi-agent-core/harness
 import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import type { NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { logError } from '../logging/logger.js';
-import { clampAgentRetryCount, TELEMETRY_IDENTIFIER_PATTERN, type AgentFaultCategory, type TelemetryResult } from '../shared/contracts/telemetry.js';
+import { clampAgentRetryCount, type AgentFaultCategory, type TelemetryResult } from '../shared/contracts/telemetry.js';
+import { isClosedTrajectoryToolFailureCode } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import { laneAssistantFaultOf, laneOutputTruncatedOf, laneVendorFailureText } from '../shared/agentLane/laneAssistantFault.js';
 import { parseVendorErrorFromMessage } from '../shared/generationFailureWire.js';
 import { BALANCE_CLASSIFIER_MARKER } from './laneProviderGuard.mjs';
@@ -15,7 +16,7 @@ import { LANE_RUN_FAILED, LANE_TRACE_NOTE, laneErrorKind, traceSafeValue, writeL
 export type LaneTraceBridge = {
   readonly pricing: NomiPricingBasis;
   readonly options: Pick<OpenLaneOptions, 'model' | 'onToolFailure' | 'onTurnCompleted'>;
-  readonly isTurnOver: () => boolean;
+  readonly isTurnOver: (runId?: string) => boolean;
   readonly bindFailure: (handler: (event: LaneToolFailureEvent) => void) => void;
   readonly onFailure: (event: LaneToolFailureEvent) => void;
 };
@@ -23,13 +24,13 @@ export type LaneTraceBridge = {
 export function createLaneTraceBridge(
   options: Pick<OpenLaneOptions, 'model' | 'onToolFailure' | 'onTurnCompleted'>,
   pricing: NomiPricingBasis,
-  turn: { isOver: () => boolean },
+  turn: { isOver: (runId?: string) => boolean },
 ): LaneTraceBridge {
   let listener: ((event: LaneToolFailureEvent) => void) | undefined;
   return {
     pricing,
     options,
-    isTurnOver: () => turn.isOver(),
+    isTurnOver: (runId) => turn.isOver(runId),
     bindFailure: (handler) => { listener = handler; },
     onFailure: (event) => { listener?.(event); options.onToolFailure?.(event); },
   };
@@ -48,7 +49,7 @@ export function attachLaneTrace(input: {
   harness: AgentHarness; session: Session<JsonlSessionMetadata>;
   pricing?: NomiPricingBasis; secrets?: readonly string[]; model?: LaneTraceRun['model'];
   runtimeBridge?: LaneTraceBridge;
-  isTurnOver?: () => boolean;
+  isTurnOver?: (runId?: string) => boolean;
   isContextOverflow?: (message: never) => boolean;
   onTurnCompleted?: (event: LaneTurnCompletedEvent) => void;
 }) {
@@ -81,20 +82,22 @@ export function attachLaneTrace(input: {
     turnTelemetry.set(runId, created);
     return created;
   };
-  const noteToolFailure = (toolName: string, code: string, toolCallId?: string, breakerTripped = false): void => {
-    if (breakerTripped && latestRunId) ensureTurnState(latestRunId).breakerTripped = true;
-    if (!TELEMETRY_IDENTIFIER_PATTERN.test(code)) return;
+  const noteToolFailure = (toolName: string, code: string, toolCallId?: string): void => {
+    // 只有模型无视第 3 次警告继续调用、真正触发 `tool_retry_stopped` 停轮时才记熔断失败；
+    // 第 3 次连败本身只是向模型发提示，若模型随后换路或询问用户并正常结束回合，不应误判为熔断失败。
+    if (code === 'tool_retry_stopped' && latestRunId) ensureTurnState(latestRunId).breakerTripped = true;
+    const closed = isClosedTrajectoryToolFailureCode(code) ? code : 'unknown_tool_failure';
     if (toolCallId) {
       const existing = tools.get(toolCallId);
-      if (existing) existing.failureCode = code;
-      else tools.set(toolCallId, { started: performance.now(), runId: '', failureCode: code });
+      if (existing) existing.failureCode = closed;
+      else tools.set(toolCallId, { started: performance.now(), runId: '', failureCode: closed });
       return;
     }
     const list = pendingFailuresByTool.get(toolName) ?? [];
-    list.push(code);
+    list.push(closed);
     pendingFailuresByTool.set(toolName, list);
   };
-  bridge?.bindFailure((event) => noteToolFailure(event.toolName, event.code, undefined, event.breakerTripped));
+  bridge?.bindFailure((event) => noteToolFailure(event.toolName, event.code));
   let tail = Promise.resolve();
   const enqueue = (work: () => Promise<void>) => {
     tail = tail.then(work).catch(() => {
@@ -150,8 +153,10 @@ export function attachLaneTrace(input: {
     }),
     harness.events.on('message_end', event => {
       if (event.message.role !== 'assistant' || !event.runId) return;
-      const fault = assistantFaultCategory(event.message, Boolean(isContextOverflow?.(event.message as never)));
-      if (fault) ensureTurnState(event.runId).lastAssistantFault = fault;
+      ensureTurnState(event.runId).lastAssistantFault = assistantFaultCategory(
+        event.message,
+        Boolean(isContextOverflow?.(event.message as never)),
+      );
     }),
     harness.events.on('run_end', event => {
       pendingFailuresByTool.clear();
@@ -159,7 +164,7 @@ export function attachLaneTrace(input: {
       turnTelemetry.delete(event.runId);
       if (onTurnCompleted) {
         const durationMs = Math.max(0, event.endedAt - (turnState?.startedAt ?? event.endedAt));
-        const breakerTripped = Boolean(turnState?.breakerTripped || isTurnOver?.());
+        const breakerTripped = Boolean(turnState?.breakerTripped || isTurnOver?.(event.runId));
         let result: TelemetryResult = 'success';
         let faultCategory: AgentFaultCategory | undefined;
         if (breakerTripped) {
@@ -167,7 +172,7 @@ export function attachLaneTrace(input: {
           faultCategory = 'tool_refused';
         } else if (event.status === 'aborted') {
           result = 'cancel';
-        } else if (event.status === 'failed' || turnState?.lastAssistantFault) {
+        } else if (event.status === 'failed' || Boolean(turnState?.lastAssistantFault)) {
           result = 'failure';
           faultCategory = turnState?.lastAssistantFault ?? (turnState?.hadToolError ? 'tool_refused' : 'other');
         }
