@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { ProductionRun, RunCommand } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun, RunCommand } from '../../../electron/shared/contracts/productionRunTypes'
 import { executeProductionRunCommand } from './productionRunCommands'
 
 function run(revision: number, gateStatus: 'waiting' | 'approved' = 'waiting'): ProductionRun {

@@ -4,33 +4,13 @@ import type { Rectangle } from "electron";
 import path from "node:path";
 import { BROWSER_MEDIA_MAX_BYTES } from "./browserMediaValidation";
 import type { BrowserResourceCaptureRectPayload, BrowserViewRecord } from "../core/browserViewTypes";
+import {
+  captureError,
+  captureErrorCode,
+  type BrowserCaptureErrorCode,
+} from "../../shared/contracts/browserCaptureError";
 
-export type BrowserCaptureErrorCode =
-  | "forbidden" // 401/403/防盗链——网站拒绝，可能要登录
-  | "not-found" // 404/410——链接失效
-  | "html-not-media" // 返回 HTML 冒充媒体（防盗链页/人机验证页）
-  | "too-large" // 超 200MB 限额
-  | "timeout" // 下载超时
-  | "blocked-by-client" // 客户端安全策略拦截
-  | "mse-stream" // MediaSource 流媒体——没有可下载原件
-  | "black-frame" // 当前帧是黑屏/无画面——不落假成功卡，提示先播放到有效画面
-  | "network" // 连接层失败（DNS/断网/重置/中断）
-  | "unknown";
-
-const CAPTURE_ERROR_STRIP_PATTERN = /^\[nomi-capture:([a-z-]+)\]\s*/i;
-// 查找不锚定行首：渲染层拿到的是 IPC 包裹后的 message（Error invoking remote method …: Error: [nomi-capture:…]）。
-const CAPTURE_ERROR_FIND_PATTERN = /\[nomi-capture:([a-z-]+)\]/i;
-
-/** 结构化捕捞错误：`[nomi-capture:<code>] 人话`。code 经 IPC 存活在 message 里，渲染层解析。 */
-export function captureError(code: BrowserCaptureErrorCode, message: string, cause?: unknown): Error {
-  const clean = String(message || "").replace(CAPTURE_ERROR_STRIP_PATTERN, "");
-  return new Error(`[nomi-capture:${code}] ${clean}`, cause !== undefined ? { cause } : undefined);
-}
-
-export function captureErrorCode(reason: string): BrowserCaptureErrorCode | null {
-  const match = CAPTURE_ERROR_FIND_PATTERN.exec(String(reason || ""));
-  return match ? (match[1]!.toLowerCase() as BrowserCaptureErrorCode) : null;
-}
+export { captureError, captureErrorCode, type BrowserCaptureErrorCode };
 
 /** 把下载层抛出的原始错误归类成错误码（importBrowserMedia 汇合点统一包装）。 */
 export function classifyDownloadError(reason: string): BrowserCaptureErrorCode {

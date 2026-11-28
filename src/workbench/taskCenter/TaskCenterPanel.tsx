@@ -24,7 +24,7 @@ import { buildTaskCenterView, formatElapsed, summarizeTaskCenterRows, type TaskC
 import { notify } from '../../ui/notificationPolicy'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, useFloatingOutsideDismiss } from '../../design'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
-import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRunSummary } from '../../../electron/shared/contracts/productionRunTypes'
 import { TASK_CENTER_GROUPS, type TaskCenterGroup, type TaskCenterProjection } from './taskCenterProjection'
 import { buildProductionRunTaskRows, productionRunTaskLabels } from './productionRunTaskCenter'
 import { buildExportJobTaskRows, exportJobTaskLabels } from './exportJobTaskCenter'

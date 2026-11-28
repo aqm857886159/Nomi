@@ -77,12 +77,18 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   // 2026-10-16（卡顿波 P-compose）：供应商列表改读异步目录 IPC（同步通道已删：主进程忙时「点设置没反应」），
   //             读失败照旧保留上一份；布局与文案一个字没动，协调会话在交付报告里知情。
   // 2026-11-17 用户「删掉，用设置开关」：开启=allow、关闭=ask，其余布局不变。
-  'AiModelsSection.tsx': '5a32ce9be9327ecea0747c82d51626ea060767318de79781da307ad0e7952c51',
+  // 2026-11-28（SM-2）：仅将顶部 1 行 `import type { AutomationPolicySettings }` 迁往中立契约层
+  //             `electron/shared/contracts/automationPolicyContract`（零 JSX/布局/文案改动）；
+  //             正向断言见下方 imports AutomationPolicySettings from the neutral shared contracts layer。
+  'AiModelsSection.tsx': '9fb62009b48993a669b05aee1683b852e1918021b7055bcdf18c48c0c46ac8a3',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。
   // 2026-09-14：删「默认制作模式」三段与「支出与风险边界」整栏（#781），并删掉独立的「可信发起方」栏——开关并进 MCP 连接页每张客户端卡（#783）。
-  'AutomationPermissionsSection.tsx': '721c88e732d8c03887adf19b69e6795f048db08c73701033fd33dc3972e5d83e',
+  // 2026-11-28（SM-2）：仅将顶部 1 行 `import type { AutomationPolicySettings }` 迁往中立契约层
+  //             `electron/shared/contracts/automationPolicyContract`（零 JSX/布局/文案改动）；
+  //             正向断言见下方 imports AutomationPolicySettings from the neutral shared contracts layer。
+  'AutomationPermissionsSection.tsx': 'da7c61d374abff24ed3597b5fca8b691f9f124e8f4b0505edcf0ec8699bf9d1b',
   // 2026-10-15：当前项文字由强调色改 text-nomi-ink（去蓝色描边，仅类名；协调会话知情）。
   'CanvasGestureSection.tsx': '2a867bb86fe566667cc0c15d5cee11ef1e2c29bc447de5c8c5e3b53022058759',
   // 2026-09-15：两处非布局改动——① 那行注释原来提到 FeedbackShareDialog，而那份文件本次被删
@@ -355,6 +361,17 @@ describe('settings dialog structure', () => {
     expect(aboutSource).not.toContain('onReplaySplash')
     expect(aboutSource).not.toContain('replaySplash')
     expect(settingsSource).not.toContain('onReplaySplash')
+  })
+
+  it('imports AutomationPolicySettings from the neutral shared contracts layer', () => {
+    const automation = readCode(path.join(settingsDirectory, 'AutomationPermissionsSection.tsx'))
+    for (const [label, source] of [
+      ['AiModelsSection.tsx', aiModelsSource],
+      ['AutomationPermissionsSection.tsx', automation],
+    ] as const) {
+      expect(source, label).toContain("import type { AutomationPolicySettings } from '../../../electron/shared/contracts/automationPolicyContract'")
+      expect(source, label).not.toContain('electron/settings/automationPolicyContract')
+    }
   })
 
   it('keeps all five non-model sections at their explicitly approved content baseline', () => {

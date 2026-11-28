@@ -8,7 +8,7 @@ import path from "node:path";
 import { nativeImage, type WebContents } from "electron";
 import { captureFileName } from "../captureNaming";
 import type { BrowserDownloadResult, BrowserResourceCaptureRectPayload, BrowserViewRecord } from "../core/browserViewTypes";
-import { captureError, decodeDataUrlMedia, normalizeLocalCaptureRect, safeTempFileName } from "./browserCaptureSource";
+import { captureError, captureErrorCode, decodeDataUrlMedia, normalizeLocalCaptureRect, safeTempFileName } from "./browserCaptureSource";
 import { bgraLumaStats, isBlankFrameLuma } from "./browserMediaValidation";
 
 // 纯黑/纯色空帧（如 B站首轮阻断画面）不落库——否则是「假成功卡」（复测 P1）。落库前分析产物像素。
@@ -178,7 +178,7 @@ export async function captureVideoCurrentFrame(
       rejectBlankCurrentFrame(nativeImage.createFromBuffer(buffer));
       return saveCapturedPngToTemp(mediaUrl, buffer, "frame.png");
     } catch (error) {
-      if (error instanceof Error && /\[nomi-capture:black-frame\]/i.test(error.message)) throw error;
+      if (error instanceof Error && captureErrorCode(error.message) === "black-frame") throw error;
       // dataURL 解码异常 → 退 capturePage
     }
   }

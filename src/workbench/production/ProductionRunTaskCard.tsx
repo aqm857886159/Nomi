@@ -7,7 +7,7 @@ import { buildNomiLocalAssetUrl } from '../../media/nomiLocalAssetUrl'
 import { cn } from '../../utils/cn'
 import { ProductionDetails } from './ProductionDetails'
 import type { ProductionRunPrimaryAction, ProductionRunView } from './productionRunView'
-import type { ProductionArtifact } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionArtifact } from '../../../electron/shared/contracts/productionRunTypes'
 import { MCP_CLIENT_REGISTRY, isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
 
 // 制作任务卡（任务中心里的「看片台 + 兜底」· plan 2026-08-11-nomi-side-viewer-and-fallback N1/N4）。

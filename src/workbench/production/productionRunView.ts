@@ -5,7 +5,7 @@ import type {
   ProductionRun,
   ProductionRunStatus,
   ProductionRunSummary,
-} from '../../../electron/productionRun/productionRunTypes'
+} from '../../../electron/shared/contracts/productionRunTypes'
 import { jobAwaitsRetrieval } from '../../../electron/shared/productionShotPhase'
 import { isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
 import type { QaStageReport } from '../../../electron/shared/productionQaVerdict'

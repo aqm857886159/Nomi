@@ -5,7 +5,7 @@ import type { LoadedConnection } from "./serviceCatalog";
 import { AdapterWaitError } from "./serviceLifecycle";
 import { appendCompilation, emptyCompilation, genericCompilation, withTextModels } from "./serviceFallback";
 import { canHostPublicDocs, type DiscoveredDocs } from "./docsDiscovery";
-import type { AdapterRunStage } from "../shared/providerAdapterContract";
+import type { AdapterRunStage } from "../shared/contracts/providerAdapterContract";
 import type { ProviderAdapterCompilation, ProviderAdapterDraft, ProviderAdapterRunInput } from "./types";
 import { validateProviderAdapterDraft } from "./validator";
 

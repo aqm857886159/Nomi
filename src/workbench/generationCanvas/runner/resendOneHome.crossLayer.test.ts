@@ -44,7 +44,7 @@ import { registerProductionRunIpc } from '../../../../electron/productionRun/pro
 import { setMainWindow } from '../../../../electron/appWindowRegistry'
 import { runtimeBridge } from '../../../../electron/preload/runtimeBridge'
 import { canvasRunIdFor } from '../../../../electron/productionRun/canvasShotRunIndex'
-import type { RunCommand } from '../../../../electron/productionRun/productionRunTypes'
+import type { RunCommand } from '../../../../electron/shared/contracts/productionRunTypes'
 import { confirmAndRunNode } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'

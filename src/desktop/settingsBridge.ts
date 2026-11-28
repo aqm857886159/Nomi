@@ -25,8 +25,8 @@ export type DesktopSettingsBridge = {
     reveal: () => Promise<DesktopProjectLocationResult>
   }
   automationPolicy: {
-    get: () => Promise<import('../../electron/settings/automationPolicyContract').AutomationPolicySettings>
-    set: (payload: unknown) => Promise<import('../../electron/settings/automationPolicyContract').AutomationPolicySettings>
+    get: () => Promise<import('../../electron/shared/contracts/automationPolicyContract').AutomationPolicySettings>
+    set: (payload: unknown) => Promise<import('../../electron/shared/contracts/automationPolicyContract').AutomationPolicySettings>
   }
   assetRelay: {
     get: () => Promise<{ enabled: boolean; endpoint: string; hasToken: boolean }>

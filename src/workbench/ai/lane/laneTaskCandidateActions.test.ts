@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun } from '../../../../electron/shared/contracts/productionRunTypes'
 import { executeLaneTaskCandidateAdoption } from './laneTaskCandidateActions'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'

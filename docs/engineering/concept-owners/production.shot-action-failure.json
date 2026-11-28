@@ -16,7 +16,7 @@
       "symbol": "productionShotActionFailureOf"
     },
     {
-      "path": "electron/productionRun/productionRunTypes.ts",
+      "path": "electron/shared/contracts/productionRunTypes.ts",
       "symbol": "ProductionShotActionFailure"
     },
     {

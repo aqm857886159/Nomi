@@ -6,8 +6,8 @@ import type { HttpOperation } from "../catalog/types";
 import { extractTaskId as extractTaskIdShared } from "../ai/requestPipeline";
 import { firstString, isJsonRecord, readNestedRecord, trim, type JsonRecord } from "../jsonUtils";
 
-export type { TaskStatus } from "../shared/taskStatus";
-import type { TaskStatus } from "../shared/taskStatus";
+export type { TaskStatus } from "../shared/contracts/taskStatus";
+import { TASK_STATUSES, type TaskStatus } from "../shared/contracts/taskStatus";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 
 export function maybeParseJsonString(value: unknown): unknown {
@@ -111,7 +111,7 @@ export function resolveTaskStatus(response: unknown, responseMapping: JsonRecord
   const fallbackStatus = rawStatus.toLowerCase();
   const recognized = (status: TaskStatus): TaskStatusResolution => ({ status, unrecognizedStatus: "" });
   const sm = statusMapping || {};
-  for (const status of ["queued", "running", "succeeded", "failed"] as const) {
+  for (const status of TASK_STATUSES) {
     const values = Array.isArray(sm[status]) ? sm[status] : [];
     if (values.map((item) => String(item).toLowerCase()).includes(fallbackStatus)) return recognized(status);
   }

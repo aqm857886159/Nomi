@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { DesignSwitch, WorkbenchButton } from '../../design'
 import { getDesktopBridge, type AssetTransportChannelView } from '../../desktop/bridge'
-import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
+import type { AutomationPolicySettings } from '../../../electron/shared/contracts/automationPolicyContract'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
 import { buildProviderHealthView, type SettingsProviderInput } from './settingsAutomationView'

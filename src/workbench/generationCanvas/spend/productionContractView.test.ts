@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProductionGate, ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import type { ProductionGate, ProductionRun } from '../../../../electron/shared/contracts/productionRunTypes'
 import { buildMultiShotContractView, buildProductionContractView, type MultiShotGatePayload } from './productionContractView'
 
 function run(overrides: Partial<ProductionRun> = {}): ProductionRun {

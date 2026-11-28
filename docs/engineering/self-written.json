@@ -187,6 +187,30 @@
       "reason": "项目位置被拒的跨进程身份：位置在 Nomi 自己的目录里（安装目录 / 应用数据与设置根 / 系统临时目录）、打开的是另一个还在的项目文件夹的副本（带原项目名与原文件夹）——主进程各入口拒绝、渲染层项目库报错文案共读，项目目录生命周期的领域语义（「项目在哪」收敛单，2026-10-29）；放中立契约层与 projectDeleteIntent 同理：IPC 只带回错误信息文本，两边要认同一个名字；通用的 invoke 失败读法仍只有 contracts/ipcInvokeFailure 一份"
     },
     {
+      "path": "electron/shared/contracts/productionRunTypes*",
+      "reason": "ProductionRun 跨主进程与渲染层的领域共享契约与信任档位归一（SM-2 从 productionRun/ 迁入中立契约层）"
+    },
+    {
+      "path": "electron/shared/contracts/automationPolicyContract*",
+      "reason": "自动化权限设置的跨进程默认拒绝契约与归一回读（SM-2 从 settings/ 迁入中立契约层）"
+    },
+    {
+      "path": "electron/shared/contracts/parameterReferenceContract*",
+      "reason": "生成参数参考槽位与 ComfyUI 参考契约读取及模型身份解析（SM-2 从 catalog/ 迁入中立契约层）"
+    },
+    {
+      "path": "electron/shared/contracts/taskStatus*",
+      "reason": "任务四态与终态判据的跨进程单一真源词表（SM-2 收敛 TASK_STATUSES）"
+    },
+    {
+      "path": "electron/shared/contracts/providerAdapterContract*",
+      "reason": "供应商适配运行阶段与终态阶段词表的跨进程单一真源（SM-2 收敛 TERMINAL_RUN_STAGES）"
+    },
+    {
+      "path": "electron/shared/contracts/browserCaptureError*",
+      "reason": "内置浏览器媒体采集错误码的跨进程单一契约（SM-2 将 browserCaptureSource 与 browserAssetPopoverUtils 重复正则收口至同一入口）"
+    },
+    {
       "path": "electron/shared/decideShotClaim*",
       "reason": "镜头认领：一镜在生成的唯一判决"
     },
@@ -1587,13 +1611,14 @@
     },
     {
       "id": "ipc-invoke-failure-text",
-      "capability": "Electron invoke 失败那句话的读法：从 `Error invoking remote method '<通道>': <主进程错误 toString()>` 里读回主进程错误的类名 / Node 错误码 / 消息，给人看时剥掉外壳；以及落盘出口认「代码里定义的类名」的形状",
-      "status": "under-review",
-      "reviewBy": "2026-11-23",
+      "capability": "Electron IPC 失败的唯一结构化契约读法：结构化通道返回 `IpcResult` / `StructuredIpcFailure`，异常拒绝通道优先解码结构化错误码（`IpcResult` / `StructuredIpcFailure` / `NomiErrorCode`）并经单一边界兜底拆解 Electron `Error invoking remote method '<通道>': <主进程错误 toString()>`；以及落盘出口认「代码里定义的类名」的形状",
+      "status": "justified",
+      "revisitBy": "2027-02-28",
       "paths": [
         "electron/shared/contracts/ipcInvokeFailure.ts",
         "electron/shared/contracts/ipcResult.ts",
-        "electron/shared/contracts/projectSaveFailure.ts"
+        "electron/shared/contracts/projectSaveFailure.ts",
+        "electron/shared/contracts/browserCaptureError.ts"
       ],
       "alternativesChecked": [
         {
@@ -1613,8 +1638,8 @@
           "source": "https://github.com/sindresorhus/electron-better-ipc"
         }
       ],
-      "whyNotIntegrated": "尚未下结论。现成方案都能把错误对象完整送过来，但都要换掉整条 IPC（6 个 preload 文件里 218 处 ipcRenderer.invoke 与对应的全部 handle）；在那之前 Electron 送回的那句话是渲染层拿到主进程错误类名的唯一来源，读法只能自己写一处。这里收的是原来散在 workspaceBusy / classifyError / storyboardFailureCopy 的三份私有读法（同一提交删掉），不是新长出来的能力。方向检查 docs/audit/2026-10-24-ipc-error-class-name-direction.md。 2026-10-30：保存通道先改用普通对象结果包络，沿用并迁移既有 preload IpcResult / unwrapIpcResult 为唯一拆封 owner；保存原因仅接受项目锁、项目身份和文件系统闭合事实。此通道不再读失败原文，其余通道迁移仍按原 reviewBy 评估。",
-      "revisitWhen": "评估 IPC 迁到能传结构化错误的方案（electron-trpc / electron-better-ipc）之后出结论；迁完就删这个文件"
+      "whyNotIntegrated": "2026-11-28（SM-2 实查结清）：Electron 运行时约束决定单靠库或 preload 无法透传异常字段——`ipcMain.handle` 抛错只把 `error.toString()` 送回渲染层，且 `contextBridge.exposeInMainWorld` 跨隔离世界传递 `Error` 时同样剥掉 `.name`、`.code` 与自定义属性（`ipc-main.md` `#24427`、`context-bridge.md` `#25596`）。已明确界定双层边界：① 显式业务返回通道（如项目保存、隔离区写入）走普通对象 `IpcResult<T, E>`（`ipcResult.ts` + `unwrapIpcResult`，不经过 Error 克隆）；② 浏览器捕捞码 `[nomi-capture:<code>]` 收进 `contracts/browserCaptureError.ts` 经统一出口解包；③ 其余通用 `invoke` 拒绝通道（6 个 preload 文件 221 处调用）全部由 `contracts/ipcInvokeFailure.ts` 唯一入口承担（`readStructuredIpcFailure` 优先读 `StructuredIpcFailure` / `IpcResult` / `NomiErrorCode`，再回退唯一 `ENVELOPE` 解析，渲染层零散手拆正则已全部清除，详见 `docs/audit/2026-10-24-ipc-error-class-name-direction.md`）。",
+      "revisitWhen": "Electron `ipcMain.handle` / `contextBridge` 原生支持结构化 Error 字段透传，或规划把剩余全部 `ipcMain.handle` 通道整体迁往 `IpcResult` / RPC 框架时再评估移除 `ENVELOPE` 文本兜底"
     },
     {
       "id": "gate-family",
