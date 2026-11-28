@@ -1,14 +1,23 @@
+import type { ModelUnitPrice, ModelUsagePeriod } from '../../../electron/shared/contracts/modelSettingsAccount'
+import { formatCreditValue } from '../../workbench/generationCanvas/spend/sendCostFormat'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
+import { getDesktopBridge } from '../../desktop/bridge'
+import { CatalogPackageActions } from './ModelCatalogNotices'
+import type { ModelSettingsHomeConnection } from './ModelSettingsHome'
+import { usageTotal, useModelUsage } from './useModelUsage'
 import React, { type JSX } from 'react'
-import { IconArrowLeft, IconCheck, IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconArrowLeft, IconChevronRight, IconCheck, IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { Mapping } from '../../../electron/catalog/types'
-import { DesignButton, DesignSwitch, IconActionButton, NomiSelect } from '../../design'
+import { DesignButton, DesignSwitch, IconActionButton, NomiSegmented, NomiSelect } from '../../design'
 import type { ChipModel } from './ModelChipGroups'
 import { ModelCapabilitySummary } from './ModelCapabilitySummary'
 import { ModelAdapterStatusSection } from './ModelAdapterStatusSection'
 import { formatMissing } from './modelAdapterDetailState'
 import { MODEL_CHIP_KINDS } from './modelChipGrouping'
 import { projectModelCapability } from './modelCapabilityProjection'
+
+const USAGE_PERIODS: readonly ModelUsagePeriod[] = [7, 'today', 30]
 
 export class ModelSettingsDetailBoundary extends React.Component<
   { children: React.ReactNode; fallback: React.ReactNode },
@@ -334,4 +343,82 @@ export function ModelWorkspacePage({
       </div>
     </div>
   )
+}
+
+export function OtherConnectionWays({ local, onBack, onCustomApi, onDirectScript, onImported, dataSource, network, footer, section }: {
+  local: ModelSettingsHomeConnection[]; onBack: () => void; onCustomApi: () => void; onDirectScript: () => void; onImported: () => void
+  dataSource: React.ReactNode; network: React.ReactNode; footer: React.ReactNode; section?: 'data' | 'network'
+}): JSX.Element {
+  const { t } = useTranslation()
+  const networkRef = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => { if (section === 'network') networkRef.current?.scrollIntoView({ block: 'start' }) }, [section])
+  const row = 'flex min-h-10 w-full items-center border-b border-nomi-line-soft text-left text-caption hover:text-nomi-accent'
+  return <div className="min-h-0 overflow-y-auto" data-model-settings-page="otherWays">
+    <ModelSettingsPageHeader title={t('settings.modelsHome.waysTitle')} backLabel={t('common.back')} onBack={onBack} />
+    <div className="space-y-4 p-4">
+      <section><h3 className="text-caption font-semibold">{t('settings.modelsHome.local')}</h3>
+        {local.map(c => <button className={row} key={c.vendorKey} onClick={c.onOpen} data-local-connection={c.vendorKey}>
+          {translateModelDisplayText(c.name)} <IconChevronRight size={14} /></button>)}{footer}</section>
+      <button type="button" className={row} data-model-home-action="custom-api" onClick={onCustomApi}>{t('onboardingProviders.drawer.home.customApi')} <IconChevronRight size={14} /></button>
+      <section data-model-home-data-sources><h3 className="text-caption font-semibold">{t('onboardingProviders.drawer.home.dataSources')}</h3>{dataSource}</section>
+      <div ref={networkRef} data-model-home-advanced>{network}<CatalogPackageActions onImported={onImported} />
+        <button type="button" className={row} data-model-home-direct-script onClick={onDirectScript}>{t('onboardingProviders.drawer.home.directScript')} <IconChevronRight size={14} /></button>
+      </div>
+    </div>
+  </div>
+}
+
+export function ModelUsagePage({ vendor, name, onBack }: { vendor: string; name: string; onBack: () => void }): JSX.Element {
+  const { t, i18n } = useTranslation()
+  const [period, setPeriod] = React.useState<ModelUsagePeriod>(7)
+  const { periods, refresh } = useModelUsage(vendor)
+  const [prices, setPrices] = React.useState<ModelUnitPrice[] | null>()
+  const [attempt, retryPrices] = React.useReducer(n => n + 1, 0)
+  React.useEffect(() => {
+    let active = true
+    void Promise.resolve(getDesktopBridge()?.onboarding?.modelUnitPrices?.(vendor)).then(
+      value => { if (active) setPrices(value ?? null) }, () => { if (active) setPrices(null) })
+    return () => { active = false }
+  }, [vendor, attempt])
+  const rows = periods?.[period]
+  const total = rows && usageTotal(rows)
+  const amount = (v: number | null) => v === null ? t('settings.modelsHome.pending') : t('settings.modelsHome.credits', { amount: formatCreditValue(v, i18n.language) })
+  const periodLabel = (p: ModelUsagePeriod) => p === 'today' ? t('settings.modelsHome.today') : t('settings.modelsHome.days', { count: p })
+  const spec = (p: ModelUnitPrice) => t(p.kind === 'video' ? 'settings.modelsHome.specVideo'
+    : p.basis === 'output-estimate' ? 'settings.modelsHome.specImageQuality' : 'settings.modelsHome.specImage')
+  const rate = (p: ModelUnitPrice) => p.credits !== null
+    ? t(p.kind === 'video' ? 'settings.modelsHome.videoUnit' : 'settings.modelsHome.imageUnit', { amount: formatCreditValue(p.credits, i18n.language) })
+    : <><span className="text-micro text-nomi-ink-60">{t(p.gap === 'token' ? 'settings.modelsHome.gapToken' : p.gap === 'tiered' ? 'settings.modelsHome.gapTiered' : 'settings.modelsHome.unavailable')}</span> —</>
+  const row = 'grid grid-cols-[minmax(0,1fr)_auto_4rem] items-center gap-2 border-b border-nomi-line-soft px-2 py-1.5 text-caption'
+  return <div className="min-h-0 overflow-y-auto" data-model-settings-page="usage">
+    <ModelSettingsPageHeader title={t('settings.modelsHome.usageTitle')} subtitle={name} backLabel={t('common.back')} onBack={onBack} />
+    <div className="space-y-3 p-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="text-caption font-semibold">{t('settings.modelsHome.spent')}</h3>
+        <NomiSegmented ariaLabel={t('settings.modelsHome.spent')} density="compact" fit="content" value={String(period)}
+          options={USAGE_PERIODS.map(p => ({ value: String(p), label: periodLabel(p) }))}
+          onChange={value => setPeriod(USAGE_PERIODS.find(p => String(p) === value) ?? 7)} />
+        <span data-usage-scope className="text-micro text-nomi-ink-60">{t('settings.modelsHome.localScope')}</span></div>
+      <div className="rounded-nomi-sm border border-nomi-line">
+        {rows ? rows.map(r => <div key={r.modelKey} data-usage-model={r.modelKey} className={row}>
+          <span title={r.modelKey} className="truncate">{prices?.find(p => p.modelKey === r.modelKey)?.label || r.modelKey}</span>
+          <span>{amount(r.credits)}</span><span className="text-right">{t('settings.modelsHome.runs', { count: r.runs })}</span></div>)
+          : <p className="p-2 text-caption">{periods === undefined ? t('onboardingProviders.drawer.loading') : <>
+            <span>{t('settings.modelsHome.unavailable')}</span> · <button type="button" className="text-nomi-accent hover:underline" onClick={refresh}>{t('settings.modelsHome.retry')}</button>
+          </>}</p>}
+        {rows?.length === 0 && <p className="p-2 text-caption">{t('settings.modelsHome.empty')}</p>}
+        {total && <div className={row + ' bg-nomi-ink-05 font-semibold'}><span>{t('settings.modelsHome.total')}</span><span>{amount(total.credits)}</span><span className="text-right">{t('settings.modelsHome.runs', { count: total.runs })}</span></div>}
+      </div>
+      <p className="text-micro text-nomi-ink-60">{t('settings.modelsHome.receipt')}</p>
+      <h3 className="text-caption font-semibold">{t('settings.modelsHome.rates')}</h3>
+      <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line">
+        {prices?.map(p => <div key={p.modelKey} data-unit-price={p.modelKey} className="flex items-baseline gap-2 px-2 py-1.5 text-caption">
+          <span className="min-w-0 truncate">{translateModelDisplayText(p.label)}</span>
+          <span className="min-w-0 flex-1 truncate text-micro text-nomi-ink-40">{spec(p)}</span>
+          <span className="shrink-0">{rate(p)}</span></div>)}
+        {prices === undefined ? <p className="p-2 text-caption">{t('onboardingProviders.drawer.loading')}</p> : !prices?.length && <p className="p-2 text-caption">
+          <span>{t('settings.modelsHome.noRates')}</span> · <button type="button" className="text-nomi-accent hover:underline" onClick={retryPrices}>{t('settings.modelsHome.retry')}</button>
+        </p>}
+      </div><p className="text-micro text-nomi-ink-60">{t('settings.modelsHome.rateHint')}</p>
+    </div>
+  </div>
 }

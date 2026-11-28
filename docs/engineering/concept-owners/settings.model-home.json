@@ -1,0 +1,30 @@
+{
+  "name": "模型设置首页账户摘要与接入入口的展示",
+  "subject": "settings.model-home",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/onboarding/ModelEntryRow.tsx",
+    "symbol": "ModelEntryText"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/onboarding/ModelEntryRow.tsx",
+      "symbol": "ModelEntryText"
+    },
+    {
+      "path": "src/ui/onboarding/ModelAccountCard.tsx",
+      "symbol": "ModelAccountCard"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/ui/onboarding/ModelSettingsHome.tsx",
+    "src/ui/onboarding/AiAssistedOnboardingCard.tsx"
+  ],
+  "since": "2026-11-28",
+  "notes": "账户三格由 ModelAccountCard 排版，两种接入入口共用 ModelEntryRow。"
+}

@@ -1,3 +1,4 @@
+import { lastGenerationChoice } from '../model/generationModelDefaults'
 // NodeParameterControls 的「模型自动选择」副作用集合（4 个 useEffect）。
 // 从组件抽出为 hook：默认选模型 / vendor 同步 / 供应商断开自愈 / archetype meta 初始化。
 // 所有派生写回都从 store 读取最新节点，避免两个同屏控制实例用旧快照互相触发。
@@ -173,7 +174,9 @@ export function useNodeModelAutoSelect({
     // 用户设过就用他的；没设、或设的那个此刻不可用（供应商删了/模型禁用了），
     // 就让位给原有的健康挑选策略——绝不把卡片钉在一个跑不了的模型上。
     const preferred = resolveDefaultModelOption(modelOptions, getGenerationModelDefaults(), taskKind)
-    const firstOption = preferred ?? chooseDefaultModelOption(modelOptions, isImageLike, isVideoLike)
+    const last = taskKind && lastGenerationChoice(taskKind)
+    const remembered = last && taskKind ? resolveDefaultModelOption(modelOptions, { [taskKind]: last }, taskKind) : undefined
+    const firstOption = preferred ?? remembered ?? (taskKind ? modelOptions[0] : chooseDefaultModelOption(modelOptions, isImageLike, isVideoLike))
     if (!firstOption?.value) return
     const firstControls = buildModelControls(firstOption.meta, isImageLike, isVideoLike)
     const explicitAspect = isVideoLike && latestMeta[ASPECT_EXPLICIT_META_KEY] === true

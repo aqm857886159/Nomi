@@ -27,7 +27,7 @@ import { derivePublishedExecution } from "../shared/modelPublication";
 import { installModelNameSourceLookup, type ModelNameSource } from "../shared/modelArchetypes/modelNameSource";
 import { modelNameSourceKey, modelNameSourceTable } from "./modelNameSource";
 import type { ModelAvailability } from "../shared/modelAvailability";
-import { createCatalogAvailability } from "./catalogModelAvailability";
+import { createCatalogAvailability, projectRendererCatalogVendor } from "./catalogModelAvailability";
 import { deriveModelCatalogHealth } from "./catalogHealth";
 import { depublishVendorForDisabledCredential } from "./credentialPublication";
 import { deleteVendorLineageAndRestore, removeVendorLineage, vendorLineageClosure } from "./vendorLineageLifecycle";
@@ -224,7 +224,7 @@ function filterByParams<
   });
 }
 export function listModelCatalogVendors(): Vendor[] {
-  return readCatalog().vendors.map(publicVendor);
+  return readCatalog().vendors.map(projectRendererCatalogVendor);
 }
 /** 目录模型的对外投影。`availability` 见 shared/modelAvailability.ts：那是「能不能用」的唯一答案，
  * 在这里随行下发，渲染层一律读它、谁都不许再拼一份（P0-10 根因）。 */

@@ -14,7 +14,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  IconCheck, IconChevronDown, IconCopy, IconExternalLink, IconInfoCircle, IconRobot,
+  IconCheck, IconChevronDown, IconCopy, IconExternalLink, IconRobot,
 } from '@tabler/icons-react'
 
 import { DesignSegmentedControl } from '../../design'
@@ -31,6 +31,7 @@ import {
   type AssistedOnboardingHost,
 } from './aiAssistedOnboardingContent'
 import { genericMcpSnippet } from './mcpGenericSnippet'
+import { MODEL_ENTRY_HEAD_CLASS, MODEL_ENTRY_ROW_CLASS, ModelEntryChevron, ModelEntryIcon, ModelEntryText } from './ModelEntryRow'
 import { AssistedIntegrationProgress } from './AssistedIntegrationProgress'
 import type { AssistedProgressView } from './assistedProgressProjection'
 
@@ -41,16 +42,12 @@ export type AiAssistedOnboardingCardProps = {
   progress: { view: AssistedProgressView; name: string; hostLabel: string | null; reasonCode?: string | null } | null
   /** 「去连接」→ 打开自动化与权限的 AI 助手连接页（唯一的一键接入之家）。 */
   onOpenAssistantConnections: () => void
-  /** 「或：手动接入 →」→ 滚到本页已有的「自定义 API / 中转站」那一行并高亮，不另开向导。 */
-  /** 首次出现时给一次 accent 描边（看过即消，不做常驻高亮）。 */
-  firstSeen?: boolean
 }
 
 export function AiAssistedOnboardingCard({
   info,
   progress,
   onOpenAssistantConnections,
-  firstSeen = false,
 }: AiAssistedOnboardingCardProps): JSX.Element {
   const { t } = useTranslation()
   const [host, setHost] = React.useState<AssistedOnboardingHost>('claude')
@@ -96,32 +93,23 @@ export function AiAssistedOnboardingCard({
   const configured = clientKey && info ? info.clients[clientKey]?.installed === true : null
 
   return (
-    <section
+    <details open={progress ? true : undefined}
       data-model-home-assisted-onboarding={host}
-      className={cn(
-        'flex flex-col gap-3 rounded-nomi-sm border bg-nomi-ink-05 px-3 py-3',
-        firstSeen ? 'border-nomi-line' : 'border-nomi-line-soft',
-      )}
+      className={cn('group', MODEL_ENTRY_ROW_CLASS)}
     >
-      <div className="flex items-start gap-3">
-        <span className="grid size-7 shrink-0 place-items-center rounded-nomi-sm bg-nomi-paper text-nomi-accent">
+      <summary className={cn('cursor-pointer list-none [&::-webkit-details-marker]:hidden', MODEL_ENTRY_HEAD_CLASS)}>
+        <ModelEntryIcon>
           <IconRobot size={16} stroke={1.7} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-caption font-semibold text-nomi-ink">
-            {t('onboardingProviders.assistedOnboarding.title')}
-          </div>
-          <div className="mt-0.5 text-micro leading-relaxed text-nomi-ink-40">
-            {t('onboardingProviders.assistedOnboarding.subtitle')}
-          </div>
-          {/* 动手前先知道要付出什么（卡点表 ②）：不额外花钱，但手边得有一个能装 MCP 的助手。 */}
-          <div className="mt-1 inline-flex items-center gap-1 text-micro text-nomi-ink-40">
-            <IconInfoCircle size={12} stroke={1.7} aria-hidden="true" />
-            {t('onboardingProviders.assistedOnboarding.requirement')}
-          </div>
-        </div>
-      </div>
+        </ModelEntryIcon>
+        <ModelEntryText
+          title={t('onboardingProviders.assistedOnboarding.title')}
+          hint={t('onboardingProviders.assistedOnboarding.subtitle')}
+        />
+        <ModelEntryChevron className="transition-transform group-open:rotate-90" />
+      </summary>
 
+      {/* <details> 展开后内容进的是浏览器内置槽，外层 gap 不再作用到它们之间——间距由这一层自己带。 */}
+      <div data-assisted-onboarding-body className="mt-3 flex flex-col gap-3">
       {progress ? (
         <AssistedIntegrationProgress
           view={progress.view}
@@ -257,7 +245,7 @@ export function AiAssistedOnboardingCard({
               {mcpSnippet ? (
                 <div className="border-t border-nomi-line-soft pt-2">
                   <div className="text-micro font-semibold text-nomi-ink-60">{headings.mcp}</div>
-                  <div className="mt-0.5 text-micro leading-relaxed text-nomi-ink-40">
+                  <div className="mt-0.5 text-micro leading-snug text-nomi-ink-40">
                     {t('onboardingProviders.assistedOnboarding.mcpNote')}
                   </div>
                   <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-micro leading-relaxed text-nomi-ink-80">{mcpSnippet}</pre>
@@ -281,6 +269,7 @@ export function AiAssistedOnboardingCard({
           ) : null}
         </>
       )}
-    </section>
+      </div>
+    </details>
   )
 }
