@@ -25,7 +25,7 @@ import { resolveModelArchetype, type ModelArchetype } from "../shared/modelArche
 import { referenceDemandsForCandidate, type ReferenceDemand } from "../shared/canvas/edgeAdmission";
 import { modeInputRefusal } from "../catalog/modeInputRefusal";
 import { projectSemanticAspectRatio } from "./semanticAspectRatio";
-import { admitAuthoredDuration } from "./generationAuthoredDuration";
+import { admitAuthoredDuration, admitAuthoredDurationWithAdjustment, type DraftParameterAdjustment } from "./generationAuthoredDuration";
 import { paramSeconds } from "../shared/videoCapabilities/paramValue";
 
 const CAMERA_INTENTS = new Set<NonNullable<VideoGenerationRecommendationInput["cameraIntent"]>>([
@@ -276,6 +276,8 @@ type AuthoredCandidateAdmissionOptions = {
   extraReferenceDemands?: readonly ReferenceDemand[];
   /** 是否在本次归一中校验显式 `modeId` 的必填参考槽；默认按入参候选是否显式写了 `modeId` 判定。 */
   enforceExplicitModeInputs?: boolean;
+  /** 时长等参数在合法边界上发生确定性吸附时回调，装进工具回执 `adjustments` 供 Agent 诚实告知用户。 */
+  noteAdjustment?: (adjustment: DraftParameterAdjustment) => void;
 };
 
 /** 认出候选此刻的档案与显式方式（视频走视频候选特化，其余图像/音频/3D 走通用档案入口）。 */
@@ -360,7 +362,17 @@ export function normalizeAuthoredCandidate(
   const accepted = acceptedParameterSchema(normalized, registry, candidates);
   // 目录里认不出这个模型 / 模式：这里不替它编一句「没有比例」——紧接着的身份准入（`admitShotIdentity` /
   // `admitPlanCandidate`）会说出真正的原因；语义键原样留着，到不了线缆（编合同时是未知参数，当场拒）。
-  const authored = accepted ? admitAuthoredDuration(projectSemanticAspectRatio(normalized, accepted, tierReference), accepted) : normalized;
+  let authored = normalized;
+  if (accepted) {
+    const ratioProjected = projectSemanticAspectRatio(normalized, accepted, tierReference);
+    if (options?.noteAdjustment) {
+      const durationResult = admitAuthoredDurationWithAdjustment(ratioProjected, accepted);
+      authored = durationResult.candidate;
+      if (durationResult.adjustment) options.noteAdjustment(durationResult.adjustment);
+    } else {
+      authored = admitAuthoredDuration(ratioProjected, accepted);
+    }
+  }
   if (options?.enforceExplicitModeInputs ?? explicitModeId) {
     admitExplicitModeInputs(authored, candidates, options?.extraReferenceDemands);
   }

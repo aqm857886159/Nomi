@@ -197,39 +197,39 @@
                 "fields": {
                   "label": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:170"
+                    "at": "electron/agentLane/laneTools.mts:219"
                   },
                   "prepareArguments": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:182"
+                    "at": "electron/agentLane/laneTools.mts:243"
                   },
                   "replay": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:180"
+                    "at": "electron/agentLane/laneTools.mts:241"
                   },
                   "executionMode": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:186"
+                    "at": "electron/agentLane/laneTools.mts:236"
                   },
                   "name": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:169"
+                    "at": "electron/agentLane/laneTools.mts:218"
                   },
                   "description": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:173"
+                    "at": "electron/agentLane/laneTools.mts:222"
                   },
                   "parameters": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:174"
+                    "at": "electron/agentLane/laneTools.mts:223"
                   },
                   "constrainedSampling": {
-                    "verdict": "unused",
-                    "why": "约束采样是让模型在采样阶段就产不出非法参数的加固。Nomi lane 工具的参数校验必须发生在 execute 里（laneTools.mts:189 的 schema.safeParse + §3.3 形状 throw），因为失败正文要同时喂给模型和面板收据；开了它会变成同一条不变量两层各管一半，而两层的失败正文不一样。"
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneTools.mts:224"
                   },
                   "execute": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:184"
+                    "at": "electron/agentLane/laneTools.mts:245"
                   }
                 }
               }

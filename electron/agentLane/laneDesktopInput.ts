@@ -1,4 +1,4 @@
-import { formatLaneModelDelta } from "./laneModelContext"
+import { formatLaneAmbientFocus, formatLaneModelDelta } from "./laneModelContext"
 import { formatStoryboardRequestTarget } from '../shared/agentCapabilities/generationInvocationContext'
 import { agentModelEntrySchema } from "../shared/agentCapabilities/availableModelsSchema"
 import { createHash } from 'node:crypto'
@@ -144,7 +144,7 @@ export function createDesktopLaneInput(input: {
       }] : [])
       const { model } = selected
       const content = await buildAgentUserContent({
-        prompt: [projectAgentPromptForSend(message.content, attachments), formatAgentContextSnapshot(message.context.contextSnapshot), formatStoryboardRequestTarget(message.context.storyboardTarget), formatLaneModelDelta(message.context, previous)].filter(Boolean).join('\n\n'),
+        prompt: [projectAgentPromptForSend(message.content, attachments), formatLaneAmbientFocus(message.context), formatAgentContextSnapshot(message.context.contextSnapshot), formatStoryboardRequestTarget(message.context.storyboardTarget), formatLaneModelDelta(message.context, previous)].filter(Boolean).join('\n\n'),
         attachments,
         imageInput: modelImageInputSupport(model),
         // 能不能原样收 PDF 只认这一行的声明（`inputModalities`）；Chat Completions 那条协议没有 PDF 文件块，照旧不发。

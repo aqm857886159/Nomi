@@ -25,8 +25,8 @@ const CASES = [
   { id: 'aspect-key-aspect_ratio', family: '比例键名 = aspect_ratio', intent: { providerId: 'apimart', modelId: 'kling-3.0-turbo', count: 1, durationSec: 5 }, expect: 'land' },
   { id: 'pixel-size', family: '像素档尺寸（size = 2048x2048 一类）', intent: { providerId: 'volcengine', modelId: 'doubao-seedream-4-5-251128', count: 3 }, expect: 'land' },
   { id: 'duration-in-steps', family: '时长只收几个档，说中了', intent: { providerId: 'apimart', modelId: 'MiniMax-Hailuo-2.3', count: 1, durationSec: 6 }, expect: 'land' },
-  // 下面三条首跑是违反（LAW10-OUT-OF-RANGE-SPLIT / LAW10-SILENT-DROP）：宿主照收、各站各说各的。现在起草那一刻就拒，并说出合法值。
-  { id: 'duration-out-of-steps', family: '时长只收几个档，说越界', intent: { providerId: 'apimart', modelId: 'MiniMax-Hailuo-2.3', count: 1, durationSec: 8 }, expect: 'refuse', refusal: /只支持 6 \/ 10 秒/ },
+  // 时长只收离散档时：宿主确定性吸附到最近合法档并在 adjustments 中显式告知 Agent，且草稿、节点、付费卡三站一致为吸附后的合法档；根本无时长参数的模型仍当场拒收。
+  { id: 'duration-out-of-steps', family: '时长只收几个档，越界就近吸附并显式回执 adjustments', intent: { providerId: 'apimart', modelId: 'MiniMax-Hailuo-2.3', count: 1, durationSec: 8 }, expect: 'land', snappedDurationSec: 6 },
   { id: 'no-duration-param', family: '模型没有时长参数（视频）', intent: { providerId: 'apimart', modelId: 'veo3.1-fast', count: 1, durationSec: 8 }, expect: 'refuse', refusal: /没有时长参数/ },
   { id: 'still-with-duration', family: '图片说了时长（说明书写「静帧不填」）', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 1, durationSec: 4 }, expect: 'refuse', refusal: /没有时长参数/ },
   { id: 'references', family: '带一张素材库参考', intent: { providerId: 'apimart', modelId: 'gpt-image-2', count: 1, references: ['asset-hero'] }, expect: 'land' },
@@ -78,6 +78,9 @@ describe('铁律 ⑩ 说的 = 摆的（宿主矩阵）', () => {
         return
       }
       expect(observation.refused, `宿主不该拒绝：${observation.refusal ?? ''}`).toBe(false)
+      if (testCase.snappedDurationSec !== undefined) {
+        expect(observation.adjustedDurationSec, '越界时长吸附必须返回显式 adjustments 告知 Agent').toBe(testCase.snappedDurationSec)
+      }
       if (testCase.pixelSize) {
         expect(observation.raw.draft.parameters.size).toBe(testCase.pixelSize)
         const geometry = readAspectRatioGeometry(observation.raw.draft.parameters.size)

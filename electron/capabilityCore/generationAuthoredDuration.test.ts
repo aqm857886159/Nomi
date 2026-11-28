@@ -2,7 +2,7 @@
 // 类测试：不点名哪家模型，只看参数表的三种形状——没有时长、有档位、有范围。
 import { describe, expect, it } from "vitest";
 
-import { admitAuthoredDuration } from "./generationAuthoredDuration";
+import { admitAuthoredDuration, admitAuthoredDurationWithAdjustment } from "./generationAuthoredDuration";
 import { ContractCompilationError, type PlanCandidate } from "./executionContract";
 
 const candidate = (parameters: Record<string, unknown>): PlanCandidate => ({
@@ -27,16 +27,24 @@ describe("admitAuthoredDuration", () => {
     expect(admitAuthoredDuration(candidate({ durationSeconds: 8 }), { durationSeconds: { type: "number", min: 4, max: 15 } }).parameters).toEqual({ durationSeconds: 8 });
   });
 
-  it("不在档里：拒，并说出合法的几档（不回落成默认）", () => {
-    const error = refusalOf(() => admitAuthoredDuration(candidate({ duration: 8 }), { duration: { type: "number", enum: [6, 10] } }));
-    expect(error.message).toContain("只支持 6 / 10 秒");
-    expect(error.rejection).toMatchObject({ code: "parameter_not_in_enum", path: "durationSec", allowedValues: [6, 10] });
+  it("不在档里：确定性吸附到最近合法档（等距取更短省钱档），并产出结构化 adjustment 供 Agent 诚实告知用户", () => {
+    const down = admitAuthoredDurationWithAdjustment(candidate({ duration: 8 }), { duration: { type: "number", enum: [6, 10] } });
+    expect(down.candidate.parameters).toEqual({ duration: 6 });
+    expect(down.adjustment).toMatchObject({ field: "durationSec", requested: 8, applied: 6 });
+
+    const up = admitAuthoredDurationWithAdjustment(candidate({ duration: 9 }), { duration: { type: "enum", enum: ["6", "10"] } });
+    expect(up.candidate.parameters).toEqual({ duration: "10" });
+    expect(up.adjustment).toMatchObject({ field: "durationSec", requested: 9, applied: 10 });
   });
 
-  it("出了范围：拒，并说出范围", () => {
-    const error = refusalOf(() => admitAuthoredDuration(candidate({ duration: 30 }), { duration: { type: "number", min: 4, max: 15 } }));
-    expect(error.message).toContain("4～15 秒");
-    expect(error.rejection).toMatchObject({ code: "parameter_out_of_range", min: 4, max: 15 });
+  it("出了范围：确定性吸附到合法边界档，并产出结构化 adjustment（不盲抛错让模型猜重试）", () => {
+    const low = admitAuthoredDurationWithAdjustment(candidate({ duration: 3 }), { duration: { type: "number", min: 4, max: 15 } });
+    expect(low.candidate.parameters).toEqual({ duration: 4 });
+    expect(low.adjustment).toMatchObject({ field: "durationSec", requested: 3, applied: 4 });
+
+    const high = admitAuthoredDurationWithAdjustment(candidate({ duration: 30 }), { duration: { type: "number", min: 4, max: 15 } });
+    expect(high.candidate.parameters).toEqual({ duration: 15 });
+    expect(high.adjustment).toMatchObject({ field: "durationSec", requested: 30, applied: 15 });
   });
 
   it("这个模式没有时长参数：拒，叫 Agent 去掉时长（不悄悄丢掉）", () => {

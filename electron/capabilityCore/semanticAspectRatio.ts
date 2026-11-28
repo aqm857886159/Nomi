@@ -11,7 +11,12 @@
 //   · 比例控件 = 选项除自动档外全是比例的那个（几何判据在 `electron/shared/aspectRatioValue.ts`；界面分类另有导出）；
 //   · 翻不了（没有比例控件 / 值不在选项里 / 和 parameters 里真实键写的不一样）→ 当场拒，带合法值。
 // **不回落默认**：回落默认就是用户付钱拿到一张他没要的画幅——这一族缺陷本身。
-import { ASPECT_RATIO_SEMANTIC_KEY, resolveAspectRatioGeometryChoice } from "../shared/aspectRatioValue";
+import {
+  ASPECT_RATIO_SEMANTIC_KEY,
+  isAutoOptionValue,
+  readAspectRatioGeometry,
+  resolveAspectRatioGeometryChoice,
+} from "../shared/aspectRatioValue";
 import { ContractCompilationError, type PlanCandidate } from "./executionContract";
 import type { ParameterField } from "./moduleManifest";
 
@@ -19,8 +24,8 @@ const display = (value: unknown): string => (typeof value === "string" ? value :
 
 /**
  * 把候选里的语义比例翻成真实键，返回**新候选**（不原地改：候选常来自冻结的持久化对象）。
- * 没写比例 → 原样返回（同一个对象）。`parameterSchema` = 这个候选此刻接受的参数表
- * （`mcpGenerationVideoResolve.acceptedParameterSchema`）；空表 = 这个模型什么参数都没声明，翻不了，拒。
+ * 同样覆盖 Agent 直接把语义比例（如 `"9:16"`）写进像素档模型真实键（如 `parameters.size`）的情形，
+ * 复用与画布一致的 `resolveAspectRatioGeometryChoice`，不再因像素枚举名不字面相等而硬拒。
  */
 export function projectSemanticAspectRatio(
   candidate: PlanCandidate,
@@ -31,7 +36,30 @@ export function projectSemanticAspectRatio(
    */
   tierReference: Readonly<Record<string, unknown>> = {},
 ): PlanCandidate {
-  if (!Object.prototype.hasOwnProperty.call(candidate.parameters, ASPECT_RATIO_SEMANTIC_KEY)) return candidate;
+  const controls = Object.entries(parameterSchema).map(([key, field]) => ({
+    key, options: (field.enum ?? []).map((value) => ({ value })), defaultValue: field.default,
+  }));
+  const hasSemanticCarrier = Object.prototype.hasOwnProperty.call(candidate.parameters, ASPECT_RATIO_SEMANTIC_KEY);
+  if (!hasSemanticCarrier) {
+    for (const [directKey, rawDirect] of Object.entries(candidate.parameters)) {
+      const directField = parameterSchema[directKey];
+      if (
+        typeof rawDirect !== "string"
+        || !rawDirect.trim()
+        || !directField?.enum?.length
+        || directField.enum.some((entry) => Object.is(entry, rawDirect))
+        || (readAspectRatioGeometry(rawDirect) === null && !isAutoOptionValue(rawDirect))
+      ) {
+        continue;
+      }
+      const { [directKey]: _directRequested, ...directRest } = candidate.parameters;
+      const directChoice = resolveAspectRatioGeometryChoice(rawDirect, controls, { ...tierReference, ...directRest });
+      if (directChoice.ok && directChoice.key === directKey) {
+        return { ...candidate, parameters: { ...directRest, [directChoice.key]: directChoice.value } };
+      }
+    }
+    return candidate;
+  }
   const { [ASPECT_RATIO_SEMANTIC_KEY]: requested, ...rest } = candidate.parameters;
   const path = ASPECT_RATIO_SEMANTIC_KEY;
   const model = `${candidate.providerId}/${candidate.modelId}`;
@@ -42,9 +70,6 @@ export function projectSemanticAspectRatio(
       { code: "parameter_type_mismatch", path, expectedType: "string", allowedKeys },
     );
   }
-  const controls = Object.entries(parameterSchema).map(([key, field]) => ({
-    key, options: (field.enum ?? []).map((value) => ({ value })), defaultValue: field.default,
-  }));
   // `rest` 里调用方自己写着的真实键是「这一镜当前那一档」：像素档同比例多档时按它挑同档。
   const choice = resolveAspectRatioGeometryChoice(requested, controls, { ...tierReference, ...rest });
   if (!choice.ok) {

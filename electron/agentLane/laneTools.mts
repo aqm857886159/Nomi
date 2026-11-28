@@ -19,6 +19,8 @@
 // parse，就在这个唯一的出口——不是第二个形状验证器（ajv 刚验过形状，这里只会剩下组合错误），
 // 而是设计里本来就该有、却没人调用的那一次。
 import { formatSize, truncateHead, type AgentHarnessTool, type AgentToolResult } from '@earendil-works/pi-agent-core';
+import { makeStrictJsonSchema } from '@earendil-works/pi-ai/api/constrained-sampling';
+import type { TSchema } from 'typebox';
 import { logWarn } from '../logging/logger.js';
 import { LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES } from '../shared/agentLane/laneContracts.js';
 import {
@@ -160,6 +162,19 @@ export type LaneApprovalDecisionReader = (toolCallId: string) => LaneApprovalDec
  */
 export type LaneApprovalAnswerReader = (toolCallId: string) => string | undefined;
 
+/**
+ * 语法级约束采样派生：当工具发布 schema 可无损转为 strict JSON schema 时自动开启（采样期直接消除缺必填、多余未知键、类型跑偏），
+ * 含开放字典（如 `z.record`）的工具显式回退为 `false`。
+ */
+function deriveConstrainedSampling(parameters: TSchema): AgentHarnessTool<undefined>['constrainedSampling'] {
+  try {
+    makeStrictJsonSchema(parameters as unknown as Record<string, unknown>);
+    return { type: 'json_schema', strict: 'prefer' };
+  } catch {
+    return false;
+  }
+}
+
 export function createLaneTools(
   descriptors: readonly LaneToolDescriptor[],
   approvalDecision?: LaneApprovalDecisionReader,
@@ -206,6 +221,7 @@ export function createLaneTools(
       // #547 的数据说零示例的工具在复杂参数上就是填不对（35/35 零示例）。
       description: laneToolModelDescription(descriptor),
       parameters,
+      constrainedSampling: deriveConstrainedSampling(parameters),
       // 并行/串行**从同一个副作用声明派生**，和 `replay` 同一个派生点：写操作必须一个一个来
       // （两次并发写同一张画布必冲突），而读没有理由串行——「读画布 + 读时间轴 + 读文稿」
       // 这类扇出串起来就是白等三倍。上一版对**每一个**工具硬写 `'sequential'`，那是

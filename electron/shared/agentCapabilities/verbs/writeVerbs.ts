@@ -31,7 +31,7 @@ const generationParameters = z.record(z.union([z.string(), z.number(), z.boolean
 /** 一镜草稿：模型填的是**语义**（提示词/模型/参数/参考），候选身份由宿主按目录合成，与单镜路径同一个解析器。 */
 export const draftShotSchema = z.object({
   shotId: shotId.optional().describe("Shot id to revise; omit for a new shot."),
-  storyboard: storyboardModelFaceSchema.optional().describe("Original author fields; anchors require kind and carrier."),
+  storyboard: storyboardModelFaceSchema.optional().describe("Original storyboard fields; anchors require kind (character/scene/prop/style); shots may set anchorIds or keyframe."),
   title: z.string().trim().min(1).max(120).optional().describe("Short human title in the user's language, shown on the canvas node and spend card."),
   prompt: z.string().trim().min(1).max(8_000).optional().describe("Prompt in the user's language; required for a new shot."),
   // 2026-09-30（付费卡① 第 9 条）：种类不再按提示词猜。点名了模型（或 modeId）就由它定；两样都没点名时必须写明。
@@ -127,6 +127,15 @@ function rejectDuplicateShotFacts(args: unknown): Record<string, unknown> {
   };
   for (const shot of shots) {
     if (!shot || typeof shot !== "object") continue;
+    const shotRecord = shot as Record<string, unknown>;
+    if (shotRecord.storyboard && typeof shotRecord.storyboard === "object" && !Array.isArray(shotRecord.storyboard)) {
+      const sb = shotRecord.storyboard as Record<string, unknown>;
+      // 兼容旧调用方显式传冗余 `carrier: "visual"`（宿主默认就是 visual，不再让模型面为此背字段）。
+      if (sb.carrier === "visual") {
+        const { carrier: _defaultCarrier, ...restStoryboard } = sb;
+        shotRecord.storyboard = restStoryboard;
+      }
+    }
     const { durationSec, parameters } = shot as { durationSec?: unknown; parameters?: { duration?: unknown; aspectRatio?: unknown } };
     // 比例只有一个家：模型面上的 `aspectRatio`。`parameters.aspectRatio` 正是 2026-10-05 那次被静默吞掉的写法，
     // 现在当场说清，而不是替它挪过去——挪过去就又成了「同一件事写两处、宿主替它挑一个」。
@@ -174,7 +183,7 @@ export function writeVerbs(): VerbDeclaration[] {
       does: "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement.",
       useWhen: "Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references.",
       notWhen: "Drafts and draft edits are saved locally. Call generate only if the user explicitly asks to generate this turn. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot).",
-      params: "For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed).",
+      params: "For anchor role, include storyboard with kind (character/scene/prop/style); title names the anchor and prompt describes it. Shot continuity details (anchorIds, keyframe, ffDesc, lfDesc, motionDesc) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + shots with shotId: revise one or more existing shots in one call, sending only changed fields per shot (title/role are fixed).",
     },
     promptGuidelines: [...READ_GUIDELINES, ...CANVAS_NODE_PROMPT_GUIDELINES],
     schema: z.object({
@@ -213,11 +222,29 @@ export function writeVerbs(): VerbDeclaration[] {
       if (value.operationId === undefined && stray >= 0) {
         context.addIssue({ code: z.ZodIssueCode.custom, path: ["shots", stray, "shotId"], message: "shotId only addresses a shot inside an existing draft — pass operationId too, or omit shotId to create" });
       }
-      // 2026-10-05：带 operationId 有两种形状——改一镜（一镜、带 shotId）或补新镜头（都不带 shotId）。
-      // 这里之前不拦「带 shotId 的不止一镜」：传输层只改第一镜，其余悄悄丢掉（同一类：草稿身份上的静默丢字段）。
-      if (value.operationId !== undefined && stray >= 0 && value.shots.length > 1) {
-        context.addIssue({ code: z.ZodIssueCode.custom, path: ["shots"],
-          message: "revise one shot per call (operationId + one shot with its shotId); to add new shots, send them without shotId" });
+      // 带 operationId 有两种形状——按 shotId 改已有镜头（支持一次批量改多镜，每镜都带自己的 shotId），或补新镜头（都不带 shotId）。
+      // 严禁同一批混排「改已有镜头」和「补新镜头」，也严禁同一批重复同一个 shotId。
+      if (value.operationId !== undefined && stray >= 0) {
+        const missingShotId = value.shots.findIndex((shot) => shot.shotId === undefined);
+        if (missingShotId >= 0) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["shots", missingShotId, "shotId"],
+            message: "cannot mix revising existing shots (with shotId) and adding new shots (without shotId) in one call — give every revised shot its shotId, or omit shotId on all shots to append",
+          });
+        }
+        const seenShotIds = new Set<string>();
+        for (const [idx, shot] of value.shots.entries()) {
+          if (!shot.shotId) continue;
+          if (seenShotIds.has(shot.shotId)) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["shots", idx, "shotId"],
+              message: `duplicate shotId "${shot.shotId}" in one revision call — merge changes for the same shot into a single entry`,
+            });
+          }
+          seenShotIds.add(shot.shotId);
+        }
       }
       if (value.operationId !== undefined && value.newPlan === true) {
         context.addIssue({ code: z.ZodIssueCode.custom, path: ["newPlan"], message: "newPlan starts a separate plan — omit operationId" });

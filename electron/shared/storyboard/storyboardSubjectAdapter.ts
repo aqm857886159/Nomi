@@ -49,8 +49,9 @@ export function storyboardSubjectFromCandidate(input: {shotId: string; role?: 'a
   if (authored?.referenceBindings && candidate.references.length) throw new Error('storyboard_author_reference_fields_conflict')
   const common = {...fields,...(candidate.references.length ? {referenceBindings} : {})}
   if (input.role === 'anchor') {
-    if (!authored?.kind || !authored.carrier) throw new Error('storyboard_anchor_editorial_required: provide storyboard.kind and storyboard.carrier')
-    return planAnchorSchema.parse({...authored,...common,id:input.shotId,kind:authored.kind,carrier:authored.carrier,name:input.title ?? candidate.prompt,description:candidate.prompt})
+    if (!authored?.kind) throw new Error('storyboard_anchor_editorial_required: provide storyboard.kind')
+    const carrier = authored.carrier ?? 'visual'
+    return planAnchorSchema.parse({...authored,...common,id:input.shotId,kind:authored.kind,carrier,name:input.title ?? candidate.prompt,description:candidate.prompt})
   }
   if (authored?.kind || authored?.carrier) throw new Error('storyboard_subject_role_mismatch')
   // 时长经值门读（`paramSeconds`）：字符串时长档案上的 "12" 以前在这里落成 0。

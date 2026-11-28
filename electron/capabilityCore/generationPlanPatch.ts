@@ -4,14 +4,17 @@
 // 为什么单独成文件：`mcpGenerationTools.ts` 贴着 800 行门岗（R9），而这段逻辑本身是一个
 // 完整的单元（两种参数两种待遇那条分界线就住在这里），拆出来比塞在 handler 里更好读、可单测。
 import { admitPlanCandidate, type PlanCandidate } from "./executionContract";
+import type { DraftParameterAdjustment } from "./generationAuthoredDuration";
 import { admitExplicitModeInputs, normalizeAuthoredCandidate, stripParametersNotAccepted, videoCompileOptions } from "./mcpGenerationVideoResolve";
 import { admitShotIdentity, declaredModeForModel, resolvePatchedModel, type SemanticGenerationCandidateDeps } from "./semanticGenerationCandidate";
+import { refuseArgument } from "./transportFailure";
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
 import { resolveModelArchetype } from "../shared/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { statedMode } from "../shared/modelArchetypes/modeForInputs";
 import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
+import { generationTaskReference } from "../shared/agentCapabilities/taskReference";
 import { mergeNamedParameters, parameterChanges } from "../shared/generationParameterPatch";
 import type { ReferenceDemand } from "../shared/canvas/edgeAdmission";
 
@@ -52,6 +55,8 @@ export type PlanPatchResolution = {
   changeset?: Record<string, unknown>;
   /** 换的模型名不是一字不差落下的（大小写 / 别名 / 同名多家按默认落）：回执里告诉调用方落成了谁。 */
   modelNameResolved?: ResolvedModelName;
+  /** 时长等参数在合法边界上发生确定性吸附时返回给调用方的说明。 */
+  adjustments?: DraftParameterAdjustment[];
 };
 
 /**
@@ -121,9 +126,13 @@ export function resolvePlanPatch(input: {
   // 要清掉一个键必须显式写 `null`。付费卡每次带的是这一镜的完整参数集，合并与替换结果相同。
   // 点名的参数单独过语义翻译（比例 → 这个模式的真实键），与 create 两扇门同一个函数；原有参数只当「同一档」的参照。
   // 合并规则（点名的键覆盖、null 删键）与文稿方案改一镜是同一个函数（`mergeNamedParameters`）。
+  const adjustments: DraftParameterAdjustment[] = [];
   const normalizedIdentity = normalizeAuthoredCandidate({ ...stripped.candidate, parameters: {} }, registry, videoModelCandidates, undefined, { enforceExplicitModeInputs: false });
   const mergedParameters = mergeNamedParameters(kept, userPatch.parameters, (written) =>
-    normalizeAuthoredCandidate({ ...stripped.candidate, parameters: written }, registry, videoModelCandidates, kept, { enforceExplicitModeInputs: false }).parameters);
+    normalizeAuthoredCandidate({ ...stripped.candidate, parameters: written }, registry, videoModelCandidates, kept, {
+      enforceExplicitModeInputs: false,
+      noteAdjustment: (adj) => { adjustments.push(adj); },
+    }).parameters);
   const normalizedCandidate = { ...normalizedIdentity, parameters: mergedParameters } as PlanCandidate;
   const clearedParameters = stripped.cleared;
   const changedParameters = parameterChanges(baseCandidate.parameters, mergedParameters);
@@ -167,6 +176,7 @@ export function resolvePlanPatch(input: {
       },
     } : {}),
     ...(renamed?.resolved ? { modelNameResolved: renamed.resolved } : {}),
+    ...(adjustments.length ? { adjustments } : {}),
   };
 }
 
@@ -203,4 +213,104 @@ export async function normalizeStoredDraft(input: {
     current = await input.patch(input.projectId, input.operationId, { parameters: stripped.candidate.parameters }, input.now, unit.shotId);
   }
   return { operation: current, clearedParameters: [...cleared].sort() };
+}
+
+function recordObject(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) refuseArgument(`${label} must be an object.`);
+  return value as Record<string, unknown>;
+}
+
+/**
+ * 画布草稿的单镜或批量多镜原子改稿：全批先扫完准入（缺 shotId / 缺素材 / 非法参数一次合并报全且零脏写），
+ * 全部通过后再按序写回 store 并汇总 modelNamesResolved 与 adjustments。
+ */
+export async function executeCanvasPlanPatchBatch<Op extends {
+  operationId: string;
+  candidate: PlanCandidate;
+  shots?: ReadonlyArray<{ shotId: string; candidate: PlanCandidate }>;
+}>(input: {
+  current: Op;
+  params: Record<string, unknown>;
+  projectId: string;
+  operationId: string;
+  now: () => string;
+  registry: Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
+  videoModelCandidates?: readonly VideoModelCandidate[];
+  defaultModelForTaskKind?: SemanticGenerationCandidateDeps["defaultModelForTaskKind"];
+  resolvePatchReferences: (projectId: string, value: unknown) => PlanCandidate["references"];
+  applyPatch: (patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>, now: string, shotId?: string) => Op | Promise<Op>;
+}): Promise<Record<string, unknown>> {
+  const { current, params, projectId, operationId } = input;
+  const batchEntries = Array.isArray(params.patches)
+    ? params.patches.map((entry, idx) => {
+        const rec = recordObject(entry, `generation patches[${idx}]`);
+        const entryShotId = typeof rec.shotId === "string" && rec.shotId.trim() ? rec.shotId.trim() : undefined;
+        if (!entryShotId) refuseArgument(`patches[${idx}] requires shotId.`);
+        return { shotId: entryShotId, rawPatch: recordObject(rec.patch, `generation patches[${idx}].patch`) };
+      })
+    : [{
+        shotId: typeof params.shotId === "string" && params.shotId.trim() ? params.shotId.trim() : undefined,
+        rawPatch: recordObject(params.patch, "generation patch"),
+      }];
+
+  const resolvedBatch: Array<{ shotId?: string } & PlanPatchResolution> = [];
+  const failures: Array<{ index: number; shotId?: string; error: unknown }> = [];
+  const validShotIds = (current.shots ?? []).map((shot) => shot.shotId);
+
+  for (const [index, entry] of batchEntries.entries()) {
+    try {
+      const { references: patchedReferences, ...patchRest } = entry.rawPatch as
+        Partial<Omit<PlanCandidate, "candidateId" | "revision">> & { references?: unknown };
+      const userPatch: Partial<Omit<PlanCandidate, "candidateId" | "revision">> = patchedReferences === undefined
+        ? patchRest
+        : { ...patchRest, references: input.resolvePatchReferences(projectId, patchedReferences) };
+      const targetShot = entry.shotId ? current.shots?.find((shot) => shot.shotId === entry.shotId) : undefined;
+      if (entry.shotId && !targetShot) {
+        const available = validShotIds.length ? ` Available shotIds: ${validShotIds.join(", ")}.` : "";
+        refuseArgument(`Generation shot not found: ${entry.shotId}.${available} Read the draft again and copy a shotId it actually lists.`);
+      }
+      const baseCandidate = targetShot?.candidate ?? current.candidate;
+      const resolved = resolvePlanPatch({
+        baseCandidate,
+        userPatch,
+        registry: input.registry,
+        videoModelCandidates: input.videoModelCandidates,
+        ...(input.defaultModelForTaskKind ? { defaultModelForTaskKind: input.defaultModelForTaskKind } : {}),
+      });
+      resolvedBatch.push({ shotId: entry.shotId, ...resolved });
+    } catch (error) {
+      failures.push({ index, shotId: entry.shotId, error });
+    }
+  }
+
+  if (failures.length === 1 && batchEntries.length === 1) throw failures[0]!.error;
+  if (failures.length > 0) {
+    const detail = failures
+      .map((item) => `shots[${item.index}]${item.shotId ? ` (${item.shotId})` : ""}: ${item.error instanceof Error ? item.error.message : String(item.error)}`)
+      .join("; ");
+    refuseArgument(`${failures.length} shot revision(s) failed validation (nothing was changed — fix all listed shots in one call): ${detail}`);
+  }
+
+  let operation = current;
+  const resolvedNames: ResolvedModelName[] = [];
+  const adjustments: DraftParameterAdjustment[] = [];
+  const changesets: Array<Record<string, unknown>> = [];
+  for (const item of resolvedBatch) {
+    operation = await input.applyPatch(item.normalizedPatch, input.now(), item.shotId);
+    if (item.modelNameResolved) resolvedNames.push(item.modelNameResolved);
+    if (item.adjustments?.length) {
+      for (const adj of item.adjustments) adjustments.push(item.shotId ? { ...adj, shotId: item.shotId } : adj);
+    }
+    if (item.changeset) changesets.push(item.shotId ? { shotId: item.shotId, ...item.changeset } : item.changeset);
+  }
+
+  return {
+    operation,
+    taskRef: generationTaskReference(operation.operationId ?? operationId),
+    nextAction: "preview",
+    ...(batchEntries.length === 1 && resolvedBatch[0]?.changeset ? { changeset: resolvedBatch[0].changeset } : {}),
+    ...(batchEntries.length > 1 && changesets.length ? { changesets } : {}),
+    ...(resolvedNames.length ? { modelNamesResolved: resolvedNames } : {}),
+    ...(adjustments.length ? { adjustments } : {}),
+  };
 }

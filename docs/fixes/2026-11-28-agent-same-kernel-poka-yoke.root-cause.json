@@ -1,0 +1,464 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-agent-same-kernel-poka-yoke",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-28",
+  "recurrence_of": null,
+  "problem_type": "Split UI-vs-Agent parameter resolution, single-shot patch lock, half-blind Turn-1 ambient context, and bloated non-strict tool schemas causing preventable Agent tool rejections",
+  "symptom": "Over 70% of real-model Agent tool rejections came from host-derivable or deterministically snappable inputs: explicit modeId rejected for missing/synonymous taskKind, semantic aspectRatio (e.g. 9:16) or parameters.size rejected on pixel-enum models, out-of-step durationSec forcing blind retries, revise one shot per call blocking multi-shot revisions, serial first-error masking, Turn-1 model index omitting valid ratios/durations/slot caps and active subview focus, and redundant storyboard fields blocking strict sampling.",
+  "direct_cause": "Agent drafting in writeVerbs, semanticGenerationCandidate, semanticAspectRatio, and generationAuthoredDuration enforced separate punitive checks instead of sharing the canvas parameter/mode kernel, while laneModelContext omitted Turn-1 model specs/focus and laneTools left pi native constrainedSampling unused.",
+  "class_root": "Allowing the Agent write face to diverge from the UI node parameter kernel and shifting host-derivable invariants (modeId->taskKind, ratio->pixel geometry, nearest duration snap, storyboard visual carrier, batch patch iteration, grammar-constrained sampling) onto prompt prose and post-hoc rejection branches.",
+  "affected_population": [
+    "All Agent draft_shots single-shot, multi-shot, storyboard anchor, and batch-revision calls",
+    "Turn-1 generation requests relying on saved default models or active canvas/subview focus",
+    "All 20 strict-compatible internal Agent lane tools under pi AgentHarness"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneContextBudget.mts",
+    "electron/agentLane/laneDesktopInput.ts",
+    "electron/agentLane/laneModelContext.ts",
+    "electron/agentLane/laneTools.mts",
+    "electron/agentLane/laneVerbTransport.ts",
+    "electron/capabilityCore/generationAuthoredDuration.ts",
+    "electron/capabilityCore/generationDocumentPlan.ts",
+    "electron/capabilityCore/generationDraftAdmission.ts",
+    "electron/capabilityCore/generationPlanPatch.ts",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "electron/capabilityCore/semanticAspectRatio.ts",
+    "electron/capabilityCore/semanticGenerationCandidate.ts",
+    "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+    "electron/shared/agentCapabilities/modelArgumentTolerance.ts",
+    "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+    "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+    "electron/shared/agentLane/draftCanvasLanding.ts",
+    "electron/shared/aspectRatioValue.ts",
+    "electron/shared/generationShotKind.ts",
+    "electron/shared/storyboard/storyboardSubjectAdapter.ts"
+  ],
+  "entry_points": [
+    "draft_shots create / append / multi-shot batch patch via laneVerbTransport -> mcpGenerationTools",
+    "Turn-1 system model index and user ambient focus via laneModelContext / laneDesktopInput / laneContextBudget",
+    "AgentHarnessTool assembly with native constrainedSampling in createLaneTools"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "All changes unify Nomi's internal Agent capability kernel with Nomi's own canvas archetype/parameter owners and wire already-installed @earendil-works/pi-ai constrained-sampling APIs inspected directly in local node_modules.",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore",
+    "tests": [
+      "electron/agentLane/agentSameKernelPokaYoke.test.ts",
+      "electron/capabilityCore/generationAuthoredDuration.test.ts",
+      "electron/capabilityCore/semanticAspectRatio.test.ts",
+      "tests/experience-laws/intentShownEqualsDrafted.test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "rewrite",
+    "characterization_test": "electron/agentLane/agentSameKernelPokaYoke.test.ts"
+  },
+  "invariants": [
+    "Explicit modeId authoritatively derives taskKind from the shared archetype mode owner across image and video models; invalid modeId still fails closed with mode_not_in_model.",
+    "Semantic aspect ratios (both top-level aspectRatio and direct ratio strings on pixel-enum controls) map deterministically to the model's legal pixel option via resolveAspectRatioGeometryChoice.",
+    "Out-of-step or out-of-range positive durationSec snaps deterministically to the nearest legal model option/bound (tie-breaking to shorter duration), persists identically across draft/node/card, and emits structured adjustments in the tool receipt; models with no duration parameter still refuse.",
+    "draft_shots supports atomic multi-shot batch revisions in one call, and both multi-shot create and batch patch scan all shots in one pass to report all genuine hard errors (such as missing shotId/assetId) together with zero partial writes.",
+    "Turn-1 ambient context provides default model valid ratios, duration ranges/enums, resolutions, and slot caps within <=350 tokens plus active surface/subview focus, while createLaneTools enables native json_schema constrainedSampling on every strict-compatible verb and prose field paths stay 100% locked to published schemas."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "generationPlanInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
+      "symbol": "resolveCreateShots"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationPlanPatch.ts",
+      "symbol": "resolvePlanPatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "DraftCanvasLanding"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "generationPlanInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "DRAFT_CANVAS_LANDING_KEY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "resolveCreateShots"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+      "symbol": "generationPlanInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "createDocumentPlanAuthoring"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "createDraftAdmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "resolveCreateShots"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/semanticAspectRatio.ts",
+      "symbol": "resolveAspectRatioGeometryChoice"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "DraftCanvasLanding"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generation.ts",
+      "symbol": "generationPlanInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+      "symbol": "generationPlanInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/draftShotsProjection.ts",
+      "symbol": "generationPlanInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/verbProjections.ts",
+      "symbol": "generationPlanInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "symbol": "DIRECTOR_PLAN_MODEL_GUIDELINES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/draftCanvasLanding.ts",
+      "symbol": "DraftCanvasLanding"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/draftCanvasLanding.ts",
+      "symbol": "DRAFT_CANVAS_LANDING_KEY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/aspectRatioValue.ts",
+      "symbol": "resolveAspectRatioChoice"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "formatLaneAmbientFocus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "formatLaneModelIndex"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "formatLaneAmbientFocus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "verbToTransportCall"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "describeDraftCanvasLanding"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "draftCanvasLandingOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "summarizeDraftedShotsForModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "formatLaneModelIndex"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelContext.ts",
+      "symbol": "formatLaneModelIndex"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelRead.mts",
+      "symbol": "toModelVisibleSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "toModelVisibleSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "withDraftShotsDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+      "symbol": "createGenerationPlanningHandler"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/externalAgentGateTestUtils.ts",
+      "symbol": "createGenerationPlanningHandler"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationAuthoredDuration.ts",
+      "symbol": "admitAuthoredDurationWithAdjustment"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDocumentPlan.ts",
+      "symbol": "storyboardSubjectFromCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDocumentPlan.ts",
+      "symbol": "storyboardReferenceSlot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDomain.ts",
+      "symbol": "createGenerationPlanningHandler"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
+      "symbol": "normalizeAuthoredCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationPlanPatch.ts",
+      "symbol": "normalizeAuthoredCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "buildCreatedDraftReceipt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "executeCanvasPlanPatchBatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "createDraftAdmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "createDocumentPlanAuthoring"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "projectSemanticAspectRatio"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "admitAuthoredDurationWithAdjustment"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/semanticGenerationCandidate.ts",
+      "symbol": "taskKindForModeId"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/semanticGenerationCandidate.ts",
+      "symbol": "shotTaskKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelArgumentTolerance.ts",
+      "symbol": "unwrapWholeArguments"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "unwrapWholeArguments"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbDeclarations.ts",
+      "symbol": "writeVerbs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbs/directorStageShotFace.ts",
+      "symbol": "modelArgumentTolerance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbs/readVerbs.ts",
+      "symbol": "modelArgumentTolerance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "symbol": "modelArgumentTolerance"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/draftCanvasLanding.ts",
+      "symbol": "draftCanvasLandingOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationShotKind.ts",
+      "symbol": "taskKindForModeId"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "symbol": "storyboardReferenceSlot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "symbol": "patchStoryboardSubject"
+    }
+  ],
+  "door_reduction": {
+    "before": 59,
+    "after": 59,
+    "why_not": "The 59 doors are existing layered callers across verb declaration/projection, transport translation, draft admission (create/extend/patch), storyboard subject adaptation, ambient context formatting (live + compaction), and AgentHarness tool assembly; rather than adding new parallel doors, every layer now delegates to the same shared mode/aspect-ratio/duration/strict-schema owners."
+  },
+  "generality_proof": "Mode-to-taskKind derivation reads everyBuiltInArchetype + modeTransportFor once for all built-in and vendor-specialized models; pixel-ratio resolution reuses resolveAspectRatioGeometryChoice across all enum/pixel controls; duration snapping works generically on any ParameterField enum or min/max range; constrainedSampling derives automatically via makeStrictJsonSchema for all present and future lane tools; prose-to-schema test scans all internal verbs.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "symbol": "normalizeAuthoredCandidate",
+      "responsibility": "Single admission funnel normalizing mode, semantic/pixel aspectRatio, and snapped duration with structured adjustments across create, extend, and patch."
+    },
+    {
+      "path": "electron/shared/generationShotKind.ts",
+      "symbol": "resolveShotTaskKind",
+      "responsibility": "Authoritative modeId -> GenerationDefaultTaskKind derivation shared by shotTaskKind and statedShotTaskKind."
+    },
+    {
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "createLaneTools",
+      "responsibility": "Single AgentHarnessTool factory deriving native json_schema constrainedSampling for all strict-compatible tools."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/generationDraftAdmission.ts",
+      "entry_point": "createDraftAdmission",
+      "disposition": "enforced",
+      "evidence": "Both single-shot and multi-shot create/extend route through normalizeAuthoredCandidate with noteAdjustment and full-batch error aggregation."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "createGenerationPlanningHandler",
+      "disposition": "enforced",
+      "evidence": "Canvas operation patch and document storyboard patch both accept atomic multi-shot patches, aggregate errors across all shots before writing, and return adjustments."
+    },
+    {
+      "path": "electron/agentLane/laneModelContext.ts",
+      "entry_point": "formatLaneModelIndex",
+      "disposition": "enforced",
+      "evidence": "Turn-1 declared defaults carry compact ratio/duration/resolution/slot specs (<=350 tokens) and formatLaneAmbientFocus projects active surface/selection/subview focus."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new model archetype, multi-shot revision request, Turn-1 creation prompt, or verb prose edit hits these exact boundaries unless enforced structurally.",
+    "same_class_scan": [
+      "Audited all 101 real-model tool rejections and R2 trajectories across writeVerbs, semanticGenerationCandidate, semanticAspectRatio, and generationAuthoredDuration",
+      "Scanned all 29 verbs with makeStrictJsonSchema to classify 26 strict-compatible verbs vs 3 open-record verbs",
+      "Scanned all 22 internal verbs' prose descriptions, promptGuidelines, JSON pointers, and examples against published JSON schemas (caught and fixed stage_shot setPieces[].kind and 2 walkthrough fixtures)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+    "invariant": "Agent drafting shares the canvas mode/ratio/duration resolution kernel, admits multi-shot revisions and full-batch error reporting atomically, injects Turn-1 model/focus facts, and locks verb prose and strict sampling at assembly.",
+    "failure_mode": "Genuine hard errors (unknown model/mode, missing shotId/assetId, unsupported ratio or non-duration model) fail closed across the full batch with charged=false and actionable allowed values.",
+    "exception_policy": "none",
+    "strategy": "Delete single-shot revision lock and redundant storyboard carrier fields in-place, route mode/ratio/duration admission through shared owners with explicit adjustments, enrich Turn-1 ambient context, and lock prose-schema parity + constrainedSampling in CI.",
+    "artifacts": [
+      "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "electron/capabilityCore/generationAuthoredDuration.ts",
+      "electron/capabilityCore/semanticAspectRatio.ts",
+      "electron/shared/generationShotKind.ts",
+      "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "electron/agentLane/laneModelContext.ts",
+      "electron/agentLane/laneTools.mts",
+      "electron/agentLane/agentSameKernelPokaYoke.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/agentSameKernelPokaYoke.test.ts",
+    "electron/capabilityCore/generationAuthoredDuration.test.ts",
+    "electron/capabilityCore/generationDomainRefusalReachesModel.test.ts",
+    "electron/shared/agentCapabilities/malformedJsonArgument.test.ts",
+    "tests/experience-laws/intentShownEqualsDrafted.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/agentSameKernelPokaYoke.test.ts",
+    "tests/experience-laws/intentShownEqualsDrafted.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Removed the revise-one-shot-per-call lock, redundant storyboard model-face fields, and punitive duration/pixel-ratio rejection branches in-place within their owning modules; no standalone file was deleted."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "0.85.1",
+    "target": ">=1.7.0",
+    "rationale": "Per workspace no-download constraint, native constrainedSampling is enabled now on @earendil-works/pi-ai@0.85.1 via makeStrictJsonSchema for 20/22 internal tools while pi 1.7.0 upgrade lands in a dedicated PR after user confirmation.",
+    "exit_criteria": [
+      "Upgrade @earendil-works/pi-agent-core and @earendil-works/pi-ai to >=1.7.0 in a dedicated PR once user confirms package download",
+      "Re-evaluate constrainedSampling coverage on open-record verbs after upstream upgrade"
+    ]
+  },
+  "migration": "Existing persisted drafts, canvas nodes, and storyboard designs require zero data migration: storyboardSubjectFromCandidate still accepts legacy carrier='visual' while defaulting omitted carrier to 'visual', prepareArguments strips redundant legacy carrier='visual', and single-shot patch wire calls remain byte-compatible alongside new batch patches.",
+  "residual_risks": [
+    "Three verbs with open record dictionaries (draft_shots shots[].parameters, stage_shot actors[].anchors / edits[].value, and MCP-only try_model params) remain constrainedSampling=false because JSON Schema strict mode forbids open additionalProperties."
+  ]
+}

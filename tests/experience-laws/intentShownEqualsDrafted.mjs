@@ -117,6 +117,7 @@ export async function observeIntent(world, intent) {
     if (!created?.ok) return { refused: true, refusal: JSON.stringify(created), said }
     await spend.canvasLanding.settleCanvasLanding(PROJECT_ID)
     const operation = created.result.operation
+    const durationAdjustment = (created.result.adjustments ?? []).find((item) => item.field === 'durationSec')
     const generateCall = verbToTransportCall({ toolCallId: 'law10-present', toolName: 'generate', args: { operationId: operation.operationId } }, world.entries)
     await callTool(transport, generateCall.call.toolName, generateCall.call.args)
     await spend.canvasLanding.settleCanvasLanding(PROJECT_ID)
@@ -159,8 +160,16 @@ export async function observeIntent(world, intent) {
       references: undefined,
       aspectRatio: aspectOf({ aspectRatio: facts?.aspect })?.ratio,
     }
-    return { refused: false, said, draft, node, card: cardView,
-      raw: { draft: draftShots[0].candidate, node: firstNode, card: facts } }
+    const adjustedDurationSec = durationAdjustment !== undefined ? Number(durationAdjustment.applied) : undefined
+    return {
+      refused: false,
+      said,
+      ...(adjustedDurationSec !== undefined ? { adjustedDurationSec, snapped: { durationSec: adjustedDurationSec } } : {}),
+      draft,
+      node,
+      card: cardView,
+      raw: { draft: draftShots[0].candidate, node: firstNode, card: facts },
+    }
   } finally {
     resetSpendFixture()
   }
@@ -195,10 +204,11 @@ export const NOT_CARRIED_BY_DESIGN = Object.freeze({
  */
 export function violationsOf(observation) {
   if (observation.refused) return []
+  const expected = observation.snapped ? { ...observation.said, ...observation.snapped } : observation.said
   const out = []
   for (const stationName of ['draft', 'node', 'card']) {
     for (const field of INTENT_FIELDS) {
-      const cell = compareStation(observation.said, observation[stationName], field)
+      const cell = compareStation(expected, observation[stationName], field)
       if (cell.verdict === 'differs') out.push(`${stationName}.${field}:differs(${cell.said}→${cell.shown})`)
       if (cell.verdict === 'not-carried' && !NOT_CARRIED_BY_DESIGN[`${stationName}.${field}`]) out.push(`${stationName}.${field}:dropped`)
     }

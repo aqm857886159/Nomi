@@ -170,9 +170,25 @@ function anchorDemandsForDraftShot(shot: DraftShotLike, allShots: readonly Draft
   return demands;
 }
 
+function draftParameterAdjustmentsOf(result: unknown): Array<{ shotId?: string; field: string; requested: unknown; applied: unknown; reason?: string }> {
+  const record = isRecord(result) ? result : undefined;
+  const container = record && isRecord(record.drafted) ? record.drafted : record;
+  const raw = Array.isArray(container?.adjustments) ? container.adjustments : Array.isArray(record?.adjustments) ? record.adjustments : [];
+  return raw.flatMap((entry) => {
+    if (!isRecord(entry) || typeof entry.field !== "string") return [];
+    return [{
+      ...(typeof entry.shotId === "string" ? { shotId: entry.shotId } : {}),
+      field: entry.field,
+      requested: entry.requested,
+      applied: entry.applied,
+      ...(typeof entry.reason === "string" ? { reason: entry.reason } : {}),
+    }];
+  });
+}
+
 /**
  * 给模型看的 `draft_shots` 回执置顶第 1 段：按保存的草稿逐镜写出有效值（方式、参考件数/槽位、
- * 显式传的值、档案补上的默认值、以及纯图生空卡的 `NEEDS_INPUT` 缺口）。
+ * 显式传的值、档案补上的默认值、参数确定性吸附记录 `adjustments`、以及纯图生空卡的 `NEEDS_INPUT` 缺口）。
  * 标题依宿主确认的逐镜节点映射，只有每镜均有节点时才称已落地。
  * 严格复用 `modeForInputs` + `slotCountsForMode` + `effectiveModeParams` + `validateModeConstraints`，不另算一份。
  */
@@ -180,6 +196,7 @@ export function summarizeDraftedShotsForModel(result: unknown): string | undefin
   const shots = draftShotsFromResult(result);
   if (shots.length === 0) return undefined;
   const landing = draftCanvasLandingOf(result);
+  const adjustments = draftParameterAdjustmentsOf(result);
   const nodeByShot = new Map(landing?.state === "placed" ? landing.nodes.map((node) => [node.shotId, node.nodeId] as const) : []);
   const lines = shots.map((shot, index) => {
     const { candidate } = shot;
@@ -237,5 +254,12 @@ export function summarizeDraftedShotsForModel(result: unknown): string | undefin
   const heading = shots.every((shot) => nodeByShot.has(shot.shotId))
     ? "Landed draft summary (effective values from the saved draft):"
     : "Saved draft summary (effective values from the saved draft):";
-  return [heading, ...lines].join("\n");
+  const adjustmentLines = adjustments.length
+    ? [
+        "Parameter adjustments applied (snapped to nearest valid model option — tell the user honestly):",
+        ...adjustments.map((adj) =>
+          `- ${adj.shotId ? `${adj.shotId} ` : ""}${adj.field}: requested ${JSON.stringify(adj.requested)} -> applied ${JSON.stringify(adj.applied)}${adj.reason ? ` (${adj.reason})` : ""}`),
+      ]
+    : [];
+  return [heading, ...lines, ...adjustmentLines].join("\n");
 }

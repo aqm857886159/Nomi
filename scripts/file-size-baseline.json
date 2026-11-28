@@ -109,8 +109,8 @@
     },
     "electron/capabilityCore/mcpGenerationTools.ts": {
       "kind": "frozen",
-      "max": 860,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 860（2026-11-24 Q-smell 味道④：拆解 planningForCall 上帝函数并将纯投影/门禁回执收进 mcpGenerationProjections.ts）",
+      "max": 841,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 841（2026-11-28：将画布批量改稿与新建草稿回执收进 generationPlanPatch / generationDraftAdmission）",
       "topDeclarations": [
         {
           "name": "planningForCall",
@@ -119,10 +119,6 @@
         {
           "name": "handleGateRequestOperation",
           "lines": 98
-        },
-        {
-          "name": "createMultiShotDraftOperation",
-          "lines": 61
         }
       ]
     },
