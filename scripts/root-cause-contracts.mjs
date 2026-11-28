@@ -2,6 +2,20 @@ import path from "node:path";
 
 export const ROOT_CAUSE_CONTRACT_SCHEMA_VERSION = 3;
 
+/**
+ * 源头无错（Poka-Yoke / Impossible by Construction）判据起点（2026-11-29 起新合同强制必填；
+ * 任何显式携带 poka_yoke_tier / source_mechanism / why_not_impossible_by_construction 的合同即刻校验）。
+ * 彻底区分「源头结构不可发生（删分叉路径 / TS 类型或 Schema 物理不可表达 / 共用唯一解析核）」与「事后扫描拦截」，
+ * 并对「只写文字/规则文档充当防线」或「事后门岗未说明为何不能在源头消灭错误路径」直接硬红阻断。
+ */
+export const POKA_YOKE_SINCE = "2026-11-29";
+export const POKA_YOKE_TIERS = ["impossible-by-construction", "post-hoc-gate"];
+export const POKA_YOKE_SOURCE_MECHANISMS = ["route-deletion", "type-or-schema", "shared-core"];
+
+const POST_HOC_ONLY_PREVENTION_KINDS = new Set(["static-gate", "runtime-assertion"]);
+const PROSE_OR_POLICY_ONLY_PATH = /^(?:CLAUDE|AGENTS)\.md$|^docs\/|\.md$|^\.(?:agents|claude|Codex)\//i;
+const PLACEHOLDER_MARKER = /\b(?:TODO|TBD|FIXME)\b/i;
+
 const PREVENTION_KINDS = new Set([
   "centralized-boundary",
   "schema-validation",
@@ -201,14 +215,67 @@ function validateStructuralContract(contract, changed, existingFiles, label, fil
   return errors;
 }
 
-function isStructuralPreventionArtifact(file) {
-  const name = normalized(file);
-  return !isTestFile(name)
-    && !name.endsWith(".md")
-    && !/^docs\/fixes\/.*\.root-cause\.json$/i.test(name);
+function isProseOrPolicyOnlyPath(file) {
+  return PROSE_OR_POLICY_ONLY_PATH.test(normalized(file));
 }
 
-function validateRecurringContract(contract, changed, existingFiles, label) {
+function isStructuralPreventionArtifact(file) {
+  const name = normalized(file);
+  return !isTestFile(name) && !isProseOrPolicyOnlyPath(name);
+}
+
+function validatePokaYokePrevention(contract, prevention, label, fileDate) {
+  const errors = [];
+  if (isProseOrPolicyOnlyPath(prevention.enforcement_path)) {
+    errors.push(`${label}: prevention enforcement_path cannot be prose, rule docs, or skill markdown (${prevention.enforcement_path}); enforce in code, schema, shared core, or executable gate`);
+  }
+  if ([prevention.invariant, prevention.failure_mode, prevention.strategy].some((text) => PLACEHOLDER_MARKER.test(String(text || "")))) {
+    errors.push(`${label}: recurring prevention fields must not contain TODO/TBD/FIXME placeholders`);
+  }
+
+  const hasPokaYokeFields = prevention.poka_yoke_tier !== undefined
+    || prevention.source_mechanism !== undefined
+    || prevention.why_not_impossible_by_construction !== undefined;
+  const requiresPokaYoke = Boolean(fileDate && fileDate >= POKA_YOKE_SINCE) || hasPokaYokeFields;
+  if (!requiresPokaYoke) return errors;
+
+  if (!POKA_YOKE_TIERS.includes(prevention.poka_yoke_tier)) {
+    errors.push(`${label}: prevention.poka_yoke_tier is required and must be one of ${POKA_YOKE_TIERS.join(" | ")} (distinguish impossible-by-construction at source from post-hoc-gate scanning)`);
+    return errors;
+  }
+
+  if (prevention.poka_yoke_tier === "impossible-by-construction") {
+    if (POST_HOC_ONLY_PREVENTION_KINDS.has(prevention.kind)) {
+      errors.push(`${label}: prevention.poka_yoke_tier "impossible-by-construction" cannot use post-hoc kind "${prevention.kind}"; either enforce via type-system/schema-validation/centralized-boundary or declare "post-hoc-gate" with why_not_impossible_by_construction`);
+    }
+    if (!POKA_YOKE_SOURCE_MECHANISMS.includes(prevention.source_mechanism)) {
+      errors.push(`${label}: impossible-by-construction prevention requires source_mechanism (${POKA_YOKE_SOURCE_MECHANISMS.join(" | ")})`);
+    } else if (prevention.source_mechanism === "route-deletion") {
+      const removedLegacy = contract?.legacy_paths?.status === "removed" && nonEmptyTextArray(contract?.legacy_paths?.removed_paths);
+      const reducedDoors = Number.isInteger(contract?.door_reduction?.before)
+        && Number.isInteger(contract?.door_reduction?.after)
+        && contract.door_reduction.after < contract.door_reduction.before;
+      if (!removedLegacy && !reducedDoors) {
+        errors.push(`${label}: source_mechanism "route-deletion" requires concrete deletion evidence (legacy_paths.status === "removed" or door_reduction.after < door_reduction.before)`);
+      }
+    }
+    if (prevention.why_not_impossible_by_construction !== undefined) {
+      errors.push(`${label}: impossible-by-construction prevention must omit why_not_impossible_by_construction`);
+    }
+    return errors;
+  }
+
+  if (prevention.source_mechanism !== undefined) {
+    errors.push(`${label}: post-hoc-gate prevention must omit source_mechanism`);
+  }
+  const rationale = prevention.why_not_impossible_by_construction;
+  if (!nonEmptyText(rationale) || rationale.trim().length < 16 || PLACEHOLDER_MARKER.test(rationale)) {
+    errors.push(`${label}: post-hoc-gate prevention requires substantive why_not_impossible_by_construction (>=16 chars, no TODO) explaining why types, schemas, route deletion, or a shared core cannot eliminate the error path at source`);
+  }
+  return errors;
+}
+
+function validateRecurringContract(contract, changed, existingFiles, label, fileDate = null) {
   const errors = [];
   const scopePaths = Array.isArray(contract?.scope_paths) ? contract.scope_paths : [];
   const regressionTests = Array.isArray(contract?.regression_tests) ? contract.regression_tests : [];
@@ -278,6 +345,7 @@ function validateRecurringContract(contract, changed, existingFiles, label) {
     if (!artifacts.some(isStructuralPreventionArtifact)) {
       errors.push(`${label}: recurring repairs require changed structural prevention, not only tests or documentation`);
     }
+    errors.push(...validatePokaYokePrevention(contract, prevention, label, fileDate));
   }
 
   const classTests = Array.isArray(contract?.class_regression_tests) ? contract.class_regression_tests : [];
@@ -541,6 +609,8 @@ const BLOCKING_PATTERNS = [
   /recurrence_of/,
   /detected_by|recurrence_check_on/,
   /legacy/,
+  /recurring prevention requires|recurring prevention fields must not|prevention enforcement_path cannot be prose|recurring repairs require changed structural prevention/,
+  /poka_yoke_tier|source_mechanism|why_not_impossible_by_construction/,
 ];
 export function classifyFindings(errors) {
   const blocking = [];
@@ -768,7 +838,7 @@ function validateContract(contract, changed, existingFiles, index, fileContents)
   }
   if (contract?.schema_version === ROOT_CAUSE_CONTRACT_SCHEMA_VERSION) {
     if (recurrence?.classification === "recurring") {
-      errors.push(...validateRecurringContract(contract, changed, existingFiles, label));
+      errors.push(...validateRecurringContract(contract, changed, existingFiles, label, fileDate));
     } else if (recurrence?.classification === "one_off" && contract.prevention !== undefined) {
       errors.push(`${label}: proven one_off contracts must omit prevention rather than inventing a reusable boundary`);
     }

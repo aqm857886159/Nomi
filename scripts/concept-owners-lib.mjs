@@ -84,7 +84,7 @@ const FORBIDDEN_KINDS = new Set(['definition', 'reference'])
 
 const CONCEPT_KEYS = new Set([
   'name', 'subject', 'lifecycle', 'authority_kind', 'trust_domain', 'fact_kind', 'migration_status',
-  'migration_strategy', 'owner', 'write_api', 'forbidden_derivations', 'identity_fields', 'parity_test',
+  'migration_strategy', 'supersedes', 'owner', 'write_api', 'forbidden_derivations', 'identity_fields', 'parity_test',
   'allowed_consumers', 'since', 'notes', 'exception_deadlines',
 ])
 const REQUIRED_KEYS = [
@@ -179,6 +179,13 @@ export function validateRegistry(registry, { exists }) {
     }
     if (concept.migration_strategy !== undefined && !text(concept.migration_strategy, 12)) {
       invalid('migration_strategy 写了就要写实（至少 12 个字符）', label)
+    }
+    if (concept.supersedes !== undefined) {
+      const validSupersedes = text(concept.supersedes, 8)
+        || (Array.isArray(concept.supersedes) && concept.supersedes.length > 0 && concept.supersedes.every((item) => text(item, 8)))
+      if (!validSupersedes) {
+        invalid('supersedes 写了就必须是非空字符串或非空字符串数组（每条至少 8 个字符，写明被替换的旧决定 / 旧主人 / 旧板）', label)
+      }
     }
     if (concept.since !== undefined && !DATE_PATTERN.test(String(concept.since))) invalid(`since 必须是 YYYY-MM-DD：${concept.since}`, label)
     if (concept.notes !== undefined && !text(concept.notes)) invalid('notes 不能为空', label)
@@ -804,16 +811,32 @@ export function evaluateHistory({ baseline, referenceBaseline, concepts, referen
       findings.push(finding('baseline-grew', { path: entry.path, symbol: entry.symbol, message: `unregistered_boundaries 比参照提交多了 ${boundaryKey(entry)}——存量债只许变少，新边界要当场登记，别抬基线（R17.0）` }))
     }
   }
+  const currentClaimed = writeApiIndex(concepts)
   for (const reference of referenceConcepts) {
     if (!reference?.owner) continue
-    const stillRegistered = concepts.some((concept) => matchReferenceConcept(concept, [reference]))
-    if (stillRegistered) continue
-    if (ownerStillDefined(reference.owner.path, reference.owner.symbol)) {
-      findings.push(finding('concept-dropped', {
-        concept: reference.name,
+    const matched = concepts.find((concept) => matchReferenceConcept(concept, [reference]))
+    if (!matched) {
+      if (ownerStillDefined(reference.owner.path, reference.owner.symbol)) {
+        findings.push(finding('concept-dropped', {
+          concept: reference.name,
+          path: reference.owner.path,
+          symbol: reference.owner.symbol,
+          message: `概念「${reference.name}」从登记表里消失了，但它的主人还在——撤销登记要先把主人收掉或并进别的概念`,
+        }))
+      }
+      continue
+    }
+    const oldOwnerPair = pairKey(reference.owner.path, reference.owner.symbol)
+    const newOwnerPair = matched.owner ? pairKey(matched.owner.path, matched.owner.symbol) : null
+    if (oldOwnerPair !== newOwnerPair
+      && referenceStatus(matched) === 'converged'
+      && !currentClaimed.has(oldOwnerPair)
+      && ownerStillDefined(reference.owner.path, reference.owner.symbol)) {
+      findings.push(finding('superseded-owner-retained', {
+        concept: matched.name,
         path: reference.owner.path,
         symbol: reference.owner.symbol,
-        message: `概念「${reference.name}」从登记表里消失了，但它的主人还在——撤销登记要先把主人收掉或并进别的概念`,
+        message: `概念「${matched.name}」的主人已从 ${oldOwnerPair} 换到 ${newOwnerPair}，但旧主人的定义仍在代码里且未被任何概念认领——推翻旧决定做单源演进时必须同提交删掉旧实现，不留兼容双轨（P1 / R33）`,
       }))
     }
   }

@@ -1,0 +1,32 @@
+{
+  "name": "根因合同源头无错（Poka-Yoke）结构判据与阻断分类",
+  "subject": "delivery.root-cause-poka-yoke",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/root-cause-contracts.mjs",
+    "symbol": "validateRootCauseChange"
+  },
+  "write_api": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "validateRootCauseChange"
+    },
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "classifyFindings"
+    }
+  ],
+  "parity_test": "scripts/check-root-cause-contracts.node-test.mjs",
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "scripts/check-root-cause-contracts.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/new-root-cause-contract.node-test.mjs"
+  ],
+  "since": "2026-11-28",
+  "notes": "schema v3 根因合同的源头无错分层判据统一归 scripts/root-cause-contracts.mjs#validateRootCauseChange 与 classifyFindings：明确区分源头结构不可发生（impossible-by-construction：route-deletion / type-or-schema / shared-core）与事后拦截（post-hoc-gate 必填 why_not_impossible_by_construction），并将只写文字纪律/规则文档充当防线直接判为硬红阻断，零新增独立串行子进程门岗。"
+}
