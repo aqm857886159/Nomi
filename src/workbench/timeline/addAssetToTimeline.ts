@@ -5,6 +5,7 @@ import { parseAssetLibraryDrag, type AssetLibraryDragPayload } from '../assets/a
 import { materializeAssetLibraryItems } from '../assets/assetLibraryMaterialize'
 import type { AssetKind, AssetRef } from '../assets/assetTypes'
 import { useWorkbenchStore } from '../workbenchStore'
+import { trackTimelineAdopted } from '../adoption/adoptGenerationNode'
 import { buildClipFromAssetRef } from './buildClipFromAssetRef'
 import { findAppendFrame } from './timelineMath'
 import type { TimelineClip, TimelineState, TimelineTrackType } from './timelineTypes'
@@ -85,6 +86,7 @@ export async function addAssetToTimeline(
   const clip = await buildAssetTimelineClip(asset, options)
   if (!clip || !isProjectExecutionContextCurrent(project)) return null
   useWorkbenchStore.getState().addTimelineClipAtFrame(clip, clip.type, options.startFrame)
+  trackTimelineAdopted(clip.type, asset.source === 'canvas' ? 'canvas' : 'import')
   return clip
 }
 
@@ -105,6 +107,7 @@ export async function addAssetToTimelineEnd(asset: AssetRef, project: ProjectExe
   const startFrame = findAssetAppendFrame(store.timeline, clip.type)
   store.addTimelineClipAtFrame(clip, clip.type, startFrame)
   store.setTimelinePanelCollapsed(false)
+  trackTimelineAdopted(clip.type, asset.source === 'canvas' ? 'canvas' : 'import')
   return true
 }
 

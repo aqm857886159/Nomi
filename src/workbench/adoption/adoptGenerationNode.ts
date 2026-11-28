@@ -1,6 +1,8 @@
+import type { CapabilitySlot, TimelineAdoptedSource } from '../../../electron/shared/contracts/telemetry'
+import { getDesktopBridge } from '../../desktop/bridge'
 import { buildGenerationNodeTimelineClip } from '../timeline/buildGenerationNodeTimelineClip'
 import { findAppendFrame } from '../timeline/timelineMath'
-import { getTrackTypeForClipType } from '../timeline/timelineTypes'
+import { getTrackTypeForClipType, type TimelineClip } from '../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
 import { applyAdoption } from './adoptionApply'
@@ -24,6 +26,33 @@ import type { AdoptionApplyPorts, AdoptionOutcome } from './adoptionTypes'
  * 变的是它们背后从「直接写轴」变成「提案 → 查四道闸 → 原子写 → 回执带撤销」。
  */
 
+export function capabilityOfAdoptedNode(
+  node: Pick<GenerationCanvasNode, 'result' | 'meta'> | undefined,
+  clipType: TimelineClip['type'],
+): CapabilitySlot {
+  const rawKind = String(
+    (node?.result as { taskKind?: unknown } | undefined)?.taskKind
+    ?? node?.meta?.taskKind
+    ?? node?.result?.provenance?.params?.taskKind
+    ?? '',
+  )
+  if (rawKind === 'image_edit') return 'image-edit'
+  if (clipType === 'video') return 'video'
+  if (clipType === 'audio') return 'audio'
+  return 'image'
+}
+
+export function trackTimelineAdopted(capability: CapabilitySlot, source: TimelineAdoptedSource): void {
+  try {
+    void getDesktopBridge()?.telemetry?.track({
+      eventName: 'timeline.adopted',
+      props: { capability, source },
+    })
+  } catch {
+    /* ignore */
+  }
+}
+
 type AdoptGenerationNodePlacement =
   | { kind: 'append' }
   | { kind: 'frame'; startFrame: number }
@@ -31,6 +60,7 @@ type AdoptGenerationNodePlacement =
 type AdoptGenerationNodeOptions = {
   placement?: AdoptGenerationNodePlacement
   ports?: AdoptionApplyPorts
+  source?: Extract<TimelineAdoptedSource, 'canvas' | 'agent'>
 }
 
 let appendChain: Promise<void> = Promise.resolve()
@@ -39,6 +69,7 @@ async function runAdoptGenerationNode(
   node: GenerationCanvasNode,
   ports: AdoptionApplyPorts,
   placement: AdoptGenerationNodePlacement,
+  source: Extract<TimelineAdoptedSource, 'canvas' | 'agent'>,
 ): Promise<AdoptionOutcome> {
   const result = node.result
   if (!result || !result.url) {
@@ -124,6 +155,7 @@ async function runAdoptGenerationNode(
       placedCount: 1,
       appliedRevision: timelineRevisionOf(applied.timeline),
     })
+    trackTimelineAdopted(capabilityOfAdoptedNode(node, clip.type), source)
     return { status: 'applied', proposal, replayed: false }
   }
   const status = applied.recovered ? 'failed' : 'needs_recovery'
@@ -139,10 +171,11 @@ export async function adoptGenerationNode(
 ): Promise<AdoptionOutcome> {
   const ports = options.ports || createWorkbenchAdoptionPorts()
   const placement = options.placement || { kind: 'append' }
+  const source = options.source || 'canvas'
   if (placement.kind !== 'append') {
-    return runAdoptGenerationNode(node, ports, placement)
+    return runAdoptGenerationNode(node, ports, placement, source)
   }
-  const task = appendChain.then(() => runAdoptGenerationNode(node, ports, placement))
+  const task = appendChain.then(() => runAdoptGenerationNode(node, ports, placement, source))
   appendChain = task.then(() => undefined, () => undefined)
   return task
 }

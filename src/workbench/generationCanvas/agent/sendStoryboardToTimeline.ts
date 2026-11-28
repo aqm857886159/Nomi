@@ -101,6 +101,7 @@ export async function arrangeStoryboardToTimeline(
     startFrame,
     readNodes: () => useGenerationCanvasStore.getState().nodes,
     assertCanApply: options.assertCanApply,
+    source: options.assertCanApply ? 'agent' : 'storyboard',
   })
   return toResult(outcome, units.length)
 }

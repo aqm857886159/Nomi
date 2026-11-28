@@ -13,6 +13,10 @@
   "write_api": [
     {
       "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "deriveLaneTrace"
+    },
+    {
+      "path": "electron/agentLane/laneTrace.mts",
       "symbol": "writeTraceFile"
     }
   ],

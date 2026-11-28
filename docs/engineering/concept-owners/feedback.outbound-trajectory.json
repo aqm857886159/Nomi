@@ -1,0 +1,30 @@
+{
+  "name": "一键反馈带出机器的 Agent 诊断投影（闭合错误码与工具失败码白名单）",
+  "subject": "feedback.outbound-trajectory",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/telemetry/trajectoryProjection.ts",
+    "symbol": "projectTrajectoryTurn"
+  },
+  "write_api": [
+    {
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "symbol": "projectTrajectoryTurn"
+    },
+    {
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "symbol": "projectLaneTrajectory"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/telemetry/trajectoryProjection.test.ts",
+  "allowed_consumers": [
+    "electron/feedback/feedbackReport.ts"
+  ],
+  "since": "2026-11-28",
+  "notes": "合同 docs/fixes/2026-11-28-agent-trajectory-error-codes.root-cause.json：唯一把本机 deriveLaneTrace 产出的会话诊断投影成反馈包附件的出站白名单门卫，只放行 TELEMETRY_IDENTIFIER_PATTERN 闭合工具失败码与 OUTBOUND_ERROR_KIND 闭合回合错误类别，并二次过 redactLogValue，任何自由文本或路径一律丢弃。"
+}

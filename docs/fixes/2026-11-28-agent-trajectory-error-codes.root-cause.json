@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-agent-trajectory-error-codes",
+  "problem_type": "Agent 派生记录与反馈包出站投影漏接立即工具失败门与结构化上游诊断词表",
+  "symptom": "线上反馈包附件的 Agent 诊断投影中，16/16 次工具失败的 nomi.tool.failure_code 为 null，32/32 个错误回合的 nomi.turn.error_kinds 为空数组，无法区分参数形状拒收、连续失败熔断、审批策略拒绝、鉴权失败、限流或上游 5xx。",
+  "direct_cause": "laneTrace.mts 仅从 after_tool 挂入的 message.details.failure 读取工具失败码，而 pi 的 prepareArguments 形状校验拒收、熔断拦截、领域准备拒收与审批策略拒绝均作为立即结果跳过 after_tool，导致 details 为空；同时 laneTrace.mts 忽略了 AssistantMessage.diagnostics 上的 LANE_VENDOR_FAILURE_DIAGNOSTIC / LANE_OUTPUT_TRUNCATED_DIAGNOSTIC 结构化载荷，而 trajectoryProjection.ts 的 OUTBOUND_ERROR_KIND 正则仅放行 3 个看门狗/断流/溢出词，静默丢弃其余闭合错误类别。",
+  "class_root": "工具失败与模型错误在运行时的立即拒收门和结构化诊断槽位与轨迹派生/出站投影的白名单未在单一派生边界对齐，导致新增或前置拦截的错误通道在出站层静默落空。",
+  "affected_population": [
+    "所有通过一键反馈附上 Agent 诊断摘要的桌面端会话（含参数形状拒收、熔断停轮、策略拒绝及上游 HTTP/断流/截断报错回合）"
+  ],
+  "scope_paths": [
+    "electron/telemetry/trajectoryProjection.ts",
+    "electron/agentLane/laneTrace.mts",
+    "electron/agentLane/laneTraceRecorder.mts"
+  ],
+  "entry_points": [
+    "electron/agentLane/laneTraceRecorder.mts 的 attachLaneTrace 实时运行记录、electron/agentLane/laneTrace.mts 的 deriveLaneTrace 会话重建，以及 electron/feedback/feedbackReport.ts 调用的 projectLaneTrajectory 出站投影"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://opentelemetry.io/docs/specs/semconv/gen-ai/",
+      "checked_at": "2026-11-28",
+      "purpose": "核实 GenAI 语义约定对工具调用与模型调用失败采用低基数闭合分类码（error.type）、禁止混入异常原文或凭据的约束。"
+    }
+  ],
+  "invariants": [
+    "任何 isError === true 的工具结果在 deriveLaneTrace 中必须产出非空且匹配 TELEMETRY_IDENTIFIER_PATTERN 的闭合 failureCode（按 details.failure -> LANE_TRACE_NOTE -> LANE_APPROVAL_NOTE_TYPE -> 确定性立即拒收头 -> tool_failed 兜底），冷重建结果与实时记录一致。",
+    "deriveLaneTrace 从 AssistantMessage.diagnostics 与确定性分类标记产出的全部闭合错误类别，在 trajectoryProjection.ts 的 projectTrajectoryTurn 中必须 100% 被白名单识别并经 redactLogValue 透传，而任何自由文本、路径或密钥字符串必须 100% 被丢弃。"
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/agentLane/laneSession.mts", "symbol": "LaneTraceTurn" },
+    { "kind": "read", "path": "electron/agentLane/laneTrace.mts", "symbol": "LaneTraceTurn" },
+    { "kind": "read", "path": "electron/agentLane/laneTrace.mts", "symbol": "LANE_TRACE_NOTE" },
+    { "kind": "read", "path": "electron/agentLane/laneTrace.mts", "symbol": "LaneTraceRun" },
+    { "kind": "read", "path": "electron/agentLane/laneTrace.mts", "symbol": "LANE_RUN_FAILED" },
+    { "kind": "read", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "LaneTraceBridge" },
+    { "kind": "read", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "LaneTraceRun" },
+    { "kind": "read", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "LANE_RUN_FAILED" },
+    { "kind": "read", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "LANE_TRACE_NOTE" },
+    { "kind": "read", "path": "electron/telemetry/trajectoryProjection.ts", "symbol": "MAX_TRAJECTORY_TURNS" },
+    { "kind": "write", "path": "electron/agentLane/laneHistory.mts", "symbol": "writeLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneHistory.mts", "symbol": "registerLiveLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneHost.mts", "symbol": "createLaneTraceBridge" },
+    { "kind": "write", "path": "electron/agentLane/laneHost.mts", "symbol": "attachLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneSession.mts", "symbol": "laneTraceDirectory" },
+    { "kind": "write", "path": "electron/agentLane/laneSession.mts", "symbol": "refreshLiveLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneSession.mts", "symbol": "writeLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneSession.mts", "symbol": "writeTraceFile" },
+    { "kind": "write", "path": "electron/agentLane/laneTrace.mts", "symbol": "traceSafeValue" },
+    { "kind": "write", "path": "electron/agentLane/laneTrace.mts", "symbol": "laneErrorKind" },
+    { "kind": "write", "path": "electron/agentLane/laneTrace.mts", "symbol": "deriveLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneTrace.mts", "symbol": "laneTraceDirectory" },
+    { "kind": "write", "path": "electron/agentLane/laneTrace.mts", "symbol": "writeTraceFile" },
+    { "kind": "write", "path": "electron/agentLane/laneTrace.mts", "symbol": "laneTraceMarkdown" },
+    { "kind": "write", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "writeLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "registerLiveLaneTrace" },
+    { "kind": "write", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "traceSafeValue" },
+    { "kind": "write", "path": "electron/agentLane/laneTraceRecorder.mts", "symbol": "laneErrorKind" },
+    { "kind": "write", "path": "electron/feedback/feedbackReport.ts", "symbol": "projectLaneTrajectory" },
+    { "kind": "write", "path": "electron/telemetry/trajectoryProjection.ts", "symbol": "trajectoryConversationId" },
+    { "kind": "write", "path": "electron/telemetry/trajectoryProjection.ts", "symbol": "projectTrajectoryTurn" }
+  ],
+  "door_reduction": {
+    "before": 28,
+    "after": 31,
+    "why_not": "这组门分别承担会话历史重开（laneHistory/laneSession）、宿主实时记录与前置失败码转发（laneHost/laneTraceRecorder 复用唯一 laneErrorKind 而不另起正则）以及反馈包出站投影（feedbackReport/trajectoryProjection）各自的职责；工具失败码与回合错误类别的派生与白名单过滤已完全收口到 deriveLaneTrace 与 projectTrajectoryTurn 两处唯一边界。"
+  },
+  "generality_proof": "所有实时与冷重建路径统一调用 deriveLaneTrace 解析全部 Entry，所有出站反馈包统一调用 projectLaneTrajectory -> projectTrajectoryTurn 执行闭合词表校验与脱敏，无第二条旁路。",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "deriveLaneTrace",
+      "responsibility": "从会话 Entry 统一派生闭合工具失败码（覆盖 after_tool、LANE_TRACE_NOTE、审批记录与立即拒收头）及结构化上游诊断错误类别。"
+    },
+    {
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "symbol": "projectTrajectoryTurn",
+      "responsibility": "出站前执行闭合错误类别词表与 TELEMETRY_IDENTIFIER_PATTERN 校验，并对所有通过校验的短标识符二次执行 redactLogValue。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneTraceRecorder.mts",
+      "entry_point": "attachLaneTrace",
+      "disposition": "enforced",
+      "evidence": "实时监听 tool_end / run_end 将前置工具失败码记入 LANE_TRACE_NOTE 并调用 writeLaneTrace -> deriveLaneTrace。"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "entry_point": "projectLaneTrajectory",
+      "disposition": "enforced",
+      "evidence": "一键反馈打包唯一入口，直接调用 projectLaneTrajectory -> projectTrajectoryTurn 输出闭合错误码。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每当前置入参边界新增立即拒收路径或 provider 层新增结构化诊断标记时，若派生与出站白名单未覆盖该门，就会再次静默产出 null / 空数组。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/telemetry/trajectoryProjection.ts electron/agentLane/laneTrace.mts electron/agentLane/laneTraceRecorder.mts：盘点全部 28 扇读写门。",
+      "git grep -n 'before_tool|prepareArguments|LANE_VENDOR_FAILURE_DIAGNOSTIC|LANE_OUTPUT_TRUNCATED_DIAGNOSTIC' electron/agentLane/：逐一核对全部跳过 after_tool 的立即错误头与助手诊断类型。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/telemetry/trajectoryProjection.ts",
+    "invariant": "出站投影只放行 TELEMETRY_IDENTIFIER_PATTERN 工具失败码与 OUTBOUND_ERROR_KIND 闭合错误词表，且派生层保证任何失败工具均有闭合码。",
+    "failure_mode": "非闭合自由文本或含路径/密钥的伪造码一律降级为 null 或从 error_kinds 剔除，绝不透传原文。",
+    "exception_policy": "none",
+    "strategy": "在 laneTraceRecorder + deriveLaneTrace 源头补齐立即失败码与结构化诊断归类，并在 trajectoryProjection.ts 用同一个 TELEMETRY_IDENTIFIER_PATTERN 与闭合词表守门。",
+    "artifacts": [
+      "electron/agentLane/laneTraceRecorder.mts",
+      "electron/agentLane/laneTrace.mts",
+      "electron/telemetry/trajectoryProjection.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/telemetry/trajectoryProjection.test.ts",
+    "tests/agent-runtime/lane-trace.test.mts"
+  ],
+  "class_regression_tests": [
+    "electron/telemetry/trajectoryProjection.test.ts",
+    "tests/agent-runtime/lane-trace.test.mts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无并行旧实现文件；对盘上旧会话中未重建的分类器尾标与原文故障头在统一入口做了向后兼容归一。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "基于本仓既有 pi-agent-core 会话条目与内部诊断载荷契约实现，无外部依赖缺陷或待升级项。",
+    "exit_criteria": []
+  },
+  "migration": "历史会话重开或导出反馈时由 deriveLaneTrace 按盘上已有 Entry 自动派生闭合码；未重跑的旧 trace.jsonl 由 trajectoryProjection.ts 兼容归一旧分类词，无需迁移用户文件。",
+  "residual_risks": [
+    "极端情况下若第三方原生工具直接抛出不含标准头且未走入参边界的未知异常，工具失败码会安全归入闭合兜底码 tool_failed 而非细分码。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/telemetry",
+    "tests": [
+      "electron/telemetry/trajectoryProjection.test.ts"
+    ]
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-12"
+}

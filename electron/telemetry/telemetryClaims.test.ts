@@ -40,8 +40,26 @@ describe('遥测告知口径', () => {
   const generationFull = { capability: 'video', durationBucket: '>5s', result: 'failure', mode: 'reference', modelClass: 'custom', submitDuration: 'lt-1s', waitDuration: 'none', upstreamStatus: 'not-sent', errorType: 'local-refusal', failureStage: 'submit', localRefusal: 'asset-too-large' }
   const DISCLOSURE: Record<TelemetryEventName, { samples: Record<string, unknown>[]; fields: Record<string, [zh: string, en: string]> }> = {
     'app.started': {
-      samples: [{ appMajor: 0, appMinor: 25, osFamily: 'macos', locale: 'en', lastExit: 'renderer-crashed' }],
-      fields: { appMajor: ['版本号', 'version number'], appMinor: ['版本号', 'version number'], osFamily: ['操作系统', 'operating system'], locale: ['语言', 'language'], lastExit: ['上一次是正常退出还是崩溃', 'previous session quit normally or crashed'] },
+      samples: [
+        { appMajor: 0, appMinor: 25, osFamily: 'macos', locale: 'en', lastExit: 'renderer-crashed', installAgeBucket: 'd1-7' },
+        { appMajor: 0, appMinor: 25, osFamily: 'macos', locale: 'en', lastExit: 'clean' },
+      ],
+      fields: {
+        appMajor: ['版本号', 'version number'], appMinor: ['版本号', 'version number'], osFamily: ['操作系统', 'operating system'],
+        locale: ['语言', 'language'], lastExit: ['上一次是正常退出还是崩溃', 'previous session quit normally or crashed'],
+        installAgeBucket: ['安装至今的天数区间', 'days-since-install range'],
+      },
+    },
+    'onboarding.step': {
+      samples: [
+        { step: 'verify_failed', providerClass: 'builtin', failReason: 'zero_quota' },
+        { step: 'first_generation_succeeded', providerClass: 'custom' },
+      ],
+      fields: {
+        step: ['模型接入引导到哪一步完成情况', 'which model setup step completed'],
+        providerClass: ['内置的还是自己接的', 'built in or one you connected'],
+        failReason: ['验证失败原因类别', 'verification failure reason category'],
+      },
     },
     'generation.completed': {
       samples: [generationFull, { ...generationFull, upstreamStatus: 'server-5xx', failureStage: 'wait', localRefusal: undefined }],
@@ -51,9 +69,22 @@ describe('遥测告知口径', () => {
         errorType: ['失败类别', 'failure category'], failureStage: ['卡在哪一段', 'which stage it stopped at'], upstreamStatus: ['上游怎么答的', 'how the upstream service answered'], localRefusal: ['本机哪条规则拦下的', 'which local rule stopped it'],
       },
     },
+    'timeline.adopted': {
+      samples: [{ capability: 'video', source: 'canvas' }],
+      fields: {
+        capability: ['哪类能力', 'which capability'],
+        source: ['采纳进时间轴的来源分类', 'source category when adopted into the timeline'],
+      },
+    },
     'export.completed': {
-      samples: [{ format: 'mp4', durationBucket: '1-5s', result: 'success' }],
-      fields: { format: ['导出的格式', 'export, the format'], durationBucket: ['耗时区间', 'duration range'], result: ['成没成功', 'whether it succeeded'] },
+      samples: [
+        { format: 'mp4', durationBucket: '1-5s', result: 'success' },
+        { format: 'mp4', durationBucket: '>5s', result: 'failure', failureReason: 'ffmpeg_error' },
+      ],
+      fields: {
+        format: ['导出的格式', 'export, the format'], durationBucket: ['耗时区间', 'duration range'],
+        result: ['成没成功', 'whether it succeeded'], failureReason: ['失败原因类别', 'failure reason category'],
+      },
     },
     'update.action': {
       samples: [{ action: 'download', result: 'failure', reason: 'network' }],
@@ -62,6 +93,21 @@ describe('遥测告知口径', () => {
     'agent.tool.failed': {
       samples: [{ toolName: 'run_generation', failureCode: 'timeout', attempt: 2, breakerTripped: false, modelClass: 'builtin', reason: undefined }],
       fields: { toolName: ['哪个工具', 'which tool'], failureCode: ['失败类别', 'failure category'], attempt: ['第几次重试', 'which retry'], breakerTripped: ['连续失败后是否被拦下', 'whether repeated failures got it blocked'], modelClass: ['内置的还是自己接的', 'built in or one you connected'], reason: ['失败类别和原因分类', 'the failure category and reason category'] },
+    },
+    'agent.turn.completed': {
+      samples: [
+        { result: 'success', durationBucket: '1-5s', modelClass: 'builtin', toolCallsBucket: '1-2', retryCount: 0, breakerTripped: false },
+        { result: 'failure', durationBucket: '>5s', modelClass: 'custom', toolCallsBucket: '3-5', retryCount: 3, breakerTripped: true, faultCategory: 'tool_refused' },
+      ],
+      fields: {
+        result: ['Agent 回合完成情况', 'Agent turn completion outcome'],
+        durationBucket: ['耗时区间', 'duration range'],
+        modelClass: ['内置的还是自己接的', 'built in or one you connected'],
+        toolCallsBucket: ['工具调用次数区间', 'tool call count range'],
+        retryCount: ['重试次数', 'retry count'],
+        breakerTripped: ['连续失败后是否被拦下', 'whether repeated failures got it blocked'],
+        faultCategory: ['失败原因类别', 'failure reason category'],
+      },
     },
     'perf.session.summary': {
       samples: [{ interactionP75: '100-200', interactionP95: '200-500', longFramesPerMin: '1-3', longestFrame: '100-250', observedMinutes: '5-30', page: 'generation', nodes: '21-100', imageNodes: '1-20', generating: true, cpuCores: '9-16', memoryGb: '8plus', mainStallMax: '250-1000', mainStallCount: '1-3' }],

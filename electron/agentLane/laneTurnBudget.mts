@@ -24,10 +24,13 @@ export function createLaneTurnBudget(failures: LaneRepeatedFailureTracker, maxMo
   };
 
   return {
-    isOver: () => turn.over,
+    isOver: (runId?: string) => (runId !== undefined && turn.runId !== runId ? false : turn.over),
     end: () => { turn.over = true; },
     requeueUnconsumed,
     attach(harness: AgentHarness<undefined>, lane: AgentLane, registeredToolNames: ReadonlySet<string>) {
+      harness.events.on('run_start', (event) => {
+        if (turn.runId !== event.runId) { turn.runId = event.runId; turn.requests = 0; turn.over = false; }
+      });
       // ── 回合预算：唯一的判定点是「下一次模型请求」──
       // 每一次模型请求都过这里（立即结果、执行过的工具、未知工具名之后都一样），所以拒发只在这一处：
       // 这一轮已经结束（`turn.over`，模型无视了「别再发」）或宿主显式上限（`limits.maxModelRequests`，缺省不设）

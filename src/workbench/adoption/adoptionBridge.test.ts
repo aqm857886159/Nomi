@@ -263,4 +263,44 @@ describe('P5 E1 adoption bridge', () => {
     const replay = await adoptStoryboardBatch({ units, startFrame: 0, readNodes: () => nodes, ports })
     expect(replay).toMatchObject({ status: 'applied', replayed: true })
   })
+
+  it('emits timeline.adopted only on newly landed clips and skips idempotent replays', async () => {
+    const tracked: unknown[] = []
+    const previousWindow = (globalThis as { window?: unknown }).window
+    ;(globalThis as { window?: unknown }).window = {
+      nomiDesktop: {
+        telemetry: {
+          track: (payload: unknown) => {
+            tracked.push(payload)
+            return Promise.resolve({ queued: true })
+          },
+        },
+      },
+    }
+    try {
+      let live = createDefaultTimeline()
+      const ports = {
+        readTimeline: () => live,
+        commitTimeline: (next: TimelineState) => { live = next },
+        restoreTimeline: (old: TimelineState) => { live = old; return true },
+      }
+      const editNode = {
+        id: 'telemetry-edit-node',
+        kind: 'image',
+        title: '精修镜',
+        status: 'success',
+        position: { x: 0, y: 0 },
+        result: { id: 'artifact-edit-1', type: 'image', taskKind: 'image_edit', url: 'data:image/svg+xml,1', createdAt: 10 },
+      } as never
+      const first = await adoptGenerationNode(editNode, { placement: { kind: 'append' }, source: 'agent', ports })
+      const second = await adoptGenerationNode(editNode, { placement: { kind: 'append' }, source: 'agent', ports })
+      expect(first).toMatchObject({ status: 'applied', replayed: false })
+      expect(second).toMatchObject({ status: 'applied', replayed: true })
+      expect(tracked).toEqual([
+        { eventName: 'timeline.adopted', props: { capability: 'image-edit', source: 'agent' } },
+      ])
+    } finally {
+      ;(globalThis as { window?: unknown }).window = previousWindow
+    }
+  })
 })

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { buildTelemetryEnvelope, durationBucket, isAutomatedLaunch, isTelemetryEnvelope, isTelemetryProps, TELEMETRY_EVENT_MIN_SCOPE, TELEMETRY_EVENT_NAMES, TELEMETRY_SCOPE_VERSION } from './telemetryEvents'
-import { GENERATION_LOCAL_REFUSALS, LAST_EXIT_VALUES, mainStallCountBucket, mainStallMaxBucket, stageDurationBucket } from '../shared/contracts/telemetry'
+import {
+  AGENT_FAULT_CATEGORIES, agentToolCallsBucket, clampAgentRetryCount, EXPORT_FAILURE_REASONS,
+  GENERATION_LOCAL_REFUSALS, INSTALL_AGE_BUCKETS, installAgeBucketFromElapsedMs,
+  LAST_EXIT_VALUES, mainStallCountBucket, mainStallMaxBucket, ONBOARDING_FAIL_REASONS, ONBOARDING_STEPS,
+  stageDurationBucket, TIMELINE_ADOPTED_SOURCES,
+} from '../shared/contracts/telemetry'
 
 const genBase = { capability: 'video', durationBucket: '>5s', mode: 'firstLast', modelClass: 'builtin', submitDuration: '1-5s', waitDuration: '30-120s' } as const
 const success = { ...genBase, result: 'success', upstreamStatus: 'ok' } as const
@@ -9,14 +14,24 @@ const notSent = { ...genBase, result: 'failure', upstreamStatus: 'not-sent', err
 const cancel = { ...genBase, result: 'cancel' } as const
 const perf = { interactionP75: '100-200', interactionP95: '200-500', longFramesPerMin: '1-3', longestFrame: '100-250', observedMinutes: '5-30', page: 'generation', nodes: '21-100', imageNodes: '1-20', generating: true, cpuCores: '9-16', memoryGb: '8plus', mainStallMax: '250-1000', mainStallCount: '1-3' }
 
-describe('事件清单（2026-11-13 删掉从没发过的）', () => {
-  it('只剩 6 个事件；feature.used / agent.turn.completed 不再合法', () => {
-    expect([...TELEMETRY_EVENT_NAMES]).toEqual(['app.started', 'generation.completed', 'export.completed', 'update.action', 'agent.tool.failed', 'perf.session.summary'])
+describe('事件清单（2026-11-28 全维度匿名漏斗闭环第 1 刀）', () => {
+  it('精确登记 9 个闭合事件；已废弃的 feature.used 与旧版死形状仍被拒', () => {
+    expect([...TELEMETRY_EVENT_NAMES]).toEqual([
+      'app.started',
+      'onboarding.step',
+      'generation.completed',
+      'timeline.adopted',
+      'export.completed',
+      'update.action',
+      'agent.tool.failed',
+      'agent.turn.completed',
+      'perf.session.summary',
+    ])
     expect(isTelemetryProps({ featureId: 'generation', result: 'success' }, 'feature.used' as never)).toBe(false)
-    expect(isTelemetryProps({ result: 'success', toolCallBucket: '1-3', modelClass: 'builtin' }, 'agent.turn.completed' as never)).toBe(false)
+    expect(isTelemetryProps({ result: 'success', toolCallBucket: '1-3', modelClass: 'builtin' }, 'agent.turn.completed')).toBe(false)
   })
 
-  it('加字段不抬告知范围：版本仍是 2，只有 perf 汇总要 2', () => {
+  it('闭合漏斗事件落在告知范围 1：版本仍是 2，只有 perf 汇总要 2', () => {
     expect(TELEMETRY_SCOPE_VERSION).toBe(2)
     expect(TELEMETRY_EVENT_MIN_SCOPE['perf.session.summary']).toBe(2)
     for (const name of TELEMETRY_EVENT_NAMES) if (name !== 'perf.session.summary') expect(TELEMETRY_EVENT_MIN_SCOPE[name]).toBe(1)
@@ -162,5 +177,76 @@ describe('更新动作的失败原因（只有枚举）', () => {
     expect(isTelemetryProps({ action: 'check', result: 'failure' }, 'update.action')).toBe(true)
     expect(isTelemetryProps({ action: 'check', result: 'success', reason: 'network' }, 'update.action')).toBe(false)
     expect(isTelemetryProps({ action: 'check', result: 'failure', reason: 'getaddrinfo ENOTFOUND github.com' }, 'update.action')).toBe(false)
+  })
+})
+
+describe('漏斗闭合事件白名单与反例（onboarding / agent.turn / timeline.adopted / export / installAgeBucket）', () => {
+  const startedBase = { appMajor: 0, appMinor: 25, osFamily: 'macos', locale: 'zh-CN', lastExit: 'clean' } as const
+
+  it('app.started 兼容无 installAgeBucket 的旧队列，新事件只认 4 档粗账龄', () => {
+    expect(isTelemetryProps(startedBase, 'app.started')).toBe(true)
+    for (const bucket of INSTALL_AGE_BUCKETS) {
+      expect(isTelemetryProps({ ...startedBase, installAgeBucket: bucket }, 'app.started')).toBe(true)
+    }
+    expect(isTelemetryProps({ ...startedBase, installAgeBucket: '2026-11-28T08:00:00Z' }, 'app.started')).toBe(false)
+    const day = 24 * 60 * 60 * 1000
+    expect([
+      installAgeBucketFromElapsedMs(-10),
+      installAgeBucketFromElapsedMs(0),
+      installAgeBucketFromElapsedMs(day - 1),
+      installAgeBucketFromElapsedMs(day),
+      installAgeBucketFromElapsedMs(7 * day),
+      installAgeBucketFromElapsedMs(8 * day),
+      installAgeBucketFromElapsedMs(30 * day),
+      installAgeBucketFromElapsedMs(31 * day),
+    ]).toEqual(['d0', 'd0', 'd0', 'd1-7', 'd1-7', 'd8-30', 'd8-30', 'd30plus'])
+  })
+
+  it('onboarding.step：verify_failed 必带闭合 failReason，其余步骤禁带，密钥与 URL 必拒', () => {
+    for (const step of ONBOARDING_STEPS) {
+      if (step === 'verify_failed') {
+        expect(isTelemetryProps({ step, providerClass: 'builtin' }, 'onboarding.step')).toBe(false)
+        for (const failReason of ONBOARDING_FAIL_REASONS) {
+          expect(isTelemetryProps({ step, providerClass: 'builtin', failReason }, 'onboarding.step')).toBe(true)
+        }
+      } else {
+        expect(isTelemetryProps({ step, providerClass: 'custom' }, 'onboarding.step')).toBe(true)
+        expect(isTelemetryProps({ step, providerClass: 'custom', failReason: 'network' }, 'onboarding.step')).toBe(false)
+      }
+    }
+    for (const leak of ['sk-live-secret123', 'https://my-relay.internal/v1', '/Users/me/.env']) {
+      expect(isTelemetryProps({ step: 'verify_failed', providerClass: leak, failReason: 'auth_failed' }, 'onboarding.step')).toBe(false)
+      expect(isTelemetryProps({ step: 'verify_failed', providerClass: 'custom', failReason: leak }, 'onboarding.step')).toBe(false)
+    }
+  })
+
+  it('agent.turn.completed：0..5 重试次数与闭合分档；仅失败带 faultCategory', () => {
+    const base = { result: 'success', durationBucket: '1-5s', modelClass: 'builtin', toolCallsBucket: '1-2', retryCount: 0, breakerTripped: false } as const
+    expect(isTelemetryProps(base, 'agent.turn.completed')).toBe(true)
+    expect(isTelemetryProps({ ...base, result: 'cancel', retryCount: 2 }, 'agent.turn.completed')).toBe(true)
+    expect(isTelemetryProps({ ...base, faultCategory: 'timeout' }, 'agent.turn.completed')).toBe(false)
+    expect(isTelemetryProps({ ...base, result: 'failure' }, 'agent.turn.completed')).toBe(false)
+    for (const faultCategory of AGENT_FAULT_CATEGORIES) {
+      expect(isTelemetryProps({ ...base, result: 'failure', retryCount: 3, breakerTripped: true, faultCategory }, 'agent.turn.completed')).toBe(true)
+    }
+    expect(isTelemetryProps({ ...base, retryCount: 6 }, 'agent.turn.completed')).toBe(false)
+    expect(isTelemetryProps({ ...base, retryCount: -1 }, 'agent.turn.completed')).toBe(false)
+    expect(isTelemetryProps({ ...base, result: 'failure', faultCategory: 'HTTP 401 sk-secret' }, 'agent.turn.completed')).toBe(false)
+    expect([agentToolCallsBucket(0), agentToolCallsBucket(1), agentToolCallsBucket(2), agentToolCallsBucket(3), agentToolCallsBucket(5), agentToolCallsBucket(6)]).toEqual(['0', '1-2', '1-2', '3-5', '3-5', '6plus'])
+    expect([clampAgentRetryCount(-1), clampAgentRetryCount(0), clampAgentRetryCount(3), clampAgentRetryCount(9)]).toEqual([0, 0, 3, 5])
+  })
+
+  it('timeline.adopted 与 export.completed.failureReason：闭合枚举且兼容旧队列', () => {
+    for (const source of TIMELINE_ADOPTED_SOURCES) {
+      expect(isTelemetryProps({ capability: 'video', source }, 'timeline.adopted')).toBe(true)
+    }
+    expect(isTelemetryProps({ capability: 'video', source: '/Users/me/clip.mp4' }, 'timeline.adopted')).toBe(false)
+
+    expect(isTelemetryProps({ format: 'mp4', durationBucket: '1-5s', result: 'failure' }, 'export.completed')).toBe(true)
+    for (const failureReason of EXPORT_FAILURE_REASONS) {
+      expect(isTelemetryProps({ format: 'mp4', durationBucket: '>5s', result: 'failure', failureReason }, 'export.completed')).toBe(true)
+      expect(isTelemetryProps({ format: 'mp4', durationBucket: '1-5s', result: 'success', failureReason }, 'export.completed')).toBe(false)
+    }
+    expect(isTelemetryProps({ format: 'mp4', durationBucket: '>5s', result: 'failure', failureReason: 'ENOENT /Users/me/shot.mp4' }, 'export.completed')).toBe(false)
   })
 })
