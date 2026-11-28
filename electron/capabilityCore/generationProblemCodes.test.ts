@@ -165,8 +165,19 @@ describe("duration_not_in_mode：时长不在这个模式的档里", () => {
     { provider: "apimart", modelKey: "veo3.1-fast", label: "Veo 3.1 Fast" },
   ]);
 
-  it("volcengine doubao-seedance-2-0-260128 要 3 秒（范围 4–15）→ duration_not_in_mode，带 min / max", () => {
-    const { problem } = refusal(() => normalizeAuthoredCandidate(candidate("volcengine", "doubao-seedance-2-0-260128", "text_to_video", { duration: 3 }), registry, videos));
+  it("volcengine doubao-seedance-2-0-260128 要 3 秒（近界单镜，范围 4–15）→ 吸附到 4 秒并记 adjustment；成片级 99 秒 → duration_not_in_mode，带 min / max", () => {
+    const adjustments: unknown[] = [];
+    const snapped = normalizeAuthoredCandidate(
+      candidate("volcengine", "doubao-seedance-2-0-260128", "text_to_video", { duration: 3 }),
+      registry,
+      videos,
+      undefined,
+      { noteAdjustment: (item) => adjustments.push(item) },
+    );
+    expect(snapped.parameters.duration).toBe(4);
+    expect(adjustments).toEqual([expect.objectContaining({ field: "durationSec", requested: 3, applied: 4 })]);
+
+    const { problem } = refusal(() => normalizeAuthoredCandidate(candidate("volcengine", "doubao-seedance-2-0-260128", "text_to_video", { duration: 99 }), registry, videos));
     expect(problem).toMatchObject({ code: "duration_not_in_mode", field: "durationSec", min: 4, max: 15, next: "use_allowed_value" });
   });
 

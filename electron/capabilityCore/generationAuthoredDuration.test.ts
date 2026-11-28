@@ -47,6 +47,16 @@ describe("admitAuthoredDuration", () => {
     expect(high.adjustment).toMatchObject({ field: "durationSec", requested: 30, applied: 15 });
   });
 
+  it("成片级超长秒数（超过单镜上限 2 倍，如 99 秒塞进单镜）：仍以 duration_not_in_mode 拒收，防止把整片时长静默截成单镜", () => {
+    const rangeErr = refusalOf(() => admitAuthoredDuration(candidate({ duration: 99 }), { duration: { type: "number", min: 4, max: 15 } }));
+    expect(rangeErr.rejection).toMatchObject({ code: "parameter_out_of_range", path: "durationSec", min: 4, max: 15 });
+    expect(rangeErr.problem).toMatchObject({ code: "duration_not_in_mode", field: "durationSec", min: 4, max: 15 });
+
+    const enumErr = refusalOf(() => admitAuthoredDuration(candidate({ duration: 99 }), { duration: { type: "number", enum: [6, 10] } }));
+    expect(enumErr.rejection).toMatchObject({ code: "parameter_not_in_enum", path: "durationSec" });
+    expect(enumErr.problem).toMatchObject({ code: "duration_not_in_mode", field: "durationSec", allowed: ["6", "10"] });
+  });
+
   it("这个模式没有时长参数：拒，叫 Agent 去掉时长（不悄悄丢掉）", () => {
     const error = refusalOf(() => admitAuthoredDuration(candidate({ duration: 8 }), { aspect_ratio: { type: "enum", enum: ["16:9"] } }));
     expect(error.message).toContain("没有时长参数");

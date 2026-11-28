@@ -77,10 +77,11 @@ export function admitAuthoredDurationWithAdjustment(
     const numericOptions = field.enum
       .map((raw) => ({ raw, sec: seconds(raw) }))
       .filter((entry): entry is { raw: string | number | boolean; sec: number } => entry.sec !== null);
-    if (numericOptions.length === 0) {
+    const maxOptionSec = numericOptions.length > 0 ? Math.max(...numericOptions.map((item) => item.sec)) : 0;
+    if (numericOptions.length === 0 || value > maxOptionSec * 2) {
       const allowed = field.enum.map((option) => String(option));
       throw new ContractCompilationError(
-        `${model} 只支持 ${allowed.join(" / ")} 秒，收到 ${value} 秒。`,
+        `${model} 只支持 ${allowed.join(" / ")} 秒，收到 ${value} 秒。请从这几档里选一个写进 durationSec，或者拆成多镜。`,
         { code: "parameter_not_in_enum", path: "durationSec", allowedValues: [...field.enum], allowedKeys },
         { code: "duration_not_in_mode", field: "durationSec", model, value, allowed },
       );
@@ -103,6 +104,22 @@ export function admitAuthoredDurationWithAdjustment(
         reason: `${model} supports ${allowedNums.join("/")}s; snapped requested ${value}s to nearest valid ${nearest.sec}s. Tell the user the clip duration was adjusted to ${nearest.sec}s.`,
       },
     };
+  }
+  if (field.max !== undefined && value > field.max * 2) {
+    throw new ContractCompilationError(
+      `${model} 的单镜时长只能在 ${field.min ?? "不限"}～${field.max} 秒之间，收到 ${value} 秒。请改成这个范围里的单镜秒数，或拆成多个镜头。`,
+      {
+        code: "parameter_out_of_range", path: "durationSec",
+        ...(field.min !== undefined ? { min: field.min } : {}),
+        max: field.max,
+        allowedKeys,
+      },
+      {
+        code: "duration_not_in_mode", field: "durationSec", model, value,
+        ...(field.min !== undefined ? { min: field.min } : {}),
+        max: field.max,
+      },
+    );
   }
   let applied = value;
   if (field.min !== undefined && applied < field.min) applied = field.min;

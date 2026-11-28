@@ -12,7 +12,7 @@ const draftShots = () => VERB_DECLARATIONS.find((declaration) => declaration.nam
 
 const anchorShot = (title: string) => ({
   title, prompt: `${title} 的外观设定`, taskKind: "text_to_image" as const, role: "anchor" as const,
-  storyboard: { kind: "character" as const, carrier: "visual" as const },
+  storyboard: { kind: "character" as const },
 });
 
 describe("只有参考卡的草稿", () => {
