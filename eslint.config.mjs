@@ -1142,19 +1142,37 @@ export default tseslint.config(
     },
   },
   {
-    // B1-2（替代已退役的 check:run-task-grant）：任何自拼内联 request 调用 runTask / runTaskFn（含无类型/类型断言调用）必须在实参中显式带 grantId。
+    // B1-3（替代已退役的 check:asset-evidence）：untrustedRendererIpc 豁免仅限渲染层 IPC 转发口 electron/assets/assetsIpc.ts，防止他处复制绕过 sourceEvidence。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/assets/assetsIpc.ts'],
+    plugins: { 'asset-untrusted-ipc-owner': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'asset-untrusted-ipc-owner/no-restricted-syntax': ['error',
+        {
+          selector: "Property:matches([key.name='untrustedRendererIpc'], [key.value='untrustedRendererIpc'])",
+          message: 'untrustedRendererIpc 仅限渲染层 IPC 转发口 electron/assets/assetsIpc.ts 使用；主进程调用 importRemoteAsset 请显式传入 sourceEvidence（或生成产物 expectedKind）。',
+        },
+        {
+          selector: "MemberExpression:matches([property.name='untrustedRendererIpc'], [property.value='untrustedRendererIpc'])",
+          message: 'untrustedRendererIpc 仅限渲染层 IPC 转发口 electron/assets/assetsIpc.ts 使用；主进程调用 importRemoteAsset 请显式传入 sourceEvidence（或生成产物 expectedKind）。',
+        },
+      ],
+    },
+  },
+  {
+    // B1-2（替代已退役的 check:run-task-grant）：任何自拼内联 request 调用 runTask / runTaskFn（含无类型、任意层 as / satisfies / 尖括号 / 非空断言）必须在实参中显式带 grantId。
     files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
     ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/runtime.ts'],
     plugins: { 'run-task-grant': boundaryPlugin('no-restricted-syntax') },
     rules: {
       'run-task-grant/no-restricted-syntax': ['error',
         {
-          selector: "CallExpression:matches([callee.name=/^(runTask|runTaskFn)$/], [callee.property.name=/^(runTask|runTaskFn)$/]) > ObjectExpression.arguments:first-child:has(> Property[key.name='request']):not(:has(Property[key.name='grantId']))",
+          selector: "CallExpression:matches([callee.name=/^(runTask|runTaskFn)$/], [callee.property.name=/^(runTask|runTaskFn)$/], [callee.property.value=/^(runTask|runTaskFn)$/]) > ObjectExpression.arguments:first-child:has(> Property:matches([key.name='request'], [key.value='request'])):not(:has(Property:matches([key.name='grantId'], [key.value='grantId'])))",
           message: '付费出口缺少 grantId：自拼内联 request 调用 runTask / runTaskFn 必须在 extras 中显式携带 grantId（先经 spendConfirmGrant / spendConfirm 铸令牌）。',
         },
         {
-          selector: "CallExpression:matches([callee.name=/^(runTask|runTaskFn)$/], [callee.property.name=/^(runTask|runTaskFn)$/]) > TSAsExpression.arguments:first-child > ObjectExpression:has(> Property[key.name='request']):not(:has(Property[key.name='grantId']))",
-          message: '付费出口缺少 grantId：不得用类型断言绕过 runTask / runTaskFn 内联 request 的 grantId 必填约束。',
+          selector: "CallExpression:matches([callee.name=/^(runTask|runTaskFn)$/], [callee.property.name=/^(runTask|runTaskFn)$/], [callee.property.value=/^(runTask|runTaskFn)$/]) > :matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression).arguments:first-child ObjectExpression:has(> Property:matches([key.name='request'], [key.value='request'])):not(:has(Property:matches([key.name='grantId'], [key.value='grantId'])))",
+          message: '付费出口缺少 grantId：不得用类型断言（as / satisfies / 尖括号 / 非空断言）绕过 runTask / runTaskFn 内联 request 的 grantId 必填约束。',
         },
       ],
     },

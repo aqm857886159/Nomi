@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { ESLint } from 'eslint'
 
 import { parseGateArgs } from './run-gates-contracts.mjs'
 
@@ -78,4 +79,68 @@ test('每轮注入的交付账本提醒已从 L0 hook 删掉；gen:ledger / ledg
   assert.doesNotMatch(hook, /build-delivery-ledger/)
   assert.ok(pkg.scripts['gen:ledger'])
   assert.ok(pkg.scripts['ledger:brief'])
+})
+
+test('SM-gates-B1 ESLint 规则：run-task-grant 拦截各类类型断言逃生口，untrustedRendererIpc 仅限 assetsIpc.ts', async () => {
+  const eslint = new ESLint({ cwd: repoRoot })
+  const grantRule = 'run-task-grant/no-restricted-syntax'
+  const untrustedRule = 'asset-untrusted-ipc-owner/no-restricted-syntax'
+  const probeFile = 'electron/capabilityCore/b1Probe.ts'
+
+  const blockedGrantCases = [
+    'runTask({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } });',
+    'runTask({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } } as unknown);',
+    'runTask({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } } as unknown as Record<string, unknown>);',
+    'deps.runTaskFn({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } } satisfies Record<string, unknown>);',
+    'runTask(<unknown>{ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } });',
+    'runTask((<unknown>{ vendor: "relay", "request": { kind: "text_to_image", prompt: "hi" } }) as Record<string, unknown>);',
+    'runTask(({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } } as unknown)!);',
+    'deps["runTaskFn"]({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } } satisfies Record<string, unknown>);',
+    'runTask({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" } as unknown });',
+  ]
+  for (const code of blockedGrantCases) {
+    const [result] = await eslint.lintText(code, { filePath: probeFile })
+    assert.ok(
+      result.messages.some((m) => m.ruleId === grantRule && m.severity === 2),
+      `应被 ${grantRule} 拦截：${code}`,
+    )
+  }
+
+  const allowedGrantCases = [
+    'runTask({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" }, extras: { grantId: "g1" } } as unknown as Record<string, unknown>);',
+    'deps.runTaskFn({ vendor: "relay", request: { kind: "text_to_image", prompt: "hi" }, grantId: "g1" } satisfies Record<string, unknown>);',
+    'runTask(payload as unknown as Record<string, unknown>);',
+    'deps.runTaskFn(payload satisfies Record<string, unknown>);',
+    'runTask(<unknown>payload);',
+  ]
+  for (const code of allowedGrantCases) {
+    const [result] = await eslint.lintText(code, { filePath: probeFile })
+    assert.ok(
+      !result.messages.some((m) => m.ruleId === grantRule),
+      `不应误伤合法写法：${code}`,
+    )
+  }
+
+  const blockedUntrustedCases = [
+    'importRemoteAsset(payload, { untrustedRendererIpc: true });',
+    'importRemoteAsset(payload, { "untrustedRendererIpc": true });',
+    'opts.untrustedRendererIpc = true;',
+    'opts["untrustedRendererIpc"] = true;',
+  ]
+  for (const code of blockedUntrustedCases) {
+    const [result] = await eslint.lintText(code, { filePath: 'electron/connectors/b1Probe.ts' })
+    assert.ok(
+      result.messages.some((m) => m.ruleId === untrustedRule && m.severity === 2),
+      `非 assetsIpc.ts 应被 ${untrustedRule} 拦截：${code}`,
+    )
+  }
+
+  const [ipcResult] = await eslint.lintText(
+    'importRemoteAsset(payload, { assertCurrent, untrustedRendererIpc: true });',
+    { filePath: 'electron/assets/assetsIpc.ts' },
+  )
+  assert.ok(!ipcResult.messages.some((m) => m.ruleId === untrustedRule), 'assetsIpc.ts 应允许 untrustedRendererIpc')
+
+  const [evidenceResult] = await eslint.lintFiles([path.join(repoRoot, 'electron/assets/assetSourceEvidence.ts')])
+  assert.ok(!evidenceResult.messages.some((m) => m.ruleId === untrustedRule), 'assetSourceEvidence.ts 类型声明不应被误伤')
 })
