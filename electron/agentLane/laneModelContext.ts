@@ -105,25 +105,26 @@ function formatModelCapabilityBrief(entry: AgentModelEntry): string {
 
   const hasAnySlots = entry.modes.some((m) => (m.slots?.length ?? 0) > 0)
   const slotParts = hasAnySlots || entry.modes.length > 1
-    ? entry.modes.map((m) => {
-        const safeMode = m.modeId.replace(/_/g, '-')
-        if (!m.slots?.length) return `${safeMode}:无`
+    ? entry.modes.slice(0, 4).map((m) => {
+        if (!m.slots?.length) return `${m.modeId}:无`
         const desc = m.slots.map((s) => `${SLOT_KIND_LABEL[s.kind] ?? s.label}≤${s.max ?? 1}`).join('+')
-        return `${safeMode}:${desc}`
+        return `${m.modeId}:${desc}`
       })
     : []
 
   const segments: string[] = []
   if (ratios.length) {
-    const rendered = ratios.map((r) => `${r}${r === defaultRatioLabel ? '*' : ''}`).join(',')
-    segments.push(`比例 ${rendered}${pixelMapped ? '(像素档)' : ''}`)
+    const shownRatios = ratios.slice(0, 6)
+    const rendered = shownRatios.map((r) => `${r}${r === defaultRatioLabel ? '*' : ''}`).join(',')
+    const overflow = ratios.length > shownRatios.length ? `,+${ratios.length - shownRatios.length}` : ''
+    segments.push(`比例 ${rendered}${overflow}${pixelMapped ? '(像素档)' : ''}`)
   }
   if (durationSpec) segments.push(`时长 ${durationSpec}`)
   if (resolutions.length) {
-    segments.push(`清晰度 ${resolutions.map((r) => `${r}${r === defaultRes ? '*' : ''}`).join(',')}`)
+    segments.push(`清晰度 ${resolutions.slice(0, 4).map((r) => `${r}${r === defaultRes ? '*' : ''}`).join(',')}`)
   }
   if (slotParts.length) segments.push(`参考 ${slotParts.join(',')}`)
-  return segments.length ? `${modelHandleOf(entry)} 规格：${segments.join(' | ')}` : ''
+  return segments.length ? `${modelHandleOf(entry)}：${segments.join(' | ')}` : ''
 }
 
 /**
@@ -158,46 +159,48 @@ function formatDeclaredDefaults(defaults: LaneDeclaredDefaults | undefined, cont
     if (brief) specLines.push(brief)
   }
   return [
-    '用户的默认模型状态（用户声明）：',
+    '用户的默认模型状态：',
     ...lines,
     ...specLines,
-    '用户没点名模型时用默认；无默认从可用目录里挑，并在回话里用显示名告诉用户挑了谁；点名以用户点名的为准。默认做不了才换：先在回话里说清为什么换、换谁，禁暗换。只说它的显示名，不要念括号里的完整名字，只提索引内模型。',
+    '用户没点名模型时用默认；无默认从可用目录里挑并在回话里用显示名告诉用户挑了谁；以用户点名的为准；默认做不了先在回话里说清为什么换。只说它的显示名，不要念括号里的完整名字。',
   ]
 }
 
-/** 首轮活跃工作面、打开的子视图与选中目标焦点摘要；无活跃表面/目标时返回空串。 */
+function clipAmbientField(value: unknown, maxChars = 64): string {
+  const str = String(value ?? '').replace(/\s+/g, ' ').trim()
+  return str.length > maxChars ? `${str.slice(0, maxChars - 1)}…` : str
+}
+
+/**
+ * 首轮活跃工作面与选中目标增量摘要（`contextSnapshot.handles` 由紧邻它的唯一 owner `formatAgentContextSnapshot` 负责投影与截断，这里不重复输出）。
+ */
 export function formatLaneAmbientFocus(
   context: Pick<LaneComposerContext, 'target' | 'admissionSurface' | 'documentId' | 'contextSnapshot'>,
 ): string {
   const target = context.target as Record<string, unknown> | undefined
   const surface = context.admissionSurface ?? (typeof target?.kind === 'string' ? target.kind : undefined)
-  const handles = context.contextSnapshot?.handles ?? []
-  if (!surface && !context.documentId && !target && !handles.length) return ''
+  if (!surface && !context.documentId && !target) return ''
 
   const parts: string[] = []
-  if (surface) parts.push(`surface=${surface}`)
-  if (context.documentId) parts.push(`documentId=${context.documentId}`)
+  if (surface) parts.push(`surface=${clipAmbientField(surface, 32)}`)
+  if (context.documentId) parts.push(`documentId=${clipAmbientField(context.documentId, 64)}`)
   if (target) {
-    if (Array.isArray(target.nodeIds) && target.nodeIds.length) parts.push(`selectedNodes=[${target.nodeIds.slice(0, 12).join(',')}]`)
-    if (Array.isArray(target.groupIds) && target.groupIds.length) parts.push(`selectedGroups=[${target.groupIds.slice(0, 8).join(',')}]`)
-    if (Array.isArray(target.clipIds) && target.clipIds.length) parts.push(`selectedClips=[${target.clipIds.slice(0, 12).join(',')}]`)
-    if (Array.isArray(target.assetIds) && target.assetIds.length) parts.push(`selectedAssets=[${target.assetIds.slice(0, 12).join(',')}]`)
+    const listIds = (raw: unknown, cap: number) =>
+      Array.isArray(raw) ? raw.slice(0, cap).map((id) => clipAmbientField(id, 64)).filter(Boolean) : []
+    const nodeIds = listIds(target.nodeIds, 12)
+    if (nodeIds.length) parts.push(`selectedNodes=[${nodeIds.join(',')}]`)
+    const groupIds = listIds(target.groupIds, 8)
+    if (groupIds.length) parts.push(`selectedGroups=[${groupIds.join(',')}]`)
+    const clipIds = listIds(target.clipIds, 12)
+    if (clipIds.length) parts.push(`selectedClips=[${clipIds.join(',')}]`)
+    const assetIds = listIds(target.assetIds, 12)
+    if (assetIds.length) parts.push(`selectedAssets=[${assetIds.join(',')}]`)
     if (typeof target.nodeId === 'string' && typeof target.resultId === 'string') {
-      parts.push(`selectedResult=${target.nodeId}/${target.resultId}`)
+      parts.push(`selectedResult=${clipAmbientField(target.nodeId, 48)}/${clipAmbientField(target.resultId, 48)}`)
     }
     const anchor = target.anchor as { kind?: unknown } | undefined
-    if (typeof anchor?.kind === 'string') parts.push(`documentAnchor=${anchor.kind}`)
+    if (typeof anchor?.kind === 'string') parts.push(`documentAnchor=${clipAmbientField(anchor.kind, 32)}`)
   }
-  const subviews: string[] = []
-  for (const handle of handles.slice(0, 6)) {
-    const loc = handle.locator
-    if (loc?.type === 'custom') {
-      subviews.push(`${loc.key}=${String(loc.value)}@${handle.targetId}(${handle.display.title})`)
-    } else if (handle.intentRole === 'target') {
-      subviews.push(`${handle.kind}:${handle.targetId}(${handle.display.title})`)
-    }
-  }
-  if (subviews.length) parts.push(`activeFocus=[${subviews.join('; ')}]`)
   return parts.length ? `[Nomi active workspace focus] ${parts.join(' · ')}` : ''
 }
 

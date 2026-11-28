@@ -17,7 +17,7 @@ import type { GenerationDefaultTaskKind } from "./contracts/generationModelDefau
 import { isGenerationDefaultTaskKind } from "./contracts/generationModelDefaultsContract";
 import { everyBuiltInArchetype, modeTransportFor, resolveModelArchetype } from "./modelArchetypes";
 import { statedMode } from "./modelArchetypes/modeForInputs";
-import { transportTaskKindForModeId } from "./videoCapabilities/registry";
+import { sourceBackedVideoProfiles } from "./videoCapabilities/registry";
 
 /** 一镜出来的是图片还是视频。 */
 export type GenerationShotKind = Extract<BillingModelKind, "image" | "video">;
@@ -113,14 +113,16 @@ export function taskKindForModeId(
     const mapped = transport ? canonical(transport) : "";
     if (isGenerationDefaultTaskKind(mapped)) return mapped;
   }
-  const byVideoRegistry = transportTaskKindForModeId(trimmed);
-  if (byVideoRegistry && isGenerationDefaultTaskKind(byVideoRegistry)) return byVideoRegistry;
+  // 未指定具体 modelId 时，统一扫描图/视等全量内置档案：只读模式自身声明的 transportTaskKind（及图像档案按有无参考槽对应的
+  // image_edit / text_to_image），不把某家把全模式并进单端点的默认桶当成模式语义分歧；仅当全目录唯一无歧义（distinct.size === 1）
+  // 时反推，像 "edit"（图改图 vs 视频编辑）或 "omni"（跨档案分属 text_to_video / image_to_video）返回 undefined。
   const distinct = new Set<GenerationDefaultTaskKind>();
-  for (const archetype of everyBuiltInArchetype()) {
+  for (const archetype of [...everyBuiltInArchetype(), ...sourceBackedVideoProfiles()]) {
     const mode = statedMode(archetype, trimmed);
     if (!mode) continue;
-    const transport = modeTransportFor(mode, archetype, vendorKey);
-    const mapped = transport ? canonical(transport) : "";
+    const raw = mode.transportTaskKind?.trim()
+      || (archetype.kind === "image" ? (mode.slots.length > 0 ? "image_edit" : "text_to_image") : undefined);
+    const mapped = raw ? canonical(raw) : "";
     if (isGenerationDefaultTaskKind(mapped)) distinct.add(mapped);
   }
   return distinct.size === 1 ? [...distinct][0] : undefined;

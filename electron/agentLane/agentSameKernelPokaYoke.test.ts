@@ -17,10 +17,16 @@ import { storyboardSubjectFromCandidate } from "../shared/storyboard/storyboardS
 import type { LaneComposerContext } from "../shared/agentLane/laneDesktopContracts";
 import type { AgentModelEntry } from "../shared/agentCapabilities/availableModels";
 import { bindLaneTool } from "./laneRuntimePort";
-import { createLaneTools } from "./laneTools.mjs";
+import { createLaneTools, hasStrictCompilerUnsupportedKeywords } from "./laneTools.mjs";
+import { createNomiModelDescriptor } from "./laneModelProvider.mjs";
+import { openLane } from "./laneHost.mjs";
 import { verbToTransportCall } from "./laneVerbTransport";
-import { formatLaneModelIndex } from "./laneModelContext";
+import { formatLaneAmbientFocus, formatLaneModelIndex } from "./laneModelContext";
 import { createDesktopLaneInput } from "./laneDesktopInput";
+import { patchStoryboardAuthoring } from "../capabilityCore/generationDocumentPlan";
+import { statedShotTaskKind, taskKindForModeId } from "../shared/generationShotKind";
+import { createHttpFixture } from "../../tests/agent-runtime/httpFixture.mjs";
+import { cleanupTestTemp, makeTempDir } from "../../scripts/_test-temp.mjs";
 
 const INTERNAL_VERBS = VERB_DECLARATIONS.filter((verb) => (verb.profiles ?? ["internal", "mcp"]).includes("internal"));
 
@@ -264,6 +270,70 @@ describe("Slice 1 · UI 与 Agent 同核参数解析 + 批量改多镜 + 全镜�
       ],
     });
     expect(mixedRes).toMatchObject({ ok: true });
+
+    // 4) 跨模态重名 modeId='edit'（未指定 model、靠顶层 taskKind='image_edit' 走默认模型）：绝不被视频子表截胡到高价视频模型
+    expect(taskKindForModeId("edit")).toBeUndefined();
+    expect(taskKindForModeId("omni")).toBeUndefined();
+    expect(statedShotTaskKind({ taskKind: "image_edit", modeId: "edit" })).toBe("image_edit");
+    expect(statedShotTaskKind({ taskKind: "image_to_video", modeId: "omni" })).toBe("image_to_video");
+
+    const topLevelImageEdit = await callDraftShots({
+      taskKind: "image_edit",
+      shots: [{ prompt: "把天空换成晚霞", modeId: "edit", references: ["asset-1"] }],
+    });
+    expect(topLevelImageEdit).toMatchObject({
+      ok: true,
+      result: { operation: { candidate: { providerId: "apimart", modelId: "seedream-5-5", mode: "image_edit", modeId: "edit" } } },
+    });
+
+    // 5) 跨供应商歧义 modeId='omni' + 顶层 taskKind='image_to_video'：保留顶层 taskKind 并成功起草，不再因剥离顶层 taskKind 而误拒
+    const draftShotsVerb = INTERNAL_VERBS.find((v) => v.name === "draft_shots")!;
+    const omniParsed = draftShotsVerb.schema.parse({
+      taskKind: "image_to_video",
+      shots: [{ prompt: "主体环绕运镜", modeId: "omni", references: ["asset-1"] }],
+    });
+    const omniTranslated = verbToTransportCall({ toolCallId: "call-omni", toolName: "draft_shots", args: omniParsed }, LANE_MODELS)!;
+    expect((omniTranslated.call.args as Record<string, unknown>).taskKind).toBe("image_to_video");
+    const omniDrafted = await callDraftShots({
+      taskKind: "image_to_video",
+      shots: [{ prompt: "主体环绕运镜", modeId: "omni", references: ["asset-1"] }],
+    });
+    expect(omniDrafted).toMatchObject({
+      ok: true,
+      result: { operation: { candidate: { providerId: "apimart", modelId: "doubao-seedance-2.5", modeId: "omni" } } },
+    });
+  });
+
+  it("文稿分镜批量改镜（patchStoryboardAuthoring）通过单次批量 IPC 原子提交，后镜缺失时零半截落盘并一次报全", async () => {
+    const ipcCalls: Array<{ op: string; payload: unknown }> = [];
+    await expect(
+      patchStoryboardAuthoring(
+        { sourceDocumentId: "doc-1" },
+        {
+          patches: [
+            { shotId: "shot-1", patch: { prompt: "新提示词 1" } },
+            { shotId: "shot-ghost", patch: { prompt: "不存在" } },
+            { shotId: "shot-2", patch: { prompt: "新提示词 2" } },
+          ],
+        },
+        "project-1",
+        "design-1",
+        () => [],
+        undefined,
+        async (op, payload) => {
+          ipcCalls.push({ op, payload });
+          return {
+            status: "batch-failed",
+            failures: [
+              { index: 1, kind: "shot-not-found", shotId: "shot-ghost", shots: [{ id: "shot-1", row: 1 }, { id: "shot-2", row: 2 }], anchorHoldsShotNumber: false },
+            ],
+          };
+        },
+      ),
+    ).rejects.toThrow(/nothing changed[\s\S]*shot-ghost/);
+    // 只发了 1 次批量 IPC 请求（而非逐镜循环多次写盘）
+    expect(ipcCalls).toHaveLength(1);
+    expect((ipcCalls[0]!.payload as { patches: unknown[] }).patches).toHaveLength(3);
   });
 
   it("创作者语义比例遇像素枚举模型（Seedream 等）在 aspectRatio 或 parameters.size 下均自动映射到对应比例的合法像素档", async () => {
@@ -404,13 +474,40 @@ describe("Slice 2 · 首轮 Ambient Context 补齐（默认模型规格 ≤350 t
     expect(indexText).toContain("1080p");
     expect(indexText).toMatch(/10/); // image_ref <= 10
 
-    // 默认段紧凑预算（按中英混合保守估算：1 中文字符≈1 token，英文单词/数字串≈1 token，≤350 tokens）
-    const defaultSection = indexText.slice(indexText.indexOf("用户的默认模型状态"));
-    const estimatedTokens = (defaultSection.match(/[\u4e00-\u9fff]|[A-Za-z0-9_@.*-]+|[^\s\w\u4e00-\u9fff]/g) ?? []).length;
+    // 默认段紧凑预算：即使 4 个默认槽位分别指向 4 个不同模型，默认规格段仍 ≤350 tokens
+    const fourDistinctIndex = formatLaneModelIndex(context, {
+      text_to_image: { vendor: "apimart", modelId: "seedream-5-5" },
+      image_edit: { vendor: "volcengine", modelId: "doubao-seedream-4-5-251128" },
+      text_to_video: { vendor: "apimart", modelId: "doubao-seedance-2.5" },
+      image_to_video: { vendor: "apimart", modelId: "MiniMax-Hailuo-2.3" },
+    });
+    const defaultSection = fourDistinctIndex.slice(fourDistinctIndex.indexOf("用户的默认模型状态"));
+    const estimatedTokens = (defaultSection.match(/[\u4e00-\u9fff]|[A-Za-z0-9_@.*+-]+|[^\s\w\u4e00-\u9fff]/g) ?? []).length;
     expect(estimatedTokens).toBeLessThanOrEqual(350);
   });
 
-  it("首轮用户环境块清晰标出当前打开的子视图与选中节点焦点摘要（即使未选中任何 handle 也能看到当前面）", async () => {
+  it("首轮用户环境块清晰标出当前工作面与选中节点焦点摘要（超长字段受控截断，且不与 contextSnapshot 重复投影 handles）", async () => {
+    const longId = `node-${"x".repeat(120)}`;
+    const focusLine = formatLaneAmbientFocus({
+      admissionSurface: "canvas",
+      documentId: "doc-main",
+      target: { kind: "canvas", nodeIds: [longId] },
+      contextSnapshot: {
+        version: 1,
+        handles: [{
+          id: "director-focus-1",
+          kind: "canvasNode",
+          targetId: "node-director-1",
+          revision: "dplan-1",
+          intentRole: "target",
+          display: { title: "DirectorBoxSubview", subtitle: "正在改：镜头 2" },
+          locator: { type: "custom", key: "directorShot", value: "over_student" },
+        }],
+      },
+    });
+    expect(focusLine).toContain("surface=canvas");
+    expect(focusLine).not.toContain("activeFocus=");
+    expect(focusLine.length).toBeLessThan(200);
     const context: LaneComposerContext = {
       approvalPolicy: { mode: "request" },
       admissionSurface: "canvas",
@@ -575,7 +672,7 @@ describe("Slice 3 · Schema 防呆瘦身 + 工具说明与 Schema 一致性锁 +
     }
   });
 
-  it("createLaneTools 自动为所有可通过 makeStrictJsonSchema 的工具开启原生 constrainedSampling", () => {
+  it("createLaneTools 仅为纯严格语法子集工具开启 constrainedSampling，且第三方 openai-compatible 默认不强发 strict: true", async () => {
     const descriptors = INTERNAL_VERBS.map((verb) =>
       bindLaneTool(
         {
@@ -597,18 +694,79 @@ describe("Slice 3 · Schema 防呆瘦身 + 工具说明与 Schema 一致性锁 +
       && t.constrainedSampling !== null
       && t.constrainedSampling.type === "json_schema",
     );
-    expect(strictEnabled.length).toBeGreaterThanOrEqual(18);
+    expect(strictEnabled.length).toBeGreaterThanOrEqual(10);
     for (const tool of tools) {
-      let canStrict = true;
-      try { makeStrictJsonSchema(tool.parameters as never); } catch { canStrict = false; }
+      let canStrict = !hasStrictCompilerUnsupportedKeywords(tool.parameters);
+      if (canStrict) {
+        try { makeStrictJsonSchema(tool.parameters as never); } catch { canStrict = false; }
+      }
       if (canStrict) {
         expect(tool.constrainedSampling, `${tool.name} should enable constrainedSampling`).toEqual({
           type: "json_schema",
           strict: "prefer",
         });
+        const strictSchemaJson = JSON.stringify(makeStrictJsonSchema(tool.parameters as never));
+        expect(strictSchemaJson).not.toMatch(/"(minimum|maximum|exclusiveMinimum|exclusiveMaximum|minItems|maxItems|pattern|minLength|maxLength)"/);
       } else {
-        expect(tool.constrainedSampling, `${tool.name} should disable constrainedSampling when schema has open records`).toBe(false);
+        expect(tool.constrainedSampling, `${tool.name} should disable constrainedSampling when schema has open records or value bounds`).toBe(false);
       }
+    }
+
+    // 1) 第三方 openai-compatible 中转站默认 supportsStrictMode = false，线上请求体绝不出现 "strict": true
+    const relayDescriptor = createNomiModelDescriptor({
+      kind: "openai-compatible",
+      providerId: "relay",
+      modelId: "relay-chat",
+      baseURL: "http://127.0.0.1:9/v1",
+      authType: "api-key",
+      apiKey: "sk-test",
+    });
+    expect((relayDescriptor.compat as Record<string, unknown> | undefined)?.supportsStrictMode).toBe(false);
+
+    const server = await createHttpFixture([{ type: "text", text: "done" }, { type: "text", text: "done" }]);
+    const tempDir1 = makeTempDir("nomi-strict-relay-");
+    const tempDir2 = makeTempDir("nomi-strict-declared-");
+    try {
+      const relayLane = await openLane({
+        fetch: globalThis.fetch,
+        projectDir: tempDir1,
+        model: { kind: "openai-compatible", providerId: "relay", modelId: "relay-chat", baseURL: server.baseURL, authType: "api-key", apiKey: "sk-test" },
+        systemPrompt: "Test",
+        tools: descriptors,
+      });
+      await relayLane.execute({ kind: "prompt", text: "hi" });
+      await relayLane.close();
+      expect(server.requests[0]!.raw).not.toContain('"strict":true');
+      expect(server.requests[0]!.raw).not.toContain('"type":"null"');
+
+      // 2) 显式声明 compat.supportsStrictMode = true 的连接精确开启 strict: true，且仅对纯严格子集工具开启
+      const strictLane = await openLane({
+        fetch: globalThis.fetch,
+        projectDir: tempDir2,
+        model: {
+          kind: "openai-compatible",
+          providerId: "official",
+          modelId: "strict-model",
+          baseURL: server.baseURL,
+          authType: "api-key",
+          apiKey: "sk-test",
+          compat: { supportsStrictMode: true },
+        },
+        systemPrompt: "Test",
+        tools: descriptors,
+      });
+      await strictLane.execute({ kind: "prompt", text: "hi" });
+      await strictLane.close();
+      const wireTools = (server.requests[1]!.body as { tools: Array<{ function: { name: string; strict?: boolean; parameters: unknown } }> }).tools;
+      const strictWireTools = wireTools.filter((t) => t.function.strict === true);
+      expect(strictWireTools.length).toBe(strictEnabled.length);
+      for (const wt of strictWireTools) {
+        expect(hasStrictCompilerUnsupportedKeywords(wt.function.parameters)).toBe(false);
+      }
+    } finally {
+      await server.close();
+      cleanupTestTemp(tempDir1);
+      cleanupTestTemp(tempDir2);
     }
   });
 });

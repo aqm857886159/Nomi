@@ -235,29 +235,46 @@ export async function patchStoryboardAuthoring(
   }
   if (prepErrors.length) refuseArgument(`${prepErrors.length} storyboard shots failed validation: ${prepErrors.join('; ')}`);
 
-  const applyErrors: string[] = [];
-  for (const [idx, entry] of prepared.entries()) {
+  if (prepared.length === 1) {
+    const entry = prepared[0]!;
     const reply = await request(
       'storyboard.patch-design',
       { projectId, documentId: current.sourceDocumentId, designId, shotId: entry.shotId, patch: entry.patch, ...(entry.references ? { references: entry.references } : {}) },
       STORYBOARD_RENDERER_TIMEOUT_MS,
     ) as { status?: unknown; shotId?: unknown; shots?: unknown; anchorHoldsShotNumber?: unknown } | null;
-    if (reply?.status === 'shot-not-found') {
-      const msg = shotNotFoundMessage(entry.shotId, reply);
-      if (prepared.length === 1) refuseArgument(msg);
-      applyErrors.push(`shots[${idx}] (${entry.shotId}): ${msg}`);
-      continue;
-    }
-    try {
-      refuseIfStoryboardRejected(reply);
-    } catch (error) {
-      if (prepared.length === 1) throw error;
-      applyErrors.push(`shots[${idx}] (${entry.shotId}): ${error instanceof Error ? error.message : String(error)}`);
-      continue;
-    }
+    if (reply?.status === 'shot-not-found') refuseArgument(shotNotFoundMessage(entry.shotId, reply));
+    refuseIfStoryboardRejected(reply);
     if (!reply || reply.status !== 'saved' || reply.shotId !== entry.shotId) throw new Error('storyboard_design_save_rejected');
+    return;
   }
-  if (applyErrors.length) refuseArgument(`${applyErrors.length} storyboard shots could not be revised: ${applyErrors.join('; ')}`);
+
+  const batchReply = await request(
+    'storyboard.patch-design',
+    { projectId, documentId: current.sourceDocumentId, designId, patches: prepared },
+    STORYBOARD_RENDERER_TIMEOUT_MS,
+  ) as {
+    status?: unknown;
+    shotIds?: unknown;
+    failures?: Array<{ index?: unknown; kind?: unknown; shotId?: unknown; shots?: unknown; anchorHoldsShotNumber?: unknown; issues?: Array<{ path?: unknown; problem?: unknown }> }>;
+  } | null;
+  if (batchReply?.status === 'batch-failed' && Array.isArray(batchReply.failures) && batchReply.failures.length > 0) {
+    const applyErrors = batchReply.failures.map((failure) => {
+      const idx = typeof failure.index === 'number' ? failure.index : 0;
+      const shotId = typeof failure.shotId === 'string' ? failure.shotId : prepared[idx]?.shotId ?? 'unknown';
+      if (failure.kind === 'shot-not-found') {
+        return `shots[${idx}] (${shotId}): ${shotNotFoundMessage(shotId, failure)}`;
+      }
+      const issuesText = (Array.isArray(failure.issues) ? failure.issues : [])
+        .flatMap((issue) => (typeof issue?.path === 'string' && typeof issue?.problem === 'string' ? [`${issue.path} ${issue.problem}`] : []))
+        .join('; ');
+      return `shots[${idx}] (${shotId}): ${issuesText || 'invalid storyboard patch'}`;
+    });
+    refuseArgument(`${applyErrors.length} storyboard shots could not be revised (nothing changed): ${applyErrors.join('; ')}`);
+  }
+  refuseIfStoryboardRejected(batchReply);
+  if (!batchReply || batchReply.status !== 'saved' || !Array.isArray(batchReply.shotIds) || batchReply.shotIds.length !== prepared.length) {
+    throw new Error('storyboard_design_save_rejected');
+  }
 }
 
 export function createDocumentPlanAuthoring(deps: { requestRenderer?: RequestRenderer; resolveStoryboardReferenceUrl?: ResolveUrl }) {

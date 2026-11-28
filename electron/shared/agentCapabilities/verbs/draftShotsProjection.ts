@@ -38,7 +38,7 @@ import type { z } from "zod";
 
 import { generationPlanInputSchema, type StoryboardAuthorFields } from "../generationPlanSchemas";
 import { resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ModelIdentity, type ResolvedModelName } from "../modelHandle";
-import { resolveShotTaskKind, statedShotTaskKind } from "../../generationShotKind";
+import { resolveShotTaskKind, statedShotTaskKind, taskKindForModeId } from "../../generationShotKind";
 import { modelKindForTaskKind } from "../../capabilityModeManifest";
 import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../../contracts/generationModelDefaultsContract";
 import { LaneDomainFailure, toolArgumentsRejected } from "../../agentLane/laneToolContract";
@@ -249,7 +249,10 @@ export function draftShotToFlatCreate(shot: DraftShot, models: DraftShotModels):
 export function withDraftShotsDefaults(args: DraftShotsArgs, shot: DraftShot): DraftShot {
   const { taskKind, operationId: _selectsBranch, newPlan: _planChoice, shots: _theseShots, ...unhandled } = args;
   void (unhandled satisfies Record<string, never>);
-  const skipTopTaskKind = shot.role === "anchor" || shot.modeId !== undefined;
+  const unambiguousModeKind = shot.modeId !== undefined ? taskKindForModeId(shot.modeId) : undefined;
+  const skipTopTaskKind = shot.role === "anchor"
+    || unambiguousModeKind !== undefined
+    || (shot.model !== undefined && shot.modeId !== undefined);
   return {
     ...shot,
     ...(shot.taskKind === undefined && taskKind !== undefined && !skipTopTaskKind ? { taskKind } : {}),

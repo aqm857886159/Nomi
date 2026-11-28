@@ -73,35 +73,89 @@ export function upsertAgentStoryboardDesign(data: Record<string, unknown>): { st
 
 /** 改一镜时按 id 没找到那一行：回给主进程真实的镜头清单，由它如实告诉模型（不是一个看不懂的异常）。 */
 type ShotNotFoundReply = { status: 'shot-not-found'; shotId: string; shots: ReadonlyArray<{ id: string; row: number }>; anchorHoldsShotNumber: boolean }
+type BatchPatchFailureItem =
+  | ({ index: number } & Omit<ShotNotFoundReply, 'status'> & { kind: 'shot-not-found' })
+  | { index: number; shotId: string; kind: 'rejected'; issues: SchemaFieldIssue[] }
+type BatchPatchReply =
+  | { status: 'saved'; shotIds: string[] }
+  | { status: 'batch-failed'; failures: BatchPatchFailureItem[] }
+  | StoryboardRejectedReply
 
-/** 改一份 Agent 方案里的一镜。方案不存在就拒——绝不「顺手新建一份」。 */
-export function patchAgentStoryboardDesign(data: Record<string, unknown>): { status: 'saved'; shotId: string } | ShotNotFoundReply | StoryboardRejectedReply {
+function applyOneStoryboardPatch(
+  workingPlan: StoryboardPlan,
+  shotId: string,
+  patch: Record<string, unknown>,
+  references: Record<string, Array<{ url: string }>> | undefined,
+): { ok: true; next: StoryboardPlan } | { ok: false; reply: ShotNotFoundReply | StoryboardRejectedReply } {
+  let subject: PlanAnchor | PlanShot
+  try {
+    subject = patchStoryboardSubject(workingPlan, shotId, patch, references)
+  } catch (error) {
+    if (!(error instanceof StoryboardSubjectNotFoundError)) {
+      const at = workingPlan.shots.findIndex(shot => stableShotId(shot) === shotId)
+      const anchorAt = workingPlan.anchors.findIndex(anchor => anchor.id === shotId)
+      const rejected = rejectionOfZod(error, at >= 0 ? `shots[${at}]` : anchorAt >= 0 ? `anchors[${anchorAt}]` : 'patch')
+      if (rejected) return { ok: false, reply: rejected }
+      throw error
+    }
+    return { ok: false, reply: { status: 'shot-not-found', shotId, shots: error.shots, anchorHoldsShotNumber: error.anchorHoldsShotNumber } }
+  }
+  const next: StoryboardPlan = 'description' in subject
+    ? { ...workingPlan, anchors: workingPlan.anchors.map(anchor => (anchor.id === shotId ? subject as PlanAnchor : anchor)) }
+    : { ...workingPlan, shots: workingPlan.shots.map(shot => (stableShotId(shot) === shotId ? subject as PlanShot : shot)) }
+  return { ok: true, next }
+}
+
+/** 改一份 Agent 方案里的一镜或多镜（批量路径在副本上全量校验通过后单次写回，任一镜失败则整批零落盘、零 undo）。方案不存在就拒——绝不「顺手新建一份」。 */
+export function patchAgentStoryboardDesign(data: Record<string, unknown>): { status: 'saved'; shotId: string } | ShotNotFoundReply | StoryboardRejectedReply | BatchPatchReply {
   const { documentId, designId } = targetDocument(data.projectId, data.documentId, data.designId)
   assertProject(data.projectId as string)
+  const store = useWorkbenchStore.getState()
+  const design = (store.storyboardDesignsByDocumentId[documentId] ?? []).find(value => value.id === designId)
+  if (!design) throw new Error('storyboard_design_missing')
+
+  if (Array.isArray(data.patches)) {
+    if (data.patches.length === 0) throw new Error('Invalid generation patch')
+    let workingPlan = design.plan
+    const shotIds: string[] = []
+    const failures: BatchPatchFailureItem[] = []
+    for (const [index, rawEntry] of data.patches.entries()) {
+      const entry = rawEntry && typeof rawEntry === 'object' && !Array.isArray(rawEntry) ? rawEntry as Record<string, unknown> : null
+      const shotId = typeof entry?.shotId === 'string' && entry.shotId.trim() ? entry.shotId.trim() : ''
+      if (!shotId) throw new Error('storyboard_shot_id_required')
+      const patch = entry?.patch && typeof entry.patch === 'object' && !Array.isArray(entry.patch) ? entry.patch as Record<string, unknown> : null
+      if (!patch) throw new Error('Invalid generation patch')
+      const references = entry?.references as Record<string, Array<{ url: string }>> | undefined
+      const step = applyOneStoryboardPatch(workingPlan, shotId, patch, references)
+      if (!step.ok) {
+        if (step.reply.status === 'shot-not-found') {
+          failures.push({ index, kind: 'shot-not-found', shotId: step.reply.shotId, shots: step.reply.shots, anchorHoldsShotNumber: step.reply.anchorHoldsShotNumber })
+        } else {
+          failures.push({ index, kind: 'rejected', shotId, issues: step.reply.issues })
+        }
+        continue
+      }
+      workingPlan = step.next
+      shotIds.push(shotId)
+    }
+    if (failures.length > 0) return { status: 'batch-failed', failures }
+    if (!store.setStoryboardPlan(workingPlan, documentId, designId, true)) {
+      const rejected = explainRejection(workingPlan)
+      if (rejected) return rejected
+      throw new Error('storyboard_design_save_rejected')
+    }
+    return { status: 'saved', shotIds }
+  }
+
   const shotId = typeof data.shotId === 'string' && data.shotId.trim() ? data.shotId.trim() : ''
   if (!shotId) throw new Error('storyboard_shot_id_required')
   const patch = data.patch && typeof data.patch === 'object' && !Array.isArray(data.patch) ? data.patch as Record<string, unknown> : null
   if (!patch) throw new Error('Invalid generation patch')
-  const store = useWorkbenchStore.getState()
-  const design = (store.storyboardDesignsByDocumentId[documentId] ?? []).find(value => value.id === designId)
-  if (!design) throw new Error('storyboard_design_missing')
   const references = data.references as Record<string, Array<{ url: string }>> | undefined
-  let subject: PlanAnchor | PlanShot
-  try {
-    subject = patchStoryboardSubject(design.plan, shotId, patch, references)
-  } catch (error) {
-    if (!(error instanceof StoryboardSubjectNotFoundError)) {
-      const at = design.plan.shots.findIndex(shot => stableShotId(shot) === shotId)
-      const anchorAt = design.plan.anchors.findIndex(anchor => anchor.id === shotId)
-      return rejectionOfZod(error, at >= 0 ? `shots[${at}]` : anchorAt >= 0 ? `anchors[${anchorAt}]` : 'patch') ?? (() => { throw error })()
-    }
-    return { status: 'shot-not-found', shotId, shots: error.shots, anchorHoldsShotNumber: error.anchorHoldsShotNumber }
-  }
-  const next: StoryboardPlan = 'description' in subject
-    ? { ...design.plan, anchors: design.plan.anchors.map(anchor => (anchor.id === shotId ? subject as PlanAnchor : anchor)) }
-    : { ...design.plan, shots: design.plan.shots.map(shot => (stableShotId(shot) === shotId ? subject as PlanShot : shot)) }
-  if (!store.setStoryboardPlan(next, documentId, designId, true)) {
-    const rejected = explainRejection(next)
+  const step = applyOneStoryboardPatch(design.plan, shotId, patch, references)
+  if (!step.ok) return step.reply
+  if (!store.setStoryboardPlan(step.next, documentId, designId, true)) {
+    const rejected = explainRejection(step.next)
     if (rejected) return rejected
     throw new Error('storyboard_design_save_rejected')
   }

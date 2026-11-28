@@ -163,10 +163,36 @@ export type LaneApprovalDecisionReader = (toolCallId: string) => LaneApprovalDec
 export type LaneApprovalAnswerReader = (toolCallId: string) => string | undefined;
 
 /**
- * 语法级约束采样派生：当工具发布 schema 可无损转为 strict JSON schema 时自动开启（采样期直接消除缺必填、多余未知键、类型跑偏），
- * 含开放字典（如 `z.record`）的工具显式回退为 `false`。
+ * 上游严格语法编译器（OpenAI / Anthropic Structured Outputs `strict: true`）拒绝的值级校验关键字：
+ * `pi-ai@0.85.1` 的 `makeStrictJsonSchema` 只拦结构关键字（`$ref`/`oneOf`/`additionalProperties`），不剥离数值上下界、
+ * 数组长度或正则；携带这些关键字的工具保持 `constrainedSampling: false`，交由 `execute` 内 Zod 运行时精确校验。
+ */
+const STRICT_COMPILER_UNSUPPORTED_KEYS = new Set([
+  'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
+  'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'uniqueItems', 'format',
+]);
+
+export function hasStrictCompilerUnsupportedKeywords(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(hasStrictCompilerUnsupportedKeywords);
+  if (!node || typeof node !== 'object') return false;
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (STRICT_COMPILER_UNSUPPORTED_KEYS.has(key) && value !== undefined) return true;
+    // `properties` 的键名是业务字段名（如叫 `format` 的业务属性），只递归检查属性自身的 schema 对象。
+    if (key === 'properties' && value && typeof value === 'object' && !Array.isArray(value)) {
+      if (Object.values(value as Record<string, unknown>).some(hasStrictCompilerUnsupportedKeywords)) return true;
+      continue;
+    }
+    if (hasStrictCompilerUnsupportedKeywords(value)) return true;
+  }
+  return false;
+}
+
+/**
+ * 语法级约束采样派生：仅当工具发布 schema 可无损转为 strict JSON schema 且不含上游严格语法编译器拒绝的值级校验关键字时开启，
+ * 其余含开放字典（如 `z.record`）或数值/长度/正则界限的工具显式回退为 `false`。
  */
 function deriveConstrainedSampling(parameters: TSchema): AgentHarnessTool<undefined>['constrainedSampling'] {
+  if (hasStrictCompilerUnsupportedKeywords(parameters)) return false;
   try {
     makeStrictJsonSchema(parameters as unknown as Record<string, unknown>);
     return { type: 'json_schema', strict: 'prefer' };

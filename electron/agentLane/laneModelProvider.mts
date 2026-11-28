@@ -223,6 +223,12 @@ function modelCost(config: NomiModelConfig): Model<Api>['cost'] {
 export function createNomiModelDescriptor(config: NomiModelConfig): Model<Api> {
   const protocol = protocols[config.kind];
   const baseUrl = config.baseURL.replace(/\/+$/, '');
+  // pi-ai 对 openai-completions 默认按网址猜测开启 strict: true，但第三方 openai-compatible 中转站普遍不支持
+  // strict JSON Schema / anyOf[..., null] 并直接报 HTTP 400；这里对 openai-compatible 显式默认关闭，仅在模型行
+  // 明确声明 compat.supportsStrictMode === true 时启用；openai-responses 与 anthropic 保持原样按声明透传。
+  const compat = config.kind === 'openai-compatible'
+    ? { ...config.compat, supportsStrictMode: config.compat?.supportsStrictMode === true }
+    : config.compat;
   const model: Model<Api> = {
     provider: config.providerId, id: config.modelId, name: config.modelId,
     api: protocol.api, baseUrl, reasoning: config.reasoning ?? false, input: ['text', 'image'],
@@ -231,8 +237,7 @@ export function createNomiModelDescriptor(config: NomiModelConfig): Model<Api> {
     // 值为 null 的档被剔掉。这里只负责原样递过去，不在两侧各维护一份档位清单。
     ...(config.thinkingLevelMap
       ? { thinkingLevelMap: config.thinkingLevelMap as Model<Api>['thinkingLevelMap'] } : {}),
-    // 同理：compat 按协议分型、键的含义归 pi，声明了就原样递，没声明就不出现（pi 按网址自己探测，和今天一样）。
-    ...(config.compat ? { compat: config.compat as Model<Api>['compat'] } : {}),
+    ...(compat ? { compat: compat as Model<Api>['compat'] } : {}),
     cost: modelCost(config),
     // Descriptor maxTokens reflects only the actual wire output cap (4096 default on Anthropic, 0 when undeclared),
     // preventing pi-agent-core from misdiagnosing server-side 4K/8K output limits as context-window overflow.

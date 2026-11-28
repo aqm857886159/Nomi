@@ -269,3 +269,53 @@ describe('Agent / 划词拆镜新建方案的默认画幅跟随当前项目画�
     expect(planDefaultAspect(replaced)).toBe('')
   })
 })
+
+describe('文稿分镜方案批量改镜的原子性（零半截脏写、单次落盘与单步 undo）', () => {
+  it('全批合法时单次 setStoryboardPlan 原子更新所有目标镜头；含坏 shotId 或非法字段时合法镜头零脏写、零落盘', () => {
+    upsert('op-batch', {
+      title: 'BatchPlan',
+      anchors: [],
+      shots: [
+        { index: 1, shotId: 'shot-1', shotKind: 'video', durationSec: 8, anchorIds: [], prompt: 'Origin 1' },
+        { index: 2, shotId: 'shot-2', shotKind: 'video', durationSec: 8, anchorIds: [], prompt: 'Origin 2' },
+      ],
+    })
+    const spy = vi.spyOn(useWorkbenchStore.getState(), 'setStoryboardPlan')
+
+    // 反例：[合法 shot-1, 不存在的 shot-ghost, 合法 shot-2] -> 全批汇总报错且 setStoryboardPlan 调用 0 次
+    const failed = patchAgentStoryboardDesign({
+      projectId: 'p',
+      documentId: 'doc',
+      designId: 'op-batch',
+      patches: [
+        { shotId: 'shot-1', patch: { prompt: 'Dirty 1' } },
+        { shotId: 'shot-ghost', patch: { prompt: 'Ghost' } },
+        { shotId: 'shot-2', patch: { prompt: 'Dirty 2' } },
+      ],
+    })
+    expect(failed).toMatchObject({
+      status: 'batch-failed',
+      failures: [{ index: 1, kind: 'shot-not-found', shotId: 'shot-ghost' }],
+    })
+    expect(spy).not.toHaveBeenCalled()
+    expect(designs()[0]!.plan.shots.map((s) => s.prompt)).toEqual(['Origin 1', 'Origin 2'])
+
+    // 正例：[shot-1, shot-2] 全合法 -> 单次 setStoryboardPlan 原子写入
+    const saved = patchAgentStoryboardDesign({
+      projectId: 'p',
+      documentId: 'doc',
+      designId: 'op-batch',
+      patches: [
+        { shotId: 'shot-1', patch: { prompt: 'Clean 1', parameters: { duration: 5 } } },
+        { shotId: 'shot-2', patch: { prompt: 'Clean 2', parameters: { duration: 5 } } },
+      ],
+    })
+    expect(saved).toEqual({ status: 'saved', shotIds: ['shot-1', 'shot-2'] })
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(designs()[0]!.plan.shots.map((s) => [s.prompt, s.durationSec])).toEqual([
+      ['Clean 1', 5],
+      ['Clean 2', 5],
+    ])
+    spy.mockRestore()
+  })
+})

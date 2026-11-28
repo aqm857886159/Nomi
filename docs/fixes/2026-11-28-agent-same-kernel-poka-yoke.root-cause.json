@@ -11,12 +11,13 @@
   "affected_population": [
     "All Agent draft_shots single-shot, multi-shot, storyboard anchor, and batch-revision calls",
     "Turn-1 generation requests relying on saved default models or active canvas/subview focus",
-    "All 20 strict-compatible internal Agent lane tools under pi AgentHarness"
+    "All strict-subset internal Agent lane tools under pi AgentHarness and third-party openai-compatible relays"
   ],
   "scope_paths": [
     "electron/agentLane/laneContextBudget.mts",
     "electron/agentLane/laneDesktopInput.ts",
     "electron/agentLane/laneModelContext.ts",
+    "electron/agentLane/laneModelProvider.mts",
     "electron/agentLane/laneTools.mts",
     "electron/agentLane/laneVerbTransport.ts",
     "electron/capabilityCore/generationAuthoredDuration.ts",
@@ -35,7 +36,8 @@
     "electron/shared/agentLane/draftCanvasLanding.ts",
     "electron/shared/aspectRatioValue.ts",
     "electron/shared/generationShotKind.ts",
-    "electron/shared/storyboard/storyboardSubjectAdapter.ts"
+    "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.ts"
   ],
   "entry_points": [
     "draft_shots create / append / multi-shot batch patch via laneVerbTransport -> mcpGenerationTools",
@@ -217,6 +219,11 @@
     },
     {
       "kind": "write",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "createNomiModelDescriptor"
+    },
+    {
+      "kind": "write",
       "path": "electron/agentLane/laneModelRead.mts",
       "symbol": "toModelVisibleSchema"
     },
@@ -362,9 +369,9 @@
     }
   ],
   "door_reduction": {
-    "before": 59,
-    "after": 59,
-    "why_not": "The 59 doors are existing layered callers across verb declaration/projection, transport translation, draft admission (create/extend/patch), storyboard subject adaptation, ambient context formatting (live + compaction), and AgentHarness tool assembly; rather than adding new parallel doors, every layer now delegates to the same shared mode/aspect-ratio/duration/strict-schema owners."
+    "before": 60,
+    "after": 60,
+    "why_not": "The 60 doors are existing layered callers across verb declaration/projection, transport translation, draft admission (create/extend/patch), storyboard subject/design adaptation, ambient context formatting (live + compaction), model provider compat, and AgentHarness tool assembly; rather than adding new parallel doors, every layer now delegates to the same shared mode/aspect-ratio/duration/strict-schema owners."
   },
   "generality_proof": "Mode-to-taskKind derivation reads everyBuiltInArchetype + modeTransportFor once for all built-in and vendor-specialized models; pixel-ratio resolution reuses resolveAspectRatioGeometryChoice across all enum/pixel controls; duration snapping works generically on any ParameterField enum or min/max range; constrainedSampling derives automatically via makeStrictJsonSchema for all present and future lane tools; prose-to-schema test scans all internal verbs.",
   "shared_boundaries": [
@@ -436,6 +443,7 @@
     "electron/capabilityCore/generationAuthoredDuration.test.ts",
     "electron/capabilityCore/generationDomainRefusalReachesModel.test.ts",
     "electron/shared/agentCapabilities/malformedJsonArgument.test.ts",
+    "src/workbench/creation/storyboard/agentStoryboardDesign.test.ts",
     "tests/experience-laws/intentShownEqualsDrafted.test.mjs"
   ],
   "class_regression_tests": [
@@ -451,7 +459,7 @@
     "decision": "retain-with-exit",
     "current": "0.85.1",
     "target": ">=1.7.0",
-    "rationale": "Per workspace no-download constraint, native constrainedSampling is enabled now on @earendil-works/pi-ai@0.85.1 via makeStrictJsonSchema for 20/22 internal tools while pi 1.7.0 upgrade lands in a dedicated PR after user confirmation.",
+    "rationale": "Per workspace no-download constraint, native constrainedSampling is enabled now on @earendil-works/pi-ai@0.85.1 for pure strict-subset internal tools (gated by explicit model compat.supportsStrictMode/supportsStrictTools so third-party openai-compatible relays never receive strict:true 400s) while pi 1.7.0 upgrade lands in a dedicated PR after user confirmation.",
     "exit_criteria": [
       "Upgrade @earendil-works/pi-agent-core and @earendil-works/pi-ai to >=1.7.0 in a dedicated PR once user confirms package download",
       "Re-evaluate constrainedSampling coverage on open-record verbs after upstream upgrade"
