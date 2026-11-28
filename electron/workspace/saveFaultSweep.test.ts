@@ -16,6 +16,7 @@ type Scope = "project" | "settings";
 type Fault = { operation: Operation; scope: Scope; nth: number; code: string; persistent: boolean };
 const roots: string[] = [];
 const previousDurability = getDurabilityMode();
+const realSetImmediate = globalThis.setImmediate.bind(globalThis);
 const native = {
   open: fs.open.bind(fs), close: fs.close.bind(fs),
   write: fs.write.bind(fs), writeFile: fs.writeFile.bind(fs),
@@ -94,6 +95,8 @@ function restartSave(root: string, id: string, mode: string, nowMs: number) {
 }
 
 async function save(fault?: Fault, large = false, coldOwnerControl = false) {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
   vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
   vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-save-fault-")));
@@ -263,20 +266,78 @@ async function save(fault?: Fault, large = false, coldOwnerControl = false) {
     return parse(...args);
   });
   setDurabilityMode("durable");
+  let activeAttemptTimers: Set<ReturnType<typeof setTimeout>> | null = null;
+  let onFakeTimerScheduled: (() => void) | null = null;
+  const fakeSetTimeout = globalThis.setTimeout.bind(globalThis);
+  const fakeClearTimeout = globalThis.clearTimeout.bind(globalThis);
+  vi.spyOn(globalThis, "setTimeout").mockImplementation(((callback: TimerHandler, delay?: number, ...args: unknown[]) => {
+    const trackedSet = activeAttemptTimers;
+    const holder: { handle?: ReturnType<typeof setTimeout> } = {};
+    const wrapped = (...cbArgs: unknown[]): unknown => {
+      if (holder.handle !== undefined) trackedSet?.delete(holder.handle);
+      return typeof callback === "function" ? (callback as (...inner: unknown[]) => unknown)(...cbArgs) : undefined;
+    };
+    const handle = fakeSetTimeout(wrapped, delay, ...args);
+    holder.handle = handle;
+    if (trackedSet) {
+      trackedSet.add(handle);
+      onFakeTimerScheduled?.();
+    }
+    return handle;
+  }) as unknown as typeof setTimeout);
+  vi.spyOn(globalThis, "clearTimeout").mockImplementation(((handle?: ReturnType<typeof setTimeout>) => {
+    if (handle !== undefined) activeAttemptTimers?.delete(handle);
+    return fakeClearTimeout(handle);
+  }) as unknown as typeof clearTimeout);
   const attempt = async (text: string) => {
     let error: unknown;
     let saved: Awaited<ReturnType<typeof saveWorkspaceProject>> | undefined;
     let settled = false;
-    const pending = saveWorkspaceProject(created.id, { payload: { text } }, deps)
-      .then((value) => { saved = value; settled = true; }, (reason: unknown) => { error = reason; settled = true; });
-    for (let turn = 0; !settled && turn < 4096; turn += 1) {
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      if (!settled && vi.getTimerCount() > 0) {
-        await vi.advanceTimersByTimeAsync(10);
-      }
+    let pumpScheduled = false;
+    let pumping = false;
+    let fakeTicks = 0;
+    const attemptTimers = new Set<ReturnType<typeof setTimeout>>();
+    let rejectTurnBound: ((reason: Error) => void) | undefined;
+    const turnBoundExceeded = new Promise<never>((_resolve, reject) => {
+      rejectTurnBound = reject;
+    });
+    const schedulePump = (): void => {
+      if (settled || pumpScheduled || pumping || attemptTimers.size === 0) return;
+      pumpScheduled = true;
+      realSetImmediate(() => {
+        pumpScheduled = false;
+        if (settled || pumping || attemptTimers.size === 0 || vi.getTimerCount() === 0) return;
+        fakeTicks += 1;
+        if (fakeTicks > 16384) {
+          settled = true;
+          rejectTurnBound?.(new Error("save attempt exceeded fake-clock turn bound"));
+          return;
+        }
+        pumping = true;
+        void vi.advanceTimersToNextTimerAsync().then(
+          () => {
+            pumping = false;
+            if (!settled && attemptTimers.size > 0) schedulePump();
+          },
+          (pumpErr: unknown) => {
+            pumping = false;
+            settled = true;
+            rejectTurnBound?.(pumpErr instanceof Error ? pumpErr : new Error(String(pumpErr)));
+          },
+        );
+      });
+    };
+    activeAttemptTimers = attemptTimers;
+    onFakeTimerScheduled = schedulePump;
+    try {
+      const pending = saveWorkspaceProject(created.id, { payload: { text } }, deps)
+        .then((value) => { saved = value; settled = true; }, (reason: unknown) => { error = reason; settled = true; });
+      await Promise.race([pending, turnBoundExceeded]);
+    } finally {
+      settled = true;
+      activeAttemptTimers = null;
+      onFakeTimerScheduled = null;
     }
-    await pending;
     return { error, saved };
   };
   let result;
