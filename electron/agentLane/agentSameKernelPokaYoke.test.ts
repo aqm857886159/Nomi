@@ -133,9 +133,9 @@ const LANE_MODELS: AgentModelEntry[] = [
     modes: [
       {
         modeId: "t2v",
-        vendorTerm: "文生视频",
+        vendorTerm: "text-video-mode",
         intent: "text",
-        hint: "文生视频",
+        hint: "text-video-hint",
         slots: [],
         params: [
           { key: "size", label: "比例", type: "select", defaultValue: "16:9", options: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"].map((v) => ({ value: v, label: v })) },
@@ -172,9 +172,9 @@ const LANE_MODELS: AgentModelEntry[] = [
     defaultModeId: "t2v",
     modes: [{
       modeId: "t2v",
-      vendorTerm: "文生视频",
+      vendorTerm: "hailuo-t2v-mode",
       intent: "text",
-      hint: "文生视频",
+      hint: "hailuo-t2v-hint",
       slots: [],
       params: [{ key: "duration", label: "时长", type: "select", defaultValue: 6, options: [{ value: 6, label: "6s" }, { value: 10, label: "10s" }] }],
     }],
@@ -189,9 +189,9 @@ const LANE_MODELS: AgentModelEntry[] = [
     defaultModeId: "i2v",
     modes: [{
       modeId: "i2v",
-      vendorTerm: "图生视频",
+      vendorTerm: "img-video-mode",
       intent: "image",
-      hint: "图生视频",
+      hint: "img-video-hint",
       slots: [{ kind: "first_frame", label: "首帧", max: 1 }],
       params: [],
     }],
@@ -424,7 +424,7 @@ describe("Slice 2 · 首轮 Ambient Context 补齐（默认模型规格 ≤350 t
           targetId: "node-director-1",
           revision: "dplan-1",
           intentRole: "target",
-          display: { title: "3D-BOX 预演", subtitle: "正在改：镜头 2" },
+          display: { title: "DirectorBoxSubview", subtitle: "正在改：镜头 2" },
           locator: { type: "custom", key: "directorShot", value: "over_student" },
         }],
       },
