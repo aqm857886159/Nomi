@@ -53,7 +53,7 @@ import { modelModeBodies, modelReferenceSelection } from "./catalog/modelCatalog
 import { runCustomCallTask } from "./catalog/customCallDispatch";
 import { resolveCustomCallExecution } from "./catalog/customCallMode";
 import { certifyTaskOutputAndSettleComfyCandidate, materializeCertifiedComfyAssets, resolveComfyCandidateExecution } from "./catalog/comfyuiCandidateLifecycle";
-import { TOKEN_ADMISSION, type TaskAdmission } from "./tasks/taskSpend"; // runTask 缺省走令牌路；画布单镜 Run 传 RUN_APPROVED_ADMISSION
+import { TOKEN_ADMISSION, type RunApprovedAdmission, type TaskAdmission } from "./tasks/taskSpend"; // runTask 缺省走令牌路；画布单镜 Run 传 RUN_APPROVED_ADMISSION
 import { desktopT } from "./i18n";
 import { resultOnlyLandsAsProjectFile, usesSynchronousAudioRunner } from "./tasks/projectFileResult";
 export type {
@@ -105,8 +105,8 @@ export {
   testModelCatalogMapping,
 } from "./catalog/catalogCommit";
 // 请求与工作缓存两份形状住在 ./taskTypes（R9：runtime.ts 是编排层）；re-export 保住既有 import 面。
-export type { CachedTask, TaskRequest } from "./taskTypes";
-import type { CachedTask, TaskRequest, TaskResultAsset } from "./taskTypes";
+export type { CachedTask, GrantedTaskRequest, RunTaskPayload, TaskRequest } from "./taskTypes";
+import type { CachedTask, RunTaskPayload, TaskRequest, TaskResultAsset } from "./taskTypes";
 export type TaskResult = {
   id: string;
   kind: ProfileKind;
@@ -263,7 +263,10 @@ export async function buildProfileTaskResult(input: {
   };
 }
 
-export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN_ADMISSION): Promise<TaskResult> {
+export async function runTask<T, A extends TaskAdmission = typeof TOKEN_ADMISSION>(
+  payload: T & (A extends RunApprovedAdmission ? unknown : RunTaskPayload<T>),
+  admission: A = TOKEN_ADMISSION as A,
+): Promise<TaskResult> {
   const raw = payload as { vendor?: string; request?: TaskRequest };
   const vendorKey = trim(raw.vendor);
   const request = raw.request;

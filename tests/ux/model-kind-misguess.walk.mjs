@@ -6,9 +6,9 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 类型猜错后模型不会报错，而是从对应下拉里**消失**（生成侧每层都按 kind 过滤），而设置页一片绿。
 //
 // 走完整闭环（每步截图，人眼判断）：
-//   ① 设置页：能力摘要说出「文本 3 · 图片 0」，不再只有一个绿「已连接」
-//   ② 模型抽屉：能力条显示图片未接 + 诊断横幅说明「类型是猜的，都落进了文本」
-//   ③ 就地把 seedream-4-0 改成图片
+//   ① 模型首页：「以前接的」列出中转连接
+//   ② 连接详情：可打开 Seedream 模型详情，类型栏显示原先误判的文本
+//   ③ 从模型详情把 seedream-4-0 改成图片
 //   ④ 目录层验收：kind 变了，且 **text_to_image 通道真的建出来了**（只翻标签的话这里是 null）
 //   ⑤ 生成侧验收：图像模型下拉里现在有它了 —— 用户回到卡住的地方就能继续
 //
@@ -18,8 +18,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
-import { canvasAddBar, newProjectEntry } from './_shell.mjs'
+import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
+import { canvasAddBar, closeSettings, newProjectEntry, openModelSettings } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-11-model-kind-misguess')
@@ -130,49 +130,22 @@ try {
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(2000)
 
-  // ── ① 设置页 · 模型连接：能力摘要 ──────────────────────────────────────────
-  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings')))
-  await getWin().waitForTimeout(900)
-  // 设置默认停在「通用」页，AI 区块要点了那个 tab 才挂载。
-  const aiTab = getWin().locator('[role="dialog"][aria-label="设置"] button', { hasText: 'AI' }).first()
-  if (await aiTab.count()) { await aiTab.click(); await getWin().waitForTimeout(700) }
-  const settingsVisible = await getWin().locator('[data-settings-section="ai-models"]').count()
-  if (settingsVisible) {
-    await snapNear('[data-settings-section="ai-models"] section', '01-settings-capabilities.png')
-    const txt = await getWin().locator('[data-settings-section="ai-models"]').first().innerText()
-    expect(/文本\s*3/.test(txt), '设置页能力摘要显示「文本 3」（这家能干什么，一眼可见）')
-    expect(!/图片\s*[1-9]/.test(txt), '设置页没有谎报图片能力')
-  } else {
-    note('设置面板未打开（入口差异），跳过 ①')
-  }
-
-  // ── ② 模型抽屉：能力条 + 诊断横幅 ─────────────────────────────────────────
-  // 先关掉设置弹层：它是 inset-0 的模态遮罩，留着会拦掉后面所有点击（栽过一次，报错只说
-  // 「intercepts pointer events」，看起来像抽屉没渲染）。
-  await getWin().keyboard.press('Escape')
-  await getWin().waitForTimeout(500)
-  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-model-catalog')))
-  await getWin().waitForTimeout(1200)
-  await snap('02-drawer-diagnosis.png')
-  const bannerVisible = await getWin().locator('[data-drawer-kind-gap]').first().waitFor({ state: 'visible' }).then(() => true, () => false)
-  expect(bannerVisible, '抽屉出现「类型可能猜错了」诊断横幅')
-  if (bannerVisible) {
-    await snapNear('[data-drawer-kind-gap]', '03-drawer-banner.png')
-    const banner = await getWin().locator('[data-drawer-kind-gap]').first().innerText()
-    note('横幅文案', banner.replace(/\s+/g, ' '))
-    expect(/猜/.test(banner), '横幅说明了「类型是猜的」这个真实缺口')
-  }
-
-  // ── ③ 就地改类型 ─────────────────────────────────────────────────────────
-  // 展开这家中转的卡（折叠态里没有模型行）。
-  const vendorCard = getWin().locator('button', { hasText: '某中转站' }).first()
-  if (await vendorCard.count()) { await vendorCard.click(); await getWin().waitForTimeout(700) }
+  // ── ① ② ③ 模型首页 → 旧连接 → 模型详情 → 改类型 ──────────────────────────
+  await openModelSettings(getWin())
+  const vendor = getWin().locator('[data-model-home-connection="relay"]')
+  await expectVisible(vendor, '「以前接的」列出这家中转')
+  await snapNear('[data-model-home-connected]', '01-settings-capabilities.png')
+  await clickOrFail(vendor, '打开中转连接')
+  const connection = getWin().locator('[data-model-settings-vendor="relay"]')
+  await expectVisible(connection, '中转连接详情')
   await snap('04-drawer-expanded.png')
-
-  const retypeTrigger = getWin().locator('[aria-label*="更改"][aria-label*="Seedream"]').first()
+  await clickOrFail(connection.getByRole('button', { name: 'Seedream 4.0', exact: true }), '打开 Seedream 模型详情')
+  const modelDetail = getWin().locator('[data-model-settings-model="seedream-4-0"]')
+  const retypeTrigger = modelDetail.locator('[aria-label*="更改"][aria-label*="Seedream"]')
   const hasTrigger = await retypeTrigger.waitFor({ state: 'visible' }).then(() => true, () => false)
   expect(hasTrigger, '模型行上有「更改类型」控件（此前落库后完全不可改）')
   if (hasTrigger) {
+    expect((await retypeTrigger.innerText()).includes('文本'), '图片模型当前被归为文本')
     await retypeTrigger.click()
     await getWin().waitForTimeout(500)
     await snap('05-retype-menu.png')
@@ -223,8 +196,7 @@ try {
   // 现场用**真实 UI 路径**造，不注入假状态：现在 seedream 已是 image → 能在图像节点下拉里选中它
   // → 再从抽屉把它改回文本 → 那个节点就持有了一个「类型对不上」的 modelKey，正是旧项目/批跑的形状。
   // 点生成会在 findExecutableModel 处直接抛错（连 HTTP 都不发），零额度。
-  await getWin().keyboard.press('Escape')
-  await getWin().waitForTimeout(400)
+  await closeSettings(getWin())
   const blankProject = newProjectEntry(getWin())
   if (await blankProject.count()) {
     await blankProject.click()

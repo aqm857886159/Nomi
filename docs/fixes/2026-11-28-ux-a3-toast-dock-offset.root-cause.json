@@ -1,0 +1,170 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-ux-a3-toast-dock-offset",
+  "problem_type": "全局右上通知容器遗漏右侧停靠常驻 Agent 坞避让，导致右上 Toast 直接遮挡 Agent 顶栏交互控件",
+  "symptom": "在右侧常驻 Agent 处于停靠态（[data-shell-agent-layer][data-agent-form=\"dock\"]）时，任意右上角全局 Toast（批量删节点撤销提示、入轨提示、导出回执、失败切家提示）均锚定在窗口右沿 12px 处，直接压在常驻 Agent 顶栏（历史/收起/浮窗/停靠切换器）正上方：真 Electron 实测中文浅色 1280x800 重叠面积 17200 px²（顶栏切换器重叠 1978 px²），英文暗色 1100x690 重叠面积 16800 px²（顶栏切换器重叠 1978 px²）。",
+  "direct_cause": "src/NomiAppProviders.tsx 的 Mantine Notifications 容器仅针对旧版右侧浮板 [data-nomi-right-panel=model|tasks|director] 写了 !right-* 覆盖规则，既未覆盖现役右侧常驻 Agent 停靠坞 [data-shell-agent-layer][data-agent-form=dock]，也未读取停靠栏随用户拖拽（300-600px）或 1100px 窗口下 CSS Grid 让位产生的真实宽度，且多个右侧浮板并存时互斥覆盖而非取最大安全偏移。",
+  "class_root": "全局右上 Toast 的右侧避让没有把「右侧所有常驻/临时停靠面板」统一收口到容器边界的单一最大偏移公式（max(基础边距, 停靠 Agent 实时右缘距离 + 边距, 临时右面板偏移)），导致新增右侧常驻布局后全应用所有通知调用方集体遮挡新栏顶栏。",
+  "affected_population": [
+    "所有在创作、分镜、生成画布、时间轴预览四个工作区将常驻 Agent 停靠在右侧的创作者",
+    "所有触发全局右上通知的场景（showUndoToast、showInfoToast、notify background 级通知、失败切家提示）",
+    "中英双语、光暗双模式，以及 1280x800 常规窗、1100x690 紧凑窗和用户拖拽调宽（300-600px）后的所有停靠态窗口"
+  ],
+  "scope_paths": [
+    "src/NomiAppProviders.tsx",
+    "src/ui/app-shell/toastRightOffset.ts"
+  ],
+  "entry_points": [
+    "全局唯一通知容器 src/NomiAppProviders.tsx（@mantine/notifications Notifications position=top-right）",
+    "常驻 Agent 停靠栏实时右缘同步边界 src/ui/app-shell/toastRightOffset.ts（useDockedAgentRightInset / measureDockedAgentRightInset）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://v8.mantine.dev/x/notifications/",
+      "checked_at": "2026-11-28",
+      "purpose": "确认 @mantine/notifications 的 Notifications 根容器定位由外层 className/style 与 notificationsStore 订阅机制控制，可在单一容器边界完成所有通知的右侧避让"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/modality",
+      "checked_at": "2026-11-28",
+      "purpose": "确认桌面端临时状态浮层不得覆盖相邻常驻工作区或检查器顶栏"
+    }
+  ],
+  "invariants": [
+    "当常驻 Agent 处于停靠态（[data-shell-agent-layer][data-agent-form=dock]）时，全局右上 Toast 容器必须左移到当前可见停靠栏左沿再加 12px 间距处，与常驻 Agent 面板及顶栏控件像素重叠面积恒等于 0 px²。",
+    "当停靠栏因用户拖拽（300-600px）或窗口缩窄（1060-1280px CSS Grid 让位）改变实际宽度时，通知容器通过同源默认常量与通知期实测 CSS 变量 --nomi-agent-dock-inset 保持零重叠、不硬编码魔法像素。",
+    "当常驻 Agent 处于收起（collapsed）、浮窗（float）或未挂载态（项目库/窄窗）时，停靠避让不生效，Toast 贴窗口右上角 12px 且不产生误偏移。",
+    "当常驻 Agent 停靠坞与任务中心等其他右侧面板同时打开时，容器通过 CSS max() 取两者最大安全偏移，同时避让两块面板；在 700px 窄窗下通过视口左界保护防止 Toast 伸出窗口左沿。",
+    "无活跃通知时零常驻观察器（notificationsStore 为空即断开 ResizeObserver / MutationObserver / resize 监听并清除 --nomi-agent-dock-inset）。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/ui/app-shell/toastRightOffset.ts",
+    "tests": [
+      "src/ui/app-shell/toastRightOffset.test.tsx",
+      "tests/ux/failure-toast-layout.e2e.mjs"
+    ]
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-28",
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab.tsx",
+      "symbol": "NomiAppProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/directorLab.tsx",
+      "symbol": "NomiAppProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/nodeTimelineInteraction.tsx",
+      "symbol": "NomiAppProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/skillLibrarySpecimen.tsx",
+      "symbol": "NomiAppProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/main.tsx",
+      "symbol": "NomiAppProviders"
+    },
+    {
+      "kind": "write",
+      "path": "src/NomiAppProviders.tsx",
+      "symbol": "useDockedAgentRightInset"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/toastRightOffset.ts",
+      "symbol": "syncDockedAgentRightInset"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 7,
+    "why_not": "5 个读入口分别是应用主入口（src/main.tsx）和 4 个独立设计实验室/交互样本挂载入口（src/devlab/*），各自独立构建挂载不能合并；新增的 2 扇写入口同属唯一通知容器避让边界（src/NomiAppProviders.tsx 调用 useDockedAgentRightInset → src/ui/app-shell/toastRightOffset.ts 的 syncDockedAgentRightInset 写 :root 变量），不存在多处各算一份的分叉写门。"
+  },
+  "generality_proof": "所有右上通知都经由 src/NomiAppProviders.tsx 渲染的唯一 Mantine Notifications 容器展示，而四个工作区（创作/分镜/生成/预览）的常驻 Agent 停靠栏均由同一外壳（ShellAgentHost 写 data-shell-agent-layer + data-agent-form）和同一容器（AssistantPane 写 data-assistant-pane）提供。容器层用 CSS max(12px, var(--nomi-toast-right-agent, 0px), var(--nomi-toast-right-panel, 0px)) 组合所有右侧占位的最大安全偏移，并由 useDockedAgentRightInset 在通知显示期间实测当前唯一可见停靠栏（排除隐藏工作区的 0x0 同级面板）写入 --nomi-agent-dock-inset、无实测时回退到由 EDITING_PANEL_DEFAULTS.assistantWidth + ASSISTANT_PANE_GUTTER + SHELL_GUTTER 派生的单一真源默认值 406px。因此任何工作区、任何通知来源、任何拖拽/自适应宽度以及与任务中心叠加态都由这一处统一守住。",
+  "shared_boundaries": [
+    {
+      "path": "src/NomiAppProviders.tsx",
+      "symbol": "NomiAppProviders",
+      "responsibility": "全局右上通知容器的唯一边界：通过 CSS max() 统一避让常驻 Agent 停靠坞与右侧临时浮板，并在通知活跃期间同步可见停靠栏的实时右缘距离。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/NomiAppProviders.tsx",
+      "entry_point": "NomiAppProviders",
+      "disposition": "enforced",
+      "evidence": "唯一全局 Notifications 容器已统一接入 [data-shell-agent-layer][data-agent-form=dock] 与 [data-nomi-right-panel=*] 的 max() 避让公式和 useDockedAgentRightInset 实时测量；由 src/ui/app-shell/toastRightOffset.test.tsx 与 tests/ux/failure-toast-layout.e2e.mjs 覆盖。"
+    },
+    {
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "entry_point": "TaskCenterPanel",
+      "disposition": "enforced",
+      "evidence": "任务中心浮卡标注 data-nomi-right-panel=\"tasks\"，与常驻 Agent 停靠坞并存时经 CSS max() 同时避让两者（tests/ux/failure-toast-layout.e2e.mjs 覆盖 dockWidth=300 与 480 两种叠加组合）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/context/ContextCard.tsx",
+      "entry_point": "ContextCard",
+      "disposition": "enforced",
+      "evidence": "精修属性卡标注 data-nomi-right-panel=\"director\" 并写 --nomi-director-side-width，继续经 --nomi-toast-right-panel 参与同一 max() 偏移公式，行为零回归。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要全局通知容器按硬编码清单列举右侧浮板且不统一取最大偏移，任何新增右侧停靠面板或可拖拽调宽侧栏都会再次被右上 Toast 覆盖顶栏，影响所有工作区与所有通知调用方。",
+    "same_class_scan": [
+      "git grep -n \"data-nomi-right-panel\" src/：确认全仓右侧临时面板仅 TaskCenterPanel（tasks）与 ContextCard（director），全部经由 NomiAppProviders.tsx 统一消费。",
+      "git grep -n \"AssistantPane\" src/：确认创作、分镜、生成、预览四个工作区全部复用唯一 AssistantPane（data-assistant-pane=\"true\"）与唯一 ShellAgentHost（data-shell-agent-layer + data-agent-form）。",
+      "git grep -n \"Notifications\" src/：确认全仓仅 src/NomiAppProviders.tsx 挂载了唯一全局 Notifications 容器。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/NomiAppProviders.tsx",
+    "invariant": "全局右上通知容器通过 max(12px, --nomi-toast-right-agent, --nomi-toast-right-panel) 与通知期实测 --nomi-agent-dock-inset 保证停靠 Agent 展开时重叠面积恒为 0 px²，收起或浮窗时不产生误偏移。",
+    "failure_mode": "若移除停靠选择器、退回硬编码固定偏移、破坏 max() 组合或误量隐藏工作区面板，src/ui/app-shell/toastRightOffset.test.tsx 与真实 Chromium 几何测试 tests/ux/failure-toast-layout.e2e.mjs 立即报红。",
+    "exception_policy": "none",
+    "strategy": "在全局唯一 Notifications 容器边界统一收口右侧停靠坞与右侧浮板的避让计算，默认值派生自既有单一真源布局常量（EDITING_PANEL_DEFAULTS + ASSISTANT_PANE_GUTTER + SHELL_GUTTER），活跃通知期通过实测可见停靠栏自动适配拖拽宽度与 CSS Grid 让宽。",
+    "artifacts": [
+      "src/NomiAppProviders.tsx",
+      "src/ui/app-shell/toastRightOffset.ts",
+      "src/ui/app-shell/toastRightOffset.test.tsx",
+      "tests/ux/failure-toast-layout.e2e.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/app-shell/toastRightOffset.test.tsx",
+    "tests/ux/failure-toast-layout.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/ui/app-shell/toastRightOffset.test.tsx",
+    "tests/ux/failure-toast-layout.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/NomiAppProviders.tsx"
+    ],
+    "rationale": "同一提交内将旧的互斥覆盖式 !right-[344px] / !right-[404px] / !right-[calc(...)] 直接替换为统一的 CSS max() 多面板安全偏移公式，无并行版与回退开关。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "继续使用已安装的 @mantine/notifications 8.3.18 公开组件与 notificationsStore 订阅接口，无依赖升级或新增。",
+    "exit_criteria": []
+  },
+  "migration": "无数据或配置迁移：仅更新全局通知容器的运行时布局避让逻辑。",
+  "residual_risks": [
+    "Windows 端未在真机单独重拍截图（仅在 macOS 真 Electron + 无头 Chromium 验证；所用 CSS :has()/max() 与 ResizeObserver 均为标准 Chromium 引擎能力，跨平台行为一致）。",
+    "若未来在主窗口右侧再引入新的独立停靠容器，仍需接入 data-nomi-right-panel 或同步其右缘占位变量到同一容器公式。"
+  ]
+}

@@ -5,13 +5,14 @@ import { InMemoryTransport } from '@modelcontextprotocol/server'
 import { describe, expect, it } from 'vitest'
 
 import { createNomiMcpServer, type McpInvokeOptions } from './mcpProtocol'
+import { createTestMcpHost } from './__tests__/mcpHostTestUtils'
 
 async function connect() {
   const seen: Array<{ method: string; options: McpInvokeOptions | undefined }> = []
-  const nomi = createNomiMcpServer({
+  const nomi = createNomiMcpServer(createTestMcpHost({
     invoke: async (method, _params, options) => { seen.push({ method, options }); return { ok: true } },
     isAppOpen: () => true,
-  })
+  }))
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
   const client = new Client({ name: 'claude-code', version: '1' })
   await Promise.all([nomi.connect(serverSide), client.connect(clientSide)])

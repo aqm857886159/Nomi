@@ -161,6 +161,7 @@ function firstLastFrameRequest(first: string, last: string) {
         modelKey: "doubao-seedance-2.0",
         projectId: "project-1",
         nodeId: "node-1",
+        grantId: "test-grant",
         resolution: "480p",
         duration: 4,
         archetypeInput: {

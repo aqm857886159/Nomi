@@ -49,14 +49,10 @@ export const GATE_INPUTS = Object.freeze({
   'check:capability-lifecycle': { roots: ['src','electron'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-capability-lifecycle.mjs'] },
   // check-no-default-overwrite.mjs：src / electron / workers 的 ts / tsx（AST）
   'check:no-default-overwrite': { roots: ['src','electron','workers'], exts: ['ts','tsx'], files: ['scripts/no-default-overwrite-baseline.json'], entries: ['scripts/check-no-default-overwrite.mjs'] },
-  // check-asset-evidence.mjs：electron 下非测试 ts 源
-  'check:asset-evidence': { roots: ['electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/asset-evidence-baseline.json'], entries: ['scripts/check-asset-evidence.mjs'] },
   // check-media-import-owner.mjs：媒体导入口的唯一 owner，扫 electron / src
   'check:media-import-owner': { roots: ['electron','src'], exts: ['ts','tsx'], files: ['scripts/media-import-owner-baseline.json'], entries: ['scripts/check-media-import-owner.mjs'] },
   // check-storyboard-owner.mjs：src/workbench 下的 ts / tsx（谁直接读 shot.params），2026-10-10 修好 Windows 路径后接入
   'check:storyboard-owner': { roots: ['src/workbench'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-storyboard-owner.mjs'] },
-  // check-transport-assembly.mjs：受检接口与它的生产装配点，固定四个 electron/capabilityCore 文件
-  'check:transport-assembly': { roots: [], exts: [], files: ['electron/capabilityCore/mcpProtocol.ts','electron/capabilityCore/mcpNodeLauncher.ts','electron/capabilityCore/mcpStdioServer.ts','electron/capabilityCore/mcpHttpServer.ts'], entries: ['scripts/check-transport-assembly.mjs'] },
   // 原 check:spend-receipt（只认 mcpGateConfirmation.ts 里字面的 confirmed: true）2026-11-21 删，由付费批准一个家的扫描接手：
   // scripts/concept-owners-approval.node-test.mjs 登记在 pre-push-scan-guards.mjs 的 SCAN_GUARDS，src / electron 任何改动都触发（原来只认三个固定文件）。
   // check-dangling-tokens.mjs：src 的 css token 定义与 ts / tsx 里的引用

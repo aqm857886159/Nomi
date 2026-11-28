@@ -4,7 +4,8 @@ import {
   appendStoryboardSubjects, stableShotId, StoryboardSubjectNotFoundError, type AppendedStoryboardSubject,
 } from '../../../../electron/shared/storyboard/storyboardSubjectIdentity'
 import type { PlanAnchor, PlanShot } from '../../../../electron/shared/storyboard/storyboardPlan'
-import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { withDefaultStoryboardAspect, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { selectPreviewAspectRatio } from '../../preview/previewAspectRatios'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { ZodError } from 'zod'
@@ -61,9 +62,10 @@ export function upsertAgentStoryboardDesign(data: Record<string, unknown>): { st
   const store = useWorkbenchStore.getState()
   if (!store.workbenchDocuments.some(document => document.id === documentId)) throw new Error('storyboard_document_missing')
   const existing = (store.storyboardDesignsByDocumentId[documentId] ?? []).find(design => design.id === designId)
+  const createdPlan = existing ? plan : withDefaultStoryboardAspect(plan, selectPreviewAspectRatio(store))
   const saved = existing
     ? store.setStoryboardPlan(plan, documentId, designId, true)
-    : store.addStoryboardDesign({ initiator: data.initiator, documentId, source: plan, identity: { id: designId, title: plan.title } })
+    : store.addStoryboardDesign({ initiator: data.initiator, documentId, source: createdPlan, identity: { id: designId, title: createdPlan.title } })
   if (!saved) { const rejected = explainRejection(plan); if (rejected) return rejected }
   if (!saved || saved.id !== designId) throw new Error('storyboard_design_save_rejected')
   return { status: 'saved', designId }

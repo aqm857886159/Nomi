@@ -586,7 +586,7 @@ const stdioPipe: McpWireConnector = (host, emit) => {
       if (line.trim()) emit(JSON.parse(line) as WireFrame)
     }
   })
-  const mcp = createNomiMcpServer(host as unknown as McpHost)
+  const mcp = createNomiMcpServer(host as unknown as Required<McpHost>)
   const closed = new Promise<void>((resolve) => mcp.onClose(() => resolve()))
   const connected = mcp.connect(new StdioServerTransport(stdin, stdout))
   return {
@@ -612,7 +612,7 @@ const HTTP_CLIENT = 'codex'
 function startWireHttpServer(host: McpWireHost): Promise<McpHttpServerHandle> {
   return startMcpHttpServer({
     port: 0,
-    sessionFor: (identity) => createNomiMcpServer({ ...(host as unknown as McpHost), getAuthenticatedClient: () => identity.connection.authenticatedClient }),
+    sessionFor: (identity) => createNomiMcpServer({ ...(host as unknown as Required<McpHost>), getAuthenticatedClient: () => identity.connection.authenticatedClient }),
   })
 }
 

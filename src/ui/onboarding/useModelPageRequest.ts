@@ -1,4 +1,5 @@
 import React from 'react'
+import { consumePendingModelNetworkScroll } from './apimartConnectRoute'
 
 import type { ModelSettingsPage } from './modelSettingsNavigation'
 
@@ -14,7 +15,12 @@ export type ModelPageRequest = { vendorKey: string; token: number } | null
 export function useModelPageRequest(
   request: ModelPageRequest,
   openPage: (next: Exclude<ModelSettingsPage, { type: 'home' }>) => void,
+  dataSourceRequested: boolean,
 ): void {
+  React.useEffect(() => {
+    if (consumePendingModelNetworkScroll()) openPage({ type: 'otherWays', section: 'network' })
+    else if (dataSourceRequested) openPage({ type: 'otherWays', section: 'data' })
+  }, [dataSourceRequested, openPage])
   const handledToken = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (!request || handledToken.current === request.token) return

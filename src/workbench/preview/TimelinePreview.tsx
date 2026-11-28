@@ -17,7 +17,7 @@ import type { PreviewAspectRatio } from '../workbenchTypes'
 import { findClipByType as findClip } from '../player/timelinePlayback'
 import { usePreviewBgmPlayback } from './usePreviewBgmPlayback'
 import { PREVIEW_RATIOS } from './previewAspectRatios'
-import { exportTimelineToMp4, type ExportTimelineToMp4Options } from '../export/exportApi'
+import { exportTimelineToMp4, isExportCancelledError, type ExportTimelineToMp4Options } from '../export/exportApi'
 import { markChecklistStep } from '../onboarding/onboardingState'
 import { reportPreviewExportFailure, reportPreviewExportSuccess } from './previewExportFeedback'
 import { useVideoPlaybackHeal } from '../../media/useVideoPlaybackHeal'
@@ -35,9 +35,11 @@ import {
   PREVIEW_EXPORT_EVENT,
   PREVIEW_EXPORT_IDLE,
   canExportPreviewTimeline,
+  getPreviewExportState,
   isPreviewExportBusy,
   previewExportStageKey,
   publishPreviewExportState,
+  registerPreviewExportCancelHandler,
   usePreviewExportState,
 } from './previewExportRequest'
 
@@ -245,13 +247,24 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
     setEditingTextId('')
   }, [editingDraft, updateTimelineTextClip])
 
+  const activeExportAbortRef = React.useRef<AbortController | null>(null)
   const handleExport = React.useCallback(async () => {
-    if (exportBusy || !canExportPreviewTimeline(timeline)) return
+    if (exportBusy || activeExportAbortRef.current || !canExportPreviewTimeline(timeline)) return
     // 导出是后台作业：点下去那一刻签发原项目，mp4 与失败提示都归它，之后切项目不改归属。
     const projectId = withProjectAction((project) => project.binding.projectId) ?? ''
+    const controller = new AbortController()
+    activeExportAbortRef.current = controller
     setExportError(null)
+    const unregisterCancel = registerPreviewExportCancelHandler(() => {
+      if (controller.signal.aborted) return
+      const current = getPreviewExportState()
+      if (isPreviewExportBusy(current.status)) {
+        publishPreviewExportState({ ...current, cancelling: true })
+      }
+      controller.abort()
+    })
     try {
-      publishPreviewExportState({ status: 'preparing', progress: 0 })
+      publishPreviewExportState({ status: 'preparing', progress: 0, cancelling: false })
       const result = await exportTimelineToMp4({
         timeline,
         aspectRatio,
@@ -259,8 +272,10 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
         resolution: exportResolution,
         quality: exportQuality,
         generationNodes,
+        signal: controller.signal,
         onProgress: (progress: Parameters<NonNullable<ExportTimelineToMp4Options['onProgress']>>[0]) => {
-          publishPreviewExportState({ status: progress.status, progress: progress.ratio })
+          if (controller.signal.aborted || activeExportAbortRef.current !== controller) return
+          publishPreviewExportState({ status: progress.status, progress: progress.ratio, cancelling: false })
         },
       })
       // 上手清单第 4 步「导出成片」打勾（导出 fire-and-forget 无持久历史，靠这里标记）。
@@ -271,11 +286,23 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
         message: t('timelinePreview.exportComplete'),
         actionLabel: t('timelinePreview.showExportedFile'),
       })
-      publishPreviewExportState(PREVIEW_EXPORT_IDLE)
+      if (activeExportAbortRef.current === controller) {
+        publishPreviewExportState(PREVIEW_EXPORT_IDLE)
+      }
     } catch (error) {
-      publishPreviewExportState(PREVIEW_EXPORT_IDLE)
+      if (activeExportAbortRef.current === controller) {
+        publishPreviewExportState(PREVIEW_EXPORT_IDLE)
+      }
+      if (controller.signal.aborted || isExportCancelledError(error)) {
+        return
+      }
       const message = error instanceof Error ? error.message : t('timelinePreview.exportFailed')
       reportPreviewExportFailure({ projectId, message, actionLabel: t('taskCenter.title'), hostConnected: Boolean(playerRef.current?.isConnected), present: setExportError })
+    } finally {
+      unregisterCancel()
+      if (activeExportAbortRef.current === controller) {
+        activeExportAbortRef.current = null
+      }
     }
   }, [aspectRatio, exportBusy, exportQuality, exportResolution, generationNodes, timeline, t])
 

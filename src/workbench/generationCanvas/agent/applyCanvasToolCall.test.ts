@@ -321,6 +321,7 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
 
   beforeEach(() => {
     resetCanvas()
+    useWorkbenchStore.setState({ previewAspect: undefined })
     useWorkbenchStore.getState().hydrateWorkbenchDocuments(
       [{ id: 'doc-1', version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
       'doc-1',
@@ -332,7 +333,7 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
   it('合法方案 → 创作 owner,画布上不放任何节点（不建分镜表、不生成镜头）,回执含计数', async () => {
     const ack = await applyCanvasToolCall('propose_storyboard_plan', PLAN)
     const ws = useWorkbenchStore.getState()
-    expect(ws.storyboardDesignsByDocumentId['doc-1']?.[0]?.plan).toEqual(PLAN)
+    expect(ws.storyboardDesignsByDocumentId['doc-1']?.[0]?.plan).toEqual({ ...PLAN, aspectRatio: '16:9' })
     expect(ws.workspaceMode).toBe('creation')
     expect(ws.activeStoryboardId).toBeNull() // Agent 新建的方案只进列表，打开是用户的动作
     expect(useGenerationCanvasStore.getState().nodes).toEqual([]) // 写方案不碰画布（2026-10-08 不再自动建分镜表）
@@ -359,7 +360,7 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
     await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, 'doc-1')
     const ws = useWorkbenchStore.getState()
     expect(ws.workspaceMode).toBe('generation')
-    expect(ws.storyboardDesignsByDocumentId['doc-1'][0].plan).toEqual(PLAN)
+    expect(ws.storyboardDesignsByDocumentId['doc-1'][0].plan).toEqual({ ...PLAN, aspectRatio: '16:9' })
   })
 
   it('全新拆镜不会覆盖当前已确认的分镜设计', async () => {
@@ -386,6 +387,30 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
 
     expect(result).toMatchObject({ status: 'obsolete', documentId: deletedDocumentId })
     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId[deletedDocumentId]).toBeUndefined()
+  })
+
+  it('新建方案跟随当前项目非默认画幅（9:16）', async () => {
+    useWorkbenchStore.getState().setPreviewAspectRatio('9:16')
+    await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, 'doc-1')
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['doc-1']?.[0]?.plan.aspectRatio).toBe('9:16')
+  })
+
+  it('显式指定 aspectRatio 或带片种模板时不被项目画幅覆盖', async () => {
+    await applyCanvasToolCall('propose_storyboard_plan', { ...PLAN, aspectRatio: '9:16' }, undefined, undefined, 'doc-1')
+    await applyCanvasToolCall('propose_storyboard_plan', { ...PLAN, title: '短剧', profileKey: 'genre.short-drama' }, undefined, undefined, 'doc-1')
+    const list = useWorkbenchStore.getState().storyboardDesignsByDocumentId['doc-1']
+    expect(list[0].plan.aspectRatio).toBe('9:16')
+    expect(list[1].plan.aspectRatio).toBeUndefined()
+    expect(list[1].plan.profileKey).toBe('genre.short-drama')
+  })
+
+  it('更新已有方案（传 storyboardId）不回填项目画幅', async () => {
+    const existing = useWorkbenchStore.getState().setStoryboardPlan(PLAN, 'doc-1')!
+    useWorkbenchStore.getState().setPreviewAspectRatio('9:16')
+    await applyCanvasToolCall('propose_storyboard_plan', { ...PLAN, title: '改后' }, undefined, undefined, 'doc-1', existing.id)
+    const updated = useWorkbenchStore.getState().storyboardDesignsByDocumentId['doc-1'].find(item => item.id === existing.id)
+    expect(updated?.plan.title).toBe('改后')
+    expect(updated?.plan.aspectRatio).toBeUndefined()
   })
 })
 

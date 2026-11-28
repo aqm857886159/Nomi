@@ -1,0 +1,32 @@
+{
+  "name": "预览侧栏收起轨横排短标与属性检查器片段控件边界",
+  "subject": "preview.inspector-rail-and-controls",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/PanelRail.tsx",
+    "symbol": "PanelRail"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/PanelRail.tsx",
+      "symbol": "PanelRail"
+    },
+    {
+      "path": "src/workbench/preview/inspector/PreviewInspector.tsx",
+      "symbol": "PreviewInspector"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/preview/previewUxLabels.test.tsx",
+  "allowed_consumers": [
+    "src/workbench/preview/PreviewSourcePanel.tsx",
+    "src/workbench/preview/PreviewWorkspace.tsx",
+    "src/devlab/designLab/editing/states/02-inspector.tsx"
+  ],
+  "since": "2026-11-28",
+  "notes": "合同 docs/fixes/2026-11-28-ux-a6-preview-inspector-polish.root-cause.json：PanelRail 默认横排短标（horizontalLabel = true），防止窄轨中英文被 vertical-rl 旋转；PreviewInspector 片段画幅与音频控件统一通过 src/design/ 原语（NomiSegmented / DesignSwitch / DesignNumberInput）渲染并保留无障碍名与 200px 窄栏不溢出。"
+}

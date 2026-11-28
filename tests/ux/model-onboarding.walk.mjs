@@ -1,4 +1,4 @@
-// 模型设置面板 R13 走查 —— 已接入 / 已适配平台 / 其他接入方式 三段分层（2026-08-26 重写）。
+// 模型设置面板走查：APIMart 接入、已有连接、其他接入方式。
 // 用法: node tests/ux/model-onboarding.walk.mjs
 // 产出: tests/ux/shots/onboarding/*.png —— 人眼判断分层、下钻、暗色。
 //
@@ -14,7 +14,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
 import { openModelSettings } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -77,34 +77,22 @@ for (let i = 0; i < 6; i++) {
 
 // 注意：本机 catalog 在隔离 userData 内，但即梦登录态/编程助手 MCP 配置在 userData 外（全局），
 // 故本机通常有「已接入」项（即梦/编程助手）。不写 vendor key（避免污染 + 非必要）。
-console.log('— 默认态：模型设置首页三段分层（已接入 / 已适配平台 / 其他接入方式）—')
+console.log('— 默认态：模型设置首页（APIMart 入口 / 以前接的 / 其他接入方式）—')
 if (!(await openPanel(win))) { console.log('  ✗ 面板没打开'); await app.close(); process.exit(1) }
 await win.waitForTimeout(900) // 等异步即梦状态落定 + loaded 门
 const sections = await win.evaluate(() => ({
-  connected: Boolean(document.querySelector('[data-model-home-connected]')),
-  adapted: Boolean(document.querySelector('[data-model-home-adapted-platforms]')),
-  otherMethods: Boolean(document.querySelector('[data-model-home-other-methods]')),
+  previous: Boolean(document.querySelector('[data-model-home-connected]')),
+  otherWays: Boolean(document.querySelector('[data-model-home-action="other-ways"]')),
   available: [...document.querySelectorAll('[data-model-home-available]')].map((el) => el.getAttribute('data-model-home-available')),
 }))
 console.log(`  · 分区：${JSON.stringify(sections)}`)
-// 首页至少要有「可接入平台」这一段，否则这张图没有取证价值。
-if (!sections.adapted && !sections.otherMethods) failures.push('模型设置首页既没有「已适配平台」也没有「其他接入方式」')
-// 正着写「至少列出 1 个」，不写 `=== 0`：后者是「不存在」断言，探针失效时也会成立
-// （check:walkthroughs 拦的正是这族）。这里要的本就是存在性，正着写既准确又不用进基线。
-if (sections.available.length < 1) failures.push('首页一个可接入 vendor 都没列出')
+if (!sections.otherWays) failures.push('模型设置首页没有「其他接入方式」入口')
+if (sections.available.join(',') !== 'apimart') failures.push('新装目录的可接入平台应只列 APIMart')
 await snap(win, 'home-sections')
 
-console.log('— 下钻：点第一个可接入平台 → 连接页 —')
-const firstVendor = win.locator('[data-model-home-available]').first()
-if (await firstVendor.count()) {
-  await firstVendor.click({ timeout: 2500 }).catch(() => {})
-  await win.waitForTimeout(700)
-}
-// 已适配平台走的是「已知 vendor」连接页 = platformConnect（KnownVendorKeyConnectPage.tsx:68，
-// 页类型枚举见 ModelSettingsPageSurface.tsx:15）；自定义 API 才是 add/script。
-const page = await win.evaluate(() => document.querySelector('[data-model-settings-page]')?.getAttribute('data-model-settings-page') || '')
-console.log(`  · 当前页 = ${page}`)
-if (page !== 'platformConnect') failures.push(`点可接入平台后应进入 platformConnect 页，实际停在「${page || '无'}」`)
+console.log('— 下钻：APIMart 入口 → 整窗连接页 —')
+await clickOrFail(win.locator('[data-model-home-available="apimart"]'), 'APIMart 接入入口')
+await expectVisible(win.locator('[data-apimart-connect-page]'), 'APIMart 整窗连接页')
 await snap(win, 'connection-page')
 
 // 明暗两张必须真的一明一暗。默认主题按本地时间自动定（天黑自动暗），夜里跑时「切到 dark」

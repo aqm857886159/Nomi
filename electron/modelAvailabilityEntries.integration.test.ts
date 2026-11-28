@@ -68,7 +68,7 @@ it.each(["unverified", "failed", "verified"])("all entry points send without pre
   const loaded = await defaultCatalog.load("relay", ["image", "text"]);
   expect(loaded?.models).toHaveLength(2);
   expect(requests).toEqual([]);
-  const image = await runTask({ vendor: "relay", request: { kind: "text_to_image", prompt: "local", extras: { modelKey: "image" } } }, { spendGate: async () => {} });
+  const image = await runTask({ vendor: "relay", request: { kind: "text_to_image", prompt: "local", extras: { modelKey: "image", grantId: "test-grant" } } }, { spendGate: async () => {} });
   expect(image.status).toBe("succeeded");
   expect(requests).toEqual(["POST /v1/images/generations"]);
   requests.length = 0;

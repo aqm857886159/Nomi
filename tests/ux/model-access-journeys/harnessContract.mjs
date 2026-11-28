@@ -36,6 +36,8 @@ export const IGNORED_DRAWER_COMPONENTS = Object.freeze({
   // Model-settings/workspace navigation chrome for already-connected models —
   // these host the access-method surfaces above, they are not new access methods.
   ModelSettingsHome: 'settings home/navigation shell for existing connections, not an access method',
+  'ModelUsagePage': 'usage and reference pricing subpage for an existing connection',
+  'OtherConnectionWays': 'workspace navigation subpage hosting existing provider cards covered by their own journeys',
   ModelSettingsDetailDialog: 'detail dialog chrome for an already-connected model, not an access method',
   ModelSettingsDetailBoundary: 'error boundary around the model detail view, not an access method',
   ModelWorkspacePage: 'workspace container for existing model settings, not an access method',

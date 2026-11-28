@@ -9,12 +9,37 @@ import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { isBrowserCaptureAssetKind } from "./assetPaths";
 import type { AssetSourceEvidence, UsageStatus, IntendedRole } from "../connectors/connectorDefinition";
 import { ASSET_PROVENANCE_ALLOWED_USAGES, ASSET_PROVENANCE_ALLOWED_ROLES } from "../connectors/connectorDefinition";
+import type { ProviderNetworkConfig } from "../providerNetwork";
+import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";
+import type { LocalizedAssetType } from "./localizedAsset";
+import type { NotGeneratedKind, UserAssetMeta } from "./generatedAssetStaging";
 
 /** 入口交上来的来源事实（只是输入；落盘形状由 finalizeAssetMeta 定）。 */
 export type AssetSourceFact =
   | { source: "user" }
   | { source: "browser"; pageUrl: string }
   | (Omit<AssetSourceEvidence, "source" | "connectorId"> & { source: "connector"; connectorId: string });
+
+/** moveAssetFile 仅接收非生成类素材，编译期强制带非生成 kind 与来源事实 sourceEvidence（替代已退役的 check:asset-evidence）。 */
+export type MoveAssetFileMeta<K extends string = string> = UserAssetMeta<K> & { sourceEvidence: AssetSourceFact };
+
+export type RemoteAssetImportOptions = {
+  assertCurrent?: () => void;
+  certificationEvidence?: CertificationMediaEvidence;
+  /** 来源事实只收主进程调用方经这里给的（连接器）；渲染层 IPC 载荷里的 sourceEvidence 一律不读。 */
+  sourceEvidence?: AssetSourceFact;
+  /** 产出这条 URL 的那家 vendor 的自有线路配置（`Vendor.network`）。 */
+  providerNetwork?: ProviderNetworkConfig;
+};
+
+/** 非生成类（connector / reference / upload 等）远端导入必填来源事实（替代已退役的 check:asset-evidence）。 */
+export type NonGeneratedRemoteAssetImportOptions = Omit<RemoteAssetImportOptions, "sourceEvidence"> & { sourceEvidence: AssetSourceFact };
+
+/** 渲染层 IPC 转发（nomi:assets:import-remote-url）专用选项：载荷不可信，严禁读载荷里的 sourceEvidence，仅由此显式标记通行。 */
+export type UntrustedIpcRemoteAssetImportOptions = Pick<RemoteAssetImportOptions, "assertCurrent"> & { untrustedRendererIpc: true };
+
+export type GeneratedRemoteAssetImportPayload = JsonRecord & { projectId: string; url: string; kind?: "generated"; expectedKind: LocalizedAssetType };
+export type NonGeneratedRemoteAssetImportPayload<K extends string = string> = JsonRecord & { projectId: string; url: string; kind: NotGeneratedKind<K>; expectedKind?: null };
 
 /**
  * 原始来源事实 → 落盘来源（P0-1 来源取证，docs/plan/2026-09-03-creative-resource-chain-epic.md）。

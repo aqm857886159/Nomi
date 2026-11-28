@@ -201,7 +201,7 @@ export function startMcpHttpServer(options: McpHttpServerOptions): Promise<McpHt
 /**
  * 生产用的会话：HTTP 会话里的每次领域调用都走回环 RPC 进本进程的 rpcServer——与两条 stdio 启动器
  * 完全同一扇门（同样的认人、租约、渲染层 / 磁盘网关选路、收据），HTTP 这一层不另写派发。
- * 这是 McpHost 的第三个生产装配点（check:transport-assembly 比对三处是否接齐可选成员）。
+ * 这是 McpHost 的第三个生产装配点（由 createNomiMcpServer(Required<McpHost>) 在编译期确保三处接齐全部成员）。
  */
 export function createLoopbackMcpHttpSession(deps: Readonly<{
   identity: McpHttpIdentity

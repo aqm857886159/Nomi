@@ -5,7 +5,7 @@ import path from "node:path";
 import { assertTrustedSender, assertTrustedUiSender } from "../ipcSenderGuard";
 import { getAutoSavePrefs, setAutoSavePrefs, type AutoSavePrefs } from "./downloadPrefs";
 import { CLIPBOARD_FILE_PATH_FORMATS, parseClipboardFilePaths } from "./clipboardFilePaths";
-import { copyProjectAsset, importRemoteAsset, type RemoteAssetImportPayload } from "./projectAssetStore";
+import { copyProjectAsset, importRemoteAsset } from "./projectAssetStore";
 import type { AssetImportResult } from '../shared/contracts/assetImportResult';
 import type { LocalFileImportPayload } from './localFileImport';
 import type { AssetImportFailure } from '../shared/contracts/assetImportResult';
@@ -194,8 +194,8 @@ export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture)
     assertTrustedSender(event);
     try {
       const assertCurrent = captureInteraction(event, payload);
-      // 渲染层载荷不可信：expectedKind 由 importRemoteAsset 自己再读一遍，生成产物说不清就拒。
-      return { ok: true, asset: await importRemoteAsset(payload as RemoteAssetImportPayload, { assertCurrent }) };
+      // 渲染层载荷不可信：expectedKind 由 importRemoteAsset 自己再读一遍，生成产物说不清就拒；来源事实不读渲染层载荷。
+      return { ok: true, asset: await importRemoteAsset(payload, { assertCurrent, untrustedRendererIpc: true }) };
     } catch (error) { return importFailure(error); }
   });
   // 懒自愈也是导入转码那扇门：跟着发起窗口和应用退出走，同一个排空等它真停。

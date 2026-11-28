@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
+import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 import { dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectAbsent, expectVisible, expectHidden, clickOrFail, proveProbe } from './_assert.mjs'
 import { ensureAgentPanelOpen, newProjectEntry, openRailDrawer, openSettings, switchWorkspace } from './_shell.mjs'
@@ -84,6 +85,10 @@ async function journey(locale) {
 
   // 同一个隔离资料库跑两次启动 —— 「只问一次」只有跨启动才证明得了。
   const tempRoot = makeTempDir(`nomi-feedback-loop-${locale}-`)
+  const settingsDir = path.join(tempRoot, 'settings')
+  fs.mkdirSync(settingsDir, { recursive: true })
+  // 未接文本模型时 Agent 空态展示接入引导卡；种回环文本模型才能走到 V4EmptyState 与遥测询问卡。
+  const fixture = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir })
   const logsDir = path.join(tempRoot, 'logs')
   fs.mkdirSync(logsDir, { recursive: true })
   const started = new Date()
@@ -124,7 +129,16 @@ async function journey(locale) {
 
     await openAgentPanel(first.win)
     const consent = first.win.locator('[data-v4-block="consent"]').first()
-    await expectVisible(consent, '第一次打开 Agent 面板应当出现「帮 Nomi 变好」卡')
+    // UX-A4：全新空白首次进入创作页、一字未写且未生成时，首屏不弹遥测询问卡。
+    await expectHidden(consent, '全新空白首次进入时不该在首屏弹出「帮 Nomi 变好」卡')
+    await shot(first.win, 'consent-deferred-first-open')
+
+    // 达成首次生成里程碑后，空态立即现身首次遥测询问卡（只问一次）。
+    await first.win.evaluate(() => {
+      localStorage.setItem('nomi:checklist:v1', JSON.stringify({ model: false, storyboard: false, generated: true, exported: false }))
+      window.dispatchEvent(new StorageEvent('storage', { key: 'nomi:checklist:v1' }))
+    })
+    await expectVisible(consent, '完成首次生成里程碑后 Agent 空态应当出现「帮 Nomi 变好」卡')
     await shot(first.win, 'consent-first-ask')
 
     // 两个钮同等大小（不是「不用了」缩成一行灰字）：量出来比，不靠肉眼。
@@ -355,6 +369,7 @@ async function journey(locale) {
     }
   } finally {
     await first?.close().catch(() => undefined)
+    await fixture.close().catch(() => undefined)
     intake.close()
   }
 }

@@ -42,6 +42,9 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
       .toEqual([
         "nomi:onboarding:guess-kinds",
         "nomi:onboarding:list-models",
+        "nomi:onboarding:model-account",
+        "nomi:onboarding:model-unit-prices",
+        "nomi:onboarding:model-usage",
         "nomi:onboarding:vendor-account-balance",
         "nomi:onboarding:vendor-price-preview",
       ]);

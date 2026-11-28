@@ -18,6 +18,7 @@ import {
 } from './mcpHttpEndpoint'
 import { startMcpHttpServer, type McpHttpServerHandle } from './mcpHttpServer'
 import { createNomiMcpServer } from './mcpProtocol'
+import { createTestMcpHost } from './__tests__/mcpHostTestUtils'
 import { ensureToken, signMcpClient, verifyMcpClient } from './security'
 
 const previousCapabilityDir = process.env.NOMI_CAPABILITY_DIR
@@ -31,11 +32,11 @@ beforeEach(async () => {
   server = await startMcpHttpServer({
     port: 0,
     maxSessions: 2,
-    sessionFor: (identity) => createNomiMcpServer({
+    sessionFor: (identity) => createNomiMcpServer(createTestMcpHost({
       invoke: async () => ({}),
       isAppOpen: () => true,
       getAuthenticatedClient: () => identity.connection.authenticatedClient,
-    }),
+    })),
   })
 })
 
@@ -140,7 +141,7 @@ describe('宿主断线不发 DELETE：等确认的调用按未确认收尾', () 
     const dropped = await startMcpHttpServer({
       port: 0,
       sessionFor: (identity) => {
-        const nomi = createNomiMcpServer({
+        const nomi = createNomiMcpServer(createTestMcpHost({
           invoke: async (method) => {
             invoked.push(method)
             if (method === 'nomi_request_generation_gate') return challenge
@@ -150,7 +151,7 @@ describe('宿主断线不发 DELETE：等确认的调用按未确认收尾', () 
           getAuthenticatedClient: () => identity.connection.authenticatedClient,
           verifyClientGenerationConfirmation: verifyReceipt,
           confirmGenerationInNomi: confirmInNomi,
-        })
+        }))
         nomi.onClose((count) => { inFlightAtClose = count })
         return nomi
       },

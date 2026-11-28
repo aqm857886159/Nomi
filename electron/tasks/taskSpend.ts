@@ -34,11 +34,14 @@ export type TaskAdmission = { spendGate: typeof consumeTaskSpend }
 /** 令牌路：只剩登记的附属付费口（试跑、认证、视频拆解；例外到期 2026-12-15）——核销内存令牌。 */
 export const TOKEN_ADMISSION: TaskAdmission = { spendGate: consumeTaskSpend }
 
+declare const runApprovedAdmissionBrand: unique symbol
+export type RunApprovedAdmission = TaskAdmission & { readonly [runApprovedAdmissionBrand]: true }
+
 /**
  * 单镜 Run 路（画布单节点 ↑）：批准已经住在 Run 的门上（主进程手势收据），在途与认领在准入口
  * （appIntegrationCanvasShot）做完——这里只执行同一段传输，不核令牌、不认领。唯一调用方 canvasTransportProvider。
  */
-export const RUN_APPROVED_ADMISSION: TaskAdmission = { spendGate: async () => undefined }
+export const RUN_APPROVED_ADMISSION = { spendGate: async () => undefined } as unknown as RunApprovedAdmission
 
 /**
  * 付费闸外层的「停」（2026-10-27 拆解取消第一刀）：已取消就不进闸——不核令牌、不扣钱；闸里等人确认回来时
