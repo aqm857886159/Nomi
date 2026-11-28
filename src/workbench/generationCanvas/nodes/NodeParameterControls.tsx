@@ -90,7 +90,6 @@ import referenceRowTail, { modelLimitNotice } from './controls/referenceRowTail'
 import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
-import { isCanvasPickReturningToList } from '../store/canvasPickMode'
 import InlineParameterBar, { type ComposerFooterSlots } from './InlineParameterBar'
 import { composerBarSummary } from './composerBarSummary'
 import { isLayerSplitMode } from '../../../../electron/shared/modelArchetypes/modeForInputs'
@@ -158,8 +157,8 @@ export default function NodeParameterControls({
   const modeResolution = archetype ? effectiveArchetypeMode(archetype, node, graph) : null
   const archMode = modeResolution?.mode ?? null
   const sendMode = archMode
-  // A point-pick belongs to the slot configuration that opened it; list-to-canvas transition intentionally unmounts list composer.
-  React.useEffect(() => () => { if (!isCanvasPickReturningToList()) cancelReferencePick.current?.() }, [node.id, openProjectId, archMode?.id, node.meta, edges])
+  // A point-pick belongs to the slot configuration that opened it.
+  React.useEffect(() => () => cancelReferencePick.current?.(), [node.id, openProjectId, archMode?.id, node.meta, edges])
   const imageCatalogConfig = archetype ? null : buildEffectiveImageCatalogConfig(selectedModelOption?.meta)
   const renderedControls = resolveRenderedControls(selectedModelOption, meta, isImageLike, isVideoLike, { node, graph })
 

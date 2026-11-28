@@ -411,6 +411,20 @@
       }
     },
     {
+      "id": "list.create-bar",
+      "label": "列表直接新建节点与导入素材入口（含空态与有卡片态）",
+      "anchor": "[data-board=\"list.create-bar\"]",
+      "component": "src/workbench/generation/list/GenerationListParts.tsx",
+      "status": "in-progress",
+      "owner": "impl-view-parity",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "三处生成同源收口：列表模式直接新建图片/视频/声音/文字节点与导入本地素材，复用画布添加动作"
+    },
+    {
       "id": "timeline.strip",
       "label": "时间轴窄条",
       "anchor": "未定",

@@ -98,6 +98,7 @@ function CanvasOnlyStagePointer({
   return (
     <div
       data-node-stage-surface="list-detail"
+      data-board="detail.stage-surface"
       data-node-stage-canvas-only={node.kind}
       className="flex w-full flex-col items-center justify-center gap-3 rounded-panel border border-nomi-line bg-nomi-paper px-6 py-10 text-center shadow-nomi-sm"
     >
@@ -329,7 +330,7 @@ function NodeStageSurfaceBody({
 
   // ── host="list-detail"：600px 同中轴舞台（正文/媒体框 + 错误恢复 + 内联操作条 + 图层标 + 样片行）──
   return (
-    <div className="flex w-full flex-col items-center" data-node-stage-surface="list-detail">
+    <div className="flex w-full flex-col items-center" data-node-stage-surface="list-detail" data-board="detail.stage-surface">
       <ProvenancePanel node={node} open={provenanceOpen} onClose={() => setProvenanceOpen(false)} />
       {whiteboardOpen ? (
         <div className="relative min-h-[320px] w-full overflow-hidden rounded-panel ring-1 ring-nomi-line" data-list-detail-preview>

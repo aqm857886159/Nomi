@@ -63,7 +63,8 @@ export function enterCanvasPickMode(request: CanvasPickRequest): () => void {
   useGenerationViewStore.getState().setView('canvas')
   prevState.request?.onCancel?.()
   return () => {
-    if (useCanvasPickModeStore.getState().request === request) {
+    const current = useCanvasPickModeStore.getState()
+    if (current.request === request && !current.returnToList) {
       useCanvasPickModeStore.setState({ request: null, returnToList: null })
     }
   }

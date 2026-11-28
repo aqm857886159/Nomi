@@ -223,8 +223,8 @@ describe('Three Generation Surfaces Parity — Goal Contract', () => {
     expect(isCanvasPickModeActive()).toBe(true)
     expect(isCanvasPickReturningToList()).toBe(true)
 
-    // Simulating composer unmount cleanup guarded by isCanvasPickReturningToList(): active pick survives!
-    if (!isCanvasPickReturningToList()) dispose()
+    // Calling the returned unmount cleanup closure during list->canvas unmount keeps the active pick alive!
+    dispose()
     expect(isCanvasPickModeActive()).toBe(true)
 
     // Picking an eligible node completes the pick AND returns to list view with original inspectorKey

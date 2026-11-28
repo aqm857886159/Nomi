@@ -7,7 +7,6 @@ import AssetTile, { AssetAddTile } from '../../assets/AssetTile'
 import { canvasNodeToAssetRefs, type AssetKind } from '../../assets/assetTypes'
 import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { addAssetInput, addUploadedInput, pickCanvasInputFor } from '../quickActions/nodeInputActions'
-import { isCanvasPickReturningToList } from '../store/canvasPickMode'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useComposerGraph } from './composerGraphSnapshot'
 
@@ -27,7 +26,7 @@ export default function NodeInputReferenceEntry({ nodeId, disabled, accept = ['i
     setOpen(false)
   }
   const cancelPick = React.useRef<(() => void) | undefined>(undefined)
-  React.useEffect(() => () => { if (!isCanvasPickReturningToList()) cancelPick.current?.() }, [nodeId, projectId])
+  React.useEffect(() => () => cancelPick.current?.(), [nodeId, projectId])
   // 只订这张卡读得到的那一小片图：整表订阅会让别的卡的生成进度把它带着重渲（2026-10-16 可疑点 g）。
   const { nodes, edges } = useComposerGraph(nodeId)
   const inputs = edges.filter(edge => edge.target === nodeId).flatMap(edge => {

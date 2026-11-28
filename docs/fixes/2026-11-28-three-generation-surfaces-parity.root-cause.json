@@ -2,7 +2,7 @@
   "schema_version": 3,
   "id": "2026-11-28-three-generation-surfaces-parity",
   "change_kind": "corrective",
-  "detected_by": "user",
+  "detected_by": "review",
   "recurrence_check_on": "2026-12-28",
   "recurrence_of": null,
   "problem_type": "cross-surface-capability-and-command-drift",
@@ -183,6 +183,8 @@
   },
   "prevention": {
     "kind": "type-system",
+    "poka_yoke_tier": "impossible-by-construction",
+    "source_mechanism": "type-or-schema",
     "enforcement_path": "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts",
     "invariant": "Every GenerationNodeKind must satisfy Record<GenerationNodeKind, NodeSurfaceContract>, both Canvas and List Detail render node stages through NodeStageSurface, and setNodeMainResult is written only through switchNodeMainVersion.",
     "failure_mode": "Adding an unregistered GenerationNodeKind fails TypeScript compilation; reintroducing fake list previews, bare setNodeMainResult calls, or mode-switch parameter wipes fails threeSurfacesParity.goal.test.tsx.",

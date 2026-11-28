@@ -248,7 +248,7 @@ export function ListCreateBar({
       'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-nomi-ink',
     )
     return (
-      <div className="flex max-w-[34rem] flex-wrap items-center justify-center gap-2" role="toolbar" aria-label={t('generationList.createBarAria')} data-list-create-bar="empty">
+      <div className="flex max-w-[34rem] flex-wrap items-center justify-center gap-2" role="toolbar" aria-label={t('generationList.createBarAria')} data-list-create-bar="empty" data-board="list.create-bar">
         {addIntent.pickerInput}
         {residentIntents.map((intent) => {
           const Icon = intentIcon(intent)
@@ -301,7 +301,7 @@ export function ListCreateBar({
   )
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="toolbar" aria-label={t('generationList.createBarAria')} data-list-create-bar="toolbar">
+    <div className="flex flex-wrap items-center gap-1.5" role="toolbar" aria-label={t('generationList.createBarAria')} data-list-create-bar="toolbar" data-board="list.create-bar">
       {addIntent.pickerInput}
       {residentIntents.map((intent, index) => {
         const Icon = intentIcon(intent)

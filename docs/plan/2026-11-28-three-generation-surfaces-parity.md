@@ -106,7 +106,7 @@
 
 ## 拍板图清单
 
-- 沿用既有列表与详情板 `docs/design/boards/2026-10-08/List.board.json` 与 `docs/design/boards/2026-10-08/ListDetail.board.json`（清单元素未删减，大详情补齐与画布同源的舞台内容、内联动作条与 600px 同轴排版，实窗 `zh-CN`/`en` × `light`/`dark` 截图交用户看图拍板后合并）。证据：`pnpm run check:board-parity`。
+- 同步更新列表与详情板 `docs/design/boards/2026-10-08/List.board.json`（新增 `list.create-bar`）与 `docs/design/boards/2026-10-08/ListDetail.board.json`（新增 `detail.stage-surface`），补齐列表新建/导入入口及大详情同源节点舞台（可编辑正文、真音频播放与转写 SRT、错误/可找回恢复、内联后处理工具栏与 600px 同轴排版），实窗 `zh-CN`/`en` × `light`/`dark` 截图交用户看图拍板并由协调签章后合并。证据：`pnpm run check:board-parity`。
 
 ## ★9 验收与回滚
 
