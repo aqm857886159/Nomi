@@ -12,7 +12,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // 为什么要五个状态：只测「都说有」会被一个恒真的实现骗过，只测「都说没有」会被一个恒假的骗过。
 // 必须让同一台机器在
-//   没钥匙 → MCP 又接进来一行没走完认证的 → 真人粘上钥匙 → 冷重启 → 断开
+//   没钥匙 → MCP 又接进来一行没走完认证的 → 恢复旧连接的钥匙 → 冷重启 → 断开
 // 之间走一圈，三处每一步都得跟着一起翻。中间那两步不是凑数：
 //   · 「没走完认证的那一行」就是 P0-10 的形状（启用着、钥匙也在、就是没发布）——
 //     它必须**不**被算进设置页的「N 个可使用」，而是诚实地落在「M 个待设置」那半句里；
@@ -30,8 +30,8 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //     （`manualCertificationBoundary.test.ts` 锁着；真实设置卡传的本来就是 `enabled:false`）。
 // 于是那家供应商从第一个阶段起就是 `vendor_disabled`，「没钥匙 ⇒ 0 个可用」**是对的答案配错的理由**
 // ——恒假实现能骗过的那种假绿（docs/lessons/assert-you-are-in-the-situation-you-claim.md）。
-// 现在改成走产品自己的路：内置种子已经把「魔搭社区」和它的 10 个预置模型（含 3 个 Qwen3 文本大脑）
-// 播进目录，用户要做的**只有一件事**——在设置卡里粘一次 key。这正是「一把钥匙 → 能用」那条不变量。
+// ModelSurfaces 只推广 APIMart，魔搭社区作为已有连接保留。用内置种子和测试世界恢复
+// 该站已保存的凭据，再检查「以前接的」与真实断开交互。
 //
 // 零额度、零上游请求：魔搭的种子没有 livenessProbe，`credentialValidationStrategy` 判为
 // `first-use`，存 key 不发任何上游请求（electron/catalog/validateCandidateCredential.ts:30）。
@@ -39,26 +39,24 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // 用法：pnpm run build && node tests/ux/model-availability-agreement.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectVisible, proveProbe, expectAbsent, screenshotSettled } from './_assert.mjs'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
+import { encryptFixtureKey } from './_mcpL2Fixture.mjs'
+import { clickOrFail, expect, expectVisible, proveProbe, expectAbsent, screenshotSettled } from './_assert.mjs'
+import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { require as requireTs } from 'tsx/cjs/api'
 import { backToLibrary, ensureAgentPanelOpen, newProjectEntry, openModelSettings } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = process.env.NOMI_WALK_OUT ? path.resolve(process.env.NOMI_WALK_OUT) : path.join(repoRoot, 'tests/ux/shots/model-availability-agreement')
 const tempRoot = makeTempDir('nomi-availability-')
-const userDataDir = path.join(tempRoot, 'user-data')
-const projectsDir = path.join(tempRoot, 'projects')
-mkdirSync(projectsDir, { recursive: true })
+const { buildWorld } = requireTs('../world/index.ts', import.meta.url)
+const world = buildWorld({ rootDir: tempRoot, projects: [] })
 mkdirSync(shotsDir, { recursive: true })
 
 /** 内置「魔搭社区」：种子自带 10 个预置模型（3 个 Qwen3 文本大脑），只差一把 key。 */
 const VENDOR_KEY = 'modelscope'
 const VENDOR_LABEL = '魔搭社区'
-/** 假 key：`first-use` 这一档不向上游求证，所以它存得进去，也不会花一分钱。 */
-const FAKE_KEY = 'nomi-walk-not-a-real-key'
 /**
  * P0-10 现场那两个 DeepSeek 模型的形状：**启用着、钥匙也在、认证没走完**
  * （`meta.adapter` 在，没有 activeRevision，但标准文本请求格式本来就可执行）。
@@ -66,11 +64,9 @@ const FAKE_KEY = 'nomi-walk-not-a-real-key'
  * 为什么要往目录文件里塞这一行，而不是点界面点出来：这种行只有主进程写得出来
  * （MCP / 认证会话），渲染层写入被 `sanitizeRendererModelMutation` 强制按下 enabled
  * ——也就是说**用户点不出这一行，但 MCP 接入天天写出它**，而它正是那次事故的形状。
- * 走查关掉 app 后直接改 app 自己写下的 `model-catalog.json`（不是拷用户的设置，是给这台隔离机器
- * 补一行 MCP 会写的记录），再冷启动让主进程自己去读——这条路和 MCP 写完让用户重启完全一样。
+ * 关掉 App 后通过测试世界补一行，再冷启动读回。
  */
 const MCP_MODEL_KEY = 'nomi-walk-halfway-certified'
-const catalogPath = path.join(userDataDir, 'model-catalog.json')
 
 let app = null
 let win = null
@@ -80,9 +76,7 @@ let closeApp = async () => {}
 async function coldStart() {
   const launched = await launchNomiApp({
     name: 'model-availability-agreement',
-    userDataDir,
-    settingsDir: userDataDir,
-    projectsDir,
+    world,
     syntheticCredentialStorage: true,
     args: ['--no-proxy-server'],
     settleMs: 0,
@@ -108,9 +102,8 @@ async function restart() {
 
 /** app 关着的时候往目录里补一行「MCP 接了一半」的模型（见 MCP_MODEL_KEY 注释）。 */
 function injectHalfCertifiedModel() {
-  const state = JSON.parse(readFileSync(catalogPath, 'utf8'))
   const now = new Date().toISOString()
-  state.models = [
+  buildWorld({ rootDir: tempRoot, projects: [], catalog: { models: [
     {
       vendorKey: VENDOR_KEY,
       modelKey: MCP_MODEL_KEY,
@@ -122,9 +115,17 @@ function injectHalfCertifiedModel() {
       createdAt: now,
       updatedAt: now,
     },
-    ...state.models,
-  ]
-  writeFileSync(catalogPath, JSON.stringify(state, null, 2))
+  ] } })
+}
+
+function restoreLegacyCredential() {
+  const now = new Date().toISOString()
+  buildWorld({ rootDir: tempRoot, projects: [], encryptedApiKeys: {
+    [VENDOR_KEY]: {
+      vendorKey: VENDOR_KEY, apiKey: encryptFixtureKey(world.userDataDir), enc: 'safeStorage',
+      enabled: true, createdAt: now, updatedAt: now,
+    },
+  } })
 }
 
 let passed = 0
@@ -175,17 +176,6 @@ async function openSettings() {
 
 const connectionRow = () => getWin().locator(`[data-model-home-connection="${VENDOR_KEY}"]`)
 
-/** ③ 只读这一家连接行；首页汇总还包括内置离线转写，不能冒充这家的数量。 */
-async function readSettingsCounts() {
-  const section = connectionRow()
-  if (await section.count() === 0) return { usable: 0, pending: 0 }
-  const text = await section.first().innerText()
-  return {
-    usable: Number(/(\d+)\s*个可使用/.exec(text)?.[1] ?? 0),
-    pending: Number(/(\d+)\s*个待设置/.exec(text)?.[1] ?? 0),
-  }
-}
-
 /**
  * ① 首页横幅读的那条：主进程 readiness（resolveTextBrainStatus 经 promptLibrary.textBrain）。
  * ② 目录投影下发给渲染层的每行 availability——助手下拉与画布选择器都吃它。
@@ -203,25 +193,6 @@ const askMainProcess = () => getWin().evaluate(async ({ vendorKey }) => {
     reasons: [...new Set(rows.map((row) => row.availability?.reason ?? 'usable'))].sort(),
   }
 }, { vendorKey: VENDOR_KEY })
-
-/** 真人路径：设置 → 更多已适配平台 → 魔搭社区 → 粘贴 key → 保存。 */
-async function pasteKeyLikeAHuman() {
-  await openSettings()
-  await clickOrFail(getWin().locator('[data-model-home-action="more-adapted"]').first(), '「更多已适配平台」查看全部')
-  await clickOrFail(
-    getWin().locator('button', { hasText: VENDOR_LABEL }).filter({ hasNotText: '查看全部' }).first(),
-    `${VENDOR_LABEL} 接入行`,
-  )
-  const card = getWin().locator(`[data-key-only-vendor="${VENDOR_KEY}"]`)
-  await expectVisible(card, `${VENDOR_LABEL} 的填 Key 页`)
-  const input = card.locator(`input#key-only-${VENDOR_KEY}`)
-  await expectVisible(input, 'API Key 输入框')
-  await input.fill(FAKE_KEY)
-  await clickOrFail(card.locator('button', { hasText: '保存' }).first(), '保存')
-  await expectVisible(card.locator('button', { hasText: '更换密钥' }).first(), '存完 key 后卡片进入「已接入」')
-  passed += 1
-  await closeSettings()
-}
 
 /** 真人路径：设置 → 点这家连接行 → 断开 → 确认。 */
 async function disconnectLikeAHuman() {
@@ -272,14 +243,19 @@ async function assertAgentDropdown(brainReady, shot) {
   await expectVisible(newProjectEntry(getWin()), '已返回项目库')
 }
 
-async function assertAgreement(label, { usable, reasons, brainReady, settingsUsable, settingsPending, shot }) {
+async function assertAgreement(label, { usable, reasons, brainReady, shot }) {
   const main = await askMainProcess()
   await openSettings()
-  const settings = await readSettingsCounts()
+  if (brainReady) {
+    await expect(connectionRow().locator('[data-model-status]')).toHaveText(`${usable} 个可使用`)
+  } else {
+    const apimart = await proveProbe(getWin().locator('[data-model-home-available="apimart"]'), '新接入的 APIMart 入口可见')
+    await expectAbsent(connectionRow(), { provenBy: apimart, message: '无凭据的旧供应商不在模型首页' })
+  }
   await snap(shot)
   await closeSettings()
   const detail = `目录=${main.usableCount}/${main.rowCount} 原因=${JSON.stringify(main.reasons)} `
-    + `readiness=${main.brainReady} 设置页=${settings.usable} 可使用/${settings.pending} 待设置`
+    + `readiness=${main.brainReady}`
   check(main.rowCount > 0, `${label}：目录里确实有这家的模型（否则测的是「空目录」）`, detail)
   check(main.usableCount === usable, `${label}：目录说这家有 ${usable} 个能用`, detail)
   check(
@@ -288,13 +264,6 @@ async function assertAgreement(label, { usable, reasons, brainReady, settingsUsa
     `${JSON.stringify(main.reasons)} vs 期望 ${JSON.stringify(reasons)}`,
   )
   check(main.brainReady === brainReady, `${label}：首页横幅那条 readiness 说${brainReady ? '「已接上」' : '「还没接上」'}`, detail)
-  check(settings.usable === settingsUsable, `${label}：设置页那句「N 个可使用」写的是 ${settingsUsable}`, detail)
-  check(settings.usable === main.usableCount, `${label}：设置页和目录是同一个数`, detail)
-  check(
-    settings.pending === settingsPending,
-    `${label}：设置页那句「M 个待设置」写的是 ${settingsPending}（不可用的行被诚实地摆在这边，不是混进「可使用」）`,
-    detail,
-  )
   await assertAgentDropdown(brainReady, shot)
   return main
 }
@@ -304,7 +273,7 @@ try {
 
   // ── 状态一：模型已随内置种子躺在目录里，但钥匙还没填 ────────────────────────
   const empty = await assertAgreement('没钥匙', {
-    usable: 0, reasons: ['credential_missing'], brainReady: false, settingsUsable: 0, settingsPending: 0,
+    usable: 0, reasons: ['credential_missing'], brainReady: false,
     shot: '01-no-key-settings.png',
   })
   check(empty.textRowCount > 0, '这家里确实有文本模型（否则验不到首页横幅那条 readiness）', `text=${empty.textRowCount}`)
@@ -315,18 +284,17 @@ try {
   injectHalfCertifiedModel()
   await coldStart()
   const halfway = await assertAgreement('多了一行没走完认证的模型 · 仍没钥匙', {
-    usable: 0, reasons: ['credential_missing'], brainReady: false, settingsUsable: 0, settingsPending: 0,
+    usable: 0, reasons: ['credential_missing'], brainReady: false,
     shot: '02-mcp-halfway-no-key.png',
   })
   check(halfway.rowCount === seededRows + 1, 'MCP 补的那一行确实进了目录（没被内置种子刷掉）', `${seededRows} → ${halfway.rowCount}`)
 
-  // ── 状态三：用户在设置卡里粘了一次 key（真人路径，不是往 bridge 里灌）──────────
-  // 这一步就是那张对不上的表原本出现的地方：钥匙到位、那一行也「启用着」，
-  // 旧验证记录不参与判断，三处都必须将有标准格式的文本模型计入可使用。
-  await pasteKeyLikeAHuman()
-  const connected = await assertAgreement('填了钥匙', {
+  // ── 状态三：恢复已有连接的凭据（ModelSurfaces 的旧用户入口）─────────────────
+  await closeApp()
+  restoreLegacyCredential()
+  await coldStart()
+  const connected = await assertAgreement('恢复已存钥匙', {
     usable: seededRows + 1, reasons: ['usable'], brainReady: true,
-    settingsUsable: seededRows + 1, settingsPending: 0,
     shot: '03-with-key-settings.png',
   })
 
@@ -334,7 +302,6 @@ try {
   await restart()
   const afterRestart = await assertAgreement('重启之后', {
     usable: seededRows + 1, reasons: ['usable'], brainReady: true,
-    settingsUsable: seededRows + 1, settingsPending: 0,
     shot: '04-after-restart.png',
   })
   check(
@@ -348,7 +315,7 @@ try {
   const rowProof = await proveProbe(connectionRow(), `设置页「已接入」里有 ${VENDOR_LABEL} 这一行`)
   await disconnectLikeAHuman()
   await assertAgreement('拔了钥匙', {
-    usable: 0, reasons: ['credential_missing'], brainReady: false, settingsUsable: 0, settingsPending: 0,
+    usable: 0, reasons: ['credential_missing'], brainReady: false,
     shot: '05-key-removed-settings.png',
   })
   await openSettings()

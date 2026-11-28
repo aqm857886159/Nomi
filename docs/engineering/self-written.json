@@ -2714,6 +2714,32 @@
       "revisitWhen": "供应商账户合同或 Nomi 接入流程取消这两个独立信号时，合并或删除对应投影。"
     },
     {
+      "id": "model-settings-usage-receipts",
+      "capability": "设置页按连接汇总本机成功生成的次数和积分，单独展示目录型号的公开参考单价",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-24-t6a-settings-models-and-policy.md",
+      "paths": [
+        "electron/ai/onboarding/modelSettingsUsage.ts",
+        "src/ui/onboarding/useModelUsage.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "复用逐项目事件流及运行身份配对，不读整份工程也不新增账本",
+          "source": "electron/events/eventLogRepository.ts"
+        },
+        {
+          "name": "参考单价走既有报价查询，保留产品媒介、尺寸与时长语义",
+          "source": "electron/ai/onboarding/vendorPricePreview.ts"
+        },
+        {
+          "name": "异步状态和离开页面后的清理使用 React effect",
+          "source": "src/ui/onboarding/useModelUsage.ts:8"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：按项目和 runId 配对 Nomi 的请求与成功终态，同时区分缺少积分回执、真实零与未知。账户卡和明细页必须共用同一组时间窗及缺失值语义。",
+      "revisitWhen": "本机回执仓库直接提供按连接和时间窗汇总的积分读面时，删除该聚合器并迁入仓库。"
+    },
+    {
       "id": "canvas-selection-composer-viewport",
       "capability": "画布首进自动取景与单选节点生成框越界平滑入画：把画布坐标的节点主体/标题/浮条与屏幕像素反缩放的固定宽 ComposerAnchor、四周停靠栏合成为单一编辑占地",
       "status": "justified",

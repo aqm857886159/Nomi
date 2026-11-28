@@ -163,6 +163,16 @@
       "id": "D-account-default",
       "text": "菜单里的更换 Key 留到下一轮。",
       "source": "协调交接 ★46 的默认项。"
+    },
+    {
+      "id": "D-1126-1665-type-scale",
+      "text": "板上字号表外的两处取最近一档令牌：账户卡三个大数字板 18px → title 16px；页头标题「模型」板 15px → body 14px（和同对话框里其它页头一致）。表内的 9 处（页头副标题、卡名、Key 行、三格标签、「接别家的模型」、AI 行标题和副标题、「其他接入方式」标题和副标题）照板，只换令牌类名。走查 tests/ux/t6a-model-settings.walk.mjs 用 toHaveCSS 逐处量。",
+      "source": "2026-11-26 协调裁定 D-1126-1665-type-scale / D-1126-1665-measure-all（用户选「甲：先量全再收」）。方向检查 docs/plan/2026-11-26-direction-check-model-settings-surface.md。"
+    },
+    {
+      "id": "D-1126-1665-entry-labels",
+      "text": "账户卡「用量与单价 ›」与首页「其他接入方式」照板：前者是卡内导航链接、后者是列表行标题，§1.8「按钮字 ≤4 字」管动作按钮，不管这两类。账户卡「近 7 天花了 · 本机」保留「· 本机」（只算本机生成，不加会被当成整个账户花费）。",
+      "source": "2026-11-26 协调裁定 D-1126-1665-entry-labels。"
     }
   ],
   "constraints": [
@@ -185,9 +195,12 @@
         "narrow"
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 头部",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.header\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.header"
+      ]
     },
     {
       "id": "settings.search",
@@ -198,9 +211,12 @@
         "empty"
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 现有搜索（条件显示）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.search\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.search"
+      ]
     },
     {
       "id": "settings.notices",
@@ -211,9 +227,12 @@
         "error"
       ],
       "component": "ModelCatalogNotices（src/ui/onboarding/ModelCatalogNotices.tsx），不动",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.notices\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.notices"
+      ]
     },
     {
       "id": "settings.account-card",
@@ -230,9 +249,12 @@
         "long-text"
       ],
       "component": "新件：APIMart 账户卡（ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 顶部），刷新 / ⋯ 用 WorkbenchIconButton + Tooltip；理由：现有「已接入」折叠卡为多家设计，单家时就是 账户连接状态问题 ① 的根",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "花费显示第三步：设置里看账户（未开工）"
+      "anchor": "[data-board=\"settings.account-card\"]",
+      "status": "implemented",
+      "owner": "花费显示第三步：设置里看账户（未开工）",
+      "assertions": [
+        "board:ModelSurfaces/settings.account-card"
+      ]
     },
     {
       "id": "settings.account-menu",
@@ -245,9 +267,12 @@
         "zh-en"
       ],
       "component": "AnchoredPopover（src/design）菜单",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "花费显示第三步：设置里看账户（未开工）"
+      "anchor": "[data-board=\"settings.account-menu\"]",
+      "status": "implemented",
+      "owner": "花费显示第三步：设置里看账户（未开工）",
+      "assertions": [
+        "board:ModelSurfaces/settings.account-menu"
+      ]
     },
     {
       "id": "settings.frame-height",
@@ -260,9 +285,12 @@
         "narrow"
       ],
       "component": "SettingsDialog（src/workbench/settings/SettingsDialog.tsx）外壳 data-settings-frame：固定 560 高改为高随内容（360–560），六个页签一起变",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.frame-height\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.frame-height"
+      ]
     },
     {
       "id": "settings.connect-entry",
@@ -274,10 +302,13 @@
         "dark",
         "zh-en"
       ],
-      "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 入口卡（ActionCard）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 入口卡（整卡按钮）",
+      "anchor": "[data-board=\"settings.connect-entry\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.connect-entry"
+      ]
     },
     {
       "id": "settings.ai-onboard-row",
@@ -291,9 +322,12 @@
         "narrow"
       ],
       "component": "ConnectAssistantCard（src/ui/onboarding/ConnectAssistantCard.tsx）收成一行",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.ai-onboard-row\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.ai-onboard-row"
+      ]
     },
     {
       "id": "settings.other-ways.local",
@@ -305,9 +339,12 @@
         "zh-en"
       ],
       "component": "现有本机接入件原样搬进 ModelSettingsWorkspacePages（src/ui/onboarding/ModelSettingsWorkspacePages.tsx） 二级页",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.other-ways.local\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.other-ways.local"
+      ]
     },
     {
       "id": "settings.other-ways.relay",
@@ -319,9 +356,12 @@
         "zh-en"
       ],
       "component": "CustomVendorCard / VendorOnboardCard / CustomVendorManage（src/ui/onboarding）原样搬进 ModelSettingsWorkspacePages（src/ui/onboarding/ModelSettingsWorkspacePages.tsx）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.other-ways.relay\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.other-ways.relay"
+      ]
     },
     {
       "id": "settings.other-ways.misc",
@@ -333,9 +373,12 @@
         "zh-en"
       ],
       "component": "TikhubConnectorCard（src/workbench/settings/TikhubConnectorCard.tsx）等原样搬进 ModelSettingsWorkspacePages（src/ui/onboarding/ModelSettingsWorkspacePages.tsx）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.other-ways.misc\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.other-ways.misc"
+      ]
     },
     {
       "id": "settings.legacy-group",
@@ -348,9 +391,12 @@
         "long-text"
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 列表行 + VendorLogoImage（src/design/vendorLogoImage.tsx）+ StatusBadge（tone=warning）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.legacy-group\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.legacy-group"
+      ]
     },
     {
       "id": "settings.legacy-banner",
@@ -362,9 +408,12 @@
         "zh-en"
       ],
       "component": "info 提示条（一次性，只有「知道了」）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.legacy-banner\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.legacy-banner"
+      ]
     },
     {
       "id": "settings.usage-page",
@@ -379,9 +428,12 @@
         "zh-en"
       ],
       "component": "新件：ModelSettingsWorkspacePages（src/ui/onboarding/ModelSettingsWorkspacePages.tsx） 新页「用量与单价」，时间段用 NomiSegmented（src/design）；理由：现有没有用量页",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1b 用量与单价"
+      "anchor": "[data-board=\"settings.usage-page\"]",
+      "status": "implemented",
+      "owner": "S1b 用量与单价",
+      "assertions": [
+        "board:ModelSurfaces/settings.usage-page"
+      ]
     },
     {
       "id": "settings.drop.recommend-badge",
@@ -395,8 +447,11 @@
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx）（删）",
       "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.drop.recommend-badge"
+      ]
     },
     {
       "id": "settings.drop.fold-status",
@@ -409,8 +464,11 @@
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx）（删）",
       "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.drop.fold-status"
+      ]
     },
     {
       "id": "picker.chip",
@@ -604,9 +662,12 @@
         "empty"
       ],
       "component": "ModelSettingsHome（src/ui/onboarding/ModelSettingsHome.tsx） 现有任务条（adapterTaskVisibility.ts），只改出现条件",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"settings.adapter-tasks\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/settings.adapter-tasks"
+      ]
     },
     {
       "id": "cost.send-pill",
@@ -628,7 +689,9 @@
       "anchor": "未定",
       "status": "implemented",
       "owner": "花费显示第一步：发送键上的约价（docs/plan/2026-11-17-cost-step1-estimate.md）",
-      "assertions": ["board:ModelSurfaces/cost.send-pill"],
+      "assertions": [
+        "board:ModelSurfaces/cost.send-pill"
+      ],
       "note": "有价默认态和悬停，用户 11-22 已看过；估不出 / 算价中 / 生成中 / 最长数字 / 最窄 700 这几态的真截图由独立验收在 PR 头上拍（中英 × 浅暗），2026-11-22 协调给用户看过各态拼图与分镜行「生成」放回的改前 / 改后，用户照推荐合并。禁用 + 有价在真窗口造不出，只由 ComposerSendButton 单测与设计实验室格 sc-i-disabled-priced 守。",
       "userDecision": {
         "quote": "可以都按你的推荐走",
@@ -650,7 +713,9 @@
       "anchor": "未定",
       "status": "implemented",
       "owner": "花费显示第一步：发送键上的约价（docs/plan/2026-11-17-cost-step1-estimate.md）",
-      "assertions": ["board:ModelSurfaces/cost.hover"],
+      "assertions": [
+        "board:ModelSurfaces/cost.hover"
+      ],
       "note": "只取 M4 上那句话的文字；几何（离按钮距离、边框、高度、圆角）按共用提示组件，不照 M4 单做。2026-11-22 用户看过改前 / 改后并排图（提示改成按句分行：「这次约 N 积分（$x）。」一行、「按 APIMart 公开价估，出完按 APIMart 实际扣费记。」一行，不再在「公开价｜估」中间折行），原话「都照这样」；M4 上的断行位置不算合同。拍板图只有 M4 ① 一帧（有价 + 悬停）。",
       "userDecision": {
         "quote": "用统一样式",
@@ -672,7 +737,9 @@
       "anchor": "未定",
       "status": "implemented",
       "owner": "花费显示第二步与第三步：发送键旁单位切换与余额不足去充值（t1-impl）",
-      "assertions": ["board:ModelSurfaces/cost.low-balance"]
+      "assertions": [
+        "board:ModelSurfaces/cost.low-balance"
+      ]
     },
     {
       "id": "cost.batch-card",
@@ -797,9 +864,12 @@
         "dark"
       ],
       "component": "VendorPreferenceOrderSection（src/workbench/settings），不动",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S4 大脑与 AI 策略"
+      "anchor": "[data-board=\"policy.vendor-order\"]",
+      "status": "implemented",
+      "owner": "S4 大脑与 AI 策略",
+      "assertions": [
+        "board:ModelSurfaces/policy.vendor-order"
+      ]
     },
     {
       "id": "policy.model-box",
@@ -812,9 +882,12 @@
         "zh-en"
       ],
       "component": "ModelBoxOrderSection（src/workbench/settings/ModelBoxOrderSection.tsx）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S2 画布模型选择器"
+      "anchor": "[data-board=\"policy.model-box\"]",
+      "status": "implemented",
+      "owner": "S2 画布模型选择器",
+      "assertions": [
+        "board:ModelSurfaces/policy.model-box"
+      ]
     },
     {
       "id": "policy.upload",
@@ -826,9 +899,12 @@
         "zh-en"
       ],
       "component": "AiModelsSection（src/workbench/settings/AiModelsSection.tsx）上传通道 + DesignSwitch",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "D2-2 素材上传"
+      "anchor": "[data-board=\"policy.upload\"]",
+      "status": "implemented",
+      "owner": "D2-2 素材上传",
+      "assertions": [
+        "board:ModelSurfaces/policy.upload"
+      ]
     },
     {
       "id": "policy.relay-advanced",
@@ -840,9 +916,12 @@
         "dark"
       ],
       "component": "AiModelsSection（收进高级）",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "D2-2 素材上传"
+      "anchor": "[data-board=\"policy.relay-advanced\"]",
+      "status": "implemented",
+      "owner": "D2-2 素材上传",
+      "assertions": [
+        "board:ModelSurfaces/policy.relay-advanced"
+      ]
     },
     {
       "id": "launch.card",
@@ -898,9 +977,12 @@
         "dark"
       ],
       "component": "不动",
-      "anchor": "未定",
-      "status": "missing",
-      "owner": "S1 设置账户卡"
+      "anchor": "[data-board=\"other-tabs.unchanged\"]",
+      "status": "implemented",
+      "owner": "S1 设置账户卡",
+      "assertions": [
+        "board:ModelSurfaces/other-tabs.unchanged"
+      ]
     },
     {
       "id": "picker.drop.untried",

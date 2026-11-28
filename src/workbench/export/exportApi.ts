@@ -1,5 +1,6 @@
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopMp4ExportResult } from '../../desktop/bridge'
+import { ExportCancelledError, isExportCancelledError } from '../../../electron/shared/contracts/exportTypes'
 import type { ExportFailureReason, TelemetryResult } from '../../../electron/shared/contracts/telemetry'
 import i18n from '../../i18n'
 import type { TimelineState } from '../timeline/timelineTypes'
@@ -14,6 +15,8 @@ import { logRendererWarn } from '../../desktop/rendererLog'
 
 const MP4_WEBM_IPC_CHUNK_BYTES = 1024 * 1024
 
+export { ExportCancelledError, isExportCancelledError }
+
 export type ExportTimelineToMp4Options = {
   timeline: TimelineState
   aspectRatio: PreviewAspectRatio
@@ -23,6 +26,7 @@ export type ExportTimelineToMp4Options = {
   resolution?: '720p' | '1080p'
   quality?: ExportQuality
   generationNodes?: readonly GenerationCanvasNode[]
+  signal?: AbortSignal
   onProgress?: (progress: { status: ExportProgressStatus; ratio: number }) => void
   /** Fired only after the main process has created and persisted the export job. */
   onJobStarted?: (job: { jobId: string; backend: 'filtergraph' | 'webm' }) => void
@@ -69,14 +73,6 @@ export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJ
   })
 }
 
-export function isExportCancelledError(error: unknown): boolean {
-  if (!error) return false
-  const name = error instanceof Error ? error.name : ''
-  const code = typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : ''
-  const message = error instanceof Error ? error.message : String(error)
-  return name === 'AbortError' || name === 'ExportCancelledError' || code === 'EXPORT_CANCELLED' || /\b(?:export[_ -]?cancelled|aborted|canceled|cancelled)\b/i.test(message)
-}
-
 /** 导出失败 → 闭合四分类（原文、路径、文件名一个字都不进事件）。 */
 export function classifyExportFailureReason(error: unknown): ExportFailureReason {
   const code = error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
@@ -100,6 +96,9 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
   if (!desktop?.exports?.startJob || !desktop.exports.writeTempInput || !desktop.exports.finishTempInput) {
     throw new Error(i18n.t('runtime.export.mp4RequiresDesktop'))
   }
+  if (options.signal?.aborted) {
+    throw new ExportCancelledError()
+  }
   const { projectId, timeline: exportTimeline, manifest } = createTimelineExportManifest(options)
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
   const trackExport = (result: TelemetryResult, failureReason?: ExportFailureReason): void => {
@@ -118,7 +117,27 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
   let jobId: string | null = null
   let webmBlob: Blob | null = null
   let finishedTempInput = false
+  let jobCancelled = Boolean(options.signal?.aborted)
+  let cancelJobPromise: Promise<unknown> | null = null
+  let onAbort: (() => void) | undefined
   let unsubscribe: (() => void) | undefined
+
+  const cancelRemoteJob = (): Promise<unknown> => {
+    jobCancelled = true
+    if (jobId !== null && !finishedTempInput && desktop.exports.cancel) {
+      cancelJobPromise ??= desktop.exports.cancel(jobId).catch((cancelError: unknown) => {
+        logRendererWarn('export-cancel-failed', undefined, cancelError)
+      })
+    }
+    return cancelJobPromise ?? Promise.resolve()
+  }
+
+  const throwIfCancelled = (): void => {
+    if (options.signal?.aborted || jobCancelled) {
+      throw new ExportCancelledError()
+    }
+  }
+
   try {
     const started = await desktop.exports.startJob({
       projectId,
@@ -127,9 +146,25 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     })
     jobId = started.jobId
     const { backend } = started
+
+    if (options.signal?.aborted || jobCancelled) {
+      await cancelRemoteJob()
+      trackExport('cancel')
+      throw new ExportCancelledError()
+    }
+
     options.onJobStarted?.({ jobId, backend })
+    onAbort = () => {
+      void cancelRemoteJob()
+    }
+    options.signal?.addEventListener('abort', onAbort, { once: true })
+
     unsubscribe = desktop.exports.onEvent?.((event) => {
       if (event.jobId !== jobId) return
+      if (event.snapshot.cancelled || event.snapshot.status === 'cancelled') {
+        jobCancelled = true
+        return
+      }
       const ratio = Math.max(0, Math.min(1, event.snapshot.progress.ratio))
       const stage = event.snapshot.progress.stage
       const status = stage === 'succeeded' ? 'done' : stage === 'encoding' || stage === 'muxing' || stage === 'finalizing' ? 'converting' : 'preparing'
@@ -139,6 +174,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     if (backend === 'filtergraph') {
       options.onProgress?.({ status: 'converting', ratio: 0.12 })
       const result = await desktop.exports.finishTempInput({ jobId })
+      throwIfCancelled()
       finishedTempInput = true
       options.onProgress?.({ status: 'done', ratio: 1 })
       trackExport('success')
@@ -151,32 +187,44 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
       aspectRatio: options.aspectRatio,
       width: options.resolution === '720p' ? 1280 : 1920,
       autoDownload: false,
+      signal: options.signal,
       onProgress: (progress) => {
+        if (options.signal?.aborted || jobCancelled) return
         if (progress.status === 'preparing' || progress.status === 'recording' || progress.status === 'done') {
           const status: 'preparing' | 'recording' | 'done' = progress.status
           options.onProgress?.({ status, ratio: progress.ratio * 0.82 })
         }
       },
     })
+    throwIfCancelled()
 
     options.onProgress?.({ status: 'converting', ratio: 0.86 })
     for (let offset = 0; offset < webmBlob.size; offset += MP4_WEBM_IPC_CHUNK_BYTES) {
+      throwIfCancelled()
       const chunk = await webmBlob.slice(offset, offset + MP4_WEBM_IPC_CHUNK_BYTES).arrayBuffer()
+      throwIfCancelled()
       await desktop.exports.writeTempInput({ jobId, chunk })
+      throwIfCancelled()
       const uploadRatio = webmBlob.size > 0 ? Math.min(1, (offset + MP4_WEBM_IPC_CHUNK_BYTES) / webmBlob.size) : 1
       options.onProgress?.({ status: 'converting', ratio: 0.86 + uploadRatio * 0.04 })
     }
+    throwIfCancelled()
     const result = await desktop.exports.finishTempInput({ jobId })
+    throwIfCancelled()
     finishedTempInput = true
     options.onProgress?.({ status: 'done', ratio: 1 })
     trackExport('success')
     return result
   } catch (error) {
-    if (isExportCancelledError(error)) trackExport('cancel')
-    else trackExport('failure', classifyExportFailureReason(error))
+    if (options.signal?.aborted || jobCancelled || isExportCancelledError(error)) {
+      await cancelRemoteJob()
+      trackExport('cancel')
+      throw error instanceof ExportCancelledError ? error : new ExportCancelledError()
+    }
+    trackExport('failure', classifyExportFailureReason(error))
     if (jobId !== null && !finishedTempInput && desktop.exports.cancel) {
       try {
-        await desktop.exports.cancel(jobId)
+        await (cancelJobPromise ?? desktop.exports.cancel(jobId))
       } catch (cancelError) {
         logRendererWarn('export-cancel-failed', undefined, cancelError)
       }
@@ -189,6 +237,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     downloadTimelineBlob(webmBlob, fallbackName)
     throw new Error(i18n.t('runtime.export.webmFallbackDownloaded', { message, file: fallbackName }))
   } finally {
+    if (onAbort) options.signal?.removeEventListener('abort', onAbort)
     unsubscribe?.()
   }
 }

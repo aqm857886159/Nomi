@@ -12,7 +12,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatch } from "../dispatcher";
 import { tryModel, TRY_MODEL_WAIT_BUDGET_MS } from "./tryModel";
@@ -37,15 +37,41 @@ const PNG = Buffer.from(
   "base64",
 );
 
+type Tried = Record<string, unknown> & {
+  code?: string;
+  ok?: boolean;
+  taskId?: string;
+  nextAction?: string;
+  message?: string;
+  state?: { assets: unknown[] };
+};
+type CaseCounters = { submits: number; polls: Map<string, number> };
+
+const realSetTimeout = globalThis.setTimeout;
+const yieldIo = (first: boolean): Promise<void> =>
+  first ? new Promise((resolve) => setImmediate(resolve)) : new Promise((resolve) => realSetTimeout(resolve, 1));
+
+/** 推进 0ms 假时钟并让出真实 I/O：假 Date.now() 恒为 0，提交与原子落盘不会与轮询预算竞态。 */
+async function settleAtZeroClock(condition: () => boolean, label: string): Promise<void> {
+  for (let i = 0; i < 20_000; i += 1) {
+    if (condition()) return;
+    await vi.advanceTimersByTimeAsync(0);
+    if (condition()) return;
+    await yieldIo(i === 0);
+  }
+  throw new Error(`never became true: ${label}`);
+}
+
 describe("nomi_try_model 遇到异步供应商", () => {
   let server: http.Server;
   let origin: string;
   let root: string;
   let vendorKey = "";
-  /** 假供应商收到的提交次数（>1 = 重复收费）。 */
-  let submits = 0;
-  /** 每个 job 被查询的次数。 */
-  const polls = new Map<string, number>();
+  let caseSeq = 0;
+  let currentCaseId = "";
+  let currentCase: CaseCounters = { submits: 0, polls: new Map() };
+  /** 按用例路径隔离的假供应商计数，避免前序迟到请求污染后续用例。 */
+  const cases = new Map<string, CaseCounters>();
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-try-async-"));
@@ -56,11 +82,17 @@ describe("nomi_try_model 遇到异步供应商", () => {
         response.end(PNG);
         return;
       }
-      if (request.method === "POST" && url === "/v1/jobs") {
+      const postMatch = /^\/(case-\d+)\/v1\/jobs$/.exec(url);
+      if (request.method === "POST" && postMatch) {
+        const bucket = cases.get(postMatch[1]!);
+        if (!bucket) {
+          response.writeHead(404).end("{}");
+          return;
+        }
         let body = "";
         request.on("data", (chunk) => { body += chunk; });
         request.on("end", () => {
-          submits += 1;
+          bucket.submits += 1;
           const prompt = String((JSON.parse(body || "{}") as { prompt?: unknown }).prompt || "");
           const id = prompt.includes("fail") ? "job-fail" : prompt.includes("slow") ? "job-slow" : "job-ok";
           response.writeHead(200, { "content-type": "application/json" });
@@ -68,11 +100,16 @@ describe("nomi_try_model 遇到异步供应商", () => {
         });
         return;
       }
-      const match = /^\/jobs\/([\w-]+)$/.exec(url);
-      if (request.method === "GET" && match) {
-        const id = match[1]!;
-        const n = (polls.get(id) || 0) + 1;
-        polls.set(id, n);
+      const getMatch = /^\/(case-\d+)\/jobs\/([\w-]+)$/.exec(url);
+      if (request.method === "GET" && getMatch) {
+        const bucket = cases.get(getMatch[1]!);
+        if (!bucket) {
+          response.writeHead(404).end("{}");
+          return;
+        }
+        const id = getMatch[2]!;
+        const n = (bucket.polls.get(id) || 0) + 1;
+        bucket.polls.set(id, n);
         response.writeHead(200, { "content-type": "application/json" });
         if (id === "job-ok") {
           response.end(JSON.stringify(n < 3 ? { id, status: "in_progress" } : { id, status: "completed", image: { url: `${origin}/art.png` } }));
@@ -87,12 +124,14 @@ describe("nomi_try_model 遇到异步供应商", () => {
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-
-
   });
 
   beforeEach(async () => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, "case-")));
+    vi.useRealTimers();
+    currentCaseId = `case-${++caseSeq}`;
+    currentCase = { submits: 0, polls: new Map() };
+    cases.set(currentCaseId, currentCase);
+    vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, `${currentCaseId}-`)));
     const docs = "https://docs.example-async.com/api";
     const ctx = { origin: { host: "claude" } } as never;
     const submitted = await dispatch("model.onboarding.setup", {
@@ -111,14 +150,14 @@ describe("nomi_try_model 遇到异步供应商", () => {
             delivery: "asynchronous",
             create: {
               method: "POST",
-              path: "/v1/jobs",
+              path: `/${currentCaseId}/v1/jobs`,
               body: { prompt: "{{request.prompt}}" },
               response_mapping: { task_id: "id", status: "status" },
               provider_meta_mapping: { task_id: "id" },
             },
             query: {
               method: "GET",
-              path: "/jobs/{{providerMeta.task_id}}",
+              path: `/${currentCaseId}/jobs/{{providerMeta.task_id}}`,
               response_mapping: { task_id: "id", status: "status", image_url: "image.url", error_message: "detail" },
             },
             statusMapping: { succeeded: ["completed"], running: ["in_progress"], failed: ["failed"] },
@@ -131,6 +170,11 @@ describe("nomi_try_model 遇到异步供应商", () => {
     vendorKey = submitted.vendorKey;
     const keyed = await dispatch("model.onboarding.setup", { action: "set_key", vendorKey, apiKey: "relay-test-key" }, ctx) as { ok: boolean };
     expect(keyed.ok).toBe(true);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   afterAll(async () => {
@@ -139,51 +183,69 @@ describe("nomi_try_model 遇到异步供应商", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  async function run(prompt: string, withFetch = true, pollTimeoutMs = 5_000) {
-    submits = 0;
-    return tryModel({
+  function start(prompt: string, { withFetch = true, pollTimeoutMs = 2_000 }: { withFetch?: boolean; pollTimeoutMs?: number } = {}) {
+    const box: { settled: boolean; out?: Tried } = { settled: false };
+    const promise = (tryModel({
       runTask,
       ...(withFetch ? { fetchTaskResult } : {}),
-      pollIntervalMs: 20,
+      pollIntervalMs: 0,
       pollTimeoutMs,
       // 档位代答：不需要 Nomi 窗口；钱闸照走同一个函数。
       approvalPolicy: () => ({ mode: "direct" }),
-    }, { vendorKey, modelKey: "async-paint", prompt }) as Promise<Record<string, unknown> & { code?: string; ok?: boolean; taskId?: string; nextAction?: string; message?: string; state?: { assets: unknown[] } }>;
+    }, { vendorKey, modelKey: "async-paint", prompt }) as Promise<Tried>).then((out) => {
+      box.settled = true;
+      box.out = out;
+      return out;
+    });
+    return { box, promise };
   }
 
   it("提交返回 queued、查几次后才出图：试跑成功，且只提交了一次", async () => {
-    const tried = await run("ok apple");
+    const { box, promise } = start("ok apple");
+    await settleAtZeroClock(() => box.settled, "ok trial settled");
+    const tried = await promise;
     expect(tried.ok, JSON.stringify(tried)).toBe(true);
     expect(tried.state?.assets.length ?? 0).toBeGreaterThan(0);
-    expect(submits).toBe(1);
-    expect(polls.get("job-ok")).toBeGreaterThanOrEqual(3);
+    expect(currentCase.submits).toBe(1);
+    expect(currentCase.polls.get("job-ok")).toBeGreaterThanOrEqual(3);
   });
 
   it("等到供应商明确失败：报 provider_failed，带供应商原话", async () => {
-    const tried = await run("fail apple");
+    const { box, promise } = start("fail apple");
+    await settleAtZeroClock(() => box.settled, "fail trial settled");
+    const tried = await promise;
     expect(tried.ok).toBe(false);
     expect(tried.code).toBe("provider_failed");
     expect(JSON.stringify(tried)).toContain("content policy rejected the prompt");
-    expect(submits).toBe(1);
+    expect(currentCase.submits).toBe(1);
   });
 
   it("等不到终态：如实说「仍在处理」，绝不报 provider_failed，且明说不要重试", async () => {
-    const tried = await run("slow apple", true, 150);
+    const { box, promise } = start("slow apple", { pollTimeoutMs: 200 });
+    // 先在假时钟 0ms 下确认提交完成并进入 GET 轮询，再推进假时钟耗尽轮询预算，避免提交耗时竞态。
+    await settleAtZeroClock(() => (currentCase.polls.get("job-slow") ?? 0) >= 1, "slow trial entered polling");
+    expect(box.settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(200);
+    await settleAtZeroClock(() => box.settled, "slow trial timed out in polling");
+    const tried = await promise;
     expect(tried.ok).toBe(false);
     expect(tried.code).toBe("still_processing");
     expect(tried.code).not.toBe("provider_failed");
     expect(tried.taskId).toBe("job-slow");
     expect(tried.nextAction).toMatch(/do not retry/i);
     expect(tried.message).toMatch(/not a failure/i);
-    expect(submits).toBe(1);
+    expect(currentCase.submits).toBe(1);
+    expect(currentCase.polls.get("job-slow")).toBeGreaterThanOrEqual(1);
   });
 
   it("宿主没给查询函数时同样不判失败（不能因为少一个依赖就把已收费的单子说成失败）", async () => {
-    const tried = await run("ok apple", false);
+    const { box, promise } = start("ok apple", { withFetch: false });
+    await settleAtZeroClock(() => box.settled, "no-fetch trial settled");
+    const tried = await promise;
     expect(tried.ok).toBe(false);
     expect(tried.code).toBe("still_processing");
     expect(tried.nextAction).toMatch(/do not retry/i);
-    expect(submits).toBe(1);
+    expect(currentCase.submits).toBe(1);
   });
 });
 

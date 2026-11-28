@@ -76,11 +76,11 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   //             故更新相关文件哈希；协调会话在交付报告里知情。
   // 2026-10-16（卡顿波 P-compose）：供应商列表改读异步目录 IPC（同步通道已删：主进程忙时「点设置没反应」），
   //             读失败照旧保留上一份；布局与文案一个字没动，协调会话在交付报告里知情。
-  // 2026-11-17 用户「删掉，用设置开关」：开启=allow、关闭=ask，其余布局不变。
+  // 2026-11-17 用户「删掉，用设置开关」：偏好值沿用 ask / allow；11-24 按「先问我」展示，开启=ask，其余布局不变。
   // 2026-11-28（SM-2）：仅将顶部 1 行 `import type { AutomationPolicySettings }` 迁往中立契约层
   //             `electron/shared/contracts/automationPolicyContract`（零 JSX/布局/文案改动）；
   //             正向断言见下方 imports AutomationPolicySettings from the neutral shared contracts layer。
-  'AiModelsSection.tsx': '9fb62009b48993a669b05aee1683b852e1918021b7055bcdf18c48c0c46ac8a3',
+  'AiModelsSection.tsx': 'eb13b29f0ed3eccfcdd0b0c7db016c4a95ac87ca604f462b415397a7f568703c',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。
@@ -114,7 +114,7 @@ describe('settings dialog structure', () => {
       expect(settingsSource).toContain(`id: ${id}`)
     }
     // 模型的家 = 直接渲染既有 OnboardingDrawer，不为设置另写一份模型列表（P1 无并行实现）。
-    expect(settingsSource).toContain('<OnboardingDrawer pageRequest={modelPageRequest} />')
+    expect(settingsSource).toContain('<OnboardingDrawer pageRequest={modelPageRequest}')
     expect(settingsSource).toContain('<AiModelsSection')
     expect(settingsSource).toContain('<AutomationPermissionsSection')
     expect(settingsSource).toContain('sm:flex-row')
@@ -209,12 +209,9 @@ describe('settings dialog structure', () => {
     expect(studioSource).not.toContain('modelCatalogOpened')
     expect(controllerSource).toContain("window.addEventListener('nomi-open-model-catalog'")
     expect(controllerSource).toContain("openSettings({ tab: 'models' })")
-    // 2026-08-25：从「只切到模型 tab」升级成「可带 vendorKey 直达那家的 Key 输入页」。
-    // 原样式为什么不再成立：用户点设置里的「去配置 KIE」后被丢在模型列表页，Kie.ai 那行当时
-    // 连「上传」二字都不提，于是得出「Nomi 没配置 KIE 上传」——入口断在这里。
-    expect(settingsSource).toContain('onOpenModelCatalog={(vendorKey) => {')
-    expect(settingsSource).toContain("selectTab('models')")
-    expect(settingsSource).toContain('setModelPageRequest((current) => ({ vendorKey, token: (current?.token ?? 0) + 1 }))')
+    expect(settingsSource).toContain('initialModelPageRequest')
+    expect(aiModelsSource).not.toContain('onOpenModelCatalog')
+
   })
 
   // 2026-09-01：反馈与分享从「dispatch 全局事件 + 关设置 → 冒出独立浮层」改为**内嵌在设置弹窗内**
@@ -265,17 +262,12 @@ describe('settings dialog structure', () => {
   // 误判成「Nomi 根本没接 KIE 上传」，而代码里早接好了，缺的只是他的 key 和这块可见性。
   it('reports the live upload channel per media kind instead of just recommending KIE', () => {
     expect(aiModelsSource).toContain('data-settings-upload-guidance')
-    expect(aiModelsSource).toContain('data-upload-channel={channel.kind}')
+    expect(aiModelsSource).toContain('data-upload-channel={item.kind}')
     expect(aiModelsSource).toContain("settings.ai.upload.channel.title")
-    expect(aiModelsSource).toContain("settings.ai.upload.channel.configure")
+    expect(aiModelsSource).not.toContain("settings.ai.upload.channel.configure")
     expect(aiModelsSource).toContain("settings.ai.upload.anonymousPrompt")
     // 现状必须来自 main 的真解析器；渲染层一旦自己排优先级，这张卡迟早开始说谎。
     expect(aiModelsSource).toContain('assetTransport?.describeChannels()')
-    // 「已接入」按它是否真的在收文件判，不按 key 存不存在判——否则徽章和下面的通道行会互相打架。
-    // #831：同域名可以有多条 Kie 连接（`kie--x`），所以这里问的是**身份**而不是 key 字面量——
-    // 比字面量的话，第二条 Kie 连接接好了徽章也不亮，下面的通道行却说它在收文件。
-    expect(aiModelsSource).toContain("builtinVendorKeyOfKey(channel.vendorKey) === 'kie'")
-    expect(aiModelsSource).toContain("electron/shared/builtinVendorIdentity")
     // 公开可访问的通道必须走警示样式，不能和私有链接长一样。
     expect(aiModelsSource).toContain(
       "channel.visibility === 'public-anonymous' || channel.visibility === 'public-provider'",
@@ -431,6 +423,6 @@ describe('settings dialog structure', () => {
     expect(settingsSource).toContain("hidden={tab !== 'models'}")
     expect(settingsSource).toContain("style={{ display: tab !== 'models' ? 'none' : undefined }}")
     expect(settingsSource).toContain('<React.Suspense')
-    expect(settingsSource).toContain('<OnboardingDrawer pageRequest={modelPageRequest} />')
+    expect(settingsSource).toContain('<OnboardingDrawer pageRequest={modelPageRequest}')
   })
 })

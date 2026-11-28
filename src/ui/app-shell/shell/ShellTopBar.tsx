@@ -10,7 +10,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
-import { IconArrowLeft, IconBrowser, IconChevronDown, IconChevronRight, IconDownload, IconLayoutSidebarLeftExpand, IconSettings } from '@tabler/icons-react'
+import { IconArrowLeft, IconBrowser, IconChevronDown, IconChevronRight, IconDownload, IconLayoutSidebarLeftExpand, IconLoader2, IconSettings } from '@tabler/icons-react'
 import {
   ICON_TIERS,
   ICON_TIER_CLASSES,
@@ -35,6 +35,7 @@ import {
   isPreviewExportBusy,
   previewExportStageKey,
   requestPreviewExport,
+  requestPreviewExportCancel,
   usePreviewExportState,
 } from '../../../workbench/preview/previewExportRequest'
 import { useLocalProjects } from '../../../workbench/library/localProjectStore'
@@ -306,17 +307,25 @@ export function ShellTopBar({
   const onboarding = useOnboardingProgress()
   const previewExport = usePreviewExportState()
   const exportBusy = isPreviewExportBusy(previewExport.status)
+  const exportCancelling = exportBusy && Boolean(previewExport.cancelling)
   const exportContent = useWorkbenchStore(useShallow(state => workspaceMode === 'preview'
     ? { tracks: state.timeline.tracks, textClips: state.timeline.textClips } : null))
   const exportEmpty = exportContent !== null && !canExportPreviewTimeline(exportContent)
+  const exportDisabled = exportEmpty || exportCancelling
   const exportAspect = useWorkbenchStore(selectPreviewAspectRatio)
   const exportResolution = useWorkbenchStore(state => state.exportResolution)
   const exportStageKey = previewExportStageKey(previewExport.status)
   const exportPercent = Math.round(previewExport.progress * 100)
-  const exportLabel = exportBusy && exportStageKey
-    ? t('timelinePreview.exportBusyReason', { stage: t(exportStageKey), percent: exportPercent })
-    : t('timelinePreview.exportMp4')
-  const exportText = exportBusy ? t('timelinePreview.exporting', { percent: exportPercent }) : t('timelinePreview.exportMp4')
+  const exportLabel = exportCancelling
+    ? t('timelinePreview.exportCancelling')
+    : exportBusy && exportStageKey
+      ? t('timelinePreview.exportBusyReason', { stage: t(exportStageKey), percent: exportPercent })
+      : t('timelinePreview.exportMp4')
+  const exportText = exportCancelling
+    ? t('timelinePreview.exportCancelling')
+    : exportBusy
+      ? t('timelinePreview.exporting', { percent: exportPercent })
+      : t('timelinePreview.exportMp4WithResolution', { resolution: exportResolution })
   const exportTooltip = exportBusy ? exportLabel
     : exportEmpty ? t('timelinePreview.exportEmptyReason')
       : `${exportLabel} · ${exportAspect} · ${exportResolution}`
@@ -327,7 +336,7 @@ export function ShellTopBar({
   const toolbarRef = React.useRef<HTMLDivElement | null>(null)
   const measureRefs = React.useMemo(() => ({ header: headerRef, left: leftRef, segment: segmentRef, toolbar: toolbarRef }), [])
   const hasSegment = Boolean(workspaceMode && onWorkspaceModeChange)
-  const yieldState = useTopbarYield(hasSegment, `${i18n.language}|${workspaceMode ?? ''}|${railCollapsed ? 1 : 0}|${updateKey}`, measureRefs)
+  const yieldState = useTopbarYield(hasSegment, `${i18n.language}|${workspaceMode ?? ''}|${railCollapsed ? 1 : 0}|${updateKey}|${exportBusy ? 1 : 0}|${exportResolution}`, measureRefs)
   const { step, shift } = yieldState
   const exportCompact = step >= 1
   // 左簇右沿跟着分段走：离分段左沿留 12（第 ② 步分段左挪，项目名跟着变短，放不下两个字就藏）。没量过时用旧的保守宽。
@@ -419,8 +428,8 @@ export function ShellTopBar({
               <span className="app-no-drag"><EditingLayoutMenu /></span>
               <BarTooltip label={exportTooltip}>
                 <span
-                  className={cn('app-no-drag inline-flex', (exportEmpty || exportBusy) && 'cursor-not-allowed')}
-                  tabIndex={exportEmpty || exportBusy ? 0 : undefined}
+                  className={cn('app-no-drag inline-flex', exportDisabled && 'cursor-not-allowed')}
+                  tabIndex={exportDisabled ? 0 : undefined}
                 >
                   <WorkbenchButton
                     className={cn(
@@ -431,14 +440,15 @@ export function ShellTopBar({
                     )}
                     iconTier="corner"
                     aria-label={exportLabel}
+                    aria-busy={exportCancelling || undefined}
                     data-export-busy={exportBusy ? 'true' : 'false'}
+                    data-export-cancelling={exportCancelling ? 'true' : undefined}
                     data-shell-export
                     data-shell-export-compact={exportCompact ? 'true' : undefined}
-                    loading={exportBusy}
-                    disabled={exportEmpty}
-                    onClick={requestPreviewExport}
+                    disabled={exportDisabled}
+                    onClick={exportBusy ? requestPreviewExportCancel : requestPreviewExport}
                   >
-                    {exportBusy ? null : <IconDownload />}
+                    {exportBusy ? <IconLoader2 className="shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <IconDownload />}
                     <span className={cn('whitespace-nowrap', exportCompact && 'hidden')}>{exportText}</span>
                   </WorkbenchButton>
                 </span>

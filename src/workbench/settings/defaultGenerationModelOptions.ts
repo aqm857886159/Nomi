@@ -1,7 +1,7 @@
 // 「新建卡片默认模型」下拉的选项构建（纯函数，靠单测钉真值表）。
 //
 // 两个要点：
-// 1. **身份是双段 `(vendorKey, modelKey)`**，所以下拉的显示文本必须带上供应商——
+// 1. **身份是双段 `(vendorKey, modelKey)`**，只有同名选项跨供应商时才需要展示供应商名——
 //    两个中转站提供同名模型时，只显示模型名的话用户根本分不清自己选的是哪一个。
 // 2. **不做字符串拼接式的编码**。vendorKey 由 Base URL 派生、modelKey 常含 `/` 与 `:`，
 //    任何分隔符都可能出现在里面，split 回来就是错的。这里改为发一个不透明的下标 id，
@@ -59,17 +59,22 @@ export function buildDefaultModelOptions(
   for (const taskKind of GENERATION_DEFAULT_TASK_KINDS) {
     const wanted = KIND_OF_TASK[taskKind]
     const options: NomiSelectOption[] = [{ value: '', label: autoLabel }]
-    usable.forEach((model, index) => {
-      if (model.kind !== wanted) return
-      // 展示名过 model-display 边界：目录里的 labelZh / vendor.name 是稳定中文档案键，
-      // 英文界面要显示译名（词典没有的（用户自建模型）原样透传）。
-      const vendorName = translateModelDisplayText(vendorNameOf(model.vendorKey) || model.vendorKey)
+    const candidates = usable.flatMap((model, index) =>
+      model.kind === wanted && (!model.publishedModes?.length || model.publishedModes.includes(taskKind))
+        ? [{ model, index, label: translateModelDisplayText(model.labelZh || model.modelKey) }] : [])
+    const vendorsByLabel = new Map<string, Set<string>>()
+    for (const { model, label } of candidates) {
+      const vendors = vendorsByLabel.get(label) ?? new Set<string>()
+      vendors.add(model.vendorKey)
+      vendorsByLabel.set(label, vendors)
+    }
+    for (const { model, index, label } of candidates) {
+      const ambiguous = vendorsByLabel.get(label)!.size > 1
       options.push({
         value: identityId(index),
-        // 「模型 · 供应商」：同名模型跨供应商时，这一段是用户唯一分得清的依据。
-        label: `${translateModelDisplayText(model.labelZh || model.modelKey)} · ${vendorName}`,
+        label: ambiguous ? label + ' · ' + translateModelDisplayText(vendorNameOf(model.vendorKey) || model.vendorKey) : label,
       })
-    })
+    }
     optionsByKind[taskKind] = options
   }
 

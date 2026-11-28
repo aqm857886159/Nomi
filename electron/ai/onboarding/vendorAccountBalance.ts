@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { ModelAccountBalance } from "../../shared/contracts/modelSettingsAccount";
 import { readCatalog } from "../../catalog/catalogStore";
 import { builtinVendorSeed } from "../../catalog/builtinVendorSeeds";
 import { decryptApiKeyRecord, type ApiKeyRecord } from "../../catalog/secrets";
@@ -10,7 +11,7 @@ import { builtinVendorKeyOfKey } from "../../shared/builtinVendorIdentity";
 import type { VendorAccountBalance, VendorAccountBalanceRequest, VendorBalanceCheck, VendorBalanceFailure, VendorReportedBalance } from "../../shared/contracts/vendorAccountBalance";
 import { codeDeclaredFallbackOrigins, fetchVendorWithBaseFallback } from "../../vendor/vendorBaseFallback";
 import { authorizeSubmitDestination } from "../../vendor/vendorOutboundGuard";
-import { authHeaders } from "../requestPipeline";
+import { authHeaders, looksLikeLogicalError } from "../requestPipeline";
 
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -24,7 +25,7 @@ function finiteNumber(value: unknown): number | null {
 type BalanceSubject = "account" | "key";
 
 function parseReportedBalance(body: unknown, subject: BalanceSubject): VendorReportedBalance | null {
-  if (!isJsonRecord(body) || body.success === false) return null;
+  if (!isJsonRecord(body) || body.success === false || looksLikeLogicalError(body) !== null) return null;
   const payload = isJsonRecord(body.data) ? body.data : body;
   if (payload.success === false) return null;
   const amount = finiteNumber(payload.remain_balance);
@@ -115,6 +116,7 @@ function balanceReader(payload: VendorAccountBalanceRequest, options: BalanceRea
   return {
     read,
     topUpUrl: config.topUpUrl,
+    keySuffix: apiKey.length > 4 ? apiKey.slice(-4) : "",
     get checkedKeyId() { return createHash("sha256").update(apiKey).digest("hex"); },
   };
 }
@@ -148,4 +150,52 @@ export async function checkVendorAccountBalance(
     accountBalance: account.status === "received" ? parseReportedBalance(account.body, "account") : null,
     keyQuota: key.status === "received" ? parseReportedBalance(key.body, "key") : null,
   };
+}
+
+const settingsCache = new Map<string, {
+  revision: string;
+  expires: number;
+  reading: Promise<ModelAccountBalance>;
+  last?: ModelAccountBalance;
+}>();
+
+function settingsAccountTarget(key: string) {
+  if (typeof key !== "string" || builtinVendorKeyOfKey(key) !== "apimart") return null;
+  const catalog = readCatalog();
+  const vendor = catalog.vendors.find(row => row.key === key && row.enabled);
+  const record = catalog.apiKeysByVendor[key];
+  if (!vendor || !record?.enabled) return null;
+  const revision = createHash("sha256").update(JSON.stringify([record, userVendorBaseUrl(vendor), vendor.credentialBinding, vendorAuthSpec(vendor)])).digest("hex");
+  return { catalog, revision };
+}
+
+export async function readModelSettingsAccount(key: string, refresh = false): Promise<ModelAccountBalance | null> {
+  const target = settingsAccountTarget(key);
+  if (!target) { settingsCache.delete(key); return null; }
+  let entry = settingsCache.get(key);
+  if (!entry || entry.revision !== target.revision || (entry.expires !== Infinity && (refresh || entry.expires <= Date.now()))) {
+    const reader = balanceReader({ vendorKey: key }, { catalog: target.catalog });
+    if (!reader) return null;
+    const last = entry?.revision === target.revision ? entry.last : undefined;
+    const reading = Promise.all([reader.read("account"), reader.read("key")]).then(([account, keyResult]) => {
+      const accountCredits = account.status === "received" ? parseReportedBalance(account.body, "account")?.remainCredits : null;
+      const quota = keyResult.status === "received" ? parseReportedBalance(keyResult.body, "key") : null;
+      const quotaReady = quota?.unlimited || quota?.remainCredits != null;
+      return {
+        keySuffix: reader.keySuffix,
+        accountCredits: accountCredits ?? last?.accountCredits ?? null,
+        keyCredits: quotaReady ? quota.remainCredits : last?.keyCredits ?? null,
+        unlimited: quotaReady ? quota.unlimited : last?.unlimited ?? false,
+        accountStaleSince: accountCredits == null && last?.accountCredits != null ? last.accountStaleSince ?? last.observedAt : null,
+        quotaStaleSince: !quotaReady && last && (last.unlimited || last.keyCredits !== null) ? last.quotaStaleSince ?? last.observedAt : null,
+        observedAt: Date.now(),
+      };
+    });
+    entry = { revision: target.revision, expires: Infinity, reading };
+    settingsCache.set(key, entry);
+  }
+  const snapshot = await entry.reading;
+  entry.last = snapshot;
+  entry.expires = snapshot.observedAt + 30_000;
+  return settingsAccountTarget(key)?.revision === entry.revision ? snapshot : null;
 }

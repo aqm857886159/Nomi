@@ -201,6 +201,9 @@ const INSTALL_SOURCE = `(() => {
       const editor = document.querySelector('.ProseMirror')
       return Boolean(switcher) && switcher.textContent.includes(title) && Boolean(editor) && editor.textContent.includes(marker)
     },
+    modelUsageReady() {
+      return visible(document.querySelector('[data-usage-model]')) && visible(document.querySelector('[data-unit-price]'))
+    },
     // T-5 连接 APIMart 整窗平级页：大页挂上、主按钮与 Key 输入框均可见。
     apimartConnectReady() {
       const page = document.querySelector('[data-apimart-connect-page]')

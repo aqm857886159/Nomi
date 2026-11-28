@@ -416,4 +416,209 @@ describe('exportTimelineToMp4', () => {
       }),
     ])
   })
+
+  it('filtergraph backend: aborts in-flight finishTempInput via desktop.exports.cancel, tracks cancel telemetry, and allows immediate re-export', async () => {
+    let runCount = 0
+    const startJob = vi.fn().mockImplementation(async () => {
+      runCount += 1
+      return { jobId: `job-${runCount}`, backend: 'filtergraph' as const }
+    })
+    const writeTempInput = vi.fn()
+    let rejectFirstFinish!: (reason: unknown) => void
+    const finishTempInput = vi.fn().mockImplementation(({ jobId }: { jobId: string }) => {
+      if (jobId === 'job-1') {
+        return new Promise((_resolve, reject) => {
+          rejectFirstFinish = reject
+        })
+      }
+      return Promise.resolve({
+        absolutePath: '/out/second.mp4',
+        relativePath: 'exports/second.mp4',
+        size: 128,
+      })
+    })
+    const cancel = vi.fn().mockImplementation(async (jobId: string) => {
+      if (jobId === 'job-1') {
+        rejectFirstFinish(new Error("Error invoking remote method 'nomi:exports:finish-temp-input': ExportCancelledError: Export cancelled"))
+      }
+      return { ok: true }
+    })
+    const track = vi.fn().mockResolvedValue({ queued: true })
+
+    vi.stubGlobal('window', {
+      nomiDesktop: {
+        exports: { startJob, writeTempInput, finishTempInput, cancel },
+        telemetry: { track },
+      },
+    })
+
+    const { exportTimelineToMp4, isExportCancelledError } = await import('./exportApi')
+    const controller = new AbortController()
+    const firstExport = exportTimelineToMp4({
+      projectId: 'project-1',
+      timeline: makeTimeline(),
+      aspectRatio: '16:9',
+      signal: controller.signal,
+    })
+
+    await vi.waitFor(() => expect(finishTempInput).toHaveBeenCalledWith({ jobId: 'job-1' }))
+    controller.abort()
+
+    const firstError = await firstExport.then(() => null, (err: unknown) => err)
+    expect(isExportCancelledError(firstError)).toBe(true)
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(cancel).toHaveBeenCalledWith('job-1')
+    expect(downloadTimelineBlobMock).not.toHaveBeenCalled()
+    expect(track).toHaveBeenCalledWith(expect.objectContaining({
+      eventName: 'export.completed',
+      props: expect.objectContaining({ format: 'mp4', result: 'cancel' }),
+    }))
+    expect(track).not.toHaveBeenCalledWith(expect.objectContaining({
+      props: expect.objectContaining({ result: 'failure' }),
+    }))
+
+    // Immediate second export after cancellation succeeds cleanly without cross-run interference
+    const secondResult = await exportTimelineToMp4({
+      projectId: 'project-1',
+      timeline: makeTimeline(),
+      aspectRatio: '16:9',
+    })
+    expect(secondResult).toEqual({
+      absolutePath: '/out/second.mp4',
+      relativePath: 'exports/second.mp4',
+      size: 128,
+    })
+    expect(track).toHaveBeenLastCalledWith(expect.objectContaining({
+      eventName: 'export.completed',
+      props: expect.objectContaining({ format: 'mp4', result: 'success' }),
+    }))
+  })
+
+  it('webm backend: aborts recording or chunk upload cleanly without downloading partial WebM fallback or tracking failure', async () => {
+    const startJob = vi.fn()
+      .mockResolvedValueOnce({ jobId: 'job-rec', backend: 'webm' })
+      .mockResolvedValueOnce({ jobId: 'job-upload', backend: 'webm' })
+    const cancel = vi.fn().mockResolvedValue({ ok: true })
+    const track = vi.fn().mockResolvedValue({ queued: true })
+
+    // Case 1: aborted mid-recording inside exportTimelineToWebm
+    exportTimelineToWebmMock.mockImplementationOnce(({ signal }: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
+      signal?.addEventListener('abort', () => {
+        const err = new Error('Export cancelled')
+        err.name = 'ExportCancelledError'
+        reject(err)
+      }, { once: true })
+    }))
+
+    // Case 2: aborted mid-chunk upload after webmBlob already exists
+    const controllerUpload = new AbortController()
+    const multiChunkBlob = new Blob([new Uint8Array(1024 * 1024 + 32)], { type: 'video/webm' })
+    exportTimelineToWebmMock.mockResolvedValueOnce(multiChunkBlob)
+    const writeTempInput = vi.fn().mockImplementation(async () => {
+      controllerUpload.abort()
+      return { ok: true, size: 1024 * 1024 }
+    })
+    const finishTempInput = vi.fn()
+
+    vi.stubGlobal('window', {
+      nomiDesktop: {
+        exports: { startJob, writeTempInput, finishTempInput, cancel },
+        telemetry: { track },
+      },
+    })
+
+    const { exportTimelineToMp4, isExportCancelledError } = await import('./exportApi')
+
+    const controllerRec = new AbortController()
+    const recPromise = exportTimelineToMp4({
+      projectId: 'project-1',
+      timeline: makeTimeline(),
+      aspectRatio: '16:9',
+      signal: controllerRec.signal,
+    })
+    await vi.waitFor(() => expect(exportTimelineToWebmMock).toHaveBeenCalledTimes(1))
+    controllerRec.abort()
+    const recErr = await recPromise.then(() => null, (err: unknown) => err)
+    expect(isExportCancelledError(recErr)).toBe(true)
+
+    const uploadErr = await exportTimelineToMp4({
+      projectId: 'project-1',
+      timeline: makeTimeline(),
+      aspectRatio: '16:9',
+      signal: controllerUpload.signal,
+    }).then(() => null, (err: unknown) => err)
+    expect(isExportCancelledError(uploadErr)).toBe(true)
+
+    expect(cancel).toHaveBeenCalledWith('job-rec')
+    expect(cancel).toHaveBeenCalledWith('job-upload')
+    expect(finishTempInput).not.toHaveBeenCalled()
+    expect(downloadTimelineBlobMock).not.toHaveBeenCalled()
+    expect(track).toHaveBeenCalledTimes(2)
+    for (const call of track.mock.calls) {
+      expect(call[0]).toMatchObject({
+        eventName: 'export.completed',
+        props: { format: 'mp4', result: 'cancel' },
+      })
+    }
+  })
+
+  it('treats external job cancellation (Task Center / Agent cancel_job) and pre-job abort as cancelled rather than failure', async () => {
+    let listener: ((event: ExportProgressEvent & { snapshot: { status?: string; cancelled?: boolean; progress: { ratio: number; stage: string; message: string } } }) => void) | null = null
+    let resolveStartJob!: (value: { jobId: string; backend: 'filtergraph' }) => void
+    const startJob = vi.fn()
+      .mockResolvedValueOnce({ jobId: 'job-ext', backend: 'filtergraph' })
+      .mockImplementationOnce(() => new Promise<{ jobId: string; backend: 'filtergraph' }>((resolve) => {
+        resolveStartJob = resolve
+      }))
+    const onEvent = vi.fn((cb: typeof listener) => {
+      listener = cb
+      return () => { listener = null }
+    })
+    const finishTempInput = vi.fn().mockImplementation(async () => {
+      listener?.({
+        jobId: 'job-ext',
+        snapshot: {
+          status: 'cancelled',
+          cancelled: true,
+          progress: { ratio: 0.4, stage: 'encoding', message: 'Cancelled' },
+        },
+      })
+      throw new Error("Error invoking remote method 'nomi:exports:finish-temp-input': ExportCancelledError: Export cancelled")
+    })
+    const cancel = vi.fn().mockResolvedValue({ ok: true })
+    const track = vi.fn().mockResolvedValue({ queued: true })
+
+    vi.stubGlobal('window', {
+      nomiDesktop: {
+        exports: { startJob, writeTempInput: vi.fn(), finishTempInput, cancel, onEvent },
+        telemetry: { track },
+      },
+    })
+
+    const { exportTimelineToMp4, isExportCancelledError } = await import('./exportApi')
+
+    // External cancel (no local signal aborted)
+    const extErr = await exportTimelineToMp4({
+      projectId: 'project-1',
+      timeline: makeTimeline(),
+      aspectRatio: '16:9',
+    }).then(() => null, (err: unknown) => err)
+    expect(isExportCancelledError(extErr)).toBe(true)
+
+    // Early abort while startJob is still probing in main process -> cancels created job immediately upon resolution
+    const earlyController = new AbortController()
+    const earlyPromise = exportTimelineToMp4({
+      projectId: 'project-1',
+      timeline: makeTimeline(),
+      aspectRatio: '16:9',
+      signal: earlyController.signal,
+    })
+    await vi.waitFor(() => expect(startJob).toHaveBeenCalledTimes(2))
+    earlyController.abort()
+    resolveStartJob({ jobId: 'job-early', backend: 'filtergraph' })
+    const earlyErr = await earlyPromise.then(() => null, (err: unknown) => err)
+    expect(isExportCancelledError(earlyErr)).toBe(true)
+    expect(cancel).toHaveBeenCalledWith('job-early')
+    expect(finishTempInput).toHaveBeenCalledTimes(1)
+  })
 })

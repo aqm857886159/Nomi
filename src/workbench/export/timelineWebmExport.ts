@@ -6,6 +6,7 @@ import { drawTextBox } from '../timeline/textOverlayCanvas'
 import { computeFramedRect, resolveClipFraming } from '../timeline/clipFraming'
 import i18n from '../../i18n'
 import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } from '../timeline/timelineTransition'
+import { ExportCancelledError } from '../../../electron/shared/contracts/exportTypes'
 
 export type ExportStatus = 'idle' | 'preparing' | 'recording' | 'done' | 'error'
 
@@ -23,7 +24,16 @@ export type TimelineWebmExportOptions = {
   background?: string
   mimeType?: string
   autoDownload?: boolean
+  signal?: AbortSignal
   onProgress?: (progress: TimelineExportProgress) => void
+}
+
+function createWebmCancelledError(): Error {
+  return new ExportCancelledError()
+}
+
+function throwIfWebmCancelled(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw createWebmCancelledError()
 }
 
 type ExportCanvasSize = {
@@ -102,36 +112,48 @@ function loadVideo(url: string): Promise<HTMLVideoElement> {
   })
 }
 
-function waitForSeeked(video: HTMLVideoElement): Promise<void> {
+function waitForSeeked(video: HTMLVideoElement, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(createWebmCancelledError())
   return Promise.race([
     new Promise<void>((resolve, reject) => {
       const cleanup = (): void => {
         video.removeEventListener('seeked', handleSeeked)
         video.removeEventListener('error', handleError)
+        signal?.removeEventListener('abort', handleAbort)
       }
       const handleSeeked = (): void => { cleanup(); resolve() }
       const handleError = (): void => { cleanup(); reject(new Error('视频素材 seek 失败')) }
+      const handleAbort = (): void => { cleanup(); reject(createWebmCancelledError()) }
       video.addEventListener('seeked', handleSeeked, { once: true })
       video.addEventListener('error', handleError, { once: true })
+      signal?.addEventListener('abort', handleAbort, { once: true })
     }),
     new Promise<void>((_, reject) => setTimeout(() => reject(new Error('视频定位超时')), 5000)),
   ])
 }
 
-async function seekVideoToTime(video: HTMLVideoElement, time: number): Promise<void> {
+async function seekVideoToTime(video: HTMLVideoElement, time: number, signal?: AbortSignal): Promise<void> {
+  throwIfWebmCancelled(signal)
   const nextTime = Math.max(0, time)
   if (Number.isFinite(video.currentTime) && Math.abs(video.currentTime - nextTime) < 0.04) return
-  const seekPromise = waitForSeeked(video)
+  const seekPromise = waitForSeeked(video, signal)
   video.currentTime = nextTime
   await seekPromise
+  throwIfWebmCancelled(signal)
   if (typeof video.requestVideoFrameCallback === 'function') {
-    await new Promise<void>((resolve) => {
-      video.requestVideoFrameCallback(() => resolve())
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => reject(createWebmCancelledError())
+      signal?.addEventListener('abort', onAbort, { once: true })
+      video.requestVideoFrameCallback(() => {
+        signal?.removeEventListener('abort', onAbort)
+        resolve()
+      })
     })
   }
 }
 
-async function preloadTimelineAssets(timeline: TimelineState): Promise<TimelineAssetCache> {
+async function preloadTimelineAssets(timeline: TimelineState, signal?: AbortSignal): Promise<TimelineAssetCache> {
+  throwIfWebmCancelled(signal)
   const imageUrls = new Set<string>()
   const videoClips: Array<TimelineClip & { url: string }> = []
 
@@ -146,13 +168,38 @@ async function preloadTimelineAssets(timeline: TimelineState): Promise<TimelineA
   const images = new Map<string, HTMLImageElement>()
   const videos = new Map<string, HTMLVideoElement>()
 
-  await Promise.all(Array.from(imageUrls, async (url) => {
-    images.set(url, await loadImage(url))
-  }))
-  await Promise.all(videoClips.map(async (clip) => {
-    videos.set(clip.id, await loadVideo(clip.url))
-  }))
+  const loadPromise = (async () => {
+    await Promise.all(Array.from(imageUrls, async (url) => {
+      images.set(url, await loadImage(url))
+    }))
+    await Promise.all(videoClips.map(async (clip) => {
+      videos.set(clip.id, await loadVideo(clip.url))
+    }))
+  })()
 
+  if (!signal) {
+    await loadPromise
+    return { images, videos }
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const onAbort = () => reject(createWebmCancelledError())
+    signal.addEventListener('abort', onAbort, { once: true })
+    void loadPromise.then(
+      () => {
+        signal.removeEventListener('abort', onAbort)
+        resolve()
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(error)
+      },
+    )
+  }).catch((error: unknown) => {
+    for (const video of videos.values()) video.pause()
+    throw error
+  })
+  throwIfWebmCancelled(signal)
   return { images, videos }
 }
 
@@ -269,9 +316,11 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
   const durationFrame = computeTimelineDuration(options.timeline)
   if (durationFrame <= 0) throw new Error(i18n.t('runtime.export.emptyTimeline'))
 
+  throwIfWebmCancelled(options.signal)
   const size = resolveExportCanvasSize(options.aspectRatio, options.width)
   options.onProgress?.({ status: 'preparing', frame: 0, totalFrames: durationFrame, ratio: 0 })
-  const assets = await preloadTimelineAssets(options.timeline)
+  const assets = await preloadTimelineAssets(options.timeline, options.signal)
+  throwIfWebmCancelled(options.signal)
   const canvas = document.createElement('canvas')
   canvas.className = 'workbench-export__canvas'
   canvas.width = size.width
@@ -280,6 +329,11 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
   if (!context) throw new Error(i18n.t('runtime.export.canvasUnavailable'))
 
   const stream = canvas.captureStream(options.timeline.fps)
+  const stopStreamTracks = (): void => {
+    for (const track of stream.getTracks?.() ?? []) {
+      track.stop()
+    }
+  }
   const mimeType = resolveRecorderMimeType(options.mimeType)
   const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
   const chunks: BlobPart[] = []
@@ -304,8 +358,26 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
   try {
     await new Promise<void>((resolve, reject) => {
       let frame = 0
+      let settled = false
+      let timerId: ReturnType<typeof setTimeout> | null = null
+      const finish = (error?: unknown): void => {
+        if (settled) return
+        settled = true
+        if (timerId !== null) clearTimeout(timerId)
+        options.signal?.removeEventListener('abort', onAbort)
+        if (error !== undefined) reject(error)
+        else resolve()
+      }
+      const onAbort = (): void => finish(createWebmCancelledError())
+      options.signal?.addEventListener('abort', onAbort, { once: true })
+      if (options.signal?.aborted) {
+        onAbort()
+        return
+      }
       const tick = async (): Promise<void> => {
+        if (settled) return
         try {
+          throwIfWebmCancelled(options.signal)
           const transitions = resolveTimelineTransitionsAtFrame(options.timeline, frame)
           const videoTransition = findTimelineTransitionForClipType(transitions, 'video')
           const activeClips = resolveActiveClipsAtFrame(options.timeline, frame)
@@ -324,9 +396,10 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
                 playheadFrame: sample.sampleFrame,
                 fps: options.timeline.fps,
               })
-              await seekVideoToTime(video, nextTime)
+              await seekVideoToTime(video, nextTime, options.signal)
             }
           }
+          throwIfWebmCancelled(options.signal)
           drawTimelineFrame({
             context,
             timeline: options.timeline,
@@ -341,20 +414,25 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
             totalFrames: durationFrame,
             ratio: Math.min(1, frame / durationFrame),
           })
+          if (settled || options.signal?.aborted) {
+            finish(createWebmCancelledError())
+            return
+          }
           if (frame >= durationFrame - 1) {
-            resolve()
+            finish()
             return
           }
           frame += 1
-          setTimeout(() => void tick(), msPerFrame)
+          timerId = setTimeout(() => void tick(), msPerFrame)
         } catch (error) {
-          reject(error)
+          finish(error)
         }
       }
-      setTimeout(() => void tick(), 0)
+      timerId = setTimeout(() => void tick(), 0)
     })
   } catch (error) {
     if (recorder.state !== 'inactive') recorder.stop()
+    stopStreamTracks()
     for (const video of assets.videos.values()) {
       video.pause()
     }
@@ -362,10 +440,12 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
   }
 
   recorder.stop()
+  stopStreamTracks()
   for (const video of assets.videos.values()) {
     video.pause()
   }
   const blob = await recording
+  throwIfWebmCancelled(options.signal)
   if (blob.size <= 0) throw new Error(i18n.t('runtime.export.emptyResult'))
   options.onProgress?.({ status: 'done', frame: durationFrame, totalFrames: durationFrame, ratio: 1 })
   const filename = createTimelineExportFilename('webm')
