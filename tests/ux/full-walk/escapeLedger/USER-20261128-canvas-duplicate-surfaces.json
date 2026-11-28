@@ -12,7 +12,7 @@
   "fullWalkJourneys": [],
   "status": "fixed",
   "manualReview": "reviewed",
-  "fixedInPr": 1744,
+  "fixedInPr": 1745,
   "rootCauseContract": "docs/fixes/2026-11-28-canvas-duplicate-surface-guard.root-cause.json",
   "classCheck": {
     "kind": "matrix",
