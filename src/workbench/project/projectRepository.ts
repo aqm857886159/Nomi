@@ -12,6 +12,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { buildTemplateCategories, getProjectTemplate } from '../library/projectTemplates'
 import { createDefaultWorkbenchDocument } from '../workbenchTypes'
 import { createEmptyStoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
+import { selectPreviewAspectRatio } from '../preview/previewAspectRatios'
 import {
   PROJECT_BACKUP_INDEX_PREFIX,
   PROJECT_BACKUP_PREFIX,
@@ -173,6 +174,7 @@ export function createLocalProject(
         updatedAt: now,
       }
     : docDefaults
+  const starterPlan = isDraft ? createEmptyStoryboardPlan(selectPreviewAspectRatio({})) : null
   const record = createProjectRecord(summary, {
     // Keep the starter attached to the seeded document so the editor can open
     // with its two empty structural rows.
@@ -181,14 +183,14 @@ export function createLocalProject(
     // A new blank project starts with two empty editable rows. This is
     // structural workspace state, not seeded user content: prompts and anchors
     // remain empty until the user or Agent supplies them.
-    ...(isDraft
+    ...(starterPlan
       ? {
           storyboardDesignsByDocumentId: {
             [seededDocument.id]: [{
               id: `starter-${seededDocument.id}`,
               documentId: seededDocument.id,
-              title: createEmptyStoryboardPlan().title,
-              plan: createEmptyStoryboardPlan(),
+              title: starterPlan.title,
+              plan: starterPlan,
               committed: false,
               status: 'draft',
               sourceDocumentUpdatedAt: seededDocument.updatedAt,

@@ -25,7 +25,8 @@ import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { placeBlockInVisibleArea } from '../store/canvasVisibleArea'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
-import type { StoryboardPlan } from './storyboardPlan'
+import { withDefaultStoryboardAspect, type StoryboardPlan } from './storyboardPlan'
+import { selectPreviewAspectRatio } from '../../preview/previewAspectRatios'
 import { storyboardPlanIssues } from '../../creation/storyboard/storyboardDesignSchema'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/director/agent/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/director/agent/cameraMoveBuilder'
@@ -341,7 +342,8 @@ export async function applyCanvasToolCall(
         message: '目标原稿已不存在，未应用迟到的规划结果。',
       } satisfies StoryboardPlanApplicationResult
     }
-    const design = inCtx(() => store.setStoryboardPlan(plan, targetDocumentId, storyboardId, true, storyboardId ? false : 'agent'))
+    const planToStore = storyboardId ? plan : withDefaultStoryboardAspect(plan, selectPreviewAspectRatio(store))
+    const design = inCtx(() => store.setStoryboardPlan(planToStore, targetDocumentId, storyboardId, true, storyboardId ? false : 'agent'))
     if (!design) {
       throwIfPlanNotWritable(plan)
       return {
