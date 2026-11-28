@@ -6,7 +6,7 @@
   "symptom": "复发类根因合同把 docs/engineering/rules.json 等纯规则文档填作防线，或用静态扫描/运行时断言替代类型系统/共用解析核/删除分叉路径而不说明原因时，check:root-cause-contracts 不会阻断。",
   "direct_cause": "scripts/root-cause-contracts.mjs 的 isStructuralPreventionArtifact 仅排除测试、.md 与 .root-cause.json，未排除 docs/ 与技能规则目录；prevention 未要求区分 impossible-by-construction 与 post-hoc-gate；classifyFindings 未将防复发结构缺失列入 BLOCKING_PATTERNS。",
   "class_root": "工程防呆校验把『事后扫描或写规则文字』与『源头结构上让错误路径物理不可发生』混为一谈，缺少代码级分层判据与单源替换后的旧主人残留拦截。",
-  "detected_by": "user",
+  "detected_by": "review",
   "recurrence_check_on": "2026-12-28",
   "invariant_owner_layer": {
     "layer": "scripts/root-cause-contracts.mjs",
