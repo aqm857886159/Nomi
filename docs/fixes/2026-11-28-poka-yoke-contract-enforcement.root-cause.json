@@ -1,0 +1,135 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-poka-yoke-contract-enforcement",
+  "change_kind": "corrective",
+  "problem_type": "根因合同门岗未区分源头结构消灭错误路径与事后扫描拦截，且纯文字/规则文档防线只给警告不阻断",
+  "symptom": "复发类根因合同把 docs/engineering/rules.json 等纯规则文档填作防线，或用静态扫描/运行时断言替代类型系统/共用解析核/删除分叉路径而不说明原因时，check:root-cause-contracts 不会阻断。",
+  "direct_cause": "scripts/root-cause-contracts.mjs 的 isStructuralPreventionArtifact 仅排除测试、.md 与 .root-cause.json，未排除 docs/ 与技能规则目录；prevention 未要求区分 impossible-by-construction 与 post-hoc-gate；classifyFindings 未将防复发结构缺失列入 BLOCKING_PATTERNS。",
+  "class_root": "工程防呆校验把『事后扫描或写规则文字』与『源头结构上让错误路径物理不可发生』混为一谈，缺少代码级分层判据与单源替换后的旧主人残留拦截。",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-28",
+  "invariant_owner_layer": {
+    "layer": "scripts/root-cause-contracts.mjs",
+    "tests": [
+      "scripts/check-root-cause-contracts.node-test.mjs",
+      "scripts/new-root-cause-contract.node-test.mjs"
+    ]
+  },
+  "affected_population": [
+    "所有提交 schema-v3 复发类根因合同与演进概念唯一归属表的工程变更"
+  ],
+  "scope_paths": [
+    "scripts/root-cause-contracts.mjs",
+    "scripts/new-root-cause-contract.mjs",
+    "scripts/concept-owners-lib.mjs",
+    "scripts/check-concept-owners.mjs"
+  ],
+  "entry_points": [
+    "scripts/check-root-cause-contracts.mjs (validateRootCauseChange / classifyFindings)",
+    "scripts/new-root-cause-contract.mjs (buildSkeleton)",
+    "scripts/check-concept-owners.mjs (evaluateHistory)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi 仓库内部根因合同 schema v3 与概念归属单源演进门岗机制，不涉及外部协议或第三方库行为。",
+  "invariants": [
+    "新提交的复发类根因合同必须显式声明 poka_yoke_tier：选 impossible-by-construction 时必选 route-deletion（须有删除或减门实证）/ type-or-schema / shared-core 且不得混用 static-gate 或 runtime-assertion；选 post-hoc-gate 时必须写出 >=16 字的具体理由说明为何无法在源头结构消灭错误路径。",
+    "任何复发类合同将纯文档、规则表（docs/**、CLAUDE.md、AGENTS.md、.agents/**）充当 enforcement_path 或唯一防复发工件时，classifyFindings 一律判为 blocking 硬红退出。",
+    "在 docs/engineering/concept-owners/ 替换 converged 概念主人做单源演进时，若旧主人定义仍留在源码中且未被任何概念认领，check:concept-owners 直接报 superseded-owner-retained 阻断。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-root-cause-contracts.mjs",
+      "symbol": "validateRootCauseChange"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1,
+    "why_not": "直接在现役唯一门岗入口 scripts/check-root-cause-contracts.mjs 与 scripts/check-concept-owners.mjs 内增强纯函数判据，零新增独立串行子进程门岗。"
+  },
+  "generality_proof": "所有 PR 与 CI Contracts 均必跑现役 check:root-cause-contracts 与 check:concept-owners：前者拦住一切『拿文字纪律或无理由事后门岗顶替源头防呆』的新合同，后者拦住一切『推翻旧决定换新主人却把旧实现留在仓库当双轨』的概念演进，同时完整保留历史冻结 v1/v2 哈希与存量 v3 合同兼容。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "validateRootCauseChange",
+      "responsibility": "校验复发类根因合同的源头无错分层（poka_yoke_tier / source_mechanism / why_not_impossible_by_construction）并拒绝纯文字/规则文档防线。"
+    },
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "classifyFindings",
+      "responsibility": "将源头防呆分层违规与防复发结构缺失归入硬红阻断集合。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-root-cause-contracts.mjs",
+      "entry_point": "validateRootCauseChange",
+      "disposition": "enforced",
+      "evidence": "现役合同门岗 CLI 直接调用 validateRootCauseChange 与 classifyFindings，违规时退出码 1。"
+    },
+    {
+      "path": "scripts/new-root-cause-contract.mjs",
+      "entry_point": "buildSkeleton",
+      "disposition": "enforced",
+      "evidence": "合同脚手架默认生成 poka_yoke_tier 与 source_mechanism 占位并由 new-root-cause-contract.node-test.mjs 钉死对齐。"
+    },
+    {
+      "path": "scripts/concept-owners-lib.mjs",
+      "entry_point": "evaluateHistory",
+      "disposition": "enforced",
+      "evidence": "现役概念门岗在 converged 概念换主人时自动核查旧主人定义是否已从代码删除，杜绝遗留兼容双轨。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "若门岗不区分源头无错设计与事后打补丁/写规则文档，后续修复仍会习惯性用下游报错分支、扫描脚本或文档条款代替源头消灭错误路径。",
+    "same_class_scan": [
+      "检查 scripts/root-cause-contracts.mjs 全部 BLOCKING_PATTERNS 与 validateRecurringContract 分支，确认此前纯规则 JSON 可混过 artifacts 检查且未进 blocking。",
+      "检查 scripts/concept-owners-lib.mjs 的 evaluateHistory，确认此前仅拦截整条概念删除（concept-dropped），未拦截同概念换主人后旧主人定义残留。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "poka_yoke_tier": "post-hoc-gate",
+    "why_not_impossible_by_construction": "根因合同是跨语言 JSON 工件而非 TypeScript 编译单元，无法靠 TS 类型系统在编码期阻断，必须在现役合同校验器与脚手架边界统一做 fail-closed 结构阻断。",
+    "enforcement_path": "scripts/root-cause-contracts.mjs",
+    "invariant": "复发类合同必须声明合法的 poka_yoke_tier 及对应源头机制或不可源头消灭的具体理由，且防线不得为纯文档或规则表。",
+    "failure_mode": "check:root-cause-contracts 将违规归入 blocking 并以退出码 1 阻断；check:concept-owners 对遗留旧主人报 superseded-owner-retained 并退出 1。",
+    "exception_policy": "none",
+    "strategy": "复用现役 check:root-cause-contracts 与 check:concept-owners 两个门岗进程原地增强判据，不新增任何 check:* 子进程。",
+    "artifacts": [
+      "scripts/root-cause-contracts.mjs",
+      "scripts/new-root-cause-contract.mjs",
+      "scripts/concept-owners-lib.mjs",
+      "scripts/check-concept-owners.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/new-root-cause-contract.node-test.mjs",
+    "scripts/check-concept-owners.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/new-root-cause-contract.node-test.mjs",
+    "scripts/check-concept-owners.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/new-root-cause-contract.mjs"
+    ],
+    "rationale": "同提交移除 scripts/new-root-cause-contract.mjs 脚手架中已废弃的 doors[].line 行号占位，避免生成旧形状门表。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯仓库内 Node ESM 校验逻辑，不依赖外部包升级。",
+    "exit_criteria": []
+  },
+  "migration": "存量历史冻结 v1/v2 合同哈希零改动；2026-11-29 之前的存量及在途 v3 合同不追溯必填 poka_yoke_tier，显式携带该字段或自 2026-11-29 起的新合同全量按新结构判据阻断。",
+  "residual_risks": [
+    "why_not_impossible_by_construction 仅静态校验非空、长度与无 TODO 占位；理由在工程上是否真站得住脚仍需结合代码评审与独立验收复核。"
+  ]
+}

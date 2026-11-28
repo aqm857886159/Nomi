@@ -82,6 +82,7 @@ const RULE_TEXT = {
   'baseline-stale': ['基线里有已经不存在的口子', '删掉那一条：棘轮只减不增，基线必须等于现状。'],
   'baseline-grew': ['基线比参照提交长了', '已登记概念的第二写口 / 冻结写门只许变少。修代码，别抬基线挤过门岗（R17.0 第 4 条）。'],
   'concept-dropped': ['概念从登记表里消失了，但主人还在', '撤销登记前先把主人收掉或并进别的概念；改名不算撤销（按名字、主人、计数键都能认出来）。'],
+  'superseded-owner-retained': ['替换概念主人后旧实现仍在代码里（遗留双轨）', '推翻或调整旧决定做单源演进时，同提交删掉旧主人的定义（或在过渡期显式设为 pending 并写 migration_strategy），不留无主兼容双轨（P1 / R33）。'],
   'reference-unavailable': ['拿不到参照提交，证明不了棘轮没有回升', '设 CONCEPT_OWNERS_BASE_REF（或 ROOT_CAUSE_BASE_REF）指向 merge-base；拿不到参照就不放行（fail-closed）。'],
   'filter-unknown': ['--concept 点名的概念不存在', '用登记表里的 name 或 subject。'],
   'exception-expired': ['例外登记已到期', '完成迁移或删除例外后再合并；不要只把日期往后推。'],
