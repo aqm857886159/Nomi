@@ -127,15 +127,6 @@ function rejectDuplicateShotFacts(args: unknown): Record<string, unknown> {
   };
   for (const shot of shots) {
     if (!shot || typeof shot !== "object") continue;
-    const shotRecord = shot as Record<string, unknown>;
-    if (shotRecord.storyboard && typeof shotRecord.storyboard === "object" && !Array.isArray(shotRecord.storyboard)) {
-      const sb = shotRecord.storyboard as Record<string, unknown>;
-      // 兼容旧调用方显式传冗余 `carrier: "visual"`（宿主默认就是 visual，不再让模型面为此背字段）。
-      if (sb.carrier === "visual") {
-        const { carrier: _defaultCarrier, ...restStoryboard } = sb;
-        shotRecord.storyboard = restStoryboard;
-      }
-    }
     const { durationSec, parameters } = shot as { durationSec?: unknown; parameters?: { duration?: unknown; aspectRatio?: unknown } };
     // 比例只有一个家：模型面上的 `aspectRatio`。`parameters.aspectRatio` 正是 2026-10-05 那次被静默吞掉的写法，
     // 现在当场说清，而不是替它挪过去——挪过去就又成了「同一件事写两处、宿主替它挑一个」。

@@ -546,19 +546,24 @@ describe("Slice 2 · 首轮 Ambient Context 补齐（默认模型规格 ≤350 t
 });
 
 describe("Slice 3 · Schema 防呆瘦身 + 工具说明与 Schema 一致性锁 + 原生 constrainedSampling", () => {
-  it("draft_shots 模型面移除宿主可自推的 storyboard.carrier 等膨胀字段，分镜适配器自动推导视觉锚 carrier", () => {
+  it("draft_shots 模型面移除编辑器内部膨胀字段，同时保留可选 storyboard.carrier（缺省自动补 visual，显式 text 风格锚原样保留）", () => {
     const draftShotsVerb = INTERNAL_VERBS.find((v) => v.name === "draft_shots")!;
     const published = toPublishedJsonSchema(draftShotsVerb.schema) as {
-      properties: { shots: { items: { properties: { storyboard: { properties: Record<string, unknown> } } } } };
+      properties: { shots: { items: { properties: { storyboard: { properties: Record<string, unknown>; required?: string[] } } } } };
     };
-    const storyboardProps = published.properties.shots.items.properties.storyboard.properties;
-    expect(storyboardProps).not.toHaveProperty("carrier");
+    const storyboardSchema = published.properties.shots.items.properties.storyboard;
+    const storyboardProps = storyboardSchema.properties;
+    expect(storyboardProps).toHaveProperty("carrier");
+    expect(storyboardSchema.required ?? []).not.toContain("carrier");
     expect(storyboardProps).not.toHaveProperty("referenceBindings");
     expect(storyboardProps).not.toHaveProperty("promptSegments");
     expect(storyboardProps).not.toHaveProperty("continuity");
+    expect(storyboardProps).not.toHaveProperty("referenceUrl");
+    expect(storyboardProps).not.toHaveProperty("camIdx");
+    expect(storyboardProps).not.toHaveProperty("durationSec");
 
-    // 宿主分镜适配器在不传 carrier 时自动推导 anchor 的 carrier='visual'
-    const adapted = storyboardSubjectFromCandidate(
+    // 1) 宿主分镜适配器在不传 carrier 时自动推导 anchor 的 carrier='visual'
+    const adaptedVisual = storyboardSubjectFromCandidate(
       {
         shotId: "anchor-1",
         role: "anchor",
@@ -577,7 +582,41 @@ describe("Slice 3 · Schema 防呆瘦身 + 工具说明与 Schema 一致性锁 +
       },
       { kind: "character" },
     );
-    expect(adapted).toMatchObject({ id: "anchor-1", kind: "character", carrier: "visual" });
+    expect(adaptedVisual).toMatchObject({ id: "anchor-1", kind: "character", carrier: "visual" });
+
+    // 2) 显式传入合法 carrier='text'（如 C0 分镜规划纯文本风格锚）经 prepareArguments + schema 后原样保留直达分镜适配器
+    const textAnchorRaw = {
+      shots: [{
+        role: "anchor",
+        title: "统一色调",
+        prompt: "暖色低对比",
+        taskKind: "text_to_image",
+        storyboard: { kind: "style", carrier: "text", scope: "all" },
+      }],
+    };
+    const prepared = draftShotsVerb.prepareArguments ? draftShotsVerb.prepareArguments(structuredClone(textAnchorRaw)) : textAnchorRaw;
+    const parsed = draftShotsVerb.schema.parse(prepared);
+    expect(parsed.shots[0]!.storyboard).toEqual({ kind: "style", carrier: "text", scope: "all" });
+    const adaptedText = storyboardSubjectFromCandidate(
+      {
+        shotId: "anchor-style",
+        role: "anchor",
+        title: "统一色调",
+        candidate: {
+          candidateId: "cand-2",
+          revision: 1,
+          moduleId: "generation.single-shot",
+          providerId: "apimart",
+          modelId: "seedream-5-5",
+          mode: "text_to_image",
+          prompt: "暖色低对比",
+          parameters: {},
+          references: [],
+        },
+      },
+      parsed.shots[0]!.storyboard,
+    );
+    expect(adaptedText).toMatchObject({ id: "anchor-style", kind: "style", carrier: "text", scope: "all" });
   });
 
   it("工具说明书与 Schema 一致性锁：所有内部动词的 examples 及说明中出现的字段路径/指针 100% 在其发布 Schema 中合法存在", () => {

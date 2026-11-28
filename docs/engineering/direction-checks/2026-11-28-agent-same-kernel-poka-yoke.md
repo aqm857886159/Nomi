@@ -51,8 +51,8 @@ Agent 起草工具曾与画布节点参数推导核分裂成两套规则，把�
 | 选项 | 做什么 | 代价 | 选了以后同一类还会不会出现、从哪出现 | 风险 | 推荐 |
 |---|---|---|---|---|---|
 | 沿原方向修 | 继续在提示词和单点 `if` 里补特例分支与模型名黑名单 | 低（几十行） | 会；每加一个新模型、新中转站或新重名 `modeId` 都会再漏 | 规则越叠越碎、继续误拒或误扣费 | 否 |
-| 换一种做法 | 统一收归全目录档案推导 + 像素几何同核映射 + 近界时长吸附回执 + 画布/文稿双路全批校验单次原子写回，并在 `laneTools.mts` / `laneModelProvider.mts` 接入 `@earendil-works/pi-ai@0.85.1`（`node_modules/@earendil-works/pi-ai/dist/api/constrained-sampling.d.ts:1`）仅对显式声明 strict 的连接与纯严格子集工具启用严格采样，同提交删掉单镜锁与冗余 `carrier` 字段 | 中（本 PR 一次落成） | 不会；模式、比例、事务原子性与 strict 门控均在唯一入口按结构不变量守住 | 低（`modelRequestParity` 82 行全对拍锁定） | **推荐** |
-| 删掉 | 最小可删单位已并入推荐项：直接删掉 `writeVerbs.ts` 的 `revise one shot per call` 单镜锁与模型面冗余 `storyboard.carrier` 等 10 个内部膨胀字段（宿主自动补视觉锚 `carrier = 'visual'`，老数据直读兼容） | 低 | 被删掉的单镜死锁与冗余字段错写永久消失 | 无 | **已并入执行** |
+| 换一种做法 | 统一收归全目录档案推导 + 像素几何同核映射 + 近界时长吸附回执 + 画布/文稿双路全批校验单次原子写回，并在 `laneTools.mts` / `laneModelProvider.mts` 接入 `@earendil-works/pi-ai@0.85.1`（`node_modules/@earendil-works/pi-ai/dist/api/constrained-sampling.d.ts:1`）仅对显式声明 strict 的连接与纯严格子集工具启用严格采样，同提交删掉单镜锁与编辑器专用膨胀字段（`storyboard.carrier` 保持可选：缺省补 `'visual'`、显式 `'text'` 风格锚原样保留） | 中（本 PR 一次落成） | 不会；模式、比例、事务原子性与 strict 门控均在唯一入口按结构不变量守住 | 低（`modelRequestParity` 82 行全对拍锁定） | **推荐** |
+| 删掉 | 最小可删单位已并入推荐项：直接删掉 `writeVerbs.ts` 的 `revise one shot per call` 单镜锁与模型面冗余编辑器专用膨胀字段（宿主自动补缺省视觉锚 `carrier = 'visual'`，显式 `'text'`/`'visual'` 与老数据直读兼容） | 低 | 被删掉的单镜死锁与冗余字段错写永久消失 | 无 | **已并入执行** |
 
 ### 7. 用户要权衡的核心
 

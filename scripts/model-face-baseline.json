@@ -591,6 +591,14 @@
                       },
                       "type": "array"
                     },
+                    "carrier": {
+                      "description": "Visual or text guidance",
+                      "enum": [
+                        "visual",
+                        "text"
+                      ],
+                      "type": "string"
+                    },
                     "dynamicFeatures": {
                       "description": "Clothing, accessories and temporary state; may vary between shots and do not define identity.",
                       "type": "string"

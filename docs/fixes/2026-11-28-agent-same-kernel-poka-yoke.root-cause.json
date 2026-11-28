@@ -36,6 +36,8 @@
     "electron/shared/agentLane/draftCanvasLanding.ts",
     "electron/shared/aspectRatioValue.ts",
     "electron/shared/generationShotKind.ts",
+    "electron/shared/modelArchetypes/entry.ts",
+    "electron/shared/modelArchetypes/index.ts",
     "electron/shared/storyboard/storyboardSubjectAdapter.ts",
     "src/workbench/creation/storyboard/agentStoryboardDesign.ts"
   ],
@@ -426,7 +428,7 @@
     "invariant": "Agent drafting shares the canvas mode/ratio/duration resolution kernel, admits multi-shot revisions and full-batch error reporting atomically, injects Turn-1 model/focus facts, and locks verb prose and strict sampling at assembly.",
     "failure_mode": "Genuine hard errors (unknown model/mode, missing shotId/assetId, unsupported ratio or non-duration model) fail closed across the full batch with charged=false and actionable allowed values.",
     "exception_policy": "none",
-    "strategy": "Delete single-shot revision lock and redundant storyboard carrier fields in-place, route mode/ratio/duration admission through shared owners with explicit adjustments, enrich Turn-1 ambient context, and lock prose-schema parity + constrainedSampling in CI.",
+    "strategy": "Delete single-shot revision lock and redundant editor-only storyboard fields in-place while keeping storyboard.carrier optional (defaulting omitted carrier to 'visual' and preserving explicit 'text'/'visual'), route mode/ratio/duration admission through shared owners with explicit adjustments, enrich Turn-1 ambient context, and lock prose-schema parity + constrainedSampling in CI.",
     "artifacts": [
       "electron/capabilityCore/mcpGenerationVideoResolve.ts",
       "electron/capabilityCore/generationAuthoredDuration.ts",
@@ -465,7 +467,7 @@
       "Re-evaluate constrainedSampling coverage on open-record verbs after upstream upgrade"
     ]
   },
-  "migration": "Existing persisted drafts, canvas nodes, and storyboard designs require zero data migration: storyboardSubjectFromCandidate still accepts legacy carrier='visual' while defaulting omitted carrier to 'visual', prepareArguments strips redundant legacy carrier='visual', and single-shot patch wire calls remain byte-compatible alongside new batch patches.",
+  "migration": "Existing persisted drafts, canvas nodes, and storyboard designs require zero data migration: storyboardSubjectFromCandidate defaults omitted carrier to 'visual' while preserving explicit 'visual'/'text' carriers intact through draft_shots, and single-shot patch wire calls remain byte-compatible alongside new batch patches.",
   "residual_risks": [
     "Three verbs with open record dictionaries (draft_shots shots[].parameters, stage_shot actors[].anchors / edits[].value, and MCP-only try_model params) remain constrainedSampling=false because JSON Schema strict mode forbids open additionalProperties."
   ]

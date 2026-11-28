@@ -9,6 +9,7 @@ import type { ModelArchetype, ModelArchetypeVariant } from "./types";
 import { getArchetypeById, MODEL_ARCHETYPES } from "./builtInCatalog";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
 import { headlessDefaultsOf, identityPatternsOf, modeManifestOf, sizeRatioTaskKindsOf } from "./catalogFacts";
+import { statedMode } from "./modeForInputs";
 import { resolveArchetypeVariant } from "./variantResolution";
 
 
@@ -344,4 +345,23 @@ export function archetypeFamilyIdsFor(wanted: string, fold: (value: string) => s
       profile.id === identity || profile.familyIdentifierPatterns?.some((pattern) => fold(pattern) === folded),
     ).map((profile) => profile.id),
   );
+}
+
+/**
+ * 未点名具体模型时，查询一个 `modeId` 在全量内置档案（含视频与图像等全部注册档案）里声明过的传输任务集合：
+ * 只读模式自身显式声明的 `transportTaskKind`（以及图像档案按有无参考槽对应的 `image_edit` / `text_to_image`），
+ * 不把某家将全模式并进单端点的默认桶当成模式语义分歧。收拢在唯一入口内，避免外部直接遍历档案表。
+ */
+export function builtInModeTransports(modeId: string): ReadonlySet<string> {
+  const trimmed = modeId.trim();
+  const distinct = new Set<string>();
+  if (!trimmed) return distinct;
+  for (const archetype of MODEL_ARCHETYPES) {
+    const mode = statedMode(archetype, trimmed);
+    if (!mode) continue;
+    const raw = mode.transportTaskKind?.trim()
+      || (archetype.kind === "image" ? (mode.slots.length > 0 ? "image_edit" : "text_to_image") : undefined);
+    if (raw) distinct.add(raw.toLowerCase().replace(/[-\s]/g, "_"));
+  }
+  return distinct;
 }

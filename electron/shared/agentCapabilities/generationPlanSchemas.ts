@@ -88,15 +88,13 @@ export type StoryboardAuthorFields=z.infer<typeof storyboardAuthorFieldsSchema>;
 /**
  * `draft_shots` 模型面那一份：
  *   1. 独立关键帧点名模型用**一个**完整名字（`model`），不再拆两半；
- *   2. 省掉宿主可自推或编辑器内部专用的膨胀字段：`draft_shots` 的 `role: "anchor"` 专指参考图像卡（`admitShotIdentity`
- *      强制校验图像模型，宿主统一推为 `carrier: "visual"`；纯文本锚 `carrier: "text"` 仅归分镜表 UI 编辑器自身 schema 维护，不经生成起草动词创建）；
- *      `referenceUrl`/`referenceKind`/`referenceSourceNodeId`/`referenceBindings`/`promptSegments`/`camIdx`/`continuity`/`durationSec`
+ *   2. `carrier` 保持可选：未传时宿主在 `role: "anchor"` 上默认补 `'visual'`，显式传入的合法 `'text'`（如纯文本风格锚）或 `'visual'` 原样保留直达底层；
+ *   3. 省掉其余编辑器内部专用的膨胀字段：`referenceUrl`/`referenceKind`/`referenceSourceNodeId`/`referenceBindings`/`promptSegments`/`camIdx`/`continuity`/`durationSec`
  *      均由 `shots[].references` / `shots[].prompt` / `shots[].durationSec` 承载或归编辑器内部维护。
  * 宿主持久化与对外 MCP 仍收完整的 `storyboardAuthorFieldsSchema`。
  */
 const keyframeModelFace=planShotSchema.shape.keyframe.unwrap().omit({modelKey:true,modelVendor:true,params:true});
 const modelFaceAuthorShape=authorShape.omit({
-  carrier:true,
   referenceUrl:true,
   referenceKind:true,
   referenceSourceNodeId:true,
