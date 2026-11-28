@@ -10,7 +10,7 @@ import { useProductionNodeRetry } from './useProductionNodeRetry'
 import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import { createReactTestRenderer } from '../../ai/v4/testReactRenderer'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import type { GenerationHandOver, ProductionJob, ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import type { GenerationHandOver, ProductionJob, ProductionRun } from '../../../../electron/shared/contracts/productionRunTypes'
 import { IN_APP_AGENT_ORIGIN_HOST } from '../../../../electron/shared/productionGenerationPresentation'
 
 const NOW = '2026-10-24T00:00:00.000Z'

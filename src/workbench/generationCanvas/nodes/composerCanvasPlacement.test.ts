@@ -50,6 +50,16 @@ describe('composerCanvasPlacement', () => {
     }
   })
 
+  it('节点下方挂着样片行：浮框接在那一行下面、间距照旧；那一行跟着节点缩放，所以按画布单位加（任何缩放都不压住它）', () => {
+    for (const zoom of [0.5, 1, 1.6]) {
+      const below = 6 + 28
+      const placement = composerCanvasPlacement({ width: 320, height: 180 }, zoom, 'standard', below)
+      expect(placement.top).toBe(180 + below + NODE_COMPOSER_GAP)
+      expect(placement.top * zoom).toBeGreaterThanOrEqual((180 + below) * zoom)
+    }
+    expect(composerCanvasPlacement({ width: 320, height: 180 }, 1).top).toBe(180 + NODE_COMPOSER_GAP)
+  })
+
   it('never produces a non-finite transform for a broken zoom', () => {
     for (const zoom of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(composerCanvasPlacement({ width: 320, height: 180 }, zoom).transform).toBe('scale(1) translateX(-50%)')
@@ -72,8 +82,9 @@ describe('composerCanvasPlacement', () => {
   it('the canvas composer derives its position without measuring the screen', () => {
     // 画布宿主的定位锚住在 composerAnchor.tsx（图片 / 视频卡与文本加工框共用同一个锚）。
     const anchor = stripComments(fs.readFileSync(path.join(__dirname, 'composerAnchor.tsx'), 'utf8'))
-    expect(anchor).toContain('composerCanvasPlacement(visualSize, canvasZoom, placement)')
-    for (const file of ['composerAnchor.tsx', 'NodeGenerationComposer.tsx']) {
+    // 第四个参数是节点下方那一行的高度（画布单位，那一行用 offsetHeight 自己报，不量屏幕）。
+    expect(anchor).toContain('composerCanvasPlacement(visualSize, canvasZoom, placement, below)')
+    for (const file of ['composerAnchor.tsx', 'NodeGenerationComposer.tsx', 'sampleRow/NodeSampleRow.tsx']) {
       const source = stripComments(fs.readFileSync(path.join(__dirname, file), 'utf8'))
       for (const forbidden of ['getBoundingClientRect', 'requestAnimationFrame', 'resolveAnchoredPlacement', 'w-max']) {
         expect(source, `${file} ${forbidden}`).not.toContain(forbidden)

@@ -8,7 +8,7 @@ import { listRegisteredWorkspaceRoots } from "./workspaceRegistry";
 import { inspectWorkspaceSync, quarantineWorkspaceConflict } from "./workspaceSync";
 import { readWorkspaceSyncBaseline, writeWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
 
-type ProjectLookup = (projectId: string) => unknown;
+type ProjectLookup = (projectId: string) => unknown | Promise<unknown>;
 
 /** 批量检查同时在飞的项目数。每个项目内部还有素材探测（workspaceSync 里另有进程级上限）。 */
 export const SYNC_INSPECT_BATCH_CONCURRENCY = 2;
@@ -73,7 +73,7 @@ export function registerWorkspaceSyncIpc(deps: { readProject: ProjectLookup }): 
       : String(payload || "").trim();
     const adopt = typeof payload === "object" && payload !== null && (payload as { adopt?: unknown }).adopt === true;
     if (!id) throw new Error("projectId is required");
-    const project = deps.readProject(id) as { lastKnownRootPath?: unknown } | null;
+    const project = (await deps.readProject(id)) as { lastKnownRootPath?: unknown } | null;
     const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
     if (!rootPath) throw new Error("Project folder is unavailable");
     return inspectProjectSync(getSettingsRoot(), id, rootPath, adopt);
@@ -87,23 +87,23 @@ export function registerWorkspaceSyncIpc(deps: { readProject: ProjectLookup }): 
     return inspectProjectsSyncBatch(settingsRoot, ids, { rootPathOf: (id) => roots.get(id) ?? null });
   });
 
-  ipcMain.handle("nomi:workspace:sync-reveal", (event, projectId: unknown) => {
+  ipcMain.handle("nomi:workspace:sync-reveal", async (event, projectId: unknown) => {
     assertTrustedSender(event);
     const id = String(projectId || "").trim();
     if (!id) throw new Error("projectId is required");
-    const project = deps.readProject(id) as { lastKnownRootPath?: unknown } | null;
+    const project = (await deps.readProject(id)) as { lastKnownRootPath?: unknown } | null;
     const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
     if (!rootPath) throw new Error("Project folder is unavailable");
     void shell.openPath(rootPath);
     return { ok: true };
   });
 
-  ipcMain.handle("nomi:workspace:sync-copy-conflict", (event, payload: unknown) => {
+  ipcMain.handle("nomi:workspace:sync-copy-conflict", async (event, payload: unknown) => {
     assertTrustedSender(event);
     const id = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
     const source = (payload as { source?: unknown } | null)?.source === "local" ? "local" : "remote";
     if (!id) throw new Error("projectId is required");
-    const project = deps.readProject(id) as { lastKnownRootPath?: unknown } | null;
+    const project = (await deps.readProject(id)) as { lastKnownRootPath?: unknown } | null;
     const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
     if (!rootPath) throw new Error("Project folder is unavailable");
     return { path: quarantineWorkspaceConflict(rootPath, source) };

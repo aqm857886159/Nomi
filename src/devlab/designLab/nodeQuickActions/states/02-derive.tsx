@@ -41,7 +41,7 @@ export const QUICK_ACTION_DERIVE_STATES: readonly LabState[] = [
     id: 'qa-14-derived-idle',
     name: '派生后 · 新节点「提示词已填好 / 已备好 · 未生成」、已连好源图、空闲，↑ 可点（点 ↑ 才生成）；浮框只在选中时出，所以这格选上新节点来看，真实流程选中仍留在源节点',
     source: SOURCE,
-    mirrors: 'src/workbench/generationCanvas/nodes/NodeIndependentCopyBadge.tsx:43',
+    mirrors: 'src/workbench/generationCanvas/nodes/NodeDerivedCopyBadge.tsx:44',
     coverage: 'shell',
     render: () => <DerivedIdleStage />,
   },

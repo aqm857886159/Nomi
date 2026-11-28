@@ -5,7 +5,7 @@ import { NODE_COMPOSER_GAP, NODE_COMPOSER_WIDTH, TEXT_COMPOSER_GAP, TEXT_COMPOSE
  * 画布生成浮框的位置——**唯一 owner**。
  *
  * 不变量（2026-09-25 用户拍板「钉在节点正下方、宽度固定、被挡就挡」）：
- * 浮框的位置与宽度**只**是「节点画布尺寸 + 画布缩放」的函数。签名里没有视口、没有停靠区、没有别的节点，
+ * 浮框的位置与宽度**只**是「节点画布尺寸 + 画布缩放 + 节点自己下方那一行的高度」的函数。签名里没有视口、没有停靠区、没有别的节点，
  * 所以它在结构上就不可能去躲任何东西、不可能被别的布局变化带着漂——以前那套每帧量矩形的放置层
  * （clamp / 翻转 / 让左缘工具条 / 让底部缩放条）就是「位置错位、长度忽长忽短」的来源，已整个删除。
  *
@@ -18,6 +18,11 @@ export function composerCanvasPlacement(
   zoom: number,
   /** 'match-node'：文本节点的加工框——和节点同宽（屏幕宽，夹在上下限里）、紧贴在下面（间距 8）。 */
   variant: 'standard' | 'match-node' = 'standard',
+  /**
+   * 节点下方挂着的那一行（样片行，板 sample.below-row）占的画布高度，含它和节点之间的缝；没有 = 0。
+   * 它是节点自己的一部分（跟着节点缩放），浮框接在它下面，间距照旧。
+   */
+  below = 0,
 ): {
   left: number
   top: number
@@ -29,7 +34,7 @@ export function composerCanvasPlacement(
   if (variant === 'match-node') {
     return {
       left: visualSize.width / 2,
-      top: visualSize.height + TEXT_COMPOSER_GAP,
+      top: visualSize.height + below + TEXT_COMPOSER_GAP,
       width: Math.min(TEXT_COMPOSER_MAX_WIDTH, Math.max(TEXT_COMPOSER_MIN_WIDTH, visualSize.width * safeZoom)),
       transform: `scale(${1 / safeZoom}) translateX(-50%)`,
       transformOrigin: 'top left',
@@ -37,7 +42,7 @@ export function composerCanvasPlacement(
   }
   return {
     left: visualSize.width / 2,
-    top: visualSize.height + NODE_COMPOSER_GAP,
+    top: visualSize.height + below + NODE_COMPOSER_GAP,
     width: NODE_COMPOSER_WIDTH,
     transform: `scale(${1 / safeZoom}) translateX(-50%)`,
     transformOrigin: 'top left',

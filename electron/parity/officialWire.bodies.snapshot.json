@@ -251,6 +251,66 @@
    "canvas": "0a67eb8813c77f3f",
    "run": "0a67eb8813c77f3f"
   },
+  "doubao-seedance-2.5-sample|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "846d8d82a078126c"
+  },
+  "doubao-seedance-2.5-sample|edit|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "6ce7912d9cc0c2db"
+  },
+  "doubao-seedance-2.5-sample|edit|n=30": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "6ce7912d9cc0c2db"
+  },
+  "doubao-seedance-2.5-sample|extend|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "846d8d82a078126c"
+  },
+  "doubao-seedance-2.5-sample|extend|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "6ce7912d9cc0c2db"
+  },
+  "doubao-seedance-2.5-sample|extend|n=30": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "6ce7912d9cc0c2db"
+  },
+  "doubao-seedance-2.5-sample|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "54a9ac8df34a5e4d"
+  },
+  "doubao-seedance-2.5-sample|firstlast|n=1": {
+   "canvas": "e9f63c4bb935a7c2",
+   "run": "e9f63c4bb935a7c2"
+  },
+  "doubao-seedance-2.5-sample|firstlast|n=2": {
+   "canvas": "01e4df795f0fcccd",
+   "run": "01e4df795f0fcccd"
+  },
+  "doubao-seedance-2.5-sample|first|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "54a9ac8df34a5e4d"
+  },
+  "doubao-seedance-2.5-sample|first|n=1": {
+   "canvas": "e9f63c4bb935a7c2",
+   "run": "e9f63c4bb935a7c2"
+  },
+  "doubao-seedance-2.5-sample|omni|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.5-sample|omni|n=1": {
+   "canvas": "e19dcb25c4f66357",
+   "run": "e19dcb25c4f66357"
+  },
+  "doubao-seedance-2.5-sample|omni|n=30": {
+   "canvas": "49af2f9cc2bcf507",
+   "run": "49af2f9cc2bcf507"
+  },
+  "doubao-seedance-2.5-sample|t2v|n=0": {
+   "canvas": "53034c95e15fbe27",
+   "run": "53034c95e15fbe27"
+  },
   "doubao-seedance-2.5|edit|n=0": {
    "canvas": "b39d5855a1b9ac86",
    "run": "846d8d82a078126c"

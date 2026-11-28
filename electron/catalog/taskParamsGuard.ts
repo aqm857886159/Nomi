@@ -3,7 +3,7 @@
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import { bodyReferenceSupport, type ModelModeBody, type ReferenceFamily } from "./referenceReachability";
 import { comparableReferenceUrl, comparableReferenceValues } from "./outboundReferenceUrl";
-import type { ParameterReferenceSelection } from "./parameterReferenceContract";
+import type { ParameterReferenceSelection } from "../shared/contracts/parameterReferenceContract";
 import { carriedReferenceFamilies, carriedReferences, hasImageEditReferences } from "./taskParamsReferences";
 import { taskTemplateParams, type TaskParamsInput } from "./taskParams";
 

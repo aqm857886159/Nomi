@@ -28,7 +28,7 @@ import {
   VerifiedDownloadError,
   type VerifiedDownloadProgress,
 } from "../downloads/verifiedAssetCache";
-import { renameSyncWithRetry } from "../jsonFile";
+import { renameWithRetry } from "../jsonFile";
 import { ensureDir } from "../runtimePaths";
 import { logInfo } from "../logging/logger";
 import {
@@ -142,11 +142,11 @@ async function installEngine(
     }
     // 可执行位：zip 不一定带住权限位，与 ffmpeg 那条链同一个自愈动作（ensureExecutable 的同款理由）。
     fs.chmodSync(path.join(stageDir, engine.executableFileName), 0o755);
-    fs.rmSync(finalDir, { recursive: true, force: true });
-    renameSyncWithRetry(stageDir, finalDir);
+    await fs.promises.rm(finalDir, { recursive: true, force: true });
+    await renameWithRetry(stageDir, finalDir);
     logInfo("local-speech", "engine-installed", { platformKey: engine.platformKey, release: LOCAL_SPEECH_ENGINE_RELEASE });
   } catch (error) {
-    fs.rmSync(stageDir, { recursive: true, force: true });
+    await fs.promises.rm(stageDir, { recursive: true, force: true }).catch(() => undefined);
     if (error instanceof LocalSpeechError) throw error;
     const message = error instanceof Error ? error.message : String(error);
     throw localSpeechFailure((error as { code?: string } | null)?.code === "ENOSPC" ? "disk-full" : "extract-failed", message);

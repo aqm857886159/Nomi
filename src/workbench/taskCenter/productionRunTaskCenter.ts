@@ -1,4 +1,4 @@
-import type { ProductionRunStatus, ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRunStatus, ProductionRunSummary } from '../../../electron/shared/contracts/productionRunTypes'
 import type { TranslationKey } from '../../i18n/translationKey'
 import { productionPlaybookLabelKey } from '../production/productionRunLabels'
 import { isProductionRunTask, productionRunStatusGroup } from '../production/productionRunView'

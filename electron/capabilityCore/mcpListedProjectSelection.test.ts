@@ -25,14 +25,16 @@ const workspace: Array<{ id: string; name: string; updatedAt: number }> = []
 
 vi.mock('./core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./core')>()
+  const createMockProject = (name?: string) => {
+    const record = { id: `project-${workspace.length + 1}`, name: name ?? 'untitled', updatedAt: 0 }
+    workspace.push(record)
+    return { id: record.id, name: record.name }
+  }
   return {
     ...actual,
     listAllProjects: () => workspace.map((project) => ({ ...project })),
-    createNamedProject: (name?: string) => {
-      const record = { id: `project-${workspace.length + 1}`, name: name ?? 'untitled', updatedAt: 0 }
-      workspace.push(record)
-      return { id: record.id, name: record.name }
-    },
+    createNamedProject: createMockProject,
+    createNamedProjectAsync: async (name?: string) => createMockProject(name),
   }
 })
 

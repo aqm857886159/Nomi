@@ -200,6 +200,7 @@ const NON_COMPOSER_MEASUREMENTS = [
   'src/workbench/generationCanvas/nodes/render/AudioStripNode.tsx', // 音频条指针位置
   'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx', // 结果版本卡和节点对齐
   'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCards.tsx', // 版本视频寻址
+  'src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx', // 节点下方样片行报自己的高度（生成框接在它下面），和底栏挑样子无关
   'src/workbench/generationCanvas/nodes/director/panels/EditorSplit.tsx', // 导演编辑器分栏拖动
   'src/workbench/generationCanvas/nodes/director/panels/Popover.tsx', // 导演编辑器弹层定位
   'src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts', // 3D 场景选取坐标

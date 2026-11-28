@@ -75,6 +75,8 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   "bytedance/seedance-2-5",
   "doubao-seedance-2.5",
   "doubao-seedance-2-5-260628",
+  // 样片模式是 2.5 的同一个模型（先出 480p 样片再出成片），与父行同档。
+  "doubao-seedance-2.5-sample",
   "kling-3.0",
   "kling-3.0-turbo",
   "kling-v3",

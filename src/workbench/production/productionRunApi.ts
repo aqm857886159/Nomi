@@ -1,5 +1,5 @@
 import { getDesktopBridge } from '../../desktop/bridge'
-import type { ProductionActionResult, ProductionShotActionFailure, ProductionShotActionResult, RunCommand } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionActionResult, ProductionShotActionFailure, ProductionShotActionResult, RunCommand } from '../../../electron/shared/contracts/productionRunTypes'
 import type { PendingSpendActionIdentity, PendingSpendHandOverInput } from '../../desktop/productionRunBridgeTypes'
 
 export type { ProductionActionResult, ProductionShotActionFailure, ProductionShotActionResult }

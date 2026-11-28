@@ -14,6 +14,67 @@
  * `electron/durability.test.ts` 就是这么钉住生产保证的。
  */
 
+import fs from "node:fs";
 import { setDurabilityMode } from "../../electron/durability";
+
+// stubborn-fs（atomically 的底层依赖）在模块首次加载时按值捕获 node:fs 的函数引用；
+// 先把动态转发挂到 fs 上完成 atomically 预加载，随后立即把原生函数还原回 fs，
+// 既让 stubborn-fs 感知后续 vi.spyOn(fs, ...)，又不干扰直接调 fs 的 spy 调用计数。
+const FORWARDED_FS_METHODS = [
+  "chmod",
+  "chown",
+  "close",
+  "fsync",
+  "mkdir",
+  "open",
+  "readFile",
+  "realpath",
+  "rename",
+  "stat",
+  "unlink",
+  "write",
+  "writeFile",
+  "chmodSync",
+  "chownSync",
+  "closeSync",
+  "existsSync",
+  "fsyncSync",
+  "mkdirSync",
+  "openSync",
+  "readFileSync",
+  "realpathSync",
+  "renameSync",
+  "statSync",
+  "unlinkSync",
+  "writeSync",
+  "writeFileSync",
+] as const;
+
+const fsRecord = fs as unknown as Record<string, (...args: unknown[]) => unknown>;
+const originals = new Map<string, (...args: unknown[]) => unknown>();
+for (const method of FORWARDED_FS_METHODS) {
+  const raw = fsRecord[method];
+  if (typeof raw !== "function") continue;
+  originals.set(method, raw);
+  const original = raw.bind(fs);
+  const forwarder = (...args: unknown[]): unknown => {
+    const current = fsRecord[method];
+    return current === raw || current === forwarder ? original(...args) : current.apply(fs, args);
+  };
+  if ("native" in raw) {
+    Object.defineProperty(forwarder, "native", {
+      configurable: true,
+      writable: true,
+      value: (raw as { native?: unknown }).native,
+    });
+  }
+  fsRecord[method] = forwarder;
+}
+
+await import("atomically");
+
+for (const [method, raw] of originals) {
+  fsRecord[method] = raw;
+}
 
 setDurabilityMode("ephemeral");

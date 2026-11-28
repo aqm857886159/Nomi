@@ -464,10 +464,11 @@ try {
   const c9bBaselineProof = await proveProbe(c9bGenerationCard, 'Phase A 基线：无 elicitation 客户端触发 gate 时 Nomi 会弹出 GUI 确认卡', 20_000)
   check(true, 'C9b Phase A 基线成立：非 elicitation 客户端 → GUI 生成确认卡浮出（探针活，expectAbsent 有意义）')
   await takeScreenshot(win, 'C9b-phase-a-baseline-gui-card')
-  // 关闭基线卡（不确认，避免实际启动生成）
+  // 关闭基线卡（不确认，避免实际启动生成），并取消这条仅作探针的 Phase A 计划，避免留在 awaiting_contract 抢走 C12 任务中心当前卡
   await c9bGenerationCard.locator('[data-production-action="ignore"]').click()
   await expectAbsent(c9bGenerationCard, { provenBy: c9bBaselineProof, message: 'C9b baseline confirmation was ignored without generation' })
   await c9bBaselineGatePromise.catch(() => {})
+  await call(mcp, 'nomi_operation_control', { projectId: c9bProjectId, leaseHandle: c9bLease, operationId: c9bBaselineOperationId, action: 'cancel' })
   // Phase B：c9bClient（声明 elicitation）在自己的项目上创建计划。
   // projectSelectionHandle 是 connection-bound（含 sessionId/connectionNonce），
   // 不能把 Phase A 的 mcp 句柄跨连接交给 c9bClient；这样测到的只会是
@@ -652,15 +653,18 @@ try {
   const taskCenter = win.locator('[data-task-center-trigger="true"]')
   await taskCenter.click()
   const taskPanel = win.locator('[data-nomi-right-panel="tasks"]')
+  await expectVisible(taskPanel.locator('[data-production-task-card]').first(), 'C12 任务中心加载制作卡')
   const cardTexts = await taskPanel.locator('[data-production-task-card]').allTextContents()
   console.log('  C12 task cards=', JSON.stringify(cardTexts))
   // The task center keeps the last opened Run card mounted; select the semantic
-  // Run row when another production Run currently owns that card.
+  // Run row by its stable task id when another production Run (such as C9b's
+  // ignored baseline gate) currently owns that card, then reopen the panel.
   let productionCard = taskPanel.locator('[data-production-task-card]').filter({ hasText: text('generationCommon.production.status.roughCutReady') }).first()
   if (await productionCard.count() === 0) {
-    const semanticRunRow = taskPanel.getByText(/generation\.single-shot/).first()
+    const semanticRunRow = taskPanel.locator(`[data-task-id="production-run:${operationId}"]`).first()
     await semanticRunRow.waitFor({ timeout: 20_000 })
     await semanticRunRow.click()
+    if (!(await taskPanel.isVisible().catch(() => false))) await taskCenter.click()
     productionCard = taskPanel.locator('[data-production-task-card]').filter({ hasText: text('generationCommon.production.status.roughCutReady') }).first()
   }
   await productionCard.waitFor({ timeout: 20_000 })

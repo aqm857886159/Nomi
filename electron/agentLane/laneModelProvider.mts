@@ -5,7 +5,7 @@
 // 会让「删旧目录」变成「顺手删掉新通路的模型装配」。搬过来之后旧位置只留一条 re-export
 // （`pi/model.mts` 仍导出 `createNomiModelRuntime`，那是旧路 `session.mts` 的专属接缝，
 // 随本目录一起死），**不是第二份实现**（P1）。
-import { clampThinkingLevel, createAssistantMessageEventStream, createProvider, InMemoryCredentialStore, isRecoverableLength, type Api, type AssistantMessage,
+import { clampThinkingLevel, createAssistantMessageEventStream, createProvider, InMemoryCredentialStore, isContextOverflow, isRecoverableLength, type Api, type AssistantMessage,
   type AssistantMessageEventStream, type Model, type ProviderHeaders, type ProviderStreams, type SimpleStreamOptions,
   type StreamOptions } from '@earendil-works/pi-ai';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
@@ -123,7 +123,8 @@ export async function prewarmProviderProtocols(protocols: readonly NomiModelConf
 function withVendorFailure(message: AssistantMessage, vendorKey: string, recorder: ModelCallRecorder): AssistantMessage {
   if (message.stopReason !== 'error') return message;
   const attempt = recorder.lastAttempt();
-  if (attempt?.kind !== 'http') return message;
+  const hasVendorAttempt = attempt?.kind === 'http' || (attempt?.kind === 'response' && Boolean(attempt.sseErrorBody));
+  if (!hasVendorAttempt) return message;
   try {
     const failure = modelCallFailure({ vendorKey, errorMessage: message.errorMessage, attempt, redact: recorder.redact });
     const payload = describeAgentError(failure);
@@ -142,20 +143,20 @@ function withVendorFailure(message: AssistantMessage, vendorKey: string, recorde
 const TRUNCATED_TOOL_CALL_TEXT = "Nomi stopped this reply: the model's output reached its length cap while it was writing a tool call, "
   + 'so the incomplete tool call was not run.';
 
+const ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS = 4_096;
+const INTERNAL_THINKING_CEILING_TOKENS = 16_384;
+
+function declaredOutputCap(config: NomiModelConfig): number | undefined {
+  return config.maxOutputTokens ?? (config.kind === 'anthropic' ? ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS : undefined);
+}
+
 /**
- * 一条回复写到一半撞了输出上限（`finish_reason: length`）、里面还有工具调用，而且输出确实写满了这次的上限 → 改成一次
- * **不可重试的失败**，工具调用不交出去。
- *
- * 为什么：pi 对 `length` 只认一件事——没写满上限（`isRecoverableLength`）就当上下文太挤、压缩一次再发；写满了就当正常收场，
- * 把那条半截的工具调用照样执行（参数是截断的 JSON 被 pi 补全成的样子）。半截参数的工具调用可能写画布、花钱。
- * 没写满的那种留给 pi 自己的压缩路（不重复判）；只有正文、没有工具调用的 `length` 原样交出（截断的正文用户看得见）。
- * 原因码 `output_cap_tool_call` 只进 `diagnostics`（`LANE_OUTPUT_TRUNCATED_DIAGNOSTIC`），不进 `errorMessage`、不新增失败类别；
- * 文字不带任何可重试词，pi 不重试、也不当溢出（`lane-resilience.test.mts` 钉住）。
- * `intendedOutputLimit` 用 pi 自己判溢出用的同一个数（这次请求的模型 `maxTokens`，`harness/runtime/drive/generation.js`）。
+ * 一条回复写到一半撞了输出上限（`finish_reason: length`）、里面还有工具调用，而且不是上下文装不下导致的截断 → 改成一次
+ * **不可重试的失败**，工具调用不交出去，并挂上 `LANE_OUTPUT_TRUNCATED_DIAGNOSTIC` 由投影层给出人话指引。
  */
-function truncatedToolCallFailure(message: AssistantMessage, intendedOutputLimit: number): AssistantMessage | undefined {
+function truncatedToolCallFailure(message: AssistantMessage, intendedOutputLimit: number, contextWindow: number): AssistantMessage | undefined {
   if (message.stopReason !== 'length' || !message.content.some((block) => block.type === 'toolCall')) return undefined;
-  if (isRecoverableLength(message, intendedOutputLimit)) return undefined;
+  if (isContextOverflow(message, contextWindow) || isRecoverableLength(message, intendedOutputLimit)) return undefined;
   return {
     ...message,
     stopReason: 'error',
@@ -233,9 +234,9 @@ export function createNomiModelDescriptor(config: NomiModelConfig): Model<Api> {
     // 同理：compat 按协议分型、键的含义归 pi，声明了就原样递，没声明就不出现（pi 按网址自己探测，和今天一样）。
     ...(config.compat ? { compat: config.compat as Model<Api>['compat'] } : {}),
     cost: modelCost(config),
-    // Internal SDK accounting only; onPayload below preserves Nomi's actual
-    // configured output cap, or absence of one, instead of sending this bound.
-    contextWindow: config.contextWindow ?? 128_000, maxTokens: config.maxOutputTokens ?? 16_384,
+    // Descriptor maxTokens reflects only the actual wire output cap (4096 default on Anthropic, 0 when undeclared),
+    // preventing pi-agent-core from misdiagnosing server-side 4K/8K output limits as context-window overflow.
+    contextWindow: config.contextWindow ?? 128_000, maxTokens: declaredOutputCap(config) ?? 0,
   };
   return model;
 }
@@ -244,10 +245,11 @@ export function createNomiModelDescriptor(config: NomiModelConfig): Model<Api> {
  * 没选档 = 普通请求（取自 53f50094e 的 laneModelCall 那一段，原作者 Yang-86）：pi 在模型 `reasoning: true` 时没选档也会改请求
  * （Responses 发 `reasoning.effort` 和 `include`、Chat 发 `thinkingLevelMap.off`、系统提示的角色变 developer、Anthropic 发
  * `thinking: disabled`），所以没选档就在交给协议实现之前把推理能力摘掉。只摘这一次请求用的那份模型；描述层仍按声明给 pi，
- * laneHost 算出的可选档 = 声明。
+ * laneHost 算出的可选档 = 声明。未声明输出上限时给 SDK 内部思考预算留 16,384 基数，线上请求体仍由 onPayload 按声明裁剪。
  */
-function withoutUnpickedReasoning(model: Model<Api>, picked: boolean): Model<Api> {
-  return picked || !model.reasoning ? model : { ...model, reasoning: false, thinkingLevelMap: undefined };
+function sdkModelForCall(model: Model<Api>, picked: boolean): Model<Api> {
+  const shaped = picked || !model.reasoning ? model : { ...model, reasoning: false, thinkingLevelMap: undefined };
+  return shaped.maxTokens > 0 ? shaped : { ...shaped, maxTokens: INTERNAL_THINKING_CEILING_TOKENS };
 }
 
 /** `streamSimple` 这次选了档：`reasoning` 按这个模型的可选档夹紧之后不是 off。 */
@@ -294,7 +296,7 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
       delete body.max_tokens;
       delete body.max_completion_tokens;
       delete body.max_output_tokens;
-      const cap = options?.maxTokens ?? config.maxOutputTokens ?? (config.kind === 'anthropic' ? 4096 : undefined);
+      const cap = options?.maxTokens ?? declaredOutputCap(config);
       if (cap !== undefined) {
         body[config.kind === 'openai-responses' ? 'max_output_tokens' : 'max_tokens'] = cap;
       }
@@ -307,16 +309,17 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
   });
   // 每一次调用一份留证（最后那次尝试的事实 + 这次真正发出去的秘密）：失败收场时按它铸结构化载荷（withVendorFailure）。
   // lane 工作区、一次性提问、文本任务、编译器都经这一处出网——载荷在这里铸一次，谁都不用再各包一层。
-  const observed = (chosen: Model<Api>, send: (fetch: typeof globalThis.fetch) => AssistantMessageEventStream): AssistantMessageEventStream => {
+  const observed = (chosen: Model<Api>, requestedMaxTokens: number | undefined, send: (fetch: typeof globalThis.fetch) => AssistantMessageEventStream): AssistantMessageEventStream => {
     const recorder = observeModelFetch(fetchRequest, { modelId: config.modelId, knownSecrets: config.apiKey ? [config.apiKey] : [] });
+    const intendedLimit = requestedMaxTokens ?? chosen.maxTokens;
     return settleTerminal(send(recorder.fetch), (message) =>
-      withVendorFailure(truncatedToolCallFailure(message, chosen.maxTokens) ?? message, config.providerId, recorder));
+      withVendorFailure(truncatedToolCallFailure(message, intendedLimit, chosen.contextWindow) ?? message, config.providerId, recorder));
   };
   const base: ProviderStreams = {
-    stream: (chosen, context, options) => observed(chosen, (fetch) =>
-      native.stream(withoutUnpickedReasoning(chosen, streamPicksReasoning(options)), context, requestOptions(options, fetch))),
-    streamSimple: (chosen, context, options) => observed(chosen, (fetch) =>
-      native.streamSimple(withoutUnpickedReasoning(chosen, simplePicksReasoning(chosen, options)), context, requestOptions(options, fetch))),
+    stream: (chosen, context, options) => observed(chosen, options?.maxTokens, (fetch) =>
+      native.stream(sdkModelForCall(chosen, streamPicksReasoning(options)), context, requestOptions(options, fetch))),
+    streamSimple: (chosen, context, options) => observed(chosen, options?.maxTokens, (fetch) =>
+      native.streamSimple(sdkModelForCall(chosen, simplePicksReasoning(chosen, options)), context, requestOptions(options, fetch))),
   };
   const streams = guard ? guardProviderStreams(base, guard) : base;
   const provider = createProvider({

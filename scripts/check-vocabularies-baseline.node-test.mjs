@@ -63,11 +63,6 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
       'electron/workspace/workspaceRepository.ts::type:WorkspaceProjectDiagnosticStatus/type-union',
       'src/desktop/bridge.ts::type:DesktopBridge/property:projects/property:diagnose/property:status/type-union',
     ],
-    [
-      'electron/catalog/codexCli.ts::type:CodexImageJobStatus/type-union',
-      'electron/runtime.ts::type:TaskResult/property:status/type-union',
-      'electron/tasks/responseParsing.ts::function:resolveTaskStatus/as-const',
-    ],
   ]
 
   for (const group of crossProcessGroups) {
@@ -80,13 +75,31 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
       assert.match(reason, /main.*preload.*renderer/i, site)
     }
   }
-  // 任务状态：renderer 的 TaskStatus / TERMINAL_STATUSES 副本已收进中立模块 electron/shared/taskStatus.ts（唯一 owner）。
-  assert.equal(registeredSites.has('electron/shared/taskStatus.ts::variable:TASK_STATUS_PHASE/type-union'), true)
-  assert.equal(
-    registeredSites.has('electron/shared/providerAdapterContract.ts::variable:ADAPTER_RUN_STAGES/as-const'),
-    true,
-    'Provider Adapter run stages have converged on the neutral shared contract',
-  )
+  // 任务状态与 Provider Adapter 阶段/终态词表已收进 electron/shared/contracts/ 单源真源。
+  for (const site of [
+    'electron/shared/contracts/taskStatus.ts::variable:TASK_STATUSES/as-const',
+    'electron/shared/contracts/taskStatus.ts::variable:TASK_STATUS_PHASE/type-union',
+    'electron/shared/contracts/taskStatus.ts::function:isTerminalTaskStatus/type-union',
+    'electron/shared/contracts/providerAdapterContract.ts::variable:ADAPTER_RUN_STAGES/as-const',
+    'electron/shared/contracts/providerAdapterContract.ts::variable:TERMINAL_RUN_STAGES/as-const',
+  ]) {
+    assert.equal(registeredSites.has(site), true, `${site} has converged on the neutral shared contract`)
+    assert.equal(debtBySite.has(site), false, site)
+  }
+  for (const retired of [
+    'electron/catalog/codexCli.ts::type:CodexImageJobStatus/type-union',
+    'electron/runtime.ts::type:TaskResult/property:status/type-union',
+    'electron/runtime.ts::function:runTask/property:status/type-union',
+    'electron/tasks/localTaskJobs.ts::type:Job/property:status/type-union',
+    'electron/tasks/responseParsing.ts::function:resolveTaskStatus/as-const',
+    'electron/events/vendorCallTrace.ts::function:traceVendorCompleted/parameter:payload/property:status/type-union',
+    'electron/providerAdapter/existingConnection.ts::variable:TERMINAL_RUN_STAGES/set',
+    'electron/providerAdapter/liveHarness.ts::variable:TERMINAL/set',
+    'electron/providerAdapter/store.ts::variable:TERMINAL_ADAPTER_STAGES/set',
+    'src/ui/onboarding/adapterVerificationViewModel.ts::variable:TERMINAL_STAGES/set',
+  ]) {
+    assert.equal(debtBySite.has(retired), false, `${retired} must stay retired, not re-listed as debt`)
+  }
   // 2026-09-14：MCP 接入状态 / 握手诊断两组跨进程副本已按各自 debt 写的收敛办法做掉——
   // 中立模块 electron/shared/mcpConnectionContract.ts 是唯一 owner，main / renderer 都从它 derive。
   for (const site of [

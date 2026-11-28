@@ -71,6 +71,8 @@ export const COST_LABEL_EXACT = Object.freeze({
   'generationCommon.composer.sendCost.upperBoundCny': Object.freeze({ 'zh-CN': '最多约 {{cny}}（{{value}} 积分）。按 APIMart 公开价、层数上限与人民银行中间价（{{date}}，{{pair}}）估，实际按拆出的层数结算，出完按 APIMart 实际扣费记。', en: 'At most about {{cny}} ({{value}} credits). Converted at PBOC midpoint ({{date}}, {{pair}}) from the APIMart public rate for the layer limit; billed by the layers actually split out, recorded at the actual APIMart charge once done.' }),
   'generationCommon.composer.sendCost.upperBoundUsd': Object.freeze({ 'zh-CN': '最多约 {{usd}}（{{value}} 积分）。按 APIMart 公开价和层数上限估，实际按拆出的层数结算，出完按 APIMart 实际扣费记。', en: 'At most about {{usd}} ({{value}} credits). Estimated at the APIMart public rate for the layer limit; billed by the layers actually split out, recorded at the actual APIMart charge once done.' }),
   'generationCommon.composer.sendCost.priceUnknown': Object.freeze({ 'zh-CN': '暂时估不出这次用量', en: 'No usage estimate yet' }),
+  // 同一条样片第二次出高清的确认框（板 SampleMode sample.confirm-second-hd，用户 2026-11-26 拍板原文；正文不印数）：只认这一句。
+  'generationCommon.sample.secondFinal.message': Object.freeze({ 'zh-CN': '再出一次会按 {{resolution}} 全价再扣一次。', en: 'Another one charges the full {{resolution}} price again.' }),
   'generationCommon.composer.sendCost.unitCredits': Object.freeze({ 'zh-CN': '积分', en: 'Credits' }),
   'generationCommon.composer.sendCostLowBalance.shortfall': Object.freeze({ 'zh-CN': '还差 {{value}} 积分', en: 'Short {{value}} credits' }),
   'generationCommon.composer.sendCostLowBalance.topUp': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),

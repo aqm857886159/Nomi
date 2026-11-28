@@ -3,8 +3,10 @@ import { randomUUID } from "node:crypto";
 
 const ownerContext = new AsyncLocalStorage<number>();
 export const withTaskOwner = <T>(owner: number, run: () => T): T => ownerContext.run(owner, run);
+import type { TaskStatus } from "../shared/contracts/taskStatus";
+
 type Job<T> = { id: string; projectId: string; owner?: number; controller: AbortController; settled: Promise<void>;
-  status: "running" | "succeeded" | "failed" | "cancelled"; value?: T; urls?: string[]; error?: string; updatedAt: number;
+  status: Exclude<TaskStatus, "queued"> | "cancelled"; value?: T; urls?: string[]; error?: string; updatedAt: number;
   /** 正在进行的那一次导入（落盘前要异步等解码校验）。同一任务同一时刻只有这一个。 */
   committing?: Promise<void> };
 export type LocalTaskResponse = { task_id: string; status: Job<unknown>["status"]; image_urls: string[]; error?: string };

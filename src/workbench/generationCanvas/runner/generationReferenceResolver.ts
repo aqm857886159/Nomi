@@ -8,7 +8,7 @@ import { resolveReferencePlacement } from './referenceSlots'
 import { asUrl, findNodeResultUrl, resolveReferenceUrl } from './referenceUrl'
 import { resolveIndexedParameterReferenceAssignments } from '../model/parameterReferenceSlots'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
-import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
+import { readParameterReferenceContract } from '../../../../electron/shared/contracts/parameterReferenceContract'
 
 export type ResolvedGenerationReferences = {
   /** Live parameter-specific inputs. null reserves a pending edge without reviving stale uploaded values. */

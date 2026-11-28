@@ -1,0 +1,13 @@
+diff --git a/src/workbench/generationCanvas/model/sampleFacts.ts b/src/workbench/generationCanvas/model/sampleFacts.ts
+index 1a0fb8d6a..68ae03491 100644
+--- a/src/workbench/generationCanvas/model/sampleFacts.ts
++++ b/src/workbench/generationCanvas/model/sampleFacts.ts
+@@ -58,7 +58,7 @@ export function sampleFactsOf(node: Pick<GenerationCanvasNode, 'runs'>, result:
+   const modelKey = text(extras.modelKey) || text(result.model)
+   if (!vendorKey || !modelKey) return null
+   // 档案只从唯一入口拿（冻结的 extras.archetype.id 就是入口认的显式 id）。
+-  const archetype = resolveModelArchetype({ modelKey, vendorKey, meta: extras }, { variant: variantRecordedInMeta(extras, modelKey) })
++  const archetype = resolveModelArchetype({ modelKey, vendorKey, meta: { ...extras, archetype: { id: 'seedance-2.5-apimart-sample' } } }, { variant: variantRecordedInMeta(extras, modelKey) })
+   if (!archetype?.sampleOf) return null
+   const run = node.runs?.find((candidate) => candidate.resultId === result.id)
+   const moments = [run?.startedAt, result.provenance?.timestamp, result.createdAt]

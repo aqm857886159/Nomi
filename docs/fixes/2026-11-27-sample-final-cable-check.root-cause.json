@@ -1,0 +1,105 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-27-sample-final-cable-check",
+  "problem_type": "交付门岗重复推断可执行方式",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-11",
+  "symptom": "PR #1702 的 check:orphan-cables 将真实种子目录中 sample-final / text_to_video 报为孤儿拼写。",
+  "direct_cause": "校验器仅查菜单 modes，而样片档案在 sampleOf.final 声明后续步骤。",
+  "class_root": "校验器自己枚举一种表示，和发送侧按 modeId 查所有可执行方式的契约分离。",
+  "affected_population": [
+    "内置目录中具名且已启用的模式映射，包括后续步骤。"
+  ],
+  "scope_paths": [
+    "scripts/check-orphan-mapping-cables.ts"
+  ],
+  "entry_points": [
+    "pnpm run check:orphan-cables 扫描 applyBuiltinSeeds 生成的目录。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "校验仓内档案与内置目录的一致性；本次没有修改上游出站报文。",
+  "invariants": [
+    "已声明且 transport 匹配的线缆必须通过；未声明方式和错桶必须分别报告。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-orphan-mapping-cables.ts",
+      "symbol": "findOrphanMappingCables"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1
+  },
+  "invariant_owner_layer": {
+    "layer": "scripts/check-orphan-mapping-cables.ts",
+    "tests": [
+      "scripts/check-orphan-mapping-cables.test.ts"
+    ]
+  },
+  "generality_proof": "所有有档案的具名线缆共用发送侧 findArchetypeMode 查找与 modeTransportFor 路由，不按供应商或方式名分支。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-orphan-mapping-cables.ts",
+      "symbol": "findOrphanMappingCables",
+      "responsibility": "逐条核验种子目录的方式身份与实际 transport。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/apimartVideos.ts",
+      "entry_point": "样片的出高清线缆",
+      "disposition": "enforced",
+      "evidence": "内置样片的后续步骤由 sampleOf.final 声明，走 text_to_video。"
+    },
+    {
+      "path": "electron/catalog/falOfficial.ts",
+      "entry_point": "gpt-image-2 的 i2i 线缆",
+      "disposition": "enforced",
+      "evidence": "普通菜单方式也走同一处档案查找，历史错拼 edit 必须继续报错。"
+    }
+  ],
+  "recurrence_of": "2026-09-03-orphan-mapping-cable",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "限定为菜单行会误报所有声明在菜单之外的后续步骤。",
+    "same_class_scan": [
+      "扫描 314 条内置映射，其中 81 条进入具名判据。",
+      "对照 modeParams.ts 的 specializedMode、样片 finalMode 及普通图像档案的 i2i。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-orphan-mapping-cables.ts",
+    "invariant": "每条线缆按档案的可执行方式和供应商路由验证。",
+    "failure_mode": "方式未知报 spelling，transport 不符报 bucket；任一使门岗退出 1。",
+    "exception_policy": "none",
+    "strategy": "删掉校验器内的菜单查找，复用发送侧查找。",
+    "artifacts": [
+      "scripts/check-orphan-mapping-cables.ts"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-orphan-mapping-cables.test.ts"
+  ],
+  "class_regression_tests": [
+    "scripts/check-orphan-mapping-cables.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-orphan-mapping-cables.ts"
+    ],
+    "rationale": "删除只检索菜单的旧校验分支。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "复用仓内档案入口。",
+    "exit_criteria": []
+  },
+  "migration": "档案、映射标识、传输桶和持久化数据均沿用原值。",
+  "residual_risks": [
+    "目录门岗只证明内置映射与档案对齐；用户自建映射不在扫描范围。"
+  ]
+}

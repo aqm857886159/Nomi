@@ -25,12 +25,20 @@ export function cleanupTempRoot(root) { if (root) fs.rmSync(root, { recursive: t
 const dir = process.env.NOMI_UI_DIR
 const jsonFiles = ['req.json', 'res.json', 'state.json']
 const write = fs.writeFileSync
+function recordFirstVisible(name, bytes) {
+  const snapshot = path.join(dir, 'first-' + name)
+  try {
+    write(snapshot, bytes, { flag: 'wx' })
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error
+  }
+}
 // Force a read between open/truncate and write. The reader sees no partial JSON
 // when the writer stages elsewhere. This schedule needs only one small message.
 fs.writeFileSync = function (file, data, ...options) {
   if (typeof file === 'string' && path.dirname(file) === dir && jsonFiles.includes(path.basename(file))) {
     write(file, '', ...options)
-    write(path.join(dir, 'first-' + path.basename(file)), fs.readFileSync(file))
+    recordFirstVisible(path.basename(file), fs.readFileSync(file))
   }
   return write(file, data, ...options)
 }
@@ -39,7 +47,7 @@ const rename = fs.renameSync
 fs.renameSync = function (source, target) {
   if (path.dirname(target) !== dir || !jsonFiles.includes(path.basename(target))) return rename(source, target)
   if (process.env.NOMI_TEST_CRASH_AT_STATE === '1') process.kill(process.pid, 'SIGKILL')
-  // Keep the bytes of the renamed inode even if the peer immediately removes the name.
-  write(path.join(dir, 'first-' + path.basename(target)), fs.readFileSync(source))
+  // Record only the first visible inode bytes so a later rename cannot mask an earlier partial write.
+  recordFirstVisible(path.basename(target), fs.readFileSync(source))
   return rename(source, target)
 }

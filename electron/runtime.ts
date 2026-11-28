@@ -24,6 +24,7 @@ import { taskFailureMessageFromResponse } from "./tasks/responseParsing"; import
 import { layersForLandedResult } from "./tasks/taskLayerReading";
 import { taskCache } from "./tasks/taskCache";
 import { tagNomiError } from "./shared/nomiErrorCodes";
+import { isTerminalTaskStatus, type TaskStatus } from "./shared/contracts/taskStatus";
 export { taskCache, hasInFlightTasks } from "./tasks/taskCache";
 import { markTaskAdmitted } from "./tasks/taskAdmission";
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "./vendor/fingerprintCache";
@@ -109,7 +110,7 @@ import type { CachedTask, TaskRequest, TaskResultAsset } from "./taskTypes";
 export type TaskResult = {
   id: string;
   kind: ProfileKind;
-  status: "queued" | "running" | "succeeded" | "failed";
+  status: TaskStatus;
   assets: TaskResultAsset[];
   raw: unknown;
   /**
@@ -344,7 +345,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     });
     // Completed metadata still requires the separate result GET; return the receipt before downloading.
     if (normalized.result.status === "succeeded" && !normalized.result.assets.length && mapping.result && mapping.query) normalized.result.status = "queued";
-    if (["queued", "running"].includes(normalized.result.status) && mapping.query && !normalized.providerMeta.task_id && !normalized.providerMeta.query_id) {
+    if (!isTerminalTaskStatus(normalized.result.status) && mapping.query && !normalized.providerMeta.task_id && !normalized.providerMeta.query_id) {
       const missingTaskIdResult: TaskResult = { ...normalized.result, status: "failed", error: desktopT("tasks.missingTaskId") };
       traceVendorRequested(projectId, { runId: missingTaskIdResult.id, nodeId, recipe });
       traceVendorCompleted(projectId, {
@@ -357,11 +358,11 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
       return missingTaskIdResult;
     }
     traceVendorRequested(projectId, { runId: normalized.result.id, nodeId, recipe });
-    if (["succeeded", "failed"].includes(normalized.result.status)) {
-      traceVendorCompleted(projectId, { runId: normalized.result.id, nodeId, status: normalized.result.status as "succeeded" | "failed", assetCount: normalized.result.assets.length, ...(normalized.actualCost ? { cost: normalized.actualCost } : {}) });
+    if (isTerminalTaskStatus(normalized.result.status)) {
+      traceVendorCompleted(projectId, { runId: normalized.result.id, nodeId, status: normalized.result.status, assetCount: normalized.result.assets.length, ...(normalized.actualCost ? { cost: normalized.actualCost } : {}) });
       rememberTaskResult(projectId, fingerprint, normalized.result);
     }
-    if (!["succeeded", "failed"].includes(normalized.result.status)) {
+    if (!isTerminalTaskStatus(normalized.result.status)) {
       admitTask(normalized.result.id, {
         vendor: effectiveVendorKey,
         request,

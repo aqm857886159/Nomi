@@ -7,7 +7,7 @@ import type {
   RunCommand,
   RunCommandResult,
   RunEvent,
-} from "../../electron/productionRun/productionRunTypes";
+} from "../../electron/shared/contracts/productionRunTypes";
 import type { MaterializeStoryboardResult } from "../../electron/productionRun/productionRunService";
 import type { GenerationHandOverFailure, PendingSpendConfirm, PendingSpendHandOverInput, PendingSpendRead, PendingSpendShot } from "../../electron/shared/contracts/pendingSpendConfirm";
 

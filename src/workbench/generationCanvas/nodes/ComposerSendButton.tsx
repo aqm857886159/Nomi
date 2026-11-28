@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowUp, IconCoin, IconExternalLink, IconLoader2 } from '../../../vendor/tablerIcons'
+import { IconArrowUp, IconExternalLink, IconLoader2 } from '../../../vendor/tablerIcons'
 import { TEXT_BUTTON_PRESS } from '../../../design/motion'
 import { cn } from '../../../utils/cn'
 import { ICON_TIERS, WorkbenchButton } from '../../../design'
@@ -8,6 +8,7 @@ import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { ComposerBarYieldContext } from './composerBarYield'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design/tooltip'
 import { SendCostUnitMenuButton, type SendCostUnitMenuOption } from '../spend/SendCostUnitMenuButton'
+import { SendCostAmount } from '../spend/SendCostAmount'
 
 const sendPress = cn('transition-[transform,background-color,opacity]', TEXT_BUTTON_PRESS)
 
@@ -271,10 +272,7 @@ export function ComposerSendButton({
                 {...attrs}
               >
                 <span data-send-cost="credits" data-board={cost.boardAnchor} className="inline-flex items-center gap-1 whitespace-nowrap text-body-sm font-semibold tabular-nums text-nomi-ink-80" data-send-cost-unit={activeUnit}>
-                  {activeUnit === 'credits' ? (
-                    <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden />
-                  ) : null}
-                  {cost.credits}
+                  <SendCostAmount text={cost.credits} unit={activeUnit} />
                 </span>
                 <span
                   aria-hidden

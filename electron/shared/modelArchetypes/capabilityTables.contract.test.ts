@@ -16,7 +16,18 @@ const NOT_EXPOSED_REASONS = ['管道', '同一件事', '文档废弃', '模型�
 export type TableRow = { item: string; quote: string; disposition: string; tokens: Array<{ kind: string; value: string }> }
 export type CapabilityTable = { file: string; archetypeId: string; vendor: string; rows: TableRow[] }
 
-const TOKEN_KINDS = ['mode', 'param', 'slot', 'fixed', 'absent', 'reason', 'pending', 'prompt', 'combine', 'total', 'constrain', 'requires', 'when', 'condition', 'source', 'why']
+const TOKEN_KINDS = ['mode', 'param', 'slot', 'fixed', 'absent', 'reason', 'pending', 'prompt', 'combine', 'total', 'constrain', 'requires', 'when', 'sample', 'condition', 'source', 'why']
+
+/** 档案样片规格的三项（sample:ttl=72 / sample:draft=480p / sample:final=1080p，成片多档用逗号）。 */
+const SAMPLE_FIELDS = ['ttl', 'draft', 'final'] as const
+function sampleSpecValue(archetype: ModelArchetype, field: string): string | undefined {
+  const spec = archetype.sampleMode
+  if (!spec) return undefined
+  if (field === 'ttl') return spec.ttlHours === undefined ? undefined : String(spec.ttlHours)
+  if (field === 'draft') return spec.draftResolution
+  if (field === 'final') return spec.finalResolutions.join(',')
+  return undefined
+}
 
 export function parseTable(file: string, text: string): CapabilityTable {
   const archetypeId = /^- archetype:\s*(\S+)/m.exec(text)?.[1] ?? ''
@@ -45,7 +56,7 @@ function modesOf(archetype: ModelArchetype, spec: string): Mode[] {
 /** 逐条核落点，返回问题清单（空 = 一致）。 */
 export function checkTable(table: CapabilityTable, archetype: ModelArchetype): string[] {
   const problems: string[] = []
-  const claimed = { modes: new Set<string>(), params: new Set<string>(), slots: new Set<string>(), fixed: new Set<string>(), requires: new Set<string>(), when: new Set<string>() }
+  const claimed = { modes: new Set<string>(), params: new Set<string>(), slots: new Set<string>(), fixed: new Set<string>(), requires: new Set<string>(), when: new Set<string>(), sample: new Set<string>() }
 
   for (const row of table.rows) {
     const where = `${table.file} · ${row.item}`
@@ -53,7 +64,7 @@ export function checkTable(table: CapabilityTable, archetype: ModelArchetype): s
     if (row.quote.replace(/[`/ ]/g, '').length < 8) problems.push(`${where}：没有文档原文`)
     const kinds = row.tokens.map((t) => t.kind)
     const counts = row.disposition === '露出' || row.disposition === '替创作者定'
-    if (row.disposition === '露出' && !kinds.some((k) => ['mode', 'param', 'slot', 'fixed', 'combine', 'total', 'constrain', 'requires', 'when', 'absent'].includes(k))) problems.push(`${where}：「露出」没有任何落点记号`)
+    if (row.disposition === '露出' && !kinds.some((k) => ['mode', 'param', 'slot', 'fixed', 'combine', 'total', 'constrain', 'requires', 'when', 'sample', 'absent'].includes(k))) problems.push(`${where}：「露出」没有任何落点记号`)
     if (row.disposition === '替创作者定' && !kinds.some((k) => k === 'absent' || k === 'fixed')) problems.push(`${where}：「替创作者定」要写固定成什么（fixed）或固定不发（absent）`)
     if (row.disposition === '替创作者定' && !kinds.includes('source')) problems.push(`${where}：「替创作者定」要写出处（source:产品已定·出处 / source:出处未找到）`)
     if (row.disposition === '待用户判' && !row.tokens.some((t) => t.kind === 'why' && t.value.trim())) problems.push(`${where}：「待用户判」要写理由（why）`)
@@ -154,6 +165,12 @@ export function checkTable(table: CapabilityTable, archetype: ModelArchetype): s
           if (JSON.stringify(rule.values.map(String)) !== JSON.stringify(expected)) bad(`${mode.id} 的约束留下的值与档案不符（档案 ${rule.values.join(',')}）`)
           else if (counts) claimed.when.add(`${mode.id}/${control.key}/${match[4]}`)
         }
+      } else if (kind === 'sample') {
+        const [field, expected] = value.split('=')
+        const actual = sampleSpecValue(archetype, field!)
+        if (!SAMPLE_FIELDS.includes(field as (typeof SAMPLE_FIELDS)[number])) bad('写法不对（只认 ttl / draft / final）')
+        else if (actual !== expected) bad(`与档案的样片规格不符（档案 ${actual ?? '没有'}）`)
+        else if (counts) claimed.sample.add(field!)
       } else if (kind === 'absent') {
         const [scope, key] = value.includes('/') ? value.split('/') : [undefined, value]
         const modes = scope ? [archetype.modes.find((m) => m.id === scope)].filter(Boolean) as Mode[] : archetype.modes
@@ -169,7 +186,10 @@ export function checkTable(table: CapabilityTable, archetype: ModelArchetype): s
     }
   }
 
-  // 反向：档案里的每个方式、参数、输入槽、固定参数，表里都要有一行认领。
+  // 反向：档案里的每个方式、参数、输入槽、固定参数、样片规格，表里都要有一行认领。
+  for (const field of SAMPLE_FIELDS) {
+    if (sampleSpecValue(archetype, field) !== undefined && !claimed.sample.has(field)) problems.push(`${table.file}：档案有样片规格 ${field}，表里没有「露出」它的行`)
+  }
   for (const mode of archetype.modes) {
     if (!claimed.modes.has(mode.id)) problems.push(`${table.file}：档案有方式 ${mode.id}，表里没有「露出」它的行`)
     for (const p of mode.params) if (!claimed.params.has(`${mode.id}/${p.key}`)) problems.push(`${table.file}：档案有参数 ${mode.id}/${p.key}，表里没有认领它的行`)
@@ -262,6 +282,17 @@ describe('capability tables (docs/models/capabilities) vs archetypes', () => {
       const lost = fields.filter((f) => fieldsClaimedByRow(victim).has(f.name) && !broken.rows.some((row) => fieldsClaimedByRow(row).has(f.name)))
       if (lost.length) expect(checkRequestFields(broken, fields).length, `${table.file} 删掉「${victim.item}」后应当变红`).toBeGreaterThan(0)
     }
+  })
+
+  // 反例：样片规格双向——档案改了有效期 / 成片清晰度 → 表这边红；表删掉 sample 记号 → 档案那边红。
+  it('goes red when the sample spec and its table tokens disagree', () => {
+    const table = tables.find((t) => t.archetypeId === 'seedance-2.5-apimart')!
+    const archetype = archetypeFor(table)
+    expect(archetype.sampleMode, '2.5 档案应当声明样片规格').toBeTruthy()
+    const drifted: ModelArchetype = { ...archetype, sampleMode: { ...archetype.sampleMode!, ttlHours: 48, finalResolutions: ['1080p', '4k'] } }
+    expect(checkTable(table, drifted).filter((p) => p.includes('与档案的样片规格不符'))).toHaveLength(2)
+    const untokened = { ...table, rows: table.rows.map((row) => ({ ...row, tokens: row.tokens.filter((t) => t.kind !== 'sample') })) }
+    expect(checkTable(untokened, archetype).filter((p) => /样片规格 (ttl|draft|final)/.test(p))).toHaveLength(3)
   })
 
   // 反例：requires / when 两种记号双向——档案拿掉 requiresAnyOf 或 slotEmpty 约束 → 表这边红；表删掉记号 → 档案那边红。

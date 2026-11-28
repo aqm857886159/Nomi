@@ -8,6 +8,7 @@
 // 整袋剥会剥坏；管辖范围 = 这个档案所有方式声明过的控件键 ∪ 所有方式的固定参数键（都按供应商、变体特化后）。
 import { modeTransportFor } from '../videoCapabilities/modeTransport'
 import type { ModelParameterControl } from '../videoCapabilities/types'
+import { findArchetypeMode } from '../videoCapabilities/sampleMode'
 import { EVERY_VARIANT, rescopeArchetypeVariant } from './index'
 import type { ArchetypeMode, ModelArchetype } from './types'
 
@@ -33,7 +34,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** 档案按这次的档收窄后的这一个方式（连同全部档版本，给管辖键用）；方式 id 认不出 → null。 */
 function specializedMode(selection: ModeParamsSelection): { every: ModelArchetype; mode: ArchetypeMode } | null {
   const archetype = rescopeArchetypeVariant(selection.archetype, { variantId: selection.variantId, modelId: undefined })
-  const mode = archetype.modes.find((candidate) => candidate.id === selection.modeId)
+  // 样片档案的出高清方式不在 modes 里（方式菜单不列），按 id 也认得到。
+  const mode = findArchetypeMode(archetype, selection.modeId)
   return mode ? { every: rescopeArchetypeVariant(selection.archetype, EVERY_VARIANT), mode } : null
 }
 

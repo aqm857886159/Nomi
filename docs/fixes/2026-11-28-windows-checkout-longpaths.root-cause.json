@@ -1,0 +1,182 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-windows-checkout-longpaths",
+  "problem_type": "Windows CI 工作流未在 actions/checkout 前启用 Git core.longpaths 导致超长路径检出崩溃",
+  "symptom": "PR #1727 的 CI 运行 46065040123（.github/workflows/win-installer.yml 的 Windows installer scenarios 作业，runs-on: windows-2025）在第一步 actions/checkout@v4 直接崩溃：fatal: cannot create directory at 'tests/fixtures/old-user-data/projects/v0.24.1-readonly-open/userData/Nomi Projects/未命名项目 11_26 23_34-mwxpqxv2-8fd3e640/.nomi/runs/canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1/jobs/generation-canvas-run-gen-v2-image-mwxpr3l0-hfyi-1795707285030-enpbb1-63c9e5ece3200ed4': Filename too long。",
+  "direct_cause": "main 上由 #1713（cc514a8ff）合入的真实旧版用户数据夹具含 250+ 字符（含中文路径）的相对路径，在 Windows runner 工作目录 D:\\a\\Nomi\\Nomi\\ 下绝对路径超过 Windows MAX_PATH（260 字符）；Git for Windows 默认 core.longpaths=false，actions/checkout@v4 内部执行 git checkout 时未开启长路径支持即报错退出。",
+  "class_root": "所有跑在 Windows runner 上的工作流缺少统一的前置长路径契约与静态门岗；任何新增 Windows 作业或新合入超过 260 字符绝对路径的夹具，都会在 PR 看不见的 Windows 流水线（含发版硬门 desktop-rc.yml）检出第一步直接失败。",
+  "affected_population": [
+    "全部运行在 GitHub Actions windows-2025 runner 上的工作流作业（安装器场景门、Windows 走查与打包门、发版候选硬门、桌面预览打包、协议流探针）"
+  ],
+  "scope_paths": [
+    ".github/workflows/win-installer.yml",
+    ".github/workflows/win-gate.yml",
+    ".github/workflows/desktop-rc.yml",
+    ".github/workflows/desktop-preview.yml",
+    ".github/workflows/win-invalid-state-probe.yml",
+    "scripts/check-workflow-script-refs.mjs"
+  ],
+  "entry_points": [
+    ".github/workflows/ 中 5 份工作流的全部 6 个 windows-2025 作业的 actions/checkout@v4 入口，以及 scripts/check-workflow-script-refs.mjs 的全仓工作流静态门岗"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://git-scm.com/docs/git-config#Documentation/git-config.txt-corelongpaths",
+      "checked_at": "2026-11-28",
+      "purpose": "核实 Git for Windows 的 core.longpaths 默认关闭及通过 git config --global core.longpaths true 绕过 260 字符 MAX_PATH 限制的语义。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/actions/checkout",
+      "checked_at": "2026-11-28",
+      "purpose": "核实 actions/checkout 在 Windows runner 上依赖宿主机 Git 全局/系统配置，不会自动开启 core.longpaths，必须在 checkout 步骤之前先执行 git config。"
+    }
+  ],
+  "invariants": [
+    "仓库 .github/workflows/*.{yml,yaml} 中每个运行在 Windows runner（含字面量、标签数组、对象及 strategy.matrix 含 windows）上的作业，在每次 actions/checkout 步骤之前必须先无条件执行 git config --global core.longpaths true（不得带 if 条件或 continue-on-error: true）。",
+    "scripts/check-workflow-script-refs.mjs 作为 Contracts 与 pre-push 常驻门岗，对全仓 workflow 持续执行该硬零判据；遗漏或放错顺序即在 PR 阶段阻断。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-workflow-script-refs.mjs",
+      "symbol": "findWindowsCheckoutsWithoutLongpaths"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/desktop-preview.yml",
+      "symbol": "actions/checkout@v4"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/desktop-rc.yml",
+      "symbol": "actions/checkout@v4"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/win-gate.yml",
+      "symbol": "actions/checkout@v4"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/win-installer.yml",
+      "symbol": "actions/checkout@v4"
+    },
+    {
+      "kind": "write",
+      "path": ".github/workflows/win-invalid-state-probe.yml",
+      "symbol": "actions/checkout@v4"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "5 份 Windows 工作流各有独立触发方式与职责（安装器真装真升硬门、Windows 走查与 NSIS 打包、发布候选包、PR 预览包、协议竞态探针），检出动作必须在各自作业第一步先运行 git config 才能拉取仓库（因此无法在检出之前调用仓内 composite action）；由唯一的静态门岗 scripts/check-workflow-script-refs.mjs 统一守住全部入口不漏配。"
+  },
+  "generality_proof": "findWindowsCheckoutsWithoutLongpaths 遍历 .github/workflows 下所有 .yml/.yaml 文件并经 js-yaml 解析每个 job 的 runs-on（含字符串、数组、对象和 strategy.matrix）与 steps 顺序，对任何 Windows 作业中出现在无条件 git config --global core.longpaths true 之前的 actions/checkout 均 fail-closed 报红，且已接入 package.json 的 gates:contracts 与 pre-push-contracts.mjs 必跑门表。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-workflow-script-refs.mjs",
+      "symbol": "findWindowsCheckoutsWithoutLongpaths",
+      "responsibility": "全仓工作流静态门岗：校验每个 Windows runner 作业在每次 actions/checkout 前均无条件启用 git config --global core.longpaths true。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/win-installer.yml",
+      "entry_point": "scenarios",
+      "disposition": "enforced",
+      "evidence": "runs-on: windows-2025；已在 actions/checkout@v4 前增加 Enable Git long paths on Windows 步骤，并受 check:workflow-script-refs 守卫。"
+    },
+    {
+      "path": ".github/workflows/win-gate.yml",
+      "entry_point": "win-walkthrough, win-package",
+      "disposition": "enforced",
+      "evidence": "两个作业均为 runs-on: windows-2025；均已在各自 actions/checkout@v4 前增加 Enable Git long paths on Windows 步骤，并受 check:workflow-script-refs 守卫。"
+    },
+    {
+      "path": ".github/workflows/desktop-rc.yml",
+      "entry_point": "windows",
+      "disposition": "enforced",
+      "evidence": "发版硬门中的 Windows 打包与 MCP 冒烟作业（runs-on: windows-2025）；已在 actions/checkout@v4 前增加 Enable Git long paths on Windows 步骤，并受 check:workflow-script-refs 守卫。"
+    },
+    {
+      "path": ".github/workflows/desktop-preview.yml",
+      "entry_point": "windows-preview",
+      "disposition": "enforced",
+      "evidence": "runs-on: windows-2025；已在 actions/checkout@v4 前增加 Enable Git long paths on Windows 步骤，并受 check:workflow-script-refs 守卫。"
+    },
+    {
+      "path": ".github/workflows/win-invalid-state-probe.yml",
+      "entry_point": "probe",
+      "disposition": "enforced",
+      "evidence": "runs-on: windows-2025；已在 actions/checkout@v4 前增加 Enable Git long paths on Windows 步骤，并受 check:workflow-script-refs 守卫。"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "ubuntu-24.04 / macos-26 jobs",
+      "disposition": "not-affected",
+      "evidence": "全量扫描 .github/workflows/ 确认 quality-gate.yml 仅使用 ubuntu-24.04 与 macos-26，不存在 Windows MAX_PATH 260 字符限制。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "仓库已包含 260+ 字符真实旧版用户数据夹具，且未来随时可能新增 Windows 工作流作业或更深夹具；不加静态门岗，任何新建 Windows 作业沿用裸 actions/checkout 都会在 CI / 发版当天再次炸裂。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs findMissingRefs findFloatingRunners findUnexercisedRunners --roots=scripts,src,electron：扫出 3 扇门，均位于 scripts/check-workflow-script-refs.mjs（YAML 工作流不是 JS/TS AST，由下述全仓 grep 逐文件盘点）。",
+      "grep -rn 'runs-on:' .github/workflows/ 与 grep -rn 'actions/checkout' .github/workflows/：全仓 14 份 workflow 中共 5 份 6 个 windows-2025 作业，修前 6/6 均未在 actions/checkout 前启用 core.longpaths。",
+      "git ls-files 路径长度扫描：tests/fixtures/old-user-data/projects/v0.24.1-readonly-open/ 下有多条 267–359 字节路径（含 UTF-8 中文目录名），叠加 Windows runner 工作目录前缀后超过 MAX_PATH（260 字符）。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-workflow-script-refs.mjs",
+    "invariant": "所有 Windows runner 作业在每次 actions/checkout 之前必须无条件运行 git config --global core.longpaths true。",
+    "failure_mode": "发现任意 Windows 作业缺配、放于 checkout 之后、带 if/continue-on-error 或仅写注释即退出码 1 并逐项点名 workflow 文件、job 与 step 序号。",
+    "exception_policy": "none",
+    "strategy": "并入已在 package.json gates:contracts 与 pre-push-contracts.mjs 必跑清单里的工作流静态门岗 scripts/check-workflow-script-refs.mjs，并配正反例与真仓全扫回归测试。",
+    "artifacts": [
+      "scripts/check-workflow-script-refs.mjs",
+      ".github/workflows/win-installer.yml",
+      ".github/workflows/win-gate.yml",
+      ".github/workflows/desktop-rc.yml",
+      ".github/workflows/desktop-preview.yml",
+      ".github/workflows/win-invalid-state-probe.yml"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-workflow-script-refs.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-workflow-script-refs.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无旧并行实现或回退路径；直接为全部 6 个 Windows 作业补齐 checkout 前置配置并用静态门岗永久封堵漏配。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "GitHub Actions windows-2025 托管镜像内置 Git for Windows（默认 core.longpaths=false）与 actions/checkout@v4",
+    "target": "GitHub 托管 Windows 镜像默认启用 core.longpaths=true，或 actions/checkout 原生默认启用长路径检出",
+    "rationale": "当前托管镜像与 actions/checkout@v4 均未默认开启 core.longpaths，需要在作业检出前显式配置以适配仓库内真实用户数据夹具。",
+    "exit_criteria": [
+      "在真实 windows-2025 runner 上不配置 git config --global core.longpaths true 时能完整检出 tests/fixtures/old-user-data/ 下所有 >260 字符路径并留存运行日志证据。"
+    ]
+  },
+  "migration": "纯 CI 工作流与门岗变更，不涉及用户数据或应用运行时迁移；合入后下一次 Windows Actions 运行立即生效。",
+  "residual_risks": [
+    "本机为 macOS，无法直接在本机执行真实 GitHub Actions windows-2025 runner 的检出；真 Windows 检出结果需待合入或推送触发 win-installer.yml / win-gate.yml 后确认（unverified locally）。",
+    "git config --global core.longpaths true 仅解决 Git 检出与 Git 操作的 MAX_PATH 限制；若后续有不支持 Windows 长路径的非 Git 工具直接读写超长夹具路径，仍需单独核验该工具的长路径兼容性。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/check-workflow-script-refs.mjs",
+    "tests": [
+      "scripts/check-workflow-script-refs.node-test.mjs"
+    ]
+  },
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-28"
+}

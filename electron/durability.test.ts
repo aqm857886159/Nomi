@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fsyncDirectoryIfDurable, getDurabilityMode, setDurabilityMode } from "./durability";
-import { writeJsonFileAtomic } from "./jsonFile";
+import { writeJsonFileAtomic, writeJsonFileAtomicAsync } from "./jsonFile";
 import { createProductionRunRepository } from "./productionRun/productionRunRepository";
 
 // 反向保证（P1：不留悄悄削弱生产的逃生口）。
@@ -39,6 +39,13 @@ describe("durability barrier", () => {
     expect(JSON.parse(fs.readFileSync(path.join(root, "project.json"), "utf8"))).toEqual({ hello: "world" });
   });
 
+  it("'durable' 模式下 writeJsonFileAtomicAsync 真的 fsync（异步保存路径同样守住掉电屏障）", async () => {
+    const spy = vi.spyOn(fs, "fsync");
+    await writeJsonFileAtomicAsync(path.join(root, "project-async.json"), { hello: "async-world" });
+    expect(spy).toHaveBeenCalled();
+    expect(JSON.parse(fs.readFileSync(path.join(root, "project-async.json"), "utf8"))).toEqual({ hello: "async-world" });
+  });
+
   it("'durable' 模式下 production run 的事件追加真的 fsync（事件日志不撕裂 = run 能重放）", () => {
     const repository = createProductionRunRepository({ projectDirResolver: () => root });
     const spy = vi.spyOn(fs, "fsyncSync");
@@ -52,17 +59,22 @@ describe("durability barrier", () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it("'ephemeral' 模式下不 fsync —— 但写入的字节完全一样（关屏障不改变被测行为）", () => {
+  it("'ephemeral' 模式下不 fsync —— 但写入的字节完全一样（关屏障不改变被测行为）", async () => {
     const durablePath = path.join(root, "durable.json");
     writeJsonFileAtomic(durablePath, { a: 1, b: [2, 3] });
 
     setDurabilityMode("ephemeral");
-    const spy = vi.spyOn(fs, "fsyncSync");
+    const syncSpy = vi.spyOn(fs, "fsyncSync");
+    const asyncSpy = vi.spyOn(fs, "fsync");
     const ephemeralPath = path.join(root, "ephemeral.json");
+    const ephemeralAsyncPath = path.join(root, "ephemeral-async.json");
     writeJsonFileAtomic(ephemeralPath, { a: 1, b: [2, 3] });
+    await writeJsonFileAtomicAsync(ephemeralAsyncPath, { a: 1, b: [2, 3] });
 
-    expect(spy).not.toHaveBeenCalled();
+    expect(syncSpy).not.toHaveBeenCalled();
+    expect(asyncSpy).not.toHaveBeenCalled();
     expect(fs.readFileSync(ephemeralPath, "utf8")).toBe(fs.readFileSync(durablePath, "utf8"));
+    expect(fs.readFileSync(ephemeralAsyncPath, "utf8")).toBe(fs.readFileSync(durablePath, "utf8"));
   });
 
   // 注：这条钉的是**模式翻转**（谁有权关屏障）。屏障的另一半——**调用点**

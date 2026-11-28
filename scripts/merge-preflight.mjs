@@ -116,7 +116,23 @@ export function sameRepoCommentEndpoint(ref, repoSlug) {
   return sameRepoCommentTarget(ref, repoSlug)?.endpoint ?? null
 }
 
-/** 合并前扫描读验收报告：本机绝对路径直接读；仓库内相对路径从 PR 头读；同仓库 PR/issue 评论走 gh api 读并核对讨论串归属；别的外链一律 null（判据按红处理）。 */
+const TRUSTED_COMMENT_AUTHOR_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR'])
+
+/** 校验同仓库 PR / issue 评论 API 载荷（讨论串路径归属 + 仓库成员身份白名单 + 正文类型），任一项不满足一律 fail-closed 返回 null。 */
+export function extractSameRepoCommentBody(payload, expectedPath) {
+  if (typeof expectedPath !== 'string' || !expectedPath.trim()) return null
+  if (typeof payload?.html_url !== 'string' || typeof payload?.body !== 'string') return null
+  if (typeof payload?.author_association !== 'string' || !TRUSTED_COMMENT_AUTHOR_ASSOCIATIONS.has(payload.author_association)) return null
+  try {
+    const actualPath = new URL(payload.html_url).pathname.replace(/\/+$/, '')
+    if (actualPath.toLowerCase() !== expectedPath.toLowerCase()) return null
+    return payload.body
+  } catch {
+    return null
+  }
+}
+
+/** 合并前扫描读验收报告：本机绝对路径直接读；仓库内相对路径从 PR 头读；同仓库 PR/issue 评论走 gh api 读并核对讨论串归属与仓库成员身份；别的外链一律 null（判据按红处理）。 */
 export function readReportRef(ref, readRepoFile, readLocal = (file) => fs.readFileSync(file, 'utf8'), { repoSlug = null, readComment = null } = {}) {
   try {
     if (/^https?:/i.test(ref)) {
@@ -252,13 +268,7 @@ function run(argv, exec, git, root) {
     try { return repoSlugOfOrigin(git(['remote', 'get-url', 'origin']).trim()) } catch { return null }
   })()
   const sameRepo = originRepo && repo && originRepo.toLowerCase() !== repo.toLowerCase() ? null : (originRepo ?? repo ?? null)
-  const readComment = (endpoint, expectedPath) => {
-    const payload = JSON.parse(gh(['api', endpoint]))
-    if (!expectedPath || typeof payload?.html_url !== 'string' || typeof payload?.body !== 'string') return null
-    const actualPath = new URL(payload.html_url).pathname.replace(/\/+$/, '')
-    if (actualPath.toLowerCase() !== expectedPath.toLowerCase()) return null
-    return payload.body
-  }
+  const readComment = (endpoint, expectedPath) => extractSameRepoCommentBody(JSON.parse(gh(['api', endpoint])), expectedPath)
   const judged = evaluatePrBody({
     table,
     baseAllowlist,

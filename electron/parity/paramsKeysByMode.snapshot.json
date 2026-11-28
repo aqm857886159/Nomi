@@ -1,7 +1,7 @@
 {
  "summary": {
-  "samples": 600,
-  "archetypes": 95,
+  "samples": 630,
+  "archetypes": 96,
   "samplesWithLeaks": {
    "canvas": 0,
    "run": 0,
@@ -15,7 +15,7 @@
    "run": 0,
    "emptyValue": 0
   },
-  "pathsDiffer": 155
+  "pathsDiffer": 165
  },
  "pathDifferences": [
   {
@@ -377,6 +377,66 @@
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|edit->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|extend->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->edit",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:mode_input_missing"
   },
   {
    "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->extend",
@@ -1278,6 +1338,36 @@
   "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->firstlast",
   "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->i2v",
   "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->omni",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|edit->extend",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|edit->first",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|edit->firstlast",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|edit->omni",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|edit->t2v",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|extend->edit",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|extend->first",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|extend->firstlast",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|extend->omni",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|extend->t2v",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->edit",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->extend",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->firstlast",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->omni",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->t2v",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->edit",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->extend",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->first",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->omni",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->t2v",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->edit",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->extend",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->first",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->firstlast",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->t2v",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->edit",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->extend",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->first",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->firstlast",
+  "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->omni",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->extend",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->first",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->firstlast",
@@ -3383,6 +3473,176 @@
    "run": {
     "status": "refused:apimart_provider_error",
     "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|edit->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|extend->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|first->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|firstlast->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|omni->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart-sample|apimart|doubao-seedance-2.5-sample|t2v->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:mode_input_missing",
+    "statusWithParams": "refused:mode_input_missing",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null

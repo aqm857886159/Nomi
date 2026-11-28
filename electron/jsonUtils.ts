@@ -103,6 +103,7 @@ export function pickUpstreamMessage(record: JsonRecord, sanitize: (message: stri
     record.errorMessage,
     errorMessageWithDetails(record, sanitize),
     readNestedRecord(record, ["error", "message"]),
+    readNestedRecord(record, ["response", "error", "message"]),
     readNestedRecord(record, ["data", "msg"]),
     // ModelScope（及同类）失败体是复数 `errors`：{ "errors": { "message": "..." } }。
     readNestedRecord(record, ["errors", "message"]),
@@ -122,8 +123,26 @@ export function pickUpstreamMessage(record: JsonRecord, sanitize: (message: stri
  * 只收**字符串形的标识码**（`[A-Za-z0-9_.:-]`，≤64）；纯数字的业务码走 `logicalCode`，
  * 自由文本走 `pickUpstreamMessage`。挑不出返回 ""。
  */
+function nonLengthIncompleteReason(record: JsonRecord): string {
+  const reason = trim(readNestedRecord(record, ["response", "incomplete_details", "reason"]));
+  return reason && reason !== "max_output_tokens" ? reason : "";
+}
+
+function nonWrapperTopType(record: JsonRecord): string {
+  const top = trim(record.type);
+  if (!top) return "";
+  if (top === "error" || top.startsWith("response.") || top.startsWith("message_") || top.startsWith("content_block_")) return "";
+  return top;
+}
+
 export function pickUpstreamCode(record: JsonRecord): string {
-  const candidate = firstString(readNestedRecord(record, ["error", "code"]), readNestedRecord(record, ["errors", "code"]), record.code);
+  const candidate = firstString(
+    readNestedRecord(record, ["error", "code"]),
+    readNestedRecord(record, ["response", "error", "code"]),
+    nonLengthIncompleteReason(record),
+    readNestedRecord(record, ["errors", "code"]),
+    record.code,
+  );
   return /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/.test(candidate) ? candidate : "";
 }
 
@@ -133,7 +152,11 @@ export function pickUpstreamCode(record: JsonRecord): string {
  * OpenAI 账单一族的 `insufficient_quota`），只读 `code` 会漏掉——归类见 `categorizeVendorFailure`。
  */
 export function pickUpstreamType(record: JsonRecord): string {
-  const candidate = firstString(readNestedRecord(record, ["error", "type"]));
+  const candidate = firstString(
+    readNestedRecord(record, ["error", "type"]),
+    readNestedRecord(record, ["response", "error", "type"]),
+    nonWrapperTopType(record),
+  );
   return /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/.test(candidate) ? candidate : "";
 }
 

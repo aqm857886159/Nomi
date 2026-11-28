@@ -168,4 +168,31 @@ export type ModelArchetype = {
   familyIdentifierPatterns?: readonly string[];
   /** Provider request-body reference inputs with no composer control (headless callers only); see modelArchetypes/referenceKeys. */
   headlessReferenceKeys?: string[];
+  /** This model offers the draft → final two-step flow (see ArchetypeSampleSpec). Only on the parent profile. */
+  sampleMode?: ArchetypeSampleSpec;
+  /** Set only on a sample profile derived from its parent by `deriveSampleArchetype` (./sampleMode). */
+  sampleOf?: ArchetypeSampleOf;
+};
+
+/**
+ * 样片两步流程的规格：先出一条低清样片，满意再拿样片号出成片（供应商无关的说法；APIMart 叫 draft / draft_task_id）。
+ * 父档案声明它；样片档案由代码从父档案推出（只收窄清晰度、加出高清方式），不另抄一份。
+ */
+export type ArchetypeSampleSpec = {
+  /** 样片多久失效（小时，从样片任务创建算）。文档没写就不带，界面不显示剩余时间。 */
+  ttlHours?: number;
+  /** 出样片时唯一允许的清晰度。 */
+  draftResolution: string;
+  /** 成片可选的清晰度，第一个是默认。 */
+  finalResolutions: readonly string[];
+};
+
+export type ArchetypeSampleOf = {
+  /** 父档案 id。 */
+  parentId: string;
+  spec: ArchetypeSampleSpec;
+  /** 出高清这一步的方式（不在 `modes` 里：方式菜单不列它，只由「出高清」按钮发）。 */
+  final: ArchetypeMode;
+  /** 样片和出高清按哪一行约价：同一家里父模型的目录行（文档：样片按普通 480p 计费，成片按所请求清晰度计费）。 */
+  billedAs: { modelKey: string };
 };

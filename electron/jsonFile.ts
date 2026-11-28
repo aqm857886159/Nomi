@@ -1,51 +1,59 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { readFile, writeFile, writeFileSync } from "atomically";
 
-import { fsyncIfDurable } from "./durability";
+import { isDurable } from "./durability";
 import {
   isSharingViolation,
   retryOnSharingViolationAsync,
+  SHARING_RETRY_BUDGET_MS,
   SHARING_RETRY_DELAYS_MS,
   type AsyncSharingRetryOptions,
 } from "./sharingRetry";
 
 /**
- * Atomically (over)write a JSON file.
+ * Atomically (over)write a JSON file via `atomically`, bridging Nomi's single
+ * durability switch (`isDurable()`) and Windows sharing-violation retry boundary.
  *
  * Serialize to a temp file in the SAME directory (so the final rename stays on
- * one filesystem and is atomic on POSIX), fsync it for durability, then rename
- * over the target. On a crash / power loss the target is always either the
- * previous complete file or the new complete file — never a truncated, corrupt
- * one. This protects the user's most valuable data (`project.json`) from the
- * "saved while crashing → lost the whole project" failure mode.
- *
- * Mirrors the temp+rename pattern already used by the model catalog writer in
- * runtime.ts; that copy lives inside a 3150-line module and is left to the
- * planned runtime.ts split — new call sites should use this shared util.
+ * one filesystem and is atomic on POSIX), fsync it when `isDurable()` is true,
+ * then rename over the target. On a crash / power loss or `ENOSPC` / short write
+ * the target is always either the previous complete file or the new complete
+ * file — never a truncated, corrupt one.
  */
-/** 同步睡眠（sync IPC 上下文无法 await；Atomics.wait 是 Node 主线程的标准同步等待）。 */
-function sleepSync(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
 
-/** 判定和退避表的唯一一份在 sharingRetry.ts；这里转出判定，现有调用方不改。 */
-export { isSharingViolation };
+const DEFAULT_JSON_FILE_MODE = 0o666;
+const monotonicNowMs = (): number => process.uptime() * 1_000;
+
+/** 判定和退避表的唯一一份在 sharingRetry.ts；这里转出判定与异步退避，现有调用方不必分两行导入。 */
+export { isSharingViolation, retryOnSharingViolationAsync };
 
 /**
- * 同步文件操作撞上共享冲突时按短退避重试（总预算约 400ms），之后把原错误如实抛出。
- * 文件与目录的 rename / 删除 / 读取都用这一份策略——不各自手写重试。已经在 async 函数里的调用方改用
- * sharingRetry.retryOnSharingViolationAsync（定时器退避，不睡）。
+ * 同步文件操作撞上共享冲突时按共享总预算（400ms，无 Atomics.wait）重试，之后把原错误如实抛出。
+ * 热路径与已经在 async 函数里的调用方走 writeJsonFileAtomicAsync / renameWithRetry /
+ * sharingRetry.retryOnSharingViolationAsync（定时器退避，不占事件循环）。
  */
 export function retryOnSharingViolation<T>(operation: () => T): T {
+  const deadline = monotonicNowMs() + SHARING_RETRY_BUDGET_MS;
   for (let attempt = 0; ; attempt++) {
     try {
       return operation();
     } catch (error) {
-      if (!isSharingViolation(error) || attempt >= SHARING_RETRY_DELAYS_MS.length) throw error;
-      sleepSync(SHARING_RETRY_DELAYS_MS[attempt]);
+      if (
+        !isSharingViolation(error) ||
+        (attempt >= SHARING_RETRY_DELAYS_MS.length && monotonicNowMs() >= deadline)
+      ) {
+        throw error;
+      }
     }
   }
+}
+
+/** One attempt for checked transactions and callers that own their own retry loop. */
+export function renameOnce(from: string, to: string): Promise<void> {
+  return fs.promises.rename(from, to);
 }
 
 /** One attempt for checked transactions and synchronous best-effort callers. */
@@ -65,47 +73,83 @@ export type WriteJsonFileAtomicOptions = Readonly<{
   mode?: number;
 }>;
 
-export function writeJsonFileAtomic(filePath: string, value: unknown, options: WriteJsonFileAtomicOptions = {}): void {
-  const dir = path.dirname(filePath);
-  fs.mkdirSync(dir, { recursive: true });
-  const tempPath = path.join(dir, `.${path.basename(filePath)}.${crypto.randomUUID()}.tmp`);
-  const removeTemp = (): void => {
-    try {
-      fs.rmSync(tempPath, { force: true });
-    } catch {
-      // Preserve the originating write, close, or rename error.
-    }
+export type ReadJsonFileAsyncOptions = Readonly<{
+  retrySharingViolation?: boolean;
+}>;
+
+function serializeJsonBytes(value: unknown): Buffer {
+  return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function createTempPathTracker(stagedPaths: string[]): (targetPath: string) => string {
+  return (targetPath: string): string => {
+    const tempPath = path.join(
+      path.dirname(targetPath),
+      `.${path.basename(targetPath)}.${crypto.randomUUID()}.tmp`,
+    );
+    stagedPaths.push(tempPath);
+    return tempPath;
   };
-  let fd: number;
+}
+
+export async function writeJsonFileAtomicAsync(
+  filePath: string,
+  value: unknown,
+  options: WriteJsonFileAtomicOptions = {},
+): Promise<void> {
+  const bytes = serializeJsonBytes(value);
+  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+  const stagedPaths: string[] = [];
   try {
-    fd = fs.openSync(tempPath, "w", options.mode);
-  } catch (error) {
-    removeTemp();
-    throw error;
+    await writeFile(filePath, Readable.from([bytes]), {
+      chown: false,
+      mode: options.mode ?? DEFAULT_JSON_FILE_MODE,
+      fsync: isDurable(),
+      fsyncWait: true,
+      timeout: SHARING_RETRY_BUDGET_MS,
+      tmpCreate: createTempPathTracker(stagedPaths),
+      tmpPurge: false,
+    });
+  } finally {
+    await Promise.all(
+      stagedPaths.map((stagedPath) => fs.promises.rm(stagedPath, { force: true }).catch(() => undefined)),
+    );
   }
-  let fileError: unknown;
+}
+
+export function writeJsonFileAtomic(filePath: string, value: unknown, options: WriteJsonFileAtomicOptions = {}): void {
+  const bytes = serializeJsonBytes(value);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const stagedPaths: string[] = [];
   try {
-    if (options.mode !== undefined) fs.fchmodSync(fd, options.mode);
-    fs.writeFileSync(fd, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-    fsyncIfDurable(fd);
-  } catch (error) {
-    fileError = error;
+    retryOnSharingViolation(() =>
+      writeFileSync(filePath, bytes, {
+        chown: false,
+        mode: options.mode ?? DEFAULT_JSON_FILE_MODE,
+        fsync: isDurable(),
+        fsyncWait: true,
+        timeout: 0,
+        tmpCreate: createTempPathTracker(stagedPaths),
+        tmpPurge: false,
+      }),
+    );
+  } finally {
+    for (const stagedPath of stagedPaths) {
+      try {
+        fs.rmSync(stagedPath, { force: true });
+      } catch {
+        // Preserve the originating write, close, or rename outcome.
+      }
+    }
   }
-  try {
-    fs.closeSync(fd);
-  } catch (error) {
-    fileError ??= error;
-  }
-  if (fileError !== undefined) {
-    removeTemp();
-    throw fileError;
-  }
-  try {
-    renameSyncWithRetry(tempPath, filePath);
-  } catch (error) {
-    removeTemp();
-    throw error;
-  }
+}
+
+export async function readJsonFileAsync(filePath: string, options: ReadJsonFileAsyncOptions = {}): Promise<unknown> {
+  const raw = await readFile(filePath, {
+    encoding: "utf8",
+    timeout: options.retrySharingViolation ? SHARING_RETRY_BUDGET_MS : 0,
+  });
+  return JSON.parse(raw);
 }
 
 export function readJsonFile(filePath: string): unknown {

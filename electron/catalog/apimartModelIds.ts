@@ -22,6 +22,8 @@ const CANONICAL_MODEL_IDS: Record<string, string> = {
   "doubao-seedance-2-0-fast-face": "seedance-2.0-fast-face",
   "doubao-seedance-2.5": "seedance-2.5",
   "doubao-seedance-2-5": "seedance-2.5",
+  // 样片行（同一个上游模型，样片 / 出高清靠 body 里的 draft / draft_task_id 区分）。
+  "doubao-seedance-2.5-sample": "seedance-2.5",
   "grok-imagine-1.5-video-apimart": "grok-imagine-1.5-video-ext",
   "Omni-Flash-Ext": "gemini-omni-1.1-flash-ext",
 };

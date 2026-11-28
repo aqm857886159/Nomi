@@ -16,7 +16,7 @@
 // 两道都由 referenceSentWithinInUse.property.test.ts 钉住（全部档案 × 每个方式，中转 / APIMart / 内置全部供应商真请求体，
 // 外加「请求体实际读的参考键」普查和逐键夹带）。
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
-import { readParameterReferenceSlotsContract, readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
+import { readParameterReferenceSlotsContract, readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "../shared/contracts/parameterReferenceContract";
 import { GENERIC_REFERENCE_KEYS } from "../shared/modelArchetypes/referenceKeys";
 
 function stringArray(value: unknown): string[] {

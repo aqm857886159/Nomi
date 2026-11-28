@@ -92,6 +92,12 @@ const CORPUS: readonly Row[] = [
     status: 500, body: { error: { message: "账户余额不足，请充值后重试", code: "insufficient_user_quota" } }, category: "balance", retryable: false },
   { id: "5xx", source: "500 无码",
     status: 500, body: { error: { message: "upstream error" } }, category: "server", retryable: true },
+  { id: "anthropic-413-too-large", source: "Anthropic 413 request_too_large（协议标准上下文/请求体超长）",
+    status: 413, body: { type: "error", error: { type: "request_too_large", message: "Request exceeds the maximum size" } }, category: "input", retryable: false },
+  { id: "anthropic-529-overloaded", source: "Anthropic 529 overloaded_error（服务商过载可重试）",
+    status: 529, body: { type: "error", error: { type: "overloaded_error", message: "Overloaded" } }, category: "server", retryable: true },
+  { id: "openai-400-context-length", source: "OpenAI 400 context_length_exceeded",
+    status: 400, body: { error: { message: "This model's maximum context length is 128000 tokens.", type: "invalid_request_error", code: "context_length_exceeded" } }, category: "input", retryable: false },
 ];
 
 function wire(body: unknown): string {
@@ -144,12 +150,16 @@ describe("S4 语料表 · 三扇门同一张归类表", () => {
     expect(decideGenerationFailure({ message: "生成失败：余额不足，请充值后重试", locale: "zh-CN" }).kind).toBe("balance");
   });
 
-  it("单独的取码：error.type 读得到，非标识形状（中文 / null / 数字）不收", () => {
+  it("单独的取码：error.type 读得到，非标识形状（中文 / null / 数字）不收；Responses response.error 与 SSE 无状态码协议类型同表归类", () => {
     expect(pickUpstreamType({ error: { type: "payment_required" } })).toBe("payment_required");
     expect(pickUpstreamType({ error: { type: null } })).toBe("");
     expect(pickUpstreamType({ error: { type: "账户余额不够" } })).toBe("");
     expect(pickUpstreamType({ type: "error", error: { type: "billing_error" } })).toBe("billing_error");
     expect(pickUpstreamCode({ error: { code: "403" } })).toBe("");
+    expect(pickUpstreamCode({ type: "response.failed", response: { error: { code: "server_error", message: "boom" } } })).toBe("server_error");
+    expect(categorizeVendorFailure(undefined, "sse_error", { type: "invalid_request_error" })).toEqual({ category: "input", retryable: false });
+    expect(categorizeVendorFailure(undefined, "sse_error", { type: "overloaded_error" })).toEqual({ category: "server", retryable: true });
+    expect(categorizeVendorFailure(undefined, "sse_error", { code: "context_length_exceeded", type: "invalid_request_error" })).toEqual({ category: "input", retryable: false });
   });
 });
 

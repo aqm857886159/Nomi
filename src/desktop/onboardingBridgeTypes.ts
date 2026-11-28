@@ -1,7 +1,7 @@
 import type { ProviderKind } from './providerKind'
 import type { AntigravityConnectionStatus, AntigravityTestRequest } from '../../electron/shared/antigravity'
 import type { ModelListFailureKind } from '../../electron/ai/onboarding/modelListResponse'
-import type { AdapterRunStage } from '../../electron/shared/providerAdapterContract'
+import type { AdapterRunStage } from '../../electron/shared/contracts/providerAdapterContract'
 import type { CertificationSubmissionState } from '../../electron/integrationCertification/types'
 export type { AntigravityConnectionStatus } from '../../electron/shared/antigravity'
 

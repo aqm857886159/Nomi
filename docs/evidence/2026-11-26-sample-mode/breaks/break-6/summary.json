@@ -1,0 +1,24 @@
+{
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks-46/break-6",
+  "stations": [
+    {
+      "run": "zh-CN-light",
+      "station": "menu",
+      "ok": true,
+      "ms": 917
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "sample",
+      "ok": true,
+      "ms": 14771
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "hd",
+      "ok": false,
+      "ms": 1458,
+      "error": "board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住（基线已证：这张节点上样片的等待面在）\n\nexpect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.react-flow__node[data-id=\"gen-v2-video-mwxy03z2-xz8p\"]').first().locator('[data-generating-placement]')\nExpected: 0"
+    }
+  ]
+}

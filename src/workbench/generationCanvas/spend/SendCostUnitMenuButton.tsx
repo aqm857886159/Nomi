@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
-import { IconCoin } from '../../../vendor/tablerIcons'
-import { ICON_TIERS, WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
+import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
+import { SendCostAmount } from './SendCostAmount'
 import type { SendCostUnit } from './sendCostUnitStore'
 
 export type SendCostUnitMenuOption = {
@@ -61,10 +61,7 @@ export function SendCostUnitMenuButton({
           onClick={(event) => event.stopPropagation()}
           className="inline-flex h-[28px] shrink-0 cursor-pointer items-center gap-1 rounded-pill border-0 bg-transparent px-1.5 whitespace-nowrap text-body-sm font-semibold tabular-nums text-nomi-ink-80 transition-colors hover:bg-nomi-ink-10 hover:text-nomi-ink data-[state=open]:bg-nomi-ink-20 data-[state=open]:text-nomi-ink"
         >
-          {unit === 'credits' ? (
-            <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden />
-          ) : null}
-          {displayText}
+          <SendCostAmount text={displayText} unit={unit} />
         </button>
       )}
       onOpenChange={onOpenChange}

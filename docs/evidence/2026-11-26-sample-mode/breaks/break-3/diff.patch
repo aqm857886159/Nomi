@@ -1,0 +1,13 @@
+diff --git a/src/workbench/generationCanvas/runner/generationRunController.ts b/src/workbench/generationCanvas/runner/generationRunController.ts
+index d2c4c4ce9..069576009 100644
+--- a/src/workbench/generationCanvas/runner/generationRunController.ts
++++ b/src/workbench/generationCanvas/runner/generationRunController.ts
+@@ -489,7 +489,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: SingleNodeRunOption
+   if (opts.sampleFinal && !resending) {
+     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
+     const sample = current ? sampleByTaskId(current, opts.sampleFinal.draftTaskId) : null
+-    if (current && sample && finalsMadeFrom(current, sample.draftTaskId).length > 0) {
++    if (current && sample && finalsMadeFrom(current, sample.draftTaskId).length > 99) {
+       const price = await sampleFinalCredits(sample, opts.sampleFinal.resolution, i18n.language)
+       const again = await confirmGenerationResend({ resultUnknown: false, kind: 'video', secondSampleFinal: { resolution: opts.sampleFinal.resolution, ...(price ? { credits: price.text, unit: price.unit } : {}) } })
+       if (!again) return 'declined'

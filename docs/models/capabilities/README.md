@@ -29,6 +29,7 @@
 | `constrain:edit/output_format:background=transparent=>png` | 选了某值时另一个参数只剩这些选项 |
 | `requires:ref/audio_ref=image_ref\|video_ref` | 这个输入槽不能单独用，至少还要其中一个槽（档案 `requiresAnyOf`；表格里的 `\|` 要转义） |
 | `when:ref/audio_setting=origin:slotEmpty:video_ref` | 这个槽没放东西时这些值不能选（档案 `optionConstraints` 的 `when: { slotEmpty }`；多个值用逗号） |
+| `sample:ttl=72` / `sample:draft=480p` / `sample:final=1080p` | 档案的样片规格（`sampleMode`）：有效期小时、样片清晰度、成片可选清晰度（多档用逗号）；档案声明了就必须有一行「露出」认领 |
 | `absent:key` / `absent:mode/key` | 档案里（这个方式里）没有这个参数 / 输入字段 |
 | `reason:管道` | 不露出的原因（五类之一） |
 | `condition:…` | 「现在做不到」什么条件下能露出 |

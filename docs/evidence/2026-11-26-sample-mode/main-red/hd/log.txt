@@ -1,0 +1,10 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✗ zh-CN/light sample
+样片请求带 draft: true
++ actual - expected
+
++ undefined
+- true
+
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/main-red/hd
+exit 1

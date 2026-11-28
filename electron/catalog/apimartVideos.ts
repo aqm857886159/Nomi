@@ -20,6 +20,7 @@ import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING, APIMART_VIDEO_QUER
 import "./apimartMinimaxH3";
 import "./apimartModelIds";
 import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
+import { SAMPLE_FINAL_MODE_ID } from "../shared/videoCapabilities/sampleMode";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
@@ -81,11 +82,31 @@ const H3_REGENERATION_CREATE_OP: HttpOperation = {
   provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
 };
 
+// Seedance 2.5 两条映射的 body（普通行和样片行共用这一份，P1 单源）：
+// watermark / output_format 是 2.5 页新列的字段；omni_reference_task_type 由视频编辑 / 续写方式的 fixedParams 注入（其余方式不带，保持 auto）。
+const SEEDANCE_2_5_EXTRA_BODY = { return_last_frame: RETURN_LAST_FRAME, watermark: WATERMARK, output_format: "{{request.params.output_format}}", nsfw_check: "{{request.params.nsfw_check}}" };
+const SEEDANCE_2_5_T2V_BODY = { ...SEEDANCE_T2V_BODY, ...SEEDANCE_2_5_EXTRA_BODY };
+const SEEDANCE_2_5_I2V_BODY = { ...SEEDANCE_I2V_BODY, ...SEEDANCE_2_5_EXTRA_BODY, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" };
+
+// Seedance 2.5 样片转成片（docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation，2026-11-26 取）：
+// 「draft_task_id: Generate a 1080p final video from a completed draft」，继承字段「do not resend」「even identical values return 400」
+// → body 只有 model / draft_task_id / resolution，不经 videoCreateOp（那里固定塞 prompt），照 H3 再生成的写法。
+const SEEDANCE_2_5_SAMPLE_FINAL_CREATE_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/videos/generations",
+  headers: CREATE_HEADERS,
+  body: { model: "{{model.modelKey}}", draft_task_id: "{{request.params.draft_task_id}}", resolution: RESOLUTION },
+  response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+  provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+  request_transform: "apimart-canonical-model-id",
+};
+
 export type ApimartVideoModel = {
   modelKey: string;
   labelZh: string;
   archetypeId: string;
-  mappings: { id: string; taskKind: ProfileKind; name: string; create: HttpOperation }[];
+  /** `modeId`：只服务档案里这一个方式的映射（样片行的出高清）；不写 = 服务这个任务种类的其余方式。 */
+  mappings: { id: string; taskKind: ProfileKind; modeId?: string; name: string; create: HttpOperation }[];
 };
 
 function videoModel(p: {
@@ -122,6 +143,10 @@ function videoModel(p: {
     mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create });
   }
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
+}
+
+function withMapping(model: ApimartVideoModel, mapping: ApimartVideoModel["mappings"][number]): ApimartVideoModel {
+  return { ...model, mappings: [...model.mappings, mapping] };
 }
 
 /** apimart 视频模型（单源）。 */
@@ -184,10 +209,21 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   videoModel({
     modelKey: "doubao-seedance-2.5", labelZh: "Seedance 2.5", archetypeId: "seedance-2.5-apimart",
     requestTransform: "apimart-canonical-model-id",
-    // watermark / output_format 是 2.5 页新列的字段；omni_reference_task_type 由视频编辑 / 续写方式的 fixedParams 注入（其余方式不带，保持 auto）。
-    t2vBody: { ...SEEDANCE_T2V_BODY, return_last_frame: RETURN_LAST_FRAME, watermark: WATERMARK, output_format: "{{request.params.output_format}}", nsfw_check: "{{request.params.nsfw_check}}" },
-    i2vBody: { ...SEEDANCE_I2V_BODY, return_last_frame: RETURN_LAST_FRAME, watermark: WATERMARK, output_format: "{{request.params.output_format}}", nsfw_check: "{{request.params.nsfw_check}}", omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
+    t2vBody: SEEDANCE_2_5_T2V_BODY,
+    i2vBody: SEEDANCE_2_5_I2V_BODY,
   }),
+  // Seedance 2.5（样片模式，2026-11-26）：目录里独立一行，紧跟 2.5（档案由 2.5 推出，见 seedance25ApimartSample.ts）。
+  // 出样片 = 2.5 的同一份 body 加 `draft: true`（文档「Set to true to generate a 480p draft」，清晰度已由档案收窄成 480p）；
+  // 出高清是第三条映射，只服务档案的出高清方式（modeId），body 只带样片号和目标清晰度。
+  withMapping(
+    videoModel({
+      modelKey: "doubao-seedance-2.5-sample", labelZh: "Seedance 2.5（样片模式）", archetypeId: "seedance-2.5-apimart-sample",
+      requestTransform: "apimart-canonical-model-id",
+      t2vBody: { ...SEEDANCE_2_5_T2V_BODY, draft: true },
+      i2vBody: { ...SEEDANCE_2_5_I2V_BODY, draft: true },
+    }),
+    { id: "seed-apimart-seedance-2.5-apimart-sample-final-text_to_video", taskKind: "text_to_video", modeId: SAMPLE_FINAL_MODE_ID, name: "Seedance 2.5（样片模式） · 出高清", create: SEEDANCE_2_5_SAMPLE_FINAL_CREATE_OP },
+  ),
   videoModel({
     modelKey: "MiniMax-H3", labelZh: "MiniMax H3", archetypeId: "minimax-h3-apimart",
     requestTransform: "apimart-minimax-h3",

@@ -57,6 +57,8 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/catalog/referenceLinkDelivery.matrix.test.ts', roots: ['tests/fixtures/old-user-data/assets'], exts: '*' },
   // 2026-11-09：一次出几份就读出几份——每份旧目录（向导存下的、旧内置）造四份假响应都要读出四份；新加一份旧目录推送前就跑（<5 秒）。
   { file: 'electron/catalog/multiOutputMapping.test.ts', roots: ['tests/fixtures/old-user-data/catalogs', 'tests/fixtures/old-user-data/curated'], exts: '*' },
+  // 2026-11-27：样片行的出高清方式只归它自己那条映射——每份旧目录升级后只多样片行那一个文生桶；新加一份旧目录推送前就跑（<5 秒）。
+  { file: 'electron/catalog/selectTaskMapping.test.ts', roots: ['tests/fixtures/old-user-data/catalogs', 'tests/fixtures/old-user-data/curated'], exts: '*' },
   // 和 catalogs、assets 两行同形：每个版本新增一份真老用户数据（旧版本落盘的项目库），新目录推送前就跑老用户这组，不是到 CI 才红（<2 秒）。
   { file: 'electron/projects/projectLocation.oldUser.test.ts', roots: ['tests/fixtures/old-user-data/projects'], exts: '*' },
   // 付费确认卡和它的挂载点只许静态引入：遍历 src 找按需 import 它们的文件（<1 秒）。
@@ -136,6 +138,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/viteOptimizeDeps.test.mjs', roots: SRC }, // 4 秒
   { file: 'scripts/build-tailwind.test.ts', roots: SRC, exts: [...CODE_EXTS, 'css', 'html'], files: ['tailwind.config.ts'] }, // 跑一次 tailwind content 扫描（12 秒）
   { file: 'scripts/canvas-store-subscriptions.test.mjs', roots: SRC, files: ['eslint.config.mjs'] }, // 画布 nodes / edges 整表订阅存量冻结：遍历 src 按语法树数处数（11 秒）
+  { file: 'scripts/check-canvas-edge-writers.test.mjs', roots: ['src/workbench/generationCanvas', 'src/workbench/project', 'electron/capabilityCore', 'electron/shared/canvas'], exts: ['ts', 'tsx'] }, // 画布写边入口 AST 扫描（原 check:canvas-edge-writers 独立 CLI 门岗于 2026-11-27 SM-gates-A 退役，由本 Vitest 守卫唯一承接）
   { file: 'scripts/ui-money-format.test.mjs', roots: SRC, files: ['eslint.config.mjs', 'scripts/fixtures/ui-money/ProductionDetails.before.tsx.txt'] }, // 界面不印金额的出口名单只减不增：遍历 src 按语法树数处数（Mac 本机单跑约 5–7 秒）
   { file: 'scripts/focus-by-tag-lookup.test.mjs', roots: ['src', 'tests/ux', 'evals'], files: ['eslint.config.mjs', 'scripts/fixtures/focus-by-tag-lookup/ShellAgentHost.before.tsx.txt'] }, // 按输入框实现找它再聚焦（src）/ 走查按标签名判焦点（tests/ux、evals）的出口名单只减不增：遍历三处按语法树数处数（Mac 本机门岗满载时单跑约 8 秒）
   { file: 'evals/journeys/journeyContracts.test.ts', roots: ['evals/journeys'], files: ['tests/ux/real-media-fixtures.json'] }, // 旅程读了真素材就必须声明 realMedia（CI 不选它）：遍历 evals/journeys 的旅程源码对全集断言，id 对登记表

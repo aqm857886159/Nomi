@@ -7,6 +7,7 @@ import type { NormalizedRecipe } from "../vendor/provenance";
 import type { VendorErrorStructured } from "../vendor/vendorHttp";
 import { vendorFailureFacts } from "../logging/diskSafeFailure";
 import type { ProviderCostActual } from "../vendor/cost";
+import type { TaskTerminalStatus } from "../shared/contracts/taskStatus";
 
 const mintId = () => `evt_${crypto.randomUUID().slice(0, 12)}`;
 
@@ -52,7 +53,7 @@ export function traceVendorCompleted(
   payload: {
     runId: string;
     nodeId?: string;
-    status: "succeeded" | "failed";
+    status: TaskTerminalStatus;
     assetCount: number;
     error?: VendorErrorStructured;
     cost?: ProviderCostActual;

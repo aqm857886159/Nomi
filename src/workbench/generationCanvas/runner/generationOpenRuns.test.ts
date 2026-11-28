@@ -1,4 +1,5 @@
 import i18n from '../../../i18n'
+import { normalizeCatalogTaskResults } from './catalogTaskResultParse'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { recoverNodeResult } from './recoverTaskActions'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -177,3 +178,36 @@ it('G9: admission races may ask once more but never loop or turn a machine refus
   const id=add();await confirmAndRunNode(id,{initiator:'user',resend:true,prepareDependencies:()=>true})
   expect(calls.hosting).not.toHaveBeenCalled();expect(useSpendConfirmStore.getState().requestConfirm).not.toHaveBeenCalled();expect(calls.execute).not.toHaveBeenCalled()
  })
+
+it.each(['completed', 'provider_task_failed', 'polling'] as const)('样片原单 %s 先交主进程；只按主进程的决定号重发', async (original) => {
+  const meta = { modelVendor: 'apimart', modelKey: 'doubao-seedance-2.5-sample', archetype: { id: 'seedance-2.5-apimart-sample', modeId: 't2v' } }
+  const node = store().addNode({ kind: 'video', prompt: '灯塔', meta })
+  const receipt = { id: 'draft', kind: 'text_to_video' as const, status: 'succeeded' as const, raw: {},
+    assets: [{ type: 'video' as const, url: 'draft.mp4' }],
+    provenance: { provider: 'apimart', timestamp: Date.now(), params: { extras: meta } } }
+  const [draft] = normalizeCatalogTaskResults(receipt, node)
+  const [hd] = normalizeCatalogTaskResults({ ...receipt, id: 'hd', provenance: { ...receipt.provenance, params: { extras: {
+    ...meta, archetype: { ...meta.archetype, modeId: 'sample-final' }, draft_task_id: 'draft' } } } }, node)
+  store().updateNode(node.id, { result: draft, history: original === 'completed' ? [hd, draft] : [draft], status: 'success' })
+  calls.execute.mockResolvedValue([hd])
+  if (original === 'polling') {
+    calls.open.mockResolvedValue([{ nodeId: node.id, runId: 'canvas-original', reason: 'in_flight', hasTaskId: true }])
+  } else {
+    calls.execute.mockRejectedValueOnce(new Error('node_generation_in_flight: resend_confirmation_required'))
+  }
+
+  const options = { sampleFinal: { draftTaskId: 'draft', resolution: '1080p' }, initiator: 'user' as const }
+  expect(await confirmAndRunNode(node.id, options)).toBe('started')
+  const card = vi.mocked(useSpendConfirmStore.getState().requestConfirm)
+  if (original === 'polling') {
+    expect(card).not.toHaveBeenCalled()
+    expect(calls.execute).toHaveBeenCalledOnce()
+  } else {
+    expect(card).toHaveBeenCalledTimes(1)
+    expect(card.mock.calls[0][0].confirmLabel).toBe(i18n.t(original === 'completed'
+      ? 'generationCommon.sample.secondFinal.confirm' : 'generationCommon.observability.action.releaseRegenerate.main'))
+    expect(calls.execute).toHaveBeenCalledTimes(2)
+    expect(calls.execute.mock.calls[1][1].canvasRun.resendDecisionId).toMatch(/^test-decision-/)
+  }
+  expect(store().nodes.find(candidate => candidate.id === node.id)?.result?.id).toBe(hd.id)
+})

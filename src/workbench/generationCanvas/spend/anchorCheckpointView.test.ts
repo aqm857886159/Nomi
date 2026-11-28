@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun } from '../../../../electron/shared/contracts/productionRunTypes'
 import { buildAnchorCheckpointCard } from './anchorCheckpointView'
 
 // P4 §3.2 形象确认卡投影的纯核测试：门 jobIds → 锚 job → shot(名称/reuse) + artifact(缩略图) 谱系正确、

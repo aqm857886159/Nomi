@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRunSummary } from '../../../electron/shared/contracts/productionRunTypes'
 import { buildProductionRunTaskRows, mergeProductionRunSummaries } from './productionRunTaskCenter'
 
 function summary(patch: Partial<ProductionRunSummary> = {}): ProductionRunSummary {

@@ -18,13 +18,12 @@ import { confirmAndRunNode } from '../generationCanvas/runner/generationRunContr
 // 重新拉取与节点上那颗按钮同一条路（查询，不花钱），项目身份在点击这一刻签发。
 import { recoverNodeResult } from '../generationCanvas/runner/recoverTaskActions'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
-import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
-import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'
+import { retryFailedGenerationRows, splitFailedRetries } from './retryFailedRows'
 import { buildTaskCenterView, formatElapsed, summarizeTaskCenterRows, type TaskCenterRow } from './taskCenterEntries'
 import { notify } from '../../ui/notificationPolicy'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, useFloatingOutsideDismiss } from '../../design'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
-import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRunSummary } from '../../../electron/shared/contracts/productionRunTypes'
 import { TASK_CENTER_GROUPS, type TaskCenterGroup, type TaskCenterProjection } from './taskCenterProjection'
 import { buildProductionRunTaskRows, productionRunTaskLabels } from './productionRunTaskCenter'
 import { buildExportJobTaskRows, exportJobTaskLabels } from './exportJobTaskCenter'
@@ -115,13 +114,28 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
     const batchIds = new Set(queued.filter((row): row is TaskCenterRow => row.kind === 'generation').map((row) => row.batchId))
     batchIds.forEach((batchId) => useGenerationQueueStore.getState().cancelBatchRemaining(batchId))
   }
-  // 失败重试：只对失败的重建依赖波次 → 走既有轻确认、新开一份出价（不绕付费闸），成功的不重付。
-  const failedRows = done.filter((row): row is TaskCenterRow => row.kind === 'generation' && row.action?.kind === 'retry_generation')
-  const retryAllFailed = () => {
-    void confirmAndRunPlan(
-      planCanvasGenerationScope('retry-failed', failedRows.map((row) => row.nodeId), useGenerationCanvasStore.getState()),
-      { initiator: 'user' },
-    )
+  // 失败重试：按行的种类走（普通失败重建依赖波次走批量卡；出高清失败只带样片号再出高清），成功的不重付。规矩在 retryFailedRows。
+  const failedRetries = splitFailedRetries(done)
+  const retryableFailedCount = failedRetries.regenerate.length + failedRetries.sampleFinals.length
+  const retryAllFailed = async (): Promise<void> => {
+    // 没发出去的那几镜：说在各自那一行上（和行上那颗钮失败同一个位置、同一句话）。
+    // 行是新的在前，同一节点的取最新那一行（翻过来再建 Map，后写的赢）。
+    const rowIdByNode = new Map(done.flatMap((row) => (row.kind === 'generation' ? [[row.nodeId, row.id] as const] : [])).reverse())
+    const present = (nodeId: string, error: unknown) => {
+      logRendererError('task-center-retry-all-failed', error)
+      const rowId = rowIdByNode.get(nodeId)
+      if (!rowId) return
+      notify({
+        identity: rowId, reason: 'retry_all', level: 'inline', type: 'error',
+        message: `${t('taskCenter.actionFailed')}: ${error instanceof Error ? error.message : String(error)}`,
+        present: (message) => setActionErrors((current) => ({ ...current, [rowId]: message })),
+      })
+    }
+    try {
+      for (const failure of await retryFailedGenerationRows(done)) present(failure.nodeId, failure.error)
+    } catch (error) {
+      for (const nodeId of [...failedRetries.regenerate, ...failedRetries.sampleFinals.map((entry) => entry.nodeId)]) present(nodeId, error)
+    }
   }
   const reveal = (row: TaskCenterProjection) => {
     onClose()
@@ -173,6 +187,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
       else if (action.kind === 'cancel_generation_queue') cancelQueued(row as TaskCenterRow)
       else if (action.kind === 'interrupt_generation') interruptRunning(row as TaskCenterRow)
       else if (action.kind === 'retry_generation') await confirmAndRunNode(action.nodeId, { initiator: 'user' })
+      else if (action.kind === 'retry_sample_final') await confirmAndRunNode(action.nodeId, { initiator: 'user', sampleFinal: action.sampleFinal })
       else if (row.kind === 'export_job') {
         if (!(await runExportJobTaskAction(row.action))) throw new Error('Export destination unavailable')
         if (row.action.kind === 'return_to_export') onClose()
@@ -225,8 +240,8 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
 
         <TaskCenterSummaryBar
           summary={summary}
-          retryableFailedCount={failedRows.length}
-          onRetryAllFailed={failedRows.length > 0 ? retryAllFailed : undefined}
+          retryableFailedCount={retryableFailedCount}
+          onRetryAllFailed={retryableFailedCount > 0 ? () => { void retryAllFailed() } : undefined}
           onCancelAll={cancelAllQueued}
           onResume={() => summary.pausedBatchId && useGenerationQueueStore.getState().resumeBatch(summary.pausedBatchId)}
           onCancelPaused={() =>
@@ -432,7 +447,7 @@ export function TaskRow({
               ? t('taskCenter.exportJob.revealOutput')
               : row.action.kind === 'return_to_export'
                 ? t('taskCenter.exportJob.returnToExport')
-                : row.action.kind === 'retry_generation'
+                : row.action.kind === 'retry_generation' || row.action.kind === 'retry_sample_final'
               ? t('taskCenter.row.retry')
               : row.action.kind === 'recover_generation'
                 ? t('generationCommon.production.runAction.retry-retrieval')
