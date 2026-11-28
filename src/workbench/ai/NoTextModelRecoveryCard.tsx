@@ -1,12 +1,13 @@
 // 「创作助手缺文本模型」指路与一键自愈卡（O1c-agent entry.agent-pointer + entry.kept-recovery）：
 //
 // 触发：目录里没有任何可用 text 模型（ProjectAgentResidentShell 用 useHasTextModel 判定 hasTextModel === false 时挂载）。
+// 面板顶栏（AgentPanelV4Panel header）已独占唯一 Nomi 品牌身份头，卡片自身不再重复渲染身份行。
 //
 // 两条分支共用同一处单一真相源（P1 不拆两套）：
 // 1. 存在「供应商已存 Key、只是文本模型被关掉」的可恢复大脑（entry.kept-recovery）：
 //    优先给「启用 {{model}}」一键恢复主按钮 +「连接模型」次按钮。
 // 2. 全新未连模型（无已存 Key 的可恢复文本模型，O1c-agent entry.agent-pointer）：
-//    遵守 §P5「一个东西一个家、Agent 只指路」——只放静态身份行、两句人话说明与可点击指路卡「连接 APIMart」，
+//    遵守 §P5「一个东西一个家、Agent 只指路」——只放两句人话说明与可点击指路卡「连接 APIMart」，
 //    点一下直接打开整窗「连接 APIMart」大页（openApimartConnect），绝不在聊天流内塞配置表单。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +16,6 @@ import { cn } from '../../utils/cn'
 import { WorkbenchButton } from '../../design'
 import { openApimartConnect } from '../../ui/onboarding/apimartConnectRoute'
 import { pickRecoverableAssistantBrain, type RecoverableTextBrain } from './assistantModelIdentity'
-import { NomiIdentityRow } from './NomiIdentityRow'
 import {
   listWorkbenchModelCatalogModels,
   listWorkbenchModelCatalogVendors,
@@ -90,7 +90,6 @@ export function NoTextModelRecoveryCard({
   if (state === 'done') {
     return (
       <div className={cn('w-full max-w-full self-start')} data-role="assistant" data-recovery="no-text-model">
-        <NomiIdentityRow />
         <div className={cn('flex items-start gap-2 rounded-nomi border border-nomi-line bg-nomi-ink-05 p-3')}>
           <IconCheck size={16} className={cn('mt-0.5 shrink-0 text-nomi-ink-80')} />
           <div className={cn('flex flex-col gap-1')}>
@@ -109,7 +108,6 @@ export function NoTextModelRecoveryCard({
   if (recoverable) {
     return (
       <div className={cn('w-full max-w-full self-start')} data-role="assistant" data-recovery="no-text-model">
-        <NomiIdentityRow />
         <div className={cn('flex flex-col gap-3 rounded-nomi border border-nomi-line p-3')}>
           <div className={cn('flex items-start gap-2')}>
             <IconBulb size={18} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} />
@@ -149,11 +147,10 @@ export function NoTextModelRecoveryCard({
 
   return (
     <div
-      className="flex w-full max-w-full flex-col gap-2 self-start pt-1"
+      className="flex w-full max-w-full flex-col gap-2 self-start pt-0.5"
       data-role="assistant"
       data-agent-pointer="apimart"
     >
-      <NomiIdentityRow />
       <p className="m-0 text-body leading-[22px] text-nomi-ink">
         {t('onboardingProviders.entries.agentPointerBody')}
       </p>

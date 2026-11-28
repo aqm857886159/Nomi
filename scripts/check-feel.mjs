@@ -50,8 +50,9 @@ for (const file of ['tests/ux/feel-baseline.json', 'tests/ux/feel-exemptions.jso
   // Initial reviewed evidence is permitted; subsequent merge-base entries can only shrink.
 }
 const scanner = fs.readFileSync('tests/ux/_feel.mjs', 'utf8')
-if (/^import\s/m.test(scanner) || /data-testid|react-flow|nomi|agent-panel/i.test(scanner)) {
-  throw new Error('Feel scanner must be independent of product imports/selectors')
+const observer = fs.readFileSync('tests/ux/_feel-observer.mjs', 'utf8')
+if (/^import\s/m.test(scanner) || /data-testid|react-flow|nomi|agent-panel/i.test(scanner) || /data-testid|react-flow|nomi|agent-panel/i.test(observer)) {
+  throw new Error('Feel scanner and observer must be independent of product imports/selectors')
 }
 const catalog = read('tests/ux/journeys/catalog.json')
 for (const journey of catalog.journeys) {
