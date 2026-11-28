@@ -9,19 +9,29 @@ import { clampAgentRetryCount, TELEMETRY_IDENTIFIER_PATTERN, type AgentFaultCate
 import { laneAssistantFaultOf, laneOutputTruncatedOf, laneVendorFailureText } from '../shared/agentLane/laneAssistantFault.js';
 import { parseVendorErrorFromMessage } from '../shared/generationFailureWire.js';
 import { BALANCE_CLASSIFIER_MARKER } from './laneProviderGuard.mjs';
-import type { LaneToolFailureEvent, LaneTurnCompletedEvent } from './laneRuntimePort.js';
+import type { LaneToolFailureEvent, LaneTurnCompletedEvent, OpenLaneOptions } from './laneRuntimePort.js';
 import { LANE_RUN_FAILED, LANE_TRACE_NOTE, laneErrorKind, traceSafeValue, writeLaneTrace, type LaneTraceRun } from './laneTrace.mjs';
 
-export type LaneTraceFailureSink = {
-  bind(handler: (event: LaneToolFailureEvent) => void): void;
-  wrap(next?: (event: LaneToolFailureEvent) => void): (event: LaneToolFailureEvent) => void;
+export type LaneTraceBridge = {
+  readonly pricing: NomiPricingBasis;
+  readonly options: Pick<OpenLaneOptions, 'model' | 'onToolFailure' | 'onTurnCompleted'>;
+  readonly isTurnOver: () => boolean;
+  readonly bindFailure: (handler: (event: LaneToolFailureEvent) => void) => void;
+  readonly onFailure: (event: LaneToolFailureEvent) => void;
 };
 
-export function createLaneTraceFailureSink(): LaneTraceFailureSink {
+export function createLaneTraceBridge(
+  options: Pick<OpenLaneOptions, 'model' | 'onToolFailure' | 'onTurnCompleted'>,
+  pricing: NomiPricingBasis,
+  turn: { isOver: () => boolean },
+): LaneTraceBridge {
   let listener: ((event: LaneToolFailureEvent) => void) | undefined;
   return {
-    bind: (handler) => { listener = handler; },
-    wrap: (next) => (event) => { listener?.(event); next?.(event); },
+    pricing,
+    options,
+    isTurnOver: () => turn.isOver(),
+    bindFailure: (handler) => { listener = handler; },
+    onFailure: (event) => { listener?.(event); options.onToolFailure?.(event); },
   };
 }
 
@@ -36,13 +46,20 @@ export function refreshLiveLaneTrace(sessionPath: string): Promise<string> | und
 }
 export function attachLaneTrace(input: {
   harness: AgentHarness; session: Session<JsonlSessionMetadata>;
-  pricing: NomiPricingBasis; secrets: readonly string[]; model: LaneTraceRun['model'];
-  failureSink?: LaneTraceFailureSink;
+  pricing?: NomiPricingBasis; secrets?: readonly string[]; model?: LaneTraceRun['model'];
+  runtimeBridge?: LaneTraceBridge;
   isTurnOver?: () => boolean;
   isContextOverflow?: (message: never) => boolean;
   onTurnCompleted?: (event: LaneTurnCompletedEvent) => void;
 }) {
-  const { harness, session, pricing, secrets, model } = input;
+  const { harness, session } = input;
+  const bridge = input.runtimeBridge;
+  const pricing = input.pricing ?? bridge?.pricing ?? 'unpriced';
+  const model = input.model ?? { provider: bridge?.options.model.providerId ?? '', model: bridge?.options.model.modelId ?? '' };
+  const secrets = input.secrets ?? [bridge?.options.model.apiKey ?? '', ...Object.values(bridge?.options.model.headers ?? {})];
+  const onTurnCompleted = input.onTurnCompleted ?? bridge?.options.onTurnCompleted;
+  const isTurnOver = input.isTurnOver ?? bridge?.isTurnOver;
+  const isContextOverflow = input.isContextOverflow;
   const starts = new Map<string, number>();
   const tools = new Map<string, { started: number; runId: string; durationMs?: number; failureCode?: string }>();
   const pendingFailuresByTool = new Map<string, string[]>();
@@ -77,7 +94,7 @@ export function attachLaneTrace(input: {
     list.push(code);
     pendingFailuresByTool.set(toolName, list);
   };
-  input.failureSink?.bind((event) => noteToolFailure(event.toolName, event.code, undefined, event.breakerTripped));
+  bridge?.bindFailure((event) => noteToolFailure(event.toolName, event.code, undefined, event.breakerTripped));
   let tail = Promise.resolve();
   const enqueue = (work: () => Promise<void>) => {
     tail = tail.then(work).catch(() => {
@@ -133,16 +150,16 @@ export function attachLaneTrace(input: {
     }),
     harness.events.on('message_end', event => {
       if (event.message.role !== 'assistant' || !event.runId) return;
-      const fault = assistantFaultCategory(event.message, Boolean(input.isContextOverflow?.(event.message as never)));
+      const fault = assistantFaultCategory(event.message, Boolean(isContextOverflow?.(event.message as never)));
       if (fault) ensureTurnState(event.runId).lastAssistantFault = fault;
     }),
     harness.events.on('run_end', event => {
       pendingFailuresByTool.clear();
       const turnState = turnTelemetry.get(event.runId);
       turnTelemetry.delete(event.runId);
-      if (input.onTurnCompleted) {
+      if (onTurnCompleted) {
         const durationMs = Math.max(0, event.endedAt - (turnState?.startedAt ?? event.endedAt));
-        const breakerTripped = Boolean(turnState?.breakerTripped || input.isTurnOver?.());
+        const breakerTripped = Boolean(turnState?.breakerTripped || isTurnOver?.());
         let result: TelemetryResult = 'success';
         let faultCategory: AgentFaultCategory | undefined;
         if (breakerTripped) {
@@ -154,7 +171,7 @@ export function attachLaneTrace(input: {
           result = 'failure';
           faultCategory = turnState?.lastAssistantFault ?? (turnState?.hadToolError ? 'tool_refused' : 'other');
         }
-        input.onTurnCompleted({
+        onTurnCompleted({
           result,
           durationMs,
           toolCallCount: turnState?.toolCallCount ?? 0,
