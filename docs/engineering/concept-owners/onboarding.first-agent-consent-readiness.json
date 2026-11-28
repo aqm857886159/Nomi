@@ -1,0 +1,37 @@
+{
+  "name": "首次遥测询问卡准入时机（首次生成或首轮对话完成后只问一次）",
+  "subject": "onboarding.first-agent-consent-readiness",
+  "lifecycle": "session",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/onboarding/onboardingState.ts",
+    "symbol": "canAskFirstAgentConsent"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "canAskFirstAgentConsent"
+    },
+    {
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "markFirstAgentTurnCompleted"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "V4ConsentCard"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/v4/AgentPanelV4Consent.test.tsx",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/AgentPanelV4Empty.tsx",
+    "src/workbench/onboarding/onboardingProgress.ts",
+    "src/devlab/designLab/v4/states/08-consent.tsx",
+    "src/devlab/designLab/noAccentOutline/noAccentOutlineLabKit.tsx"
+  ],
+  "since": "2026-11-28",
+  "notes": "UX-A4：首次遥测询问卡的准入判断统一收口于 onboardingState.canAskFirstAgentConsent()，只在未问过且完成首次生成（checklist.generated）、首轮 Agent 对话（markFirstAgentTurnCompleted）或存在历史多线程时开放；V4ConsentCard 强制消费该唯一谓词并监听同窗同步事件与 storage 事件，保留 design lab 的 force 覆写与已同意旧范围老用户的 scope 再确认链路。设计卡 docs/plan/2026-11-28-ux-a4-defer-first-telemetry-consent.md，合同 docs/fixes/2026-11-28-ux-a4-defer-telemetry-consent.root-cause.json。"
+}

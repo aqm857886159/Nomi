@@ -1,5 +1,7 @@
 // 上手 4 步的进度（顶栏设置钮上的点 + 设置「通用」里那块清单共用这一份）。说明见 OnboardingChecklist.tsx 文件头。
 import React from 'react'
+import type { LaneWorkspaceProjection } from '../../../electron/shared/agentLane/laneContracts'
+import { laneClient } from '../ai/lane/laneClient'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useHasTextModel } from '../library/useHasTextModel'
@@ -12,7 +14,24 @@ import {
   isChecklistDismissed,
   markChecklistDismissed,
   isChecklistExpired,
+  hasCompletedFirstAgentTurn,
+  markFirstAgentTurnCompleted,
 } from './onboardingState'
+
+/**
+ * 当前工作区是否已经具备「已完成过 Agent 对话」的真实里程碑：
+ * - 项目已存在多条历史线程（新建空白项目仅含默认单条 `main` 线程，不算）；或
+ * - 当前线程非运行态且已落定至少一条完整助手回复（排除流式输出中与被打断的半句）。
+ */
+export function hasSettledAgentConversation(
+  snapshot: Pick<LaneWorkspaceProjection, 'lanes' | 'active'>,
+): boolean {
+  if (snapshot.lanes.length > 1) return true
+  if (snapshot.active.running) return false
+  return snapshot.active.parts.some(
+    (part) => part.kind === 'assistant-text' && !part.streaming && !part.interrupted,
+  )
+}
 
 const ALL_KEYS: ChecklistStep[] = ['model', 'storyboard', 'generated', 'exported']
 /** 两处（顶栏的点、设置里的清单）各挂一个 hook；一处「不再提示」靠这条事件让另一处同一刻对齐。 */
@@ -57,6 +76,17 @@ export function useOnboardingProgress(): OnboardingProgress {
     }
     if (changed) setPersisted(readChecklist())
   }, [live, persisted])
+
+  // 监听 Agent lane 投影（不触发顶栏重渲染）：完成首轮对话或存在多条历史线程时落盘里程碑并广播同步事件。
+  React.useEffect(() => {
+    const observe = (snapshot: LaneWorkspaceProjection): void => {
+      if (!hasCompletedFirstAgentTurn() && hasSettledAgentConversation(snapshot)) {
+        markFirstAgentTurnCompleted()
+      }
+    }
+    observe(laneClient.workspace())
+    return laneClient.subscribe(observe)
+  }, [])
 
   React.useEffect(() => {
     const sync = () => {
