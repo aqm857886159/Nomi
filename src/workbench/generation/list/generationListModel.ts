@@ -13,6 +13,7 @@
 import type { ModelOption } from '../../../config/models'
 import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../../generationCanvas/model/generationCanvasTypes'
 import { getNodeSurfaceContract } from '../../generationCanvas/nodes/nodeSurfaceContract'
+import { docToPlainText } from '../../generationCanvas/runner/textGenerationDocument'
 import type { StoryboardDesign } from '../../workbenchTypes'
 import { isVisualAnchor } from '../../generationCanvas/agent/storyboardPromptCompiler'
 import {
@@ -89,11 +90,13 @@ type GenerationListInput = {
   videoModelOptions: readonly ModelOption[]
 }
 
-/** 行状态词表只认媒体结果；文本节点的「结果」是它写出来的那段字。 */
+/** 行状态词表默认只认媒体 URL；文本正文（contentJson）或语音转写文本（result.text）已有内容时均视为已完成。 */
 function listNodeStatus(node: GenerationCanvasNode): ShotRowStatus {
   const status = deriveNodeRowExec(node).status
-  if (status !== 'ready' || node.kind !== 'text') return status
-  return node.result?.text?.trim() ? 'done' : status
+  if (status !== 'ready') return status
+  if (node.result?.text?.trim()) return 'done'
+  if (node.kind === 'text' && docToPlainText(node.contentJson).trim()) return 'done'
+  return status
 }
 
 function nodeCard(node: GenerationCanvasNode, referenceNodeIds: string[]): GenerationListCard {

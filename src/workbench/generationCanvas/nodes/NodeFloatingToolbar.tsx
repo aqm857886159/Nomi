@@ -47,7 +47,7 @@ function InlineStageToolbarFrame({ ariaLabel, nodeId, children, toolbarRef }: Fl
     <div
       ref={(element) => { if (toolbarRef) toolbarRef.current = element }}
       className={cn(
-        'my-2 flex w-full flex-wrap items-center justify-center gap-1 min-h-9 px-2 py-1',
+        'my-2 mx-auto inline-flex w-fit max-w-full flex-wrap items-center justify-center gap-1 min-h-9 px-1.5 py-1',
         'border border-nomi-line rounded-nomi bg-nomi-paper shadow-nomi-sm',
       )}
       data-node-floating-toolbar="true"

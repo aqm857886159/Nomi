@@ -347,9 +347,8 @@ function NodeStageSurfaceBody({
             'relative mx-auto w-full',
             renderKind === 'audio-strip'
               ? hasFailureOverlay ? 'min-h-[200px]' : 'h-[88px]'
-              : 'min-h-[240px] max-w-[360px]',
+              : hasFailureOverlay ? 'min-h-[200px]' : 'min-h-[96px]',
           )}
-          style={renderKind === 'audio-strip' ? undefined : detailFrameStyle}
           data-list-detail-preview
         >
           <NodeFailureReport node={node} onFeedback={onFeedback} />
