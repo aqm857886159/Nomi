@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import type { AdapterAuthType } from "./types";
 import type { ProviderAdapterRegisterInput } from "./service";
 import {
@@ -6,8 +6,32 @@ import {
   type ConnectionCertificationService,
 } from "../integrationCertification/service";
 import { runLiveProviderAdapterHarnessFromEnv } from "./liveHarness";
+import { getDesktopLocale } from "../desktopLocale";
+import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
+import type { ModelClass, OnboardingFailReason, OnboardingStep } from "../shared/contracts/telemetry";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
+
+function providerClassOfConnection(baseUrl: string): ModelClass {
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" ? "local" : "custom";
+  } catch {
+    return "custom";
+  }
+}
+
+function recordAdapterOnboardingSafe(step: OnboardingStep, providerClass: ModelClass, failReason?: OnboardingFailReason): void {
+  try {
+    const version = typeof app?.getVersion === "function" ? app.getVersion() : "0.0.0";
+    recordTelemetryEvent({
+      eventName: "onboarding.step",
+      props: { step, providerClass, ...(step === "verify_failed" ? { failReason: failReason ?? "other" } : {}) },
+    }, version, getDesktopLocale());
+  } catch {
+    /* ignore in isolated unit-test harnesses */
+  }
+}
 
 function adapterConnectionInput(payload: unknown): ProviderAdapterRegisterInput {
   const raw = (payload || {}) as Record<string, unknown>;
@@ -51,10 +75,16 @@ function adapterConnectionInput(payload: unknown): ProviderAdapterRegisterInput 
 export function registerProviderAdapterIpc(service: ConnectionCertificationService = getConnectionCertificationService()): void {
   ipcMain.handle("nomi:integration-certification:http:configure", async (event, payload: unknown) => {
     assertTrustedSender(event);
+    const input = adapterConnectionInput(payload);
+    const providerClass = providerClassOfConnection(input.baseUrl);
+    recordAdapterOnboardingSafe("key_submitted", providerClass);
     try {
-      return { ok: true, registration: service.configureHttpConnection(adapterConnectionInput(payload)) };
+      const registration = service.configureHttpConnection(input);
+      recordAdapterOnboardingSafe("verify_succeeded", providerClass);
+      return { ok: true, registration };
     } catch (error) {
       void error;
+      recordAdapterOnboardingSafe("verify_failed", providerClass, !/^https?:\/\//i.test(input.baseUrl) ? "invalid_format" : "other");
       return { ok: false, code: "START_FAILED", error: "Connection configuration failed" };
     }
   });

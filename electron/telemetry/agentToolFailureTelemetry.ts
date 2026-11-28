@@ -5,11 +5,27 @@
 // 这里把它压成五格标识符——不带入参、不带正文、不带模型 id。
 import { builtinVendorKeyOfKey } from '../shared/builtinVendorIdentity'
 import { builtinVendorSeed, isLocalSeed } from '../catalog/builtinVendorSeeds'
-import { TELEMETRY_IDENTIFIER_PATTERN, type AgentToolFailedProps, type ModelClass } from './telemetryEvents'
+import {
+  AGENT_FAULT_CATEGORIES, agentToolCallsBucket, clampAgentRetryCount,
+  type AgentFaultCategory, type TelemetryResult,
+} from '../shared/contracts/telemetry'
+import {
+  durationBucket, TELEMETRY_IDENTIFIER_PATTERN,
+  type AgentToolFailedProps, type AgentTurnCompletedProps, type ModelClass,
+} from './telemetryEvents'
 import { isGenerationProblemCode } from '../shared/generationProblem'
 
 /** `reason` = 起草期被拒的闭合原因码（`generationProblem.ts`），只有 `generation_input_invalid` 那一档才有。 */
 export type AgentToolFailureFact = Readonly<{ toolName: string; code: string; attempt: number; breakerTripped: boolean; reason?: string }>
+
+export type AgentTurnCompletedFact = Readonly<{
+  result: TelemetryResult
+  durationMs: number
+  toolCallCount: number
+  retryCount: number
+  breakerTripped: boolean
+  faultCategory?: AgentFaultCategory
+}>
 
 /**
  * 模型只到「种类」：内置云端家 = builtin，种子在本机的内置家 = local，其余（用户自建 / 中转）= custom。
@@ -36,5 +52,26 @@ export function agentToolFailedProps(fact: AgentToolFailureFact, input: Readonly
     toolName, failureCode, attempt, breakerTripped: fact.breakerTripped, modelClass: modelClassOfVendor(input.vendorKey),
     // 不在码表里的原因不记（宁可少一格，也不让一个表外字符串出门）。
     ...(isGenerationProblemCode(fact.reason) ? { reason: fact.reason } : {}),
+  }
+}
+
+const FAULT_CATEGORY_SET = new Set<string>(AGENT_FAULT_CATEGORIES)
+
+/** Agent 一回合结算 → 匿名遥测属性（含总分母与 retryCount===0 一次做对率）。 */
+export function agentTurnCompletedProps(
+  fact: AgentTurnCompletedFact,
+  input: Readonly<{ vendorKey?: string }>,
+): AgentTurnCompletedProps {
+  const faultCategory: AgentFaultCategory = fact.faultCategory && FAULT_CATEGORY_SET.has(fact.faultCategory)
+    ? fact.faultCategory
+    : 'other'
+  return {
+    result: fact.result,
+    durationBucket: durationBucket(fact.durationMs),
+    modelClass: modelClassOfVendor(input.vendorKey),
+    toolCallsBucket: agentToolCallsBucket(fact.toolCallCount),
+    retryCount: clampAgentRetryCount(fact.retryCount),
+    breakerTripped: Boolean(fact.breakerTripped),
+    ...(fact.result === 'failure' ? { faultCategory } : {}),
   }
 }

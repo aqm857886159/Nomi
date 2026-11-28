@@ -80,6 +80,18 @@
   "registered": [
     {
       "members": [
+        "first_generation_succeeded",
+        "key_submitted",
+        "prompt_shown",
+        "setup_opened",
+        "verify_failed",
+        "verify_succeeded"
+      ],
+      "reason": "新手模型接入漏斗（onboarding.step）的唯一跨端闭合步骤词表，由渲染层引导入口、主进程遥测白名单与 intake-radar 聚合共用；它度量激活漏斗离散节点，与后台任务或适配器运行生命周期状态机语义不同。",
+      "site": "electron/shared/contracts/telemetry.ts::variable:ONBOARDING_STEPS/as-const"
+    },
+    {
+      "members": [
         "completed",
         "prepared",
         "verified"

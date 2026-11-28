@@ -39,7 +39,7 @@ import { bindLaneProjectSession } from './laneProjectSession'
 import { measureProjectOpenMainStage } from '../projects/projectOpenTimeline'
 import { app } from 'electron'
 import { recordTelemetryEvent } from '../telemetry/telemetryOutbox'
-import { agentToolFailedProps } from '../telemetry/agentToolFailureTelemetry'
+import { agentToolFailedProps, agentTurnCompletedProps } from '../telemetry/agentToolFailureTelemetry'
 
 /** 选中技能 → 提示词。唯一注入点在岛上（pi 的 `formatSkillInvocation`），这里只是桥（形状手抄，理由见 `feedbackIpc.ts:57`）。 */
 function renderSelectedSkillPrompt(skill: SkillRecord): Promise<string> {
@@ -198,6 +198,10 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
           // 工具失败的匿名计数（没开遥测时 `recordTelemetryEvent` 一条都不入队）：五格标识符 + 可选的闭合原因码，不带入参与正文。
           onToolFailure: (failure) => {
             recordTelemetryEvent({ eventName: 'agent.tool.failed', props: agentToolFailedProps(failure, { vendorKey: selected?.model.vendorKey }) },
+              app.getVersion(), getDesktopLocale())
+          },
+          onTurnCompleted: (turn) => {
+            recordTelemetryEvent({ eventName: 'agent.turn.completed', props: agentTurnCompletedProps(turn, { vendorKey: selected?.model.vendorKey }) },
               app.getVersion(), getDesktopLocale())
           },
           tasks: tasks.resolve,

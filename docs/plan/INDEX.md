@@ -527,6 +527,7 @@
 - [2026-09-25-asset-library-and-media-load-fixes](2026-09-25-asset-library-and-media-load-fixes.md)
 - [2026-09-25-canvas-follow-hand](2026-09-25-canvas-follow-hand.md)
 - [2026-10-05-comprehensive-experience-acceptance](2026-10-05-comprehensive-experience-acceptance.md)
+- [2026-11-28-product-telemetry-funnel-v2](2026-11-28-product-telemetry-funnel-v2.md)
 - [README](agent-lane-b1-evidence/README.md)
 - [README](agent-lane-b1b-evidence/README.md)
 - [README](agent-lane-b1c-evidence/README.md)
