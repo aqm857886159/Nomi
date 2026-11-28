@@ -58,6 +58,13 @@ export const POSITIVE_SPEND_CLAIMS = Object.freeze({
  * 值换成别的（带数字、带断言）照样红，不放宽别的词条。
  */
 export const COST_LABEL_EXACT = Object.freeze({
+  // Approved ModelSurfaces account and usage labels. Only these exact localized facts are permitted.
+  'settings.modelsHome.credits': Object.freeze({ 'zh-CN': '{{amount}} 积分', en: '{{amount}} credits' }),
+  'settings.modelsHome.topup': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
+  'settings.modelsHome.usageTitle': Object.freeze({ 'zh-CN': '用量与单价', en: 'Usage & prices' }),
+  'settings.modelsHome.receipt': Object.freeze({ 'zh-CN': '仅统计本机项目中的成功生成。缺少积分收据时显示待结算。', en: 'Includes successful generations in local projects. Missing credit receipts appear as pending.' }),
+  'settings.modelsHome.imageUnit': Object.freeze({ 'zh-CN': '≈{{amount}} 积分/张', en: '≈{{amount}} credits/image' }),
+  'settings.modelsHome.videoUnit': Object.freeze({ 'zh-CN': '≈{{amount}} 积分/秒', en: '≈{{amount}} credits/second' }),
   'runtime.capability.generationGateCost': Object.freeze({ 'zh-CN': '费用', en: 'Cost' }),
   // 发送键上的公开约价与余额不足缺额（板 ModelSurfaces cost.send-pill / cost.hover / cost.low-balance）：每个键只认这一句。
   'generationCommon.composer.sendCost.estimate': Object.freeze({ 'zh-CN': '这次约 {{value}} 积分（{{usd}}）。按 APIMart 公开价估，出完按 APIMart 实际扣费记。', en: 'About {{value}} credits ({{usd}}) this time. Estimated at the APIMart public rate; recorded at the actual APIMart charge once done.' }),

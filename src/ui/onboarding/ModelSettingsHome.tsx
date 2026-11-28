@@ -1,27 +1,22 @@
-import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import React, { type JSX } from 'react'
-import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
-import {
-  IconChevronDown,
-  IconChevronRight,
-  IconCloud,
-  IconCode,
-  IconPlugConnected,
-  IconServerBolt,
-} from '@tabler/icons-react'
+import { IconChevronRight, IconPlugConnected } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import { CatalogPackageActions, CatalogStatusNotices } from './ModelCatalogNotices'
-import type { ModelCatalogReadOnlyDto } from '../../workbench/api/modelCatalogApi'
-
-import { DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage } from '../../design'
-import { translateModelDisplayText } from '../../i18n/modelDisplayText'
+import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
+import { getDesktopBridge } from '../../desktop/bridge'
+import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
+import { confirmDialog, DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage, WORKBENCH_BUTTON_PRIMARY_CLASS } from '../../design'
 import { cn } from '../../utils/cn'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
+import type { ModelCatalogReadOnlyDto } from '../../workbench/api/modelCatalogApi'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
-import { consumePendingModelNetworkScroll } from './apimartConnectRoute'
+import { openApimartConnect } from './apimartConnectRoute'
+import { ModelAccountCard } from './ModelAccountCard'
+import { MODEL_ENTRY_HEAD_CLASS, MODEL_ENTRY_ROW_CLASS, ModelEntryChevron, ModelEntryIcon, ModelEntryText } from './ModelEntryRow'
+import { CatalogStatusNotices } from './ModelCatalogNotices'
 import type { ChipModel } from './ModelChipGroups'
 import { ModelStatusMark } from './ModelStatusMark'
-import { presentStatusCount } from '../../../electron/shared/modelStatusPresentation'
-import { connectionHomeStatus, countModelHomeStates, useModelStatusLabel } from './modelSettingsHomeState'
+import { connectionHomeStatus } from './modelSettingsHomeState'
+import { QuotedUiNames } from './QuotedUiNames'
 
 export type ModelSettingsHomeConnection = {
   vendorKey: string
@@ -56,489 +51,112 @@ function ConnectionMark({ connection }: { connection: ModelSettingsHomeConnectio
   )
 }
 
-function SectionHeading({ title, aside }: { title: string; aside?: string }): JSX.Element {
-  return (
-    <div className="mb-2 flex min-h-5 items-center justify-between gap-3">
-      <h3 className="text-caption font-semibold text-nomi-ink-60">{title}</h3>
-      {aside ? <span className="text-micro text-nomi-ink-40">{aside}</span> : null}
-    </div>
-  )
-}
+const BANNER_SEEN = 'nomi:model-settings:legacy-notice:v1'
 
-function RowGroup({ children }: { children: React.ReactNode }): JSX.Element {
-  return (
-    <div className="overflow-hidden rounded-nomi-sm bg-nomi-ink-05 [&>*+*]:border-t [&>*+*]:border-nomi-line-soft">
-      {children}
-    </div>
-  )
-}
-
-function ActionRow({
-  icon,
-  title,
-  hint,
-  end,
-  badge,
-  onClick,
-  expanded,
-  dataMarker,
-  directScript = false,
-  highlighted = false,
-}: {
-  icon: React.ReactNode
-  title: string
-  hint: string
-  end?: string
-  badge?: string
-  onClick: () => void
-  expanded?: boolean
-  dataMarker?: string
-  directScript?: boolean
-  /** 「或：手动接入 →」把人送到这一行时的一次性描边（不是常驻状态）。 */
-  highlighted?: boolean
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={expanded}
-      data-model-home-action={dataMarker}
-      data-model-home-direct-script={directScript ? '' : undefined}
-      data-model-home-highlighted={highlighted ? '' : undefined}
-      className={cn(
-        'group flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-nomi-ink-10',
-        highlighted && 'ring-1 ring-inset ring-nomi-ink-40',
-      )}
-    >
-      <span className="grid size-7 shrink-0 place-items-center rounded-nomi-sm bg-nomi-ink-05 text-nomi-ink-60">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-caption font-semibold text-nomi-ink">{title}</span>
-          {badge ? (
-            <span className="rounded-full bg-nomi-accent-soft px-2 py-0.5 text-micro font-semibold text-nomi-accent">
-              {badge}
-            </span>
-          ) : null}
-        </span>
-        <span className="mt-0.5 block text-micro leading-relaxed text-nomi-ink-40">{hint}</span>
-      </span>
-      {end ? <span className="shrink-0 text-micro text-nomi-ink-40">{end}</span> : null}
-      {expanded === undefined ? (
-        <IconChevronRight size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
-      ) : (
-        <IconChevronDown
-          size={15}
-          stroke={1.7}
-          className={cn('shrink-0 text-nomi-ink-30 transition-transform', expanded && 'rotate-180')}
-          aria-hidden="true"
-        />
-      )}
-    </button>
-  )
-}
-
-function AvailableConnectionRow({
-  connection,
-  title,
-  hint,
-  badge,
-  end,
-}: {
-  connection: ModelSettingsHomeConnection
-  title?: string
-  hint: string
-  badge?: string
-  end?: string
-}): JSX.Element {
-  const displayName = translateModelDisplayText(connection.name)
-  return (
-    <button
-      type="button"
-      onClick={connection.onOpen}
-      data-model-home-available={connection.vendorKey}
-      className="group flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-nomi-ink-10"
-    >
-      <ConnectionMark connection={connection} />
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-caption font-semibold text-nomi-ink">{title ?? displayName}</span>
-          {badge ? (
-            <StatusBadge className="normal-case" tone="info">
-              {badge}
-            </StatusBadge>
-          ) : null}
-        </span>
-        <span className="mt-0.5 block text-micro leading-relaxed text-nomi-ink-40">{hint}</span>
-      </span>
-      {end ? <span className="shrink-0 text-micro text-nomi-ink-40">{end}</span> : null}
-      <IconChevronRight size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
-    </button>
-  )
-}
-
-/**
- * 已连入的一行。行尾的状态只说本机事实（有 key、有请求格式、没手动关），和连接详情卡头取同一个投影
- * （connectionHomeStatus）。这里曾经还探一次网络、把「连不上」压在模型统计上面——那套健康检查按
- * D-1117-delete-verification 整个删了：错地址等第一次真生成在节点上报错。
- */
-function ConnectedRow({ connection }: { connection: ModelSettingsHomeConnection }): JSX.Element {
-  const { t } = useTranslation()
-  const displayName = translateModelDisplayText(connection.name)
-  const status = connectionHomeStatus(connection)
-
-  return (
-    <button
-      type="button"
-      onClick={connection.onOpen}
-      data-model-home-connection={connection.vendorKey}
-      className="group flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-nomi-ink-10"
-    >
-      <ConnectionMark connection={connection} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-caption font-semibold text-nomi-ink">{displayName}</span>
-        <span className="mt-0.5 block text-micro leading-relaxed text-nomi-ink-40">
-          {connection.auxiliaryCounts
-            ? t('antigravity.catalogSummary', { count: connection.models.length, ...connection.auxiliaryCounts })
-            : t('onboardingProviders.drawer.home.connectionSummary', { count: connection.models.length })}
-        </span>
-      </span>
-      <ModelStatusMark status={status} variant="row" />
-      <IconChevronRight size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 group-hover:text-nomi-accent" aria-hidden="true" />
-    </button>
-  )
-}
-
-function ConnectedRows({
-  connections,
-  search,
-}: {
+type Props = {
+  accounts: ModelSettingsHomeConnection[]
+  previous: ModelSettingsHomeConnection[]
   connections: ModelSettingsHomeConnection[]
-  search: string
-}): JSX.Element | null {
-  const normalizedSearch = search.trim().toLocaleLowerCase()
-  const filtered = connections.filter((connection) => {
-    if (!normalizedSearch) return true
-    return `${connection.name} ${translateModelDisplayText(connection.name)}`.toLocaleLowerCase().includes(normalizedSearch) || connection.models.some((model) => (
-      `${model.labelZh} ${model.modelKey}`.toLocaleLowerCase().includes(normalizedSearch)
-    ))
-  })
-  if (filtered.length === 0) return null
-
-  return (
-    <RowGroup>
-      {filtered.map((connection) => (
-        <ConnectedRow key={connection.vendorKey} connection={connection} />
-      ))}
-    </RowGroup>
-  )
-}
-
-function availableHint(connection: ModelSettingsHomeConnection, t: ReturnType<typeof useTranslation>['t']): string {
-  // #831：身份按 root 问，别比 key 字面量——`apimart--mini` 这类兄弟连接也是 APIMart，
-  // 比字面量会让用户新建的特价组丢掉说明文字与「推荐」徽章（症状：接了，但看起来像个陌生家）。
-  const root = builtinVendorKeyOfKey(connection.vendorKey)
-  if (root === 'apimart') return t('onboardingProviders.drawer.home.apimartHint')
-  if (root === 'kie') return t('onboardingProviders.drawer.home.kieHint')
-  if (root.startsWith('comfyui')) return t('onboardingProviders.drawer.home.comfyuiHint')
-  if (root === 'dreamina-member') return t('onboardingProviders.drawer.home.dreaminaHint')
-  if (connection.vendorKey === 'codex-local') return t('onboardingProviders.drawer.home.codexImageHint')
-  if (connection.vendorKey === 'antigravity-cli') return t('antigravity.subtitle')
-  const name = translateModelDisplayText(connection.name)
-  // 有几个预置模型就说几个；一个都没有就别说「已有…模型」——Replicate 这类走 bespoke 调用的家
-  // 预置数就是 0，旧文案在那一行等于对用户说了句假话（D4 诚实交付）。
-  return connection.models.length > 0
-    ? t('onboardingProviders.drawer.home.adaptedHintWithCount', { name, count: connection.models.length })
-    : t('onboardingProviders.drawer.home.adaptedHintNoModels', { name })
-}
-
-export function ModelSettingsHome({
-  connections,
-  availableConnections,
-  loaded,
-  bridgeMissing,
-  loadError,
-  readOnly,
-  taskCount,
-  adapterRuns = [],
-  taskContent,
-  diagnostic,
-  networkContent,
-  dataSourceContent,
-  availableFooter,
-  onReload,
-  onCustomApi,
-  onDirectScript,
-  onImported,
-}: {
-  connections: ModelSettingsHomeConnection[]
-  availableConnections: ModelSettingsHomeConnection[]
   loaded: boolean
   bridgeMissing: boolean
-  /** 这一次读为什么失败；非空时列表里仍是上一份数据，不是空目录。 */
   loadError: string | null
-  /** 目录只能读不能改的原因；null = 可写。 */
   readOnly: ModelCatalogReadOnlyDto | null
   taskCount: number
-  adapterRuns?: readonly DesktopHttpCertificationRun[]
+  adapterRuns: readonly DesktopHttpCertificationRun[]
   taskContent?: React.ReactNode
-  diagnostic?: React.ReactNode
-  networkContent?: React.ReactNode
-  /** 数据源 connector（BYO-key，产出的是「素材数据」不是「可调用模型」，故独立成组、不混进模型家清单）。 */
-  dataSourceContent?: React.ReactNode
-  availableFooter?: React.ReactNode
+  onAddress: (vendor: string) => void
+  onUsage: (vendor: string) => void
+  onWays: () => void
+  onChanged: () => void
   onReload: () => void
-  onCustomApi: () => void
-  onDirectScript: () => void
-  /** 导入写盘之后重新拉一次目录。 */
-  onImported: () => void
-}): JSX.Element {
+}
+
+export function ModelSettingsHome({ accounts, previous, connections, loaded, bridgeMissing, loadError, readOnly,
+  taskCount, adapterRuns, taskContent, onAddress, onUsage, onWays, onChanged, onReload }: Props): JSX.Element {
   const { t } = useTranslation()
   const [search, setSearch] = React.useState('')
-  const [morePlatformsOpen, setMorePlatformsOpen] = React.useState(false)
-  const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
-  const scrollRef = React.useRef<HTMLDivElement>(null)
-  const advancedSectionRef = React.useRef<HTMLElement>(null)
-  React.useEffect(() => {
-    if (!loaded || !consumePendingModelNetworkScroll()) return
-    const target = advancedSectionRef.current
-    if (target && typeof target.scrollIntoView === 'function') {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [loaded])
-  const allModels = connections.flatMap((connection) => connection.models)
-  const counts = countModelHomeStates(allModels)
-  const needsSetupCount = counts.needsSetup
-  const readyLabel = useModelStatusLabel(presentStatusCount('ready', counts.ready))
-  const needsSetupLabel = useModelStatusLabel(presentStatusCount('needsSetup', needsSetupCount))
-  const hasConnections = connections.length > 0
-  const showSearch = hasConnections && (connections.length >= 4 || allModels.length >= 8)
-  const hasAttention = taskCount > 0 || needsSetupCount > 0
-
-  const adaptedAvailable = availableConnections.filter((connection) => connection.kind === 'api')
-  const primaryPlatforms = ['apimart', 'kie']
-    .map((vendorKey) => adaptedAvailable.find((connection) => connection.vendorKey === vendorKey))
-    .filter((connection): connection is ModelSettingsHomeConnection => Boolean(connection))
-  const otherAdapted = adaptedAvailable.filter((connection) => !['apimart', 'kie'].includes(connection.vendorKey))
-  const otherAvailable = availableConnections.filter((connection) => connection.kind !== 'api')
-
-  const titleAside = hasConnections
-    ? t('onboardingProviders.drawer.home.subtitle', { connections: connections.length, models: allModels.length })
-    : t('onboardingProviders.drawer.home.emptySubtitle')
-
-  const connectedSection = hasConnections ? (
-    <section className="mt-5" data-model-home-connected>
-      <SectionHeading
-        title={t('onboardingProviders.drawer.home.connected')}
-        // 页头计数和每行同一个投影、同一套词（countModelHomeStates → presentStatusCount），不另写一份「N 个可使用」。
-        aside={hasAttention ? `${readyLabel} · ${needsSetupLabel}` : readyLabel}
-      />
-      <ConnectedRows connections={connections} search={search} />
-    </section>
-  ) : null
-
-  const adaptedSection = primaryPlatforms.length > 0 || otherAdapted.length > 0 ? (
-    <section className="mt-5" data-model-home-adapted-platforms>
-      <SectionHeading
-        title={hasConnections ? t('onboardingProviders.drawer.home.addServices') : t('onboardingProviders.drawer.home.adaptedPlatforms')}
-        aside={primaryPlatforms.length > 0 ? t('onboardingProviders.drawer.home.firstTwoKeyOnly') : undefined}
-      />
-      <RowGroup>
-        {primaryPlatforms.map((connection) => (
-          <AvailableConnectionRow
-            key={connection.vendorKey}
-            connection={connection}
-            title={hasConnections ? t('onboardingProviders.drawer.home.connectPlatform', { name: translateModelDisplayText(connection.name) }) : undefined}
-            hint={availableHint(connection, t)}
-            badge={builtinVendorKeyOfKey(connection.vendorKey) === 'apimart' ? t('onboardingProviders.drawer.home.recommended') : undefined}
-            end={t('onboardingProviders.drawer.home.fillKey')}
-          />
-        ))}
-        {otherAdapted.length > 0 ? (
-          <>
-            <ActionRow
-              icon={<IconCloud size={16} stroke={1.7} aria-hidden="true" />}
-              title={t('onboardingProviders.drawer.home.moreAdapted')}
-              hint={t('onboardingProviders.drawer.home.moreAdaptedHint')}
-              end={t('onboardingProviders.drawer.home.viewAll')}
-              expanded={morePlatformsOpen}
-              onClick={() => setMorePlatformsOpen((value) => !value)}
-              dataMarker="more-adapted"
-            />
-            {morePlatformsOpen ? otherAdapted.map((connection) => (
-              <AvailableConnectionRow
-                key={connection.vendorKey}
-                connection={connection}
-                hint={availableHint(connection, t)}
-              />
-            )) : null}
-          </>
-        ) : null}
-      </RowGroup>
-    </section>
-  ) : null
-
-  const alternateRows = otherAvailable.map((connection) => (
-    <AvailableConnectionRow
-      key={connection.vendorKey}
-      connection={connection}
-      hint={availableHint(connection, t)}
-    />
-  ))
-
-  /**
-   * 「自定义 API / 中转站」——手工接入那条路的家。
-   *
-   * 它在 2026-09-11 的 57d73c742 里随「起点改成用 AI 帮我接入」一起下线过；09-17 用户拍板
-   * **两个都要**：MCP / AI 协助那条仍是首选摆在上面，手工入口回到「其他接入方式」下做第三条路。
-   * 恢复的是入口，不是重设计——文案、图标、落点（向导的 `newapi` 预设 = 可编辑 baseUrl 那一支）
-   * 都沿用 v0.21.0 那一版。
-   */
-  const customApiRow = (
-    <ActionRow
-      icon={<IconPlugConnected size={16} stroke={1.7} aria-hidden="true" />}
-      title={t('onboardingProviders.drawer.home.customApi')}
-      hint={t('onboardingProviders.drawer.home.customApiHint')}
-      onClick={onCustomApi}
-      dataMarker="custom-api"
-    />
-  )
-
-  const otherMethodsSection = !hasConnections ? (
-    <section className="mt-5" data-model-home-other-methods>
-      <SectionHeading title={t('onboardingProviders.drawer.home.otherMethods')} />
-      <RowGroup>
-        {alternateRows}
-        {customApiRow}
-        {availableFooter ? <div className="p-2">{availableFooter}</div> : null}
-      </RowGroup>
-    </section>
-  ) : (
-    <>
-      {otherAvailable.length > 0 || availableFooter ? (
-        <section className="mt-5" data-model-home-other-ways>
-          <SectionHeading title={t('onboardingProviders.drawer.home.otherWays')} />
-          <RowGroup>
-            <ActionRow
-              icon={<IconServerBolt size={16} stroke={1.7} aria-hidden="true" />}
-              title={t('onboardingProviders.drawer.home.localAndMembership')}
-              hint={t('onboardingProviders.drawer.home.localAndMembershipHint')}
-              end={t('onboardingProviders.drawer.home.methodCount', { count: otherAvailable.length })}
-              expanded={otherWaysOpen}
-              onClick={() => setOtherWaysOpen((value) => !value)}
-              dataMarker="other-ways"
-            />
-            {otherWaysOpen ? (
-              <>
-                {alternateRows}
-                {customApiRow}
-                {availableFooter ? <div className="p-2">{availableFooter}</div> : null}
-              </>
-            ) : null}
-          </RowGroup>
-        </section>
-      ) : null}
-    </>
-  )
-
-  return (
-    <div className="flex h-full min-h-0 flex-col" data-model-settings-page="home">
-      <header className="flex min-h-14 shrink-0 items-center border-b border-nomi-line px-4 py-2 pr-14">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-body font-semibold text-nomi-ink">{t('onboardingProviders.drawer.home.title')}</h2>
-          <p className="mt-0.5 truncate text-micro text-nomi-ink-40">{titleAside}</p>
-        </div>
-      </header>
-
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-5">
-        {showSearch ? (
-          <div className="sticky top-0 z-[5] bg-nomi-paper pb-2 pt-3">
-            <DesignSearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder={t('onboardingProviders.drawer.home.search')}
-              ariaLabel={t('onboardingProviders.drawer.home.search')}
-              className="w-full"
-            />
-          </div>
-        ) : null}
-
-        {bridgeMissing ? (
-          <div className="mt-4 border-l-2 border-nomi-warning bg-nomi-ink-05 px-3 py-3">
-            <div className="text-body-sm font-semibold text-nomi-ink">{t('onboardingProviders.drawer.bridgeMissingTitle')}</div>
-            <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">{t('onboardingProviders.drawer.bridgeMissingBody')}</p>
-            <DesignButton className="mt-2" variant="light" onClick={onReload}>{t('common.reload')}</DesignButton>
-          </div>
-        ) : !loaded ? (
-          <div className="flex min-h-24 items-center justify-center gap-2 text-caption text-nomi-ink-40">
-            <NomiLoadingMark size={16} />
-            {t('onboardingProviders.drawer.loading')}
-          </div>
-        ) : (
-          <>
-            {/* 「这份配置怎么了」先说清楚，再谈接哪家模型——用户看到空白页时第一个问题就是这个。 */}
-            <CatalogStatusNotices readOnly={readOnly} loadError={loadError} onRetry={onReload} />
-
-            {/* 「用 AI 帮我接入」：想接模型的人一定会到这一屏，所以入口就放在这一屏的最上面
-                （搜索框正下方）。它不是一个模型家，也不接 MCP——只把「跟助手说什么」交到手上。 */}
-            <section className="mt-4" data-model-home-assisted>
-              <AiAssistedOnboardingSection connections={connections} runs={adapterRuns} />
+  const [seen, setSeen] = React.useState(() => {
+    try { return localStorage.getItem(BANNER_SEEN) === '1' } catch { return false }
+  })
+  const [error, setError] = React.useState('')
+  const dismiss = () => {
+    setSeen(true)
+    try { localStorage.setItem(BANNER_SEEN, '1') } catch { /* Session dismissal still applies. */ }
+  }
+  const disconnect = async (c: ModelSettingsHomeConnection) => {
+    const ok = await confirmDialog({ title: t('onboardingProviders.vendorCard.disconnectTitle'),
+      message: t('onboardingProviders.vendorCard.disconnectMessage', { name: c.name }),
+      confirmLabel: t('onboardingProviders.vendorCard.disconnect'), danger: true })
+    if (!ok) return
+    try {
+      getDesktopBridge()!.modelCatalog.clearVendorApiKey(c.vendorKey)
+      setError('')
+      onChanged()
+    } catch (e) { setError(t('onboardingProviders.vendorCard.disconnectFailed', { message: String(e) })) }
+  }
+  const showSearch = previous.length > 4
+  const query = showSearch ? search.trim().toLocaleLowerCase() : ''
+  const filtered = previous.filter(c => [c.name, translateModelDisplayText(c.name), ...c.models.flatMap(m => [m.modelKey, m.labelZh])]
+    .some(value => value.toLocaleLowerCase().includes(query)))
+  const models = accounts.flatMap(c => c.models).filter(m => m.availability?.usable)
+  const counts = Object.fromEntries(['image', 'video', 'audio', 'text'].map(kind => [kind, models.filter(m => m.kind === kind).length]))
+  const subtitle = [previous.length ? t('settings.modelsHome.legacyCount', { count: previous.length }) : '',
+    accounts.length ? t('settings.modelsHome.accountConnected') : t('settings.modelsHome.disconnected'),
+    accounts.length ? t('settings.modelsHome.counts', counts) : ''].filter(Boolean).join(' · ')
+  return <div className="min-h-0 overflow-y-auto" data-model-settings-page="home">
+    <header className="flex min-h-14 flex-col justify-center border-b border-nomi-line px-4 pr-14">
+      <h2 className="text-body font-semibold">{t('onboardingProviders.drawer.home.title')}</h2>
+      {loaded && !loadError && <p className="text-caption text-nomi-ink-60">{subtitle}</p>}
+    </header>
+    <div className="grid gap-3 p-4">
+      <CatalogStatusNotices readOnly={readOnly} loadError={loadError} onRetry={onReload} />
+      {bridgeMissing ? <div role="alert">{t('onboardingProviders.drawer.bridgeMissingTitle')} <DesignButton onClick={onReload}>{t('common.reload')}</DesignButton></div>
+        : !loaded ? <NomiLoadingMark size={16} /> : <>
+          {accounts.map(c => <ModelAccountCard key={c.vendorKey} vendor={c.vendorKey} name={c.name}
+            onAddress={() => onAddress(c.vendorKey)} onManage={c.onOpen} onDisconnect={() => { void disconnect(c) }}
+            readOnly={Boolean(readOnly)} onUsage={() => onUsage(c.vendorKey)} />)}
+          {!accounts.length && !loadError && !readOnly && <button type="button" data-model-home-available="apimart"
+            onClick={openApimartConnect} className="flex w-full items-center gap-3 rounded-nomi-sm border border-nomi-line p-3 text-left hover:bg-nomi-ink-05">
+            <span className="min-w-0 flex-1">
+              <strong className="block text-body-sm">{t('settings.modelsHome.platform')}</strong>
+              <span className="text-caption text-nomi-ink-60">{t('settings.modelsHome.intro')}</span>
+            </span>
+            <span className={WORKBENCH_BUTTON_PRIMARY_CLASS + ' shrink-0 rounded-pill px-3 py-1 text-caption font-semibold'}>{t('settings.modelsHome.connect')}</span>
+          </button>}
+          {error && <p role="alert" className="text-caption text-workbench-danger">{error}</p>}
+          {previous.length > 0 && <>
+            {!seen && <div data-legacy-notice className="rounded-nomi-sm bg-nomi-info-soft p-3 text-caption text-nomi-info-ink">
+              <p>{t('settings.modelsHome.banner')}</p><button className="mt-1 font-semibold" onClick={dismiss}>{t('settings.modelsHome.dismiss')}</button>
+            </div>}
+            <section data-model-home-connected>
+              <h3 className="mb-2 flex items-baseline gap-2 text-caption font-semibold">{t('settings.modelsHome.legacy')}
+                <span className="text-micro font-normal text-nomi-ink-60">{t('settings.modelsHome.connections', { count: previous.length })}</span>
+              </h3>
+              {showSearch && <DesignSearchInput className="mb-2 w-full" value={search} onChange={setSearch}
+                placeholder={t('onboardingProviders.drawer.home.search')} ariaLabel={t('onboardingProviders.drawer.home.search')} />}
+              <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line">
+                {filtered.map(c => <button key={c.vendorKey} type="button" data-model-home-connection={c.vendorKey} onClick={c.onOpen}
+                  className="flex min-h-11 w-full items-center gap-2 px-2 text-left hover:bg-nomi-ink-05">
+                  <ConnectionMark connection={c} /><span className="min-w-0 flex-1 truncate text-caption" title={c.name}>{translateModelDisplayText(c.name)}</span>
+                  <StatusBadge tone={builtinVendorKeyOfKey(c.vendorKey) === 'kie' ? 'success' : 'warning'} className="normal-case">
+                    <QuotedUiNames text={t(builtinVendorKeyOfKey(c.vendorKey) === 'kie' ? 'settings.modelsHome.kie' : 'settings.modelsHome.maintenance')} />
+                  </StatusBadge>
+                  <ModelStatusMark status={connectionHomeStatus(c)} variant="row" /><IconChevronRight size={13} />
+                </button>)}
+                {!filtered.length && <p className="p-3 text-caption">{t('onboardingProviders.drawer.home.noResults')}</p>}
+              </div>
             </section>
-
-            {taskCount > 0 && taskContent ? (
-              <section className="mt-4" data-model-home-task-strip>
-                <SectionHeading
-                  title={t('onboardingProviders.drawer.home.needsAttention')}
-                  aside={t('onboardingProviders.drawer.home.tasks', { count: taskCount })}
-                />
-                {taskContent}
-              </section>
-            ) : null}
-
-            {diagnostic ? <div className="mt-4">{diagnostic}</div> : null}
-
-            {connectedSection}
-            {adaptedSection}
-            {otherMethodsSection}
-
-            {/* 数据源：抖音/TikTok 分享链接 → 无水印素材（BYO-key connector）。独立成组因为它产出的是
-                「素材数据」不是「可调用模型」——归进模型家清单会错配（P4）。这是它在设置区的唯一家。 */}
-            {dataSourceContent ? (
-              <section className="mt-5" data-model-home-data-sources>
-                <SectionHeading title={t('onboardingProviders.drawer.home.dataSources')} />
-                {dataSourceContent}
-              </section>
-            ) : null}
-
-            <section ref={advancedSectionRef} className="mt-6 border-t border-nomi-line pt-4" data-model-home-advanced>
-              <SectionHeading title={t('onboardingProviders.drawer.home.advanced')} />
-              <RowGroup>
-                <ActionRow
-                  icon={<IconCode size={16} stroke={1.7} aria-hidden="true" />}
-                  title={t('onboardingProviders.drawer.home.directScript')}
-                  hint={t('onboardingProviders.drawer.home.directScriptHint')}
-                  badge={t('onboardingProviders.drawer.home.advancedBadge')}
-                  onClick={onDirectScript}
-                  dataMarker="direct-script"
-                  directScript
-                />
-                {/* 配置的搬家（导出 / 导入）：整份目录级的动作，和「直连脚本 / 网络」同属高级组，
-                    不挂在任何一家连接行上——它不是某一家的事（§1.5 一功能一个家）。 */}
-                <CatalogPackageActions onImported={onImported} />
-                {networkContent ? <div className="px-3 py-1">{networkContent}</div> : null}
-              </RowGroup>
-            </section>
-
-            {showSearch && search.trim() && !connections.some((connection) => (
-              connection.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) ||
-              connection.models.some((model) => `${model.labelZh} ${model.modelKey}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
-            )) ? (
-              <div className="py-8 text-center text-caption text-nomi-ink-40">{t('onboardingProviders.drawer.home.noResults')}</div>
-            ) : null}
-          </>
-        )}
-      </div>
+          </>}
+          {taskCount > 0 && <section data-model-home-task-strip>{taskContent}</section>}
+          <h3 className="mt-1 text-body-sm font-semibold">{t('settings.modelsHome.others')}</h3>
+          <AiAssistedOnboardingSection connections={connections} runs={adapterRuns} />
+          <button type="button" data-model-home-action="other-ways" aria-label={t('settings.modelsHome.waysTitle')}
+            className={cn(MODEL_ENTRY_ROW_CLASS, MODEL_ENTRY_HEAD_CLASS, 'hover:bg-nomi-ink-05')} onClick={onWays}>
+            <ModelEntryIcon><IconPlugConnected size={16} stroke={1.7} aria-hidden="true" /></ModelEntryIcon>
+            <ModelEntryText title={t('settings.modelsHome.waysTitle')} hint={t('settings.modelsHome.waysHint')} />
+            <ModelEntryChevron />
+          </button>
+        </>}
     </div>
-  )
+  </div>
 }

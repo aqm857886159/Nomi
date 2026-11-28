@@ -5,7 +5,7 @@ import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridge
  * 「用 AI 帮我接入」卡在模型页上的接线层。
  *
  * 分成容器 + 卡两层的理由：卡要能被设计实验室用**真实 props** 陈列（UI 交付定义 = 实验室截图拍板），
- * 所以它一行桥都不许读；桥、订阅、轮询与「首次描边」这些只在真产品里成立的东西住这里。
+ * 所以它一行桥都不许读；桥、订阅与轮询这些只在真产品里成立的东西住这里。
  *
  * 进度**不新造状态机**：会话真相源是主进程（`integrationSessionGet` 的投影），
  * 这里只做「哪个会话是外部 Agent 在推」+「stage → 五步」两件事。
@@ -19,8 +19,6 @@ import { ASSISTANT_CLIENT_LABEL, type AssistantClientKey } from './assistantActi
 import { AiAssistedOnboardingCard } from './AiAssistedOnboardingCard'
 import { projectAssistedProgress, type AssistedProgressView } from './assistedProgressProjection'
 
-/** 「首次出现给一次 accent 描边，看过即消」——不做常驻高亮（设计定稿 §Checkpoints ①）。 */
-const FIRST_SEEN_KEY = 'nomi:assisted-onboarding-seen:v1'
 /** 会话轮询间隔。事件驱动拿不到 stage 变化（握手队列只在「要用户做点什么」时才响）。 */
 const SESSION_POLL_MS = 1500
 
@@ -54,7 +52,6 @@ export function AiAssistedOnboardingSection({ connections = [], runs = [] }: { c
   const [session, setSession] = React.useState<LiveSession | null>(null)
   const [snapshot, setSnapshot] = React.useState<SessionSnapshot | null>(null)
   const lastLiveStage = React.useRef<IntegrationStage | null>(null)
-  const [firstSeen, setFirstSeen] = React.useState(false)
 
   const bridge = getDesktopBridge()
   const readMcpInfo = bridge?.capability?.mcpInfo
@@ -133,17 +130,6 @@ export function AiAssistedOnboardingSection({ connections = [], runs = [] }: { c
     }
   }, [getSession, session])
 
-  // 首次描边：读写都包 try/catch（隐私窗口 / 清过站点数据时 localStorage 会直接抛）。
-  React.useEffect(() => {
-    try {
-      if (window.localStorage.getItem(FIRST_SEEN_KEY)) return
-      setFirstSeen(true)
-      window.localStorage.setItem(FIRST_SEEN_KEY, 'seen')
-    } catch {
-      // 存不下就当看过了：描边是锦上添花，不该因为存储不可用而每次都亮。
-    }
-  }, [])
-
   const progress = React.useMemo(() => {
     if (!snapshot) return null
     const run = runs.find((item) => item.id === snapshot.runId || item.childRunRef?.runId === snapshot.runId)
@@ -171,7 +157,6 @@ export function AiAssistedOnboardingSection({ connections = [], runs = [] }: { c
       info={info}
       progress={progress}
       onOpenAssistantConnections={openAssistantConnections}
-      firstSeen={firstSeen}
     />
   )
 }

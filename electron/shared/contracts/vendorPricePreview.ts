@@ -18,3 +18,6 @@ export type VendorPriceQuery = {
  */
 export type VendorPriceBasis = "output-estimate" | "upper-bound";
 export type VendorPricePreview = { usd: number; credits: number; source: string; basis?: VendorPriceBasis };
+/** The listing's own reason for having no fixed rate: billed by tokens, or by tiers the request cannot pick up front. */
+export type PublicPriceGap = "token" | "tiered";
+export type PublicPriceListing = { quote: VendorPricePreview | null; gap: PublicPriceGap | null };

@@ -3,7 +3,7 @@ import { readCatalog } from "../../catalog/catalogStore";
 import { userVendorBaseUrl } from "../../catalog/userVendorBase";
 import { isJsonRecord } from "../../jsonUtils";
 import { builtinVendorKeyOfKey } from "../../shared/builtinVendorIdentity";
-import type { VendorPricePreview, VendorPriceQuery } from "../../shared/contracts/vendorPricePreview";
+import type { PublicPriceGap, PublicPriceListing, VendorPricePreview, VendorPriceQuery } from "../../shared/contracts/vendorPricePreview";
 import { builtinVendorSeed } from "../../catalog/builtinVendorSeeds";
 import { codeDeclaredFallbackOrigins, fetchVendorWithBaseFallback, rewriteVendorUrl } from "../../vendor/vendorBaseFallback";
 
@@ -117,21 +117,40 @@ export function publicPriceFor(query: VendorPriceQuery, detail: unknown, imageLi
   return Number.isFinite(usd * 10) ? { source, usd, credits: usd * 10 } : null;
 }
 
+/**
+ * Why a listing has no fixed rate, when the listing itself says so. Only consulted after `publicPriceFor` refused,
+ * so a token-billed model with an official output estimate still shows that estimate.
+ */
+export function publicPriceGap(detail: unknown): PublicPriceGap | null {
+  if (!isJsonRecord(detail) || detail.success !== true || !isJsonRecord(detail.data)) return null;
+  const d = detail.data;
+  if (d.billing_tiers) return "tiered";
+  if (d.token_price || d.billing_type === "tiered_token") return "token";
+  return null;
+}
+
 export async function readVendorPricePreview(query: VendorPriceQuery): Promise<VendorPricePreview | null> {
-  if (!query || typeof query.vendorKey !== "string" || typeof query.modelId !== "string" || !/^[a-z0-9][a-z0-9._/-]{0,159}$/i.test(query.modelId)) return null;
+  return (await readPublicPriceListing(query)).quote;
+}
+
+/** Same read as the send-button estimate, plus the listing's own reason when it publishes no fixed rate. */
+export async function readPublicPriceListing(query: VendorPriceQuery): Promise<PublicPriceListing> {
+  const none = { quote: null, gap: null };
+  if (!query || typeof query.vendorKey !== "string" || typeof query.modelId !== "string" || !/^[a-z0-9][a-z0-9._/-]{0,159}$/i.test(query.modelId)) return none;
   const builtinKey = builtinVendorKeyOfKey(query.vendorKey);
   const seed = builtinVendorSeed(builtinKey);
   const vendor = readCatalog().vendors.find((v) => v.key === query.vendorKey);
   const pricing = seed?.publicPricing;
-  if (!seed || !pricing || !vendor) return null;
+  if (!seed || !pricing || !vendor) return none;
   const base = userVendorBaseUrl(vendor);
-  if (!URL.canParse(base)) return null;
+  if (!URL.canParse(base)) return none;
   const url = new URL(base);
   if (url.username || url.password || !["/", "/v1", "/v1/"].includes(url.pathname)
-      || ![new URL(seed.baseUrl).origin, ...codeDeclaredFallbackOrigins(builtinKey)].includes(url.origin)) return null;
+      || ![new URL(seed.baseUrl).origin, ...codeDeclaredFallbackOrigins(builtinKey)].includes(url.origin)) return none;
   const list = new URL(pricing.listPath, url.origin);
   const source = new URL(pricing.modelPath, url.origin);
   source.searchParams.set("model", query.modelId);
   const [detail, images] = await Promise.all([publicPrices(source.href), query.kind === "image" ? publicPrices(list.href) : null]);
-  return publicPriceFor(query, detail, images, rewriteVendorUrl(source.href));
+  const quote = publicPriceFor(query, detail, images, rewriteVendorUrl(source.href));
+  return { quote, gap: quote ? null : publicPriceGap(detail) };
 }

@@ -1,0 +1,172 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-t6a-model-settings-board",
+  "problem_type": "Model settings board parity",
+  "symptom": "Both connected-home tracks diverged on eleven groups of layout, copy, icon and first-visit behavior.",
+  "direct_cause": "The walk compared font sizes and sibling rows but omitted board geometry, icon identity, contextual English and persistent mount effects.",
+  "class_root": "The approved rows had shared markup without independent acceptance values for the visible details or a test of opening the page on a fresh profile.",
+  "affected_population": [
+    "Connected profiles viewing model settings in Chinese and English",
+    "Fresh and returning users opening the assisted entry"
+  ],
+  "scope_paths": [
+    "src/ui/onboarding/ModelSettingsHome.tsx",
+    "src/ui/onboarding/ModelAccountCard.tsx",
+    "src/ui/onboarding/ModelEntryRow.tsx",
+    "src/ui/onboarding/AiAssistedOnboardingCard.tsx",
+    "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+    "src/i18n/locales/settings.ts",
+    "src/i18n/locales/onboardingProviders.ts"
+  ],
+  "entry_points": [
+    "Settings / Models",
+    "Assisted provider setup and other connection methods"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The approved ModelSurfaces board and issue #1704 measurements define the application-specific target.",
+  "invariants": [
+    "Account metrics meet the outer card edges and their values, links and storage label use the approved typography.",
+    "Both entry controls have the same row geometry per line. Opening the page does not mark the assisted entry as seen."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/settings/states/02-assisted-onboarding.tsx",
+      "symbol": "AiAssistedOnboardingCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AiAssistedOnboardingCard.tsx",
+      "symbol": "ModelEntryText"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "symbol": "AiAssistedOnboardingCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelAccountCard.tsx",
+      "symbol": "useModelUsage"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsHome.tsx",
+      "symbol": "ModelAccountCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsHome.tsx",
+      "symbol": "ModelEntryText"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+      "symbol": "useModelUsage"
+    },
+    {
+      "path": "src/ui/onboarding/ModelEntryRow.tsx",
+      "kind": "write",
+      "symbol": "MODEL_ENTRY_ROW_CLASS"
+    },
+    {
+      "path": "src/i18n/locales/settings.ts",
+      "kind": "write",
+      "symbol": "enSettings"
+    },
+    {
+      "path": "src/i18n/locales/onboardingProviders.ts",
+      "kind": "write",
+      "symbol": "enOnboardingProviders"
+    }
+  ],
+  "door_reduction": {
+    "before": 12,
+    "after": 10
+  },
+  "generality_proof": "Both the details summary and the navigation button consume ModelEntryRow. Account geometry is owned by one definition list for all account states.",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/onboarding/ModelEntryRow.tsx",
+      "symbol": "ModelEntryText",
+      "responsibility": "Shared entry box and text metrics."
+    },
+    {
+      "path": "src/ui/onboarding/ModelAccountCard.tsx",
+      "symbol": "ModelAccountCard",
+      "responsibility": "Shared layout of balance, quota and usage."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/onboarding/AiAssistedOnboardingCard.tsx",
+      "entry_point": "AiAssistedOnboardingCard",
+      "disposition": "enforced",
+      "evidence": "Uses the common entry shell and text without first-visit presentation."
+    },
+    {
+      "path": "src/ui/onboarding/ModelSettingsHome.tsx",
+      "entry_point": "ModelSettingsHome",
+      "disposition": "enforced",
+      "evidence": "Uses the same shell and text for the plug entry."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Three successive reviews found additional dimensions of the same approved surface.",
+    "same_class_scan": [
+      "Ran door-map for ModelEntryText and ModelAccountCard.",
+      "Searched all assisted title, firstSeen and storage-key uses and compared the Main, M1-en and M1-dark board DOM.",
+      "Traced the entry shell and both English dictionary definitions in addition to direct readers. The first-visit storage read and write were removed."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/onboarding/ModelEntryRow.tsx",
+    "invariant": "Entry geometry and typography are defined once for both entry controls.",
+    "failure_mode": "A changed row, account measurement, English label or first-visit storage write fails the connected-home regression.",
+    "exception_policy": "none",
+    "strategy": "Share intrinsic row metrics, move padding inside account cells, and remove first-visit state at its source.",
+    "artifacts": [
+      "src/ui/onboarding/ModelEntryRow.tsx",
+      "src/ui/onboarding/ModelAccountCard.tsx",
+      "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "src/ui/onboarding/AiAssistedOnboardingCard.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/onboarding/t6aModelSettings.test.tsx",
+    "tests/ux/t6a-model-settings.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/ui/onboarding/t6aModelSettings.test.tsx",
+    "tests/ux/t6a-model-settings.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "src/ui/onboarding/AiAssistedOnboardingCard.tsx"
+    ],
+    "rationale": "Retire first-visit storage effects, component state and DOM attribute together."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing React, Tailwind and Tabler implementations support all approved values.",
+    "exit_criteria": []
+  },
+  "migration": "The obsolete seen flag can remain inert on old profiles. The independent legacy migration notice retains its dismissal state.",
+  "residual_risks": [
+    "Electron geometry and refreshed screenshots require the host desktop."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "src/ui/onboarding/ModelEntryRow.tsx",
+    "tests": [
+      "src/ui/onboarding/t6aModelSettings.test.tsx",
+      "tests/ux/t6a-model-settings.walk.mjs"
+    ]
+  }
+}
