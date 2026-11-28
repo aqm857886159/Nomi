@@ -222,7 +222,7 @@ describe("project save ownership", () => {
     const asyncRoot = path.join(f.deps.defaultProjectsRoot, "async-created");
     const syncCreated = createWorkspaceProject({ rootPath: syncRoot, record: { name: "sync-new", draft: true, payload: {} } }, f.deps);
     const asyncCreating = createWorkspaceProjectAsync({ rootPath: asyncRoot, record: { name: "async-new", draft: true, payload: {} } }, f.deps);
-    const listingWhileLocked = listWorkspaceProjects(f.deps);
+    const listingWhileLocked = listWorkspaceProjects(f.deps); // promise-held
 
     // Sync creation while async registry lock is held in-process must never block in Atomics.wait and is immediately readable.
     expect(waitSpy).not.toHaveBeenCalled();
