@@ -1,16 +1,18 @@
 import React, { type JSX } from 'react'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 import { CanvasEmptyState } from '../components/CanvasEmptyState'
+import { resolveCanvasCreationSurface } from '../components/canvasToolbarModel'
 import { CanvasNavigationStack } from '../components/CanvasNavigationStack'
 import NodeContextMenu, { type NodeContextMenuAction } from '../components/NodeContextMenu'
 import FrameContextMenu, { type FrameContextMenuAction } from '../components/FrameContextMenu'
 import type { CanvasFrameMenuState } from '../components/useCanvasFrameActions'
-import { NodeAddMenu } from '../components/CanvasToolbar'
+import CanvasToolbar, { NodeAddMenu } from '../components/CanvasToolbar'
 import { NodeDeriveMenu } from '../quickActions/NodeDeriveMenu'
 import { SelectionPromptSaveController } from '../components/SelectionPromptSaveController'
 import { CanvasArrivalHint } from '../components/CanvasArrivalHint'
 import type { ArrivalHint } from '../components/canvasArrivalModel'
 import { hasClipboardContent } from '../store/canvasClipboard'
+import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { CanvasAssetInputPicker, CanvasConnectionCreateMenu } from './useGenerationCanvasReactFlowMenus'
@@ -108,6 +110,11 @@ export function GenerationCanvasReactFlowOverlays({
   // 选区在浮层这一层自己订阅（右键菜单的「编组 / 复制变体」、小地图的选中高亮），画布壳不因选中重渲。
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
   const selectedSet = React.useMemo(() => new Set(selectedNodeIds), [selectedNodeIds])
+  // 添加菜单偏好在共同宿主层加载一次：0 节点空画布起步格、有节点底部工具条与空白右键菜单共用同一份显隐/排序，0→1 节点切换无异步迟滞重排。
+  React.useEffect(() => {
+    if (readOnly) return
+    void useCanvasMenuPreferenceStore.getState().load().catch(() => {})
+  }, [readOnly])
   // 「从素材库添加…」选择器上传期间保持打开（显示上传中）；完成时它还开着才接线。
   const [uploadingInput, setUploadingInput] = React.useState(false)
   const latestPickerRef = React.useRef(assetInputPicker)
@@ -119,7 +126,11 @@ export function GenerationCanvasReactFlowOverlays({
   return (
     <>
       {screenshotOverlay}
-      {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} getInsertionPosition={getInsertionPosition} /> : null}
+      {nodes.length === 0 ? (
+        <CanvasEmptyState activeCategoryId={activeCategoryId} getInsertionPosition={getInsertionPosition} readOnly={readOnly} />
+      ) : resolveCanvasCreationSurface({ readOnly, nodeCount: nodes.length }) === 'toolbar' ? (
+        <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} stageWidth={stageSize.width || undefined} />
+      ) : null}
       <CanvasPickModeLayer />
       {contextNodeMenu && contextNodeMenu.target !== 'blank' ? (
         // 刀 1：这一个菜单走 `WorkbenchMenu`（Portal 到 body + 视口坐标），

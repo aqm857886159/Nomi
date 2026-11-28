@@ -283,15 +283,16 @@ export async function closeRailDrawer(win, item, label = `close ${item} drawer`)
 
 /** 选择器常量：给 page.evaluate 里量几何用（页内拿不到 Node 侧的 import，选择器串得从这里传进去）。 */
 export const CANVAS_ADD_BAR = '.generation-canvas-v2-toolbar'
+export const CANVAS_ADD_SURFACE = `${CANVAS_ADD_BAR}, [data-empty-canvas-tasks="true"]`
 export const CANVAS_ADD_MORE_MENU = '.generation-canvas-v2-toolbar__more-menu'
 export const CANVAS_ZOOM_BAR = '.generation-canvas-v2__zoom-bar'
 export const CANVAS_NAV_STACK = '.generation-canvas-v2__navigation-stack'
 const CANVAS_VIEW_OPTIONS = '[data-canvas-view-options]'
 const navAny = (key) => new RegExp(`^(${alternatives([`generationCommon.navigation.${key}`])})$`)
 
-/** 加节点条（内容区底部正中那条横排）。 */
+/** 加节点入口（空画布 0 节点时是正中起步格，有节点后是底部正中横排工具条；只读画布两处都不挂）。 */
 export function canvasAddBar(win) {
-  return win.locator(CANVAS_ADD_BAR).first()
+  return win.locator(CANVAS_ADD_SURFACE).first()
 }
 
 /**

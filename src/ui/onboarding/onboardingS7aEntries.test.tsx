@@ -8,6 +8,7 @@ import { enRuntime, zhRuntime } from '../../i18n/locales/runtime'
 import { NoTextModelRecoveryCard } from '../../workbench/ai/NoTextModelRecoveryCard'
 import { pickRecoverableAssistantBrain } from '../../workbench/ai/assistantModelIdentity'
 import { V4ModelPopover } from '../../workbench/ai/v4/AgentPanelV4Composer'
+import { AgentPanelV4Panel } from '../../workbench/ai/v4/AgentPanelV4Panel'
 import {
   CONNECT_VENDOR_OPTION_VALUE,
   buildModelMenu,
@@ -162,15 +163,79 @@ describe('T-5 S7a 全部剩余入口指路收口与 F-D 契约核对', () => {
     expect(emptyText).toContain(i18n.t('onboardingProviders.entries.connectModel'))
   })
 
-  it('entry.agent-pointer：全新未连模型时只渲染指路说明与连接卡（零内嵌输入框），弹层页脚双出口对齐', () => {
+  it('entry.agent-pointer：全新未连模型时只渲染指路说明与连接卡（零内嵌输入框、零重复 Nomi 身份头），弹层页脚双出口对齐', () => {
     const pointerHtml = renderWithTheme(<NoTextModelRecoveryCard initialRecoverable={null} />)
     const pointerText = stripTags(pointerHtml)
     expect(pointerHtml).toContain('data-agent-pointer="apimart"')
     expect(pointerHtml).toContain('data-agent-pointer-action="apimart"')
+    expect(pointerHtml).not.toContain('data-assistant-identity')
     expect(pointerHtml).not.toMatch(/<(input|textarea)\b/i)
     expect(pointerText).toContain(i18n.t('onboardingProviders.entries.agentPointerBody'))
     expect(pointerText).toContain(i18n.t('onboardingProviders.entries.agentPointerTitle'))
     expect(pointerText).toContain(i18n.t('onboardingProviders.entries.agentPointerSubtitle'))
+
+    // 整块常驻面板装配后：面板头展示唯一活形象 NomiAgentFace + Nomi 字标（软件标 [N] 退出面板头，面板内零重复身份头）
+    const assembledPanelHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        emptyOverride={<NoTextModelRecoveryCard initialRecoverable={null} />}
+        context={{ usedTokens: 0, maxTokens: 128000 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect([...assembledPanelHtml.matchAll(/class="[^"]*nomi-wordmark\b/g)]).toHaveLength(1)
+    expect([...assembledPanelHtml.matchAll(/data-persona-stage="live"/g)]).toHaveLength(1)
+    expect(assembledPanelHtml).not.toContain('nomi-brand')
+    expect(assembledPanelHtml).not.toContain('nomi-logo-mark')
+    expect(assembledPanelHtml).toContain('data-agent-pointer-action="apimart"')
+
+    // 面板头部五档实时状态（idle / running / needs-confirm / done / failed）与数据源一一对应
+    const runningHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'running', face: 'running', pendingCount: 0 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(runningHtml).toContain('data-nomi-agent-face="running"')
+    expect(runningHtml).toContain('data-v4-header-progress="true"')
+    expect(runningHtml).toContain('data-v4-header-status="running"')
+    expect(stripTags(runningHtml)).toContain(i18n.t('agentPanelV4.headerRunning'))
+
+    const confirmHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'needs-confirm', face: 'idle', pendingCount: 2 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(confirmHtml).toContain('data-v4-header-status="needs-confirm"')
+    expect(confirmHtml).toContain('data-v4-header-pending="2"')
+    expect(stripTags(confirmHtml)).toContain(i18n.t('agentPanelV4.dockNeedsConfirm', { count: 2 }))
+
+    const doneHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'done', face: 'done', pendingCount: 0 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(doneHtml).toContain('data-nomi-agent-face="done"')
+    expect(stripTags(doneHtml)).toContain(i18n.t('agentPanelV4.dockDone'))
+
+    const failedHtml = renderWithTheme(
+      <AgentPanelV4Panel
+        flow={[]}
+        context={{}}
+        persona={{ status: 'failed', face: 'failed', pendingCount: 0 }}
+        slotHandlers={{ onPlanToggle: vi.fn(), onCollapsePlan: vi.fn() }}
+      />,
+    )
+    expect(failedHtml).toContain('data-nomi-agent-face="failed"')
+    expect(stripTags(failedHtml)).toContain(i18n.t('agentPanelV4.dockFailed'))
 
     const popoverHtml = renderWithTheme(
       <V4ModelPopover rows={[]} onOpenLibrary={vi.fn()} onOpenAssisted={vi.fn()} />,
@@ -182,7 +247,7 @@ describe('T-5 S7a 全部剩余入口指路收口与 F-D 契约核对', () => {
     expect(popoverText).toContain(i18n.t('agentPanelV4.modelAssisted'))
   })
 
-  it('entry.kept-recovery：存在已配 Key 但被停用的文本模型时原样保留一键启用自愈按钮与探测契约', () => {
+  it('entry.kept-recovery：存在已配 Key 但被停用的文本模型时原样保留一键启用自愈按钮且不重复渲染面板身份头', () => {
     const testVendorKey = ['custom', 'relay'].join('-')
     const recoverable = pickRecoverableAssistantBrain(
       [
@@ -212,6 +277,7 @@ describe('T-5 S7a 全部剩余入口指路收口与 F-D 契约核对', () => {
     )
     expect(recoveryHtml).toContain('data-recovery="no-text-model"')
     expect(recoveryHtml).toContain('data-recovery-enable="gpt-5-chat"')
+    expect(recoveryHtml).not.toContain('data-assistant-identity')
     expect(stripTags(recoveryHtml)).toContain(
       i18n.t('creationAi.noTextModel.enable', { model: 'GPT-5 Chat' }),
     )

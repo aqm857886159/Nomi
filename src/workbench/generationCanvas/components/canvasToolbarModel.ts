@@ -128,6 +128,20 @@ export function canvasToolbarNodeKinds(): GenerationNodeKind[] {
   return canvasAddIntents().flatMap((intent) => (intent.kind ? [intent.kind] : []))
 }
 
+export type CanvasCreationSurface = 'none' | 'empty-starter' | 'toolbar'
+
+/** 空画布（0 节点）由中央起步格独占创建入口；一旦有 ≥1 节点才切换到底部工具条，避免同屏双工具栏打架。 */
+export function resolveCanvasCreationSurface({
+  readOnly,
+  nodeCount,
+}: {
+  readOnly: boolean
+  nodeCount: number
+}): CanvasCreationSurface {
+  if (readOnly) return 'none'
+  return nodeCount === 0 ? 'empty-starter' : 'toolbar'
+}
+
 function orderedIntents(intents: readonly CanvasAddIntent[], preference?: CanvasMenuPreferenceSettings): CanvasAddIntent[] {
   const hidden = new Set(preference?.hiddenIntentIds)
   const order = preference?.orderedIntentIds ?? []

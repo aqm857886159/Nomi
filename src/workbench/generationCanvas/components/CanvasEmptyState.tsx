@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { IconPlus } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
 import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
-import { canvasResidentAddIntents } from './canvasToolbarModel'
+import { canvasResidentAddIntents, resolveCanvasCreationSurface } from './canvasToolbarModel'
 import { intentActionLabel, intentCardLabel, intentIcon, useCanvasAddIntentAction } from './canvasAddIntentActions'
 import { CanvasMoreAddMenu } from './CanvasToolbar'
 
@@ -16,6 +16,7 @@ type CanvasEmptyStateProps = {
   activeCategoryId: string
   /** 新卡的期望落点（同左缘工具条：视口锚换算的画布坐标，避让由 store.addNode 做）。 */
   getInsertionPosition: () => { x: number; y: number }
+  readOnly?: boolean
 }
 
 const TILE_CLASS = cn(
@@ -26,7 +27,7 @@ const TILE_CLASS = cn(
   '[&>svg]:size-5 [&>svg]:text-nomi-ink-60',
 )
 
-export function CanvasEmptyState({ activeCategoryId, getInsertionPosition }: CanvasEmptyStateProps): JSX.Element {
+export function CanvasEmptyState({ activeCategoryId, getInsertionPosition, readOnly = false }: CanvasEmptyStateProps): JSX.Element {
   const { t } = useTranslation()
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
   const addIntent = useCanvasAddIntentAction({ getInsertionPosition, categoryId: activeCategoryId })
@@ -36,6 +37,7 @@ export function CanvasEmptyState({ activeCategoryId, getInsertionPosition }: Can
   const supportedCategories = new Set(['shots', 'cast', 'scene', 'prop', 'audio'])
   const categoryKey = supportedCategories.has(activeCategoryId) ? activeCategoryId : 'fallback'
   const activeCategoryName = t(`generationCommon.canvas.empty.categories.${categoryKey}`)
+  const showStarter = resolveCanvasCreationSurface({ readOnly, nodeCount: 0 }) === 'empty-starter'
   return (
     <div
       className={cn(
@@ -46,45 +48,50 @@ export function CanvasEmptyState({ activeCategoryId, getInsertionPosition }: Can
       <strong className="text-body font-semibold text-nomi-ink-80">
         {t('generationCommon.canvas.empty.title', { category: activeCategoryName })}
       </strong>
-      {addIntent.pickerInput}
-      <div data-empty-canvas-tasks="true" className="mt-4 flex max-w-[34rem] flex-wrap items-center justify-center gap-2">
-        {canvasResidentAddIntents(preference).map((intent) => {
-          const Icon = intentIcon(intent)
-          return (
+      {showStarter ? (
+        <>
+          {addIntent.pickerInput}
+          <div data-empty-canvas-tasks="true" className="mt-4 flex max-w-[34rem] flex-wrap items-center justify-center gap-2">
+            {canvasResidentAddIntents(preference).map((intent) => {
+              const Icon = intentIcon(intent)
+              return (
+                <button
+                  key={intent.id}
+                  type="button"
+                  data-add-intent={intent.id}
+                  {...(intent.kind ? { 'data-node-kind': intent.kind } : {})}
+                  className={TILE_CLASS}
+                  aria-label={intentActionLabel(intent, t)}
+                  onClick={() => addIntent.run(intent)}
+                >
+                  <Icon size={20} stroke={1.5} />
+                  <span>{intentCardLabel(intent, t)}</span>
+                </button>
+              )
+            })}
             <button
-              key={intent.id}
               type="button"
-              data-add-intent={intent.id}
-              className={TILE_CLASS}
-              aria-label={intentActionLabel(intent, t)}
-              onClick={() => addIntent.run(intent)}
+              ref={moreAnchorRef}
+              data-canvas-add-more="true"
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              className={cn(TILE_CLASS, moreOpen && 'bg-nomi-ink-05')}
+              onClick={() => setMoreOpen((open) => !open)}
             >
-              <Icon size={20} stroke={1.5} />
-              <span>{intentCardLabel(intent, t)}</span>
+              <IconPlus size={20} stroke={1.5} />
+              <span>{t('canvas.addSections.more')}</span>
             </button>
-          )
-        })}
-        <button
-          type="button"
-          ref={moreAnchorRef}
-          data-canvas-add-more="true"
-          aria-haspopup="menu"
-          aria-expanded={moreOpen}
-          className={cn(TILE_CLASS, moreOpen && 'bg-nomi-ink-05')}
-          onClick={() => setMoreOpen((open) => !open)}
-        >
-          <IconPlus size={20} stroke={1.5} />
-          <span>{t('canvas.addSections.more')}</span>
-        </button>
-        {moreOpen ? (
-          <CanvasMoreAddMenu
-            anchorRef={moreAnchorRef}
-            onClose={closeMore}
-            onPick={(intent) => { setMoreOpen(false); addIntent.run(intent) }}
-          />
-        ) : null}
-      </div>
-      <span className="mt-3 text-caption text-nomi-ink-40">{t('generationCommon.canvas.empty.dropHint')}</span>
+            {moreOpen ? (
+              <CanvasMoreAddMenu
+                anchorRef={moreAnchorRef}
+                onClose={closeMore}
+                onPick={(intent) => { setMoreOpen(false); addIntent.run(intent) }}
+              />
+            ) : null}
+          </div>
+          <span className="mt-3 text-caption text-nomi-ink-40">{t('generationCommon.canvas.empty.dropHint')}</span>
+        </>
+      ) : null}
     </div>
   )
 }

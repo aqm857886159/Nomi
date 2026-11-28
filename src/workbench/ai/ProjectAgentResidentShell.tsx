@@ -400,6 +400,17 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
    * 否则关掉项目后入口还挂着上一个项目的未读。
    */
   const publishDockBadge = useResidentActivityStore((state) => state.setResidentDockBadge)
+  const e2eProjectionEnabled = typeof window !== 'undefined' && (() => {
+    try { return window.localStorage?.getItem('__nomiE2E') === '1' } catch { return false }
+  })()
+  const projectedStatus = useResidentActivityStore((state) => (e2eProjectionEnabled ? state.dockStatus : null))
+  const projectedFace = useResidentActivityStore((state) => (e2eProjectionEnabled ? state.dockFaceStatus : null))
+  const projectedPending = useResidentActivityStore((state) => (e2eProjectionEnabled ? state.dockPendingCount : 0))
+  const useProjectedOverride = e2eProjectionEnabled
+    && dockStatus === 'idle'
+    && dockFaceStatus === 'idle'
+    && dockPendingCount === 0
+    && projectedStatus !== null
   React.useEffect(() => {
     publishDockBadge(dockStatus, dockFaceStatus, dockPendingCount, dockUnreadCount)
   }, [dockFaceStatus, dockPendingCount, dockStatus, dockUnreadCount, publishDockBadge])
@@ -547,6 +558,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         queue={queue}
         queueHint={t(recovered.length ? 'agentPanelV4.recoveredDraftHint' : 'agentPanelV4.queueHint')}
         context={data.context}
+        persona={useProjectedOverride
+          ? { status: projectedStatus, face: projectedFace ?? 'idle', pendingCount: projectedPending }
+          : { status: dockStatus, face: dockFaceStatus, pendingCount: dockPendingCount }}
         onHistory={() => setThreadsOpen((value) => !value)}
         onCollapse={() => setCollapsed(true)}
         flowHandlers={{

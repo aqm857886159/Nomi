@@ -1,0 +1,34 @@
+{
+  "name": "顶栏与常驻面板之间的 Nomi 活角色舞台开合移交",
+  "subject": "shell.persona-stage-handoff",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "supersedes": "docs/design/boards/2026-11-22-nomi-entry-topbar/NomiEntryTopbar.board.json#D5-D6 (open-panel topbar face/badge)",
+  "owner": {
+    "path": "src/ui/app-shell/shell/nomiEntryLook.ts",
+    "symbol": "nomiEntryLook"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/app-shell/shell/nomiEntryLook.ts",
+      "symbol": "nomiEntryLook"
+    }
+  ],
+  "parity_test": "src/ui/app-shell/shell/nomiEntryLook.test.ts",
+  "forbidden_derivations": [
+    {
+      "symbol": "NomiIdentityRow",
+      "kind": "definition",
+      "why": "面板内卡片不得再自定义静态 NomiIdentityRow 重复身份头；软件标 [N] 退出面板头，全窗口唯一活小人只在收起时坐顶栏、展开时坐面板头。"
+    }
+  ],
+  "allowed_consumers": [
+    "src/ui/app-shell/shell/ShellNomiEntry.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx"
+  ],
+  "since": "2026-11-28",
+  "notes": "合同 docs/fixes/2026-11-28-canvas-duplicate-surface-guard.root-cause.json 与用户 2026-11-28 D7 拍板（方案 A：开合移交舞台 · 一个角色一个真身）：面板收起时由顶栏 ShellNomiEntry 经 nomiEntryLook 展示活小人五态或『等你确认 N』胶囊；面板展开时 nomiEntryLook 退成安静线性侧栏开关（shape=toggle），唯一活小人与实时状态短句搬进 AgentPanelV4Panel 头部，同时删除零引用的 NomiIdentityRow.tsx。"
+}
