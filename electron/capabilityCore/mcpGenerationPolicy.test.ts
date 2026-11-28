@@ -8,9 +8,19 @@ import { deriveProjectSessionScopes } from './projectSessionAuthority'
  * 两个 env flag 一起删了——用户拍板「这版要开」，而一个没有界面能关的 flag 不是开关，是一道
  * 只会把自家在 tools/list 上广告着的工具打回去的墙。现在钉的是删完之后必须仍然成立的两件事。
  */
+export const REQUIRED_LEGACY_GENERATION_ROUTES = Object.freeze([
+  'generate',
+  'nomi_generate',
+  'production.start',
+  'production.control',
+  'production.decide-gate',
+  'nomi_start_playbook',
+] as const)
+
 describe('MCP generation route classification', () => {
-  it('六条 legacy 生成路仍然是墓碑，语义路不被误判', () => {
-    for (const route of ['generate', 'nomi_generate', 'production.start', 'production.control', 'production.decide-gate', 'nomi_start_playbook']) {
+  it('六条 legacy 生成路仍然是墓碑，语义路不被误判（承接 SM-gates-B2 退役 check:batch-machines legacy-routes-shrunk）', () => {
+    expect(REQUIRED_LEGACY_GENERATION_ROUTES).toHaveLength(6)
+    for (const route of REQUIRED_LEGACY_GENERATION_ROUTES) {
       expect(classifyMcpGenerationRoute(route)).toEqual({ kind: 'legacy', route })
     }
     expect(classifyMcpGenerationRoute('nomi_operation_create')).toEqual({ kind: 'semantic' })

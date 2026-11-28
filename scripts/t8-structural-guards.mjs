@@ -1,12 +1,19 @@
-// T-8 结构防错 ESLint 规则组（Categories 2 & 3 + 3 道原独立门岗收口迁入）。
+// T-8 结构防错 ESLint 规则组（Categories 2 & 3 + 原独立门岗收口迁入）。
 //
 // 统一收进 ESLint + 原生 eslint-suppressions.json（按文件 × 规则精确计数，只减不增）：
 //   · 独立规则 id（syntaxPlugin()）不被后面 flat-config 块覆盖；
 //   · 存量债统一冻结在 ESLint 原生 eslint-suppressions.json（同文件多加 1 处即整条规则报红，修完未收紧报 unused suppressions）；
 //   · 同时把原 check:main-console / check:renderer-sync-ipc / check:builtin-vendor-literals
-//     三道纯语法门岗收口进 ESLint 并同提交删旧，使本地与 CI 门岗总数真正净减。
+//     及 SM-gates-B2 的 check:model-identity / check:script-network-retry / check:batch-machines（third-frozen-judgment）
+//     收口进 ESLint 并同提交删旧，使本地与 CI 门岗总数真正净减。
+import { createRequire } from 'node:module'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { builtinRules } from 'eslint/use-at-your-own-risk'
 
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const eslintRequire = createRequire(createRequire(import.meta.url).resolve('eslint'))
+const espree = eslintRequire('espree')
 const syntaxPlugin = () => ({ rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } })
 
 const TEST_IGNORES = [
@@ -165,6 +172,328 @@ export const builtinHostStepSelectors = [
   },
 ]
 
+// ── 10. SM-gates-B2-4（迁自 check:model-identity）：多供应商并存层含 modelKey/modelAlias 必成对携带 vendor ──
+const MODEL_IDENTITY_FIELDS = new Set(['modelKey', 'modelAlias'])
+const VENDOR_IDENTITY_FIELDS = new Set([
+  'vendor', 'vendorKey', 'modelVendor', 'vendorName',
+  'providerKey', 'provider', 'providers',
+])
+/**
+ * 历史单一供应商上下文或碰撞消歧受控存量（原 scripts/model-identity-baseline.json 5 处，只减不增）：
+ * 按「文件路径 → 允许的精确成员签名数组」逐处核对，避免整文件豁免导致同文件新增裸 modelKey 漏网。
+ */
+export const MODEL_IDENTITY_FROZEN_ALLOWLIST = Object.freeze({
+  'src/workbench/ai/assistantModelIdentity.ts': Object.freeze(['modelKey']), // labelForModel 碰撞消歧探测器：故意只按 modelKey 数重名供应商
+  'src/workbench/api/taskApi.ts': Object.freeze(['modelKey,revisionId,taskKind', 'modelKey,revisionId,taskKind']), // ComfyUI 候选认证：vendor 在首参或由全局唯一 revisionId 定界
+  'src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts': Object.freeze(['archetype,modelKey']), // normalizeArchetypeVariantMeta：已在确定 ModelArchetype 内折叠旧变体串
+  'src/workbench/observability/classifyError.ts': Object.freeze(['modelKey,registered,requested']), // modelKindFix 诊断载荷投影
+})
+export const MODEL_IDENTITY_MESSAGE =
+  '模型身份唯一键是 (vendor, modelKey)：在多供应商并存层（src/workbench、src/config）声明 modelKey / modelAlias 的接口、类型字面量或函数参数，必须同时声明供应商字段（vendor / vendorKey / modelVendor / providerKey / provider）。'
+
+function staticKeyName(key, computed = false) {
+  if (!key) return null
+  if (key.type === 'Identifier' && !computed) return key.name
+  if (key.type === 'Literal' && typeof key.value === 'string') return key.value
+  if (key.type === 'TemplateLiteral' && key.expressions.length === 0) return key.quasis[0]?.value?.cooked ?? null
+  return null
+}
+
+function extractFunctionParamNames(params) {
+  const names = []
+  for (const param of params) {
+    const target = param.type === 'AssignmentPattern' ? param.left : param
+    if (target.type === 'Identifier') {
+      names.push(target.name)
+    } else if (target.type === 'ObjectPattern' && !param.typeAnnotation && !(param.type === 'AssignmentPattern' && param.left.typeAnnotation)) {
+      // 无类型注解的对象解构形参（有类型注解的由 TSTypeLiteral 分支拦截，避免双报）
+      for (const prop of target.properties) {
+        if (prop.type === 'Property') {
+          const name = staticKeyName(prop.key, prop.computed)
+          if (name) names.push(name)
+        }
+      }
+    }
+  }
+  return names
+}
+
+export const modelIdentityVendorRule = {
+  meta: { type: 'problem', schema: [], messages: { bareModelKey: '{{message}}（签名：{{label}}）' } },
+  create(context) {
+    const relative = path.relative(REPO_ROOT, context.filename).split(path.sep).join('/')
+    const findings = []
+    const checkFunction = (node) => {
+      const names = extractFunctionParamNames(node.params ?? [])
+      const hasModel = names.some((name) => MODEL_IDENTITY_FIELDS.has(name))
+      const hasVendor = names.some((name) => VENDOR_IDENTITY_FIELDS.has(name))
+      if (hasModel && !hasVendor) {
+        findings.push({ node, label: `fn(${names.join(',')})` })
+      }
+    }
+    const checkTypeMembers = (node, members, interfaceName = null) => {
+      const names = []
+      for (const member of members) {
+        if (member.type !== 'TSPropertySignature' && member.type !== 'TSMethodSignature') continue
+        const name = staticKeyName(member.key, member.computed)
+        if (name) names.push(name)
+      }
+      const hasModel = names.some((name) => MODEL_IDENTITY_FIELDS.has(name))
+      const hasVendor = names.some((name) => VENDOR_IDENTITY_FIELDS.has(name))
+      if (hasModel && !hasVendor) {
+        const label = interfaceName ?? [...names].slice(0, 4).sort().join(',')
+        findings.push({ node, label })
+      }
+    }
+    return {
+      FunctionDeclaration: checkFunction,
+      TSDeclareFunction: checkFunction,
+      TSEmptyBodyFunctionExpression: checkFunction,
+      FunctionExpression: checkFunction,
+      ArrowFunctionExpression: checkFunction,
+      TSInterfaceDeclaration(node) {
+        checkTypeMembers(node, node.body?.body ?? [], node.id?.name ?? null)
+      },
+      TSTypeLiteral(node) {
+        checkTypeMembers(node, node.members ?? [], null)
+      },
+      'Program:exit'() {
+        const remainingAllowed = [...(MODEL_IDENTITY_FROZEN_ALLOWLIST[relative] ?? [])]
+        for (const finding of findings) {
+          const idx = remainingAllowed.indexOf(finding.label)
+          if (idx >= 0) {
+            remainingAllowed.splice(idx, 1)
+            continue
+          }
+          context.report({
+            node: finding.node,
+            messageId: 'bareModelKey',
+            data: { message: MODEL_IDENTITY_MESSAGE, label: finding.label },
+          })
+        }
+      },
+    }
+  },
+}
+
+// ── 11. SM-gates-B2-8（迁自 check:script-network-retry）：scripts/ 网络调用必走共用瞬断重试边界 ────────
+export const SCRIPT_NETWORK_RETRY_OWNER_FILES = Object.freeze(['scripts/lib/transientRetry.mjs'])
+const CONTROL_PLANE_HOST = /(?:api\.github\.com|uploads\.github\.com|api\.cloudflare\.com|registry\.npmjs\.org)/u
+const RETRY_WRAPPERS = new Set(['retryTransient', 'retryTransientSync'])
+const GIT_NETWORK_SUBCOMMANDS = new Set(['fetch', 'ls-remote', 'pull', 'clone'])
+export const SCRIPT_NETWORK_RETRY_FIX_HINT =
+  '读：execGhReadSync / fetchWithRetry / retryTransient 包住；写：execGhWriteSync（只试一次）。见 scripts/lib/transientRetry.mjs'
+
+function unwrapTsExpression(node) {
+  let current = node
+  while (
+    current
+    && (current.type === 'TSAsExpression'
+      || current.type === 'TSSatisfiesExpression'
+      || current.type === 'TSTypeAssertion'
+      || current.type === 'TSNonNullExpression'
+      || current.type === 'ChainExpression')
+  ) {
+    current = current.expression
+  }
+  return current
+}
+
+function staticStringPrefix(rawNode) {
+  const node = unwrapTsExpression(rawNode)
+  if (!node) return null
+  if (node.type === 'Literal' && typeof node.value === 'string') return node.value
+  if (node.type === 'TemplateLiteral') return node.quasis[0]?.value?.cooked ?? node.quasis[0]?.value?.raw ?? null
+  return null
+}
+
+function insideTransientRetryWrapper(node) {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.type === 'CallExpression') {
+      const callee = unwrapTsExpression(parent.callee)
+      const name = callee?.type === 'Identifier'
+        ? callee.name
+        : callee?.type === 'MemberExpression'
+          ? staticKeyName(callee.property, callee.computed)
+          : ''
+      if (name && RETRY_WRAPPERS.has(name)) return true
+    }
+  }
+  return false
+}
+
+export const scriptNetworkRetryRule = {
+  meta: { type: 'problem', schema: [], messages: { unretried: '[{{rule}}] {{message}}' } },
+  create(context) {
+    let controlPlane = false
+    const calls = []
+    const fetchIdentifiers = []
+    const globalFetches = []
+    return {
+      Literal(node) {
+        if (typeof node.value === 'string' && CONTROL_PLANE_HOST.test(node.value)) controlPlane = true
+      },
+      TemplateElement(node) {
+        const text = node.value?.cooked ?? node.value?.raw ?? ''
+        if (CONTROL_PLANE_HOST.test(text)) controlPlane = true
+      },
+      CallExpression(node) {
+        calls.push(node)
+      },
+      Identifier(node) {
+        if (node.name === 'fetch') fetchIdentifiers.push(node)
+      },
+      MemberExpression(node) {
+        const obj = unwrapTsExpression(node.object)
+        const prop = staticKeyName(node.property, node.computed)
+        if (obj?.type === 'Identifier' && obj.name === 'globalThis' && prop === 'fetch') {
+          globalFetches.push(node)
+        }
+      },
+      'Program:exit'() {
+        for (const node of calls) {
+          const first = unwrapTsExpression(node.arguments[0])
+          const command = staticStringPrefix(first)
+            ?? (first && (first.type === 'LogicalExpression' || first.type === 'BinaryExpression') ? staticStringPrefix(first.right) : null)
+          if (command !== null && !insideTransientRetryWrapper(node)) {
+            const second = unwrapTsExpression(node.arguments[1])
+            const words = command.trim().split(/\s+/u)
+            const gitSub = command === 'git' && second?.type === 'ArrayExpression'
+              ? staticStringPrefix(second.elements[0])
+              : words[0] === 'git'
+                ? words[1]
+                : null
+            if (command === 'gh' || words[0] === 'gh') {
+              context.report({ node, messageId: 'unretried', data: { rule: 'gh-raw', message: `gh 调用没有走共用边界：${SCRIPT_NETWORK_RETRY_FIX_HINT}` } })
+            } else if (gitSub && GIT_NETWORK_SUBCOMMANDS.has(gitSub)) {
+              context.report({ node, messageId: 'unretried', data: { rule: 'git-net', message: `git ${gitSub} 是网络调用，没有走共用重试：${SCRIPT_NETWORK_RETRY_FIX_HINT}` } })
+            }
+          }
+          const callee = unwrapTsExpression(node.callee)
+          if (controlPlane && callee?.type === 'Identifier' && (callee.name === 'fetch' || callee.name === 'fetchImpl')) {
+            context.report({
+              node,
+              messageId: 'unretried',
+              data: { rule: 'fetch-bare', message: `控制面 API 调用直接用 ${callee.name}(...)：改用 fetchWithRetry(url, init, { fetchImpl })` },
+            })
+          }
+        }
+        if (!controlPlane) return
+        for (const node of fetchIdentifiers) {
+          const parent = node.parent
+          const isPropertyKey = (parent?.type === 'MemberExpression' && parent.property === node && !parent.computed)
+            || (parent?.type === 'Property' && parent.key === node && !parent.computed && !parent.shorthand)
+            || (parent?.type === 'MethodDefinition' && parent.key === node && !parent.computed)
+            || parent?.type === 'TSTypeReference'
+            || parent?.type === 'TSTypeQuery'
+          const isDirectCallee = parent?.type === 'CallExpression' && unwrapTsExpression(parent.callee) === node
+          const isAssertedCallee = parent?.type?.startsWith('TS') && parent.parent?.type === 'CallExpression' && unwrapTsExpression(parent.parent.callee) === node
+          if (!isPropertyKey && !isDirectCallee && !isAssertedCallee) {
+            context.report({
+              node,
+              messageId: 'unretried',
+              data: { rule: 'fetch-bare', message: '控制面 API 文件里出现裸 fetch 引用：改用 fetchWithRetry' },
+            })
+          }
+        }
+        for (const node of globalFetches) {
+          context.report({
+            node,
+            messageId: 'unretried',
+            data: { rule: 'fetch-bare', message: 'globalThis.fetch 绕过共用重试边界：改用 fetchWithRetry' },
+          })
+        }
+      },
+    }
+  },
+}
+
+// ── 12. SM-gates-B2-9（迁自 check:batch-machines third-frozen-judgment）：禁第三份 frozen.at > 0 判据 ──
+export const FROZEN_JUDGMENT_HOMES = Object.freeze([
+  'electron/capabilityCore/anchorBible.ts',
+  'src/workbench/generationCanvas/model/anchorBibleKeys.ts',
+])
+export const THIRD_FROZEN_JUDGMENT_MESSAGE =
+  '冻结判据（frozen.at > 0 数值门）只准两处：electron/capabilityCore/anchorBible.ts（权威 isAnchorFrozen）与 src/workbench/generationCanvas/model/anchorBibleKeys.ts（渲染层镜像）。请直接 import 这两处之一，禁止手写第三份。'
+
+function isAtTarget(rawNode) {
+  const node = unwrapTsExpression(rawNode)
+  if (!node) return false
+  if (node.type === 'Identifier' && node.name === 'at') return true
+  if (node.type === 'MemberExpression' && staticKeyName(node.property, node.computed) === 'at') return true
+  return false
+}
+
+function isZeroLiteral(rawNode) {
+  const node = unwrapTsExpression(rawNode)
+  return node?.type === 'Literal' && node.value === 0
+}
+
+export const thirdFrozenJudgmentRule = {
+  meta: { type: 'problem', schema: [], messages: { thirdHome: THIRD_FROZEN_JUDGMENT_MESSAGE } },
+  create(context) {
+    return {
+      BinaryExpression(node) {
+        const isAtGreaterZero =
+          (node.operator === '>' && isAtTarget(node.left) && isZeroLiteral(node.right))
+          || (node.operator === '<' && isZeroLiteral(node.left) && isAtTarget(node.right))
+        if (!isAtGreaterZero || !node.loc) return
+        const line = node.loc.start.line
+        const tokens = context.sourceCode.ast.tokens?.filter(
+          (tok) => tok.loc.start.line >= line - 3 && tok.loc.end.line <= line + 3,
+        ) ?? []
+        const windowText = tokens.map((tok) => tok.value).join(' ')
+        const hasFrozen = tokens.some((tok) => /frozen/i.test(tok.value))
+        const hasNumericGate =
+          (tokens.some((tok) => tok.value === 'typeof') && tokens.some((tok) => /^['"`]?number['"`]?$/.test(tok.value)))
+          || /Number\s*\.\s*isFinite/.test(windowText)
+        if (hasFrozen && hasNumericGate) {
+          context.report({ node, messageId: 'thirdHome' })
+        }
+      },
+    }
+  },
+}
+
+// ── 13. SM-gates-B2-1（迁自 check:mjs-parse）：全仓 .mjs/.cjs 真 Node 原生语法校验（防 TS 语法或 CJS/ESM 混写逃过 tseslint）──
+export const mjsCjsNodeSyntaxRule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      invalidNodeSyntax:
+        'Node 原生 {{ext}}（sourceType={{sourceType}}）语法不合法：{{reason}}（勿在 .mjs/.cjs 中混入 TypeScript 语法、.cjs 混入 ESM/顶层 await、或 .mjs 顶层裸 return）',
+    },
+  },
+  create(context) {
+    return {
+      Program(node) {
+        const filename = context.filename
+        if (!/\.(?:mjs|cjs)$/iu.test(filename)) return
+        const isCjs = /\.cjs$/iu.test(filename)
+        const sourceType = isCjs ? 'script' : 'module'
+        const raw = context.sourceCode.text.replace(/^#![^\r\n]*/u, '')
+        try {
+          espree.parse(raw, { ecmaVersion: 'latest', sourceType })
+        } catch (err) {
+          const line = Number.isInteger(err?.lineNumber) && err.lineNumber >= 1 ? err.lineNumber : 1
+          const column = Number.isInteger(err?.column) && err.column >= 1 ? err.column - 1 : 0
+          context.report({
+            node,
+            loc: { line, column },
+            messageId: 'invalidNodeSyntax',
+            data: {
+              ext: isCjs ? '.cjs' : '.mjs',
+              sourceType,
+              reason: err?.message ?? String(err),
+            },
+          })
+        }
+      },
+    }
+  },
+}
+
 export const t8StructuralGuardBlocks = [
   {
     files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
@@ -234,5 +563,28 @@ export const t8StructuralGuardBlocks = [
     ignores: [...TEST_IGNORES, 'electron/catalog/connectionVendorKey.ts', 'electron/catalog/catalogCommit.ts'],
     plugins: { 'builtin-host-step': syntaxPlugin() },
     rules: { 'builtin-host-step/no-restricted-syntax': ['error', ...builtinHostStepSelectors] },
+  },
+  {
+    files: ['src/workbench/**/*.{ts,tsx}', 'src/config/**/*.{ts,tsx}'],
+    ignores: [...TEST_IGNORES, '**/*.d.ts'],
+    plugins: { 'model-identity-vendor': { rules: { 'require-vendor': modelIdentityVendorRule } } },
+    rules: { 'model-identity-vendor/require-vendor': 'error' },
+  },
+  {
+    files: ['scripts/**/*.{mjs,cjs,js,ts,mts,cts}'],
+    ignores: [...TEST_IGNORES, '**/*.node-test.{mjs,cjs,js,ts,mts,cts}', ...SCRIPT_NETWORK_RETRY_OWNER_FILES],
+    plugins: { 'script-network-retry': { rules: { 'require-transient-retry': scriptNetworkRetryRule } } },
+    rules: { 'script-network-retry/require-transient-retry': 'error' },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...TEST_IGNORES, ...FROZEN_JUDGMENT_HOMES],
+    plugins: { 'batch-frozen-judgment': { rules: { 'single-frozen-judgment': thirdFrozenJudgmentRule } } },
+    rules: { 'batch-frozen-judgment/single-frozen-judgment': 'error' },
+  },
+  {
+    files: ['**/*.{mjs,cjs}'],
+    plugins: { 'mjs-cjs-node-syntax': { rules: { 'valid-node-syntax': mjsCjsNodeSyntaxRule } } },
+    rules: { 'mjs-cjs-node-syntax/valid-node-syntax': 'error' },
   },
 ]
