@@ -431,6 +431,10 @@ export const zhGenerationCommon = {
         reason: '参数不被接受',
         hint: '服务商拒绝了请求参数，请检查比例/尺寸等设置，或换一个模型。',
       },
+      contextLengthExceeded: {
+        reason: '输入内容超过了模型上下文上限',
+        hint: '这次发送的提示词或对话上下文太长，模型一次装不下。请缩短输入内容、开一个新对话，或换一个上下文窗口更大的模型。',
+      },
       outputTruncated: {
         reason: '输出超长被截断',
         hint: '这一轮要返回的内容超过了模型的单轮输出上限，原样重试只会再次截断。请缩短这轮任务（如剧本分段拆镜头、减少镜头数），或换单轮输出上限更大的模型。',
@@ -2250,6 +2254,10 @@ export const enGenerationCommon = {
       input: {
         reason: 'Parameters rejected',
         hint: 'The provider rejected the request parameters. Check settings such as ratio and size, or choose another model.',
+      },
+      contextLengthExceeded: {
+        reason: 'Input exceeds the model’s context limit',
+        hint: 'The prompt or conversation context is too long for this model. Shorten the input, start a new conversation, or choose a model with a larger context window.',
       },
       outputTruncated: {
         reason: 'Output truncated',

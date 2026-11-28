@@ -319,7 +319,12 @@ export function detectBalance(upstream: string | undefined, raw: string): boolea
  * 提示词被挡改下面的 composer 就行。短语取窄（要么是厂商固定错误码，要么「敏感/审核」
  * 与「输入图片」同时出现），不吞普通 400。
  */
-export function detectContentModerationTarget(upstream: string | undefined, raw: string): 'image' | 'prompt' | null {
+export function detectContentModerationTarget(
+  upstream: string | undefined,
+  raw: string,
+  code?: string,
+): 'image' | 'prompt' | null {
+  const normalizedCode = String(code || '').trim().toLowerCase()
   const text = `${upstream || ''} ${raw}`.toLowerCase()
   const blocksImage =
     text.includes('inputimagesensitivecontentdetected') ||
@@ -328,8 +333,33 @@ export function detectContentModerationTarget(upstream: string | undefined, raw:
     ((text.includes('sensitive') || text.includes('敏感') || text.includes('审核')) &&
       (text.includes('input image') || text.includes('输入图片') || text.includes('参考图')))
   if (blocksImage) return 'image'
-  if (text.includes('inputtextsensitivecontentdetected')) return 'prompt'
+  if (normalizedCode === 'content_filter' || text.includes('inputtextsensitivecontentdetected')) return 'prompt'
   return null
+}
+
+const CONTEXT_LENGTH_CODES: ReadonlySet<string> = new Set([
+  'context_length_exceeded',
+  'model_context_window_exceeded',
+  'request_too_large',
+  'string_above_max_length',
+])
+
+const CONTEXT_LENGTH_UPSTREAM_PATTERNS: readonly RegExp[] = [
+  /\bprompt is too long\b/i,
+  /\bexceeds the context window\b/i,
+  /\bmaximum context length\b/i,
+  /\bcontext[_ ]length[_ ]exceeded\b/i,
+  /\brequest exceeds the maximum size\b/i,
+]
+
+/**
+ * 通用协议级「输入或对话超过了模型上下文上限」（OpenAI Chat/Responses 的 `context_length_exceeded`，
+ * Anthropic 413/SSE 的 `request_too_large` 等）。先于 `detectAssetTooLarge` 判，防止纯文本 HTTP 413 被误报成「参考素材太大」。
+ */
+export function detectContextLengthExceeded(code: string | undefined, upstream: string | undefined): boolean {
+  const normalizedCode = String(code || '').trim().toLowerCase().replace(/[-.\s]+/g, '_')
+  if (CONTEXT_LENGTH_CODES.has(normalizedCode)) return true
+  return typeof upstream === 'string' && CONTEXT_LENGTH_UPSTREAM_PATTERNS.some((pattern) => pattern.test(upstream))
 }
 
 /**

@@ -1,0 +1,366 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-fc-agent-stream-errors",
+  "change_kind": "corrective",
+  "problem_type": "Agent 对话流式协议错误留证、标准错误码归一与单次输出长度上限截断投影",
+  "symptom": "HTTP 200 SSE 流内报错（OpenAI Chat/Responses、Anthropic Messages）及部分协议级参数/上下文超长报错落入『服务商返回了一个没见过的错误』；模型因单次输出长度上限截断时或被误判为上下文太长，或静默断尾、工具截断落入未知错误。",
+  "direct_cause": "modelCallFetch 在 200 OK 分支未记录标准 SSE 错误帧，SDK 抛异常时丢弃 type/code 且 laneModelProvider 仅对 kind==='http' 铸造结构化载荷；createNomiModelDescriptor 恒设 maxTokens=16384 与线上真实输出上限不一致；laneProjection 与 laneAssistantFault 未映射输出上限截断终局。",
+  "class_root": "流式 LLM 调用把『HTTP 状态码非 2xx』误当成『服务商报错』的唯一传输形态，导致流内协议错误在跨进程前丢失结构与来源证据；同时模型描述层用未上线的假定上限替代真实线上输出上限声明。",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-12",
+  "invariant_owner_layer": {
+    "layer": "electron/ai/modelCallFetch.ts",
+    "tests": [
+      "electron/agentLane/fcAgentScenarios.test.ts",
+      "electron/agentLane/laneModelCall.test.ts",
+      "electron/vendor/vendorFailureCorpus.test.ts",
+      "src/workbench/ai/lane/laneCommandFailure.test.ts",
+      "tests/agent-runtime/lane-resilience.test.mts"
+    ],
+    "why": "传输留证在流经点无损记录并抹密 HTTP 与 SSE 错误帧，单一协议类别表与投影层统一产出结构化载荷与截断故障，渲染层只按结构展示人话。"
+  },
+  "affected_population": [
+    "所有通过 OpenAI Chat、OpenAI Responses、Anthropic Messages 协议进行多轮对话、单次提问及文本任务的创作者会话。"
+  ],
+  "scope_paths": [
+    "electron/jsonUtils.ts",
+    "electron/ai/modelCallFetch.ts",
+    "electron/ai/runtimeVendorError.ts",
+    "electron/agentLane/laneModelProvider.mts",
+    "electron/shared/vendorFailure.ts",
+    "electron/shared/generationFailureDetect.ts",
+    "electron/shared/generationFailure.ts",
+    "electron/shared/agentLane/laneAssistantFault.ts",
+    "electron/shared/agentLane/laneProjection.ts",
+    "src/workbench/ai/lane/laneCommandFailure.ts"
+  ],
+  "entry_points": [
+    "electron/agentLane/laneHost.mts (openLane)",
+    "electron/agentLane/laneSingleShot.mts (runLaneSingleShot)",
+    "electron/agentLane/laneModelCall.mts (callModelOnce)",
+    "electron/textTaskRunner.ts (executeTextTask)",
+    "electron/ai/textStreamIpc.ts (registerTextStreamIpc)",
+    "src/workbench/ai/lane/laneCommandFailure.ts (providerFailureText / laneFailureText)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.openai.com/docs/guides/error-codes",
+      "checked_at": "2026-11-28",
+      "purpose": "核对 OpenAI Chat 与 Responses 通用协议错误类型（invalid_request_error、rate_limit_error、server_error、insufficient_quota）及错误码（context_length_exceeded、content_filter）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://platform.openai.com/docs/api-reference/responses-streaming",
+      "checked_at": "2026-11-28",
+      "purpose": "核对 OpenAI Responses SSE 流内失败事件（error、response.failed、response.incomplete）的精确 JSON 结构。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.anthropic.com/en/api/messages-streaming",
+      "checked_at": "2026-11-28",
+      "purpose": "核对 Anthropic Messages SSE event: error 载荷（overloaded_error、invalid_request_error、request_too_large）与 stop_reason: max_tokens 行为。"
+    }
+  ],
+  "invariants": [
+    "任何经 observeModelFetch 出网的 HTTP 非 2xx 或 HTTP 200 标准 SSE 错误帧（event: error、顶层 error 对象、response.failed、非长度 response.incomplete）均经同一请求秘密集合抹密并铸造为 VendorRequestError 结构化载荷。",
+    "通用协议级错误标识按 balance > auth > quota > server > HTTP 状态码 > input 的唯一优先级表归类；纯文本上下文超长优先于 HTTP 413 素材超限嗅探。",
+    "模型描述层的输出上限只反映真实线上发送的上限（未声明为 0，Anthropic 缺省 4096），避免服务端默认单轮上限误触发上下文压缩；工具截断与纯文本 length 截断均在投影层产出可操作的本地化故障提示。",
+    "无传输来源证据的裸英文字符串与原始 JSON 继续 fail-closed，绝不作为服务商原话直接显示在界面上。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHistory.mts",
+      "symbol": "projectLaneSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "createNomiProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "projectLaneSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneLegacyMigration.mts",
+      "symbol": "projectLaneSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "createNomiProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "modelCallFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "observeModelFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/modelCallFetch.ts",
+      "symbol": "observeModelFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "pickUpstreamCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "categorizeVendorFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "vendorErrorFromRuntimeFacts"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localAssetFile.ts",
+      "symbol": "pickUpstreamCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localAssetFile.ts",
+      "symbol": "categorizeVendorFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "modelCallFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "laneOutputTruncatedOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "projectLaneSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "detectContextLengthExceeded"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "symbol": "laneAssistantFaultOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "modelCallFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "pickUpstreamCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "categorizeVendorFailure"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/v4/agentPanelV4LabKit.tsx",
+      "symbol": "providerFailureText"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/v4/laneDrivenFixtures.ts",
+      "symbol": "projectLaneSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "providerFailureText"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "decideGenerationFailure"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureActions.ts",
+      "symbol": "decideGenerationFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/jsonUtils.ts",
+      "symbol": "pickUpstreamCode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/vendorFailure.ts",
+      "symbol": "categorizeVendorFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/generationFailureDetect.ts",
+      "symbol": "detectContextLengthExceeded"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneAssistantFault.ts",
+      "symbol": "laneOutputTruncatedOf"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "providerFailureText"
+    }
+  ],
+  "door_reduction": {
+    "before": 35,
+    "after": 34,
+    "why_not": "已同提交删除 runtimeVendorError.ts 中私有的 pickBodyMessage 信封取词副本并收归 jsonUtils.pickUpstreamMessage；剩余门为传输留证、协议归类、会话投影与五出口渲染各自的单一职责边界。"
+  },
+  "generality_proof": "判据只读通用 OpenAI Chat/Responses、Anthropic Messages 与标准 SSE JSON error 字段及 stopReason==='length'，不含任何单个供应商名字、URL 域名或私有文案正则。",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/modelCallFetch.ts",
+      "symbol": "observeModelFetch",
+      "responsibility": "统一采集请求秘密、记录 HTTP 非 2xx 与 HTTP 200 SSE 标准错误帧事实。"
+    },
+    {
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "modelCallFailure",
+      "responsibility": "文本任务与 Agent 对话共用的模型失败铸造入口（内部查 vendorFailure.categorizeVendorFailure 唯一协议类别表）。"
+    },
+    {
+      "path": "electron/shared/generationFailure.ts",
+      "symbol": "decideGenerationFailure",
+      "responsibility": "画布、分镜、任务中心、内置助手与外部助手五出口共用的失败分类与词条键决策。"
+    },
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "projectLaneSnapshot",
+      "responsibility": "将助手错误诊断槽与输出上限截断统一投影为结构化会话段。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "entry_point": "createNomiProvider",
+      "disposition": "enforced",
+      "evidence": "所有 Agent 会话、单次提问、文本流与单发文本任务均经此装配点挂载 observeModelFetch、withVendorFailure 与输出上限结算。"
+    },
+    {
+      "path": "electron/ai/runtimeVendorError.ts",
+      "entry_point": "modelCallFailure",
+      "disposition": "enforced",
+      "evidence": "文本任务与 Agent 车道共用同一失败铸造入口，统一处理 HTTP 非 2xx 与 SSE 流内错误。"
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestJson",
+      "disposition": "enforced",
+      "evidence": "媒体生成请求复用同一份 pickUpstreamCode/pickUpstreamType 与 categorizeVendorFailure。"
+    },
+    {
+      "path": "electron/assets/localAssetFile.ts",
+      "entry_point": "postWithUploadRetry",
+      "disposition": "enforced",
+      "evidence": "素材上传通道复用同一份 categorizeVendorFailure 归类表。"
+    },
+    {
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "entry_point": "providerFailureText",
+      "disposition": "enforced",
+      "evidence": "Agent 面板统一消费投影产出的 fault 与 NOMI_VENDOR_ERR_B64 结构化载荷。"
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "前序修复分别处理了 HTTP 非 2xx 载荷穿透与 HTTP 余额码/半截工具调用拦截，但流内 200 SSE 错误帧与截断后半刀提示属于同一协议边界的剩余切面。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs 扫描 observeModelFetch、modelCallFailure、categorizeVendorFailure、decideGenerationFailure、laneAssistantFaultOf、projectLaneSnapshot、providerFailureText 全部调用点。",
+      "核查全部三条文本协议（openai-compatible、openai-responses、anthropic）在 HTTP 非 2xx、HTTP 200 SSE 错误帧、输出上限截断三种终局下的行为一致性。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/modelCallFetch.ts",
+    "invariant": "传输层统一留证 HTTP 非 2xx 与 SSE 标准错误帧并交单一协议归类表处理；模型描述层输出上限与线上真实发送上限同源。",
+    "failure_mode": "可识别协议错误返回本地化类别与有来源原话；超单轮输出上限保留已生成文本并提示发『继续』或分段输出；无来源内部异常继续 fail-closed。",
+    "exception_policy": "none",
+    "strategy": "用真 HTTP/SSE 假上游在三条协议上回放 8 类真实反馈场景与空操作/全拦反例，同时以 modelRequestParity 328 条请求锁住线上字节不变。",
+    "artifacts": [
+      "electron/ai/modelCallFetch.ts",
+      "electron/ai/runtimeVendorError.ts",
+      "electron/jsonUtils.ts",
+      "electron/shared/vendorFailure.ts",
+      "electron/shared/generationFailure.ts",
+      "electron/shared/generationFailureDetect.ts",
+      "electron/agentLane/laneModelProvider.mts",
+      "electron/shared/agentLane/laneAssistantFault.ts",
+      "electron/shared/agentLane/laneProjection.ts",
+      "src/workbench/ai/lane/laneCommandFailure.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/fcAgentScenarios.test.ts",
+    "electron/agentLane/laneModelCall.test.ts",
+    "electron/vendor/vendorFailureCorpus.test.ts",
+    "src/workbench/ai/lane/laneCommandFailure.test.ts",
+    "tests/agent-runtime/lane-resilience.test.mts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/fcAgentScenarios.test.ts",
+    "electron/agentLane/laneModelCall.test.ts",
+    "electron/vendor/vendorFailureCorpus.test.ts",
+    "src/workbench/ai/lane/laneCommandFailure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/runtimeVendorError.ts"
+    ],
+    "rationale": "同提交删除 runtimeVendorError.ts 中与 jsonUtils.ts 重复的私有 pickBodyMessage 信封取词实现，统一调用 pickUpstreamMessage。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@earendil-works/pi-ai 0.85 + @earendil-works/pi-agent-core 0.85",
+    "target": "上游 SDK 在 SSE 流内异常上保留完整协议 error.type / error.code 结构对象时可精简传输层 SSE 错误帧旁路提取",
+    "rationale": "当前 openai SDK 与 pi-ai 在 HTTP 200 SSE 流内报错时将异常压成无状态码裸字符串，需在传输包装层旁路保留原始协议 JSON。",
+    "exit_criteria": [
+      "升级 pi-ai 后若 AssistantMessage 原生携带流内协议 error.code 与 error.type，可移除 modelCallFetch 的 SSE 错误帧缓存并保持 fcAgentScenarios 全绿。"
+    ]
+  },
+  "migration": "历史转录中已落盘的 length 助手消息在打开对话投影时自动补齐截断提示并保留正文；已落盘的 nomi.output-truncated 诊断自动映射本地化故障；旧版无诊断槽的错误消息保持 fail-closed 不泄露内部裸串。",
+  "residual_risks": [
+    "若个别非标自建网关在 HTTP 200 SSE 中既不发 event: error 也不带 JSON error/response.failed 字段而只把报错拼进普通正文 delta，客户端无法也绝不靠猜正文句子将其判为报错。",
+    "真模型线上付费回合对照在本线仅做 no-key 免费演练，实网付费验证交协调会话统一执行。"
+  ]
+}

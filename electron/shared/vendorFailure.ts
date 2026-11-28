@@ -91,6 +91,54 @@ const BALANCE_IDENTIFIERS: ReadonlySet<string> = new Set([
   "billing_error",
 ]);
 
+const AUTH_IDENTIFIERS: ReadonlySet<string> = new Set([
+  "authentication_error",
+  "permission_error",
+  "invalid_api_key",
+  "unauthorized",
+  "forbidden",
+]);
+
+const QUOTA_IDENTIFIERS: ReadonlySet<string> = new Set([
+  "rate_limit_error",
+  "rate_limit_exceeded",
+  "slow_down",
+  "too_many_requests",
+]);
+
+const SERVER_IDENTIFIERS: ReadonlySet<string> = new Set([
+  "server_error",
+  "api_error",
+  "overloaded_error",
+  "upstream_error",
+  "internal_error",
+  "service_unavailable",
+]);
+
+const INPUT_IDENTIFIERS: ReadonlySet<string> = new Set([
+  "invalid_request_error",
+  "not_found_error",
+  "request_too_large",
+  "invalid_prompt",
+  "context_length_exceeded",
+  "model_context_window_exceeded",
+  "string_above_max_length",
+  "invalid_value",
+  "unknown_parameter",
+  "missing_required_parameter",
+  "unsupported_value",
+  "unsupported_parameter",
+  "content_filter",
+  "model_not_found",
+]);
+
+function matchesIdentifiers(
+  fields: { readonly code?: string; readonly type?: string },
+  table: ReadonlySet<string>,
+): boolean {
+  return [fields.code, fields.type].some((identifier) => identifier !== undefined && table.has(identifier));
+}
+
 /**
  * 失败 → 类别（三扇门共用这一张表：vendorHttp 的媒体请求、runtimeVendorError 的模型调用、localAssetFile 的上传）。
  * `fields` 是上游响应体里它自己给的标识（`pickUpstreamCode` / `pickUpstreamType`）；认不出就按状态码查（数字逻辑码与 HTTP 状态同表）。
@@ -100,19 +148,28 @@ export function categorizeVendorFailure(
   logicalCode?: number | string,
   fields: { readonly code?: string; readonly type?: string } = {},
 ): { category: VendorErrorCategory; retryable: boolean } {
-  if ([fields.code, fields.type].some((identifier) => identifier !== undefined && BALANCE_IDENTIFIERS.has(identifier))) {
-    return { category: "balance", retryable: false };
-  }
+  if (matchesIdentifiers(fields, BALANCE_IDENTIFIERS)) return { category: "balance", retryable: false };
+  if (matchesIdentifiers(fields, AUTH_IDENTIFIERS)) return { category: "auth", retryable: false };
+  if (matchesIdentifiers(fields, QUOTA_IDENTIFIERS)) return { category: "quota", retryable: true };
+  if (matchesIdentifiers(fields, SERVER_IDENTIFIERS)) return { category: "server", retryable: true };
   const code = typeof httpStatus === "number" ? httpStatus : typeof logicalCode === "number" ? logicalCode : Number(logicalCode);
-  if (!Number.isFinite(code)) return { category: "network", retryable: true };
-  if (code === 401 || code === 403) return { category: "auth", retryable: false };
-  if (code === 402) return { category: "balance", retryable: false };
-  if (code === 429) return { category: "quota", retryable: true };
-  if (code === 400 || code === 422) return { category: "input", retryable: false };
-  // 厂商业务码（≥1000，非 HTTP 状态码，如 RunningHub 1014/1007/1001）：是应用级拒绝（鉴权档/缺参/路径），
-  // 重试无意义 → 非 retryable。放在 ≥500 之前，免被误判成「服务端可重试」白白重试几次。
-  if (typeof httpStatus !== "number" && code >= 1000) return { category: "input", retryable: false };
-  if (code >= 500) return { category: "server", retryable: true };
+  if (Number.isFinite(code)) {
+    if (code === 401 || code === 403) return { category: "auth", retryable: false };
+    if (code === 402) return { category: "balance", retryable: false };
+    if (code === 429) return { category: "quota", retryable: true };
+    if (code === 400 || code === 422) return { category: "input", retryable: false };
+    // 厂商业务码（≥1000，非 HTTP 状态码，如 RunningHub 1014/1007/1001）：是应用级拒绝（鉴权档/缺参/路径），
+    // 重试无意义 → 非 retryable。放在 ≥500 之前，免被误判成「服务端可重试」白白重试几次。
+    if (typeof httpStatus !== "number" && code >= 1000) return { category: "input", retryable: false };
+    if (code >= 500) return { category: "server", retryable: true };
+  }
+  if (matchesIdentifiers(fields, INPUT_IDENTIFIERS)) return { category: "input", retryable: false };
+  if (!Number.isFinite(code)) {
+    if (httpStatus === undefined && (logicalCode === undefined || logicalCode === "")) {
+      return { category: "network", retryable: true };
+    }
+    return { category: "unknown", retryable: false };
+  }
   return { category: "unknown", retryable: false };
 }
 

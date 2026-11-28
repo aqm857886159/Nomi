@@ -9,38 +9,27 @@
 import type { RuntimeErrorFacts } from '../shared/agentCapabilities/transportContracts';
 import { laneAssistantFaultOf, type LaneModelTimeoutPhase } from '../shared/agentLane/laneAssistantFault';
 import { MODEL_CALL_CEILING_ERROR } from '../shared/agentLane/modelCallPort';
-import { isJsonRecord, pickUpstreamCode, pickUpstreamType } from '../jsonUtils';
+import { isJsonRecord, pickUpstreamCode, pickUpstreamMessage, pickUpstreamType } from '../jsonUtils';
 // 失败事实与文案只引轻模块：laneModelProvider（pi 的 NodeNext 岛）也编到这里，vendorHttp / i18n 会把整个运行时拖进那份编译。
 import { VendorRequestError, categorizeVendorFailure } from '../shared/vendorFailure';
 import { containsHtmlMarkup } from '../shared/generationFailureDetect';
 import { desktopT } from '../desktopStrings';
 import type { ModelCallAttempt } from './modelCallFetch';
 
-/** 上游报文里的人话：{error:{message}} / {error} / {message} / {msg} 四种常见信封。 */
-function pickBodyMessage(parsed: unknown): string {
-  if (typeof parsed === 'string') return parsed;
-  if (!parsed || typeof parsed !== 'object') return '';
-  const obj = parsed as Record<string, unknown>;
-  if (typeof obj.error === 'string') return obj.error;
-  if (obj.error && typeof obj.error === 'object') {
-    const inner = (obj.error as Record<string, unknown>).message;
-    if (typeof inner === 'string' && inner.trim()) return inner;
-  }
-  if (typeof obj.message === 'string' && obj.message.trim()) return obj.message;
-  if (typeof obj.msg === 'string' && obj.msg.trim()) return obj.msg;
-  return '';
-}
-
 /**
- * JSON 取消息字段，纯文本取片段。网页只保留在传输诊断中。
+ * JSON 取消息字段（统一复用 jsonUtils.pickUpstreamMessage，不再维护私有副本），纯文本取片段。网页只保留在传输诊断中。
  * 中转常把真原因（如「官方算力限制，请等待一段时间后再进行使用」）只放在 body 里，状态行只有一句裸状态文本。
  */
 export function upstreamMessageFromBody(body: string): string {
   const trimmed = body.trim();
   if (!trimmed) return '';
   try {
-    const message = pickBodyMessage(JSON.parse(trimmed));
-    if (message) return message.trim();
+    const parsed: unknown = JSON.parse(trimmed);
+    if (typeof parsed === 'string' && parsed.trim()) return parsed.trim();
+    if (isJsonRecord(parsed)) {
+      const message = pickUpstreamMessage(parsed).trim();
+      if (message) return message;
+    }
   } catch {
     if (containsHtmlMarkup(trimmed)) return '';
   }
@@ -60,20 +49,26 @@ function identifiersFromBody(body: string): { code: string; type: string } {
   }
 }
 
-/** HTTP / 网络 / 超时事实 → 结构化错误；取消与运行期错误不是服务商失败，返回 null。 */
+/** HTTP / SSE 流内协议错误 / 网络 / 超时事实 → 结构化错误；取消与运行期错误不是服务商失败，返回 null。 */
 export function vendorErrorFromRuntimeFacts(error: RuntimeErrorFacts, vendorKey: string): VendorRequestError | null {
   if (error.kind !== 'http' && error.kind !== 'timeout' && error.kind !== 'network') return null;
-  const upstreamMsg = error.body ? upstreamMessageFromBody(error.body) : error.message;
-  // 上游自己给的错误码与它说的话一起带过 IPC（和图 / 视频侧同一个 pickUpstreamCode）：状态码只说「请求有问题」。
+  const fromBody = error.body ? upstreamMessageFromBody(error.body) : '';
+  const upstreamMsg = fromBody || error.message;
+  // 上游自己给的错误码与它说的话一起带过 IPC（和图 / 视频侧同一个 pickUpstreamCode）；Anthropic request_too_large 只写在 type。
   const identifiers = error.body ? identifiersFromBody(error.body) : { code: '', type: '' };
-  const upstreamCode = identifiers.code;
+  const upstreamCode = identifiers.code || (identifiers.type === 'request_too_large' ? identifiers.type : '');
+  const sseLogicalCode = error.kind === 'http' && error.status === undefined
+    ? (identifiers.code || identifiers.type || 'sse_error')
+    : undefined;
   // 有状态码就报状态码（与迁移前文本侧逐字一致：「（HTTP 429）上游原话」）；超时是我们自己的话，不再套一层前缀。
   const display = error.status !== undefined ? `（HTTP ${error.status}）${upstreamMsg}`
     : error.kind === 'timeout' ? upstreamMsg : `（请求失败）${upstreamMsg}`;
   return new VendorRequestError(display, {
     vendorKey, method: 'POST', url: error.url ?? '',
     ...(error.status !== undefined ? { httpStatus: error.status } : {}),
-    upstreamMsg: upstreamMsg.slice(0, 256), ...(upstreamCode ? { upstreamCode } : {}), ...categorizeVendorFailure(error.status, undefined, identifiers),
+    ...(sseLogicalCode ? { logicalCode: sseLogicalCode } : {}),
+    upstreamMsg: upstreamMsg.slice(0, 256), ...(upstreamCode ? { upstreamCode } : {}),
+    ...categorizeVendorFailure(error.status, sseLogicalCode, identifiers),
   });
 }
 
@@ -116,6 +111,14 @@ export function modelCallFailure(input: {
     return vendorErrorFromRuntimeFacts({ kind: 'http', status: attempt.status, body: redact(attempt.body), url: redact(attempt.url), message: `HTTP ${attempt.status}` }, vendorKey)!;
   }
   const raw = redact(input.errorMessage ?? (input.error instanceof Error ? input.error.message : input.error === undefined ? '' : String(input.error)));
+  if (attempt?.kind === 'response' && attempt.sseErrorBody) {
+    return vendorErrorFromRuntimeFacts({
+      kind: 'http',
+      body: redact(attempt.sseErrorBody),
+      url: redact(attempt.url ?? ''),
+      message: withoutClassifierMarker(raw) || 'SSE error',
+    }, vendorKey)!;
+  }
   const fault = laneAssistantFaultOf(raw);
   if (fault?.kind === 'model-timeout') {
     return vendorErrorFromRuntimeFacts({ kind: 'timeout', timeoutPhase: fault.phase,
