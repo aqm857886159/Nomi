@@ -1,0 +1,26 @@
+{
+  "name": "生成画布空态起步卡与底部常驻创建条互斥挂载",
+  "subject": "canvas.creation-surface-exclusivity",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
+    "symbol": "resolveCanvasCreationSurface"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
+      "symbol": "resolveCanvasCreationSurface"
+    }
+  ],
+  "parity_test": "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx"
+  ],
+  "since": "2026-11-28",
+  "notes": "合同 docs/fixes/2026-11-28-canvas-duplicate-surface-guard.root-cause.json：生成画布创建入口由 resolveCanvasCreationSurface 唯一裁决——readOnly 两者都不挂，0 节点仅挂中央 CanvasEmptyState 起步卡，≥1 节点仅挂底部 CanvasToolbar；菜单顺序与显隐偏好由共同宿主 GenerationCanvasReactFlowOverlays 在 !readOnly 时单次加载。"
+}
