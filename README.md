@@ -21,9 +21,15 @@
   <a href="#watch-the-film">Watch the 90-second film</a> ·
   <a href="https://nomiaqm.com/en/quickstart">Quick start</a> ·
   <a href="docs/integrate-with-your-agent-en.md">Let your AI connect it</a> ·
-  <a href="#community">Community</a> ·
+  <a href="#community">Community</a>
+  <br />
   <a href="README.zh-CN.md">简体中文</a> ·
   <a href="README.ja.md">日本語</a> ·
+  <a href="README.ko.md">한국어</a> ·
+  <a href="README.es.md">Español</a> ·
+  <a href="README.fr.md">Français</a> ·
+  <a href="README.de.md">Deutsch</a> ·
+  <a href="README.pt-BR.md">Português</a> ·
   <a href="README.tr.md">Türkçe</a>
 </p>
 
