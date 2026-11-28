@@ -10,6 +10,9 @@ import { createFakeR2, R2_BATCH_LIMIT } from "./fakeR2.mjs";
 
 const PAST = "2020-01-01T00:00:00.000Z";
 const FUTURE = "2999-01-01T00:00:00.000Z";
+// Free-tier 10ms CPU budget caps per-invocation R2 calls and scanned objects well below the 1,000-subrequest cliff.
+const FREE_CPU_SAFE_R2_CALLS = 32;
+const FREE_CPU_SAFE_OBJECTS = 10_000;
 
 function env(bucketOptions) { return { RELAY_TOKEN: "secret", PUBLIC_BASE_URL: "https://assets.example", ASSETS: createFakeR2(bucketOptions) }; }
 
@@ -46,7 +49,7 @@ test("fails closed when the public rate limiter is unavailable", async () => {
   assert.equal(e.ASSETS.values.size, 0);
 });
 
-test("stores an allowed file and serves it until its lifecycle expiry", async () => {
+test("stores an allowed file with numeric expiresAtMs and serves it until its lifecycle expiry without Date.parse", async (t) => {
   const e = env();
   const form = new FormData();
   form.append("file", new File(["hello"], "hello.wav", { type: "audio/wav" }));
@@ -54,6 +57,14 @@ test("stores an allowed file and serves it until its lifecycle expiry", async ()
   assert.equal(upload.status, 201);
   const payload = await upload.json();
   assert.match(payload.url, /^https:\/\/assets\.example\/v1\/assets\/assets%2F/);
+
+  const [stored] = [...e.ASSETS.values.values()];
+  assert.match(String(stored.customMetadata?.expiresAtMs ?? ""), /^\d{13,}$/);
+  assert.equal(Number(stored.customMetadata.expiresAtMs), Date.parse(stored.customMetadata.expiresAt));
+
+  const parseSpy = t.mock.method(Date, "parse", () => {
+    throw new Error("Objects carrying numeric expiresAtMs must not call Date.parse");
+  });
   const fetched = await handler.fetch(new Request(payload.url), e);
   assert.equal(fetched.status, 200);
   assert.equal(await fetched.text(), "hello");
@@ -64,6 +75,8 @@ test("stores an allowed file and serves it until its lifecycle expiry", async ()
   assert.equal(usagePayload.objectCount, 1);
   assert.equal(usagePayload.storageBytes, 5);
   assert.equal(usagePayload.estimatedMonthlyStorageUsd, 0);
+  await cleanup(e);
+  assert.equal(parseSpy.mock.calls.length, 0);
 });
 
 test("HEAD mirrors GET metadata without returning a body", async () => {
@@ -101,7 +114,6 @@ test("blocks an upload that would exceed the configured storage guard", async ()
   assert.equal(e.ASSETS.values.size, 0);
 });
 
-
 async function uploadStatus(e, content = "hello") {
   const form = new FormData();
   form.append("file", new File([content], "hello.wav", { type: "audio/wav" }));
@@ -113,6 +125,40 @@ async function usageOf(e) {
   assert.equal(response.status, 200);
   return response.json();
 }
+
+test("consecutive uploads reuse the short-TTL usage cache with incremental byte accounting and zero extra list() scans", async () => {
+  const e = env();
+  e.MAX_STORAGE_BYTES = "95";
+  e.ASSETS.seed("assets/existing-1", { size: 25, expiresAt: FUTURE });
+  e.ASSETS.seed("assets/existing-2", { size: 25, expiresAt: FUTURE });
+
+  // First upload scans once (50 + 10 = 60 <= 95) and populates the isolate usage cache.
+  assert.equal(await uploadStatus(e, "x".repeat(10)), 201);
+  assert.equal(e.ASSETS.calls.list.length, 1);
+
+  // Subsequent uploads increment storageBytes (70, 80, 90) without re-listing the bucket.
+  assert.equal(await uploadStatus(e, "x".repeat(10)), 201);
+  assert.equal(await uploadStatus(e, "x".repeat(10)), 201);
+  assert.equal(await uploadStatus(e, "x".repeat(10)), 201);
+  assert.equal(e.ASSETS.calls.list.length, 1, "consecutive uploads within TTL must not re-list R2");
+
+  // Incremental accounting still enforces the cap (90 + 10 = 100 > 95 -> 507) without re-listing.
+  assert.equal(await uploadStatus(e, "x".repeat(10)), 507);
+  assert.equal(e.ASSETS.calls.list.length, 1);
+});
+
+test("lazy deletion of an expired asset on read invalidates the usage cache so freed headroom is usable", async () => {
+  const e = env();
+  e.MAX_STORAGE_BYTES = "20";
+  e.ASSETS.seed("assets/expired-heavy", { size: 18, expiresAt: PAST });
+
+  // Warms cache with 18 bytes -> 10-byte upload rejected (28 > 20).
+  assert.equal(await uploadStatus(e, "x".repeat(10)), 507);
+  // Reading the expired key lazily deletes it and invalidates the cached snapshot.
+  const read = await handler.fetch(new Request("https://assets.example/v1/assets/assets%2Fexpired-heavy"), e);
+  assert.equal(read.status, 404);
+  assert.equal(await uploadStatus(e, "x".repeat(10)), 201);
+});
 
 test("the fake bucket hides metadata from list() unless it is requested, like R2 does", async () => {
   const bucket = createFakeR2();
@@ -167,9 +213,6 @@ test("cleanup walks every page and deletes expired objects while paging", async 
 });
 
 test("cleanup deletes in batches of at most 1000 keys, not one call per object", async () => {
-  // 2 700 objects: 2 100 expired, 600 live. Real R2 pages hold 1000. 50 calls is far under the real
-  // per-invocation limit (1,000 R2 calls on Workers Free), and still more than batched deletes need,
-  // while a per-object delete loop would spend 2 100.
   const e = env({ maxOperations: 50 });
   for (let i = 0; i < 2700; i += 1) e.ASSETS.seed(`assets/${String(i).padStart(5, "0")}`, { expiresAt: i % 9 < 7 ? PAST : FUTURE });
   const result = await cleanup(e);
@@ -181,57 +224,77 @@ test("cleanup deletes in batches of at most 1000 keys, not one call per object",
   assert.ok(e.ASSETS.operations <= 6);
 });
 
-// Workers Free allows 1,000 R2 calls per invocation (https://developers.cloudflare.com/workers/platform/limits/#subrequests).
-const FREE_PLAN_R2_CALLS = 1000;
-
-test("a backlog longer than one run's call budget ends the cron run cleanly, and later runs finish it", async (t) => {
-  // The acceptance repro: 5 001 expired objects that R2 happens to hand back one per page (a page may be shorter
-  // than `limit` when metadata is included). Without a budget the first run died on "Too many subrequests".
-  const e = env({ pageCap: 1, maxOperations: FREE_PLAN_R2_CALLS });
-  for (let i = 0; i < 5001; i += 1) e.ASSETS.seed(`assets/${String(i).padStart(5, "0")}`, { size: 1, expiresAt: PAST });
+test("a backlog longer than one run's 10ms-CPU-safe call budget ends cleanly, drains oldest keys first, and later runs finish it", async (t) => {
+  const e = env({ pageCap: 1, maxOperations: FREE_CPU_SAFE_R2_CALLS });
+  for (let i = 0; i < 120; i += 1) e.ASSETS.seed(`assets/${String(i).padStart(5, "0")}`, { size: 1, customMetadata: { expiresAtMs: "1" } });
   const log = t.mock.method(console, "log", () => {});
   const runs = [];
-  for (let run = 0; run < 20 && !runs.at(-1)?.complete; run += 1) {
+  for (let run = 0; run < 15 && !runs.at(-1)?.complete; run += 1) {
     e.ASSETS.newInvocation();
     await handler.scheduled({}, e);
     runs.push(JSON.parse(log.mock.calls.at(-1).arguments[0]));
-    assert.ok(e.ASSETS.operations <= 900, `run ${run + 1} spent ${e.ASSETS.operations} R2 calls`);
+    assert.ok(e.ASSETS.operations <= FREE_CPU_SAFE_R2_CALLS, `run ${run + 1} spent ${e.ASSETS.operations} R2 calls`);
     assert.equal(runs.at(-1).r2Calls, e.ASSETS.operations);
+    if (!runs.at(-1).complete) {
+      const oldestRemaining = [...e.ASSETS.values.keys()].sort()[0];
+      assert.equal(oldestRemaining, `assets/${String(runs.reduce((s, r) => s + r.deleted, 0)).padStart(5, "0")}`);
+    }
   }
   assert.equal(e.ASSETS.values.size, 0);
   assert.equal(runs.at(-1).complete, true);
   assert.ok(runs.length > 1, "the backlog really is longer than one run");
-  assert.ok(runs.slice(0, -1).every((run) => run.event === "asset_cleanup" && run.complete === false && run.deleted > 0), "every cut-short run still made progress and said so");
-  assert.equal(runs.reduce((sum, run) => sum + run.deleted, 0), 5001);
+  assert.ok(runs.slice(0, -1).every((run) => run.event === "asset_cleanup" && run.complete === false && run.deleted > 0));
+  assert.equal(runs.reduce((sum, run) => sum + run.deleted, 0), 120);
+});
+
+test("cleanup also caps scanned objects per invocation at 10,000 on full 1,000-key R2 pages", async () => {
+  const e = env({ pageCap: R2_BATCH_LIMIT, maxOperations: FREE_CPU_SAFE_R2_CALLS });
+  for (let i = 0; i < 12_000; i += 1) {
+    e.ASSETS.seed(`assets/${String(i).padStart(6, "0")}`, { size: 1, customMetadata: { expiresAtMs: "1" } });
+  }
+  const first = await cleanup(e);
+  assert.equal(first.deleted, FREE_CPU_SAFE_OBJECTS);
+  assert.equal(first.complete, false);
+  assert.ok(first.r2Calls <= FREE_CPU_SAFE_R2_CALLS);
+  assert.equal(e.ASSETS.values.size, 2_000);
+
+  e.ASSETS.newInvocation();
+  const second = await cleanup(e);
+  assert.equal(second.deleted, 2_000);
+  assert.equal(second.complete, true);
+  assert.equal(e.ASSETS.values.size, 0);
 });
 
 test("objects that stay are re-listed each run without stopping cleanup from reaching expired ones behind them", async () => {
-  // Oldest first: a third of the objects are live and sit between the expired ones, so every run lists them again.
-  const e = env({ pageCap: 2, maxOperations: FREE_PLAN_R2_CALLS });
-  for (let i = 0; i < 3000; i += 1) e.ASSETS.seed(`assets/${String(i).padStart(5, "0")}`, { expiresAt: i % 3 === 2 ? FUTURE : PAST });
+  const e = env({ pageCap: 2, maxOperations: FREE_CPU_SAFE_R2_CALLS });
+  for (let i = 0; i < 60; i += 1) {
+    e.ASSETS.seed(`assets/${String(i).padStart(5, "0")}`, {
+      customMetadata: { expiresAtMs: i % 3 === 2 ? String(Date.parse(FUTURE)) : "1" },
+    });
+  }
   let result;
   let runs = 0;
   do {
     e.ASSETS.newInvocation();
     result = await cleanup(e);
     runs += 1;
-    assert.ok(e.ASSETS.operations <= 900);
-  } while (!result.complete && runs < 20);
+    assert.ok(e.ASSETS.operations <= FREE_CPU_SAFE_R2_CALLS);
+  } while (!result.complete && runs < 15);
   assert.equal(result.complete, true);
-  assert.equal(e.ASSETS.values.size, 1000);
+  assert.equal(e.ASSETS.values.size, 20);
   assert.ok([...e.ASSETS.values.keys()].every((key) => Number(key.slice("assets/".length)) % 3 === 2));
 });
 
-test("a usage scan longer than the call budget answers usage_unavailable instead of a short total, and stores nothing", async () => {
-  const e = env({ pageCap: 1, maxOperations: FREE_PLAN_R2_CALLS });
-  for (let i = 0; i < 1000; i += 1) e.ASSETS.seed(`assets/${String(i).padStart(5, "0")}`, { size: 1, expiresAt: FUTURE });
+test("a usage scan longer than the call or object budget answers usage_unavailable instead of a short total, and stores nothing", async () => {
+  const e = env({ pageCap: 1, maxOperations: FREE_CPU_SAFE_R2_CALLS });
+  for (let i = 0; i < 80; i += 1) e.ASSETS.seed(`assets/${String(i).padStart(5, "0")}`, { size: 1, customMetadata: { expiresAtMs: String(Date.parse(FUTURE)) } });
   const usage = await handler.fetch(new Request("https://assets.example/v1/usage", { headers: { Authorization: "Bearer secret" } }), e);
   assert.equal(usage.status, 503);
   assert.equal((await usage.json()).error, "usage_unavailable");
   e.ASSETS.newInvocation();
   assert.equal(await uploadStatus(e), 503);
   assert.equal(e.ASSETS.calls.put, 0);
-  assert.ok(e.ASSETS.operations <= 900);
+  assert.ok(e.ASSETS.operations <= FREE_CPU_SAFE_R2_CALLS);
 });
 
 test("usage and the storage cap count every byte still in the bucket, expired or not", async () => {
@@ -280,7 +343,7 @@ test("every bucket listing the worker issues asks for customMetadata under the a
 });
 
 // Class-level matrix: whatever mix of objects the bucket holds and however R2 happens to page it,
-// cleanup removes exactly the objects whose expiresAt has passed and the usage numbers agree with what is left.
+// cleanup removes exactly the expired objects and the usage numbers agree with what is left.
 const POPULATIONS = [
   { name: "all expired", objects: [["expired", 4], ["expired", 4], ["expired", 4]] },
   { name: "all live", objects: [["live", 4], ["live", 4], ["live", 4]] },

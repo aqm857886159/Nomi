@@ -26,6 +26,10 @@
   ! Cache-Control
   Cache-Control: public, max-age=3600, must-revalidate
 
+/docs-media/*
+  ! Cache-Control
+  Cache-Control: public, max-age=3600, must-revalidate
+
 /assets/social-preview-zh.jpg
   ! Cache-Control
   Cache-Control: public, max-age=3600, must-revalidate

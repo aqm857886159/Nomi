@@ -1,0 +1,224 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-cloudflare-worker-free-cpu-budget",
+  "change_kind": "corrective",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-28",
+  "recurrence_of": [
+    "2026-09-27-site-media-byte-ranges",
+    "2026-10-31-asset-relay-expiry-cleanup"
+  ],
+  "problem_type": "Cloudflare Workers 边缘运行时在 JS 层全量读流切片、全桶分页扫描与整块编码拷贝导致超出免费层 10ms CPU 预算",
+  "symptom": "生产环境过去 24 小时至少 100 次触及 Cloudflare Workers 免费层单次调用 10ms CPU 时间上限，导致官网 7.6MB 宣传视频 Range 请求或边缘 Worker 调用面临运行时中断风险。",
+  "direct_cause": "worker/byteRange.ts 在无 Content-Length 的静态资源流上通过 assetLength() 发起二次请求并在 JS 循环 reader.read() 数完整个 7.96MB 视频字节数，且每次 Range 请求（含全长 bytes=0- 及尾部 moov 探测）都在 V8 TransformStream 中流过前序所有分块；workers/nomi-asset-relay/src/index.mjs 每次上传都调用 usageSnapshot() 全表分页扫描并对每对象执行 ISO Date.parse，且单次 R2_CALL_BUDGET=900 允许最高 90 万对象循环；infra/feedback-worker/src/worker.mjs 对所有请求体无条件执行 new TextEncoder().encode(raw) 分配整块字节数组。",
+  "class_root": "边缘 Worker 将本应由平台 C++ 层（caches.default Range 缓存 / FixedLengthStream）或构建期静态元数据（媒体精确字节清单、数值毫秒时间戳、UTF-8 长度上下界不等式）承担的 O(1) 判定，做成了每次请求或定时任务在 V8 JS 层与载荷字节数 / 桶对象总数成线性的 O(N) 循环，且缺少免费层 10ms CPU 维度的显式有界预算。",
+  "affected_population": [
+    "访问官网播放或拖动宣传片及教程站动图的所有桌面与移动端浏览器访客（尤其连发多段 Range 探测的 Safari/iOS 与 Chrome）",
+    "通过参考素材中转站连续上传素材的桌面端会话及每小时整点执行的过期清理任务",
+    "向反馈与遥测接收端上报 JSON 载荷的桌面端客户端"
+  ],
+  "scope_paths": [
+    "worker/",
+    "wrangler.json",
+    "marketing/_headers",
+    "scripts/build-marketing-site.mjs",
+    "workers/nomi-asset-relay/src/index.mjs",
+    "infra/feedback-worker/src/worker.mjs"
+  ],
+  "entry_points": [
+    "worker/index.ts default.fetch -> worker/byteRange.ts serveAssetWithRanges（官网 *.mp4 / *.webm 请求）",
+    "workers/nomi-asset-relay/src/index.mjs POST /v1/assets -> enforceStorageBudget -> cachedUsageSnapshot",
+    "workers/nomi-asset-relay/src/index.mjs scheduled() -> cleanup() -> assetPages()",
+    "infra/feedback-worker/src/worker.mjs POST /v1/feedback & /v1/events -> exceedsMaxBodyBytes()"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.cloudflare.com/workers/platform/limits/#cpu-time",
+      "checked_at": "2026-11-28",
+      "purpose": "核实 Workers Free 计划单次调用 CPU 时间硬上限为 10ms，JS 流分块回调、JSON/RPC 反序列化与字符串编码均计入 CPU 时间。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.cloudflare.com/workers/runtime-apis/cache/",
+      "checked_at": "2026-11-28",
+      "purpose": "核实 caches.default.match(request) 原生在 C++ 层支持 HTTP Range（206 Partial Content、Content-Range、416）及 cache.put 仅接受带缓存头的完整 200 GET 响应。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.cloudflare.com/r2/api/workers/workers-api-reference/",
+      "checked_at": "2026-11-28",
+      "purpose": "核实 R2 list({ prefix, include: [\"customMetadata\"] }) 字典序分页与 customMetadata 字符串键值契约。"
+    }
+  ],
+  "invariants": [
+    "worker/byteRange.ts 绝不在运行时通过 reader.read() 循环统计资源长度：总长度仅来自上游 Content-Length 头或构建期同步的 worker/mediaAssetSizes.ts 精确字节表。",
+    "marketing/ 下所有音视频文件在 scripts/marketing/serving-contract.test.mjs 与 scripts/build-marketing-site.mjs --check 中与 worker/mediaAssetSizes.ts 的字节数 100% 一致，且全部具备单值可缓存的 Cache-Control 头。",
+    "运行时存在 caches.default 时，GET/HEAD 媒体请求优先查 caches.default.match 直接在 C++ 层返回 206/416/200，命中路径 0 次调用 ASSETS.fetch 且 0 次进入 JS TransformStream；未命中时经 ExecutionContext.waitUntil 异步写入完整 200 响应，且全文件范围 bytes=0- 直接走原生 FixedLengthStream。",
+    "workers/nomi-asset-relay/src/index.mjs 上传写入数值毫秒 expiresAtMs（读取兼容旧 ISO expiresAt 免 Date.parse），隔离实例内对 usageSnapshot 做短期 TTL 缓存并在上传成功时增量累加 storageBytes、在 cleanup 与惰性删除时立即失效，且单次调用严格受 R2_CALL_BUDGET=32 与 R2_OBJECT_BUDGET=10000 双预算约束。",
+    "infra/feedback-worker/src/worker.mjs 在 raw.length > MAX_BODY_BYTES（直接判超限）或 raw.length * 3 <= MAX_BODY_BYTES（数学保证 UTF-8 不超限）时不调用 TextEncoder.encode 分配整块字节数组。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "worker/byteRange.ts",
+    "tests": [
+      "electron/catalog/siteWorkerByteRange.test.ts",
+      "scripts/marketing/serving-contract.test.mjs",
+      "tests/asset-relay/worker.node-test.mjs",
+      "infra/feedback-worker/test/worker.node-test.mjs"
+    ],
+    "why": "serveAssetWithRanges 与 MEDIA_ASSET_SIZES 唯一拥有官网媒体 Range 缓存与静态长度语义，assetPages / assetExpiryMs / usageSnapshot 唯一拥有中转站有界扫描与增量容量账，exceedsMaxBodyBytes 唯一拥有反馈体长度零拷贝快速上下界。"
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "worker/index.ts",
+      "symbol": "ASSETS"
+    },
+    {
+      "kind": "write",
+      "path": "worker/index.ts",
+      "symbol": "serveAssetWithRanges"
+    },
+    {
+      "kind": "read",
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "readAsset"
+    },
+    {
+      "kind": "write",
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "assetPages"
+    },
+    {
+      "kind": "write",
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "assetExpiryMs"
+    },
+    {
+      "kind": "write",
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "usageSnapshot"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 6,
+    "why_not": "已物理删除 worker/byteRange.ts 内二次拉取全流的 assetLength 读入口；剩余 6 扇门分别为官网 Worker 唯一媒体入口与中转站列桶、过期判定、容量快照、读取各自的单一职责边界。"
+  },
+  "generality_proof": "仓库内全部三处 Cloudflare Worker（根目录官网 worker/、workers/nomi-asset-relay/、infra/feedback-worker/）均已逐一审计并消除与载荷字节或桶规模成线性的无界 JS CPU 路径；官网新增任意音视频文件均受 pre-push SCAN_GUARDS 中 serving-contract.test.mjs 的路由、缓存头与精确字节表三重全集门岗自动拦截。",
+  "shared_boundaries": [
+    {
+      "path": "worker/byteRange.ts",
+      "symbol": "serveAssetWithRanges",
+      "responsibility": "拥有官网静态媒体请求的边缘 caches.default 优先命中、异步回填、O(1) 静态长度查找与 RFC 9110 Range 响应。"
+    },
+    {
+      "path": "wrangler.json",
+      "symbol": "run_worker_first",
+      "responsibility": "仅将音视频扩展名路由至官网 Worker，保持普通 HTML 与图片直走零计费静态资产层。"
+    },
+    {
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "assetPages",
+      "responsibility": "拥有中转站唯一 R2 列桶入口及单次 32 次调用 / 10000 对象双预算硬上限。"
+    },
+    {
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "assetExpiryMs",
+      "responsibility": "拥有中转站唯一过期时间戳解析（数值 expiresAtMs O(1) 直读，兼容旧 ISO expiresAt）。"
+    },
+    {
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "usageSnapshot",
+      "responsibility": "拥有桶容量统计真源，配合上传路径隔离实例内短期 TTL 缓存、增量字节累加与删除失效。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "worker/index.ts",
+      "entry_point": "default.fetch media range serving",
+      "disposition": "enforced",
+      "evidence": "所有 *.mp4 与 *.webm 请求经 serveAssetWithRanges 优先走 caches.default C++ 缓存与 MEDIA_ASSET_SIZES 静态字节表，零全流计数。"
+    },
+    {
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "entry_point": "upload / scheduled cleanup / GET /v1/usage",
+      "disposition": "enforced",
+      "evidence": "上传走 TTL 缓存与增量字节累加并写数值 expiresAtMs；列桶统一经 assetPages 受 32 次调用与 10000 对象预算约束。"
+    },
+    {
+      "path": "infra/feedback-worker/src/worker.mjs",
+      "entry_point": "POST /v1/feedback and /v1/events body size check",
+      "disposition": "enforced",
+      "evidence": "exceedsMaxBodyBytes 利用 UTF-8 字节上下界跳过常规载荷与超大 ASCII 载荷的整块 TextEncoder.encode 分配。"
+    },
+    {
+      "path": "worker/kieSunoAck.ts",
+      "entry_point": "POST /api/vendor-callbacks/kie/suno/ack",
+      "disposition": "not-affected",
+      "evidence": "纯无状态固定 JSON 回执，不读请求体、不查 ASSETS、不访问存储。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "前序两次 Worker 修复分别解决了 Safari 206 兼容性与 R2 1000 子请求上限，但均未将 Workers 免费层 10ms CPU 时间作为硬约束，导致大视频流与多对象桶在生产流量下反复打满 CPU 上限。",
+    "same_class_scan": [
+      "枚举全仓全部 wrangler 配置（wrangler.json、workers/nomi-asset-relay/wrangler.toml、infra/feedback-worker/wrangler.jsonc）对应的全部 3 个 Cloudflare Worker 源码目录。",
+      "node scripts/door-map.mjs ASSETS serveAssetWithRanges --roots=worker,scripts,electron 与 assetPages assetExpiryMs usageSnapshot readAsset --roots=workers,infra,worker 核对全部读写门。",
+      "扫描 worker/、workers/、infra/ 中所有 ReadableStream.getReader、TransformStream、Date.parse、TextEncoder 与 ASSETS.list 循环点。"
+    ]
+  },
+  "prevention": {
+    "poka_yoke_tier": "impossible-by-construction",
+    "source_mechanism": "route-deletion",
+    "kind": "centralized-boundary",
+    "enforcement_path": "worker/byteRange.ts",
+    "invariant": "媒体长度在构建期写死进 MEDIA_ASSET_SIZES 并由 pre-push 门岗逐文件核对，运行时不存在读流数长度分支；边缘缓存命中直接返回 C++ 响应；R2 扫描受调用数与对象数双上限约束且连续上传走增量缓存。",
+    "failure_mode": "修改 marketing/ 音视频未同步字节表时 serving-contract.test.mjs 与 build-marketing-site.mjs --check 立即失败；R2 超出单次安全预算时 cleanup 分批收尾（complete: false）、usageSnapshot fail-closed 返回 503。",
+    "exception_policy": "none",
+    "strategy": "从源码删除运行时全流计数函数，以构建同步 + 全集门岗锁定静态媒体字节清单，用 caches.default 接管边缘 Range 切片，并在中转站与反馈端统一收紧 O(1) 快速路径与有界扫描预算。",
+    "artifacts": [
+      "worker/byteRange.ts",
+      "worker/index.ts",
+      "worker/mediaAssetSizes.ts",
+      "marketing/_headers",
+      "scripts/build-marketing-site.mjs",
+      "workers/nomi-asset-relay/src/index.mjs",
+      "infra/feedback-worker/src/worker.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/siteWorkerByteRange.test.ts",
+    "scripts/marketing/serving-contract.test.mjs",
+    "tests/asset-relay/worker.node-test.mjs",
+    "infra/feedback-worker/test/worker.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/marketing/serving-contract.test.mjs",
+    "electron/catalog/siteWorkerByteRange.test.ts",
+    "tests/asset-relay/worker.node-test.mjs",
+    "infra/feedback-worker/test/worker.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "worker/byteRange.ts",
+      "workers/nomi-asset-relay/src/index.mjs",
+      "infra/feedback-worker/src/worker.mjs"
+    ],
+    "rationale": "同提交彻底删除 worker/byteRange.ts 的 assetLength() 与 lengthByETag 全流读计数实现、删除 workers/nomi-asset-relay/src/index.mjs 的 900 页无界 CPU 预算与每次上传无缓存全表扫描、删除 infra/feedback-worker/src/worker.mjs 的无条件整串 TextEncoder.encode 分配。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Cloudflare Workers Static Assets（仅 200/304/404）+ Workers Cache API（caches.default C++ Range 切片）+ Workers Free 10ms CPU 限额",
+    "target": "Cloudflare Workers Static Assets 原生直接返回 206 Partial Content / 416 Range Not Satisfiable",
+    "rationale": "平台静态资产层仍未原生支持 Range，需保留轻量 Worker 入口做首请求缓存回填与静态长度声明，将日常 Range 切片卸载至平台 C++ 缓存层。",
+    "exit_criteria": [
+      "不配置 run_worker_first 时直接向静态资产发起 Range: bytes=0-1 返回 206 Partial Content 与准确 Content-Range，届时一并删除 worker/byteRange.ts 与 worker/mediaAssetSizes.ts。"
+    ]
+  },
+  "migration": "纯边缘 Worker 代码与构建期清单升级，无客户端或用户本地存量数据迁移。R2 桶内既有仅含 ISO expiresAt 的对象由 assetExpiryMs 向后兼容解析，新上传对象同时写入 expiresAt 与数值 expiresAtMs；合入后重新部署对应 Cloudflare Worker 即生效。",
+  "residual_risks": [
+    "在 workers.dev 预览子域上 Cloudflare 将 caches.default 置为空操作，若未命中的冷请求直接跳跃到多 MB 视频末尾 Range，仍需流过一次无缓存回退切片（生产自定义域名由 caches.default C++ 层接管）；本机无生产边缘遥测面板，线上 CPU 百分位下降需在部署后通过 Cloudflare Dashboard 复核。"
+  ]
+}

@@ -20,8 +20,17 @@
 // 需要真正授权才能做的事：只能写，不能读、不能列、不能删。
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024
+const textEncoder = new TextEncoder()
 // 路由名与落盘前缀是同一个词（`/v1/feedback` → `feedback/…`），所以不留一张只是把它抄一遍的表。
 const ROUTES = new Set(['/v1/feedback', '/v1/events'])
+
+function exceedsMaxBodyBytes(raw) {
+  if (raw.length > MAX_BODY_BYTES) return true
+  // 每个 UTF-16 码元至多编码为 3 个 UTF-8 字节（BMP 1~3 字节，代理对 2 码元 = 4 <= 6 字节）：
+  // 命中上界时无需分配整块 Uint8Array 再做二次 UTF-8 编码。
+  if (raw.length * 3 <= MAX_BODY_BYTES) return false
+  return textEncoder.encode(raw).byteLength > MAX_BODY_BYTES
+}
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
@@ -83,7 +92,7 @@ export default {
 
     const raw = await request.text()
     // content-length 可以撒谎或缺席，所以实际长度再量一次。
-    if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) return json(413, { ok: false, error: 'too_large' })
+    if (exceedsMaxBodyBytes(raw)) return json(413, { ok: false, error: 'too_large' })
 
     let payload
     try {
