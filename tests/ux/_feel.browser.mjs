@@ -299,3 +299,209 @@ test('production shot role badge, mounted names and overflow exceed 4.5 over any
     }
   } finally { await browser.close() }
 })
+
+test('duplicate-nearby-header catches double brand/dialog headers while sparing sibling nodes and chat streams', async () => {
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const icon = '<svg width="16" height="16" viewBox="0 0 24 24"><rect width="20" height="20" rx="5" fill="black"/></svg>'
+
+    // Positive 1: Dock header [icon + Brand] + body card [icon + Brand] 22px underneath (real 1440x900 bug shape)
+    await page.setContent(`
+      <div style="display:flex;width:1400px;height:860px">
+        <main style="flex:1">Workspace</main>
+        <section style="width:390px;display:flex;flex-direction:column;border-left:1px solid #ddd">
+          <header style="height:40px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid #eee">
+            <div style="display:inline-flex;align-items:center;gap:6px">${icon}<span>Studio<span>m</span>i</span></div>
+          </header>
+          <div style="padding:12px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:6px">${icon}<span>Studio<span>m</span>i</span></div>
+              <p style="margin:0">Connect a model provider first.</p>
+              <button type="button">Connect provider</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    `)
+    const dockDup = await scanFeel(page)
+    expect(dockDup.findings.filter((f) => f.rule === 'duplicate-nearby-header')).toHaveLength(1)
+
+    // Positive 2: Dialog <header> title repeated as <h2> immediately underneath
+    await page.setContent(`
+      <div role="dialog" style="width:640px;border:1px solid #ccc">
+        <header style="height:44px;display:flex;align-items:center;padding:0 16px"><strong>模型设置</strong></header>
+        <div style="padding:12px 16px"><h2 style="margin:0;font-size:16px">模型设置</h2><p>Body</p></div>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-nearby-header')).toHaveLength(1)
+
+    // Negative 1: Fixed dock (single header, body goes straight to guidance + action card)
+    await page.setContent(`
+      <section style="width:390px;display:flex;flex-direction:column">
+        <header style="height:40px;display:flex;align-items:center;padding:0 12px">
+          <div style="display:inline-flex;align-items:center;gap:6px">${icon}<span>Studiomi</span></div>
+        </header>
+        <div style="padding:12px">
+          <p style="margin:0">Connect a model provider first.</p>
+          <button type="button">Connect provider</button>
+        </div>
+      </section>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-nearby-header')).toEqual([])
+
+    // Negative 2: Two stacked sibling empty canvas cards both labeled "图片" (peer domain items, not header+body)
+    await page.setContent(`
+      <main style="position:relative;width:900px;height:700px">
+        <div style="position:absolute;left:200px;top:120px;width:220px;height:60px;border:1px solid #ddd">
+          <div style="display:inline-flex;align-items:center;gap:6px">${icon}<span>图片</span></div>
+        </div>
+        <div style="position:absolute;left:200px;top:200px;width:220px;height:60px;border:1px solid #ddd">
+          <div style="display:inline-flex;align-items:center;gap:6px">${icon}<span>图片</span></div>
+        </div>
+      </main>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-nearby-header')).toEqual([])
+  } finally {
+    await browser.close()
+  }
+})
+
+test('duplicate-action-bar catches empty-canvas twin 7-button bars while sparing zoom bar, context menus, and item rows', async () => {
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const intents = [
+      ['Add image item', 'Image', 'M3 6h18v12H3z'],
+      ['Add video item', 'Video', 'M3 6h12v12H3zM15 10l6-3v10l-6-3z'],
+      ['Add audio item', 'Audio', 'M3 12h4l3-6 4 12 3-6h4'],
+      ['Add text item', 'Text', 'M5 20l7-16 7 16M8 14h8'],
+      ['Add clip item', 'Clip', 'M6 7a3 3 0 1 0 0 .1M6 17a3 3 0 1 0 0 .1M8.6 8.6L19 19'],
+      ['Import local file', 'Import', 'M4 17v2h16v-2M12 4v12M7 9l5-5 5 5'],
+    ]
+    const starterTiles = intents
+      .map(([aria, label, d]) => `<button type="button" aria-label="${aria}" style="width:68px;height:64px"><svg width="20" height="20" viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></button>`)
+      .join('') + `<button type="button" aria-haspopup="menu" style="width:68px;height:64px"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>More</span></button>`
+    const moreLabel = 'More items'
+    const bottomDock = intents
+      .map(([aria, , d]) => `<button type="button" aria-label="${aria}" style="width:32px;height:32px"><svg width="18" height="18" viewBox="0 0 24 24"><path d="${d}"/></svg></button>`)
+      .join('') + `<button type="button" aria-label="${moreLabel}" aria-haspopup="menu" style="width:32px;height:32px"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`
+    const zoomButtons = [
+      ['Fit stage', 'fit', true],
+      ['Zoom out stage', '-', false],
+      ['Zoom in stage', '+', false],
+      ['Stage view options', '...', false],
+    ]
+    const zoomDock = `
+      <div style="position:absolute;left:16px;bottom:16px;display:inline-flex;gap:4px">
+        <button type="button" aria-label="${zoomButtons[0][0]}" disabled style="width:32px;height:32px">${zoomButtons[0][1]}</button>
+        <button type="button" aria-label="${zoomButtons[1][0]}" style="width:32px;height:32px">${zoomButtons[1][1]}</button>
+        <span style="font-size:12px">100%</span>
+        <button type="button" aria-label="${zoomButtons[2][0]}" style="width:32px;height:32px">${zoomButtons[2][1]}</button>
+        <button type="button" aria-label="${zoomButtons[3][0]}" style="width:32px;height:32px">${zoomButtons[3][1]}</button>
+      </div>
+    `
+
+    // Positive: Empty canvas has BOTH central 7 starter tiles AND bottom 7-icon dock
+    await page.setContent(`
+      <section style="position:relative;width:1000px;height:800px">
+        <div style="position:absolute;left:260px;top:300px;display:flex;flex-direction:column;align-items:center">
+          <strong>Empty stage</strong>
+          <div style="display:flex;gap:8px;margin-top:16px">${starterTiles}</div>
+        </div>
+        <div style="position:absolute;left:360px;bottom:16px;display:inline-flex;gap:4px">${bottomDock}</div>
+        ${zoomDock}
+      </section>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-action-bar')).toHaveLength(1)
+
+    // Negative 1: Fixed empty canvas (central 7 tiles + bottom-left zoom bar ONLY)
+    await page.setContent(`
+      <section style="position:relative;width:1000px;height:800px">
+        <div style="position:absolute;left:260px;top:300px;display:flex;flex-direction:column;align-items:center">
+          <strong>Empty stage</strong>
+          <div style="display:flex;gap:8px;margin-top:16px">${starterTiles}</div>
+        </div>
+        ${zoomDock}
+      </section>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-action-bar')).toEqual([])
+
+    // Negative 2: Populated canvas with bottom 7-icon dock + open right-click context menu (role="menu")
+    await page.setContent(`
+      <section style="position:relative;width:1000px;height:800px">
+        <div role="menu" style="position:absolute;left:400px;top:220px;display:grid;gap:4px">
+          ${intents.map(([aria, label, d]) => `<button type="button" role="menuitem" aria-label="${aria}"><svg width="16" height="16" viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></button>`).join('')}
+        </div>
+        <div style="position:absolute;left:360px;bottom:16px;display:inline-flex;gap:4px">${bottomDock}</div>
+        ${zoomDock}
+      </section>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-action-bar')).toEqual([])
+
+    // Negative 3: Repeating message cards / table rows each carrying 4 item-scoped action buttons
+    const rowActions = ['Copy item', 'Retry item', 'Continue item', 'Rate item']
+      .map((label) => `<button type="button" aria-label="${label}">${label}</button>`)
+      .join('')
+    const msgActions = `<div style="display:flex;gap:6px">${rowActions}</div>`
+    await page.setContent(`
+      <div style="display:flex;flex-direction:column;gap:16px;width:380px">
+        <div class="msg-item"><p>第一段分镜草稿已经写好，共 6 镜。</p>${msgActions}</div>
+        <div class="msg-item"><p>已把第 2 镜改成雨夜近景。</p>${msgActions}</div>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-action-bar')).toEqual([])
+  } finally {
+    await browser.close()
+  }
+})
+
+test('duplicate-persona-stage catches twin live personas while sparing stage handoff and hidden portals', async () => {
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const liveFace = '<span data-persona-stage="live" style="display:inline-block;width:24px;height:24px;background:#111;border-radius:6px"></span>'
+    const toggleIcon = '<svg width="18" height="18" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor"/></svg>'
+
+    // Positive: Topbar right AND open panel header both show a visible live persona at once
+    await page.setContent(`
+      <div style="display:flex;flex-direction:column;width:1400px;height:860px">
+        <header style="height:40px;display:flex;justify-content:flex-end;align-items:center;padding:0 8px">
+          <button type="button" style="width:28px;height:28px">${liveFace}</button>
+        </header>
+        <section style="margin-left:auto;width:390px;height:800px">
+          <header style="height:48px;display:flex;align-items:center;padding:0 12px">${liveFace}<span>Assistant</span></header>
+        </section>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-persona-stage')).toHaveLength(1)
+
+    // Negative 1 (Panel open): Topbar steps back to linear toggle icon, open panel header owns sole live persona
+    await page.setContent(`
+      <div style="display:flex;flex-direction:column;width:1400px;height:860px">
+        <header style="height:40px;display:flex;justify-content:flex-end;align-items:center;padding:0 8px">
+          <button type="button" style="width:28px;height:28px">${toggleIcon}</button>
+        </header>
+        <section style="margin-left:auto;width:390px;height:800px">
+          <header style="height:48px;display:flex;align-items:center;padding:0 12px">${liveFace}<span>Assistant</span></header>
+        </section>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-persona-stage')).toEqual([])
+
+    // Negative 2 (Panel collapsed): Topbar owns sole live persona, collapsed portal is hidden
+    await page.setContent(`
+      <div style="display:flex;flex-direction:column;width:1400px;height:860px">
+        <header style="height:40px;display:flex;justify-content:flex-end;align-items:center;padding:0 8px">
+          <button type="button" style="width:28px;height:28px">${liveFace}</button>
+        </header>
+        <div hidden>
+          <section style="width:390px;height:800px"><header>${liveFace}</header></section>
+        </div>
+      </div>
+    `)
+    expect((await scanFeel(page)).findings.filter((f) => f.rule === 'duplicate-persona-stage')).toEqual([])
+  } finally {
+    await browser.close()
+  }
+})
