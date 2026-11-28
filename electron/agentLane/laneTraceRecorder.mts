@@ -119,10 +119,10 @@ export function attachLaneTrace(input: {
   };
   const unregister = registerLiveLaneTrace(session.metadata.path, refresh);
   const stops = [
-    harness.hooks.on('before_request', event => {
+    harness.hooks?.on('before_request', event => {
       if (event.step === 'assistant' && event.attempt > 1) ensureTurnState(event.runId).retryCount += 1;
       return undefined;
-    }),
+    }) ?? (() => undefined),
     harness.events.on('run_start', event => {
       starts.set(event.runId, event.startedAt);
       ensureTurnState(event.runId, event.startedAt);
