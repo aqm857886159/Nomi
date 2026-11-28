@@ -3,6 +3,8 @@ import { getTrackTypeForClipType } from '../timeline/timelineTypes'
 import type { TimelineState, TimelineTextClip, TimelineTransition } from '../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { StoryboardTimelineUnit } from '../generationCanvas/agent/storyboardTimelinePlan'
+import type { TimelineAdoptedSource } from '../../../electron/shared/contracts/telemetry'
+import { capabilityOfAdoptedNode, trackTimelineAdopted } from './adoptGenerationNode'
 import { applyAdoption } from './adoptionApply'
 import { contractHashOfResult, proposalKeyForBatch, runIdOfNode, timelineRevisionOf } from './adoptionProposalKey'
 import { lookupAdoptionProposal, proposalIsLanded, registerAdoptionProposal } from './adoptionProposalRegistry'
@@ -33,6 +35,7 @@ type AdoptStoryboardBatchOptions = {
   ports?: AdoptionApplyPorts
   /** Optional caller lifecycle guard, not a semantic revision/CAS protocol. */
   assertCanApply?: () => void
+  source?: Extract<TimelineAdoptedSource, 'storyboard' | 'agent'>
 }
 
 /** 全轴最右端帧（跨所有轨）。 */
@@ -248,6 +251,12 @@ export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions)
       appliedRevision: timelineRevisionOf(applied.timeline),
       skipped,
     })
+    const adoptedSource = options.source ?? 'storyboard'
+    for (let index = 0; index < placements.length; index += 1) {
+      const nodeId = placedNodes[index]?.nodeId
+      const sourceNode = nodeId ? nodesAtRequest.find((candidate) => candidate.id === nodeId) : undefined
+      trackTimelineAdopted(capabilityOfAdoptedNode(sourceNode, placements[index]!.clip.type), adoptedSource)
+    }
     return { status: 'applied', proposal, replayed: false, total, placedItems }
   }
   const status = applied.recovered ? 'failed' : 'needs_recovery'

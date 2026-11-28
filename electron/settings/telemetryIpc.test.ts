@@ -50,4 +50,25 @@ describe('主进程补格', () => {
     expect(withMainProcessFacts('generation.completed', null, 'v')).toBeNull()
     expect(withMainProcessFacts('generation.completed', 'x', 'v')).toBe('x')
   })
+
+  it('onboarding.step：传了 vendorKey 时由主进程归一成 providerClass，vendorKey 不进事件；没传时保留原闭合枚举', () => {
+    const withVendor = withMainProcessFacts(
+      'onboarding.step',
+      { step: 'first_generation_succeeded', providerClass: 'custom' },
+      'apimart',
+    ) as Record<string, unknown>
+    expect(withVendor).toEqual({ step: 'first_generation_succeeded', providerClass: 'builtin' })
+    expect(isTelemetryProps(withVendor, 'onboarding.step')).toBe(true)
+
+    const withRelay = withMainProcessFacts(
+      'onboarding.step',
+      { step: 'first_generation_succeeded', providerClass: 'builtin' },
+      'https-my-private-gateway-corp',
+    ) as Record<string, unknown>
+    expect(withRelay).toEqual({ step: 'first_generation_succeeded', providerClass: 'custom' })
+    expect(JSON.stringify(withRelay)).not.toContain('private-gateway')
+
+    const direct = { step: 'prompt_shown', providerClass: 'builtin' }
+    expect(withMainProcessFacts('onboarding.step', direct, undefined)).toBe(direct)
+  })
 })

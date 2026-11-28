@@ -12,7 +12,7 @@ import { awaitWithAbortSignal, createLaneInputAdmission } from './laneInputAdmis
 import { originalLaneEntry, precedingLaneInput, resolveLaneReplay } from './laneOriginalInput.mjs';
 import { withRestoredTemplate } from './laneInputIntent.mjs';
 import { openLaneHistoryPage } from './laneHistoryPage.mjs';
-import { attachLaneTrace } from './laneTraceRecorder.mjs';
+import { attachLaneTrace, createLaneTraceBridge } from './laneTraceRecorder.mjs';
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from '../shared/agentLane/laneLegacyNote.js';
@@ -130,10 +130,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
 
     const failures = createLaneRepeatedFailureTracker();
     const turn = createLaneTurnBudget(failures, options.limits?.maxModelRequests ?? LANE_MAX_MODEL_REQUESTS);
+    const traceBridge = createLaneTraceBridge(options, pricingBasis, turn);
     const toolInput = createLaneToolInputBoundary({
       failures,
       specs: options.tools,
-      onFailure: options.onToolFailure,
+      onFailure: traceBridge.onFailure,
       turn,
     });
 
@@ -371,9 +372,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
 
     const trace = attachLaneTrace({
       session,
-      pricing: pricingBasis,
-      model: { provider: options.model.providerId, model: options.model.modelId },
-      secrets: [options.model.apiKey ?? '', ...Object.values(options.model.headers ?? {})],
+      runtimeBridge: traceBridge,
+      isContextOverflow: modelFacts.isContextOverflow,
     });
     await trace.refresh().catch(() => undefined);
 

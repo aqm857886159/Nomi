@@ -92,17 +92,20 @@ export interface LaneFixture {
   http: Awaited<ReturnType<typeof createHttpFixture>>;
 }
 
-export async function createLaneFixture(
-  t: TestContext,
-  replies: FixtureReply[],
-  approval?: LaneApprovalOptions,
-): Promise<LaneFixture> {
+async function allocateProjectDir(t?: TestContext): Promise<{
+  projectDir: string;
+  after: (fn: () => void | Promise<void>) => void;
+  cleanup: () => Promise<void>;
+}> {
   const projectDir = await mkdtemp(join(tmpdir(), 'nomi-lane-'));
   const owners: Array<() => void | Promise<void>> = [];
   const after = (close: () => void | Promise<void>) => { owners.push(close); };
+  let cleaned = false;
   // node:test runs after hooks in registration order and stops after a rejected hook.
   // One owner must close dependencies before removing the directory, even on failure.
-  registerFixtureCleanup(t, async () => {
+  const cleanup = async () => {
+    if (cleaned) return;
+    cleaned = true;
     const errors: unknown[] = [];
     for (const close of owners.reverse()) {
       try { await close(); } catch (error) { errors.push(error); }
@@ -111,7 +114,17 @@ export async function createLaneFixture(
     if (errors.length === 1) throw errors[0];
     if (errors.length > 1) throw new AggregateError(errors, 'Lane fixture cleanup failed');
     await rm(projectDir, { recursive: true, force: true });
-  });
+  };
+  if (t) registerFixtureCleanup(t, cleanup);
+  return { projectDir, after, cleanup };
+}
+
+export async function createLaneFixture(
+  t: TestContext,
+  replies: FixtureReply[],
+  approval?: LaneApprovalOptions,
+): Promise<LaneFixture> {
+  const { projectDir, after } = await allocateProjectDir(t);
   const http = await createHttpFixture(replies);
   after(http.close);
   const document = createDocumentPort();
@@ -154,15 +167,14 @@ export async function readFixtureNativeEntries(projectDir: string): Promise<Arra
 }
 
 export async function openTempLaneSession(t?: TestContext): Promise<LaneSession> {
-  const holder = await createLaneFixture(t, []);
-  const opened = await openLaneSession({ projectDir: holder.projectDir });
-  const closeAll = async () => {
-    await opened.release().catch(() => undefined);
-    await holder.close().catch(() => undefined);
-  };
-  if (t) registerFixtureCleanup(t, closeAll);
+  const { projectDir, after, cleanup } = await allocateProjectDir(t);
+  const opened = await openLaneSession({ projectDir });
+  after(() => opened.release().catch(() => undefined));
   return {
     ...opened.session,
-    close: closeAll,
+    close: async () => {
+      await opened.session.close();
+      await cleanup();
+    },
   };
 }

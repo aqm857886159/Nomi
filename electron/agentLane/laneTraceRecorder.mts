@@ -1,9 +1,38 @@
 import { collectTraceRedactions, LANE_TRACE_REDACTIONS_NOTE } from './laneTraceRedaction.mjs';
-import type { JsonValue } from '@earendil-works/pi-ai';
+import type { AssistantMessage, JsonValue } from '@earendil-works/pi-ai';
 import type { LaneSession } from './laneSession.mjs';
 import type { NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { logError } from '../logging/logger.js';
-import { LANE_RUN_FAILED, LANE_TRACE_NOTE, traceSafeValue, writeLaneTrace, type LaneTraceRun } from './laneTrace.mjs';
+import { clampAgentRetryCount, type AgentFaultCategory, type TelemetryResult } from '../shared/contracts/telemetry.js';
+import { isClosedTrajectoryToolFailureCode } from '../shared/agentLane/laneToolFailureEnvelope.js';
+import { laneAssistantFaultOf, laneOutputTruncatedOf, laneVendorFailureText } from '../shared/agentLane/laneAssistantFault.js';
+import { parseVendorErrorFromMessage } from '../shared/generationFailureWire.js';
+import { BALANCE_CLASSIFIER_MARKER } from './laneProviderGuard.mjs';
+import type { LaneToolFailureEvent, LaneTurnCompletedEvent, OpenLaneOptions } from './laneRuntimePort.js';
+import { LANE_RUN_FAILED, LANE_TRACE_NOTE, laneErrorKind, traceSafeValue, writeLaneTrace, type LaneTraceRun } from './laneTrace.mjs';
+
+export type LaneTraceBridge = {
+  readonly pricing: NomiPricingBasis;
+  readonly options: Pick<OpenLaneOptions, 'model' | 'onToolFailure' | 'onTurnCompleted'>;
+  readonly isTurnOver: (runId?: string) => boolean;
+  readonly bindFailure: (handler: (event: LaneToolFailureEvent) => void) => void;
+  readonly onFailure: (event: LaneToolFailureEvent) => void;
+};
+
+export function createLaneTraceBridge(
+  options: Pick<OpenLaneOptions, 'model' | 'onToolFailure' | 'onTurnCompleted'>,
+  pricing: NomiPricingBasis,
+  turn: { isOver: (runId?: string) => boolean },
+): LaneTraceBridge {
+  let listener: ((event: LaneToolFailureEvent) => void) | undefined;
+  return {
+    pricing,
+    options,
+    isTurnOver: (runId) => turn.isOver(runId),
+    bindFailure: (handler) => { listener = handler; },
+    onFailure: (event) => { listener?.(event); options.onToolFailure?.(event); },
+  };
+}
 
 export interface LaneTraceRunStartEvent {
   readonly runId: string;
@@ -16,7 +45,10 @@ export interface LaneTraceToolStartEvent {
 }
 
 export interface LaneTraceToolEndEvent {
+  readonly runId: string;
   readonly toolCallId: string;
+  readonly toolName: string;
+  readonly isError: boolean;
 }
 
 export interface LaneTraceRunEndEvent {
@@ -39,14 +71,69 @@ export function refreshLiveLaneTrace(sessionPath: string): Promise<string> | und
 
 export function attachLaneTrace(input: {
   session: LaneSession;
-  pricing: NomiPricingBasis;
-  secrets: readonly string[];
-  model: LaneTraceRun['model'];
+  pricing?: NomiPricingBasis;
+  secrets?: readonly string[];
+  model?: LaneTraceRun['model'];
+  runtimeBridge?: LaneTraceBridge;
+  isTurnOver?: (runId?: string) => boolean;
+  isContextOverflow?: (message: AssistantMessage) => boolean;
+  onTurnCompleted?: (event: LaneTurnCompletedEvent) => void;
 }) {
-  const { session, pricing, secrets, model } = input;
+  const { session } = input;
+  const bridge = input.runtimeBridge;
+  const pricing = input.pricing ?? bridge?.pricing ?? 'unpriced';
+  const model = input.model ?? { provider: bridge?.options.model.providerId ?? '', model: bridge?.options.model.modelId ?? '' };
+  const secrets = input.secrets ?? [bridge?.options.model.apiKey ?? '', ...Object.values(bridge?.options.model.headers ?? {})];
+  const onTurnCompleted = input.onTurnCompleted ?? bridge?.options.onTurnCompleted;
+  const isTurnOver = input.isTurnOver ?? bridge?.isTurnOver;
+  const isContextOverflow = input.isContextOverflow;
   const starts = new Map<string, number>();
-  const tools = new Map<string, { started: number; runId: string; durationMs?: number }>();
+  const tools = new Map<string, { started: number; runId: string; durationMs?: number; failureCode?: string }>();
+  const pendingFailuresByTool = new Map<string, string[]>();
   let closed = false;
+
+  type TurnTelemetryState = {
+    startedAt: number;
+    toolCallCount: number;
+    retryCount: number;
+    breakerTripped: boolean;
+    lastAssistantFault: AgentFaultCategory | null;
+    hadToolError: boolean;
+  };
+  const turnTelemetry = new Map<string, TurnTelemetryState>();
+  let latestRunId = '';
+  const ensureTurnState = (runId: string, startedAt = Date.now()): TurnTelemetryState => {
+    latestRunId = runId;
+    const existing = turnTelemetry.get(runId);
+    if (existing) return existing;
+    const created: TurnTelemetryState = {
+      startedAt,
+      toolCallCount: 0,
+      retryCount: 0,
+      breakerTripped: false,
+      lastAssistantFault: null,
+      hadToolError: false,
+    };
+    turnTelemetry.set(runId, created);
+    return created;
+  };
+  const noteToolFailure = (toolName: string, code: string, toolCallId?: string): void => {
+    // 只有模型无视第 3 次警告继续调用、真正触发 `tool_retry_stopped` 停轮时才记熔断失败；
+    // 第 3 次连败本身只是向模型发提示，若模型随后换路或询问用户并正常结束回合，不应误判为熔断失败。
+    if (code === 'tool_retry_stopped' && latestRunId) ensureTurnState(latestRunId).breakerTripped = true;
+    const closedCode = isClosedTrajectoryToolFailureCode(code) ? code : 'unknown_tool_failure';
+    if (toolCallId) {
+      const existing = tools.get(toolCallId);
+      if (existing) existing.failureCode = closedCode;
+      else tools.set(toolCallId, { started: performance.now(), runId: '', failureCode: closedCode });
+      return;
+    }
+    const list = pendingFailuresByTool.get(toolName) ?? [];
+    list.push(closedCode);
+    pendingFailuresByTool.set(toolName, list);
+  };
+  bridge?.bindFailure((event) => noteToolFailure(event.toolName, event.code));
+
   let tail = Promise.resolve();
   const enqueue = (work: () => Promise<void>) => {
     tail = tail.then(work).catch(() => {
@@ -70,22 +157,80 @@ export function attachLaneTrace(input: {
     return next;
   };
   const unregister = registerLiveLaneTrace(session.metadata.path, refresh);
+
   return {
+    noteToolFailure,
+    onBeforeRetry: (runId: string) => {
+      if (closed || !runId) return;
+      ensureTurnState(runId).retryCount += 1;
+    },
     onRunStart: (event: LaneTraceRunStartEvent) => {
       if (closed) return;
       starts.set(event.runId, event.startedAt);
+      ensureTurnState(event.runId, event.startedAt);
     },
     onToolStart: (event: LaneTraceToolStartEvent) => {
       if (closed) return;
-      tools.set(event.toolCallId, { started: performance.now(), runId: event.runId });
+      const existing = tools.get(event.toolCallId);
+      tools.set(event.toolCallId, {
+        started: performance.now(),
+        runId: event.runId,
+        ...(existing?.failureCode ? { failureCode: existing.failureCode } : {}),
+      });
     },
     onToolEnd: (event: LaneTraceToolEndEvent) => {
       if (closed) return;
+      const turnState = ensureTurnState(event.runId);
+      turnState.toolCallCount += 1;
+      if (event.isError) {
+        turnState.retryCount += 1;
+        turnState.hadToolError = true;
+      }
+      const queued = event.isError ? pendingFailuresByTool.get(event.toolName)?.shift() : undefined;
       const tool = tools.get(event.toolCallId);
-      if (tool) tool.durationMs = Math.max(0, performance.now() - tool.started);
+      if (tool) {
+        if (!tool.runId) tool.runId = event.runId;
+        tool.durationMs = Math.max(0, performance.now() - tool.started);
+        if (queued && !tool.failureCode) tool.failureCode = queued;
+      } else if (event.isError && queued) {
+        tools.set(event.toolCallId, { started: performance.now(), runId: event.runId, failureCode: queued });
+      }
+    },
+    onAssistantMessageEnd: (runId: string, message: AssistantMessage) => {
+      if (closed || !runId) return;
+      ensureTurnState(runId).lastAssistantFault = assistantFaultCategory(
+        message,
+        Boolean(isContextOverflow?.(message)),
+      );
     },
     onRunEnd: (event: LaneTraceRunEndEvent) => {
       if (closed) return;
+      pendingFailuresByTool.clear();
+      const turnState = turnTelemetry.get(event.runId);
+      turnTelemetry.delete(event.runId);
+      if (onTurnCompleted) {
+        const durationMs = Math.max(0, event.endedAt - (turnState?.startedAt ?? event.endedAt));
+        const breakerTripped = Boolean(turnState?.breakerTripped || isTurnOver?.(event.runId));
+        let result: TelemetryResult = 'success';
+        let faultCategory: AgentFaultCategory | undefined;
+        if (breakerTripped) {
+          result = 'failure';
+          faultCategory = 'tool_refused';
+        } else if (event.status === 'aborted') {
+          result = 'cancel';
+        } else if (event.status === 'failed' || Boolean(turnState?.lastAssistantFault)) {
+          result = 'failure';
+          faultCategory = turnState?.lastAssistantFault ?? (turnState?.hadToolError ? 'tool_refused' : 'other');
+        }
+        onTurnCompleted({
+          result,
+          durationMs,
+          toolCallCount: turnState?.toolCallCount ?? 0,
+          retryCount: clampAgentRetryCount(turnState?.retryCount ?? 0),
+          breakerTripped,
+          ...(result === 'failure' && faultCategory ? { faultCategory } : {}),
+        });
+      }
       const observations = [...tools].filter(([, tool]) => tool.runId === event.runId);
       const note: LaneTraceRun = {
         runId: event.runId,
@@ -97,8 +242,15 @@ export function attachLaneTrace(input: {
         pricing,
         model,
         error: event.status === 'failed' ? LANE_RUN_FAILED : null,
-        tools: observations.flatMap(([toolCallId, tool]) =>
-          tool.durationMs === undefined ? [] : [{ toolCallId, durationMs: tool.durationMs }]),
+        tools: observations.flatMap(([toolCallId, tool]) => (
+          tool.durationMs === undefined && !tool.failureCode
+            ? []
+            : [{
+                toolCallId,
+                ...(tool.durationMs === undefined ? {} : { durationMs: tool.durationMs }),
+                ...(tool.failureCode ? { failureCode: tool.failureCode } : {}),
+              }]
+        )),
       };
       starts.delete(event.runId);
       for (const [id] of observations) tools.delete(id);
@@ -117,4 +269,39 @@ export function attachLaneTrace(input: {
       await publish();
     },
   };
+}
+
+function assistantFaultCategory(
+  message: { readonly errorMessage?: string; readonly stopReason?: string; readonly diagnostics?: readonly { readonly type?: unknown; readonly details?: unknown }[] },
+  contextOverflow: boolean,
+): AgentFaultCategory | null {
+  if (laneOutputTruncatedOf(message)) return 'protocol_or_schema';
+  if (contextOverflow) return 'context_overflow';
+  const fault = laneAssistantFaultOf(message.errorMessage);
+  if (fault) {
+    if (fault.kind === 'model-timeout') return 'timeout';
+    if (fault.kind === 'stream-cut') return 'stream_cut';
+    if (fault.kind === 'context-overflow') return 'context_overflow';
+    if (fault.kind === 'output-truncated') return 'protocol_or_schema';
+  }
+  const vendorText = laneVendorFailureText(message);
+  if (vendorText) {
+    const structured = parseVendorErrorFromMessage(vendorText);
+    const status = typeof structured?.httpStatus === 'number' ? structured.httpStatus : 0;
+    if (structured?.category === 'auth' || status === 401 || status === 403) return 'auth';
+    if (structured?.category === 'balance' || structured?.category === 'quota' || status === 402 || status === 429) return 'quota';
+    if (structured?.category === 'timeout' || status === 408 || status === 504) return 'timeout';
+    if (structured?.category === 'input' || (status >= 400 && status < 500)) return 'protocol_or_schema';
+    return 'upstream';
+  }
+  if (message.stopReason !== 'error' && !message.errorMessage) return null;
+  const kind = laneErrorKind(message.errorMessage ?? '');
+  if (kind === 'auth') return 'auth';
+  if (kind === 'balance' || kind === 'rate-limit' || kind === BALANCE_CLASSIFIER_MARKER || kind === 'rate limit') return 'quota';
+  if (kind === 'timeout' || kind.startsWith('model-timeout:')) return 'timeout';
+  if (kind === 'stream-cut') return 'stream_cut';
+  if (kind === 'context-overflow') return 'context_overflow';
+  if (kind === 'protocol-error' || kind === 'output-truncated' || kind === 'upstream-4xx') return 'protocol_or_schema';
+  if (kind === 'upstream-5xx' || kind === 'network' || kind === 'server error' || kind === 'network error') return 'upstream';
+  return 'other';
 }

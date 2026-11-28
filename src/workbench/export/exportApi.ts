@@ -1,7 +1,7 @@
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopMp4ExportResult } from '../../desktop/bridge'
 import { ExportCancelledError, isExportCancelledError } from '../../../electron/shared/contracts/exportTypes'
-import type { TelemetryResult } from '../../../electron/shared/contracts/telemetry'
+import type { ExportFailureReason, TelemetryResult } from '../../../electron/shared/contracts/telemetry'
 import i18n from '../../i18n'
 import type { TimelineState } from '../timeline/timelineTypes'
 import type { PreviewAspectRatio } from '../workbenchTypes'
@@ -73,6 +73,24 @@ export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJ
   })
 }
 
+/** 导出失败 → 闭合四分类（原文、路径、文件名一个字都不进事件）。 */
+export function classifyExportFailureReason(error: unknown): ExportFailureReason {
+  const code = error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
+    ? (error as { code: string }).code
+    : ''
+  const text = `${code} ${error instanceof Error ? error.message : String(error ?? '')}`
+  if (/asset_unreadable|assetUnreadable|missing_output|inputMissing|inputEmpty|clip_unavailable|ENOENT|no such file|media.*missing|无法读取素材|找不到素材/i.test(text)) {
+    return 'missing_media'
+  }
+  if (/ENOSPC|EACCES|EPERM|EROFS|outside_project|disk full|no space left|permission denied|磁盘空间|权限不足/i.test(text)) {
+    return 'disk_or_permission'
+  }
+  if (/ffmpeg|filtergraph|codec|probe_unavailable|mp4NotProduced|mp4Empty|transcode|mux|exit code|转码失败/i.test(text)) {
+    return 'ffmpeg_error'
+  }
+  return 'other'
+}
+
 export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): Promise<DesktopMp4ExportResult> {
   const desktop = getDesktopBridge()
   if (!desktop?.exports?.startJob || !desktop.exports.writeTempInput || !desktop.exports.finishTempInput) {
@@ -83,25 +101,30 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
   }
   const { projectId, timeline: exportTimeline, manifest } = createTimelineExportManifest(options)
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const trackExport = (result: TelemetryResult): void => {
+  const trackExport = (result: TelemetryResult, failureReason?: ExportFailureReason): void => {
     const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
     const elapsed = endedAt - startedAt
-    void desktop.telemetry?.track({ eventName: 'export.completed', props: { format: 'mp4', durationBucket: elapsed < 1000 ? '<1s' : elapsed <= 5000 ? '1-5s' : '>5s', result } })
+    void desktop.telemetry?.track({
+      eventName: 'export.completed',
+      props: {
+        format: 'mp4',
+        durationBucket: elapsed < 1000 ? '<1s' : elapsed <= 5000 ? '1-5s' : '>5s',
+        result,
+        ...(result === 'failure' ? { failureReason: failureReason ?? 'other' } : {}),
+      },
+    })
   }
-  const { jobId, backend } = await desktop.exports.startJob({
-    projectId,
-    outputName: options.outputName,
-    manifest,
-  })
-
+  let jobId: string | null = null
   let webmBlob: Blob | null = null
   let finishedTempInput = false
   let jobCancelled = Boolean(options.signal?.aborted)
   let cancelJobPromise: Promise<unknown> | null = null
+  let onAbort: (() => void) | undefined
+  let unsubscribe: (() => void) | undefined
 
   const cancelRemoteJob = (): Promise<unknown> => {
     jobCancelled = true
-    if (!finishedTempInput && desktop.exports.cancel) {
+    if (jobId !== null && !finishedTempInput && desktop.exports.cancel) {
       cancelJobPromise ??= desktop.exports.cancel(jobId).catch((cancelError: unknown) => {
         logRendererWarn('export-cancel-failed', undefined, cancelError)
       })
@@ -109,37 +132,44 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     return cancelJobPromise ?? Promise.resolve()
   }
 
-  if (jobCancelled) {
-    await cancelRemoteJob()
-    trackExport('cancel')
-    throw new ExportCancelledError()
-  }
-
-  options.onJobStarted?.({ jobId, backend })
-
-  const onAbort = (): void => {
-    void cancelRemoteJob()
-  }
-  options.signal?.addEventListener('abort', onAbort, { once: true })
-
   const throwIfCancelled = (): void => {
     if (options.signal?.aborted || jobCancelled) {
       throw new ExportCancelledError()
     }
   }
 
-  const unsubscribe = desktop.exports.onEvent?.((event) => {
-    if (event.jobId !== jobId) return
-    if (event.snapshot.cancelled || event.snapshot.status === 'cancelled') {
-      jobCancelled = true
-      return
-    }
-    const ratio = Math.max(0, Math.min(1, event.snapshot.progress.ratio))
-    const stage = event.snapshot.progress.stage
-    const status = stage === 'succeeded' ? 'done' : stage === 'encoding' || stage === 'muxing' || stage === 'finalizing' ? 'converting' : 'preparing'
-    options.onProgress?.({ status, ratio })
-  })
   try {
+    const started = await desktop.exports.startJob({
+      projectId,
+      outputName: options.outputName,
+      manifest,
+    })
+    jobId = started.jobId
+    const { backend } = started
+
+    if (options.signal?.aborted || jobCancelled) {
+      await cancelRemoteJob()
+      trackExport('cancel')
+      throw new ExportCancelledError()
+    }
+
+    options.onJobStarted?.({ jobId, backend })
+    onAbort = () => {
+      void cancelRemoteJob()
+    }
+    options.signal?.addEventListener('abort', onAbort, { once: true })
+
+    unsubscribe = desktop.exports.onEvent?.((event) => {
+      if (event.jobId !== jobId) return
+      if (event.snapshot.cancelled || event.snapshot.status === 'cancelled') {
+        jobCancelled = true
+        return
+      }
+      const ratio = Math.max(0, Math.min(1, event.snapshot.progress.ratio))
+      const stage = event.snapshot.progress.stage
+      const status = stage === 'succeeded' ? 'done' : stage === 'encoding' || stage === 'muxing' || stage === 'finalizing' ? 'converting' : 'preparing'
+      options.onProgress?.({ status, ratio })
+    })
     // 主路径：资产可本地解析 → 主进程 ffmpeg 直读源文件渲染（所见即所得）。renderer 不录 WebM。
     if (backend === 'filtergraph') {
       options.onProgress?.({ status: 'converting', ratio: 0.12 })
@@ -191,8 +221,8 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
       trackExport('cancel')
       throw error instanceof ExportCancelledError ? error : new ExportCancelledError()
     }
-    trackExport('failure')
-    if (!finishedTempInput && desktop.exports.cancel) {
+    trackExport('failure', classifyExportFailureReason(error))
+    if (jobId !== null && !finishedTempInput && desktop.exports.cancel) {
       try {
         await (cancelJobPromise ?? desktop.exports.cancel(jobId))
       } catch (cancelError) {
@@ -207,7 +237,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     downloadTimelineBlob(webmBlob, fallbackName)
     throw new Error(i18n.t('runtime.export.webmFallbackDownloaded', { message, file: fallbackName }))
   } finally {
-    options.signal?.removeEventListener('abort', onAbort)
+    if (onAbort) options.signal?.removeEventListener('abort', onAbort)
     unsubscribe?.()
   }
 }

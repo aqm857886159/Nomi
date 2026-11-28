@@ -16,8 +16,15 @@ export function createLaneTurnBudget(failures: LaneRepeatedFailureTracker, maxMo
   const unconsumed: LaneQueuedTurnItem[] = [];
 
   return {
-    isOver: () => turn.over,
+    isOver: (runId?: string) => (runId !== undefined && turn.runId !== runId ? false : turn.over),
     end: () => { turn.over = true; },
+    onRunStart: (runId: string): void => {
+      if (turn.runId !== runId) {
+        turn.runId = runId;
+        turn.requests = 0;
+        turn.over = false;
+      }
+    },
     onBeforeRequest: (input: {
       runId: string;
       isRetry: boolean;

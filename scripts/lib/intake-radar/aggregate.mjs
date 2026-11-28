@@ -365,10 +365,17 @@ export function detectGenerationSpikes(events, { latestDate, previousDate } = la
 export function tallyLaunches(events) {
   const starts = events.filter((e) => e.eventName === 'app.started')
   const byDate = new Map()
-  for (const e of starts) byDate.set(e.date, (byDate.get(e.date) ?? 0) + 1)
+  const byInstallAge = new Map()
+  for (const e of starts) {
+    byDate.set(e.date, (byDate.get(e.date) ?? 0) + 1)
+    if (typeof e.props?.installAgeBucket === 'string' && e.props.installAgeBucket) {
+      byInstallAge.set(e.props.installAgeBucket, (byInstallAge.get(e.props.installAgeBucket) ?? 0) + 1)
+    }
+  }
   return {
     total: starts.length,
     byDate: [...byDate.entries()].map(([date, count]) => ({ date, count })).sort((a, b) => b.date.localeCompare(a.date)),
+    byInstallAge: [...byInstallAge.entries()].map(([bucket, count]) => ({ bucket, count })).sort((a, b) => b.count - a.count || a.bucket.localeCompare(b.bucket)),
   }
 }
 
@@ -540,6 +547,152 @@ export function summarizeDiagnosis(events) {
 }
 
 // ---------------------------------------------------------------------------
+// 产品全链路漏斗（2026-11-28 第 1 刀）：新手接入 / Agent 一次做对率 / 上轴采纳 / 导出失败分布 / 账龄
+// ---------------------------------------------------------------------------
+
+const ONBOARDING_FUNNEL_STEPS = [
+  'prompt_shown',
+  'setup_opened',
+  'key_submitted',
+  'verify_succeeded',
+  'verify_failed',
+  'first_generation_succeeded',
+]
+
+function rankReasons(values) {
+  const counts = new Map()
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
+  const total = values.length
+  return [...counts.entries()]
+    .map(([reason, count]) => ({ reason, count, share: total > 0 ? Math.round((count / total) * 1000) / 10 : 0 }))
+    .sort((a, b) => b.count - a.count || (a.reason === UNREPORTED_FAILURE_REASON) - (b.reason === UNREPORTED_FAILURE_REASON) || a.reason.localeCompare(b.reason))
+}
+
+export function summarizeProductFunnel(events) {
+  // 1. 新手接入漏斗（按会话去重算转化率，避免单会话多次重试提交 key 把分母刷超 100%；同时保留事件原计数）
+  const onboardingEvents = events.filter((e) => e.eventName === 'onboarding.step')
+  const stepCounts = new Map(ONBOARDING_FUNNEL_STEPS.map((step) => [step, 0]))
+  const stepSessions = new Map(ONBOARDING_FUNNEL_STEPS.map((step) => [step, new Set()]))
+  onboardingEvents.forEach((evt, index) => {
+    const step = String(evt.props?.step ?? '')
+    if (!stepCounts.has(step)) return
+    stepCounts.set(step, stepCounts.get(step) + 1)
+    const sessionKey = typeof evt.sessionId === 'string' && evt.sessionId ? evt.sessionId : `anon-${index}`
+    stepSessions.get(step).add(sessionKey)
+  })
+  const sessionsOf = (step) => stepSessions.get(step)?.size ?? 0
+  const onboardingVerifyFailed = onboardingEvents.filter((e) => e.props?.step === 'verify_failed')
+  const onboarding = {
+    totalEvents: onboardingEvents.length,
+    byStep: ONBOARDING_FUNNEL_STEPS.map((step) => ({
+      step,
+      events: stepCounts.get(step) ?? 0,
+      sessions: sessionsOf(step),
+    })),
+    setupFromPromptRate: ratio(sessionsOf('setup_opened'), sessionsOf('prompt_shown')),
+    verifyFromSetupRate: ratio(sessionsOf('verify_succeeded'), sessionsOf('setup_opened')),
+    verifyFromSubmitRate: ratio(sessionsOf('verify_succeeded'), sessionsOf('key_submitted')),
+    firstGenFromVerifyRate: ratio(sessionsOf('first_generation_succeeded'), sessionsOf('verify_succeeded')),
+    activationFromPromptRate: ratio(sessionsOf('first_generation_succeeded'), sessionsOf('prompt_shown')),
+    failReasons: rankReasons(onboardingVerifyFailed.map((e) => String(e.props?.failReason || 'other'))),
+    byProviderClass: tally(onboardingEvents.map((e) => String(e.props?.providerClass || 'unknown'))),
+  }
+
+  // 2. Agent 回合总分母与一次做对率（retryCount === 0）
+  const turnEvents = events.filter((e) => e.eventName === 'agent.turn.completed')
+  const turnCounts = emptyCounts()
+  let firstTrySuccessCount = 0
+  let zeroToolFailureCount = 0
+  let breakerTrippedCount = 0
+  for (const evt of turnEvents) {
+    const result = evt.props?.result ?? 'unknown'
+    addResult(turnCounts, result)
+    const retryCount = evt.props?.retryCount
+    const breaker = evt.props?.breakerTripped === true
+    if (breaker) breakerTrippedCount += 1
+    if (result === 'success' && retryCount === 0) firstTrySuccessCount += 1
+    if ((evt.props?.toolCallsBucket === '0' || retryCount === 0) && !breaker && evt.props?.faultCategory !== 'tool_refused') {
+      zeroToolFailureCount += 1
+    }
+  }
+  const failedTurns = turnEvents.filter((e) => e.props?.result === 'failure')
+  const toolFailureEvents = events.filter((e) => e.eventName === 'agent.tool.failed').length
+  const agentTurns = {
+    ...turnCounts,
+    successRate: ratio(turnCounts.success, turnCounts.total),
+    decidedSuccessRate: ratio(turnCounts.success, turnCounts.success + turnCounts.failure),
+    firstTrySuccessCount,
+    firstTryRate: ratio(firstTrySuccessCount, turnCounts.total),
+    firstTryAmongSuccessRate: ratio(firstTrySuccessCount, turnCounts.success),
+    zeroToolFailureCount,
+    zeroToolFailureRate: ratio(zeroToolFailureCount, turnCounts.total),
+    breakerTrippedCount,
+    toolFailureEvents,
+    faultReasons: rankReasons(failedTurns.map((e) => String(e.props?.faultCategory || 'other'))),
+    byToolCallsBucket: tally(turnEvents.map((e) => String(e.props?.toolCallsBucket || 'unknown'))),
+    byModelClass: tally(turnEvents.map((e) => String(e.props?.modelClass || 'unknown'))),
+  }
+
+  // 3. 生成结果采纳进时间轴比例
+  const generationSuccessEvents = events.filter((e) => e.eventName === 'generation.completed' && e.props?.result === 'success')
+  const adoptedEvents = events.filter((e) => e.eventName === 'timeline.adopted')
+  const adoptedFromGenerationEvents = adoptedEvents.filter((e) => e.props?.source !== 'import')
+  const adoptedImportCount = adoptedEvents.length - adoptedFromGenerationEvents.length
+  const capabilities = new Set([
+    ...generationSuccessEvents.map((e) => String(e.props?.capability || 'unknown')),
+    ...adoptedEvents.map((e) => String(e.props?.capability || 'unknown')),
+  ])
+  const byCapability = [...capabilities]
+    .map((capability) => {
+      const generatedSuccess = generationSuccessEvents.filter((e) => String(e.props?.capability || 'unknown') === capability).length
+      const capAdopted = adoptedEvents.filter((e) => String(e.props?.capability || 'unknown') === capability)
+      const adoptedFromGeneration = capAdopted.filter((e) => e.props?.source !== 'import').length
+      const adoptedImport = capAdopted.length - adoptedFromGeneration
+      return {
+        capability,
+        generatedSuccess,
+        adoptedFromGeneration,
+        adoptedImport,
+        adoptedTotal: capAdopted.length,
+        adoptionRate: ratio(adoptedFromGeneration, generatedSuccess),
+      }
+    })
+    .sort((a, b) => b.generatedSuccess - a.generatedSuccess || b.adoptedTotal - a.adoptedTotal || a.capability.localeCompare(b.capability))
+  const timelineAdoption = {
+    generationSuccess: generationSuccessEvents.length,
+    adoptedTotal: adoptedEvents.length,
+    adoptedFromGeneration: adoptedFromGenerationEvents.length,
+    adoptedImport: adoptedImportCount,
+    adoptionRate: ratio(adoptedFromGenerationEvents.length, generationSuccessEvents.length),
+    bySource: tally(adoptedEvents.map((e) => String(e.props?.source || 'unknown'))),
+    byCapability,
+  }
+
+  // 4. 导出成败与失败原因分布（兼容无 failureReason 的旧事件）
+  const exportEvents = events.filter((e) => e.eventName === 'export.completed')
+  const exportCounts = emptyCounts()
+  for (const evt of exportEvents) addResult(exportCounts, evt.props?.result ?? 'unknown')
+  const failedExports = exportEvents.filter((e) => e.props?.result === 'failure')
+  const exports = {
+    ...exportCounts,
+    successRate: ratio(exportCounts.success, exportCounts.total),
+    failureRate: ratio(exportCounts.failure, exportCounts.total),
+    failureReasons: rankReasons(failedExports.map((e) => (
+      typeof e.props?.failureReason === 'string' && e.props.failureReason ? e.props.failureReason : UNREPORTED_FAILURE_REASON
+    ))),
+  }
+
+  // 5. 启动安装账龄分档
+  const startsWithAge = events.filter((e) => e.eventName === 'app.started' && typeof e.props?.installAgeBucket === 'string' && e.props.installAgeBucket)
+  const installAge = {
+    startsWithAge: startsWithAge.length,
+    byBucket: tally(startsWithAge.map((e) => e.props.installAgeBucket)),
+  }
+
+  return { onboarding, agentTurns, timelineAdoption, exports, installAge }
+}
+
+// ---------------------------------------------------------------------------
 // 顶层组装
 // ---------------------------------------------------------------------------
 
@@ -595,6 +748,7 @@ export function buildIntakeReport({
     updateActions: tallyUpdateActions(events),
     perf: summarizePerf(events, feedbackItems),
     diagnosis: summarizeDiagnosis(events),
+    funnel: summarizeProductFunnel(events),
     dataQuality: { corruptFileCount: corruptFiles.length, corruptFiles },
   }
 }

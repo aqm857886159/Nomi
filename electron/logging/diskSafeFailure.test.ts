@@ -190,7 +190,7 @@ describe("A3：Agent 派生轨迹只留错误类别", () => {
   it("errors 与失败工具摘要里没有原话；类别照留", () => {
     const rows = deriveLaneTrace(entries, "s1");
     expectNoLeak(JSON.stringify(rows), fixture);
-    expect(rows[0]!.errors).toEqual(["rate limit", "tool-failed", "run-failed"]);
+    expect(rows[0]!.errors).toEqual(["rate limit", "tool:unknown_tool_failure", "run-failed"]);
     expect(rows[0]!.tools[0]!.failed).toBe(true);
   });
 });

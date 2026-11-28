@@ -235,7 +235,6 @@ export function createLaneHostDrive(deps: {
       },
     );
     if (!signal?.aborted && liveOperation) {
-      trace.onToolStart({ runId: liveOperation.id, toolCallId });
       liveOperation.runningTools = [
         ...liveOperation.runningTools.filter((t) => t.toolCallId !== toolCallId),
         { toolCallId, toolName, args },
@@ -383,10 +382,11 @@ export function createLaneHostDrive(deps: {
       return;
     }
     if (event.type === 'tool_execution_start') {
+      trace.onToolStart({ runId, toolCallId: event.toolCallId });
       return;
     }
     if (event.type === 'tool_execution_end') {
-      trace.onToolEnd({ toolCallId: event.toolCallId });
+      trace.onToolEnd({ runId, toolCallId: event.toolCallId, toolName: event.toolName, isError: event.isError });
       turn.onToolEnd(event.toolName, event.isError, registeredToolNames);
       if (liveOperation) {
         liveOperation.runningTools = liveOperation.runningTools.filter((t) => t.toolCallId !== event.toolCallId);
@@ -397,6 +397,9 @@ export function createLaneHostDrive(deps: {
     if (event.type === 'message_end') {
       if (event.message.role === 'system') return;
       turn.onMessageEnd(runId, event.message);
+      if (event.message.role === 'assistant') {
+        trace.onAssistantMessageEnd(runId, event.message);
+      }
       const entryId = await session.appendMessage(event.message);
       entryIdByMessage.set(event.message as object, entryId);
       const persisted = session.getEntry(entryId);
@@ -443,6 +446,7 @@ export function createLaneHostDrive(deps: {
       lastAssistant: undefined,
     };
     liveOperation = op;
+    turn.onRunStart(runId);
     trace.onRunStart({ runId, startedAt });
     publish();
 
@@ -513,6 +517,7 @@ export function createLaneHostDrive(deps: {
               stopReason: 'error',
               errorMessage: PI_CONTEXT_OVERFLOW_MESSAGE,
             };
+            trace.onAssistantMessageEnd(runId, overflowFailure);
             const id = await session.appendMessage(overflowFailure);
             const persisted = session.getEntry(id);
             if (persisted) history.append(persisted);
@@ -541,6 +546,7 @@ export function createLaneHostDrive(deps: {
             break;
           }
           await omitFailedAssistantAttempt(session, entryIdByMessage, last);
+          trace.onBeforeRetry(runId);
           op.nextRequestIsRetry = true;
           publish();
           continue;

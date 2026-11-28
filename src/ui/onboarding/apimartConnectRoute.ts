@@ -1,5 +1,6 @@
 import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
 import { getLocalizedKnownVendors } from '../../config/knownVendors'
+import { readChecklist, trackOnboardingStep } from '../../workbench/onboarding/onboardingState'
 
 export const NOMI_OPEN_APIMART_CONNECT_EVENT = 'nomi-open-apimart-connect'
 
@@ -31,6 +32,7 @@ export const ONBOARDING_DEMO_WORKS = [
 
 /** 打开「连接 APIMart」整窗大页（E0 唯一入口事件；已打开时只聚焦，不开第二个）。 */
 export function openApimartConnect(): void {
+  if (!readChecklist().model) trackOnboardingStep({ step: 'setup_opened', providerClass: 'builtin' })
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(NOMI_OPEN_APIMART_CONNECT_EVENT))
   }
@@ -50,6 +52,9 @@ export function consumePendingModelNetworkScroll(): boolean {
 
 /** 打开「设置 › 模型」首页（别家服务 / 隐藏模型 / 网络代理深链共用）。 */
 export function openModelSettingsHome(options?: OpenModelSettingsOptions): void {
+  if (!options?.scrollToNetwork && !readChecklist().model) {
+    trackOnboardingStep({ step: 'setup_opened', providerClass: 'custom' })
+  }
   if (options?.scrollToNetwork) pendingScrollToNetwork = true
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } }))
