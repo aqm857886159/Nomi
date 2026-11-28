@@ -535,14 +535,15 @@ const LLM_SDK_BAN_MESSAGE =
   'ai 与 @ai-sdk/* 已于 2026-10-21 整体卸载；要调一次模型请统一经 callModelOnce（electron/agentLane/laneModelCall.mts / CJS 侧 electron/ai/modelCallBridge.ts）。'
 const LLM_STREAM_OWNER_MESSAGE =
   '直接对模型发单次请求（.streamSimple / .completeSimple）只允许出现在 electron/agentLane/laneModelCall.mts 及其两层传输包装（laneModelProvider.mts / laneProviderGuard.mts）中；业务请经 callModelOnce。'
+const LLM_SDK_MODULE_PATTERN = '/^(?:ai(?:\\/|$)|@ai-sdk\\/)/'
 export const LLM_SDK_BAN_SELECTORS = [
-  { selector: "ImportExpression > Literal.source[value=/^(ai|@ai-sdk\\/)/]", message: LLM_SDK_BAN_MESSAGE },
-  { selector: "ImportExpression > TemplateLiteral.source[expressions.length=0] > TemplateElement[value.cooked=/^(ai|@ai-sdk\\/)/]", message: LLM_SDK_BAN_MESSAGE },
-  { selector: "CallExpression[callee.name='require'] > Literal.arguments:first-child[value=/^(ai|@ai-sdk\\/)/]", message: LLM_SDK_BAN_MESSAGE },
-  { selector: "CallExpression[callee.name='require'] > TemplateLiteral.arguments:first-child[expressions.length=0] > TemplateElement[value.cooked=/^(ai|@ai-sdk\\/)/]", message: LLM_SDK_BAN_MESSAGE },
-  { selector: "TSImportEqualsDeclaration > TSExternalModuleReference.moduleReference > Literal.expression[value=/^(ai|@ai-sdk\\/)/]", message: LLM_SDK_BAN_MESSAGE },
-  { selector: "TSImportType > Literal.source[value=/^(ai|@ai-sdk\\/)/]", message: LLM_SDK_BAN_MESSAGE },
-  { selector: ":matches(ExportNamedDeclaration, ExportAllDeclaration) > Literal.source[value=/^(ai|@ai-sdk\\/)/]", message: LLM_SDK_BAN_MESSAGE },
+  { selector: `ImportExpression > Literal.source[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `ImportExpression > TemplateLiteral.source[expressions.length=0] > TemplateElement[value.cooked=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `CallExpression[callee.name='require'] > Literal.arguments:first-child[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `CallExpression[callee.name='require'] > TemplateLiteral.arguments:first-child[expressions.length=0] > TemplateElement[value.cooked=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `TSImportEqualsDeclaration > TSExternalModuleReference.moduleReference > Literal.expression[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `TSImportType > Literal.source[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
+  { selector: `:matches(ExportNamedDeclaration, ExportAllDeclaration) > Literal.source[value=${LLM_SDK_MODULE_PATTERN}]`, message: LLM_SDK_BAN_MESSAGE },
 ]
 export const LLM_STREAM_OWNER_SELECTORS = [
   { selector: "MemberExpression[computed=false][property.name=/^(streamSimple|completeSimple)$/]", message: LLM_STREAM_OWNER_MESSAGE },
@@ -1346,7 +1347,7 @@ export default tseslint.config(
     rules: {
       'llm-sdk-ban/no-restricted-imports': ['error', {
         paths: [{ name: 'ai', message: LLM_SDK_BAN_MESSAGE }],
-        patterns: [{ group: ['@ai-sdk/*'], message: LLM_SDK_BAN_MESSAGE }],
+        patterns: [{ group: ['ai/*', '@ai-sdk/*'], message: LLM_SDK_BAN_MESSAGE }],
       }],
       'llm-sdk-ban/no-restricted-syntax': ['error', ...LLM_SDK_BAN_SELECTORS],
     },

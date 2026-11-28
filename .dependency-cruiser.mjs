@@ -191,7 +191,7 @@ export default {
         'ai 与 @ai-sdk/* 已于 2026-10-21 整体卸载（统一走 pi-ai + electron/agentLane/laneModelCall.mts callModelOnce），禁止任何生产模块再次引入。当前零违规，硬零。',
       severity: 'error',
       from: {},
-      to: { path: '(?:^|/)node_modules/(?:ai/|@ai-sdk/)|^(?:ai|@ai-sdk/.+)$' },
+      to: { path: '(?:^|/)node_modules/(?:ai/|@ai-sdk/)|^(?:ai(?:/|$)|@ai-sdk/)' },
     },
 
     // SM-gates-B2-6（迁自 check:outbound-policy 规则 3）：目的地私网分类器 networkHostPolicy（isPrivateHost）仅限唯一策略主人与受控入口引用（硬零）。

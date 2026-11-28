@@ -6,11 +6,14 @@
 //   · 同时把原 check:main-console / check:renderer-sync-ipc / check:builtin-vendor-literals
 //     及 SM-gates-B2 的 check:model-identity / check:script-network-retry / check:batch-machines（third-frozen-judgment）
 //     收口进 ESLint 并同提交删旧，使本地与 CI 门岗总数真正净减。
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { builtinRules } from 'eslint/use-at-your-own-risk'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const eslintRequire = createRequire(createRequire(import.meta.url).resolve('eslint'))
+const espree = eslintRequire('espree')
 const syntaxPlugin = () => ({ rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } })
 
 const TEST_IGNORES = [
@@ -244,6 +247,8 @@ export const modelIdentityVendorRule = {
     }
     return {
       FunctionDeclaration: checkFunction,
+      TSDeclareFunction: checkFunction,
+      TSEmptyBodyFunctionExpression: checkFunction,
       FunctionExpression: checkFunction,
       ArrowFunctionExpression: checkFunction,
       TSInterfaceDeclaration(node) {
@@ -450,6 +455,45 @@ export const thirdFrozenJudgmentRule = {
   },
 }
 
+// ── 13. SM-gates-B2-1（迁自 check:mjs-parse）：全仓 .mjs/.cjs 真 Node 原生语法校验（防 TS 语法或 CJS/ESM 混写逃过 tseslint）──
+export const mjsCjsNodeSyntaxRule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      invalidNodeSyntax:
+        'Node 原生 {{ext}}（sourceType={{sourceType}}）语法不合法：{{reason}}（勿在 .mjs/.cjs 中混入 TypeScript 语法、.cjs 混入 ESM/顶层 await、或 .mjs 顶层裸 return）',
+    },
+  },
+  create(context) {
+    return {
+      Program(node) {
+        const filename = context.filename
+        if (!/\.(?:mjs|cjs)$/iu.test(filename)) return
+        const isCjs = /\.cjs$/iu.test(filename)
+        const sourceType = isCjs ? 'script' : 'module'
+        const raw = context.sourceCode.text.replace(/^#![^\r\n]*/u, '')
+        try {
+          espree.parse(raw, { ecmaVersion: 'latest', sourceType })
+        } catch (err) {
+          const line = Number.isInteger(err?.lineNumber) && err.lineNumber >= 1 ? err.lineNumber : 1
+          const column = Number.isInteger(err?.column) && err.column >= 1 ? err.column - 1 : 0
+          context.report({
+            node,
+            loc: { line, column },
+            messageId: 'invalidNodeSyntax',
+            data: {
+              ext: isCjs ? '.cjs' : '.mjs',
+              sourceType,
+              reason: err?.message ?? String(err),
+            },
+          })
+        }
+      },
+    }
+  },
+}
+
 export const t8StructuralGuardBlocks = [
   {
     files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
@@ -537,5 +581,10 @@ export const t8StructuralGuardBlocks = [
     ignores: [...TEST_IGNORES, ...FROZEN_JUDGMENT_HOMES],
     plugins: { 'batch-frozen-judgment': { rules: { 'single-frozen-judgment': thirdFrozenJudgmentRule } } },
     rules: { 'batch-frozen-judgment/single-frozen-judgment': 'error' },
+  },
+  {
+    files: ['**/*.{mjs,cjs}'],
+    plugins: { 'mjs-cjs-node-syntax': { rules: { 'valid-node-syntax': mjsCjsNodeSyntaxRule } } },
+    rules: { 'mjs-cjs-node-syntax/valid-node-syntax': 'error' },
   },
 ]

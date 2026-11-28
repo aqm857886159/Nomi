@@ -317,8 +317,8 @@ test('SM-gates-B2 锁死受控主人白名单、package.json 禁包与 dependenc
   const aiRule = depCruiserConfig.forbidden.find((r) => r.name === 'no-vercel-ai-sdk')
   assert.ok(aiRule, '.dependency-cruiser.mjs 缺少 no-vercel-ai-sdk')
   const aiRe = new RegExp(aiRule.to.path)
-  assert.ok(aiRe.test('ai') && aiRe.test('@ai-sdk/openai') && aiRe.test('node_modules/ai/index.js') && aiRe.test('node_modules/@ai-sdk/anthropic/index.js'))
-  assert.ok(!aiRe.test('@earendil-works/pi-ai') && !aiRe.test('electron/ai/modelCallBridge.ts'))
+  assert.ok(aiRe.test('ai') && aiRe.test('ai/rsc') && aiRe.test('@ai-sdk/openai') && aiRe.test('node_modules/ai/index.js') && aiRe.test('node_modules/@ai-sdk/anthropic/index.js'))
+  assert.ok(!aiRe.test('@earendil-works/pi-ai') && !aiRe.test('electron/ai/modelCallBridge.ts') && !aiRe.test('airtable') && !aiRe.test('node_modules/airtable/index.js'))
 
   const hostRule = depCruiserConfig.forbidden.find((r) => r.name === 'private-host-classifier-single-owner')
   assert.ok(hostRule, '.dependency-cruiser.mjs 缺少 private-host-classifier-single-owner')
@@ -403,12 +403,30 @@ test('SM-gates-B2 全量真实 ESLint 配置内存正反单测（9 道退役门�
   assert.ok(spikeDupCjs.some((m) => m.ruleId === 'no-redeclare'), 'transport-spike CJS 重复声明必红')
   const spikeCleanCjs = await errorsOf('tests/transport-spike/clean.cjs', 'const fs = require("node:fs")\nmodule.exports = { ok: Boolean(fs) }\n')
   assert.deepEqual(spikeCleanCjs, [], '干净的 transport-spike CJS 必须全绿')
+  const cleanShebangMjs = await errorsOf('scripts/cleanShebang.mjs', '#!/usr/bin/env node\nconst ok = await Promise.resolve(1)\nexport { ok }\n')
+  assert.deepEqual(cleanShebangMjs, [], '带 shebang 与顶层 await 的合法 .mjs 必须全绿')
+  for (const [badNodeFile, badNodeCode] of [
+    ['scripts/badEsmExport.cjs', 'export const a = 1;\n'],
+    ['scripts/badEsmImport.cjs', 'import fs from "node:fs";\n'],
+    ['scripts/badTopAwait.cjs', 'await Promise.resolve(1);\n'],
+    ['scripts/badTsType.mjs', 'export const x: string = "hi";\n'],
+    ['scripts/badTsAs.cjs', 'const x = 1 as number;\nmodule.exports = { x };\n'],
+    ['scripts/badTopReturn.mjs', 'return 1;\n'],
+  ]) {
+    const hits = await errorsOf(badNodeFile, badNodeCode)
+    assert.ok(
+      hits.some((m) => m.ruleId === 'mjs-cjs-node-syntax/valid-node-syntax'),
+      `${badNodeFile} 非法真 Node 语法应被 mjs-cjs-node-syntax/valid-node-syntax 拦截：${badNodeCode.trim()}`,
+    )
+  }
 
   // ── B2-2: llm-stream-owner（禁 ai/@ai-sdk/* + 禁非主人 .streamSimple/.completeSimple）──
   for (const badImport of [
     'import { streamText } from "ai"; export { streamText };',
+    'import { createStreamableUI } from "ai/rsc"; export { createStreamableUI };',
     'import type { LanguageModelV1 } from "ai"; export type X = LanguageModelV1;',
     'import { createOpenAI } from "@ai-sdk/openai"; export { createOpenAI };',
+    'export const loadSub = () => import("ai/rsc");',
     'export const load = () => import("@ai-sdk/anthropic");',
     'export const r = require("ai");',
     'export type T = import("ai").LanguageModelV1;',
@@ -418,6 +436,18 @@ test('SM-gates-B2 全量真实 ESLint 配置内存正反单测（9 道退役门�
     assert.ok(
       hits.some((m) => m.ruleId?.startsWith('llm-sdk-ban/')),
       `应拦截已卸载 SDK 引用：${badImport}`,
+    )
+  }
+  for (const allowedNonAiImport of [
+    'export const load = () => import("airtable");',
+    'export const loadTpl = () => import(`airtable/lib`);',
+    'export const r = require("airtable");',
+    'export type Base = import("airtable").Base;',
+  ]) {
+    const hits = await errorsOf('electron/ai/allowedAirtable.ts', allowedNonAiImport)
+    assert.ok(
+      !hits.some((m) => m.ruleId?.startsWith('llm-sdk-ban/')),
+      `不应误伤以 ai 开头的合法第三方包：${allowedNonAiImport}`,
     )
   }
   for (const badStream of [
@@ -449,6 +479,8 @@ test('SM-gates-B2 全量真实 ESLint 配置内存正反单测（9 道退役门�
     'export type BareLiteral = { ["modelKey"]: string }',
     'export type BareTemplate = { [`modelAlias`]: string }',
     'export function recordHealth(modelKey: string, now?: number) { return [modelKey, now]; }',
+    'export function f(modelKey: string): void;\nexport function f(modelKey: string, vendor?: string) { return [modelKey, vendor]; }',
+    'export abstract class Base { abstract pick(modelKey: string): void }',
     'export const pick = (modelKey = "gpt-5") => modelKey;',
     'export function untypedDestructure({ modelKey }) { return modelKey; }',
   ]) {
