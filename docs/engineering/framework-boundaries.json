@@ -465,7 +465,7 @@
         },
         {
           "id": "context-compaction",
-          "provides": "自动压缩 compaction + appendContextEdit：超阈值时用 prepareCompaction + compact 摘要旧消息、保留尾巴、落可回放条目；重复读经 appendContextEdit 原生替换模型投影",
+          "provides": "自动压缩 compaction（reserveTokens / keepRecentTokens）+ appendContextEdit：超阈值时用 prepareCompaction + compact 摘要旧消息、保留尾巴、落可回放条目；重复读经 appendContextEdit 原生替换模型投影",
           "evidence": "@earendil-works/pi-coding-agent@1.7.0 dist/core/compaction/compaction.d.ts:55 `estimateProjectedContextTokens` / :59 `shouldCompact` / :135 `prepareCompaction` / :144 `compact`；我们的唯一设置入口 electron/agentLane/laneContextBudget.mts `laneCompactionSettings`",
           "scope": ["electron/agentLane/"],
           "forbidden": [

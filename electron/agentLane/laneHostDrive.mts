@@ -49,6 +49,7 @@ import type { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs
 import type { OpenLaneOptions } from './laneRuntimePort.js';
 import type { LaneSession } from './laneSession.mjs';
 import type { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs';
+import type { LaneTraceRun } from './laneTrace.mjs';
 import type { attachLaneTrace } from './laneTraceRecorder.mjs';
 import type { createLaneTurnBudget } from './laneTurnBudget.mjs';
 
@@ -237,7 +238,7 @@ export function createLaneHostDrive(deps: {
       trace.onToolStart({ runId: liveOperation.id, toolCallId });
       liveOperation.runningTools = [
         ...liveOperation.runningTools.filter((t) => t.toolCallId !== toolCallId),
-        { status: 'running', toolCallId, toolName, args },
+        { toolCallId, toolName, args },
       ];
       publish();
     }
@@ -388,8 +389,7 @@ export function createLaneHostDrive(deps: {
       trace.onToolEnd({ toolCallId: event.toolCallId });
       turn.onToolEnd(event.toolName, event.isError, registeredToolNames);
       if (liveOperation) {
-        liveOperation.runningTools = liveOperation.runningTools.map((t) =>
-          t.toolCallId === event.toolCallId ? { ...t, status: 'completed' } : t);
+        liveOperation.runningTools = liveOperation.runningTools.filter((t) => t.toolCallId !== event.toolCallId);
         publish();
       }
       return;
@@ -447,7 +447,7 @@ export function createLaneHostDrive(deps: {
     publish();
 
     let retryAttempt = 0;
-    let status: 'completed' | 'aborted' | 'failed' = 'completed';
+    let status: LaneTraceRun['status'] = 'completed';
     try {
       for (;;) {
         if (op.abortRequested || isClosed()) {

@@ -79,7 +79,7 @@ const ACTIVE_TOOLS_NOTE = 'nomi.ui.active-tools';
 function assertUiOnlyNotes(...noteTypes: readonly string[]): void {
   for (const noteType of noteTypes) {
     if (!noteType.startsWith(LANE_UI_NOTE_PREFIX) || laneNoteEntersModelContext(noteType)) {
-      throw new Error(`${noteType} is not a UI-only lane note`);
+      throw new Error(`${noteType} is not a UI-only lane note; it needs a real projector, not () => undefined`);
     }
   }
 }
@@ -535,7 +535,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
           const steering = command.kind !== 'follow-up' || Boolean(gate?.pending());
           const message = await awaitWithAbortSignal(inputMessage(command.text), admission);
           admission.throwIfAborted();
-          if (closed) throw new Error('This agent lane refused the message: Closed');
+          if (closed) throw new Error('Closed');
           const entryId = randomUUID();
           if (steering) {
             pendingSteer.push({ entryId, kind: 'steer', message });

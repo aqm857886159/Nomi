@@ -24,7 +24,7 @@ export interface LaneTraceRunEndEvent {
   readonly fromTipId: string | null;
   readonly tipId: string | null;
   readonly endedAt: number;
-  readonly status: 'completed' | 'aborted' | 'failed';
+  readonly status: LaneTraceRun['status'];
 }
 
 // Only transient timings live here; durable facts use pi's standard custom entry.

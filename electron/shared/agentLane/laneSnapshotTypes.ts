@@ -115,7 +115,6 @@ export type LaneQueueItem =
     };
 
 export interface LaneRunningToolSnapshot {
-  readonly status: 'running' | 'completed';
   readonly toolCallId: string;
   readonly toolName: string;
   readonly args: unknown;

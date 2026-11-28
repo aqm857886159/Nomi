@@ -279,7 +279,7 @@ export function projectLaneSnapshot(
   let inputEntryId = previousInputId;
   let legacy: ReturnType<typeof laneLegacyFacts>;
   const running = snapshot.operation?.runningTools ?? [];
-  const runningToolCallIds = new Set(running.filter((tool) => tool.status === 'running').map((tool) => tool.toolCallId));
+  const runningToolCallIds = new Set(running.map((tool) => tool.toolCallId));
   const entries = history ?? snapshot.transcript;
   const recoveredErrors = recoveredErrorEntryIds(entries, Boolean(snapshot.operation?.streamingMessage));
   for (const entry of entries ?? snapshot.transcript) {

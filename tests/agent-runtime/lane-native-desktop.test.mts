@@ -47,8 +47,8 @@ test('production native resources read installed Skill metadata without widening
 
 test('Windows platform assembly wires pi 1.7.0 PowerShell tool alongside bash and requires confirmation outside sandbox', async (t) => {
   const fixture = await createLaneFixture(t, []);
-  const settingsRoot = await mkdtemp(path.join(tmpdir(), 'nomi-win32-settings-'));
-  t.after(() => rm(settingsRoot, { recursive: true, force: true }));
+  const settingsFixture = await createLaneFixture(t, []);
+  const settingsRoot = settingsFixture.projectDir;
   const desktop = await openLaneNativeDesktop({
     projectDir: fixture.projectDir,
     settingsRoot,

@@ -154,11 +154,11 @@ export async function readFixtureNativeEntries(projectDir: string): Promise<Arra
 }
 
 export async function openTempLaneSession(t?: TestContext): Promise<LaneSession> {
-  const projectDir = await mkdtemp(join(tmpdir(), 'nomi-temp-lane-session-'));
-  const opened = await openLaneSession({ projectDir });
+  const holder = await createLaneFixture(t, []);
+  const opened = await openLaneSession({ projectDir: holder.projectDir });
   const closeAll = async () => {
     await opened.release().catch(() => undefined);
-    await rm(projectDir, { recursive: true, force: true });
+    await holder.close().catch(() => undefined);
   };
   if (t) registerFixtureCleanup(t, closeAll);
   return {

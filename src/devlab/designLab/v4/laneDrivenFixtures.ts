@@ -61,7 +61,7 @@ const callEntry = { id: 'e2', parentId: 'e1', seq: 2, timestamp: AT, type: 'mess
 export function laneSnapshotToolRunning(): LaneSnapshot {
   return snapshot([userEntry, callEntry], {
     id: 'op-1', kind: 'run', startedAt: AT, fromTipId: 'e1', status: 'running',
-    runningTools: [{ status: 'running', toolCallId: CALL, toolName: TOOL, args: {} }],
+    runningTools: [{ toolCallId: CALL, toolName: TOOL, args: {} }],
   })
 }
 

@@ -595,7 +595,7 @@ async function createNewSession(projectDir: string, laneName: string, explicitId
   const SessionManager = await loadSessionManagerClass();
   const manager = SessionManager.create(cwd, dir, explicitId ? { id: explicitId } : undefined);
   const rawFile = manager.getSessionFile();
-  if (!rawFile) throw new Error('SessionManager did not assign a session file path');
+  if (!rawFile) throw new Error('agent_lane_execute_failed');
   const filePath = resolve(rawFile);
   if (openSessionPaths.has(filePath)) {
     throw alreadyOpenError(manager.getSessionId());
@@ -607,7 +607,7 @@ async function createNewSession(projectDir: string, laneName: string, explicitId
   };
   try {
     const header = manager.getHeader();
-    if (!header) throw new Error('SessionManager did not initialize a session header');
+    if (!header) throw new Error('agent_lane_execute_failed');
     // 以 `0o600` 原子建好首行表头并交给 `setSessionFile` 激活 `flushed = true`：
     //   1. 新项目第一次打开后列表与按 sessionId 重开立即可见（与 0.85.1 行为完全一致）；
     //   2. `nomi.input` 自定义 role 与纯 custom 笔记无需等首条 `user`/`assistant` 就能落盘；

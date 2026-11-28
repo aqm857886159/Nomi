@@ -289,7 +289,7 @@ export async function openProbeLane(
     if (!signal?.aborted && liveOp) {
       liveOp.runningTools = [
         ...liveOp.runningTools.filter((item) => item.toolCallId !== toolCallId),
-        { status: 'running', toolCallId, toolName, args },
+        { toolCallId, toolName, args },
       ];
       notifyWatchers();
     }
@@ -354,8 +354,7 @@ export async function openProbeLane(
     }
     if (event.type === 'tool_execution_end') {
       if (liveOp) {
-        liveOp.runningTools = liveOp.runningTools.map((item) =>
-          item.toolCallId === event.toolCallId ? { ...item, status: 'completed' } : item);
+        liveOp.runningTools = liveOp.runningTools.filter((item) => item.toolCallId !== event.toolCallId);
         notifyWatchers();
       }
       return;
