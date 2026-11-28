@@ -1,20 +1,16 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { AgentHarness } from '@earendil-works/pi-agent-core';
-import { createModels } from '@earendil-works/pi-ai';
-import { createNomiProvider } from '../../electron/agentLane/laneModelProvider.mjs';
 import { openLaneSession } from '../../electron/agentLane/laneSession.mjs';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import { createLaneNativeAssembly } from '../../electron/agentLane/laneNativeAssembly.mjs';
 import { createExtendedLaneTools } from '../../electron/agentLane/laneExtendedTools.js';
 import { createCanvasLaneTools } from '../../electron/agentLane/laneCanvasTools.js';
 import { toModelVisibleSchema } from '../../electron/agentLane/laneToolSchema.mjs';
-import { createLaneTools } from '../../electron/agentLane/laneTools.mjs';
 import { bindLaneTool } from '../../electron/agentLane/laneRuntimePort.js';
 import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } from '../../electron/agentLane/laneToolCatalog.js';
 import { generationPlanInputSchema } from '../../electron/shared/agentCapabilities/generationPlanSchemas.js';
 import { createLaneFixture, mustConfirm } from './laneFixture.mjs';
+import { openProbeLane, PROBE_CONTEXT } from './stage3ProbeHarness.mjs';
 
 const sandbox = { active: true, operations: { exec: async () => ({ exitCode: 0 }) }, close: async () => undefined };
 const closing = { type: 'text' as const, text: '完成。' };
@@ -28,28 +24,28 @@ test('C19 · switching groups tells the model core tools remain callable', async
   ]);
   const native = await createLaneNativeAssembly({ projectDir: f.projectDir, sandbox, bashTimeoutMs: 5000 });
   const request = native.tools.find(tool => tool.name === 'nomi_request_tools')!;
-  const configured = await createNomiProvider(f.options.model, globalThis.fetch);
-  const models = createModels({ credentials: configured.credentials });
-  models.setProvider(configured.provider);
-  const session = await openLaneSession({ projectDir: f.projectDir, laneName: 'main' }, BACKGROUND_CONTEXT);
-  const { harness } = await AgentHarness.create<undefined>({ session: session.session, models,
-    model: configured.model, systemPrompt: 'Read the creation document after switching groups.',
-    tools: [...createLaneTools(LANE_MODEL_TOOL_CATALOG.map(spec =>
+  const seed = await openLaneSession({ projectDir: f.projectDir, laneName: 'main' });
+  native.bindActiveTools(seed.session);
+  const result = await request.execute('switch', { group: 'coding' } as never);
+  assert.match(textOf(result), /All tool groups remain available/);
+  assert.equal('addedToolNames' in (result as object), false);
+  assert.match(request.description, /without removing other tools/);
+  const seededId = seed.sessionId;
+  await seed.release();
+
+  const probe = await openProbeLane(f, {
+    ...f.options,
+    systemPrompt: 'Read the creation document after switching groups.',
+    tools: LANE_MODEL_TOOL_CATALOG.map(spec =>
       f.options.tools.find(tool => tool.name === spec.name) ?? bindLaneTool(spec, async () => {
         throw new Error('Unexpected domain call');
-      }))), ...native.tools],
-    activeToolNames: [...native.activeToolNames()],
-  }, BACKGROUND_CONTEXT);
-  f.after(async () => { await harness.close(BACKGROUND_CONTEXT); await session.release(BACKGROUND_CONTEXT); });
-  const lane = await harness.lane('main', BACKGROUND_CONTEXT);
-  native.bindActiveTools(lane);
-  const result = await request.execute('switch', { group: 'coding' } as never, (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT);
-  assert.match(textOf(result), /All tool groups remain available/);
-  assert.equal(result.addedToolNames, undefined);
-  assert.match(request.description, /without removing other tools/);
-  assert.equal((await lane.prompt('切组后读文稿', undefined, BACKGROUND_CONTEXT)).ok, true);
+      })),
+  }, { sessionId: seededId });
+  const existingTools = await probe.harness.getTools();
+  await probe.harness.setTools([...existingTools, ...native.tools]);
+  await probe.lane.setActiveTools([...native.activeToolNames()]);
+  assert.equal((await probe.lane.prompt('切组后读文稿', undefined, PROBE_CONTEXT)).ok, true);
   assert.match(JSON.stringify(f.http.requests.at(-1)?.body), /The opening scene/);
-
 });
 
 test('C26 · replay the first human failure and show a valid candidate example', async t => {

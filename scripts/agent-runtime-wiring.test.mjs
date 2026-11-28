@@ -28,20 +28,26 @@ const reachable = (entry) => resolveReachable(pkg.scripts, entry)
 
 describe('private pi build and test wiring', () => {
   test('pins the verified SDK graph, keeps Nomi Zod, and has no second model-call stack (ai / @ai-sdk/*)', () => {
-    for (const name of ['pi-agent-core', 'pi-ai', 'pi-coding-agent']) {
-      expect(pkg.dependencies[`@earendil-works/${name}`]).toBe('0.85.1')
+    for (const name of ['pi-agent-core', 'pi-ai', 'pi-coding-agent', 'pi-schema']) {
+      expect(pkg.dependencies[`@earendil-works/${name}`]).toBe('1.7.0')
     }
-    // The override set is exactly the pi packages that exist in the 0.85.1 tree:
-    // the three direct dependencies plus the three they pull in (chord, pi-telemetry,
-    // pi-tui). pi-client and pi-protocol left the tree in 0.85.1, so pinning them
-    // would be a dead lock nobody can notice going stale.
+    const expectedPiOverrides = [
+      '@earendil-works/pi-agent-core',
+      '@earendil-works/pi-ai',
+      '@earendil-works/pi-codemode',
+      '@earendil-works/pi-coding-agent',
+      '@earendil-works/pi-mcp',
+      '@earendil-works/pi-schema',
+      '@earendil-works/pi-telemetry',
+      '@earendil-works/pi-tui',
+    ]
     expect(Object.keys(pkg.pnpm.overrides ?? {}).filter((name) => name.startsWith('@earendil-works/')).sort())
-      .toEqual(['@earendil-works/chord', '@earendil-works/pi-agent-core', '@earendil-works/pi-ai',
-        '@earendil-works/pi-coding-agent', '@earendil-works/pi-telemetry', '@earendil-works/pi-tui'])
-    for (const name of ['chord', 'pi-agent-core', 'pi-ai', 'pi-coding-agent', 'pi-telemetry', 'pi-tui']) {
-      expect(pkg.pnpm.overrides?.[`@earendil-works/${name}`]).toBe('0.85.1')
+      .toEqual(expectedPiOverrides)
+    for (const name of expectedPiOverrides) {
+      expect(pkg.pnpm.overrides?.[name]).toBe('1.7.0')
     }
-    expect(pkg.dependencies.typebox).toBe('1.3.7')
+    expect(pkg.dependencies.typebox).toBeUndefined()
+    expect(pkg.devDependencies.typebox).toBe('1.3.7')
     expect(pkg.dependencies['zod-to-json-schema']).toBe('3.25.1')
     expect(pkg.dependencies.zod).toBe('^3.25.76')
     // 2026-10-21 文本任务迁 pi-ai 单次调用：ai@4 与 @ai-sdk/* 整体删除（check:llm-stream-owner 同样拦回流）。

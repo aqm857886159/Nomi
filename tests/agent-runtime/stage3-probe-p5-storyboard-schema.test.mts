@@ -9,7 +9,7 @@
 // ② 带阳性对照：同一批畸形喂给摘掉 `prepareArguments` 的对照臂，必须红。
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
-import { estimateTokens } from '@earendil-works/pi-agent-core';
+import { estimateTokens } from '@earendil-works/pi-coding-agent';
 
 import { createExtendedLaneTools, type LaneExtendedPort } from '../../electron/agentLane/laneExtendedTools.js';
 import type { LaneToolDescriptor } from '../../electron/agentLane/laneRuntimePort.js';
@@ -131,9 +131,15 @@ for (const shape of MALFORMED) {
     assert.ok(Array.isArray(written.shots), 'the shots arrive as an array, not JSON text');
     assert.deepEqual(written.shots, shape.label.startsWith('C') ? [SHOTS[0]] : SHOTS);
 
-    // 阳性对照：没有容忍钩子，同一条调用必须被拒——否则上面那个绿证明不了容忍在起作用。
+    // 阳性对照：C（单对象包成单元素数组）在 pi-schema@1.7.0 下已由原生 CoercingValidator 覆盖；
+    // A/B（二次 JSON 编码字符串）没有容忍钩子时仍必须被拒。
     const control = await firstCallSucceeds(t, 'without-tolerance', shape.args);
-    assert.equal(control.ok, false, 'the control arm (no prepareArguments) rejects the same call');
-    assert.equal(control.writes.length, 0, 'and nothing reached the domain port');
+    if (shape.label.startsWith('C')) {
+      assert.equal(control.ok, true, 'pi-schema@1.7.0 natively coerces a single object into a 1-element array');
+      assert.deepEqual(control.writes, [{ shots: [SHOTS[0]] }]);
+    } else {
+      assert.equal(control.ok, false, 'the control arm (no prepareArguments) rejects JSON-stringified shots');
+      assert.equal(control.writes.length, 0, 'and nothing reached the domain port');
+    }
   });
 }

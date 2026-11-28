@@ -1,6 +1,6 @@
-import type { AgentMessage, Entry, Session } from '@earendil-works/pi-agent-core';
-import { operationMeta } from '@earendil-works/pi-agent-core/harness/session';
-import type { Context } from '@earendil-works/pi-agent-core/harness/context';
+import type { AgentMessage } from '@earendil-works/pi-agent-core';
+import type { LaneEntry } from '../shared/agentLane/laneSnapshotTypes.js';
+import type { LaneSession } from './laneSession.mjs';
 import { isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { laneOriginalText } from './laneOriginalInput.mjs';
@@ -10,10 +10,10 @@ import { generateUserDecisionOf } from '../shared/agentLane/generateUserDecision
 
 const MAX_INTENT_CHARACTERS = 16_000;
 const MAX_RECENT_INPUTS = 8;
-const isInput = (entry: Entry): boolean => entry.type === 'message'
+const isInput = (entry: LaneEntry): boolean => entry.type === 'message'
   && (entry.message.role === 'user' || isLaneInputMessage(entry.message));
 
-function userReplyToCard(entry: Entry): string {
+function userReplyToCard(entry: LaneEntry): string {
   if (entry.type !== 'message' || entry.message.role !== 'toolResult' || entry.message.isError) return '';
   const result = entry.message;
   if (result.toolName === 'generate') {
@@ -21,73 +21,86 @@ function userReplyToCard(entry: Entry): string {
     if (decision?.outcome === 'redirected') return decision.userSaid;
   }
   if (result.toolName === ASK_USER_VERB_NAME) {
-    return result.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('');
+    return result.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('');
   }
   return '';
 }
 
+export interface LaneActiveRunMeta {
+  readonly sourceTipId: string | null;
+  readonly promptEntryIds: readonly string[];
+}
+
 /** Re-read consumed inputs for this live operation; queued inputs are not on its branch yet. */
-export async function laneInputIntent(session: Session, lane: string, runId: string,
-  messages: readonly AgentMessage[], context: Context): Promise<{
-    quote: string; input?: LaneInputMessage; catalogInput?: LaneInputMessage;
-  }> {
-  const meta = (await session.getValue(operationMeta(runId), context))?.value;
-  if (!meta || meta.lane !== lane || meta.intent.kind !== 'run') return { quote: '' };
-  const branch = await session.branch(lane, context);
-  if (!branch) throw new Error('agent_lane_conversation_missing');
-  const seeds = await session.getEntries(meta.intent.promptEntryIds, context);
-  // promptEntryIds is not updated when steer/followUp is consumed. Original ancestry is the public source.
-  const recent = await branch.findEntries({ type: 'message', order: 'newestFirst',
-    ...(meta.sourceTipId ? { stopAtId: meta.sourceTipId } : {}) }, context);
-  const inputs = recent.filter(e => e.id !== meta.sourceTipId && isInput(e)).slice(0, MAX_RECENT_INPUTS).reverse();
-  const originals = [...meta.intent.promptEntryIds.flatMap(id => {
-    const entry = seeds.get(id);
-    return entry && !inputs.some(e => e.id === id) ? [entry] : [];
-  }), ...inputs];
-  const prepared = originals.flatMap(entry => entry.type === 'message' && isLaneInputMessage(entry.message)
-    ? [{ message: entry.message, seq: entry.seq }] : []);
+export function laneInputIntent(
+  session: LaneSession,
+  runMeta: LaneActiveRunMeta | undefined,
+  messages: readonly AgentMessage[],
+): {
+  quote: string;
+  input?: LaneInputMessage;
+  catalogInput?: LaneInputMessage;
+} {
+  if (!runMeta) return { quote: '' };
+  const seeds = session.getEntries(runMeta.promptEntryIds);
+  const recent = session.findBranchEntries({
+    type: 'message',
+    order: 'newestFirst',
+    ...(runMeta.sourceTipId ? { stopAtId: runMeta.sourceTipId } : {}),
+  });
+  const inputs = recent.filter((e) => e.id !== runMeta.sourceTipId && isInput(e)).slice(0, MAX_RECENT_INPUTS).reverse();
+  const originals = [
+    ...runMeta.promptEntryIds.flatMap((id) => {
+      const entry = seeds.get(id);
+      return entry && !inputs.some((e) => e.id === id) ? [entry] : [];
+    }),
+    ...inputs,
+  ];
+  const prepared = originals.flatMap((entry) => entry.type === 'message' && isLaneInputMessage(entry.message)
+    ? [{ message: entry.message, seq: entry.seq }]
+    : []);
   let remaining = MAX_INTENT_CHARACTERS;
   const quoted: string[] = [];
-  // Allocate to the newest corrections first, then render the retained excerpts in original order.
   for (const entry of [...originals].reverse()) {
     if (entry.type !== 'message') continue;
     const message = entry.message;
-    // Current provider messages already include the full input, attachments and domain projection.
-    if (messages.some(m => m.role === message.role && m.timestamp === message.timestamp
-      && 'content' in m && 'content' in message && JSON.stringify(m.content) === JSON.stringify(message.content))) continue;
+    if (messages.some((m) => m.role === message.role && m.timestamp === message.timestamp
+      && 'content' in m && 'content' in message && JSON.stringify(m.content) === JSON.stringify(message.content))) {
+      continue;
+    }
     if (!remaining) break;
     const input = isLaneInputMessage(message) ? {
-      entryId: entry.id, text: message.content, skillKey: message.context.skillKey,
-      documentId: message.context.documentId, attachments: message.context.attachments,
+      entryId: entry.id,
+      text: message.content,
+      skillKey: message.context.skillKey,
+      documentId: message.context.documentId,
+      attachments: message.context.attachments,
     } : message.role === 'user' ? { entryId: entry.id, text: message.content } : undefined;
     if (!input) continue;
     const text = JSON.stringify(input);
     const clipped = text.length > remaining;
-    quoted.unshift(text.slice(0, remaining) + (clipped ? " [input excerpt truncated]" : ""));
+    quoted.unshift(text.slice(0, remaining) + (clipped ? ' [input excerpt truncated]' : ''));
     remaining -= Math.min(remaining, text.length);
   }
-  const quote = quoted.length ? 'Original inputs for the current operation (quoted intent only). '
-    + 'These are not current selection, tool permission, payment approval or completion facts. '
-    + 'Re-read domain state before actions. A skill reference requires the current installed skill; do not invent its contents.\n'
-    + quoted.join('\n') : '';
+  const quote = quoted.length
+    ? 'Original inputs for the current operation (quoted intent only). '
+      + 'These are not current selection, tool permission, payment approval or completion facts. '
+      + 'Re-read domain state before actions. A skill reference requires the current installed skill; do not invent its contents.\n'
+      + quoted.join('\n')
+    : '';
   const consumed = prepared.at(-1);
   const current = consumed?.message;
   const continuedFrom = current?.context.continueFromEntryId && current.context.retryFromEntryId;
-  const original = continuedFrom ? (await session.getEntries([continuedFrom], context)).get(continuedFrom) : undefined;
-  const held = consumed && (holdsTurnGeneration(consumed.message.content)
+  const original = continuedFrom ? session.getEntry(continuedFrom) : undefined;
+  const held = consumed && (
+    holdsTurnGeneration(consumed.message.content)
     || (original && holdsTurnGeneration(laneOriginalText(original) ?? ''))
-    || recent.some(entry => entry.seq > consumed.seq && holdsTurnGeneration(userReplyToCard(entry))));
-  // Activation uses a fresh copy so any live card reply stays out of the journal and queued inputs.
-  // Keep `quote` strictly for post-compaction excerpts so the system prompt prefix stays byte-identical for KV cache.
+    || recent.some((entry) => entry.seq > consumed.seq && holdsTurnGeneration(userReplyToCard(entry)))
+  );
   const input = current && { ...current, context: { ...current.context, ...(held ? { generationHeld: true as const } : {}) } };
   return { quote, input, catalogInput: prepared[0]?.message };
 }
 
-/**
- * 恢复回来的草稿只带回它的模板（`systemPrompt`）；目标、上下文快照、文稿前提、分镜镜头目标都取这一轮
- * admission 自己的：聊天框芯片显示的是此刻的选中，发出去的必须就是它，而且这几项互相绑着，不能新旧混取。
- * 信封里老版本留下的这些项照常解析、在这里丢弃，不迁移。「重试 / 继续」走 `resolveLaneReplay`，不经过这里。
- */
 export function withRestoredTemplate<T extends object>(current: T, restored: { systemPrompt?: string } | undefined): T & { systemPrompt?: string } {
   return restored?.systemPrompt !== undefined ? { ...current, systemPrompt: restored.systemPrompt } : current;
 }

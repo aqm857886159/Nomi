@@ -1,4 +1,4 @@
-import type { LaneSnapshot } from '@earendil-works/pi-agent-core';
+import type { LaneSnapshot } from '../shared/agentLane/laneSnapshotTypes.js';
 import type { CanvasWriteApprovalAuthority } from '../shared/agentCapabilities/transportContracts.js';
 import { LANE_RECEIPT_AUTHORITY_NOTE, parseLaneReceiptAuthority, validLaneReceiptId } from '../shared/agentLane/laneReceiptAuthority.js';
 

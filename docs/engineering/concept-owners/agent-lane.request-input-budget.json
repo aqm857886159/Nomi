@@ -16,14 +16,15 @@
       "symbol": "laneCompactionSettings"
     },
     {
-      "path": "electron/agentLane/laneSupersededReads.mts",
-      "symbol": "omitSupersededReads"
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "recordSupersededReadEdits"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
-    "electron/agentLane/laneHost.mts"
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneHostDrive.mts"
   ],
   "since": "2026-10-01",
-  "notes": "预算数字与它换算成 pi 压缩配置（reserveTokens / keepRecentTokens）只住 laneCompactionSettings；压缩本身（切点、摘要、保留尾巴）全是 pi 的，我们不写第二份。2026-10-06（NF-0928-0003，合同 docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json）：pi 压缩切不进当前回合，回合内反复读同一资源的旧快照由 omitSupersededReads 在 transform_context 里换成一行说明（只改发出去的那份，转录不动；判据从动词声明派生）。"
+  "notes": "预算数字与它换算成 pi 压缩配置（reserveTokens / keepRecentTokens）只住 laneCompactionSettings；压缩本身（切点、摘要、保留尾巴）全是 pi 的，我们不写第二份。2026-11-28（升 pi 1.7.0）：回合内反复读同一资源的旧快照由 recordSupersededReadEdits 经 SessionManager.appendContextEdit 原生写入持久投影（原始转录不改，模型投影与压缩预估原生生效），同提交删掉自写 laneSupersededReads.mts。"
 }

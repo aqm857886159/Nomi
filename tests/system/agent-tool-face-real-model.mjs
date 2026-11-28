@@ -12,7 +12,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { validateToolArguments } from '@earendil-works/pi-ai'
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context'
 
 import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -190,7 +189,7 @@ async function runCase(entry) {
           const validated = validateToolArguments(tool, { id: call.id, type: 'toolCall', name, arguments: args })
           record.valid = true
           try {
-            const result = await tool.execute(call.id, validated, () => undefined, undefined, {}, BACKGROUND_CONTEXT)
+            const result = await tool.execute(call.id, validated, undefined, () => undefined)
             record.text = (result.content ?? []).map((p) => p.text ?? '').join('\n')
           } catch (error) { record.isError = true; record.text = String(error?.message ?? error) }
         } catch (error) { record.isError = true; record.text = String(error?.message ?? error) }

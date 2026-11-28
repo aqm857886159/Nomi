@@ -158,20 +158,21 @@ describe("一条 lane 的系统提示词每回合整体重新求值（2026-09-11
 
   it("laneHost 在回合边界求值一次：runId 变才重扫技能库、重拼提示词；回合内不改口", () => {
     const host = source("electron/agentLane/laneHost.mts");
+    const drive = source("electron/agentLane/laneHostDrive.mts");
 
     const resolver = host.slice(host.indexOf("const systemPromptForRun"), host.indexOf("const systemPrompt = promptForRun"));
-    expect(resolver).toContain("if (runId === promptRunId) return promptForRun;");
+    expect(resolver).toContain("if (runId === promptRunId) return { prompt: promptForRun, closing: closingForRun };");
     expect(resolver).toContain("await native?.skillIndex.refresh();");
     expect(resolver).toContain("promptForRun = composeSystemPrompt();");
-    // transform_context 每次模型请求都跑——它必须走那个按 runId 记账的解析器，
+    // buildRequestContext 每次模型请求都跑——它必须走那个按 runId 记账的解析器，
     // 既不能引用开 lane 时的常量（回合间不更新），也不能每次都重拼（回合内会改口）。
-    const transform = host.slice(host.indexOf("harness.hooks.on('transform_context'"), host.indexOf("harness.hooks.on('before_tool'"));
-    expect(transform).toContain("await systemPromptForRun(event.runId)");
-    expect(transform).not.toMatch(/\{\s*systemPrompt:\s*\[systemPrompt,/);
+    const transform = drive.slice(drive.indexOf("const buildRequestContext"), drive.indexOf("const drainQueuesForAbort"));
+    expect(transform).toContain("await systemPromptForRun(runId)");
+    expect(transform).not.toContain("initialPrompt");
     expect(transform).not.toContain("composeSystemPrompt()");
     // 「这条技能要不要 coding 工具」判在准入那一刻，而用户可能刚导入它——先刷再问。
-    const admission = host.slice(host.indexOf("if (command.kind === 'prompt' && !projection.running"), host.indexOf("const accepted = await lane.accept"));
-    expect(admission).toContain("await awaitWithContext(Promise.resolve(native?.skillIndex.refresh()), admission);");
+    const admission = host.slice(host.indexOf("if (command.kind === 'prompt' && !projection.running"), host.indexOf("const fromTipId = session.getTipId()"));
+    expect(admission).toContain("await awaitWithAbortSignal(Promise.resolve(native?.skillIndex.refresh()), admission);");
     expect(admission.indexOf("skillIndex.refresh()")).toBeLessThan(admission.indexOf("laneSkillUnlockReason(currentSkills()"));
     expect(admission).toContain("laneSkillUnlockReason(currentSkills()");
   });

@@ -11,7 +11,6 @@ export function createLaneNativeApprovalResolver(input: {
   return (request) => {
     const effect = Object.hasOwn(input.effects, request.toolName) ? input.effects[request.toolName] : undefined;
     if (!effect) return undefined;
-    // 审批闸眼里的两个事实从同一个四值效果派生（`approvalFacetsOf`，唯一的对应表）。
     const subject = {
       toolName: request.toolName,
       capabilityId: `native:${request.toolName}`,
@@ -19,21 +18,23 @@ export function createLaneNativeApprovalResolver(input: {
       requiresPlanReview: false,
       destructiveHint: false,
     };
-    if (request.toolName !== 'bash') return { subject };
+    if (request.toolName !== 'bash' && request.toolName !== 'powershell') return { subject };
+    // PowerShell has no OS-level seatbelt/bwrap wrapper: treat its sandboxActive as false so every command requires confirmation or hard-list denial.
+    const effectiveSandboxActive = request.toolName === 'bash' ? input.sandboxActive : false;
     const args = request.args && typeof request.args === 'object' ? request.args as Record<string, unknown> : {};
     const verdict = classifyCommand({
       command: typeof args.command === 'string' ? args.command : '',
-      projectDir: input.projectDir, sandboxActive: input.sandboxActive,
+      projectDir: input.projectDir,
+      sandboxActive: effectiveSandboxActive,
     });
     if (verdict.decision === 'deny') return { subject, denialReason: verdict.modelReason, grantable: false };
     if (verdict.decision === 'auto-allow') return { subject };
-    // An escaped command may reuse only its own classifier-derived pattern, never a blanket bash grant.
-    const pattern = verdict.tier === 'escape' && input.sandboxActive ? verdict.rememberablePattern : null;
+    const pattern = verdict.tier === 'escape' && effectiveSandboxActive ? verdict.rememberablePattern : null;
     return {
       subject: {
         ...subject,
         ...(verdict.tier === 'hard-list' ? { effect: 'destructive' as const, effectClass: 'irreversible' as const } : {}),
-        capabilityId: pattern ? `native:bash:${pattern}` : subject.capabilityId,
+        capabilityId: pattern ? `native:${request.toolName}:${pattern}` : subject.capabilityId,
       },
       forceConfirmation: true,
       grantable: Boolean(pattern),

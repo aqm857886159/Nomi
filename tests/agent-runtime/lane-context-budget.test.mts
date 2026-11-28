@@ -2,13 +2,12 @@ import assert from 'node:assert/strict';
 import { test, after } from 'node:test';
 import { createRequire } from 'node:module';
 import { rmSync, readFileSync } from 'node:fs';
-import { estimateTokens } from '@earendil-works/pi-agent-core';
+import { estimateTokens } from '@earendil-works/pi-coding-agent';
 import { formatAvailableModelsForPrompt } from '../../electron/shared/agentCapabilities/availableModels.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createLaneFixture } from './laneFixture.mjs';
 import { createLaneNativeAssembly } from '../../electron/agentLane/laneNativeAssembly.mjs';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import type { LaneComposerContext } from '../../electron/shared/agentLane/laneDesktopContracts.js';
 const require = createRequire(import.meta.url);
 const { buildSync } = createRequire(require.resolve('vite/package.json'))('esbuild');
@@ -60,7 +59,7 @@ test('C58 resident read loads a Skill but refuses project files without coding',
     sandbox: { active: true, operations: { exec: async () => { throw new Error('not used'); } }, close: async () => {} } });
   assert.ok(native.activeToolNames().includes('read'), 'read must be resident before any group switch');
   const read = native.tools.find(tool => tool.name === 'read')!;
-  const call = (file: string) => read.execute('read-skill', { path: file } as never, (() => {}) as never, undefined, {} as never, BACKGROUND_CONTEXT);
+  const call = (file: string) => read.execute('read-skill', { path: file } as never);
   const loaded = await call(path.join(skillRoot, 'SKILL.md'));
   assert.match(JSON.stringify(loaded.content), /Use eight shots/);
   assert.ok((loaded.details as { skill?: unknown }).skill);
@@ -71,13 +70,12 @@ test('C61 native compaction uses the cost budget even with a million-token model
   const fixture = await createLaneFixture(t, [
     { type: 'text', text: '第 1 镜的节点 id 是 node-opening。' + '历史材料。'.repeat(18000), usage: { input: 81000, output: 100 } },
     { type: 'text', text: '任务摘要：第 1 镜 = node-opening，已建节点待试拍。', usage: { input: 1200, output: 40 } },
-    { type: 'text', text: '任务摘要：第 1 镜 = node-opening。' },
     { type: 'text', text: '继续第 1 镜。' },
   ]);
   const lane = await fixture.openLane({ ...fixture.options, model: { ...fixture.options.model, contextWindow: 1000000 } });
   await lane.execute({ kind: 'prompt', text: '建第 1 镜，保留它的引用。' });
   await lane.execute({ kind: 'prompt', text: '第 1 镜继续。' });
-  assert.equal(fixture.http.requests.length, 4, 'An upstream summary request must precede the second assistant call');
+  assert.equal(fixture.http.requests.length, 3, 'An upstream summary request must precede the second assistant call (pi 1.7.0 skips empty-prefix LLM call)');
   const last = JSON.stringify(fixture.http.requests.at(-1)?.body.messages);
   assert.match(last, /node-opening/);
   assert.match(last, /任务摘要/);
@@ -184,7 +182,7 @@ test('C59 on-demand models returns every mode contract and follows the latest ca
 
 test('C61 configured cost thresholds retain the real small-window safety margin and reject invalid budgets', async () => {
   const { laneCompactionSettings } = await import('../../electron/agentLane/laneContextBudget.mjs');
-  const { shouldCompact } = await import('@earendil-works/pi-agent-core');
+  const { shouldCompact } = await import('@earendil-works/pi-coding-agent');
   for (const window of [128000, 1000000]) {
     const settings = laneCompactionSettings(window, 40000);
     // trigger = 3/4 of the per-request budget (headroom for the turn that crosses it)
@@ -224,18 +222,11 @@ test('C58 skill-only reads reject symlink escapes and allow project reads only a
   const native = await createLaneNativeAssembly({ projectDir: fixture.projectDir, trustedSkillRoots: [root], bashTimeoutMs: 5000,
     sandbox: { active: true, operations: { exec: async () => { throw new Error('not used'); } }, close: async () => {} } });
   const { openLaneSession } = await import('../../electron/agentLane/laneSession.mjs');
-  const { AgentHarness } = await import('@earendil-works/pi-agent-core');
-  const { createModels } = await import('@earendil-works/pi-ai');
-  const session = await openLaneSession({ projectDir: fixture.projectDir, laneName: 'main' }, BACKGROUND_CONTEXT);
-  const { createNomiProvider } = await import('../../electron/agentLane/laneModelProvider.mjs');
-  const configured = await createNomiProvider(fixture.options.model, globalThis.fetch);
-  const models = createModels({ credentials: configured.credentials });
-  models.setProvider(configured.provider);
-  const { harness } = await AgentHarness.create({ session: session.session, models, model: configured.model, tools: native.tools }, BACKGROUND_CONTEXT);
-  fixture.after(async () => { await harness.close(BACKGROUND_CONTEXT); await session.release(BACKGROUND_CONTEXT); });
-  native.bindActiveTools(await harness.lane('main', BACKGROUND_CONTEXT));
+  const session = await openLaneSession({ projectDir: fixture.projectDir, laneName: 'main' });
+  fixture.after(async () => { await session.release(); });
+  native.bindActiveTools(session.session);
   const call = (name: string, args: unknown) => native.tools.find(tool => tool.name === name)!
-    .execute('fixture', args as never, (() => {}) as never, undefined, {} as never, BACKGROUND_CONTEXT);
+    .execute('fixture', args as never);
   await assert.rejects(call('read', { path: path.join(root, 'SKILL.md') }), /outside/);
   await assert.rejects(call('read', { path: 'private.txt' }), /outside/);
   await call('nomi_request_tools', { group: 'coding' });

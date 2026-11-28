@@ -1,6 +1,5 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core';
-import type { JsonValue } from '@earendil-works/pi-agent-core/harness/session';
-import type { AssistantMessage, TextContent, ThinkingContent, ToolCall, ImageContent } from '@earendil-works/pi-ai';
+import type { AssistantMessage, ImageContent, JsonObject, JsonValue, TextContent, ThinkingContent, ToolCall } from '@earendil-works/pi-ai';
 import type { ProjectBinding } from '../shared/projectBinding.js';
 import { legacyRecord, type LegacySource, type LegacySourceKind, type LegacyItem } from './laneLegacySources.js';
 import { validateLegacySource, type ValidatedLegacyConversation } from './laneLegacyIntegrity.mjs';
@@ -57,7 +56,7 @@ function hostItem(item: LegacyItem, labels: LegacyImportLabels): LegacyAppendOpe
       messageOp(item, { role: 'toolResult', toolCallId: id, toolName: capability.id, timestamp,
         content: [{ type: 'text', text: `${labels.unverifiedToolResult}${text ? `\n${text}` : ''}` }],
         isError: raw.status !== 'done' || !text,
-        details: { legacy: { raw, argumentsRecorded: false, statusIsHistoricalOnly: true } } })];
+        details: { legacy: { raw: raw as unknown as JsonObject, argumentsRecorded: false, statusIsHistoricalOnly: true } } })];
   }
   return [note(item, 'inert-host-item')];
 }
@@ -90,7 +89,7 @@ function sdkContent(value: unknown): TextContent | ThinkingContent | ToolCall | 
   if (raw.type === 'reasoning' && typeof raw.text === 'string') return { type: 'thinking', thinking: raw.text };
   if (raw.type === 'tool-call' && typeof raw.toolCallId === 'string' && raw.toolCallId
     && typeof raw.toolName === 'string' && raw.toolName && legacyRecord(raw.args)) {
-    return { type: 'toolCall', id: raw.toolCallId, name: raw.toolName, arguments: raw.args as Record<string, unknown> };
+    return { type: 'toolCall', id: raw.toolCallId, name: raw.toolName, arguments: raw.args as unknown as JsonObject };
   }
   if (raw.type === 'image' && typeof raw.image === 'string') {
     const embedded = /^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(raw.image);
@@ -115,7 +114,7 @@ function sdkItem(item: LegacyItem): LegacyAppendOperation[] {
       const output = Object.hasOwn(result, 'result') ? result.result : result.output;
       results.push(messageOp(item, { role: 'toolResult', toolCallId: result.toolCallId, toolName: result.toolName,
         content: [{ type: 'text', text: typeof output === 'string' ? output : JSON.stringify(output) }],
-        isError: result.isError === true, timestamp, details: { legacy: result } }));
+        isError: result.isError === true, timestamp, details: { legacy: result as unknown as JsonObject } }));
     }
     return results;
   }

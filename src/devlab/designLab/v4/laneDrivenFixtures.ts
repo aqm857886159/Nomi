@@ -12,10 +12,9 @@
 // **审批等待中（approval-requested）刻意不在这里**：停在 `before_tool` 里的调用在 pi 快照里
 // 不可见（`runningTools` 为空，探针 P1 ① 实核），那一态只能由宿主内存投影，等阶段 3 的
 // `LaneProjection.pending` 落地才有数据源可驱动。
-import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
-import type { AssistantMessage } from '@earendil-works/pi-ai'
+import type { AssistantMessage, JsonObject } from '@earendil-works/pi-ai'
 import { LANE_APPROVAL_NOTE_TYPE } from '../../../../electron/shared/agentLane/laneContracts'
-import { projectLaneSnapshot, type LaneModelFacts } from '../../../../electron/shared/agentLane/laneProjection'
+import { projectLaneSnapshot, type LaneModelFacts, type LaneSnapshot } from '../../../../electron/shared/agentLane/laneProjection'
 import { describeGenerateOutcome } from '../../../../electron/shared/agentLane/generateOutcomeReceipt'
 import { renderLaneToolNextAction, type LaneToolNextAction } from '../../../../electron/shared/agentLane/laneToolNextAction'
 import { laneViewModel, type LaneViewModelLabels } from '../../../workbench/ai/lane/laneViewModel'
@@ -62,7 +61,7 @@ const callEntry = { id: 'e2', parentId: 'e1', seq: 2, timestamp: AT, type: 'mess
 export function laneSnapshotToolRunning(): LaneSnapshot {
   return snapshot([userEntry, callEntry], {
     id: 'op-1', kind: 'run', startedAt: AT, fromTipId: 'e1', status: 'running',
-    runningTools: [{ status: 'running', toolCallId: CALL, toolName: TOOL, args: {} }],
+    runningTools: [{ toolCallId: CALL, toolName: TOOL, args: {} }],
   })
 }
 
@@ -88,7 +87,7 @@ export function laneSnapshotToolDenied(reason: string): LaneSnapshot {
 }
 
 /** 一次提问的 args。`questions` 是数组——`parseQuestionSheet` 认的就是这个形状。 */
-function askArgs(question: string, answer: string): Record<string, unknown> {
+function askArgs(question: string, answer: string): JsonObject {
   return { questions: [{ question, options: [{ id: 'reference', label: answer }] }] }
 }
 
@@ -180,7 +179,15 @@ export function laneSnapshotGenerateDone(operationId: string, shotIds: readonly 
     { id: 'e2', parentId: 'e1', seq: 2, timestamp: AT, type: 'message', message: call },
     {
       id: 'e3', parentId: 'e2', seq: 3, timestamp: AT + 400, type: 'message',
-      message: { role: 'toolResult', toolCallId: GENERATE_CALL, toolName: 'generate', content: [{ type: 'text', text: renderLaneToolNextAction(nextAction) }], details: { nextAction }, isError: false, timestamp: AT + 400 },
+      message: {
+        role: 'toolResult',
+        toolCallId: GENERATE_CALL,
+        toolName: 'generate',
+        content: [{ type: 'text', text: renderLaneToolNextAction(nextAction) }],
+        details: { nextAction: { kind: outcome.kind, userSees: outcome.userSees, operationId } },
+        isError: false,
+        timestamp: AT + 400,
+      },
     },
   ])
 }

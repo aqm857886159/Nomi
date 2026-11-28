@@ -14,7 +14,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { LaneSnapshot } from '@earendil-works/pi-agent-core';
+import type { LaneSnapshot } from '../../electron/shared/agentLane/laneSnapshotTypes.js';
 import { getSupportedThinkingLevels } from '@earendil-works/pi-ai';
 import { projectLaneSnapshot, type LaneModelFacts } from '../../electron/shared/agentLane/laneProjection.js';
 import type { LaneMetric, LaneThinkingLevel, LaneUsage } from '../../electron/shared/agentLane/laneContracts.js';
@@ -173,7 +173,7 @@ test('G3d · 刚压缩完：上下文「不可知」，因为旧数字描述的�
   const compacted = snapshotWith([
     ...settled.transcript,
     { id: 'e2', parentId: 'e1', seq: 2, timestamp: 2, type: 'compaction',
-      summary: 'earlier conversation', retainedTail: [], tokensBefore: 900, fromHook: false },
+      summary: 'earlier conversation', firstKeptEntryId: 'e1', tokensBefore: 900, fromHook: false },
   ]);
   assert.deepEqual(projectLaneSnapshot(compacted, facts).usage.contextTokens,
     { state: 'unknown', reason: 'just-compacted' },

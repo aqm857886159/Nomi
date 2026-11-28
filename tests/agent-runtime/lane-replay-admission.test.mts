@@ -2,41 +2,37 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { originalLaneEntry, precedingLaneInput, replayLaneInput } from '../../electron/agentLane/laneOriginalInput.mjs';
 import type { LaneComposerContext } from '../../electron/shared/agentLane/laneDesktopContracts.js';
-import { createLaneFixture, type LaneFixture } from './laneFixture.mjs';
+import { createLaneFixture, openTempLaneSession, type LaneFixture } from './laneFixture.mjs';
 import { openLaneSession } from '../../electron/agentLane/laneSession.mjs';
-import { MemorySessionRepo } from '@earendil-works/pi-agent-core/harness/session';
-import { BACKGROUND_CONTEXT as context } from '@earendil-works/pi-agent-core/harness/context';
 import { z } from 'zod';
 const policy = { mode: 'request' as const };
 const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
 const assistant = (text: string) => ({ role: 'assistant' as const, content: [{ type: 'text' as const, text }], api: 'openai-completions' as const, provider: 'fixture', model: 'fixture', timestamp: 1, stopReason: 'aborted' as const, usage });
 
 test('control: paged predecessor lookup stays on current branch and rejects existing foreign ID', async t => {
-  const session = await new MemorySessionRepo().create({}, context); t.after(() => session.close(context));
-  const main = await session.createBranch('main', null, context);
-  const original = await main.appendMessage({ role: 'user', content: [{ type: 'text', text: 'ROOT_INPUT' }], timestamp: 1 }, context);
-  const side = await session.createBranch('side', original, context);
-  const foreign = await side.appendMessage({ role: 'user', content: 'SIDE_SECRET', timestamp: 2 }, context);
-  for (let i = 0; i < 171; i++) await main.appendMessage(assistant('step ' + i), context);
-  assert.equal((await precedingLaneInput(main, await main.getTipId(context), context))?.id, original);
-  await assert.rejects(originalLaneEntry(main, foreign, context), /reference/);
+  const session = await openTempLaneSession(t);
+  const original = await session.appendMessage({ role: 'user', content: [{ type: 'text', text: 'ROOT_INPUT' }], timestamp: 1 });
+  session.branchTo(original);
+  const foreign = await session.appendMessage({ role: 'user', content: 'SIDE_SECRET', timestamp: 2 });
+  session.branchTo(original);
+  for (let i = 0; i < 171; i++) await session.appendMessage(assistant('step ' + i));
+  assert.equal(precedingLaneInput(session, session.getTipId())?.id, original);
+  assert.throws(() => originalLaneEntry(session, foreign), /reference/);
 });
 
 test('text-array user entries exposed as Retry targets can actually be replayed', async t => {
-  const session = await new MemorySessionRepo().create({}, context); t.after(() => session.close(context));
-  const branch = await session.createBranch('main', null, context);
-  const id = await branch.appendMessage({ role: 'user', content: [{ type: 'text', text: 'LEGACY_TEXT_ARRAY' }], timestamp: 1 }, context);
-  const entry = await originalLaneEntry(branch, id, context);
+  const session = await openTempLaneSession(t);
+  const id = await session.appendMessage({ role: 'user', content: [{ type: 'text', text: 'LEGACY_TEXT_ARRAY' }], timestamp: 1 });
+  const entry = originalLaneEntry(session, id);
   const replayed = replayLaneInput(entry, { approvalPolicy: policy, retryFromEntryId: id }, 'Retry');
   assert.equal(replayed.content, 'LEGACY_TEXT_ARRAY');
 });
 
 test('retry replays the original selection, unlike a recovered draft which sends the current one', async t => {
-  const session = await new MemorySessionRepo().create({}, context); t.after(() => session.close(context));
-  const branch = await session.createBranch('main', null, context);
-  const id = await branch.appendMessage({ role: 'nomi.input', content: 'ORIGINAL', timestamp: 1, context: { approvalPolicy: policy,
-    target: { kind: 'timeline', clipIds: ['original-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'original-handle' }] } as never } }, context);
-  const entry = await originalLaneEntry(branch, id, context);
+  const session = await openTempLaneSession(t);
+  const id = await session.appendMessage({ role: 'nomi.input', content: 'ORIGINAL', timestamp: 1, context: { approvalPolicy: policy,
+    target: { kind: 'timeline', clipIds: ['original-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'original-handle' }] } as never } });
+  const entry = originalLaneEntry(session, id);
   const replayed = replayLaneInput(entry, { approvalPolicy: policy, retryFromEntryId: id,
     target: { kind: 'timeline', clipIds: ['current-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'current-handle' }] } as never }, 'Retry');
   assert.deepEqual(replayed.context.target, { kind: 'timeline', clipIds: ['original-clip'] });
@@ -44,13 +40,12 @@ test('retry replays the original selection, unlike a recovered draft which sends
 });
 
 async function seedContinueChain(f: LaneFixture) {
-  const opened = await openLaneSession({ projectDir: f.projectDir }, context);
-  const branch = await opened.session.createBranch('main', null, context);
-  const originalId = await branch.appendMessage({ role: 'nomi.input', content: 'ORIGINAL_TASK_ONLY_THREE_CHARACTERS', timestamp: 1, context: { approvalPolicy: policy, skillKey: 'original-skill', target: { kind: 'timeline', clipIds: ['original-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'original-handle' }] } as never } }, context);
-  const stopped1 = await branch.appendMessage(assistant('STOPPED_PROSE_ONE'), context);
-  const continue1 = await branch.appendMessage({ role: 'nomi.input', content: 'Continue', timestamp: 2, context: { approvalPolicy: policy, skillKey: 'original-skill', retryFromEntryId: originalId, continueFromEntryId: stopped1 } }, context);
-  const stopped2 = await branch.appendMessage(assistant('STOPPED_PROSE_TWO'), context);
-  await opened.session.close(context); await opened.release(context);
+  const opened = await openLaneSession({ projectDir: f.projectDir });
+  const originalId = await opened.session.appendMessage({ role: 'nomi.input', content: 'ORIGINAL_TASK_ONLY_THREE_CHARACTERS', timestamp: 1, context: { approvalPolicy: policy, skillKey: 'original-skill', target: { kind: 'timeline', clipIds: ['original-clip'] }, contextSnapshot: { version: 1, handles: [{ id: 'original-handle' }] } as never } });
+  const stopped1 = await opened.session.appendMessage(assistant('STOPPED_PROSE_ONE'));
+  const continue1 = await opened.session.appendMessage({ role: 'nomi.input', content: 'Continue', timestamp: 2, context: { approvalPolicy: policy, skillKey: 'original-skill', retryFromEntryId: originalId, continueFromEntryId: stopped1 } });
+  const stopped2 = await opened.session.appendMessage(assistant('STOPPED_PROSE_TWO'));
+  await opened.release();
   return { originalId, stopped1, continue1, stopped2 };
 }
 
@@ -91,7 +86,6 @@ test('replaying an old canvas target must not grant current document surface des
   assert.equal(executions, 0, 'historical target is a selector, not a fresh surface grant');
 });
 
-
 test('a recovered draft sends the current selection, keeps its template, and never borrows its old surface authority', async t => {
   const f = await createLaneFixture(t, [
     { type: 'tool', calls: [{ id: 'delete-recovered', name: 'mutate_surface', arguments: {} }] },
@@ -122,11 +116,8 @@ test('a recovered draft sends the current selection, keeps its template, and nev
   assert.equal(executions, 0);
   assert.ok(admitted);
   assert.equal(admitted.admissionSurface, 'document');
-  // The chip shows the selection as it is now, so that is what goes out: the draft's old
-  // target / snapshot must not override this admission's own.
   assert.deepEqual(admitted.target, { kind: 'document', documentId: 'current-doc', anchor: { kind: 'whole-document' } });
   assert.deepEqual(admitted.contextSnapshot, { version: 1, handles: [{ id: 'current-handle' }] });
-  // The pieces that travel together (document, its precondition, the storyboard shots) are all current too.
   assert.equal(admitted.documentId, 'current-doc');
   assert.deepEqual(admitted.preconditions, { document: { revision: 'current-rev', contentHash: 'current-hash' } });
   assert.equal(admitted.storyboardTarget, undefined);
@@ -141,9 +132,6 @@ test('a submitted admissionSurface cannot grant a surface the admission does not
   ]);
   let executions = 0;
   let admitted: LaneComposerContext | undefined;
-  // The renderer schema no longer carries this field, so a forged one can only arrive from a
-  // caller that bypasses `parseLaneComposerContext`. Main must still refuse: with no target of
-  // its own, this admission holds no surface at all and the destructive canvas verb is blocked.
   const captured = { approvalPolicy: policy, admissionSurface: 'canvas' } as unknown as LaneComposerContext;
   const host = await f.openLane({ ...f.options,
     input: { capture: () => captured, activate: () => {},

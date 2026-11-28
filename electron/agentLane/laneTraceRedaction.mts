@@ -1,4 +1,5 @@
-import type { Entry, JsonValue } from '@earendil-works/pi-agent-core/harness/session';
+import type { JsonValue } from '@earendil-works/pi-ai';
+import type { LaneEntry } from '../shared/agentLane/laneSnapshotTypes.js';
 
 /** Durable locations only: the original pi message remains the sole text authority. */
 export const LANE_TRACE_REDACTIONS_NOTE = 'nomi.ui.trace-redactions';
@@ -39,7 +40,7 @@ function validRedaction(value: unknown): value is Redaction {
       && range[0] >= 0 && range[1] > range[0]));
 }
 
-function storedRedactions(entries: readonly Entry[]): Redaction[] {
+function storedRedactions(entries: readonly LaneEntry[]): Redaction[] {
   const byId = new Map(entries.map(entry => [entry.id, entry]));
   const redactions: Redaction[] = [];
   for (const note of entries) {
@@ -58,7 +59,7 @@ function storedRedactions(entries: readonly Entry[]): Redaction[] {
 }
 
 /** null means no new locations: callers must not append an empty/redundant custom entry. */
-export function collectTraceRedactions(entries: readonly Entry[], secrets: readonly string[]): JsonValue {
+export function collectTraceRedactions(entries: readonly LaneEntry[], secrets: readonly string[]): JsonValue {
   const needles = [...new Set(secrets.filter(secret => secret.length > 0))];
   if (!needles.length) return null;
   const stored = storedRedactions(entries);
@@ -108,7 +109,7 @@ function ownValue(root: unknown, path: JsonPath): unknown {
 }
 
 /** Apply every note to an independent snapshot, combining ranges before changing string lengths. */
-export function applyTraceRedactions(entries: readonly Entry[]): Entry[] {
+export function applyTraceRedactions(entries: readonly LaneEntry[]): LaneEntry[] {
   const stored = storedRedactions(entries);
   return entries.map(entry => {
     const locations = stored.filter(location => location.entryId === entry.id);
@@ -122,7 +123,7 @@ export function applyTraceRedactions(entries: readonly Entry[]): Entry[] {
     // Containers are omitted before their descendants; descendant writes then have no target.
     const ordered = [...groups.values()].sort((a, b) => a[0].path.length - b[0].path.length);
     for (const group of ordered) {
-      const path = group[0].path;
+      const path = group[0]!.path;
       const parent = ownValue(copy, path.slice(0, -1));
       const leaf = path.at(-1)!;
       if (!parent || typeof parent !== 'object' || !Object.hasOwn(parent, leaf)) continue;

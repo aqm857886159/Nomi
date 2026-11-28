@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { validateToolArguments } from '@earendil-works/pi-ai';
+import { validateToolArguments, type JsonObject } from '@earendil-works/pi-ai';
 import { LANE_DEFERRED_TOOL_CATALOG } from '../../electron/agentLane/laneToolCatalog.js';
 import { toModelVisibleSchema } from '../../electron/agentLane/laneToolSchema.mjs';
 
@@ -16,7 +16,7 @@ test('pi accepts nested JSON generation parameters through the published local r
     parameters: toModelVisibleSchema(spec.schema, { toolName: spec.name }) };
   // `draft_shots.parameters` 是模型档案声明的标量表（string/number/boolean）；嵌套结构由宿主按目录钳值，不进模型面。
   const parameters = { seed: 17, enabled: true, aspect_ratio: '16:9' };
-  const cases = [
+  const cases: JsonObject[] = [
     { shots: [{ prompt: 'A sunrise', parameters }] },
     { operationId: 'operation-1', shots: [{ shotId: 'shot-1', prompt: 'A sunrise', parameters }] },
     { shots: [{ prompt: 'A sunrise', model: 'fixture@loopback', parameters }] },

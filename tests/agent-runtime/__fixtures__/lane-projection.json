@@ -7,17 +7,17 @@
   "parts": [
     {
       "sequence": 0,
-      "entryId": "native-entry-4",
-      "entrySeq": 4,
+      "entryId": "native-entry-2",
+      "entrySeq": 2,
       "contentIndex": 0,
       "kind": "user",
       "text": "Append one paragraph to the document."
     },
     {
       "sequence": 1,
-      "entrySeq": 17,
+      "entrySeq": 3,
       "contentIndex": 0,
-      "entryId": "native-entry-17",
+      "entryId": "native-entry-3",
       "kind": "tool-call",
       "toolCallId": "call-read",
       "toolName": "read_script",
@@ -26,8 +26,8 @@
     },
     {
       "sequence": 2,
-      "entryId": "native-entry-27",
-      "entrySeq": 27,
+      "entryId": "native-entry-4",
+      "entrySeq": 4,
       "contentIndex": 0,
       "kind": "tool-result",
       "toolCallId": "call-read",
@@ -37,9 +37,9 @@
     },
     {
       "sequence": 3,
-      "entrySeq": 39,
+      "entrySeq": 5,
       "contentIndex": 0,
-      "entryId": "native-entry-39",
+      "entryId": "native-entry-5",
       "kind": "tool-call",
       "toolCallId": "call-write",
       "toolName": "write_script",
@@ -51,8 +51,8 @@
     },
     {
       "sequence": 4,
-      "entryId": "native-entry-49",
-      "entrySeq": 49,
+      "entryId": "native-entry-6",
+      "entrySeq": 6,
       "contentIndex": 0,
       "kind": "tool-result",
       "toolCallId": "call-write",
@@ -66,13 +66,13 @@
     },
     {
       "sequence": 5,
-      "entrySeq": 60,
+      "entrySeq": 7,
       "contentIndex": 0,
-      "entryId": "native-entry-60",
+      "entryId": "native-entry-7",
       "kind": "assistant-text",
       "text": "I read the document and appended one paragraph.",
       "streaming": false,
-      "retryInputEntryId": "native-entry-4"
+      "retryInputEntryId": "native-entry-2"
     }
   ],
   "running": false,
@@ -105,6 +105,6 @@
   },
   "history": {
     "hasMore": false,
-    "before": "native-entry-4"
+    "before": "native-entry-1"
   }
 }

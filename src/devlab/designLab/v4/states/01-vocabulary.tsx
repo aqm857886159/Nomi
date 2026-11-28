@@ -6,7 +6,7 @@
 // 顺序有意义：`labStates.mjs` 按本屏目录里 `NN-*.tsx` 的文件名排序解析，汇总口按同样顺序拼接，
 // 走查再拿活页面的 `window.__designLabStates` 与解析结果逐项比对——三者对不上当场红。
 import React, { type JSX } from 'react'
-import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
+import type { LaneSnapshot } from '../../../../../electron/shared/agentLane/laneProjection'
 import { IconBrowser, IconSettings } from '../../../../vendor/tablerIcons'
 import { V4Intervention, V4Queue, V4TaskCard } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
 import { V4ContextRing } from '../../../../workbench/ai/v4/AgentPanelV4Context'

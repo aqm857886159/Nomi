@@ -1,7 +1,7 @@
-# pi coding agent 0.85.1 × Nomi Agent 线：参考实现逐层对照（2026-10-01 刷新）
+# pi coding agent 1.7.0 × Nomi Agent 线：参考实现逐层对照（2026-11-28 刷新）
 
-> 对照日期 2026-10-01 · 上游 `@earendil-works/pi-coding-agent` / `pi-agent-core` / `pi-ai` **0.85.1**
-> 只读调研，没有改任何产品代码。
+> 对照日期 2026-11-28 · 上游 `@earendil-works/pi-coding-agent` / `pi-agent-core` / `pi-ai` / `pi-schema` **1.7.0**（原 2026-10-01 基线 `0.85.1`）
+> 2026-11-28 刷新摘要：上游在 `1.x` 移除 `pi-agent-core/harness` 与 `@earendil-works/chord`，主干收敛为 `Agent`（`pi-agent-core`）+ `SessionManager` v3（`pi-coding-agent`）+ `@earendil-works/pi-schema` + `@google/genai@3.6.1`。本次同步完成：① `laneSupersededReads.mts` 自写折叠器删除，改走 `SessionManager.appendContextEdit` 原生投影；② `typebox` 工具边界校验删除，统一接入 `@earendil-works/pi-schema`；③ `BomTolerantExecutionEnv` / 6 参 `adaptPiTool` 胶水删除；④ 原第 52 行「没想到」的 Windows `createPowerShellToolDefinition` 已正式接线并纳入确认闸；⑤ Google Gemini 原生自定义 `fetch` 与 PDF `inlineData` 直通启用；⑥ 存量 v4 会话文件单向无损迁至 `SessionManager` v3。
 > 与 09-07 那份（`docs/research/2026-09-07-pi-reference-implementation-conformance.md`）的关系：09-07 对照的是「重做方案」，列了 24 条没想到；本份对照今天 main 上跑着的 lane，并回答那 24 条现在各是什么状态、09-07 之后新出现的自写模块有没有重造 pi。pi 的细节（37 个事件、六节摘要提示词等）直接引 09-07，不重抄。
 
 ## 一屏总结

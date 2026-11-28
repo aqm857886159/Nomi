@@ -20,8 +20,10 @@
 //
 // 对照今天：`agentPanelV4Projection.sortedItems()` 拿 `createdAt` 加数组下标排一遍，
 // 是因为宿主那边的记录本来就没有可信顺序。那个 `sort` 在阶段 4 会被整个删掉。
-import type { LaneSnapshot } from '@earendil-works/pi-agent-core';
 import type { AssistantMessage, Usage } from '@earendil-works/pi-ai';
+import type { LaneSnapshot } from './laneSnapshotTypes.js';
+
+export type { LaneEntry, LaneSnapshot } from './laneSnapshotTypes.js';
 import { draftInputFromMessage, isLaneInputMessage } from './laneInputMessage.js';
 import type { NomiPricingBasis } from './laneModelConfig.js';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_COMPLETE_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from './laneLegacyNote.js';
@@ -277,7 +279,7 @@ export function projectLaneSnapshot(
   let inputEntryId = previousInputId;
   let legacy: ReturnType<typeof laneLegacyFacts>;
   const running = snapshot.operation?.runningTools ?? [];
-  const runningToolCallIds = new Set(running.filter((tool) => tool.status === 'running').map((tool) => tool.toolCallId));
+  const runningToolCallIds = new Set(running.map((tool) => tool.toolCallId));
   const entries = history ?? snapshot.transcript;
   const recoveredErrors = recoveredErrorEntryIds(entries, Boolean(snapshot.operation?.streamingMessage));
   for (const entry of entries ?? snapshot.transcript) {

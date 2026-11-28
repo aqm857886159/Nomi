@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
-import type { Entry } from '@earendil-works/pi-agent-core';
+import type { LaneEntry } from '../shared/agentLane/laneSnapshotTypes.js';
 import { assertProjectAgentBinding, projectAgentPartitionKey } from '../shared/projectBinding.js';
 import { legacyMigrationCountsSchema, type LegacyMigrationOptions, type LegacyMigrationCounts } from '../shared/agentLane/laneLegacyMigrationContract.js';
 import type { DesktopLocale } from '../desktopLocale.js';
@@ -11,7 +11,6 @@ import { projectLaneSnapshot } from '../shared/agentLane/laneProjection.js';
 import { createLegacyFileAccess, withLegacyMigrationLock } from './laneLegacyFiles.js';
 import { parseLegacySource, type LegacySourceKind } from './laneLegacySources.js';
 import { planLegacyImport, type LegacyAppendOperation, type LegacyConversationPlan } from './laneLegacyImportPlan.mjs';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import { listLaneSessions } from './laneSession.mjs';
 import { readLaneWorkspaceSelection, writeLaneWorkspaceSelection } from './laneWorkspaceSelection.js';
 import { readLegacyPriorArchive } from './laneLegacyPriorArchive.mjs';
@@ -50,7 +49,7 @@ function targetShape(plan: LegacyConversationPlan, sourceHash: string) {
     laneName: `legacy-${hash(JSON.stringify([plan.sourceKind, plan.key, sourceHash])).slice(0, 32)}`,
     parts: plan.expectedParts, sourceItems: plan.sourceItems };
 }
-function entryShape(entry: Entry | LegacyAppendOperation): unknown {
+function entryShape(entry: LaneEntry | LegacyAppendOperation): unknown {
   if (entry.type === 'message') return { type: 'message', message: entry.message };
   if (entry.type === 'custom') return { type: 'custom', customType: entry.customType, data: entry.data };
   return { type: entry.type };
@@ -63,10 +62,10 @@ function importOperations(manifest: Manifest, target: Manifest['targets'][number
   { sourceIndex: -1, type: 'custom', customType: LANE_LEGACY_COMPLETE_NOTE,
     data: { transactionId: manifest.transactionId, parts: target.parts } }];
 }
-function assertPrefix(entries: Entry[], operations: LegacyAppendOperation[]): void {
+function assertPrefix(entries: LaneEntry[], operations: LegacyAppendOperation[]): void {
   if (entries.length > operations.length) fail();
   for (let index = 0; index < entries.length; index++) {
-    if (!same(entryShape(entries[index]), entryShape(operations[index]))) fail();
+    if (!same(entryShape(entries[index]!), entryShape(operations[index]!))) fail();
   }
 }
 
@@ -85,19 +84,13 @@ export async function migrateLaneLegacy(options: LegacyMigrationOptions): Promis
 const NO_LEGACY_COUNTS: LegacyMigrationCounts = Object.freeze({
   projects: 0, sourceFiles: 0, conversations: 0, sourceItems: 0, parts: 0, archivedOnlyConversations: 0 });
 
-/**
- * 打开项目每次都会走到迁移，而迁移只有两种终态是「什么都不用做」：从来没有旧版对话（没清单、没源文件、没旧归档），
- * 或者早就迁完了（清单已 completed）。这两种终态不会自己变回去，所以先**不拿锁**看一眼：
- * 命中就直接返回，不建锁文件、不 fsync——打开项目是读，不该写盘；进程中途被杀时也不会留下一把拦住下次打开的锁。
- * 看不准（读失败、证据不齐、清单没迁完、绑定对不上）一律 undefined，交给下面加锁的完整流程按原规则处理或报错。
- */
 function settledWithoutLock(access: ReturnType<typeof createLegacyFileAccess>, file: string, specs: SourcePath[],
   nomi: string, options: LegacyMigrationOptions): LegacyMigrationCounts | undefined {
   try {
     const manifestBytes = access.read(file)?.bytes;
     if (manifestBytes) {
       const manifest = manifestSchema.parse(JSON.parse(manifestBytes.toString()));
-      const sameSources = manifest.sources.length === specs.length && manifest.sources.every((source, index) => source.id === specs[index].id);
+      const sameSources = manifest.sources.length === specs.length && manifest.sources.every((source, index) => source.id === specs[index]!.id);
       return manifest.phase === 'completed' && same(manifest.binding, options.binding) && sameSources ? manifest.counts : undefined;
     }
     if (specs.some(spec => access.read(spec.file))) return undefined;
@@ -109,7 +102,6 @@ async function migrate(options: LegacyMigrationOptions): Promise<LegacyMigration
   const access = createLegacyFileAccess([options.projectDir, options.userDataDir]);
   const projectDir = resolve(options.projectDir); const nomi = join(projectDir, '.nomi');
   const file = join(nomi, 'lane-legacy-migration.json'); const specs = sourcePaths(options);
-  // 无锁这一眼用自己的一份访问器：它记下的目录身份不和加锁流程的混用。
   const settled = settledWithoutLock(createLegacyFileAccess([options.projectDir, options.userDataDir]), file, specs, nomi, options);
   if (settled) return settled;
   return withLegacyMigrationLock(access, projectDir, async () => {
@@ -118,12 +110,12 @@ async function migrate(options: LegacyMigrationOptions): Promise<LegacyMigration
     if (manifestBytes) {
       manifest = manifestSchema.parse(JSON.parse(manifestBytes.toString()));
       if (!same(manifest.binding, options.binding) || manifest.sources.length !== specs.length
-        || manifest.sources.some((source, index) => source.id !== specs[index].id)) fail();
+        || manifest.sources.some((source, index) => source.id !== specs[index]!.id)) fail();
       if (manifest.phase === 'completed') return manifest.counts;
     }
-    const sessionSource = specs[1];
+    const sessionSource = specs[1]!;
     const activeSessionFile = sessionSource.file;
-    const savedStamp = manifest?.sources[1].archiveStamp;
+    const savedStamp = manifest?.sources[1]?.archiveStamp;
     if ((!manifest && !access.read(activeSessionFile)) || savedStamp !== undefined) {
       const prior = readLegacyPriorArchive(access, nomi, options.binding);
       if (savedStamp !== undefined && (prior?.stamp !== savedStamp || access.read(activeSessionFile))) fail();
@@ -134,7 +126,7 @@ async function migrate(options: LegacyMigrationOptions): Promise<LegacyMigration
     const directory = join(nomi, 'legacy-archive', transactionId);
     const loaded = specs.map((spec, index) => {
       const live = access.read(spec.file)?.bytes;
-      const expected = manifest?.sources[index].hash;
+      const expected = manifest?.sources[index]?.hash;
       const archived = manifest ? access.read(join(directory, spec.archive))?.bytes : undefined;
       if (manifest) {
         if (live !== undefined && hash(live) !== expected) fail();
@@ -170,13 +162,13 @@ async function migrate(options: LegacyMigrationOptions): Promise<LegacyMigration
       await options.checkpoint?.('archived'); access.check();
     }
     for (const [index, target] of manifest.targets.entries()) {
-      const operations = importOperations(manifest, target, plan.conversations[index]);
+      const operations = importOperations(manifest, target, plan.conversations[index]!);
       if (manifest.phase === 'prepared') {
         const lane = await openLegacyImportLane(projectDir, target.laneName, target.sessionId);
         try {
           access.check(); const entries = await lane.entries(); assertPrefix(entries, operations);
           for (let cursor = entries.length; cursor < operations.length; cursor++) {
-            access.check(); const operation = operations[cursor];
+            access.check(); const operation = operations[cursor]!;
             if (operation.type === 'message') await lane.appendMessage(operation.message);
             else await lane.appendCustomEntry(operation.customType, operation.data);
             await options.checkpoint?.('append');
@@ -198,7 +190,7 @@ async function migrate(options: LegacyMigrationOptions): Promise<LegacyMigration
     await options.checkpoint?.('verified'); access.check();
     const first = manifest.targets[0];
     if (first && !readLaneWorkspaceSelection(projectDir)) {
-      const sessions = await listLaneSessions(projectDir, BACKGROUND_CONTEXT);
+      const sessions = await listLaneSessions(projectDir);
       if (sessions.every(session => manifest.targets.some(target => target.sessionId === session.sessionId))) {
         writeLaneWorkspaceSelection(projectDir, { laneName: first.laneName, sessionId: first.sessionId });
       }

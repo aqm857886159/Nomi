@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict';
 import { spawnLaneCrashChild } from './laneCrashFixture.mjs';
 import { test } from 'node:test';
-import type { Entry } from '@earendil-works/pi-agent-core';
+import type { LaneEntry } from '../../electron/shared/agentLane/laneSnapshotTypes.js';
 
 import { createDocumentLaneTools } from '../../electron/agentLane/laneDocumentTools.js';
 import { createDocumentPort, createLaneFixture } from './laneFixture.mjs';
@@ -24,7 +24,7 @@ const APPEND = { type: 'tool' as const, calls: [{ id: 'call-append', name: 'writ
 const CLOSING = { type: 'text' as const, text: 'Understood.' };
 
 /** 转录里那次调用的结果。**从 pi 的转录读**，不从我们的投影读——探针问的是 pi。 */
-function toolResultOf(entries: readonly Entry[], toolCallId: string) {
+function toolResultOf(entries: readonly LaneEntry[], toolCallId: string) {
   for (const entry of entries) {
     if (entry.type !== 'message' || entry.message.role !== 'toolResult') continue;
     if (entry.message.toolCallId !== toolCallId) continue;
@@ -101,13 +101,13 @@ for (const arm of ['resolve-on-abort', 'reject-on-abort'] as const) {
     assert.equal(fixture.document.text(), 'The opening scene.', 'the tool never ran');
     assert.equal(fixture.http.requests.length, 1, 'abort does not spend another model request');
     if (arm === 'resolve-on-abort') {
-      assert.equal(settled.text, 'Tool execution was cancelled before completion.',
-        'resolving the hook on abort yields pi\'s own abortedOutcome (drive/tools.js:96-101)');
+      assert.equal(settled.text, 'Operation aborted',
+        'resolving the hook on abort yields pi 1.7.0\'s own aborted outcome (agent-loop.js:509)');
     } else {
-      // 拒绝那一臂：`hooks.js:121-125` 把任何异常变成 `block = { reason: error.message }`——
-      // 所以模型看到的不是 abortedOutcome，而是 signal.reason 的 message。钉住它，宿主别走这一臂。
-      assert.notEqual(settled.text, 'Tool execution was cancelled before completion.',
-        'rejecting the hook on abort is laundered into a block reason by hooks.js:121-125 — not the cancelled outcome');
+      // 拒绝那一臂：`agent-loop.js:532-538` 把任何异常变成 `createErrorToolResult(error.message)`——
+      // 所以模型看到的不是 Operation aborted，而是 signal.reason 的 message。钉住它，宿主别走这一臂。
+      assert.notEqual(settled.text, 'Operation aborted',
+        'rejecting the hook on abort is laundered into error.message by agent-loop.js:532-538 — not the cancelled outcome');
       assert.equal(settled.text, 'Abort requested', 'the block reason is AbortRequested.message, an internal string the user never asked for');
     }
     // 等待期排进 inbox 的宿主记录：abort 之后它**没有**落盘——还在 `queues` 里（§1.4 说的

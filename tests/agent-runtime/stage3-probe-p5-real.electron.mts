@@ -14,7 +14,7 @@
 import { app } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { HookHandler, LaneSnapshot } from '@earendil-works/pi-agent-core';
+import type { LaneSnapshot } from '../../electron/shared/agentLane/laneSnapshotTypes.js';
 
 import { createCanvasLaneTools, type CanvasLanePort } from '../../electron/agentLane/laneCanvasTools.js';
 // PR A：说明书那一半是注册表里的动词声明（两个 profile 共用），执行那一半留在 lane。
@@ -26,7 +26,7 @@ const NO_SKILL_SECTION = '';
 import type { LaneToolDescriptor } from '../../electron/agentLane/laneRuntimePort.js';
 import type { ApiKeyRecord } from '../../electron/catalog/secrets.js';
 import type { NomiModelConfig } from '../../electron/shared/agentLane/laneModelConfig.js';
-import { PROBE_CONTEXT, openProbeLane, type ProbeCleanup } from './stage3ProbeHarness.mjs';
+import { PROBE_CONTEXT, openProbeLane, type ProbeBeforeToolHandler, type ProbeCleanup } from './stage3ProbeHarness.mjs';
 
 const VENDOR = process.env.NOMI_PROBE_VENDOR || 'apimart';
 const MODEL = process.env.NOMI_PROBE_MODEL || 'deepseek-v4-flash';
@@ -122,7 +122,7 @@ async function runTask(config: NomiModelConfig, task: TaskSpec, tools: LaneToolD
   const scope = cleanup();
   const calls: FirstCall[] = [];
   let requests = 0;
-  const beforeTool: HookHandler<'before_tool'> = async (event) => {
+  const beforeTool: ProbeBeforeToolHandler = async (event) => {
     const args = event.args as { operation?: string } | undefined;
     const call: FirstCall = { toolName: event.toolName, args: event.args, ...(args?.operation ? { operation: args.operation } : {}) };
     calls.push(call);

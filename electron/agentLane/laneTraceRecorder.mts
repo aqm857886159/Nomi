@@ -1,8 +1,6 @@
 import { collectTraceRedactions, LANE_TRACE_REDACTIONS_NOTE } from './laneTraceRedaction.mjs';
-import type { JsonValue } from '@earendil-works/pi-agent-core/harness/session';
-import type { AgentHarness, Session } from '@earendil-works/pi-agent-core';
-import type { JsonlSessionMetadata } from '@earendil-works/pi-agent-core/harness/session';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
+import type { AssistantMessage, JsonValue } from '@earendil-works/pi-ai';
+import type { LaneSession } from './laneSession.mjs';
 import type { NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { logError } from '../logging/logger.js';
 import { clampAgentRetryCount, type AgentFaultCategory, type TelemetryResult } from '../shared/contracts/telemetry.js';
@@ -36,6 +34,31 @@ export function createLaneTraceBridge(
   };
 }
 
+export interface LaneTraceRunStartEvent {
+  readonly runId: string;
+  readonly startedAt: number;
+}
+
+export interface LaneTraceToolStartEvent {
+  readonly runId: string;
+  readonly toolCallId: string;
+}
+
+export interface LaneTraceToolEndEvent {
+  readonly runId: string;
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly isError: boolean;
+}
+
+export interface LaneTraceRunEndEvent {
+  readonly runId: string;
+  readonly fromTipId: string | null;
+  readonly tipId: string | null;
+  readonly endedAt: number;
+  readonly status: LaneTraceRun['status'];
+}
+
 // Only transient timings live here; durable facts use pi's standard custom entry.
 const liveViews = new Map<string, () => Promise<string>>();
 export function registerLiveLaneTrace(sessionPath: string, refresh: () => Promise<string>): () => void {
@@ -45,15 +68,18 @@ export function registerLiveLaneTrace(sessionPath: string, refresh: () => Promis
 export function refreshLiveLaneTrace(sessionPath: string): Promise<string> | undefined {
   return liveViews.get(sessionPath)?.();
 }
+
 export function attachLaneTrace(input: {
-  harness: AgentHarness; session: Session<JsonlSessionMetadata>;
-  pricing?: NomiPricingBasis; secrets?: readonly string[]; model?: LaneTraceRun['model'];
+  session: LaneSession;
+  pricing?: NomiPricingBasis;
+  secrets?: readonly string[];
+  model?: LaneTraceRun['model'];
   runtimeBridge?: LaneTraceBridge;
   isTurnOver?: (runId?: string) => boolean;
-  isContextOverflow?: (message: never) => boolean;
+  isContextOverflow?: (message: AssistantMessage) => boolean;
   onTurnCompleted?: (event: LaneTurnCompletedEvent) => void;
 }) {
-  const { harness, session } = input;
+  const { session } = input;
   const bridge = input.runtimeBridge;
   const pricing = input.pricing ?? bridge?.pricing ?? 'unpriced';
   const model = input.model ?? { provider: bridge?.options.model.providerId ?? '', model: bridge?.options.model.modelId ?? '' };
@@ -64,6 +90,8 @@ export function attachLaneTrace(input: {
   const starts = new Map<string, number>();
   const tools = new Map<string, { started: number; runId: string; durationMs?: number; failureCode?: string }>();
   const pendingFailuresByTool = new Map<string, string[]>();
+  let closed = false;
+
   type TurnTelemetryState = {
     startedAt: number;
     toolCallCount: number;
@@ -78,7 +106,14 @@ export function attachLaneTrace(input: {
     latestRunId = runId;
     const existing = turnTelemetry.get(runId);
     if (existing) return existing;
-    const created: TurnTelemetryState = { startedAt, toolCallCount: 0, retryCount: 0, breakerTripped: false, lastAssistantFault: null, hadToolError: false };
+    const created: TurnTelemetryState = {
+      startedAt,
+      toolCallCount: 0,
+      retryCount: 0,
+      breakerTripped: false,
+      lastAssistantFault: null,
+      hadToolError: false,
+    };
     turnTelemetry.set(runId, created);
     return created;
   };
@@ -86,31 +121,32 @@ export function attachLaneTrace(input: {
     // 只有模型无视第 3 次警告继续调用、真正触发 `tool_retry_stopped` 停轮时才记熔断失败；
     // 第 3 次连败本身只是向模型发提示，若模型随后换路或询问用户并正常结束回合，不应误判为熔断失败。
     if (code === 'tool_retry_stopped' && latestRunId) ensureTurnState(latestRunId).breakerTripped = true;
-    const closed = isClosedTrajectoryToolFailureCode(code) ? code : 'unknown_tool_failure';
+    const closedCode = isClosedTrajectoryToolFailureCode(code) ? code : 'unknown_tool_failure';
     if (toolCallId) {
       const existing = tools.get(toolCallId);
-      if (existing) existing.failureCode = closed;
-      else tools.set(toolCallId, { started: performance.now(), runId: '', failureCode: closed });
+      if (existing) existing.failureCode = closedCode;
+      else tools.set(toolCallId, { started: performance.now(), runId: '', failureCode: closedCode });
       return;
     }
     const list = pendingFailuresByTool.get(toolName) ?? [];
-    list.push(closed);
+    list.push(closedCode);
     pendingFailuresByTool.set(toolName, list);
   };
   bridge?.bindFailure((event) => noteToolFailure(event.toolName, event.code));
+
   let tail = Promise.resolve();
   const enqueue = (work: () => Promise<void>) => {
     tail = tail.then(work).catch(() => {
       logError('agent', 'derived-view-write-failed', new Error('Agent trace could not be written'));
     });
   };
-  const appendNote = (customType: string, data: JsonValue) => session.mutate(async (mutator, context) => {
-    await mutator.commit([{ kind: 'entry', entry: { id: session.idGenerator.next(), parentId: null,
-      type: 'custom', customType, data } }], context);
-  }, BACKGROUND_CONTEXT);
+  const appendDetached = (customType: string, data?: JsonValue) =>
+    session.appendDetachedCustomEntry
+      ? session.appendDetachedCustomEntry(customType, data)
+      : session.appendCustomEntry(customType, data);
   const publish = async () => {
-    const redactions = collectTraceRedactions(await session.findEntries({ order: 'asc' }, BACKGROUND_CONTEXT), secrets);
-    if (redactions !== null) await appendNote(LANE_TRACE_REDACTIONS_NOTE, redactions);
+    const redactions = collectTraceRedactions(session.entries(), secrets);
+    if (redactions !== null) await appendDetached(LANE_TRACE_REDACTIONS_NOTE, redactions);
     return writeLaneTrace(session, secrets);
   };
   const refresh = () => {
@@ -121,20 +157,29 @@ export function attachLaneTrace(input: {
     return next;
   };
   const unregister = registerLiveLaneTrace(session.metadata.path, refresh);
-  const stops = [
-    harness.hooks?.on('before_request', event => {
-      if (event.step === 'assistant' && event.attempt > 1) ensureTurnState(event.runId).retryCount += 1;
-      return undefined;
-    }) ?? (() => undefined),
-    harness.events.on('run_start', event => {
+
+  return {
+    noteToolFailure,
+    onBeforeRetry: (runId: string) => {
+      if (closed || !runId) return;
+      ensureTurnState(runId).retryCount += 1;
+    },
+    onRunStart: (event: LaneTraceRunStartEvent) => {
+      if (closed) return;
       starts.set(event.runId, event.startedAt);
       ensureTurnState(event.runId, event.startedAt);
-    }),
-    harness.events.on('tool_start', event => {
+    },
+    onToolStart: (event: LaneTraceToolStartEvent) => {
+      if (closed) return;
       const existing = tools.get(event.toolCallId);
-      tools.set(event.toolCallId, { started: performance.now(), runId: event.runId, ...(existing?.failureCode ? { failureCode: existing.failureCode } : {}) });
-    }),
-    harness.events.on('tool_end', event => {
+      tools.set(event.toolCallId, {
+        started: performance.now(),
+        runId: event.runId,
+        ...(existing?.failureCode ? { failureCode: existing.failureCode } : {}),
+      });
+    },
+    onToolEnd: (event: LaneTraceToolEndEvent) => {
+      if (closed) return;
       const turnState = ensureTurnState(event.runId);
       turnState.toolCallCount += 1;
       if (event.isError) {
@@ -150,15 +195,16 @@ export function attachLaneTrace(input: {
       } else if (event.isError && queued) {
         tools.set(event.toolCallId, { started: performance.now(), runId: event.runId, failureCode: queued });
       }
-    }),
-    harness.events.on('message_end', event => {
-      if (event.message.role !== 'assistant' || !event.runId) return;
-      ensureTurnState(event.runId).lastAssistantFault = assistantFaultCategory(
-        event.message,
-        Boolean(isContextOverflow?.(event.message as never)),
+    },
+    onAssistantMessageEnd: (runId: string, message: AssistantMessage) => {
+      if (closed || !runId) return;
+      ensureTurnState(runId).lastAssistantFault = assistantFaultCategory(
+        message,
+        Boolean(isContextOverflow?.(message)),
       );
-    }),
-    harness.events.on('run_end', event => {
+    },
+    onRunEnd: (event: LaneTraceRunEndEvent) => {
+      if (closed) return;
       pendingFailuresByTool.clear();
       const turnState = turnTelemetry.get(event.runId);
       turnTelemetry.delete(event.runId);
@@ -187,9 +233,14 @@ export function attachLaneTrace(input: {
       }
       const observations = [...tools].filter(([, tool]) => tool.runId === event.runId);
       const note: LaneTraceRun = {
-        runId: event.runId, fromTipId: event.fromTipId, tipId: event.tipId,
-        startedAt: starts.get(event.runId) ?? null, endedAt: event.endedAt, status: event.status, pricing, model,
-        // 这条记录写进 pi 会话（项目目录）：只记「失败了」，不记 pi 给的错误对象（可能带上游原话）。
+        runId: event.runId,
+        fromTipId: event.fromTipId,
+        tipId: event.tipId,
+        startedAt: starts.get(event.runId) ?? null,
+        endedAt: event.endedAt,
+        status: event.status,
+        pricing,
+        model,
         error: event.status === 'failed' ? LANE_RUN_FAILED : null,
         tools: observations.flatMap(([toolCallId, tool]) => (
           tool.durationMs === undefined && !tool.failureCode
@@ -203,24 +254,19 @@ export function attachLaneTrace(input: {
       };
       starts.delete(event.runId);
       for (const [id] of observations) tools.delete(id);
-      // Do not await a writing lane command inside pi's event delivery barrier.
       enqueue(async () => {
-        await appendNote(LANE_TRACE_NOTE, traceSafeValue(note, secrets) as JsonValue);
+        if (closed) return;
+        await appendDetached(LANE_TRACE_NOTE, traceSafeValue(note, secrets) as JsonValue);
         await publish();
       });
-    }),
-  ];
-  return {
-    noteToolFailure,
+    },
     refresh,
     flush: async () => { await tail; },
     close: async () => {
-      for (const stop of stops) stop();
+      closed = true;
       unregister();
       await tail;
-      await publish().catch(() => {
-        logError('agent', 'derived-view-write-failed', new Error('Agent trace could not be written'));
-      });
+      await publish();
     },
   };
 }

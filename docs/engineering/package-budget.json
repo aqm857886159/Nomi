@@ -27,25 +27,7 @@
       ]
     }
   },
-  "excludedModules": {
-    "esbuild": {
-      "reason": "构建期打包器。进包是因为 @earendil-works/chord 把它写在 dependencies 里，但 chord 里 import 它的只有 dist/node/bundle.js，只经 chord/bundler 导出可达；我们随包的 pi-agent-core / pi-coding-agent 只 import chord/context（不可达 bundle.js）。importers 名单变了（上游多了一处 import），check:package-budget 会红，逼人重判。",
-      "evidence": [
-        "@earendil-works/chord/dist/node/bundle.js:4",
-        "@earendil-works/pi-agent-core/dist/harness/context.js"
-      ],
-      "importers": [
-        "@earendil-works/chord/dist/node/bundle.js"
-      ]
-    },
-    "@esbuild": {
-      "reason": "esbuild 的各平台原生子包（@esbuild/win32-x64 等，Windows 包里 11MB），随 esbuild 一起不进包。",
-      "evidence": [
-        "esbuild/package.json optionalDependencies"
-      ],
-      "importers": []
-    }
-  },
+  "excludedModules": {},
   "platforms": {
     "darwin-arm64": {
       "measuredAt": "2026-11-16",

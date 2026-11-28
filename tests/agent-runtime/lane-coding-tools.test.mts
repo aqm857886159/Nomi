@@ -104,15 +104,13 @@ test('read 工具真的读不到项目外的文件（走 pi 的工具，不是�
   });
   const read = tools.find((tool) => tool.name === 'read');
   assert.ok(read, 'pi 不再提供 read 工具');
-  const context = { abortSignal: new AbortController().signal } as never;
-  const noop = (() => undefined) as never;
-  const invocation = {} as never;
+  const signal = new AbortController().signal;
 
-  const inside = await read.execute('c1', { path: 'inside.txt' } as never, noop, undefined, invocation, context);
+  const inside = await read.execute('c1', { path: 'inside.txt' } as never, signal);
   assert.match(JSON.stringify(inside), /ok/);
 
   await assert.rejects(
-    () => read.execute('c2', { path: '/etc/passwd' } as never, noop, undefined, invocation, context),
+    () => read.execute('c2', { path: '/etc/passwd' } as never, signal),
     /outside this project/,
   );
 });
@@ -168,10 +166,9 @@ function gatedBash(
   return async (command: string) => {
     if (decide(command) === 'block') return 'blocked';
     return await (tool.execute as unknown as (
-      id: string, params: unknown, onUpdate: unknown, ctx: undefined, inv: unknown, context: unknown,
+      id: string, params: unknown, signal?: AbortSignal, onUpdate?: () => void,
     ) => Promise<unknown>)(
-      'call-1', { command }, () => undefined, undefined, {},
-      { abortSignal: new AbortController().signal },
+      'call-1', { command }, new AbortController().signal, () => undefined,
     );
   };
 }

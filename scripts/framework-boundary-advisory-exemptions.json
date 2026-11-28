@@ -10,7 +10,11 @@
   "exempt": [
     {
       "path": "electron/agentLane/laneSession.mts",
-      "why": "反过来了：这个文件命中「session」正是因为它**用**的就是 pi 的 session（`JsonlSessionRepo` + `Session`），整份文件只回答「写到哪儿」与「叫什么名字」两个 pi 不管的问题——落盘、追加、恢复、分支、版本迁移一件都没自己写。它长这么短本身就是证据（57 行）。"
+      "why": "反过来了：这个文件命中「session」正是因为它**用**的就是 pi 1.7.0 的 `SessionManager` v3，只负责项目内目录定位、单持有者互斥与 0600 权限加固，落盘、恢复、分支树与上下文投影全部交给 `SessionManager`。"
+    },
+    {
+      "path": "electron/agentLane/laneSessionV4Migration.mts",
+      "why": "一次性单向兼容迁移：把存量 0.85.1 的 v4 JSONL 表头与条目在 `SessionManager.open()` 之前无损改写为 `SessionManager` v3 JSONL（P1 ★1c 老用户升级路径），不承载任何运行时会话读写。"
     }
   ]
 }

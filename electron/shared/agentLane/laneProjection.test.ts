@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
+import type { LaneSnapshot } from './laneSnapshotTypes'
 import { isContextOverflow, isRetryableAssistantError, type AssistantMessage } from '@earendil-works/pi-ai'
 import { projectLaneSnapshot, trimLaneProjectionForIpc, type LaneModelFacts } from './laneProjection'
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from './laneAssistantFault'
@@ -134,9 +134,11 @@ describe('lane skill provenance', () => {
   it('keeps queued targets out of the active transcript projection', () => {
     const storyboardTarget = { projectId: 'p', sourceDocumentId: 'a', sourceDocumentRevision: 3,
       sourceDocumentContentHash: 'h', targetKind: 'storyboard', requestId: 'request-a', plans: [] }
-    const lane = laneWith([input(1, 'A', { storyboardTarget })])
-    lane.queues = [{ entryId: 'queued-b', kind: 'followUp', message: { role: 'nomi.input', content: 'B', timestamp: 2,
-      context: { approvalPolicy: { mode: 'request' }, storyboardTarget: { ...storyboardTarget, sourceDocumentId: 'b' } } } }] as unknown as LaneSnapshot['queues']
+    const lane: LaneSnapshot = {
+      ...laneWith([input(1, 'A', { storyboardTarget })]),
+      queues: [{ entryId: 'queued-b', kind: 'followUp', message: { role: 'nomi.input', content: 'B', timestamp: 2,
+        context: { approvalPolicy: { mode: 'request' }, storyboardTarget: { ...storyboardTarget, sourceDocumentId: 'b' } } } }] as unknown as LaneSnapshot['queues'],
+    }
     const projection = projectLaneSnapshot(lane, { pricing: 'unpriced', supportedThinkingLevels: ['off'] })
     expect(projection.parts).toHaveLength(1)
     expect(projection.parts[0]).toMatchObject({ kind: 'user', storyboardTarget })

@@ -5,7 +5,6 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, type TestContext } from 'node:test';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import { migrateLaneLegacy } from '../../electron/agentLane/laneLegacyMigration.mjs';
 import { openLaneHistory } from '../../electron/agentLane/laneHistory.mjs';
 import { deleteLaneSession } from '../../electron/agentLane/laneSession.mjs';
@@ -40,7 +39,7 @@ test('migration archives exact source bytes, imports once and never revives a us
   const lane = await openLaneHistory({ projectDir: options.projectDir, laneName });
   try { assert.deepEqual(lane.projection().parts.filter(part => part.kind !== 'host-note').map(part => 'text' in part ? part.text : ''), ['first', 'second']); }
   finally { await lane.close(); }
-  await deleteLaneSession(options.projectDir, laneName, BACKGROUND_CONTEXT);
+  await deleteLaneSession(options.projectDir, laneName);
   assert.deepEqual(await migrateLaneLegacy(options), result);
   assert.equal(fs.readFileSync(options.receipt, 'utf8'), 'G5 sentinel');
 });

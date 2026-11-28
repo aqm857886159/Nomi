@@ -142,7 +142,7 @@ test('tuple is converted when generating a tool; fixed homogeneous arrays retain
   assert.equal(good.properties.window.maxItems, 2)
 })
 
-test('the complete production schema census accepts all 54 Agent and MCP entries', async () => {
+test('the complete production schema census accepts all 55 Agent and MCP entries', async () => {
   const catalog = [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]
   const factories = await loadPiCodingToolFactories()
   const coding = Object.values(factories).map((factory) => factory('/nomi-schema-probe'))
@@ -156,7 +156,7 @@ test('the complete production schema census accepts all 54 Agent and MCP entries
     { name: `internal/${request.name}`, schema: request.parameters },
     ...MCP_TOOL_RESOLVER.list().map((tool) => ({ name: `mcp/${tool.name}`, schema: tool.inputSchema })),
   ]
-  assert.equal(published.length, 54)
+  assert.equal(published.length, 55)
   assert.equal(new Set(published.map((tool) => tool.name)).size, published.length)
   for (const tool of published) {
     assert.deepEqual(vendor(tool.schema), [], tool.name)
@@ -403,13 +403,13 @@ test('the actual lane execution boundary rejects deferred constraints with struc
     { tuple: ['x', 1], keys: {} }, { tuple: [1, 'ok'], keys: {} }, { tuple: ['ok', 1], keys: { bad: 'value' } },
   ].entries()) {
     const id = `deferred-${index}`
-    await assert.rejects(tool.execute(id, params, undefined, undefined, undefined, { abortSignal: new AbortController().signal }))
+    await assert.rejects(tool.execute(id, params, new AbortController().signal))
     const failure = takeLaneToolFailure(id)
     assert.ok(failure?.code)
     assert.ok(failure.issues?.length)
   }
   assert.equal(executions, 0)
-  await tool.execute('accepted', { tuple: ['ok', 1], keys: { abc: 'value' } }, undefined, undefined, undefined, { abortSignal: new AbortController().signal })
+  await tool.execute('accepted', { tuple: ['ok', 1], keys: { abc: 'value' } }, new AbortController().signal)
   assert.equal(executions, 1)
 })
 
