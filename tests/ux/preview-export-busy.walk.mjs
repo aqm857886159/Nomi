@@ -1,24 +1,17 @@
-import { makeTempDir } from '../../scripts/_test-temp.mjs'
-// 导出 MP4 忙态契约（设计系统 §1.6 C1）—— R13 零额度真机走查。
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
+// 导出 MP4 顶栏规格外显与忙态原地取消契约（UX-B1 / U-21）—— R13 零额度真机走查。
 // 用法: node tests/ux/preview-export-busy.walk.mjs
 // 产出: tests/ux/shots/preview-export-busy/*.png（自己 Read 亲眼看）
 //
-// 背景（2026-09-07 体检 P0 第一条）：顶栏「导出 MP4」既不 disabled、也没有 loading、也没有 title，
-// 而导出的忙态 `exportBusy` 住在跨组件的 TimelinePreview 里，按钮根本拿不到。
-// 于是点第二次被 `if (exportBusy) return` **静默吞掉**——正是 §1.6 C1 举的那个原型
-// （「显示」下拉 if 短路、界面不解释）的同构复发。
-//
-// 这条走查钉死四件事，每件都带阳性对照（先证明空闲态是另一副样子，断言才不恒真）：
-//   ① 阳性对照：空闲时按钮**可点**，只有一层应用提示，说明导出规格。
-//   ② 点下去后按钮变 disabled，并且 aria-label 说清「为什么现在点不了」（阶段 + 百分比）。
-//   ③ 忙态期间再点无害：在观察者里原子地真点第二下，一次导出请求都没多发，且全程只产出一个 MP4。
-//   ④ 进度条渲染阶段文案，且带 role=progressbar 的 aria-valuenow。
-// 忙态用 MutationObserver 全程采样（不是事后瞄一眼），短窗口也抓得到。
-// 导出走生产路径的真 ffmpeg，素材是本地编码的真 MP4，零额度、零网络。
+// 钉死五件事，每件都带阳性对照：
+//   ① 空闲态：单胶囊可点，可见文字外显「导出 MP4 · 1080p」，同时 aria-label 保持「导出 MP4」，悬停仅一层应用提示带画幅与分辨率。
+//   ② 忙态翻面：点导出后同一颗胶囊原地翻面为可点击的「导出中 N% · 取消」（不新增第 2 颗按钮，不 disabled），aria-label 说清阶段、百分比与点击取消。
+//   ③ 真实取消：忙态期间点击该胶囊触发真实取消，不重发第二次导出请求，主进程杀掉编码子进程并清理 .partial.mp4（exports 目录 0 产出），不弹红报错。
+//   ④ 恢复与重导：取消完成后立即恢复空闲「导出 MP4 · 1080p」，再次点击完整导出成功产出 1 个非空 MP4。
+//   ⑤ 进度条渲染阶段文案，且带 role=progressbar 的 aria-valuenow。
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
@@ -41,17 +34,12 @@ const PROJECT_ID = 'export-busy'
 const PROJECT_NAME = '导出忙态验收项目'
 const VIDEO_NAME = 'export-busy-source.mp4'
 const FPS = 30
-const CLIP_FRAMES = 240 // 8 秒：足够让 preparing/recording/converting 三态各自可观测
+const CLIP_FRAMES = 450 // 15 秒 1080p 动态测试源：足够让真 ffmpeg 编码窗口稳定供点击取消与二次完整导出
 
 function encodeVideo(output) {
-  const filter = [
-    'color=c=0x24405C:s=1280x720:d=8:r=30',
-    'drawbox=x=120:y=110:w=420:h=500:color=white:t=fill',
-    'drawbox=x=640:y=180:w=480:h=160:color=0xF2C14E:t=fill',
-  ].join(',')
   const run = spawnSync(ffmpegPath, [
-    '-v', 'error', '-y', '-f', 'lavfi', '-i', filter,
-    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output,
+    '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=1920x1080:d=15:r=30',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output,
   ], { timeout: 180_000 })
   if (run.status !== 0) throw new Error(`夹具编码失败: ${run.stderr?.toString().slice(-500)}`)
 }
@@ -152,10 +140,18 @@ const check = (ok, message, detail = '') => {
 
 const EXPORT_BUTTON = '[data-export-busy]'
 
-function countExports() {
+function listExportEntries() {
   const dir = path.join(projectRoot, 'exports')
-  if (!fs.existsSync(dir)) return 0
-  return fs.readdirSync(dir).filter((name) => name.endsWith('.mp4')).length
+  if (!fs.existsSync(dir)) return []
+  return fs.readdirSync(dir)
+}
+
+function countFinalMp4Exports() {
+  return listExportEntries().filter((name) => name.endsWith('.mp4') && !name.endsWith('.partial.mp4')).length
+}
+
+function countPartialMp4Exports() {
+  return listExportEntries().filter((name) => name.includes('.partial')).length
 }
 
 let app = null
@@ -165,24 +161,20 @@ try {
     settingsDir,
     userDataDir,
     projectsDir,
+    viewportSize: { width: 1440, height: 900 },
+    initialLocalStorage: {
+      'nomi:locale:v1': 'zh-CN',
+      'nomi-color-scheme': 'light',
+      'nomi:splash:v1': 'seen',
+      'nomi:journey-tour:v1': 'seen',
+      'nomi:canvas-gesture-hint:v1': 'seen',
+    },
     args: ['--disable-gpu', '--no-proxy-server'],
-    settleMs: 1800,
+    settleMs: 1500,
   })
   app = launched.app
   const win = launched.win
-  const browserWindow = await app.browserWindow(win)
-  // ≥1600px 才显示按钮文字（顶栏 max-[1600px] 收成纯图标）——走查要让人眼看得见「导出中 N%」。
-  await browserWindow.evaluate((ref) => ref.setBounds({ x: 0, y: 0, width: 1800, height: 1000 }))
 
-  await win.evaluate(() => {
-    localStorage.setItem('nomi-color-scheme', 'light')
-    for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
-      localStorage.setItem(key, 'seen')
-    }
-  })
-  await win.reload()
-  await win.waitForLoadState('domcontentloaded')
-  // 真信号：项目库列表渲染出来了（不是「睡够 2 秒大概好了」）。
   await win.waitForFunction(
     () => document.querySelectorAll('[data-project-card="true"]').length > 0,
     undefined,
@@ -191,9 +183,8 @@ try {
 
   const card = win.locator('[data-project-card="true"]').filter({ hasText: PROJECT_NAME }).first()
   await expectVisible(card, '夹具项目卡出现')
-  await card.dblclick()
+  await card.click()
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: 20_000 })
-  // 真信号：工作区外壳（顶栏 + 阶段导航）挂上了。
   await win.waitForFunction(
     () => Boolean(document.querySelector('nav.nomi-stepper')),
     undefined,
@@ -202,7 +193,6 @@ try {
   const resume = win.getByRole('button', { name: /继续创作/ }).first()
   if (await resume.isVisible().catch(() => false)) {
     await resume.click()
-    // 真信号：恢复卡消失。
     await win.waitForFunction(
       () => ![...document.querySelectorAll('button')].some((el) => /继续创作/.test(el.textContent ?? '')),
       undefined,
@@ -213,7 +203,6 @@ try {
   const previewTab = win.locator('nav.nomi-stepper [data-mode="preview"]').first()
   await expectVisible(previewTab, '预览页 tab 出现')
   await previewTab.click()
-  // 真信号：预览页 tab 变成当前页，且预览舞台挂上了。
   await win.waitForFunction(
     () => document.querySelector('nav.nomi-stepper [data-mode="preview"]')?.getAttribute('aria-current') === 'page'
       && Boolean(document.querySelector('.workbench-preview-player__stage')),
@@ -224,8 +213,9 @@ try {
   const exportButton = win.locator(EXPORT_BUTTON).first()
   await expectVisible(exportButton, '顶栏「导出 MP4」按钮出现')
 
-  // ── ① 阳性对照：空闲时它就该是可点的、没有忙态说明 ─────────────────────────────
+  // ── ① 阳性对照：空闲态外显「导出 MP4 · 1080p」，同时 aria-label 保持「导出 MP4」 ─────────────
   const idleState = await exportButton.evaluate((el) => ({
+    count: document.querySelectorAll('[data-shell-topbar] [data-shell-export]').length,
     busy: el.dataset.exportBusy,
     disabled: el.disabled === true || el.getAttribute('aria-disabled') === 'true',
     title: el.closest('span[title]')?.getAttribute('title') ?? null,
@@ -233,13 +223,13 @@ try {
     text: el.textContent?.trim(),
   }))
   check(
-    idleState.busy === 'false' && !idleState.disabled,
-    '阳性对照：空闲时按钮可点（证明下面的 disabled 断言不恒真）',
+    idleState.count === 1 && idleState.busy === 'false' && !idleState.disabled,
+    '阳性对照：顶栏仅单颗导出胶囊且空闲可点',
     JSON.stringify(idleState),
   )
   check(
-    idleState.title === null && idleState.label === '导出 MP4',
-    '阳性对照：空闲时按钮可读为「导出 MP4」，没有原生 title',
+    idleState.title === null && idleState.label === '导出 MP4' && idleState.text === '导出 MP4 · 1080p',
+    '阳性对照：空闲可见文字显示「导出 MP4 · 1080p」，aria-label 保持「导出 MP4」零破坏，无原生 title',
     JSON.stringify(idleState),
   )
   await exportButton.hover()
@@ -249,35 +239,28 @@ try {
   await win.mouse.move(0, 100)
   await screenshotSettled(win, { path: path.join(shotsDir, '01-idle-enabled.png') })
 
-  // ── 全程采样：忙态窗口可能很短，事后瞄一眼会漏 ─────────────────────────────────
+  // ── 全程采样：记录导出请求数、取消请求数与忙态帧 ─────────────────────────────────────────────
   await win.evaluate((selector) => {
     window.__nomiExportSamples = []
-    // 导出请求计数：顶栏按钮点一下就是往 window 发一次 PREVIEW_EXPORT_EVENT。
-    // ③ 用它证明「忙态期间再点」根本没有产生第二次请求（不是产生了然后被 if 吞掉）。
     window.__nomiExportRequests = 0
+    window.__nomiExportCancelRequests = 0
     window.addEventListener('nomi-preview-export', () => { window.__nomiExportRequests += 1 })
-    window.__nomiSecondClick = null
+    window.addEventListener('nomi-preview-export-cancel', () => { window.__nomiExportCancelRequests += 1 })
     const snapshot = () => {
       const el = document.querySelector(selector)
       if (!el) return
       const bar = document.querySelector('[role="progressbar"][aria-valuenow]')
-      // 忙态窗口只有几百毫秒，第二次点击必须在观察者里**原子地**做掉：
-      // 先记下此刻的 disabled 与请求数，立刻真点一次，再记请求数。中间没有任何异步缝隙。
-      if (el.dataset.exportBusy === 'true' && !window.__nomiSecondClick) {
-        const before = window.__nomiExportRequests
-        const wasDisabled = el.disabled === true
-        el.click()
-        window.__nomiSecondClick = { wasDisabled, before, after: window.__nomiExportRequests }
-      }
       window.__nomiExportSamples.push({
         at: Date.now(),
+        pillCount: document.querySelectorAll('[data-shell-topbar] [data-shell-export]').length,
         busy: el.dataset.exportBusy,
+        cancelling: el.dataset.exportCancelling ?? 'false',
         disabled: el.disabled === true,
         ariaBusy: el.getAttribute('aria-busy'),
         title: el.closest('span[title]')?.getAttribute('title') ?? null,
         label: el.getAttribute('aria-label'),
         text: el.textContent?.trim() ?? '',
-        hasLoadingMark: Boolean(el.querySelector('svg')) && el.dataset.exportBusy === 'true',
+        hasSpinMark: Boolean(el.querySelector('svg.animate-spin')) && el.dataset.exportBusy === 'true',
         progressNow: bar?.getAttribute('aria-valuenow') ?? null,
         progressText: bar?.getAttribute('aria-valuetext') ?? null,
         stageText: document.querySelector('.workbench-preview-player__export-progress span')?.textContent?.trim() ?? null,
@@ -289,105 +272,150 @@ try {
     window.__nomiExportObserver = observer
   }, EXPORT_BUTTON)
 
-  const exportsBefore = countExports()
-  await exportButton.click()
+  const exportsBefore = countFinalMp4Exports()
 
+  // ── ② 第一次点击导出 → 原地翻面为可点击的「导出中 …% · 取消」 → 点击真实取消 ───────────────────
+  await exportButton.click()
   await win.waitForFunction(
-    () => (window.__nomiExportSamples ?? []).some((sample) => sample.busy === 'true'),
-    undefined,
+    (selector) => {
+      const el = document.querySelector(selector)
+      return el?.dataset.exportBusy === 'true' && /导出中 \d+% · 取消/.test(el.textContent ?? '')
+    },
+    EXPORT_BUTTON,
     { timeout: 30_000 },
   )
 
-  // ── ②③④ 忙态取证 ─────────────────────────────────────────────────────────────
-  const busyNow = await exportButton.evaluate((el) => ({
+  const busyBeforeCancel = await exportButton.evaluate((el) => ({
+    pillCount: document.querySelectorAll('[data-shell-topbar] [data-shell-export]').length,
     busy: el.dataset.exportBusy,
     disabled: el.disabled === true,
-    title: el.closest('span[title]')?.getAttribute('title') ?? null,
     label: el.getAttribute('aria-label'),
     text: el.textContent?.trim(),
+    hasSpinMark: Boolean(el.querySelector('svg.animate-spin')),
   }))
-  await screenshotSettled(win, { path: path.join(shotsDir, '02-busy-disabled.png') })
+  await win.screenshot({ path: path.join(shotsDir, '02-busy-cancellable.png') })
 
-  // 等按钮**真的**回到空闲：ffmpeg 会边转码边写文件，所以「exports 目录里出现 mp4」不等于导出结束。
+  check(
+    busyBeforeCancel.pillCount === 1 && busyBeforeCancel.busy === 'true' && !busyBeforeCancel.disabled && busyBeforeCancel.hasSpinMark,
+    '②忙态单胶囊原地翻面可点击（不新增第 2 颗按钮、不 disabled、带旋转加载图标）',
+    JSON.stringify(busyBeforeCancel),
+  )
+  check(
+    /导出中 \d+% · 取消/.test(busyBeforeCancel.text ?? '') && /正在导出（.+ · \d+%）· 点击取消导出/.test(busyBeforeCancel.label ?? ''),
+    '②忙态可见文字为「导出中 N% · 取消」，无障碍说明含真实阶段与点击取消提示',
+    JSON.stringify(busyBeforeCancel),
+  )
+
+  const cancelClickStartedAt = Date.now()
+  await exportButton.click()
+
+  await win.waitForFunction(
+    (selector) => document.querySelector(selector)?.dataset.exportBusy === 'false',
+    EXPORT_BUTTON,
+    { timeout: 30_000 },
+  )
+  const cancelSettledMs = Date.now() - cancelClickStartedAt
+  // 短暂稳定窗口确认被杀进程绝不补写文件
+  await win.waitForTimeout(300)
+
+  const afterCancel = await win.evaluate((selector) => {
+    const el = document.querySelector(selector)
+    return {
+      busy: el?.dataset.exportBusy,
+      disabled: el?.disabled === true,
+      label: el?.getAttribute('aria-label'),
+      text: el?.textContent?.trim(),
+      exportRequests: window.__nomiExportRequests,
+      cancelRequests: window.__nomiExportCancelRequests,
+      errorBanner: document.querySelector('[data-preview-export-error]')?.textContent ?? null,
+    }
+  }, EXPORT_BUTTON)
+
+  check(
+    afterCancel.exportRequests === 1 && afterCancel.cancelRequests === 1,
+    '③忙态点击胶囊只发取消请求，不重发第二次导出请求',
+    JSON.stringify(afterCancel),
+  )
+  check(
+    countFinalMp4Exports() === exportsBefore && countPartialMp4Exports() === 0,
+    '③真实中止子进程并清理半截文件：取消后 exports 目录 0 新增成片、0 残留 .partial.mp4',
+    `entries=${JSON.stringify(listExportEntries())} settleMs=${cancelSettledMs}`,
+  )
+  check(
+    afterCancel.busy === 'false' && !afterCancel.disabled && afterCancel.label === '导出 MP4'
+      && afterCancel.text === '导出 MP4 · 1080p' && afterCancel.errorBanner === null,
+    '③取消完成后干净回到空闲「导出 MP4 · 1080p」，不弹红报错条',
+    JSON.stringify(afterCancel),
+  )
+  await screenshotSettled(win, { path: path.join(shotsDir, '03-cancelled-back-to-idle.png') })
+
+  // ── ④ 取消后再次点击导出 → 正常完整跑完并产出有效 MP4 ───────────────────────────────────────
+  await exportButton.click()
+  await win.waitForFunction(
+    (selector) => document.querySelector(selector)?.dataset.exportBusy === 'true',
+    EXPORT_BUTTON,
+    { timeout: 30_000 },
+  )
   await win.waitForFunction(
     (selector) => document.querySelector(selector)?.dataset.exportBusy === 'false',
     EXPORT_BUTTON,
     { timeout: 240_000 },
   )
   const deadline = Date.now() + 60_000
-  while (countExports() <= exportsBefore && Date.now() < deadline) {
-    await win.waitForTimeout(500)
+  while (countFinalMp4Exports() <= exportsBefore && Date.now() < deadline) {
+    await win.waitForTimeout(300)
   }
-  // 让「再点一下会不会多出一个文件」有机会暴露：短轮询看计数是否稳定，不用长 sleep 当信号。
-  for (let i = 0; i < 4; i += 1) await win.waitForTimeout(400)
 
-  const { samples, secondClick } = await win.evaluate(() => {
+  const { samples, exportRequests, cancelRequests } = await win.evaluate(() => {
     window.__nomiExportObserver?.disconnect()
-    return { samples: window.__nomiExportSamples ?? [], secondClick: window.__nomiSecondClick }
+    return {
+      samples: window.__nomiExportSamples ?? [],
+      exportRequests: window.__nomiExportRequests,
+      cancelRequests: window.__nomiExportCancelRequests,
+    }
   })
   fs.writeFileSync(path.join(shotsDir, 'busy-samples.json'), JSON.stringify(samples, null, 2))
   const busySamples = samples.filter((sample) => sample.busy === 'true')
 
-  check(busySamples.length > 0, '采到了真实忙态窗口', `samples=${samples.length} busy=${busySamples.length}`)
   check(
-    busySamples.every((sample) => sample.disabled === true),
-    '②忙态期间按钮始终 disabled（不再假装可点）',
-    JSON.stringify(busySamples[0]),
+    exportRequests === 2 && cancelRequests === 1 && countFinalMp4Exports() === exportsBefore + 1 && countPartialMp4Exports() === 0,
+    '④取消后二次导出完整成功：产出一个非空 MP4 且无 .partial 残留',
+    `exports=${JSON.stringify(listExportEntries())}`,
   )
-  check(
-    busySamples.every((sample) => sample.title === null && /正在导出/.test(sample.label ?? '') && /完成后才能再点/.test(sample.label ?? '')),
-    '②禁用的同时说清「为什么现在点不了」（§1.6 C1 的可访问名称）',
-    busySamples[0]?.label ?? 'null',
-  )
+  const mp4Name = listExportEntries().find((name) => name.endsWith('.mp4'))
+  const mp4Size = mp4Name ? fs.statSync(path.join(projectRoot, 'exports', mp4Name)).size : 0
+  check(mp4Size > 0, '④二次导出的 MP4 文件字节数 > 0', `${mp4Name} (${mp4Size} bytes)`)
+
   const stages = [...new Set(busySamples.map((s) => (s.label ?? '').match(/（(.+?) ·/)?.[1]).filter(Boolean))]
   check(
     stages.length > 0 && stages.every((stage) => ['准备素材', '录制画面', '转码封装'].includes(stage)),
-    '②忙态说明里带的是真实阶段名（不是笼统的「处理中」）',
+    '⑤忙态说明带真实阶段名（准备素材 / 录制画面 / 转码封装）',
     JSON.stringify(stages),
-  )
-  check(
-    busySamples.some((sample) => /导出中 \d+%/.test(sample.text ?? '')) &&
-      busySamples.every((sample) => sample.ariaBusy === 'true'),
-    '②按钮自身有 loading 表现（文案换成「导出中 N%」+ aria-busy）',
-    busySamples.find((s) => /导出中/.test(s.text ?? ''))?.text ?? 'none',
-  )
-  check(
-    Boolean(secondClick) && secondClick.wasDisabled === true && secondClick.after === secondClick.before,
-    '③忙态期间真点第二下：按钮自己挡住，一次导出请求都没多发（不再靠 if 短路静默吞掉）',
-    JSON.stringify(secondClick),
-  )
-  check(
-    countExports() === exportsBefore + 1,
-    '③再点无害：全程只产出一个 MP4',
-    `before=${exportsBefore} after=${countExports()}`,
   )
   const withProgress = busySamples.filter((sample) => sample.progressNow !== null)
   check(
-    withProgress.length > 0 &&
-      withProgress.every((sample) => Number.isFinite(Number(sample.progressNow))),
-    '④进度条带 role=progressbar 的 aria-valuenow',
+    withProgress.length > 0 && withProgress.every((sample) => Number.isFinite(Number(sample.progressNow)))
+      && withProgress.some((sample) => /准备素材|录制画面|转码封装/.test(sample.stageText ?? '')),
+    '⑤进度条带 role=progressbar 的 aria-valuenow 与阶段文案',
     JSON.stringify(withProgress[0] ?? null),
   )
-  check(
-    withProgress.some((sample) => /准备素材|录制画面|转码封装/.test(sample.stageText ?? '')),
-    '④进度条上方渲染出阶段文案（三态此前算出来了却从没显示）',
-    withProgress.map((s) => s.stageText).find(Boolean) ?? 'none',
-  )
 
-  const idleAfter = await exportButton.evaluate((el) => ({
+  const idleAfterSecond = await exportButton.evaluate((el) => ({
     busy: el.dataset.exportBusy,
     disabled: el.disabled === true,
     label: el.getAttribute('aria-label'),
+    text: el.textContent?.trim(),
   }))
   check(
-    idleAfter.busy === 'false' && !idleAfter.disabled && idleAfter.label === '导出 MP4',
-    '导出结束后按钮恢复可点（忙态不会卡死）',
-    JSON.stringify(idleAfter),
+    idleAfterSecond.busy === 'false' && !idleAfterSecond.disabled
+      && idleAfterSecond.label === '导出 MP4' && idleAfterSecond.text === '导出 MP4 · 1080p',
+    '④二次导出结束后按钮恢复「导出 MP4 · 1080p」可点态',
+    JSON.stringify(idleAfterSecond),
   )
-  await screenshotSettled(win, { path: path.join(shotsDir, '03-idle-again.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-second-export-complete.png') })
 
-  console.log(`\n证据 ${evidence.length} 条，截图在 ${shotsDir}`)
-  console.log(`  busyNow=${JSON.stringify(busyNow)}`)
+  console.log(`\n证据 ${evidence.length} 条，取消收尾耗时 ${cancelSettledMs}ms，截图在 ${shotsDir}`)
 } finally {
   if (app) await app.close().catch(() => {})
+  cleanupTestTemp(tempRoot)
 }
