@@ -67,10 +67,9 @@ try {
     await win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`).click()
     const before=new Set((await designsOf(win,documentId)).map(design=>design.id))
     // 图片镜不带 durationSec：起草时就核时长（bd587cab4，2026-10-05），这个图片模式没有时长参数，带了会被当场拒（generation_input_invalid）。
-    // 分镜行自己的时长（storyboard.durationSec）是方案里的剪辑时长，不是供应商参数，照旧保留。
     const creationRequest=fixture.expectText({label:`create ${label}`,reply:{type:'tool',id:`create-${label}`,name:'draft_shots',args:{shots:[{
       title:`Plan ${label}`,prompt:`Prompt ${label}`,taskKind:'text_to_image',model: `${FIXTURE_IMAGE_MODEL}@${FIXTURE_VENDOR}`,modeId:'t2i',parameters:{size:'1024x1024'},
-      storyboard:{durationSec:3,anchorIds:[],keyframe:{enabled:false,prompt:`Frame ${label}`,params:{size:'1024x1024'}}},
+      storyboard:{anchorIds:[],keyframe:{enabled:false,prompt:`Frame ${label}`}},
     }]}}})
     fixture.expectText({label:`created ${label}`,reply:{type:'text',text:`DONE ${label}`}})
     await sendCreation(win, `为当前文稿新建一份分镜方案，标题 Plan ${label}，保留已有方案。`)

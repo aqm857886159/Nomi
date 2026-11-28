@@ -23,7 +23,10 @@ import { describe, expect, it } from 'vitest'
 /** 扫描范围：模型可见的生成动词（draft_shots / generate / check_job / cancel_job）会走到的域文件。 */
 const SCANNED = [
   'electron/capabilityCore/mcpGenerationTools.ts',
+  'electron/capabilityCore/generationDraftAdmission.ts',
+  'electron/capabilityCore/generationPlanPatch.ts',
   'electron/capabilityCore/mcpGenerationMultiShot.ts',
+  'electron/capabilityCore/generationDocumentPlan.ts',
   'electron/capabilityCore/mcpGenerationVideoResolve.ts',
   'electron/capabilityCore/semanticGenerationCandidate.ts',
   'electron/capabilityCore/generationTransportAdapters.ts',

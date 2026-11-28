@@ -175,6 +175,18 @@ function tierOf(value: unknown): SizeTier | null {
   return tiered[2]!.toLowerCase() === "p" ? { area: (amount * 16 / 9) * amount, shortSide: amount } : { area: (amount * 1024) ** 2 };
 }
 
+/** 清晰度档位提示（`1K` / `1.5K` / `2K` / `4K` / `720p` / `1080p`）→ 像素档同档参照。 */
+function tierFromResolutionHint(value: unknown): SizeTier | null {
+  if (typeof value !== "string") return null;
+  const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*(k|p)$/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return match[2]!.toLowerCase() === "p"
+    ? { area: (amount * 16 / 9) * amount, shortSide: Math.round(amount) }
+    : { area: (amount * 1024) ** 2 };
+}
+
 function sameTier(candidate: SizeTier, reference: SizeTier): boolean {
   if (candidate.shortSide !== undefined && candidate.shortSide === reference.shortSide) return true;
   return Math.max(candidate.area, reference.area) / Math.min(candidate.area, reference.area) <= SAME_TIER_AREA_FACTOR;
@@ -224,14 +236,37 @@ export function resolveAspectRatioChoice(
   const values = control.options.map((option) => option.value);
   const notOffered = (): AspectRatioChoice => ({ ok: false, reason: "not_offered", key: control.key, allowedValues: values });
   const chosen = (value: unknown): AspectRatioChoice => ({ ok: true, key: control.key, value });
-  // 同档的参照：这一镜写着的那一档优先，其次档案默认。
-  const referenceValue = tierOf(current[control.key]) ? current[control.key] : tierOf(control.defaultValue) ? control.defaultValue : undefined;
-  const reference = referenceValue === undefined ? null : tierOf(referenceValue);
+  // 同档的参照：这一镜写着的那一档优先，其次清晰度档位提示（resolution），再次档案默认。
+  const currentKeyTier = tierOf(current[control.key]);
+  const resolutionHintTier = tierFromResolutionHint(current.resolution);
+  const defaultTier = tierOf(control.defaultValue);
+  const referenceValue = currentKeyTier
+    ? current[control.key]
+    : !resolutionHintTier && defaultTier
+      ? control.defaultValue
+      : undefined;
+  const reference = currentKeyTier ?? resolutionHintTier ?? defaultTier;
   const pickBySize = (candidates: readonly unknown[], closeness: (value: unknown) => number): AspectRatioChoice => {
     if (candidates.length === 1) return chosen(candidates[0]);
     // 参照那一档本身就是候选之一（默认 1024:1024，要 1:1）→ 就是它。
     if (referenceValue !== undefined && candidates.some((value) => Object.is(value, referenceValue))) return chosen(referenceValue);
-    const atTier = reference === null ? [] : candidates.filter((value) => sameTier(tierOf(value)!, reference));
+    let atTier = reference === null ? [] : candidates.filter((value) => sameTier(tierOf(value)!, reference));
+    // 有明确参照档（例如默认 512:512 但该比例只从 1K 起提供，或传了 resolution="4K"），取面积最贴近参照档的那一组。
+    // 完全没有参照档（目录既无默认也无当前值）仍报 several_sizes，绝不盲猜。
+    if (atTier.length === 0 && reference !== null) {
+      let bestDistance = Number.POSITIVE_INFINITY;
+      for (const candidate of candidates) {
+        const candidateTier = tierOf(candidate);
+        if (!candidateTier) continue;
+        const distance = Math.abs(Math.log(candidateTier.area / reference.area));
+        if (distance < bestDistance - 1e-6) {
+          bestDistance = distance;
+          atTier = [candidate];
+        } else if (Math.abs(distance - bestDistance) <= 1e-6) {
+          atTier.push(candidate);
+        }
+      }
+    }
     if (atTier.length === 0) return { ok: false, reason: "several_sizes", key: control.key, candidates };
     const ranked = [...atTier].sort((left, right) => closeness(left) - closeness(right));
     if (ranked.length > 1 && closeness(ranked[0]) === closeness(ranked[1])) {

@@ -19,6 +19,8 @@
 // parse，就在这个唯一的出口——不是第二个形状验证器（ajv 刚验过形状，这里只会剩下组合错误），
 // 而是设计里本来就该有、却没人调用的那一次。
 import { formatSize, truncateHead, type AgentHarnessTool, type AgentToolResult } from '@earendil-works/pi-agent-core';
+import { makeStrictJsonSchema } from '@earendil-works/pi-ai/api/constrained-sampling';
+import type { TSchema } from 'typebox';
 import { logWarn } from '../logging/logger.js';
 import { LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES } from '../shared/agentLane/laneContracts.js';
 import {
@@ -160,6 +162,45 @@ export type LaneApprovalDecisionReader = (toolCallId: string) => LaneApprovalDec
  */
 export type LaneApprovalAnswerReader = (toolCallId: string) => string | undefined;
 
+/**
+ * 上游严格语法编译器（OpenAI / Anthropic Structured Outputs `strict: true`）拒绝的值级校验关键字：
+ * `pi-ai@0.85.1` 的 `makeStrictJsonSchema` 只拦结构关键字（`$ref`/`oneOf`/`additionalProperties`），不剥离数值上下界、
+ * 数组长度或正则；携带这些关键字的工具保持 `constrainedSampling: false`，交由 `execute` 内 Zod 运行时精确校验。
+ */
+const STRICT_COMPILER_UNSUPPORTED_KEYS = new Set([
+  'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
+  'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'uniqueItems', 'format',
+]);
+
+export function hasStrictCompilerUnsupportedKeywords(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(hasStrictCompilerUnsupportedKeywords);
+  if (!node || typeof node !== 'object') return false;
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (STRICT_COMPILER_UNSUPPORTED_KEYS.has(key) && value !== undefined) return true;
+    // `properties` 的键名是业务字段名（如叫 `format` 的业务属性），只递归检查属性自身的 schema 对象。
+    if (key === 'properties' && value && typeof value === 'object' && !Array.isArray(value)) {
+      if (Object.values(value as Record<string, unknown>).some(hasStrictCompilerUnsupportedKeywords)) return true;
+      continue;
+    }
+    if (hasStrictCompilerUnsupportedKeywords(value)) return true;
+  }
+  return false;
+}
+
+/**
+ * 语法级约束采样派生：仅当工具发布 schema 可无损转为 strict JSON schema 且不含上游严格语法编译器拒绝的值级校验关键字时开启，
+ * 其余含开放字典（如 `z.record`）或数值/长度/正则界限的工具显式回退为 `false`。
+ */
+function deriveConstrainedSampling(parameters: TSchema): AgentHarnessTool<undefined>['constrainedSampling'] {
+  if (hasStrictCompilerUnsupportedKeywords(parameters)) return false;
+  try {
+    makeStrictJsonSchema(parameters as unknown as Record<string, unknown>);
+    return { type: 'json_schema', strict: 'prefer' };
+  } catch {
+    return false;
+  }
+}
+
 export function createLaneTools(
   descriptors: readonly LaneToolDescriptor[],
   approvalDecision?: LaneApprovalDecisionReader,
@@ -206,6 +247,7 @@ export function createLaneTools(
       // #547 的数据说零示例的工具在复杂参数上就是填不对（35/35 零示例）。
       description: laneToolModelDescription(descriptor),
       parameters,
+      constrainedSampling: deriveConstrainedSampling(parameters),
       // 并行/串行**从同一个副作用声明派生**，和 `replay` 同一个派生点：写操作必须一个一个来
       // （两次并发写同一张画布必冲突），而读没有理由串行——「读画布 + 读时间轴 + 读文稿」
       // 这类扇出串起来就是白等三倍。上一版对**每一个**工具硬写 `'sequential'`，那是

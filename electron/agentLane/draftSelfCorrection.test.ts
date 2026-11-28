@@ -159,8 +159,8 @@ describe("起草被拒 → Agent 只凭工具结果当场改对再交 → 出付
     expect(rejections[0]).toMatch(/该模型的变体：[^。]*fast/);
   });
 
-  it("阴性对照：脚本读不懂的拒绝（这里是时长超范围，脚本没有对应规则）它就停下——证明上面的绿靠的是工具结果里写的话，不是脚本直接知道答案", async () => {
-    const { card, operationId } = await runAgentTurns({ ...goodShot(), parameters: { ...goodShot().parameters, duration: 9999 } }, "stopped");
+  it("阴性对照：脚本读不懂的拒绝（这里是未知清晰度枚举，脚本没有对应规则）它就停下——证明上面的绿靠的是工具结果里写的话，不是脚本直接知道答案", async () => {
+    const { card, operationId } = await runAgentTurns({ ...goodShot(), parameters: { ...goodShot().parameters, resolution: "8k" } }, "stopped");
     expect(operationId).toBeUndefined();
     expect(card).toBe(false);
   });

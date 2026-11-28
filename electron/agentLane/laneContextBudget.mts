@@ -4,7 +4,7 @@ import type { Context } from '@earendil-works/pi-agent-core/harness/context';
 import { isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
 import { formatAgentContextSnapshot } from '../shared/agentContextSnapshot.js';
 import type { OpenLaneOptions } from './laneRuntimePort.js';
-import { formatLaneModelIndex } from './laneModelContext.js';
+import { formatLaneAmbientFocus, formatLaneModelIndex } from './laneModelContext.js';
 
 export const LANE_CONTEXT_TOKEN_BUDGET = 80_000;
 const SUMMARY_RESERVE = 5_120;
@@ -43,7 +43,7 @@ export async function configureLaneContextBudget(input: {
     const preparation = event.preparation;
     const messages = [...preparation.messagesToSummarize, ...preparation.turnPrefixMessages, ...preparation.retainedTail];
     const latest = messages.filter(isLaneInputMessage).at(-1);
-    const current = latest ? [formatLaneModelIndex(latest.context), formatAgentContextSnapshot(latest.context.contextSnapshot)].filter(Boolean).join('\n\n') : '';
+    const current = latest ? [formatLaneModelIndex(latest.context), formatLaneAmbientFocus(latest.context), formatAgentContextSnapshot(latest.context.contextSnapshot)].filter(Boolean).join('\n\n') : '';
     const project = async (items: AgentMessage[]): Promise<AgentMessage[]> => Promise.all(items.map(async message => {
       if (!isLaneInputMessage(message)) return message;
       if (!options.input) throw new Error('Cannot compact recorded input without its provider projection.');

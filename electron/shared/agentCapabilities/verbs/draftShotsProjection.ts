@@ -38,7 +38,7 @@ import type { z } from "zod";
 
 import { generationPlanInputSchema, type StoryboardAuthorFields } from "../generationPlanSchemas";
 import { resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ModelIdentity, type ResolvedModelName } from "../modelHandle";
-import { resolveShotTaskKind, statedShotTaskKind } from "../../generationShotKind";
+import { resolveShotTaskKind, statedShotTaskKind, taskKindForModeId } from "../../generationShotKind";
 import { modelKindForTaskKind } from "../../capabilityModeManifest";
 import { GENERATION_DEFAULT_TASK_KINDS, type GenerationDefaultTaskKind } from "../../contracts/generationModelDefaultsContract";
 import { LaneDomainFailure, toolArgumentsRejected } from "../../agentLane/laneToolContract";
@@ -68,7 +68,7 @@ export type DraftShotModelDefaults = Readonly<Partial<Record<GenerationDefaultTa
 /** 宿主的多镜 create 里的一镜。 */
 type PlanShot = NonNullable<PlanCreate["shots"]>[number];
 /** 宿主的候选 patch（改草稿那一支）。 */
-type CandidatePatch = PlanPatch["patch"];
+type CandidatePatch = NonNullable<PlanPatch["patch"]>;
 /** 宿主的单镜 create：一镜摊成顶层参数。 */
 type PlanFlatCreate = Omit<PlanCreate, "operation" | "shots" | "scriptText" | "cardHidden" | "candidate">;
 
@@ -249,23 +249,20 @@ export function draftShotToFlatCreate(shot: DraftShot, models: DraftShotModels):
 export function withDraftShotsDefaults(args: DraftShotsArgs, shot: DraftShot): DraftShot {
   const { taskKind, operationId: _selectsBranch, newPlan: _planChoice, shots: _theseShots, ...unhandled } = args;
   void (unhandled satisfies Record<string, never>);
+  const unambiguousModeKind = shot.modeId !== undefined ? taskKindForModeId(shot.modeId) : undefined;
+  const skipTopTaskKind = shot.role === "anchor"
+    || unambiguousModeKind !== undefined
+    || (shot.model !== undefined && shot.modeId !== undefined);
   return {
     ...shot,
-    ...(shot.taskKind === undefined && taskKind !== undefined ? { taskKind } : {}),
+    ...(shot.taskKind === undefined && taskKind !== undefined && !skipTopTaskKind ? { taskKind } : {}),
   };
 }
 
 /**
  * 改草稿那一支的**信封**：哪一份草稿（`operationId`）、哪一镜（`shotId`）。
- *
- * `shotId` 为什么在这里而不在候选 patch 里：它是**寻址**，不是候选内容。宿主按它只改那一镜的候选
- * （那一镜 revision +1，已落的节点按它重绑定）；缺省 = 单镜草稿的顶层候选。2026-09-18 之前这条是
- * 「有意丢弃」，于是「改第 2 镜」永远改的是顶层候选，用户在画布上什么都看不到——单一账本那一刀
- * （#813）把这扇门开通，宿主的 patch 分支从那天起收 `shotId`，这里跟着把它提到信封上。
- *
- * 返回类型取自**宿主自己的 patch 分支**减掉候选内容，所以宿主改名或改必填，这里是 tsc 红。
  */
-export function draftShotsPatchEnvelope(args: DraftShotsArgs, shot: DraftShot): Omit<PlanPatch, "operation" | "patch"> {
+export function draftShotsPatchEnvelope(args: DraftShotsArgs, shot: DraftShot): Omit<PlanPatch, "operation" | "patch" | "patches"> {
   if (args.operationId === undefined) throw new Error("draft_shots: 改草稿那一支必须带 operationId");
   return { operationId: args.operationId, ...(shot.shotId !== undefined ? { shotId: shot.shotId } : {}) };
 }

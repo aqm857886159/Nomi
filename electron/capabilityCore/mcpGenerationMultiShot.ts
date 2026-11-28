@@ -1,11 +1,20 @@
 import { refuseArgument } from "./transportFailure";
-import type { PlanAnchor, PlanShot, StoryboardPlan } from '../shared/storyboard/storyboardPlan';
-import { appendStoryboardSubjects, nextStoryboardSubjectIds, StoryboardSubjectIdentityError, type AppendedStoryboardSubject } from '../shared/storyboard/storyboardSubjectIdentity';
-import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
-import { GENERATE_USER_DECISION_KEY, type GenerateUserDecision } from '../shared/agentLane/generateUserDecision';
-import { storyboardSubjectFromCandidate, storyboardReferenceSlot } from '../shared/storyboard/storyboardSubjectAdapter';
+import { nextStoryboardSubjectIds, StoryboardSubjectIdentityError } from '../shared/storyboard/storyboardSubjectIdentity';
 import { storyboardAuthorFieldsSchema, type StoryboardAuthorFields } from '../shared/agentCapabilities/generationPlanSchemas';
 import { currentOfferFrom, resolveNamedGenerationShots, resolveUndecidedGenerationShotScope, type OfferOutcomeFacts } from '../shared/agentCapabilities/generationShotScope';
+export {
+  addShotsGuidance,
+  extendStoryboardDesign,
+  patchStoryboardAuthoring,
+  presentStoryboardAuthoring,
+  refuseIfStoryboardRejected,
+  storyboardPlanFromDraftSubjects,
+  storyboardSavedFact,
+  storyboardSubjectsFromDrafts,
+  upsertStoryboardDesign,
+  type StoryboardExtendedFact,
+  type StoryboardSavedFact,
+} from './generationDocumentPlan';
 // 能力核 · P4 S6.5 语义多镜 create 入口逻辑（从 mcpGenerationTools.ts 抽出，守 800 行门岗 R9）。
 //
 // 这份文件是「语义多镜生产入口」的单一职责家：把 `nomi_operation_create` 收到的 `shots`（client 逐镜计划）
@@ -178,6 +187,7 @@ export function draftShotFromPlan(
     operationId: env.shotId,
     params: raw,
     candidateFrom: parsers.candidateFrom,
+    ...(env.role === "anchor" ? { taskKindWhenUnstated: "text_to_image" as const } : {}),
     ...(semantic?.defaultModelForTaskKind ? { defaultModelForTaskKind: semantic.defaultModelForTaskKind } : {}),
     ...(semantic?.registry ? { registry: semantic.registry } : {}),
     ...(semantic?.allowRegistryFallback ? { allowRegistryFallback: semantic.allowRegistryFallback } : {}),
@@ -346,7 +356,27 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
     if (Array.isArray(params.shots)) {
       if (params.shots.length === 0) refuseArgument("多镜生成需要至少一个镜头");
       const ids = hostAssignedSubjectIds(params.shots);
-      shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, ids[index], deps.parsers, semantic));
+      shots = [];
+      const failures: Array<{ index: number; shotId: string; error: unknown }> = [];
+      for (const [index, rawShot] of params.shots.entries()) {
+        try {
+          const built = draftShotFromPlan(rawShot, index, ids[index]!, deps.parsers, semantic);
+          if (deps.assertReferencesResolvable && built.candidate.references.length > 0) {
+            deps.assertReferencesResolvable(projectId, built.candidate.references);
+          }
+          shots.push(built);
+        } catch (error) {
+          failures.push({ index, shotId: ids[index]!, error });
+        }
+      }
+      if (failures.length === 1) throw failures[0]!.error;
+      if (failures.length > 1) {
+        const detail = failures
+          .map((item) => `shots[${item.index}] (${item.shotId}): ${item.error instanceof Error ? item.error.message : String(item.error)}`)
+          .join("; ");
+        refuseArgument(`${failures.length} shots failed validation (nothing was saved — fix all listed shots in one call): ${detail}`);
+      }
+      return shots;
     } else if (typeof params.scriptText === "string" || isLongFormGenerationRequest(params)) {
       // A minute-scale natural-language request must not silently collapse to
       // one provider clip. Promote it to the same storyboard seam as an
@@ -476,197 +506,6 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
   };
 
   return { resolveCreateShots, sealMultiShotFor };
-}
-
-/**
- * Creation adapter only: execution remains owned by the original renderer runner.
- *
- * 方案名取**模型自己写的标题**（第一个非锚镜头的 `title`）。锚是「被别的镜头复用的参考卡」，
- * 拿风格锚的名字当整份方案的名字是胡说；一句提示词的头一行也不是名字，那是内容。
- * 模型一个标题都没给时才退回提示词首行——那是今天唯一还能叫得出口的东西。
- */
-export function storyboardPlanFromDraftSubjects(subjects: readonly GenerationOperationDraftShot[], projectId: string,
-  resolveUrl?: (projectId:string,reference:PlanCandidate['references'][number])=>string): StoryboardPlan {
-  const named = subjects.find(subject=>subject.role!=='anchor'&&subject.title?.trim()) ?? subjects.find(subject=>subject.title?.trim());
-  const empty: StoryboardPlan = {title:(named?.title?.trim() || subjects[0].candidate.prompt.split('\n')[0]).slice(0,500),anchors:[],shots:[]};
-  // id 已在起草时发过（草稿与方案同一套）；镜号在这里由唯一 owner 按「它在镜头里的位置」定，锚不占号。
-  return appendStoryboardSubjects(empty, storyboardSubjectsFromDrafts(subjects, projectId, resolveUrl), { assignIds: false }).plan;
-}
-
-/** 已准入的草稿主体 → 编辑器契约的主体（参考图换成可预览的地址）。首建与补镜头共用这一处。 */
-export function storyboardSubjectsFromDrafts(subjects: readonly GenerationOperationDraftShot[], projectId: string,
-  resolveUrl?: (projectId:string,reference:PlanCandidate['references'][number])=>string): Array<PlanAnchor | PlanShot> {
-  return subjects.map((subject)=>{
-    const urls=Object.fromEntries(subject.candidate.references.map(reference=>[reference.assetId,resolveUrl?.(projectId,reference) ?? '']));
-    return storyboardSubjectFromCandidate(subject,subject.storyboard,urls);
-  });
-}
-
-/**
- * 「方案已存、**没有替用户打开**」这一条事实。写给模型的回执必须带它——Agent 新建的方案只进创作页左栏的列表，
- * 打开是用户的动作；模型要靠这一条才知道该在回话里告诉用户去哪点开，而不是含糊地说「已生成」。
- */
-export type StoryboardSavedFact = Readonly<{ designId: string; title: string; opened: boolean; openFrom: string;
-  /** 用户在表上看到的那几行：镜头带行号，参考卡不占号。模型说「第 N 镜」时用这里的 id。 */
-  shots: ReadonlyArray<Readonly<{ row: number; shotId: string }>>; anchors: readonly string[]; addShots: string }>;
-export function storyboardSavedFact(designId: string, plan: StoryboardPlan, opened: boolean): StoryboardSavedFact {
-  return { designId, title: plan.title, opened,
-    openFrom: opened
-      ? 'The user asked for this plan with the storyboard button, so it is already open for them.'
-      : 'Creation page, left column: the plan row under its source document. It is NOT opened for the user — tell them it is written and where to open it.',
-    shots: plan.shots.map((shot) => ({ row: shot.index, shotId: shot.shotId ?? `shot-${shot.index}` })),
-    anchors: plan.anchors.map((anchor) => anchor.id),
-    addShots: addShotsGuidance(designId) };
-}
-
-/**
- * 「镜头补到哪」写给模型的那一句。它曾经是「请在**下一次** draft_shots 调用里补」——模型照做，下一次不带
- * operationId，宿主就新建了第二份方案（审计 A-sb P10：一次请求左栏多出一份）。现在它点名**这一份**。
- */
-export function addShotsGuidance(designId: string): string {
-  return `To add shots or reference cards to this plan, call draft_shots with operationId ${designId} and the new shots without shotId; `
-    + 'they are appended to this same plan and numbered after its existing shots. Within the same request a draft_shots call without operationId '
-    + 'is also added to this plan. Start a separate plan only when the user explicitly asks for another one: pass newPlan: true.';
-}
-
-
-/**
- * 渲染层的 store 写入口拒收了这份方案（存不下：某个字段不合格）。它回 `{status:'rejected', issues:[{path, problem}]}`，
- * 这里换成给模型的「哪个字段、要什么、状态没变」——模型按字段路径自己改，不贴 zod 原文，也不让它在一份写不进去的方案上重试。
- * 路径和说明只取字符串、限长；不回显任何内容值。
- */
-export function refuseIfStoryboardRejected(reply: unknown): void {
-  if (!reply || typeof reply !== 'object' || (reply as { status?: unknown }).status !== 'rejected') return;
-  const raw = (reply as { issues?: unknown }).issues;
-  const issues = (Array.isArray(raw) ? raw : []).flatMap((item) => {
-    const path = item && typeof item === 'object' ? (item as { path?: unknown }).path : undefined;
-    const problem = item && typeof item === 'object' ? (item as { problem?: unknown }).problem : undefined;
-    return typeof path === 'string' && typeof problem === 'string' ? [{ path: path.slice(0, 120), problem: problem.slice(0, 160) }] : [];
-  }).slice(0, 8);
-  if (!issues.length) return;
-  refuseArgument(`The storyboard plan was not saved and nothing changed. Fix these fields and send it again: ${issues.map((issue) => `${issue.path} ${issue.problem}`).join('; ')}.`, { field: issues[0].path });
-}
-
-/** 补进方案的那几行（id 由方案正本那一侧按方案此刻的样子发）。 */
-export type StoryboardExtendedFact = Readonly<{ designId: string; added: readonly AppendedStoryboardSubject[]; addShots: string }>;
-
-/**
- * 在一份文稿方案后面补主体（参考卡 / 镜头）。方案正本在渲染层项目记录里，号也只能在那里发（主进程不知道
- * 用户在编辑器里又加删过什么）；这里只发已准入、已适配的主体，回包里核对**真的补上了**、拿回发出的 id。
- */
-export async function extendStoryboardDesign(request: RequestRenderer,
-  input: {projectId:string;documentId:string;designId:string;subjects:ReadonlyArray<PlanAnchor | PlanShot>}): Promise<StoryboardExtendedFact> {
-  const reply = await request('storyboard.extend-design', input, STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;designId?:unknown;added?:unknown} | null;
-  refuseIfStoryboardRejected(reply);
-  if (!reply || reply.status!=='saved' || reply.designId!==input.designId || !Array.isArray(reply.added) || reply.added.length!==input.subjects.length) {
-    throw new Error('storyboard_design_save_rejected');
-  }
-  return { designId: input.designId, added: reply.added as AppendedStoryboardSubject[], addShots: addShotsGuidance(input.designId) };
-}
-
-type RequestRenderer = (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>;
-/** Author bodies are small; a renderer that cannot answer inside this window is not going to. */
-const STORYBOARD_RENDERER_TIMEOUT_MS = 15_000;
-
-/**
- * Hand a freshly drafted author body to the project record that already owns hand-made plans.
- * The reply is checked, not assumed: a silent no-op here would leave the model believing it
- * saved a plan the user never receives.
- */
-export async function upsertStoryboardDesign(request: RequestRenderer,
-  input: {projectId:string;documentId:string;designId:string;plan:StoryboardPlan;initiator:'user'|'agent'}): Promise<void> {
-  const reply = await request('storyboard.upsert-design', input, STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;designId?:unknown} | null;
-  refuseIfStoryboardRejected(reply);
-  if (!reply || reply.status!=='saved' || reply.designId!==input.designId) throw new Error('storyboard_design_save_rejected');
-}
-
-/**
- * 文稿方案的 `generate`：把方案摆到分镜编辑器里，**并且等他在那张花钱确认框上答完**。
- *
- * ── 等待住在哪里 ──
- *
- * 整段跑在 `before_tool` 的预检期（`laneExtendedDesktopPorts.preflightGenerate` → `tryExecute`），
- * 所以**不计入工具超时**；`requestRendererDecision` 这条通道刻意没有墙钟（判据是「收件的那个渲染层还在不在」），
- * 所以他看卡看多久都行。方案 §2「文稿方案 ②：等用户挪到 preflight，工具执行里只剩读结果」说的就是这个形状。
- *
- * ── 2026-09-22 补上的那一格：结局 ──
- *
- * 在此之前渲染层对确认和取消**一律**回 `{status:'presented'}`，结局被扔掉。主进程于是读不到任何结论，
- * `generate` 的回执只能落到 `generation_approval_unavailable`（「this host did not wait for his answer」）
- * ——**错误形状**，模型据此重试、进熔断，而用户明明刚刚答过。run5 实测 A1 一次、A3 两次，
- * 与各自答框的次数一一对应（`docs/evidence/2026-09-22-askback-real-model-run5` 发现 ③）。
- *
- * 现在回包带 `decision`，这里把它翻成**与报价卡那条路同一份** `GenerateUserDecision`
- * （`GENERATE_USER_DECISION_KEY`），于是 `laneExtendedTools.generateReceipt` 一个字不用改：
- * 同意 → 「已开始生成 N 镜」，取消 → 成功形状的「用户没同意这次」。都不是错误，都不进熔断。
- * 一张卡都没弹过（没有要跑的东西）时不造一个假决定——回 `nothing_to_generate`，回执照实说。
- */
-export async function presentStoryboardAuthoring(current: {candidate:PlanCandidate;sourceDocumentId?:string},
-  projectId:string,designId:string,requested:unknown,request?: (op:string,payload:unknown)=>Promise<unknown>) {
-  if (!request || !current.sourceDocumentId) throw new Error('storyboard_renderer_required');
-  // 点名原样转交（不是数组也照转）：范围规则在渲染层的 `presentStoryboard` 里，非数组在那里被拒，不在这里悄悄变成「没点名」。
-  const reply=await request('storyboard.present',{projectId,designId,sourceDocumentId:current.sourceDocumentId,
-    ...(requested===undefined ? {} : {shotIds:requested})});
-  const receipt=reply as {status?:unknown;designId?:unknown;shotIds?:unknown;decision?:unknown;operations?:unknown} | null;
-  if (!receipt || receipt.status!=='presented' || receipt.designId!==designId || !Array.isArray(receipt.shotIds)) throw new Error('storyboard_presentation_receipt_mismatch');
-  const shots=receipt.shotIds as string[];
-  const decision=storyboardUserDecision(receipt.decision);
-  // 整批点了确认之后，每一镜在制作流程里各有一个单镜 Run（发动机收敛第一刀第 3 步：交回 operation，不等整批跑完）。
-  const operations=Array.isArray(receipt.operations) ? (receipt.operations as unknown[]).filter((value):value is string=>typeof value==='string') : [];
-  // 回执缺 `decision` = 对面是**旧的渲染层**（没跟上这一刀）。不许替用户编一个决定：
-  // 照旧回 `presented`，`generateReceipt` 会照实说「这个宿主没有等他的答案」。
-  if (!decision) return {taskRef:generationTaskReference(designId),status:receipt.decision==='nothing-to-run' ? 'nothing_to_generate' : 'presented',shots,nextAction:'inspect_canvas'};
-  return {taskRef:generationTaskReference(designId),status:'presented',shots,nextAction:'inspect_canvas',
-    ...(operations.length ? {operations} : {}),
-    [GENERATE_USER_DECISION_KEY]:decision};
-}
-
-/** 渲染层回的那一格 → 模型面那一格。只认这三种，别的（含缺席）一律不造决定。 */
-function storyboardUserDecision(value: unknown): GenerateUserDecision | undefined {
-  if (value === 'started') return {outcome:'approved'};
-  if (value === 'declined') return {outcome:'declined'};
-  return undefined;
-}
-
-/**
- * Edit one subject of a document-admitted plan. The plan body lives in the project record, so the
- * merge happens where the body is; this boundary only resolves reference identity and addresses
- * the subject. It never creates a plan — `storyboard_shot_id_required` is how the model learns it
- * has to name the shot instead of quietly getting a second plan.
- */
-export async function patchStoryboardAuthoring(current: {sourceDocumentId?:string}, params:Record<string,unknown>, projectId:string,designId:string,
-  resolveReferences:(projectId:string,value:unknown)=>PlanCandidate['references'],
-  resolveUrl:((projectId:string,reference:PlanCandidate['references'][number])=>string) | undefined,
-  request?: RequestRenderer): Promise<void> {
-  if (!current.sourceDocumentId || typeof params.shotId!=='string') refuseArgument('This storyboard revision needs the shotId of the shot you are changing. To add a new shot to this plan instead, give it a title and leave shotId out.');
-  if (!params.patch || typeof params.patch!=='object' || Array.isArray(params.patch)) refuseArgument('patch must be an object holding the fields you are changing.');
-  if (!request) throw new Error('storyboard_renderer_required');
-  const patch=params.patch as Record<string,unknown>;
-  const references:Record<string,Array<{url:string}>> | undefined=patch.references===undefined ? undefined : {};
-  for (const reference of patch.references===undefined ? [] : resolveReferences(projectId,patch.references)) {
-    const url=resolveUrl?.(projectId,reference);
-    if (!url) throw new Error('storyboard_reference_preview_unavailable');
-    (references![storyboardReferenceSlot(reference)] ??= []).push({url});
-  }
-  const reply = await request('storyboard.patch-design',
-    {projectId,documentId:current.sourceDocumentId,designId,shotId:params.shotId,patch,...(references ? {references} : {})},
-    STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;shotId?:unknown;shots?:unknown;anchorHoldsShotNumber?:unknown} | null;
-  if (reply?.status==='shot-not-found') refuseArgument(shotNotFoundMessage(String(params.shotId), reply));
-  refuseIfStoryboardRejected(reply);
-  if (!reply || reply.status!=='saved' || reply.shotId!==params.shotId) throw new Error('storyboard_design_save_rejected');
-}
-
-/**
- * 「改第 N 镜」写的 id 在方案里找不到：如实说，并把真实的镜头（id + 用户看到的行号）列给模型。
- * 本 owner 之前 Agent 建的旧方案里，参考卡可能占着 `shot-N`——那张卡不会被当成第 N 镜改掉。
- */
-function shotNotFoundMessage(shotId: string, reply: {shots?:unknown;anchorHoldsShotNumber?:unknown}): string {
-  const shots = Array.isArray(reply.shots) ? reply.shots as Array<{id?:unknown;row?:unknown}> : [];
-  const listed = shots.map((shot) => `row ${String(shot.row)} = ${String(shot.id)}`).join(', ');
-  const why = reply.anchorHoldsShotNumber === true
-    ? `In this older plan ${shotId} is a reference card, not a numbered shot, so it was not changed.`
-    : `This plan has no shot ${shotId}.`;
-  return `${why} Its shots are: ${listed || 'none yet'}. Use the shotId of the row the user means.`;
 }
 
 /** 付费门的那几格：这一刻有没有一道在等人决定、盖着哪几镜（operation 视图上最近那一道）。 */

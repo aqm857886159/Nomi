@@ -19,7 +19,8 @@ const context = {
 describe('模型索引那句指路，只点名真能调的工具', () => {
   it('每一个 x_y 形的工具名都在动词声明里（或是 lane 自己的按需加载工具）', () => {
     const text = formatLaneModelIndex(context)
-    const callable = new Set([...MODEL_FACING_TOOL_SPECS.map((spec) => spec.name), LANE_TOOL_REQUEST_TOOL_NAME])
+    const declaredModeIds = (context.availableModels ?? []).flatMap((item) => item.modes.map((mode) => mode.modeId))
+    const callable = new Set([...MODEL_FACING_TOOL_SPECS.map((spec) => spec.name), LANE_TOOL_REQUEST_TOOL_NAME, ...declaredModeIds])
     // 先证判据会命中东西，免得「一个都不认识」在文案被改空时恒真。
     const named = [...text.matchAll(/\b[a-z]+(?:_[a-z]+)+\b/g)].map((match) => match[0])
     expect(named.length).toBeGreaterThan(0)

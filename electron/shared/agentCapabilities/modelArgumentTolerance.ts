@@ -125,9 +125,9 @@ export function modelArgumentTolerance(shape: ModelToleranceShape): (args: unkno
     if (knownFields) for (const key of Object.keys(record)) if (!knownFields.has(key)) delete record[key];
 
     for (const [canonical, alternatives] of aliases) {
-      if (record[canonical] !== undefined) continue;
+      if (record[canonical] !== undefined && record[canonical] !== null) continue;
       for (const alternative of alternatives) {
-        if (record[alternative] === undefined) continue;
+        if (record[alternative] === undefined || record[alternative] === null) continue;
         record[canonical] = record[alternative];
         delete record[alternative];
         break;

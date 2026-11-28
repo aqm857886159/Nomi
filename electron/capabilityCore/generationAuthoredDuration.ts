@@ -17,6 +17,17 @@ import type { ParameterField } from "./moduleManifest";
 /** 候选里承载时长的键：投影写 `duration`，旧的拟稿路径可能写 `durationSeconds`。参数表里叫哪个就落到哪个。 */
 const DURATION_KEYS = ["duration", "durationSeconds"] as const;
 
+export type DraftParameterAdjustment = Readonly<{
+  shotId?: string;
+  field: "durationSec";
+  requested: number;
+  applied: number;
+  allowed?: readonly number[];
+  min?: number;
+  max?: number;
+  reason: string;
+}>;
+
 const own = (record: Readonly<Record<string, unknown>>, key: string): boolean => Object.prototype.hasOwnProperty.call(record, key);
 const seconds = (value: unknown): number | null => {
   const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
@@ -24,17 +35,21 @@ const seconds = (value: unknown): number | null => {
 };
 
 /**
- * 核候选里的时长，返回**新候选**（不原地改：候选常来自冻结的持久化对象）。没写时长 → 原样返回同一个对象。
- * `parameterSchema` = 这个候选此刻接受的参数表；空表 = 这个模型一个参数都没声明，证不出错，原样放行（与准入层同一条：判不了就不拒）。
+ * 核候选里的时长，并在落入枚举外或越界但可确定性吸附到最近合法档时返回 `adjustment`：
+ *   · 这个模式根本没有时长参数（静帧或固定时长模型）→ 照旧拒，叫 Agent 去掉 durationSec；
+ *   · 不是正的秒数 → 照旧拒；
+ *   · 离散枚举档：精确命中原样落；未命中则确定性吸附到距离最近的合法档（等距取更短档，不替用户往贵处凑），
+ *     草稿、画布节点、付费卡三处落同一个合法值，并随结果返回 `adjustments` 让 Agent 诚实告知用户；
+ *   · 连续/整数范围档：超出 `[min, max]` 时确定性钳制到最近合法边界并返回 `adjustments`。
  */
-export function admitAuthoredDuration(
+export function admitAuthoredDurationWithAdjustment(
   candidate: PlanCandidate,
   parameterSchema: Readonly<Record<string, ParameterField>>,
-): PlanCandidate {
+): { candidate: PlanCandidate; adjustment?: DraftParameterAdjustment } {
   const writtenKey = DURATION_KEYS.find((key) => own(candidate.parameters, key));
-  if (!writtenKey) return candidate;
+  if (!writtenKey) return { candidate };
   const allowedKeys = Object.keys(parameterSchema).sort();
-  if (allowedKeys.length === 0) return candidate;
+  if (allowedKeys.length === 0) return { candidate };
   const model = `${candidate.providerId}/${candidate.modelId}`;
   const requested = candidate.parameters[writtenKey];
   const value = seconds(requested);
@@ -56,31 +71,85 @@ export function admitAuthoredDuration(
   const { [writtenKey]: _written, ...rest } = candidate.parameters;
   if (field.enum && field.enum.length > 0) {
     const matched = field.enum.find((option) => seconds(option) === value);
-    if (matched === undefined) {
+    if (matched !== undefined) {
+      return { candidate: { ...candidate, parameters: { ...rest, [fieldKey]: matched } } };
+    }
+    const numericOptions = field.enum
+      .map((raw) => ({ raw, sec: seconds(raw) }))
+      .filter((entry): entry is { raw: string | number | boolean; sec: number } => entry.sec !== null);
+    const maxOptionSec = numericOptions.length > 0 ? Math.max(...numericOptions.map((item) => item.sec)) : 0;
+    if (numericOptions.length === 0 || value > maxOptionSec * 2) {
       const allowed = field.enum.map((option) => String(option));
       throw new ContractCompilationError(
-        `${model} 只支持 ${allowed.join(" / ")} 秒，收到 ${value} 秒。请从这几档里选一个写进 durationSec，或者先问用户要哪一档。`,
+        `${model} 只支持 ${allowed.join(" / ")} 秒，收到 ${value} 秒。请从这几档里选一个写进 durationSec，或者拆成多镜。`,
         { code: "parameter_not_in_enum", path: "durationSec", allowedValues: [...field.enum], allowedKeys },
         { code: "duration_not_in_mode", field: "durationSec", model, value, allowed },
       );
     }
-    return { ...candidate, parameters: { ...rest, [fieldKey]: matched } };
+    const nearest = numericOptions.reduce((best, current) => {
+      const currentDiff = Math.abs(current.sec - value);
+      const bestDiff = Math.abs(best.sec - value);
+      if (currentDiff < bestDiff) return current;
+      if (currentDiff === bestDiff && current.sec < best.sec) return current;
+      return best;
+    });
+    const allowedNums = numericOptions.map((item) => item.sec);
+    return {
+      candidate: { ...candidate, parameters: { ...rest, [fieldKey]: nearest.raw } },
+      adjustment: {
+        field: "durationSec",
+        requested: value,
+        applied: nearest.sec,
+        allowed: allowedNums,
+        reason: `${model} supports ${allowedNums.join("/")}s; snapped requested ${value}s to nearest valid ${nearest.sec}s. Tell the user the clip duration was adjusted to ${nearest.sec}s.`,
+      },
+    };
   }
-  if ((field.min !== undefined && value < field.min) || (field.max !== undefined && value > field.max)) {
+  if (field.max !== undefined && value > field.max * 2) {
     throw new ContractCompilationError(
-      `${model} 的时长只能在 ${field.min ?? "不限"}～${field.max ?? "不限"} 秒之间，收到 ${value} 秒。请改成这个范围里的秒数，或者先问用户。`,
+      `${model} 的单镜时长只能在 ${field.min ?? "不限"}～${field.max} 秒之间，收到 ${value} 秒。请改成这个范围里的单镜秒数，或拆成多个镜头。`,
       {
         code: "parameter_out_of_range", path: "durationSec",
         ...(field.min !== undefined ? { min: field.min } : {}),
-        ...(field.max !== undefined ? { max: field.max } : {}),
+        max: field.max,
         allowedKeys,
       },
       {
         code: "duration_not_in_mode", field: "durationSec", model, value,
         ...(field.min !== undefined ? { min: field.min } : {}),
-        ...(field.max !== undefined ? { max: field.max } : {}),
+        max: field.max,
       },
     );
   }
-  return { ...candidate, parameters: { ...rest, [fieldKey]: field.type === "string" ? String(value) : value } };
+  let applied = value;
+  if (field.min !== undefined && applied < field.min) applied = field.min;
+  if (field.max !== undefined && applied > field.max) applied = field.max;
+  if (field.type === "integer" && !Number.isInteger(applied)) {
+    applied = Math.round(applied);
+    if (field.min !== undefined && applied < field.min) applied = field.min;
+    if (field.max !== undefined && applied > field.max) applied = field.max;
+  }
+  const storedValue = field.type === "string" ? String(applied) : applied;
+  if (applied !== value) {
+    const rangeLabel = `${field.min ?? 1}–${field.max ?? "∞"}s`;
+    return {
+      candidate: { ...candidate, parameters: { ...rest, [fieldKey]: storedValue } },
+      adjustment: {
+        field: "durationSec",
+        requested: value,
+        applied,
+        ...(field.min !== undefined ? { min: field.min } : {}),
+        ...(field.max !== undefined ? { max: field.max } : {}),
+        reason: `${model} supports ${rangeLabel}; snapped requested ${value}s to nearest valid ${applied}s. Tell the user the clip duration was adjusted to ${applied}s.`,
+      },
+    };
+  }
+  return { candidate: { ...candidate, parameters: { ...rest, [fieldKey]: storedValue } } };
+}
+
+export function admitAuthoredDuration(
+  candidate: PlanCandidate,
+  parameterSchema: Readonly<Record<string, ParameterField>>,
+): PlanCandidate {
+  return admitAuthoredDurationWithAdjustment(candidate, parameterSchema).candidate;
 }

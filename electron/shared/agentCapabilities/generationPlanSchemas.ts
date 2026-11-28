@@ -86,13 +86,26 @@ const authorShape=planAnchorSchema.omit({id:true,name:true,description:true,mode
 export const storyboardAuthorFieldsSchema=z.lazy(()=>z.object(describeAuthorFields(authorShape.shape)).strict());
 export type StoryboardAuthorFields=z.infer<typeof storyboardAuthorFieldsSchema>;
 /**
- * `draft_shots` 模型面那一份：唯一的差别是独立关键帧点名模型用**一个**完整名字（`model`，list_models 给什么抄什么），
- * 不再是 `modelKey` + `modelVendor` 两半——同一件事在模型面只许有一种写法（设计卡 2026-11-15「第 1 刀」）。
- * 宿主 / 对外 MCP 收的仍是上面那份；lane 查表后换回 `modelKey` / `modelVendor`（`draftShotsProjection.ts`）。
+ * `draft_shots` 模型面那一份：
+ *   1. 独立关键帧点名模型用**一个**完整名字（`model`），不再拆两半；
+ *   2. `carrier` 保持可选：未传时宿主在 `role: "anchor"` 上默认补 `'visual'`，显式传入的合法 `'text'`（如纯文本风格锚）或 `'visual'` 原样保留直达底层；
+ *   3. 省掉其余编辑器内部专用的膨胀字段：`referenceUrl`/`referenceKind`/`referenceSourceNodeId`/`referenceBindings`/`promptSegments`/`camIdx`/`continuity`/`durationSec`
+ *      均由 `shots[].references` / `shots[].prompt` / `shots[].durationSec` 承载或归编辑器内部维护。
+ * 宿主持久化与对外 MCP 仍收完整的 `storyboardAuthorFieldsSchema`。
  */
-const keyframeModelFace=planShotSchema.shape.keyframe.unwrap().omit({modelKey:true,modelVendor:true});
-export const storyboardModelFaceSchema=z.lazy(()=>z.object(describeAuthorFields({...authorShape.shape,
-  keyframe:z.object(describeAuthorFields({...keyframeModelFace.shape,params:parameters.optional(),
+const keyframeModelFace=planShotSchema.shape.keyframe.unwrap().omit({modelKey:true,modelVendor:true,params:true});
+const modelFaceAuthorShape=authorShape.omit({
+  referenceUrl:true,
+  referenceKind:true,
+  referenceSourceNodeId:true,
+  referenceBindings:true,
+  promptSegments:true,
+  camIdx:true,
+  continuity:true,
+  durationSec:true,
+});
+export const storyboardModelFaceSchema=z.lazy(()=>z.object(describeAuthorFields({...modelFaceAuthorShape.shape,
+  keyframe:z.object(describeAuthorFields({...keyframeModelFace.shape,
     model:z.string().trim().min(1).optional().describe('Model full name from list_models')})).strict().optional(),
 })).strict());
 export type StoryboardModelFace=z.infer<typeof storyboardModelFaceSchema>;
@@ -191,8 +204,14 @@ export const generationPlanInputSchema = z.discriminatedUnion("operation", [
     taskKind: createFields.taskKind, scope: z.enum(["summary", "full"]).optional(),
   }).strict(),
   z.object({ operation: z.literal("create"), ...createFields }).strict(),
-  /** `shotId`：改多镜草稿里的**一镜**（`draft_shots` 带 draftId + shotId）；缺省 = 顶层候选（单镜草稿）。 */
-  z.object({ operation: z.literal("patch"), operationId, shotId: z.string().trim().min(1).optional(), patch: candidatePatch }).strict(),
+  /** `shotId` + `patch`：改单镜或顶层候选；`patches`：一次原子批量改多镜。 */
+  z.object({
+    operation: z.literal("patch"),
+    operationId,
+    shotId: z.string().trim().min(1).optional(),
+    patch: candidatePatch.optional(),
+    patches: z.array(z.object({ shotId: z.string().trim().min(1), patch: candidatePatch }).strict()).min(1).max(40).optional(),
+  }).strict(),
   z.object({ operation: z.literal("preview"), operationId }).strict(),
   /**
    * `generate` 动词：把已建草稿的报价卡摆到用户面前；`shotIds` 点名摆哪几镜，缺省 = 最近一张卡上还没定的

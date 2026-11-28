@@ -390,7 +390,7 @@ describe('方法别名的入参形状从语义联合现取，不手抄', () => {
     const present = legacyMethodSchemaForTest(GENERATION_METHODS.present) as unknown as { shape: Record<string, unknown> }
     expect(Object.keys(present.shape).sort()).toEqual(['operationId', 'shotIds'])
     const patch = legacyMethodSchemaForTest(GENERATION_METHODS.patch) as unknown as { shape: Record<string, unknown> }
-    expect(Object.keys(patch.shape).sort()).toEqual(['operationId', 'patch', 'shotId'])
+    expect(Object.keys(patch.shape).sort()).toEqual(['operationId', 'patch', 'patches', 'shotId'])
   })
 })
 

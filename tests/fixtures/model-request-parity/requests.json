@@ -1,5 +1,5 @@
 {
- "recordedFrom": "3795eeab80db560df6e1fb6c7997451fb7e0a219",
+ "recordedFrom": "509b5824e86b32c016e7ef3d8547c82f3b2d2ac8",
  "excludedHeaders": {
   "host": "本机假上游的随机端口",
   "x-stainless-os": "SDK 报的操作系统（Mac / Linux CI 不同）",
@@ -26,6 +26,21 @@
    "x-stainless-retry-count": "0",
    "x-stainless-runtime": "node"
   },
+  "eaa9102828f2": {
+   "accept": "application/json",
+   "accept-encoding": "gzip, deflate",
+   "accept-language": "*",
+   "authorization": "Bearer sk-parity-fake",
+   "connection": "keep-alive",
+   "content-type": "application/json",
+   "sec-fetch-mode": "cors",
+   "session_id": "{{uuid-1}}:main",
+   "x-client-request-id": "{{uuid-1}}:main",
+   "x-stainless-lang": "js",
+   "x-stainless-package-version": "6.40.0",
+   "x-stainless-retry-count": "0",
+   "x-stainless-runtime": "node"
+  },
   "af3dbdb6fff6": {
    "accept": "application/json",
    "accept-encoding": "gzip, deflate",
@@ -41,51 +56,36 @@
    "x-stainless-retry-count": "0",
    "x-stainless-runtime": "node",
    "x-stainless-timeout": "600"
-  },
-  "eaa9102828f2": {
-   "accept": "application/json",
-   "accept-encoding": "gzip, deflate",
-   "accept-language": "*",
-   "authorization": "Bearer sk-parity-fake",
-   "connection": "keep-alive",
-   "content-type": "application/json",
-   "sec-fetch-mode": "cors",
-   "session_id": "{{uuid-1}}:main",
-   "x-client-request-id": "{{uuid-1}}:main",
-   "x-stainless-lang": "js",
-   "x-stainless-package-version": "6.40.0",
-   "x-stainless-retry-count": "0",
-   "x-stainless-runtime": "node"
   }
  },
  "bodies": {
-  "e102d6ab8353": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}]}",
-  "68abaa942801": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}]}",
+  "76a085bc0797": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}}]}",
+  "565ba5e7e3d6": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}}]}",
   "423583cfc4fa": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":0.2,\"max_tokens\":1200}",
   "3da6b29e459d": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":0.35,\"max_tokens\":1600}",
   "be9907a18c9c": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false}",
+  "ac8a7d9037b9": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}]}",
+  "6d835c1a1095": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]},{\"type\":\"function_call\",\"id\":\"fc_call_parity_1\",\"call_id\":\"call_parity_1\",\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_parity_1\",\"output\":\"The opening scene.\"}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}]}",
+  "5e7f86ab6dd0": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":0.2,\"max_output_tokens\":1200}",
+  "8b335e83c61d": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":0.35,\"max_output_tokens\":1600}",
+  "74dca6593d13": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}]}],\"stream\":true,\"store\":false}",
   "15168fb6707e": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"required\":[]}},{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"]},\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
   "df91456323a5": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_parity_1\",\"name\":\"read_script\",\"input\":{\"scope\":\"full\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_parity_1\",\"content\":\"The opening scene.\",\"is_error\":false,\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"required\":[]}},{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"eager_input_streaming\":true,\"input_schema\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"]},\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
   "19d5eaafad45": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"temperature\":0.2,\"max_tokens\":1200}",
   "a6b190a04848": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"temperature\":0.35,\"max_tokens\":1600}",
   "76861c04e18c": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Summarise the attached brief.\"},{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
   "777848610166": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"NOMI_PARITY_SYSTEM\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"max_tokens\":4096}",
-  "9633328eabfb": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1,\"enable_thinking\":false}",
-  "5acc29f445ba": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1,\"enable_thinking\":false}",
+  "fbdafc8eb4da": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}}],\"temperature\":1,\"enable_thinking\":false}",
+  "771e5610f34c": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}}],\"temperature\":1,\"enable_thinking\":false}",
   "60b4d8196d57": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1200,\"enable_thinking\":false}",
   "73994fef1213": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1600,\"enable_thinking\":false}",
   "f9dbc3f8017a": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"enable_thinking\":false}",
-  "ec80d527c0a5": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1}",
-  "580333f5381b": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false},\"strict\":false}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false},\"strict\":false}}],\"temperature\":1}",
+  "0f522d5787a3": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}}],\"temperature\":1}",
+  "631eb6b35853": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Read the script, then summarise it.\"}]},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_parity_1\",\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"}}]},{\"role\":\"tool\",\"content\":\"The opening scene.\",\"tool_call_id\":\"call_parity_1\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}}],\"temperature\":1}",
   "c7c88fa9764a": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1200}",
   "c46de5fc4de4": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe these frames.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}}]}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1,\"max_tokens\":1600}",
   "cf724dda2fbe": "{\"model\":\"{{model}}\",\"messages\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":1}",
-  "ac8a7d9037b9": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}]}",
-  "6d835c1a1095": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]},{\"type\":\"function_call\",\"id\":\"fc_call_parity_1\",\"call_id\":\"call_parity_1\",\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_parity_1\",\"output\":\"The opening scene.\"}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}]}",
-  "5e7f86ab6dd0": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":0.2,\"max_output_tokens\":1200}",
-  "8b335e83c61d": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":0.35,\"max_output_tokens\":1600}",
   "c4d27df06c25": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Summarise the attached brief.\"},{\"type\":\"input_file\",\"filename\":\"brief.pdf\",\"file_data\":\"data:application/pdf;base64,JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK\"}]}],\"stream\":true,\"store\":false}",
-  "74dca6593d13": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Summarise the attached brief.\\n\\n（注：1 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）\"}]}],\"stream\":true,\"store\":false}",
   "ea0dfa55a32f": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}],\"temperature\":1}",
   "05d4e3b92e17": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"system\",\"content\":\"NOMI_PARITY_SYSTEM\\n\\nAvailable tools:\\n- read_script: Read the creation document as plain text: the whole document, or only the text the user has selected.\\n- write_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\\n\\nTool usage:\\nread_script: Read the creation document as plain text: the whole document, or only the text the user has selected. Before editing the script, when splitting it into shots, and when the user is on the creation page and says \\\"this\\\" or \\\"here\\\" about the script (use scope selection — selection exists only there; on other pages those words mean what is selected on that page). Not for shots or canvas content (look_at_canvas). An empty selection means ask, not guess. scope is full (default) or selection. Long text is truncated to the first 2000 lines or 50KB; the result says so when that happens. Nothing changes; it only reads.\\nExamples:\\nRead the whole document:\\n{}\\nResolve \\\"this part\\\":\\n{\\\"scope\\\":\\\"selection\\\"}\\nwrite_script: Write finished prose into the creation document — at the cursor, in place of the selection, or at the end. The user asks you to write, rewrite, tighten or extend script text. Never write a diff, a summary of the change, or a plan to write later. Not for shot prompts (draft_shots). Read the selection first (read_script) unless the user told you exactly what to replace. content is the exact text; where is cursor, selection or end. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.\\nExample:\\nAppend a closing line:\\n{\\\"content\\\":\\\"The rain had not stopped for three days.\\\",\\\"where\\\":\\\"end\\\"}\\n\\nGuidelines:\\n- Read before you write: every id you pass to a write verb comes from a read in this conversation, never from memory or guesswork.\\n- Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later.\\n\\n不向用户展示内部 id，用标题指代；后续编辑先读取当前对象获取引用。\\nAgent 不接收全局金额预算，文稿中的金额不是系统上限或付费授权。费用只引用报价卡/目录单价，答不出就说提交时会显示报价。\\n回答长度随问题：只读/收尾类 ≤3 行；不复述清单。\\n\"},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Read the script, then summarise it.\"}]},{\"type\":\"function_call\",\"id\":\"fc_call_parity_1\",\"call_id\":\"call_parity_1\",\"name\":\"read_script\",\"arguments\":\"{\\\"scope\\\":\\\"full\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_parity_1\",\"output\":\"The opening scene.\"}],\"stream\":true,\"prompt_cache_key\":\"{{uuid-1}}:main\",\"store\":false,\"tools\":[{\"type\":\"function\",\"name\":\"read_script\",\"description\":\"Read the creation document as plain text: the whole document, or only the text the user has selected.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\",\"enum\":[\"full\",\"selection\"],\"description\":\"full (default) reads the whole document; selection reads only what the user selected.\"}},\"additionalProperties\":false}},{\"type\":\"function\",\"name\":\"write_script\",\"description\":\"Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\\nminLength=1.\"},\"where\":{\"type\":\"string\",\"enum\":[\"cursor\",\"selection\",\"end\"],\"description\":\"cursor inserts at the user's cursor; selection replaces the selected text; end appends to the document.\"}},\"required\":[\"content\",\"where\"],\"additionalProperties\":false}}],\"temperature\":1}",
   "402304e55a39": "{\"model\":\"{{model}}\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Describe these frames.\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"},{\"type\":\"input_image\",\"detail\":\"auto\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}]}],\"stream\":true,\"store\":false,\"temperature\":1,\"max_output_tokens\":1200}",
@@ -100,15 +100,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3731",
-     "body": "e102d6ab8353"
+     "contentLength": "3701",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3970",
-     "body": "68abaa942801"
+     "contentLength": "3940",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -146,15 +146,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3731",
-     "body": "e102d6ab8353"
+     "contentLength": "3701",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3970",
-     "body": "68abaa942801"
+     "contentLength": "3940",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -192,15 +192,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3729",
-     "body": "e102d6ab8353"
+     "contentLength": "3699",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3968",
-     "body": "68abaa942801"
+     "contentLength": "3938",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -238,15 +238,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3735",
-     "body": "e102d6ab8353"
+     "contentLength": "3705",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3974",
-     "body": "68abaa942801"
+     "contentLength": "3944",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -284,15 +284,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3734",
-     "body": "e102d6ab8353"
+     "contentLength": "3704",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3973",
-     "body": "68abaa942801"
+     "contentLength": "3943",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -330,15 +330,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3732",
-     "body": "e102d6ab8353"
+     "contentLength": "3702",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3971",
-     "body": "68abaa942801"
+     "contentLength": "3941",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -376,15 +376,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3732",
-     "body": "e102d6ab8353"
+     "contentLength": "3702",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3971",
-     "body": "68abaa942801"
+     "contentLength": "3941",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -422,15 +422,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3731",
-     "body": "e102d6ab8353"
+     "contentLength": "3701",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3970",
-     "body": "68abaa942801"
+     "contentLength": "3940",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -468,15 +468,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3733",
-     "body": "e102d6ab8353"
+     "contentLength": "3703",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3972",
-     "body": "68abaa942801"
+     "contentLength": "3942",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -514,15 +514,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3733",
-     "body": "e102d6ab8353"
+     "contentLength": "3703",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3972",
-     "body": "68abaa942801"
+     "contentLength": "3942",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -560,15 +560,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3731",
-     "body": "e102d6ab8353"
+     "contentLength": "3701",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3970",
-     "body": "68abaa942801"
+     "contentLength": "3940",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -606,15 +606,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3735",
-     "body": "e102d6ab8353"
+     "contentLength": "3705",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3974",
-     "body": "68abaa942801"
+     "contentLength": "3944",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -652,15 +652,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3732",
-     "body": "e102d6ab8353"
+     "contentLength": "3702",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3971",
-     "body": "68abaa942801"
+     "contentLength": "3941",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -698,15 +698,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3732",
-     "body": "e102d6ab8353"
+     "contentLength": "3702",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3971",
-     "body": "68abaa942801"
+     "contentLength": "3941",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -744,15 +744,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3730",
-     "body": "e102d6ab8353"
+     "contentLength": "3700",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3969",
-     "body": "68abaa942801"
+     "contentLength": "3939",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -790,15 +790,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3723",
-     "body": "e102d6ab8353"
+     "contentLength": "3693",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3962",
-     "body": "68abaa942801"
+     "contentLength": "3932",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -836,15 +836,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3729",
-     "body": "e102d6ab8353"
+     "contentLength": "3699",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3968",
-     "body": "68abaa942801"
+     "contentLength": "3938",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -928,15 +928,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3726",
-     "body": "e102d6ab8353"
+     "contentLength": "3696",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3965",
-     "body": "68abaa942801"
+     "contentLength": "3935",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1020,15 +1020,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3729",
-     "body": "e102d6ab8353"
+     "contentLength": "3699",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3968",
-     "body": "68abaa942801"
+     "contentLength": "3938",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1066,15 +1066,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3724",
-     "body": "e102d6ab8353"
+     "contentLength": "3694",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3963",
-     "body": "68abaa942801"
+     "contentLength": "3933",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1112,15 +1112,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3723",
-     "body": "e102d6ab8353"
+     "contentLength": "3693",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3962",
-     "body": "68abaa942801"
+     "contentLength": "3932",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1158,15 +1158,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3737",
-     "body": "e102d6ab8353"
+     "contentLength": "3707",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3976",
-     "body": "68abaa942801"
+     "contentLength": "3946",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1204,15 +1204,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3726",
-     "body": "e102d6ab8353"
+     "contentLength": "3696",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3965",
-     "body": "68abaa942801"
+     "contentLength": "3935",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1250,15 +1250,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3733",
-     "body": "e102d6ab8353"
+     "contentLength": "3703",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3972",
-     "body": "68abaa942801"
+     "contentLength": "3942",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1296,15 +1296,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "contentLength": "3697",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "contentLength": "3936",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1342,15 +1342,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3729",
-     "body": "e102d6ab8353"
+     "contentLength": "3699",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3968",
-     "body": "68abaa942801"
+     "contentLength": "3938",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1388,15 +1388,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "contentLength": "3697",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "contentLength": "3936",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1434,15 +1434,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3730",
-     "body": "e102d6ab8353"
+     "contentLength": "3700",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3969",
-     "body": "68abaa942801"
+     "contentLength": "3939",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1480,15 +1480,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3726",
-     "body": "e102d6ab8353"
+     "contentLength": "3696",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3965",
-     "body": "68abaa942801"
+     "contentLength": "3935",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1526,15 +1526,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3734",
-     "body": "e102d6ab8353"
+     "contentLength": "3704",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3973",
-     "body": "68abaa942801"
+     "contentLength": "3943",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1572,15 +1572,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3729",
-     "body": "e102d6ab8353"
+     "contentLength": "3699",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3968",
-     "body": "68abaa942801"
+     "contentLength": "3938",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1618,15 +1618,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3748",
-     "body": "e102d6ab8353"
+     "contentLength": "3718",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3987",
-     "body": "68abaa942801"
+     "contentLength": "3957",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1940,15 +1940,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3741",
-     "body": "e102d6ab8353"
+     "contentLength": "3711",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3980",
-     "body": "68abaa942801"
+     "contentLength": "3950",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -1986,15 +1986,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3729",
-     "body": "e102d6ab8353"
+     "contentLength": "3699",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3968",
-     "body": "68abaa942801"
+     "contentLength": "3938",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -2032,15 +2032,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3732",
-     "body": "e102d6ab8353"
+     "contentLength": "3702",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3971",
-     "body": "68abaa942801"
+     "contentLength": "3941",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -2078,15 +2078,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "contentLength": "3697",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "contentLength": "3936",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -2124,15 +2124,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3726",
-     "body": "e102d6ab8353"
+     "contentLength": "3696",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3965",
-     "body": "68abaa942801"
+     "contentLength": "3935",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -2170,15 +2170,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3776",
-     "body": "9633328eabfb"
+     "contentLength": "3746",
+     "body": "fbdafc8eb4da"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "4015",
-     "body": "5acc29f445ba"
+     "contentLength": "3985",
+     "body": "771e5610f34c"
     }
    ],
    "one-shot": [
@@ -2216,15 +2216,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "contentLength": "3697",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "contentLength": "3936",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -2262,15 +2262,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3737",
-     "body": "e102d6ab8353"
+     "contentLength": "3707",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3976",
-     "body": "68abaa942801"
+     "contentLength": "3946",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -2308,15 +2308,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3730",
-     "body": "e102d6ab8353"
+     "contentLength": "3700",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3969",
-     "body": "68abaa942801"
+     "contentLength": "3939",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -2354,15 +2354,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3739",
-     "body": "ec80d527c0a5"
+     "contentLength": "3709",
+     "body": "0f522d5787a3"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3978",
-     "body": "580333f5381b"
+     "contentLength": "3948",
+     "body": "631eb6b35853"
     }
    ],
    "one-shot": [
@@ -2400,15 +2400,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3739",
-     "body": "ec80d527c0a5"
+     "contentLength": "3709",
+     "body": "0f522d5787a3"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3978",
-     "body": "580333f5381b"
+     "contentLength": "3948",
+     "body": "631eb6b35853"
     }
    ],
    "one-shot": [
@@ -3044,15 +3044,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3741",
-     "body": "e102d6ab8353"
+     "contentLength": "3711",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3980",
-     "body": "68abaa942801"
+     "contentLength": "3950",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3090,15 +3090,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3729",
-     "body": "e102d6ab8353"
+     "contentLength": "3699",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3968",
-     "body": "68abaa942801"
+     "contentLength": "3938",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3136,15 +3136,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3732",
-     "body": "e102d6ab8353"
+     "contentLength": "3702",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3971",
-     "body": "68abaa942801"
+     "contentLength": "3941",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3182,15 +3182,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "contentLength": "3697",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "contentLength": "3936",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3228,15 +3228,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3726",
-     "body": "e102d6ab8353"
+     "contentLength": "3696",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3965",
-     "body": "68abaa942801"
+     "contentLength": "3935",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3274,15 +3274,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3776",
-     "body": "9633328eabfb"
+     "contentLength": "3746",
+     "body": "fbdafc8eb4da"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "4015",
-     "body": "5acc29f445ba"
+     "contentLength": "3985",
+     "body": "771e5610f34c"
     }
    ],
    "one-shot": [
@@ -3320,15 +3320,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3727",
-     "body": "e102d6ab8353"
+     "contentLength": "3697",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3966",
-     "body": "68abaa942801"
+     "contentLength": "3936",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3366,15 +3366,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3737",
-     "body": "e102d6ab8353"
+     "contentLength": "3707",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3976",
-     "body": "68abaa942801"
+     "contentLength": "3946",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3412,15 +3412,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3730",
-     "body": "e102d6ab8353"
+     "contentLength": "3700",
+     "body": "76a085bc0797"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3969",
-     "body": "68abaa942801"
+     "contentLength": "3939",
+     "body": "565ba5e7e3d6"
     }
    ],
    "one-shot": [
@@ -3458,15 +3458,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3739",
-     "body": "ec80d527c0a5"
+     "contentLength": "3709",
+     "body": "0f522d5787a3"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3978",
-     "body": "580333f5381b"
+     "contentLength": "3948",
+     "body": "631eb6b35853"
     }
    ],
    "one-shot": [
@@ -3504,15 +3504,15 @@
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3739",
-     "body": "ec80d527c0a5"
+     "contentLength": "3709",
+     "body": "0f522d5787a3"
     },
     {
      "method": "POST",
      "path": "/v1/chat/completions",
      "headers": "65d4f7499dcd",
-     "contentLength": "3978",
-     "body": "580333f5381b"
+     "contentLength": "3948",
+     "body": "631eb6b35853"
     }
    ],
    "one-shot": [
@@ -3864,12 +3864,6 @@
      "body": "c4d27df06c25"
     }
    ]
-  }
- },
- "reRecorded": {
-  "rows": {
-   "builtin/apimart/gpt-6-astra": "2026-11-22 GPT-6 两行改走 Responses：只重录这两行（网址 /v1/chat/completions 改为 /v1/responses，请求体换成 Responses 形状）；其余行与主线金样逐字节一致",
-   "builtin/apimart/gpt-6.1-sol": "2026-11-22 GPT-6 两行改走 Responses：只重录这两行（网址 /v1/chat/completions 改为 /v1/responses，请求体换成 Responses 形状）；其余行与主线金样逐字节一致"
   }
  }
 }

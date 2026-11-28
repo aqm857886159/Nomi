@@ -15,7 +15,8 @@ import type { BillingModelKind } from "../catalog/types";
 import { modelKindForTaskKind } from "./capabilityModeManifest";
 import type { GenerationDefaultTaskKind } from "./contracts/generationModelDefaultsContract";
 import { isGenerationDefaultTaskKind } from "./contracts/generationModelDefaultsContract";
-import { transportTaskKindForModeId } from "./videoCapabilities/registry";
+import { builtInModeTransports, modeTransportFor, resolveModelArchetype } from "./modelArchetypes";
+import { statedMode } from "./modelArchetypes/modeForInputs";
 
 /** 一镜出来的是图片还是视频。 */
 export type GenerationShotKind = Extract<BillingModelKind, "image" | "video">;
@@ -84,16 +85,57 @@ export function resolveShotTaskKind(input: Readonly<{
 }
 
 /**
- * 一镜**明写**的种类：`taskKind`，或者一个本身就是任务名的 `mode`，或者能推出任务名的 `modeId`。
- * 三种写法说的是同一件事实，归成一个；一个都没写 = undefined（不往下猜）。宿主语义合成与 lane 认名字时定「这一种任务」都问它。
- * 模型明说了模式，就别再去猜种类（`transportTaskKindForModeId` 从档案扫出来，不手抄）。2026-09-22 之前模型写了
- * `modeId: "i2v"`，我们按提示词猜了 `text_to_video`，再把冲突算在它头上。`taskKind` 写错的拒收由调用方先做。
+ * 由明确的 `modeId` 推导它所属的 `GenerationDefaultTaskKind`（与画布 `modeForInputs` + `modeTransportFor` 同源，覆盖图/视全量档案）。
+ * 点名了模型时优先在该模型的档案上查 `statedMode` → `modeTransportFor`；未点名模型时在全量内置档案上查唯一一致的 transport。
  */
-export function statedShotTaskKind(written: Readonly<{ taskKind?: unknown; mode?: unknown; modeId?: unknown }>): GenerationDefaultTaskKind | undefined {
+export function taskKindForModeId(
+  modeId: string,
+  modelContext?: Readonly<{
+    modelId?: string;
+    vendor?: string | null;
+    modelAlias?: string | null;
+    meta?: unknown;
+    variantId?: string;
+  }>,
+): GenerationDefaultTaskKind | undefined {
+  const trimmed = modeId.trim();
+  if (!trimmed) return undefined;
+  const modelKey = modelContext?.modelId?.trim();
+  const vendorKey = modelContext?.vendor?.trim() || undefined;
+  if (modelKey) {
+    const archetype = resolveModelArchetype(
+      { modelKey, modelAlias: modelContext?.modelAlias ?? null, vendorKey, meta: modelContext?.meta },
+      { variant: { variantId: modelContext?.variantId, modelId: modelKey } },
+    );
+    const mode = archetype ? statedMode(archetype, trimmed) : undefined;
+    const transport = archetype && mode ? modeTransportFor(mode, archetype, vendorKey) : undefined;
+    const mapped = transport ? canonical(transport) : "";
+    if (isGenerationDefaultTaskKind(mapped)) return mapped;
+  }
+  // 未指定具体 modelId 时，经 modelArchetypes 唯一入口扫描全量内置档案：仅当全目录唯一无歧义（distinct.length === 1）
+  // 时反推，像 "edit"（图改图 vs 视频编辑）或 "omni"（跨档案分属 text_to_video / image_to_video）返回 undefined。
+  const distinct = [...builtInModeTransports(trimmed)].filter(isGenerationDefaultTaskKind);
+  return distinct.length === 1 ? distinct[0] : undefined;
+}
+
+/**
+ * 一镜**明写**的种类：明确的 `modeId` 最具体（模式定了任务桶就定了，不再因冗余/惯性写的 `taskKind` 自相矛盾），
+ * 其次是 `taskKind`，或者一个本身就是任务名的 `mode`。三种写法归成一个；一个都没写 = undefined（不按提示词猜）。
+ */
+export function statedShotTaskKind(
+  written: Readonly<{ taskKind?: unknown; mode?: unknown; modeId?: unknown; modelId?: unknown; providerId?: unknown; variantId?: unknown }>,
+): GenerationDefaultTaskKind | undefined {
+  const modeId = typeof written.modeId === "string" ? written.modeId.trim() : "";
+  const byModeId = modeId
+    ? taskKindForModeId(modeId, {
+        ...(typeof written.modelId === "string" ? { modelId: written.modelId } : {}),
+        ...(typeof written.providerId === "string" ? { vendor: written.providerId } : {}),
+        ...(typeof written.variantId === "string" ? { variantId: written.variantId } : {}),
+      })
+    : undefined;
+  if (byModeId) return byModeId;
   if (typeof written.taskKind === "string" && isGenerationDefaultTaskKind(written.taskKind)) return written.taskKind;
   const mode = typeof written.mode === "string" ? canonical(written.mode) : "";
   if (isGenerationDefaultTaskKind(mode)) return mode;
-  const modeId = typeof written.modeId === "string" ? written.modeId.trim() : "";
-  const byModeId = modeId ? transportTaskKindForModeId(modeId) : undefined;
-  return byModeId && isGenerationDefaultTaskKind(byModeId) ? byModeId : undefined;
+  return undefined;
 }

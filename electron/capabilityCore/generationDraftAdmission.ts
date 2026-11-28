@@ -7,11 +7,15 @@
  * 落下的名字」交回给调用方装进回执，这里不判名字、不挑方式。
  */
 import { admitPlanCandidate, type PlanCandidate } from "./executionContract";
+import type { DraftParameterAdjustment } from "./generationAuthoredDuration";
 import type { AssertReferencesResolvable, GenerationOperationDraftShot } from "./mcpGenerationMultiShot";
 import { normalizeAuthoredCandidate, videoCompileOptions } from "./mcpGenerationVideoResolve";
 import type { ModuleRegistry } from "./moduleRegistry";
-import { admitShotIdentity, semanticCandidateFromParams, type AssetReferenceIdentity } from "./semanticGenerationCandidate";
+import { admitShotIdentity, DECLARED_DEFAULT_DEVIATION_NOTE, semanticCandidateFromParams, type AssetReferenceIdentity, type DeclaredDefaultDeviation } from "./semanticGenerationCandidate";
+import type { StoryboardSavedFact } from "./generationDocumentPlan";
+import { refuseArgument } from "./transportFailure";
 import type { ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
+import { generationTaskReference } from "../shared/agentCapabilities/taskReference";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
 import type { GenerationDefaultTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 import { referenceDemandForRole, type ReferenceDemand } from "../shared/canvas/edgeAdmission";
@@ -39,6 +43,11 @@ export function anchorReferenceDemandsForShot(
 
 type DraftRegistry = Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
 type NoteResolvedModelName = (entry: ResolvedModelName) => void;
+type NoteAdjustment = (entry: DraftParameterAdjustment) => void;
+
+function readableErrorOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export type DraftAdmissionDependencies = {
   registry: DraftRegistry;
@@ -66,27 +75,37 @@ export function createDraftAdmission(deps: DraftAdmissionDependencies) {
     admitPlanCandidate(candidate, registry, videoCompileOptions(candidate, deps.videoModelCandidates));
   };
 
-  /** 起草的每一镜：同一套准入（候选合成 → 归一 → 身份核对 → 参数值）。首建与补镜头都过这一处，不另写一台。 */
+  /** 起草的每一镜：同一套准入（候选合成 → 归一 → 身份核对 → 参数值），全镜一次扫完合并报全，消除串行遮挡。 */
   const admitDraftShots = async (
     projectId: string,
     params: Record<string, unknown>,
     registry: DraftRegistry = deps.registry,
     noteResolvedModelName?: NoteResolvedModelName,
     existingShots: readonly GenerationOperationDraftShot[] = [],
+    noteAdjustment?: NoteAdjustment,
   ): Promise<GenerationOperationDraftShot[] | undefined> => {
     const draftShots = await deps.resolveCreateShots(projectId, params, registry, noteResolvedModelName);
     if (!draftShots) return undefined;
     const allShots = existingShots.length ? [...existingShots, ...draftShots] : draftShots;
-    const normalizedShots = draftShots.map((shot) => ({
-      ...shot,
-      candidate: normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates, undefined, {
-        extraReferenceDemands: anchorReferenceDemandsForShot(shot, allShots),
-      }),
-    }));
-    // 每一镜的「模型 + 模式」落盘前就对过账：矛盾的镜头当场拒绝，不留到付费卡上点下去才发现（第 9 条）。
-    for (const shot of normalizedShots) {
-      admitShotIdentity(shot.candidate, registry, shot.role);
-      admitDraftParameters(shot.candidate, registry);
+    const normalizedShots: GenerationOperationDraftShot[] = [];
+    const failures: Array<{ index: number; shotId: string; error: unknown }> = [];
+    for (const [index, shot] of draftShots.entries()) {
+      try {
+        const candidate = normalizeAuthoredCandidate(shot.candidate, registry, deps.videoModelCandidates, undefined, {
+          extraReferenceDemands: anchorReferenceDemandsForShot(shot, allShots),
+          ...(noteAdjustment ? { noteAdjustment: (adj) => noteAdjustment({ ...adj, shotId: shot.shotId }) } : {}),
+        });
+        admitShotIdentity(candidate, registry, shot.role);
+        admitDraftParameters(candidate, registry);
+        normalizedShots.push({ ...shot, candidate });
+      } catch (error) {
+        failures.push({ index, shotId: shot.shotId, error });
+      }
+    }
+    if (failures.length === 1) throw failures[0]!.error;
+    if (failures.length > 1) {
+      const detail = failures.map((item) => `shots[${item.index}] (${item.shotId}): ${readableErrorOf(item.error)}`).join("; ");
+      refuseArgument(`${failures.length} shots failed validation (nothing was saved — fix all listed shots in one call): ${detail}`);
     }
     return normalizedShots;
   };
@@ -98,6 +117,7 @@ export function createDraftAdmission(deps: DraftAdmissionDependencies) {
     params: Record<string, unknown>,
     registry: DraftRegistry = deps.registry,
     noteResolvedModelName?: NoteResolvedModelName,
+    noteAdjustment?: NoteAdjustment,
   ): PlanCandidate => {
     // A natural-language create request only needs `prompt`.  Keep the
     // explicit candidate path intact, but compile the short path at this
@@ -119,11 +139,36 @@ export function createDraftAdmission(deps: DraftAdmissionDependencies) {
     if (deps.assertReferencesResolvable && singleCandidate.references.length > 0) {
       deps.assertReferencesResolvable(projectId, singleCandidate.references);
     }
-    const normalizedSingle = normalizeAuthoredCandidate(singleCandidate, registry, deps.videoModelCandidates);
+    const normalizedSingle = normalizeAuthoredCandidate(singleCandidate, registry, deps.videoModelCandidates, undefined, {
+      ...(noteAdjustment ? { noteAdjustment: (adj) => noteAdjustment({ ...adj, shotId: "shot-1" }) } : {}),
+    });
     admitShotIdentity(normalizedSingle, registry);
     admitDraftParameters(normalizedSingle, registry);
     return normalizedSingle;
   };
 
   return { admitDraftShots, admitSingleCandidate };
+}
+
+/** 构造新建草稿（多镜或单镜）的统一回执（含默认偏离提示、仅参考卡提示、模型名解析与参数吸附回执）。 */
+export function buildCreatedDraftReceipt(input: {
+  operation: { operationId: string };
+  savedPlan?: StoryboardSavedFact;
+  namesReceipt: { modelNamesResolved?: readonly ResolvedModelName[]; adjustments?: readonly DraftParameterAdjustment[] };
+  deviations: readonly DeclaredDefaultDeviation[];
+  anchorsOnly?: boolean;
+}): Record<string, unknown> {
+  const { deviations } = input;
+  const anchorsNote = input.savedPlan
+    ? `This plan has only reference cards so far; no shot reuses them yet. ${input.savedPlan.addShots}`
+    : "This draft has only reference cards; no shot reuses them yet. That is fine — generate the cards on their own, or draft the shots that reuse them.";
+  return {
+    operation: input.operation,
+    taskRef: generationTaskReference(input.operation.operationId),
+    nextAction: "preview",
+    ...(input.savedPlan ? { storyboardSaved: input.savedPlan } : {}),
+    ...input.namesReceipt,
+    ...(deviations.length ? { modelDeviatesFromUserDefault: deviations, defaultDeviationNote: DECLARED_DEFAULT_DEVIATION_NOTE } : {}),
+    ...(input.anchorsOnly ? { note: anchorsNote } : {}),
+  };
 }

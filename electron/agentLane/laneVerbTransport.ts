@@ -115,11 +115,18 @@ export function verbToTransportCall(call: RuntimeToolCall, models: readonly (Mod
         }, resolved)
       }
       if (draft.operationId !== undefined) {
-        // 修改已有草稿：带 `shotId` = 改多镜草稿里的那一镜（那一镜候选 revision +1 → 已落的节点按它重绑定）；
-        // 不带 = 单镜草稿的顶层候选。一次调用改一镜（动词契约的例子就是这个形状）。
-        // `shotId` **不是**候选字段而是 plan patch **信封**上的寻址字段，所以它由
-        // `draftShotsPatchEnvelope` 提到信封上；其余信封字段（title / role）落不进候选 patch，
-        // 由 `draftShotToCandidatePatch` 当场拒绝，不在这里摘。
+        // 修改已有草稿：单镜走 `{ operation: 'patch', operationId, shotId?, patch }`（与旧契约逐字节兼容）；
+        // 多镜（每镜带 `shotId`）走 `{ operation: 'patch', operationId, patches }` 一次原子批量改多镜。
+        if (shots.length > 1) {
+          return generationCall(base, GENERATION_METHODS.plan, {
+            operation: 'patch',
+            operationId: draft.operationId,
+            patches: shots.map((shot, index) => {
+              if (!shot.shotId) throw new Error('draft_shots: 批量改多镜要求每一镜都带 shotId');
+              return { shotId: shot.shotId, patch: draftShotToCandidatePatch(shot, identities[index] ?? {}) };
+            }),
+          }, resolved)
+        }
         const first = shots[0] ?? ({} as DraftShot)
         return generationCall(base, GENERATION_METHODS.plan, {
           ...draftShotsPatchEnvelope(draft, first), operation: 'patch', patch: draftShotToCandidatePatch(first, identities[0] ?? {}),

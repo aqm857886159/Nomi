@@ -1,5 +1,7 @@
-import { resolveShotTaskKind, statedShotTaskKind, type ShotTaskKindRefusal } from "../shared/generationShotKind";
+import { resolveShotTaskKind, statedShotTaskKind, taskKindForModeId, type ShotTaskKindRefusal } from "../shared/generationShotKind";
 import { modelKindForTaskKind } from "../shared/capabilityModeManifest";
+import { resolveModelArchetype } from "../shared/modelArchetypes";
+import { statedMode } from "../shared/modelArchetypes/modeForInputs";
 import { refuseArgument, refuseGeneration } from "./transportFailure";
 import { modelHandleOf, resolveModelForTask, resolvedModelNameOf, type ModelHandleRow, type ResolvedModelName } from "../shared/agentCapabilities/modelHandle";
 import { catalogRowFor } from "./modelAdmissionSchema";
@@ -350,7 +352,36 @@ export function shotTaskKind(
   named: NamedCatalogModel | undefined = namedCatalogModel(deps, explicitTaskKind(deps)),
 ): GenerationDefaultTaskKind {
   const modelId = text(deps.params.modelId);
-  const explicit = explicitTaskKind(deps);
+  const requestedModeId = text(deps.params.modeId) || named?.resolved?.modeId || "";
+  let explicit = explicitTaskKind(deps);
+  if (named && requestedModeId) {
+    const rowMeta = catalogRowFor(named.row.vendor, named.row.modelId)?.meta;
+    const variantId = text(deps.params.variantId) || named.resolved?.variantId;
+    const archetype = resolveModelArchetype(
+      { modelKey: named.row.modelId, modelAlias: named.row.modelAlias, vendorKey: named.row.vendor, meta: rowMeta },
+      { variant: { variantId, modelId: named.row.modelId } },
+    );
+    if (archetype) {
+      const mode = statedMode(archetype, requestedModeId);
+      if (!mode) {
+        return refuseGeneration({
+          code: "mode_not_in_model",
+          field: "modeId",
+          model: modelLabel(named.row.vendor, named.row.modelId),
+          value: requestedModeId,
+          allowed: archetype.modes.map((item) => item.id),
+        });
+      }
+      const derivedFromMode = taskKindForModeId(mode.id, {
+        modelId: named.row.modelId,
+        vendor: named.row.vendor,
+        modelAlias: named.row.modelAlias,
+        meta: rowMeta,
+        variantId,
+      });
+      if (derivedFromMode) explicit = derivedFromMode;
+    }
+  }
   const verdict = resolveShotTaskKind({
     ...(explicit ? { explicit } : {}),
     ...(modelId ? { modelModes: named?.row.modes } : {}),

@@ -37,8 +37,9 @@ describe("modeId 定了，taskKind 就定了", () => {
     expect(kindOf({ modeId: "t2v", prompt: "招牌灯还亮着" })).toBe("text_to_video");
   });
 
-  it("模型自己写了 taskKind 就听它的——派生只补它没说的那一格", () => {
-    expect(kindOf({ modeId: "i2v", taskKind: "text_to_video", prompt: "x" })).toBe("text_to_video");
+  it("明确 modeId 最具体（不因惯性共传的 taskKind 反向硬拒）；跨家有歧义的 modeId（如 omni）退回模型明写的 taskKind", () => {
+    expect(kindOf({ modeId: "i2v", taskKind: "text_to_video", prompt: "x" })).toBe("image_to_video");
+    expect(kindOf({ modeId: "omni", taskKind: "image_to_video", prompt: "x" })).toBe("image_to_video");
   });
 
   // 2026-09-30（付费卡① 第 9 条）：提示词启发式整个删了——没写模式、没写种类、也没点名模型，就请它写明，

@@ -461,7 +461,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "generation.plan",
-      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references. Drafts and draft edits are saved locally. Call generate only if the user explicitly asks to generate this turn. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). For anchor role, include storyboard with kind (character/scene/prop/style) and carrier (visual/text); title names the anchor and prompt describes it. Original shot details (anchorIds, keyframe, referenceBindings) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + one shotId: revise it, sending only changed fields (title/role are fixed). The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
+      "description": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement. Whenever the user asks to make, draw, render, regenerate, restyle or re-time any media — including a single image — or to split text into shots, add shots, or change a shot's prompt, model, parameters or references. Drafts and draft edits are saved locally. Call generate only if the user explicitly asks to generate this turn. Not for links, groups or layout (arrange_canvas), not for hand-made artifacts (make_artifact), not for staging or camera references (stage_shot). For anchor role, include storyboard with kind (character/scene/prop/style); title names the anchor and prompt describes it. Shot continuity details (anchorIds, keyframe, ffDesc, lfDesc, motionDesc) also go in storyboard. A top-level taskKind is the default for shots that omit their own; model is a full name copied from list_models. No operationId: new plan (same-request calls add to it unless newPlan). operationId + shots without shotId: append. operationId + shots with shotId: revise one or more existing shots in one call, sending only changed fields per shot (title/role are fixed). The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
       "effect": "reversible_local",
       "effectGroups": [
         "canvas-node-creation"
@@ -582,7 +582,7 @@
                 },
                 "storyboard": {
                   "additionalProperties": false,
-                  "description": "Original author fields; anchors require kind and carrier.",
+                  "description": "Original storyboard fields; anchors require kind (character/scene/prop/style); shots may set anchorIds or keyframe.",
                   "properties": {
                     "anchorIds": {
                       "description": "Reused anchor ids",
@@ -591,11 +591,6 @@
                       },
                       "type": "array"
                     },
-                    "camIdx": {
-                      "description": "Camera preset index",
-                      "minimum": 0,
-                      "type": "integer"
-                    },
                     "carrier": {
                       "description": "Visual or text guidance",
                       "enum": [
@@ -603,52 +598,6 @@
                         "text"
                       ],
                       "type": "string"
-                    },
-                    "continuity": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "additionalProperties": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "boolean"
-                              },
-                              {
-                                "type": "null"
-                              },
-                              {
-                                "items": {
-                                  "$ref": "#/properties/shots/items/properties/storyboard/properties/continuity/anyOf/2/additionalProperties"
-                                },
-                                "type": "array"
-                              },
-                              {
-                                "additionalProperties": {
-                                  "$ref": "#/properties/shots/items/properties/storyboard/properties/continuity/anyOf/2/additionalProperties"
-                                },
-                                "type": "object"
-                              }
-                            ]
-                          },
-                          "type": "object"
-                        }
-                      ],
-                      "description": "Continuity facts"
-                    },
-                    "durationSec": {
-                      "description": "Seconds for stills too",
-                      "type": "number"
                     },
                     "dynamicFeatures": {
                       "description": "Clothing, accessories and temporary state; may vary between shots and do not define identity.",
@@ -674,10 +623,6 @@
                           "description": "Model full name from list_models\nminLength=1.",
                           "type": "string"
                         },
-                        "params": {
-                          "$ref": "#/properties/shots/items/properties/storyboard/properties/continuity/anyOf/2",
-                          "description": "Model parameters"
-                        },
                         "prompt": {
                           "description": "Prompt",
                           "type": "string"
@@ -701,88 +646,6 @@
                     },
                     "motionDesc": {
                       "description": "Frame-to-frame motion",
-                      "type": "string"
-                    },
-                    "promptSegments": {
-                      "description": "Prompt text ranges",
-                      "items": {
-                        "additionalProperties": true,
-                        "properties": {
-                          "end": {
-                            "description": "End offset",
-                            "minimum": 0,
-                            "type": "integer"
-                          },
-                          "key": {
-                            "description": "Segment name\nminLength=1.",
-                            "type": "string"
-                          },
-                          "start": {
-                            "description": "Start offset",
-                            "minimum": 0,
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "key",
-                          "start",
-                          "end"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "referenceBindings": {
-                      "additionalProperties": {
-                        "items": {
-                          "additionalProperties": true,
-                          "properties": {
-                            "anchorId": {
-                              "description": "Source anchor id\nminLength=1.",
-                              "type": "string"
-                            },
-                            "ignore": {
-                              "description": "Features to ignore",
-                              "type": "string"
-                            },
-                            "name": {
-                              "description": "Media name",
-                              "type": "string"
-                            },
-                            "sourceNodeId": {
-                              "description": "Source node id\nminLength=1.",
-                              "type": "string"
-                            },
-                            "url": {
-                              "description": "Media URL\nminLength=1.",
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "url"
-                          ],
-                          "type": "object"
-                        },
-                        "type": "array"
-                      },
-                      "description": "Ordered slot media",
-                      "type": "object"
-                    },
-                    "referenceKind": {
-                      "description": "Anchor media type",
-                      "enum": [
-                        "image",
-                        "video",
-                        "audio"
-                      ],
-                      "type": "string"
-                    },
-                    "referenceSourceNodeId": {
-                      "description": "Source node id\nminLength=1.",
-                      "type": "string"
-                    },
-                    "referenceUrl": {
-                      "description": "Anchor media URL\nminLength=1.",
                       "type": "string"
                     },
                     "sceneId": {
@@ -1239,7 +1102,7 @@
       ],
       "promptGuidelines": [
         "A director plan states intent only: who is where relative to what, what they do over time, and how each shot frames and moves. Never write coordinates, distances or camera positions; Nomi's compiler solves all geometry and measures the result.",
-        "Copy every person, vehicle, product and named place from the user's words verbatim into actors[].desc, scene.tags or setPieces[].kind, give each a readable ASCII id derived from that noun (\"waiter\" for a waiter, not \"actor1\"), and reuse exactly those ids in blocking, shots[].subject and placement refs.",
+        "Copy every person, vehicle, product and named place from the user's words verbatim into actors[].desc, scene.tags or scene.setPieces[].kind, give each a readable ASCII id derived from that noun (\"waiter\" for a waiter, not \"actor1\"), and reuse exactly those ids in blocking, shots[].subject and placement refs.",
         "Place actors and set pieces against the fixed template anchors: street = s1-street-ground, s1-street-road-left, s1-street-road-right, s1-street-building-left, s1-street-building-right; room = s1-room-floor, s1-room-back, s1-room-left; courtyard = s1-courtyard-ground, s1-courtyard-wall-north, s1-courtyard-wall-east, s1-courtyard-gate, s1-courtyard-tree; product_stage = s1-product-ground, s1-product-backdrop, s1-product-pedestal. Pick the closest template by spatial layout; keep the real place name in scene.tags.",
         "Shots cover the brief in time order with second-based windows and no gaps. Use transitionIn continuous only when the camera should carry on from where the previous shot ended. Shot/reverse-shot coverage of two people keeps one side of the axis for the whole scene.",
         "To change an existing plan, send only the edits the user asked for, addressed by name (/shots/<name>/size, /actors/<name>/placement); everything else stays as it is. If the result says unchanged, tell the user it already is that way instead of rewriting.",
