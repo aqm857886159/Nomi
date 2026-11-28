@@ -68,7 +68,7 @@ function withRequestSignal(params: Record<string, unknown>, signal?: AbortSignal
   }
 }
 
-/** Nomi 那一侧（领域）。两个生产装配点（Electron stdio / 裸 Node 启动器）各填一份，check:transport-assembly 比对两边。 */
+/** Nomi 那一侧（领域）。生产装配点（Electron stdio / 裸 Node 启动器 / 本机 HTTP）经 createNomiMcpServer(Required<McpHost>) 在编译期强制全接。 */
 export interface McpHost {
   invoke(method: string, params: Record<string, unknown>, options?: McpInvokeOptions): Promise<unknown>
   /** Probe an already-live instance without allowing the transport to cold-start Nomi. */
@@ -240,7 +240,7 @@ export function guardMcpTransport(inner: Transport, host: Pick<McpHost, 'getAuth
 export type NomiMcpServer = ReturnType<typeof createNomiMcpServer>
 
 /** 一条 MCP 连接的 Nomi 服务端（每条连接一个：planTrust / 确认去重 / 在途计数都随连接存亡）。 */
-export function createNomiMcpServer(host: McpHost) {
+export function createNomiMcpServer(host: Required<McpHost>) {
   const server = new Server(SERVER_INFO, {
     capabilities: { tools: { listChanged: true }, resources: {}, prompts: {} },
     instructions: INSTRUCTIONS,
@@ -638,7 +638,7 @@ export type McpTransport = McpHost & { send(message: unknown): void }
  * handleIncoming 喂一帧客户端消息；服务端发出的每一帧（响应 / 通知 / 向客户端的请求）都经 send 交出。
  */
 export function createMcpProtocol(transport: McpTransport) {
-  const nomi = createNomiMcpServer(transport)
+  const nomi = createNomiMcpServer(transport as Required<McpHost>)
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
   clientSide.onmessage = (message) => transport.send(message)
   void clientSide.start()

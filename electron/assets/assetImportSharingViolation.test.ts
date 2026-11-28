@@ -81,7 +81,7 @@ describe('asset import under Windows sharing violations', () => {
       return realRename(from, to)
     }) as typeof fs.renameSync)
 
-    const asset = moveAssetFile('one', source, 'download.png', 'image/png', { kind: 'upload' }) as Asset
+    const asset = moveAssetFile('one', source, 'download.png', 'image/png', { kind: 'upload', sourceEvidence: { source: 'user' } }) as Asset
     expect(failures).toBe(0)
     expect(fs.readFileSync(asset.data.absolutePath)).toEqual(bytes)
     expect(fs.existsSync(source)).toBe(false)

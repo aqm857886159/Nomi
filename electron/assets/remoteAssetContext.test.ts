@@ -26,7 +26,9 @@ it.each(['upload', 'generated'] as const)('rejects %s publication after identity
     return { bytes: Buffer.from('remote content'), contentType: 'application/octet-stream' }
   })
   const target = { projectId: project.id, url: 'https://example.com/file.bin' }
-  await expect(importRemoteAsset(kind === 'generated' ? { ...target, kind, expectedKind: 'image' } : { ...target, kind, expectedKind: null }))
+  await expect(kind === 'generated'
+    ? importRemoteAsset({ ...target, kind, expectedKind: 'image' })
+    : importRemoteAsset({ ...target, kind, expectedKind: null }, { sourceEvidence: { source: 'user' } }))
     .rejects.toMatchObject({ code: 'project_binding_stale' })
   expect(listProjectAssets({ projectId: project.id }).items).toEqual([])
 })

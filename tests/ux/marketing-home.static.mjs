@@ -247,24 +247,58 @@ expect(readmeEn.includes('not Apple Developer ID signed or notarized'), 'English
 expect(readmeEn.includes('no Authenticode signature'), 'English README discloses Windows signing status')
 expect(readmeEn.includes('System Settings → Privacy & Security'), 'English README prefers the supported macOS opening flow')
 expect(readmeZh.includes('“系统设置”→“隐私与安全性”'), 'Chinese README prefers the supported macOS opening flow')
-for (const readme of [readmeEn, readmeZh]) {
-  expect(readme.includes('xattr -dr com.apple.quarantine "/Applications/Nomi.app"'), 'README damaged-app recovery uses the scoped quarantine command')
-  expect(!readme.includes('spctl --master-disable'), 'README never disables Gatekeeper globally')
+const readmeLocales = [
+  { file: 'README.md', label: 'English README', downloadHeading: '## Download', communityHeading: '## Community', content: readmeEn },
+  { file: 'README.zh-CN.md', label: 'Chinese README', downloadHeading: '## 下载', communityHeading: '## 社区', content: readmeZh },
+  { file: 'README.ja.md', label: 'Japanese README', downloadHeading: '## ダウンロード', communityHeading: '## コミュニティ', content: readmeJa },
+  { file: 'README.tr.md', label: 'Turkish README', downloadHeading: '## İndir', communityHeading: '## Topluluk', content: read('README.tr.md') },
+  { file: 'README.ko.md', label: 'Korean README', downloadHeading: '## 다운로드', communityHeading: '## 커뮤니티', content: read('README.ko.md') },
+  { file: 'README.es.md', label: 'Spanish README', downloadHeading: '## Descargar', communityHeading: '## Comunidad', content: read('README.es.md') },
+  { file: 'README.fr.md', label: 'French README', downloadHeading: '## Téléchargement', communityHeading: '## Communauté', content: read('README.fr.md') },
+  { file: 'README.de.md', label: 'German README', downloadHeading: '## Download', communityHeading: '## Community', content: read('README.de.md') },
+  { file: 'README.pt-BR.md', label: 'Portuguese README', downloadHeading: '## Download', communityHeading: '## Comunidade', content: read('README.pt-BR.md') },
+]
+const rootReadmes = fs.readdirSync(root).filter((name) => /^README(?:\.[^.]+)?\.md$/.test(name)).sort()
+expect(
+  rootReadmes.join(',') === readmeLocales.map((entry) => entry.file).sort().join(','),
+  `every root README*.md is registered in marketing-home.static.mjs (disk: ${rootReadmes.join(', ')})`,
+)
+const githubHeadingSlug = (heading) =>
+  heading
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, '')
+    .replace(/ /g, '-')
+
+for (const entry of readmeLocales) {
+  const { file, label, downloadHeading, communityHeading, content } = entry
+  expect(content.includes('xattr -dr com.apple.quarantine "/Applications/Nomi.app"'), `${label} damaged-app recovery uses the scoped quarantine command`)
+  expect(!content.includes('spctl --master-disable'), `${label} never disables Gatekeeper globally`)
   // README 链仓库里同一个片子文件：合并即可看，不依赖官网部署。
-  expect(readme.includes('https://github.com/aqm857886159/Nomi/blob/main/marketing/assets/video/nomi-0.22-film.mp4'), 'README links the 0.22 film hosted in this repository')
-  for (const image of readme.matchAll(/(?:src|srcset)="(marketing\/assets\/[^"]+)"|\]\((marketing\/assets\/[^)]+)\)/g)) {
+  expect(content.includes('https://github.com/aqm857886159/Nomi/blob/main/marketing/assets/video/nomi-0.22-film.mp4'), `${label} links the 0.22 film hosted in this repository`)
+  for (const installer of ['Nomi-windows-setup.exe', 'Nomi-mac-arm64.dmg', 'Nomi-mac-intel.dmg']) {
+    expect(content.includes(`/releases/latest/download/${installer}`), `${label} keeps direct link for ${installer}`)
+  }
+  expect(content.includes('business_inquiry.yml'), `${label} keeps business inquiry link`)
+  for (const image of content.matchAll(/(?:src|srcset)="(marketing\/assets\/[^"]+)"|\]\((marketing\/assets\/[^)]+)\)/g)) {
     const relative = image[1] ?? image[2]
-    expect(fs.existsSync(path.join(root, relative)), `README image ${relative} exists`)
+    expect(fs.existsSync(path.join(root, relative)), `${label} image ${relative} exists`)
+  }
+  expectCommunityConversion(content, communityHeading, '\n## ', label)
+  expectBefore(content, downloadHeading, communityHeading, `${label} puts downloads before the community section`)
+  for (const other of readmeLocales) {
+    if (other.file === file) continue
+    expect(content.includes(`href="${other.file}"`), `${label} language switcher links to ${other.file}`)
+  }
+  const headingSlugs = new Set([...content.matchAll(/^#{1,6}\s+(.+)$/gm)].map((match) => githubHeadingSlug(match[1])))
+  for (const anchor of content.matchAll(/(?:href="#([^"]+)"|\]\(#([^)]+)\))/g)) {
+    const slug = anchor[1] ?? anchor[2]
+    expect(headingSlugs.has(slug), `${label} internal anchor #${slug} matches a heading in ${file}`)
   }
 }
 expect(
   readmeEn.includes('Linux, Windows arm64, and macOS universal installers are not currently published'),
   'English README scopes supported release targets',
 )
-expectCommunityConversion(readmeEn, '## Community', '\n## ', 'English README')
-expectCommunityConversion(readmeZh, '## 社区', '\n## ', 'Chinese README')
-expectCommunityConversion(readmeJa, '## コミュニティ', '\n## ', 'Japanese README')
-expectBefore(readmeEn, '## Download', '## Community', 'English README puts downloads before the community section')
-expectBefore(readmeZh, '## 下载', '## 社区', 'Chinese README puts downloads before the community section')
 
 console.log('MARKETING HOME STATIC PASS')

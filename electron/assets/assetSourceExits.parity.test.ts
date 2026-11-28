@@ -275,7 +275,7 @@ describe("素材入口对拍：主进程调用方自称的来源也只过一道�
     cleanup.push(staged);
     const asset = moveAssetFile(project.id, staged, "claim.png", "image/png", {
       kind: "browser-capture", originalUrl: "https://example.com/a.png",
-      sourceEvidence: { source: "browser", pageUrl: "https://example.com/p", usageStatus: "cleared" },
+      sourceEvidence: { source: "browser", pageUrl: "https://example.com/p", usageStatus: "cleared" } as unknown as import("./assetSourceEvidence").AssetSourceFact,
     }) as Stored;
     const row = table["R8-move-claims-cleared"] = observe(asset, [project.id]);
     expect(row.sourceEvidence).toEqual({ source: "browser", pageUrl: "https://example.com/p", usageStatus: "reference_only", capturedAt: "<ts>" });

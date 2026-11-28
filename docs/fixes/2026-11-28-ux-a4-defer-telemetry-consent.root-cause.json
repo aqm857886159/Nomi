@@ -1,0 +1,284 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-ux-a4-defer-telemetry-consent",
+  "problem_type": "Premature first-time telemetry consent prompt before creator value milestone",
+  "symptom": "Creating a first blank project immediately shows the large first-time telemetry consent card in the center of the empty Agent panel before the creator has written, generated, or completed a conversation.",
+  "direct_cause": "V4ConsentCard initialized mode to 'first' solely from !hasAskedAgentConsent(), without requiring a completed generation or first Agent conversation milestone.",
+  "class_root": "First-time consent eligibility lived as a bare negative check in the UI component instead of a shared readiness predicate owned by onboardingState that binds asking to a real creator milestone.",
+  "affected_population": [
+    "New creators opening their first blank project with a text model configured"
+  ],
+  "scope_paths": [
+    "src/workbench/onboarding/onboardingState.ts",
+    "src/workbench/onboarding/onboardingProgress.ts",
+    "src/workbench/ai/v4/AgentPanelV4Consent.tsx"
+  ],
+  "entry_points": [
+    "AgentPanelV4Consent via AgentPanelV4Empty on empty Agent panel",
+    "useOnboardingProgress observing first successful canvas node ('generated') and settled Agent conversation turns / historical lanes"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Telemetry first-ask gating and onboarding milestone persistence are internal application invariants owned by onboardingState and V4ConsentCard.",
+  "invariants": [
+    "V4ConsentCard in production mode ('first') never renders while !canAskFirstAgentConsent(), i.e. before either first generation or first completed Agent turn (or historical multi-thread usage).",
+    "Once a milestone is reached and consent has not been asked yet, V4ConsentCard reveals 'first' mode live or on next empty-state mount and asks at most once across restarts.",
+    "Legacy scope reconfirmation (mode='scope') and design-lab force overrides remain intact."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/noAccentOutline/noAccentOutlineLabKit.tsx",
+      "symbol": "V4ConsentCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/states/08-consent.tsx",
+      "symbol": "V4ConsentCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "ONBOARDING_STATE_SYNC_EVENT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Empty.tsx",
+      "symbol": "V4ConsentCard"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/OnboardingChecklist.tsx",
+      "symbol": "ChecklistStep"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "ChecklistStep"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "ChecklistState"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "readChecklist"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "ONBOARDING_STATE_SYNC_EVENT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "ChecklistStep"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "ChecklistState"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "readChecklist"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "CHECKLIST_TTL_MS"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/v4/agentPanelV4LabHost.tsx",
+      "symbol": "markAgentConsentAsked"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "canAskFirstAgentConsent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "hasAskedAgentConsent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "hasAskedAgentConsentScope"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "markAgentConsentScopeAsked"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "markAgentConsentAsked"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "hasCompletedFirstAgentTurn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "markFirstAgentTurnCompleted"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "hasSeenJourneyTour"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/journeyTourStore.ts",
+      "symbol": "markJourneyTourSeen"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "isChecklistDismissed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "markChecklistStep"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "isChecklistExpired"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingProgress.ts",
+      "symbol": "markChecklistDismissed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "hasAskedAgentConsent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "hasCompletedFirstAgentTurn"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "ensureChecklistFirstShownAt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "symbol": "markChecklistStep"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/settings/TelemetrySection.tsx",
+      "symbol": "markAgentConsentScopeAsked"
+    }
+  ],
+  "door_reduction": {
+    "before": 25,
+    "after": 32,
+    "why_not": "All onboarding cross-session flags share onboardingState.ts as their single storage module; the additional symbol references reflect centralized readiness predicate canAskFirstAgentConsent, live sync event ONBOARDING_STATE_SYNC_EVENT, and first-turn completion writer in onboardingProgress without creating a parallel state store."
+  },
+  "generality_proof": "Every production render of V4ConsentCard evaluates the single centralized predicate canAskFirstAgentConsent() from onboardingState.ts and listens to ONBOARDING_STATE_SYNC_EVENT / storage changes, so no surface (creation, storyboard, generation, preview) can show first-time consent prior to a real milestone.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/onboarding/onboardingState.ts",
+      "symbol": "canAskFirstAgentConsent",
+      "responsibility": "Own the single cross-session eligibility predicate combining asked state, first generation milestone, and first completed Agent turn milestone, plus live sync notification."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent.tsx",
+      "symbol": "V4ConsentCard",
+      "responsibility": "Enforce canAskFirstAgentConsent() for mode='first', react to live milestone updates, preserve force overrides for design lab, and keep legacy mode='scope' intact."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Empty.tsx",
+      "entry_point": "V4EmptyState",
+      "disposition": "enforced",
+      "evidence": "Mounts V4ConsentCard without force across creation, storyboard, generation, and preview empty states, so all surfaces inherit the deferred readiness gate."
+    },
+    {
+      "path": "src/devlab/designLab/v4/states/08-consent.tsx",
+      "entry_point": "V4_CONSENT_STATES",
+      "disposition": "not-affected",
+      "evidence": "Design lab explicitly passes force='first' or force='scope' to inspect static card variants."
+    },
+    {
+      "path": "src/workbench/settings/TelemetrySection.tsx",
+      "entry_point": "TelemetrySection",
+      "disposition": "not-affected",
+      "evidence": "Settings toggle is user-initiated opt-in/out and legacy scope confirmation, never a first-screen prompt."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any empty Agent panel surface (creation, storyboard, generation, preview) or newly created blank project hit the same unguarded !hasAskedAgentConsent() check.",
+    "same_class_scan": [
+      "git grep V4ConsentCard across src/ and tests/: only one production mount (AgentPanelV4Empty.tsx) and two design lab mounts using force.",
+      "git grep hasAskedAgentConsent / data-v4-block='consent' across src/ and tests/: audited AgentPanelV4Consent.tsx, feedback-loop-consent-and-report.walk.mjs, telemetry-consent-copy.walk.mjs, telemetry-scope-reconfirm.walk.mjs, and design-lab-agent-panel-v4.walk.mjs."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/onboarding/onboardingState.ts",
+    "invariant": "canAskFirstAgentConsent() returns true only when !hasAskedAgentConsent() and (readChecklist().generated || hasCompletedFirstAgentTurn() || hasHistoricalAgentThread).",
+    "failure_mode": "When localStorage is unavailable or neither milestone is met, canAskFirstAgentConsent() fails closed to false and V4ConsentCard renders nothing.",
+    "exception_policy": "none",
+    "strategy": "Centralize first-ask eligibility and milestone sync events in onboardingState.ts and enforce them at V4ConsentCard, backed by unit tests and real-window walkthrough assertions.",
+    "artifacts": [
+      "src/workbench/onboarding/onboardingState.ts",
+      "src/workbench/onboarding/onboardingProgress.ts",
+      "src/workbench/ai/v4/AgentPanelV4Consent.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/onboarding/onboardingState.test.ts",
+    "src/workbench/ai/v4/AgentPanelV4Consent.test.tsx",
+    "tests/ux/feedback-loop-consent-and-report.walk.mjs",
+    "tests/ux/telemetry-consent-copy.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/onboarding/onboardingState.test.ts",
+    "src/workbench/ai/v4/AgentPanelV4Consent.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/AgentPanelV4Consent.tsx"
+    ],
+    "rationale": "Replaced the bare !hasAskedAgentConsent() immediate prompt check in V4ConsentCard with canAskFirstAgentConsent() in the same commit without leaving a parallel fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls telemetry consent timing or onboarding milestones.",
+    "exit_criteria": []
+  },
+  "migration": "Existing users who already answered consent retain nomi:agent-consent-asked:v1='asked' and continue to see scope reconfirmation when applicable. New key nomi:first-agent-turn-completed:v1 is additive and safely ignored on rollback.",
+  "residual_risks": [
+    "Creators who never generate media and never send an Agent message will not see the in-panel first-ask card; they can still toggle telemetry anytime in Settings."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-12",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/onboarding/onboardingState.ts",
+    "tests": [
+      "src/workbench/onboarding/onboardingState.test.ts",
+      "src/workbench/ai/v4/AgentPanelV4Consent.test.tsx"
+    ]
+  }
+}

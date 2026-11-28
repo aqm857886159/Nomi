@@ -88,7 +88,7 @@ describe('declared capability projection publication matrix', () => {
     registerDeclaredProvider({ card: draft, vendorKey: 'relay' });
     draft.models[0].modes = draft.models[0].modes.filter((m) => m.taskKind === 'image_to_video');
     registerDeclaredProvider({ card: draft, vendorKey: 'relay' });
-    await expect(runTask({ vendor: 'relay', request: { kind: 'text_to_video', prompt: 'A blue marble', extras: { modelKey: draft.models[0].modelKey } } })).rejects.toThrow(/does not publish taskKind/);
+    await expect(runTask({ vendor: 'relay', request: { kind: 'text_to_video', prompt: 'A blue marble', extras: { modelKey: draft.models[0].modelKey, grantId: 'test-grant' } } })).rejects.toThrow(/does not publish taskKind/);
   });
   it.each(['chat', 'prompt_refine', 'image_to_prompt'] as const)('text declarations retain native chat without a media contract: %s', (taskKind) => {
     const draft = card('opaque-chat');
