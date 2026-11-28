@@ -59,10 +59,13 @@
         "dark"
       ],
       "anchor": "未定",
-      "status": "in-progress",
-      "owner": "D2-1",
+      "status": "dropped",
+      "userDecision": {
+        "quote": "方案 A：开合移交舞台 · 一个角色一个真身",
+        "date": "2026-11-28"
+      },
       "component": "新品牌组件 NomiAgentFace 的静态用法（src/design/identity.tsx，与右下小球同一个组件、同一套几何，不另画）；NomiIdentityRow（src/workbench/ai/NomiIdentityRow.tsx）把 NomiLogoMark size=16 换成它",
-      "note": "组件已换（NomiIdentityRow → NomiAgentFace variant=\"mark\" 16px + NomiWordmark 12px，单测钉几何与静止）；但 NomiIdentityRow 现在没有任何挂载点，用户看不到这一行，没法走查。挂在哪随 D2-1 接入引导定（协调 2026-11-07 取舍第 6 条「挂载位置不动」）。"
+      "note": "改 dropped：2026-11-28 用户拍板方案 A（开合移交舞台 · 一个角色一个真身），唯一活小人直接坐镇 AgentPanelV4Panel 头部，面板内恢复卡不再重复渲染第二行 Nomi 身份，零引用的 NomiIdentityRow.tsx 按 P1 删除。"
     },
     {
       "id": "identity.wordmark",
@@ -73,10 +76,13 @@
         "zh-en"
       ],
       "anchor": "未定",
-      "status": "in-progress",
-      "owner": "D2-1",
+      "status": "dropped",
+      "userDecision": {
+        "quote": "方案 A：开合移交舞台 · 一个角色一个真身",
+        "date": "2026-11-28"
+      },
       "component": "NomiWordmark（src/design/identity.tsx），不改",
-      "note": "组件已换（NomiIdentityRow → NomiAgentFace variant=\"mark\" 16px + NomiWordmark 12px，单测钉几何与静止）；但 NomiIdentityRow 现在没有任何挂载点，用户看不到这一行，没法走查。挂在哪随 D2-1 接入引导定（协调 2026-11-07 取舍第 6 条「挂载位置不动」）。"
+      "note": "改 dropped：2026-11-28 用户拍板方案 A，AgentPanelV4Panel 头部已常驻展示唯一 NomiWordmark 14px，面板内恢复卡不再重复渲染第二行 NomiIdentityRow（NomiWordmark 组件本身保留给面板头及应用品牌处）。"
     },
     {
       "id": "identity.old-mark",

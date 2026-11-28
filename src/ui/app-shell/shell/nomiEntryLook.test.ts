@@ -45,11 +45,12 @@ describe('nomiEntryLook（NomiEntryTopbar 板 A / B / C 组）', () => {
     expect(look({ face: 'failed', pendingCount: 1, roomy: false })).toMatchObject({ status: 'failed', badge: '1', dot: null })
   })
 
-  it('C1 / C2 / C4：胶囊 = 有待确认 && 放得下 && 面板没开；其余有待确认 → 脸 + 角标', () => {
+  it('C1 / C2 / C4：胶囊 = 有待确认 && 放得下 && 面板没开；面板开着退成安静侧栏开关 toggle；窄窗收起 → 脸 + 角标', () => {
     expect(look({ pendingCount: 2, roomy: true })).toMatchObject({ shape: 'capsule', badge: null, dot: null })
     expect(look({ pendingCount: 2, roomy: false })).toMatchObject({ shape: 'face', badge: '2' })
-    expect(look({ pendingCount: 2, roomy: true, open: true })).toMatchObject({ shape: 'face', badge: '2' })
-    expect(look({ pendingCount: 2, roomy: false, open: true })).toMatchObject({ shape: 'face', badge: '2' })
+    expect(look({ pendingCount: 2, roomy: true, open: true })).toMatchObject({ shape: 'toggle', badge: null, dot: null })
+    expect(look({ pendingCount: 2, roomy: false, open: true })).toMatchObject({ shape: 'toggle', badge: null, dot: null })
+    expect(look({ face: 'failed', unreadCount: 3, open: true })).toMatchObject({ status: 'failed', shape: 'toggle', badge: null, dot: null })
     expect(look({ pendingCount: 0, roomy: true }).shape).toBe('face')
   })
 

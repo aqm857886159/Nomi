@@ -1,13 +1,14 @@
 import { useSpendEnterConfirmation } from './useAgentPanelSpendCard'
-import { NomiBrand } from '../../../design/identity'
+import { NomiAgentFace, NomiWordmark, type NomiAgentPose } from '../../../design/identity'
+import type { V4DockStatus } from './agentPanelV4DockStatus'
 // Agent 面板 v4 · 整块面板的装配壳
 //
 // 定稿三张 Flow 板（创作 / 生成 / 预览）+ Rendering + Dark 板画的都是**同一个壳**装不同内容：
-//   头部（N Nomi + Context 环 …… 历史 / 收起）→ 对话流 → 介入槽（永远在 composer 正上方）
+//   头部（活形象 NomiAgentFace + Nomi + 实时状态 + Context 环 …… 历史 / 收起）→ 对话流 → 介入槽（永远在 composer 正上方）
 //   → 队列（只在运行中还继续输入时）→ composer。
 //
-// 头部逐件照定稿 `.ph`：`<logo>N</logo>Nomi <ctx/> <sp/> <ic>hist side</ic>`——
-// **Context 环紧跟品牌名**（不是甩到最右），右端是历史与收起两个图标。品牌名是「Nomi」不是「Nomi Agent」。
+// 2026-11-28 方案 A（开合移交舞台 · 一个角色一个真身）：软件标 [N] 留在左上角等应用级位置，退出本面板头；
+// 面板打开时唯一活小人坐镇本头部左上角并显示实时状态短句，收起时移交顶栏 ShellNomiEntry 值班。
 //
 // 这个壳**不**按 view 枚举改形状：它只接一份对话流数据。早先那版把 44 个状态全渲成
 // 「整块面板 + 几处 if」，结果接触表三列近乎一样，看不出任何一个积木的状态差别。
@@ -135,6 +136,15 @@ export type AgentPanelV4PanelProps = {
   onLoadOlder?: () => Promise<string | undefined>
   onCollapse?: () => void
   /**
+   * 面板头活形象与实时状态（与顶栏入口共用 useV4DockStatus / useResidentActivityStore 同一份真相）。
+   * 不传（独立单测、静态画板）默认空闲。
+   */
+  persona?: Readonly<{
+    status: V4DockStatus
+    face: V4DockStatus
+    pendingCount: number
+  }>
+  /**
    * 现在显示的是哪一条对话（宿主给：项目 + 面 + 线程）。它一变就是「进了另一条对话」：落到那条的最新一条。
    * 不给（设计实验室、单测）= 只在挂载时落到底。
    */
@@ -243,11 +253,18 @@ export function AgentPanelV4Panel({
   historyIdentity,
   historyCursor,
   onCollapse,
+  persona,
   conversationKey,
 }: AgentPanelV4PanelProps): JSX.Element {
   const { t } = useTranslation()
   const workspaceFrame = useWorkspacePanelFrame()
   const headerSlot = React.useContext(AgentPanelHeaderSlotContext)
+  const personaStatus: V4DockStatus = persona?.status ?? 'idle'
+  const personaFace: NomiAgentPose = persona?.face === 'running' || persona?.face === 'done' || persona?.face === 'failed'
+    ? persona.face
+    : 'idle'
+  const personaPending = persona?.pendingCount ?? 0
+  const showLivePersona = !headerSlot?.collapsed
   const { buttonRef: spendConfirmButton, confirmDisplayedSpend } = useSpendEnterConfirmation(
     slot?.spendConfirmationId, !headerSlot?.collapsed,
   )
@@ -417,7 +434,40 @@ export function AgentPanelV4Panel({
         data-v4-panel="true"
       >
         <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3', headerSlot?.dragHandleClassName)}>
-          <NomiBrand markSize={18} wordSize={14} />
+          <span className="inline-flex shrink-0 items-center gap-1.5" data-v4-header-identity="">
+            {showLivePersona ? (
+              <span className="relative -top-px block size-6 shrink-0" aria-hidden="true">
+                <NomiAgentFace
+                  pose={personaFace}
+                  size={24}
+                  className="[&_[data-nomi-agent-body]]:shadow-none"
+                  ringProps={{ 'data-v4-header-progress': true }}
+                />
+              </span>
+            ) : null}
+            <NomiWordmark fontSize={14} className="shrink-0 text-nomi-ink" />
+          </span>
+          {personaStatus === 'needs-confirm' && personaPending > 0 ? (
+            <span
+              className="inline-flex h-[22px] shrink-0 items-center whitespace-nowrap rounded-pill bg-nomi-warning-soft px-2 text-caption font-medium tabular-nums leading-none text-nomi-warning-ink ring-1 ring-inset ring-nomi-warning-edge"
+              data-v4-header-status="needs-confirm"
+              data-v4-header-pending={personaPending}
+            >
+              {labels.headerStatus.needsConfirm(personaPending)}
+            </span>
+          ) : personaStatus === 'running' ? (
+            <span className="truncate text-caption font-normal text-nomi-accent" data-v4-header-status="running">
+              {labels.headerStatus.running}
+            </span>
+          ) : personaStatus === 'done' ? (
+            <span className="whitespace-nowrap text-caption font-normal text-nomi-ink-60" data-v4-header-status="done">
+              {labels.headerStatus.done}
+            </span>
+          ) : personaStatus === 'failed' ? (
+            <span className="whitespace-nowrap text-caption font-medium text-nomi-danger" data-v4-header-status="failed">
+              {labels.headerStatus.failed}
+            </span>
+          ) : null}
           <V4ContextRing usage={context} labels={labels.context} />
           <span className="flex-1" />
           {headerSlot ? (
