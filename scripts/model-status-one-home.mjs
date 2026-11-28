@@ -93,9 +93,13 @@ export function scanSource(relative, text) {
   return found
 }
 
+const BYPASS_CANDIDATE =
+  /listModelCatalogModels|workbench-success|workbench-danger|nomi-warning|revalidatePendingCredential|probeAdapterCredential|recordModelExecutionResult|testConnection|test-connection|credentialVerificationPending|adapterState|verificationPending|adapter|onboardingProviders|parameters\.untried|probeDirectKeyCredential|validateCandidateCredential|fetchModelList|\\u[0-9a-fA-F{]|\\x[0-9a-fA-F]{2}/i
+
 /** 退役的预检原料和状态出口不准重生。 */
 export function scanAvailabilityBypasses(relative, text) {
   if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(relative) || relative.includes('/devlab/')) return []
+  if (!BYPASS_CANDIDATE.test(text)) return []
   const renderer = relative.startsWith('src/')
   const execution = ['electron/runtime.ts', 'electron/textTaskRunner.ts', 'electron/providerAdapter/serviceCatalog.ts'].includes(relative)
   const source = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
