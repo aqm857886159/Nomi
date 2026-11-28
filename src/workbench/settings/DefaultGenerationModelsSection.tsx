@@ -1,3 +1,5 @@
+import { QuotedUiNames } from '../../ui/onboarding/QuotedUiNames'
+import { lastGenerationChoice } from '../generationCanvas/model/generationModelDefaults'
 // 「新建卡片默认模型」设置区（用户 2026-08-18 看样张后拍板）。
 //
 // 解决的摩擦：新建一张卡时是「从池子里挑第一个健康的模型」，不分任务类型。
@@ -58,44 +60,45 @@ export function DefaultGenerationModelsSection({
   return (
     <section
       data-settings-section="default-generation-models"
-      className="mb-6"
+      className="mb-3"
       aria-labelledby="settings-default-models-title"
     >
       <h3 id="settings-default-models-title" className="mb-1 text-caption font-medium text-nomi-ink-60">
         {t('settings.ai.defaultModels.title')}
       </h3>
-      <div className="mb-3 text-micro leading-relaxed text-nomi-ink-40">
-        {t('settings.ai.defaultModels.hint')}
-      </div>
-      <div className="grid gap-2">
+      <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line px-3">
         {GENERATION_DEFAULT_TASK_KINDS.map((taskKind) => {
           const current = defaults[taskKind]
           // 设过、但那个模型此刻不在目录里（供应商删了 / 模型禁用了 / 换了台机器）——
           // 明着标出来，别让用户以为还生效着。生成时会自动回退到健康挑选。
           const encoded = current ? encode(current) : null
-          const missing = Boolean(current) && !encoded
+          const last = lastGenerationChoice(taskKind)
+          const options = optionsByKind[taskKind]
+          const missing = Boolean(current) && !options.some(o => o.value === encoded)
+          const lastOption = last && options.find(o => o.value === encode(last))
+          const autoModel = lastOption || options[1]
+          const labels = options.map(o => ({ ...o, label: o.value
+            ? t('settings.modelsHome.fixed', { model: o.label })
+            : autoModel ? t('settings.modelsHome.perKind', { model: autoModel.label }) : t('settings.ai.defaultModels.auto') }))
           return (
-            <div key={taskKind} className="flex min-w-0 items-center gap-3">
-              <span className="w-20 shrink-0 text-caption text-nomi-ink-80">
+            <div key={taskKind} className="flex min-h-9 min-w-0 items-center gap-2">
+              <span className="flex min-w-0 flex-1 items-center gap-2 text-caption text-nomi-ink-80">
                 {t(TASK_LABEL_KEY[taskKind])}
+                {current && !missing && <span className="whitespace-nowrap rounded-pill bg-nomi-ink-05 px-1.5 text-micro text-nomi-ink-60">{t('settings.ai.defaultModels.pinned')}</span>}
               </span>
               <NomiSelect
                 ariaLabel={t('settings.ai.defaultModels.pickerLabel', { task: t(TASK_LABEL_KEY[taskKind]) })}
                 placeholder={t('settings.ai.defaultModels.auto')}
-                value={encoded ?? ''}
-                options={optionsByKind[taskKind]}
+                value={missing ? 'unavailable' : encoded ?? ''}
+                options={missing ? [{ value: 'unavailable', label: t('settings.ai.defaultModels.unavailable') }, ...labels] : labels}
                 onChange={(next) => handlePick(taskKind, next)}
                 triggerMaxWidth={280}
               />
-              {missing ? (
-                <span className="shrink-0 text-micro text-nomi-warning">
-                  {t('settings.ai.defaultModels.unavailable')}
-                </span>
-              ) : null}
             </div>
           )
         })}
       </div>
+      <p className="mt-2 text-micro text-nomi-ink-60"><QuotedUiNames text={t('settings.ai.defaultModels.hint')} /></p>
     </section>
   )
 }

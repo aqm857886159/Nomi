@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useViewportSize } from '@mantine/hooks'
 import { IconAdjustmentsHorizontal, IconBrain, IconFolder, IconInfoCircle, IconLock, IconPlugConnected } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { confirmDialog, DesignModal, NOMI_OVERLAY_Z_INDEX } from '../../design'
@@ -63,6 +64,9 @@ const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'about', icon: IconInfoCircle, labelKey: 'settings.tab.about' },
 ]
 
+/** 设置框最高 560（和下面 data-settings-frame 的 max-h-[560px] 是同一个数）：顶边停在「560 的框居中」处，内容变矮只收底边。 */
+const SETTINGS_FRAME_MAX_HEIGHT = 560
+
 export function SettingsDialog({
   initialTab = 'file',
   initialSection = null,
@@ -77,6 +81,7 @@ export function SettingsDialog({
 }): JSX.Element {
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
+  const { height: viewportHeight } = useViewportSize()
   const [tab, setTab] = React.useState<SettingsTab>(initialTab)
   const [modelsMounted, setModelsMounted] = React.useState(initialTab === 'models')
   // 「去配置 KIE」这类请求：切到模型 tab 还不够，得让模型工作区直接落到那家的 Key 输入页。
@@ -243,7 +248,8 @@ export function SettingsDialog({
       onClose={() => { void requestClose() }}
       title={t('settings.title')}
       size={760}
-      centered
+      // 顶边钉住（ModelSurfaces settings.frame-height）：按窗口高算一次，换页签只有底边动；窗口拉伸才重算。矮窗限高归外壳。
+      yOffset={Math.max(12, Math.round((viewportHeight - SETTINGS_FRAME_MAX_HEIGHT) / 2))}
       padding={0}
       innerScroll
       closeOnEscape={false}
@@ -253,16 +259,17 @@ export function SettingsDialog({
       // 存量锚点（冻结名单 dialogAnchorFreeze.test.ts）：几十个走查按它认设置框。当前页签看页签按钮上的 aria-current。
       frozenAnchors={{ 'data-settings-overlay': 'true', 'data-settings-dialog': 'true' }}
       closeButtonProps={{ 'aria-label': t('settings.close'), ...{ 'data-settings-close': 'true' } }}
-      classNames={{ content: 'rounded-nomi-lg bg-nomi-paper shadow-nomi-lg', header: 'px-4 py-3', body: 'p-0' }}
+      classNames={{ content: 'rounded-nomi-lg bg-nomi-paper shadow-nomi-lg', header: 'absolute inset-x-0 top-0 z-20 !min-h-0 !bg-transparent px-4 py-3 pointer-events-none [&_button]:pointer-events-auto', title: 'hidden sm:block', body: 'p-0' }}
     >
         <div
           ref={(node) => { dialogRef.current = node?.closest<HTMLDivElement>('[role="dialog"]') ?? null }}
-          className="relative flex h-[560px] min-h-0 flex-col overflow-hidden sm:flex-row"
+          data-settings-frame
+          className="relative flex min-h-[360px] max-h-[560px] flex-col overflow-hidden sm:flex-row"
         >
           <aside
             ref={navRef}
             data-settings-nav
-            className="flex w-full flex-none flex-row gap-0.5 overflow-x-auto border-b border-nomi-line bg-nomi-ink-05 p-2 sm:w-[196px] sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-3.5"
+            className="flex w-full flex-none flex-row gap-0.5 overflow-x-auto border-b border-nomi-line bg-nomi-ink-05 p-2 sm:w-[196px] sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-3.5 sm:pt-12"
           >
             {TABS.map(({ id, icon: Icon, labelKey }) => (
               <button
@@ -301,7 +308,7 @@ export function SettingsDialog({
               >
                 {/* 本地 Suspense 保住懒加载边界；没有访问模型页时仍不会下载接入模块。 */}
                 <React.Suspense fallback={<div className="px-4 py-3 pr-14 text-caption text-nomi-ink-40 sm:px-5 sm:pr-14">{t('settings.automation.loading')}</div>}>
-                  <OnboardingDrawer pageRequest={modelPageRequest} />
+                  <OnboardingDrawer pageRequest={modelPageRequest} dataSourceRequested={initialSection === 'tikhub-connector'} />
                 </React.Suspense>
               </div>
             ) : null}
@@ -321,12 +328,6 @@ export function SettingsDialog({
                 <AiModelsSection
                   settings={automationPolicy}
                   onChange={updateAutomationPolicy}
-                  onOpenModelCatalog={(vendorKey) => {
-                    selectTab('models')
-                    // token 用递增计数而非 vendorKey 本身：模型工作区常驻挂载，返回首页后再点一次
-                    // 得能重新打开（值没变 = effect 不跑 = 按钮第二次点了没反应）。
-                    if (vendorKey) setModelPageRequest((current) => ({ vendorKey, token: (current?.token ?? 0) + 1 }))
-                  }}
                 />
                 {/* 系统提示词 2026-09-14 搬家到 Agent 面板的权限弹层（审计 §⑥ 8）：它跟 Agent 怎么说话是一件事，
                     不是「AI 策略」；这里不留链接式占位。 */}

@@ -1,0 +1,23 @@
+{
+  "name": "走查中依赖有效探针的持续缺席断言",
+  "subject": "test-harness.walk-absence-assertion",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/_assert.mjs",
+    "symbol": "expectAbsent"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/_assert.mjs",
+      "symbol": "expectAbsent"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-24",
+  "notes": "走查通过 proveProbe 先证明探针有效，再由 expectAbsent 持续采样界面，覆盖异步渲染期间的出现。"
+}

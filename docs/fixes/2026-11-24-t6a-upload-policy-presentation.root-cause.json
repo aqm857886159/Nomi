@@ -1,0 +1,121 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-t6a-upload-policy-presentation",
+  "problem_type": "Consent control presentation",
+  "symptom": "The board asks for confirmation while the implementation displays permission to allow public hosting.",
+  "direct_cause": "The settings control expressed the allow perspective.",
+  "class_root": "Presence-only checks did not verify switch meaning against both persisted states.",
+  "affected_population": [
+    "AI policy users with default and previously saved choices"
+  ],
+  "scope_paths": [
+    "src/workbench/settings/AiModelsSection.tsx"
+  ],
+  "entry_points": [
+    "Settings → AI policy → upload guidance"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The board and automationPolicyContract define the wording and meaning.",
+  "invariants": [
+    "Checked ask-first stores ask. Unchecked stores allow."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "anonymousAssetHosting"
+    },
+    {
+      "kind": "read",
+      "path": "electron/settings/automationPolicyContract.ts",
+      "symbol": "anonymousAssetHosting"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "symbol": "anonymousAssetHosting"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "AiModelsSection"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "The existing settings, normalization and upload readers must keep honoring the same saved choice."
+  },
+  "generality_proof": "All locales render the same switch, including after reloading an old preference.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "symbol": "AiModelsSection",
+      "responsibility": "Projects and changes the persisted preference."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "entry_point": "AiModelsSection",
+      "disposition": "enforced",
+      "evidence": "Reads and writes ask-first at the same binding."
+    },
+    {
+      "path": "electron/settings/automationPolicyContract.ts",
+      "entry_point": "normalizeAutomationPolicySettings",
+      "disposition": "not-affected",
+      "evidence": "Existing unknown values already normalize to ask."
+    }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Both initial and previously saved states reach the same binding.",
+    "same_class_scan": [
+      "Searched anonymousAssetHosting across policy, UI and upload fallback.",
+      "Checked quietDefaults and asset-transport-settings walkthrough expectations."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/settings/AiModelsSection.tsx",
+    "invariant": "Switch intent and stored policy agree in both directions.",
+    "failure_mode": "Only explicit allow disables asking.",
+    "exception_policy": "none",
+    "strategy": "Map the enum in the single switch binding.",
+    "artifacts": [
+      "src/workbench/settings/AiModelsSection.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/settings/uploadPolicySwitch.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/settings/uploadPolicySwitch.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/settings/AiModelsSection.tsx"
+    ],
+    "rationale": "Replace the allow-first switch at its existing location."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Only product copy and storage semantics determine this binding.",
+    "exit_criteria": []
+  },
+  "migration": "Existing values keep their meaning, with no rewrite on open.",
+  "residual_risks": [
+    "Independent visual acceptance remains pending."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/settings/AiModelsSection.tsx",
+    "tests": [
+      "src/workbench/settings/uploadPolicySwitch.test.tsx"
+    ]
+  }
+}

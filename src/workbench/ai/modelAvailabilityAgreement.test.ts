@@ -253,9 +253,9 @@ for (const language of ["zh-CN", "en"]) {
       const noop = () => {};
       const render = (element: React.ReactElement) => renderToStaticMarkup(React.createElement(MantineProvider, { children: element }));
       const home = render(React.createElement(ModelSettingsHome, {
-        connections: [{ vendorKey: "apimart", name: "APIMart", kind: "api", models: chips, onOpen: noop }],
-        availableConnections: [], loaded: true, bridgeMissing: false, loadError: null, readOnly: null,
-        taskCount: 0, onReload: noop, onCustomApi: noop, onDirectScript: noop, onImported: noop,
+        connections: [], accounts: [], previous: [{ vendorKey: "legacy", name: "Legacy", kind: "api", models: chips, onOpen: noop }],
+        adapterRuns: [], loaded: true, bridgeMissing: false, loadError: null, readOnly: null,
+        taskCount: 0, onReload: noop, onAddress: noop, onUsage: noop, onWays: noop, onChanged: noop,
       }));
       const detail = render(React.createElement(VendorOnboardCard, {
         directory: getKnownVendor("apimart")!, vendorName: "APIMart", baseUrl: "https://api.apimart.ai",

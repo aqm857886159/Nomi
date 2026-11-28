@@ -228,7 +228,6 @@
     "tests/ux/media-import-matrix.walk.mjs",
     "tests/ux/mode-bar-add-reference.walk.mjs",
     "tests/ux/model-access-journeys/ui-driver.mjs",
-    "tests/ux/model-availability-agreement.walk.mjs",
     "tests/ux/model-box-tidy.walk.mjs",
     "tests/ux/model-catalog-config-package.walk.mjs",
     "tests/ux/model-contract-limits.walk.mjs",

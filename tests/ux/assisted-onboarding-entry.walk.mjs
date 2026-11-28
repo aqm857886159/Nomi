@@ -10,7 +10,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 产出: tests/ux/shots/assisted-onboarding-entry/*.png —— 人眼判断每一屏「看得懂要干嘛吗」。
 //
 // 回归底线（四条，别退回去）：
-//   ① 「模型」页落地首屏就看得见这张卡，且排在所有连接区块之前
+//   ① 「模型」页首屏可见，排在 APIMart 入口之后、其他接入方式之前
 //   ② 复制出来的东西里必须**同时**有任务提示词与 SKILL.md 正文（少一半助手就不知道怎么调工具）
 //   ③ 剪贴板里**不许**出现任何 key 形状的东西——Key 只走 Nomi 本机安全页
 //   ④ 复制后按钮变「已复制」，并且三步小示意才出现（不复制的人不用先读教程）
@@ -20,6 +20,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -75,9 +76,13 @@ await clickOrFail(win.locator('[data-settings-tab-id="models"]'), '设置「模�
 await expectVisible(win.locator('[data-model-settings-page="home"]'), '模型设置首页')
 await snap(win, 'models-home')
 
-// ① 卡在顶部，而且排在所有连接区块之前。
+// ① APIMart 优先，其余接入方式放在 AI 协助入口后。
 const card = win.locator('[data-model-home-assisted-onboarding]')
+const apimart = win.locator('[data-model-home-available="apimart"]')
+const otherWays = win.locator('[data-model-home-action="other-ways"]')
 await expectVisible(card, '① 「用 AI 帮我接入」卡应在模型页落地首屏就可见')
+await expectVisible(apimart, '① 先显示 APIMart 接入入口')
+await expectVisible(otherWays, '① 其他接入方式入口存在')
 const order = await win.evaluate(() => {
   const page = document.querySelector('[data-model-settings-page="home"]')
   const top = (selector) => {
@@ -88,19 +93,21 @@ const order = await win.evaluate(() => {
   const assisted = page?.querySelector('[data-model-home-assisted-onboarding]')?.getBoundingClientRect() ?? null
   return {
     assisted: top('[data-model-home-assisted-onboarding]'),
-    adapted: top('[data-model-home-adapted-platforms]'),
-    other: top('[data-model-home-other-methods]'),
+    apimart: top('[data-model-home-available="apimart"]'),
+    other: top('[data-model-home-action="other-ways"]'),
     clipped: Boolean(assisted && dialog && (assisted.top < dialog.top || assisted.top > dialog.bottom)),
   }
 })
 console.log('▶ 首屏排序：', JSON.stringify(order))
 expect(order.assisted, '① 卡要真的量得到位置').not.toBeNull()
 expect(order.clipped, '① 卡不许被设置弹窗裁在窗外').toBe(false)
-expect(order.assisted, '① 卡要排在「添加模型服务」之前').toBeLessThan(order.adapted ?? Number.POSITIVE_INFINITY)
-expect(order.assisted, '① 卡要排在「其他接入方式」之前').toBeLessThan(order.other ?? Number.POSITIVE_INFINITY)
+expect(order.apimart, '① APIMart 接入要排在 AI 协助之前').toBeLessThan(order.assisted)
+expect(order.assisted, '① 卡要排在「其他接入方式」之前').toBeLessThan(order.other)
 
-// 动手前先知道要付出什么（卡点表 ②）：这句 hint 必须在卡上。
-await expectVisible(card.getByText('需要一个能装 MCP 的 AI 助手', { exact: false }), '② 卡上要写清前提：需要一个能装 MCP 的助手')
+// 动手前先知道要付出什么（卡点表 ②）：卡按 ModelSurfaces 收成一行，前提由这一行的副标题说（要你在用的 AI 助手）。
+await expectVisible(card.locator(':scope > summary').getByText(uiText('zh-CN', 'onboardingProviders.assistedOnboarding.subtitle'), { exact: true }), '② 收起的那一行要写清前提：你在用的 AI 助手')
+// 收起时只有一行，创作者点开才看到宿主分段和复制指引。
+await clickOrFail(card.locator(':scope > summary'), '展开「用 AI 帮我接入」那一行')
 
 // ── 选 Codex ────────────────────────────────────────────────────────────────
 await clickOrFail(card.getByText('Codex', { exact: true }).first(), '宿主分段「Codex」')

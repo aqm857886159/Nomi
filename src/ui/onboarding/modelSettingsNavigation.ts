@@ -1,5 +1,7 @@
 export type ModelSettingsPage =
   | { type: 'home' }
+  | { type: 'otherWays'; section?: 'network' | 'data' }
+  | { type: 'usage'; vendorKey: string }
   | { type: 'platformConnect'; vendorKey: string }
   | {
       type: 'connection'

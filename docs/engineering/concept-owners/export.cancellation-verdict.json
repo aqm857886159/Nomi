@@ -1,0 +1,28 @@
+{
+  "name": "导出取消真值单源判据（区分主动取消与导出失败）",
+  "subject": "export.cancellation-verdict",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/contracts/exportTypes.ts",
+    "symbol": "isExportCancelledError"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/contracts/exportTypes.ts",
+      "symbol": "ExportCancelledError"
+    },
+    {
+      "path": "electron/shared/contracts/exportTypes.ts",
+      "symbol": "isExportCancelledError"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/export/exportApi.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-28",
+  "notes": "设计卡 docs/plan/2026-11-28-ux-b1-export-cancel-and-resolution.md（UX-B1 / U-21）：主进程与渲染层共用单一 ExportCancelledError 与 isExportCancelledError，统一识别 AbortSignal、导出作业 cancelled 快照与跨 IPC 取消异常，记遥测 cancel、禁止误触发半截 WebM 兜底下载或失败报错。"
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-24-t6a-model-settings-contracts",
+  "problem_type": "Model settings action copy and walkthrough contracts",
+  "symptom": "Control copy exceeds the bilingual limit and walkthroughs use stale selectors and unproven absence checks.",
+  "direct_cause": "Navigation copied page titles into buttons, retry buttons owned status text and older walks still targeted the retired adapted-platform list.",
+  "class_root": "The new settings surfaces reused descriptive text at action boundaries while walkthroughs still assumed the retired home layout and treated a single absence sample as proof.",
+  "affected_population": ["Model settings users in both languages and the walks that verify fresh and migrated profiles"],
+  "scope_paths": [
+    "src/ui/onboarding/ModelSettingsHome.tsx",
+    "src/ui/onboarding/ModelAccountCard.tsx",
+    "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+    "tests/ux/_assert.mjs"
+  ],
+  "entry_points": ["Settings models home, account usage, other connection methods and the registered desktop walkthroughs"],
+  "external_sources": [],
+  "internal_only_reason": "The approved ModelSurfaces board, the Nomi design system and existing repository gates own these contracts.",
+  "invariants": [
+    "Visible action labels fit the bilingual length limit. Retry status text is outside its button.",
+    "Walkthroughs anchor current surfaces and prove the probe before asserting absence."
+  ],
+  "doors": [
+    { "kind": "read", "path": "src/ui/onboarding/ModelAccountCard.tsx", "symbol": "useModelUsage" },
+    { "kind": "read", "path": "src/ui/onboarding/ModelSettingsHome.tsx", "symbol": "ModelAccountCard" },
+    { "kind": "read", "path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx", "symbol": "useModelUsage" },
+    { "kind": "read", "path": "src/ui/onboarding/OnboardingDrawer.tsx", "symbol": "ModelUsagePage" },
+    { "kind": "read", "path": "src/ui/onboarding/OnboardingDrawer.tsx", "symbol": "OtherConnectionWays" },
+    { "kind": "read", "path": "src/ui/onboarding/OnboardingDrawer.tsx", "symbol": "ModelSettingsHome" }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "The drawer selects home, usage and other methods as distinct pages. Home owns the account summary, whose time window and read states differ from the usage detail."
+  },
+  "generality_proof": "Both locales use the same JSX boundaries. The two retry buttons own only the retry translation, and walkthrough absence checks use the existing proven-probe and sustained-sampling assertion.",
+  "shared_boundaries": [
+    { "path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx", "symbol": "ModelUsagePage", "responsibility": "Renders the status and retry action as siblings for both independent reads." },
+    { "path": "tests/ux/_assert.mjs", "symbol": "expectAbsent", "responsibility": "Requires a proven probe and holds the absence check through asynchronous rendering." }
+  ],
+  "same_class_entry_points": [
+    { "path": "src/ui/onboarding/ModelAccountCard.tsx", "entry_point": "ModelAccountCard", "disposition": "enforced", "evidence": "The usage trigger has a dedicated compact label and the destination retains its full heading." },
+    { "path": "src/ui/onboarding/ModelSettingsHome.tsx", "entry_point": "ModelSettingsHome", "disposition": "enforced", "evidence": "The other connection methods trigger has a compact label with a separate descriptive hint." },
+    { "path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx", "entry_point": "OtherConnectionWays", "disposition": "enforced", "evidence": "The custom API and existing-script actions use compact localized labels." }
+  ],
+  "recurrence_of": null,
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Both read failures used the same invalid button structure. Multiple consumers still referenced the retired list.",
+    "same_class_scan": [
+      "Ran door-map for ModelSettingsHome, ModelAccountCard, OtherConnectionWays, ModelUsagePage and useModelUsage.",
+      "Searched model-home anchors in tests/ux and usage, other methods, retry status and connection summary translations in renderer callers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+    "invariant": "Retry hit targets contain action copy only. The existing control and walkthrough gates enforce the same rules on future changes.",
+    "failure_mode": "Failed reads remain visible beside a retry, and invalid button text or stale walk assertions fail their existing gates.",
+    "exception_policy": "none",
+    "strategy": "Keep the read state separate from the button at the render boundary, and use proven probes and the currently rendered anchors in walks.",
+    "artifacts": [
+      "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+      "src/ui/onboarding/ModelSettingsHome.tsx",
+      "src/ui/onboarding/ModelAccountCard.tsx"
+    ]
+  },
+  "regression_tests": ["tests/ux/t6a-model-settings.walk.mjs", "tests/ux/model-availability-agreement.walk.mjs"],
+  "class_regression_tests": ["tests/ux/t6a-model-settings.walk.mjs", "tests/ux/model-availability-agreement.walk.mjs"],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": ["src/ui/onboarding/ModelSettingsWorkspacePages.tsx", "tests/ux/model-availability-agreement.walk.mjs"],
+    "rationale": "Separates the two status-bearing retry controls and retires the old adapted-platform navigation in the agreement walk."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The behavior is owned by the settings renderer and its existing static and desktop checks.",
+    "exit_criteria": []
+  },
+  "migration": "Existing credentials and settings use their current storage format. Existing walkthroughs target the current model settings surfaces.",
+  "residual_risks": ["Desktop evidence uses isolated fixture data. Real provider reads and billing are outside this repair."],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+    "tests": [
+      "tests/ux/t6a-model-settings.walk.mjs",
+      "tests/ux/model-availability-agreement.walk.mjs"
+    ]
+  }
+}

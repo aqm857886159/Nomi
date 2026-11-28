@@ -1,0 +1,25 @@
+{
+  "name": "设置页对公共临时托管许可的展示与选择",
+  "subject": "settings.upload-policy-control",
+  "lifecycle": "preference",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/settings/AiModelsSection.tsx",
+    "symbol": "AiModelsSection"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "symbol": "AiModelsSection"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/settings/SettingsDialog.tsx"
+  ],
+  "since": "2026-11-24",
+  "notes": "只表达先问我这一开关与既有 ask / allow 值的对应；上传是否可用仍归主进程的 asset.reference-ingestion-route。"
+}

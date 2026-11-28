@@ -1,0 +1,25 @@
+{
+  "name": "设置用量页的用量与参考单价状态展示",
+  "subject": "settings.model-usage-page",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+    "symbol": "ModelUsagePage"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+      "symbol": "ModelUsagePage"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/ui/onboarding/OnboardingDrawer.tsx"
+  ],
+  "since": "2026-11-24",
+  "notes": "分别展示已接入账户的用量与参考单价的读取状态，每项失败提示放在各自的重试按钮旁。"
+}

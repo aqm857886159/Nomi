@@ -11,15 +11,13 @@ import { describe, expect, it } from 'vitest'
 const read = (relativePath: string): string => fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8')
 
 describe('assisted onboarding entry ownership', () => {
-  it('lives at the top of the models page, above the connection lists', () => {
+  it('lives below account management and before other connection ways', () => {
     const home = read('src/ui/onboarding/ModelSettingsHome.tsx')
     expect(home).toContain("import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'")
-    expect(home).toContain('data-model-home-assisted')
-    // 顺序要在**渲染那一段**里判：区块变量都在文件上半段定义，源码顺序不是屏上顺序。
     const rendered = home.slice(home.indexOf('data-model-settings-page="home"'))
-    expect(rendered.indexOf('data-model-home-assisted')).toBeGreaterThan(-1)
-    expect(rendered.indexOf('data-model-home-assisted')).toBeLessThan(rendered.indexOf('{connectedSection}'))
-    expect(rendered.indexOf('data-model-home-assisted')).toBeLessThan(rendered.indexOf('{adaptedSection}'))
+    const assisted = rendered.indexOf('<AiAssistedOnboardingSection')
+    expect(assisted).toBeGreaterThan(rendered.indexOf('<ModelAccountCard'))
+    expect(assisted).toBeLessThan(rendered.indexOf('data-model-home-action="other-ways"'))
   })
 
   it('never grows a second one-click MCP connect action', () => {
