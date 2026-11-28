@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import { cn } from '../../utils/cn'
 
 /**
- * 面板收起后的 32px 图标条（合同 §2.1）：图标 + 竖排微字，点击展开。
+ * 面板收起后的 32px 图标条（合同 §2.1）：图标 + 横排短标，点击展开。
  * 单独成文件而不是挂在 PreviewWorkspace 上——素材栏与属性栏都要用它，
  * 挂在工作区上会让子面板反向 import 父组件、形成静态环（R26）。
  */
@@ -10,7 +10,7 @@ export function PanelRail({
   icon,
   label,
   title,
-  horizontalLabel = false,
+  horizontalLabel = true,
   statusDotClassName,
   onClick,
 }: {
