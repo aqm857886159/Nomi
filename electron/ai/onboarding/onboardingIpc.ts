@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import { upsertRendererCatalogVendorApiKey } from "../../catalog/rendererCatalogMutation";
 import type { AiSdkProviderKind } from "../../catalog/types";
 import { describeIllegalHeader, findIllegalHeader } from "../../jsonUtils";
@@ -14,6 +14,10 @@ import type { VendorAuthSpec } from "../requestPipeline";
 import { priceQueryFromRequest } from "./vendorPriceRequest";
 import { readPublicPriceListing, readVendorPricePreview } from "./vendorPricePreview";
 import { checkVendorAccountBalance, readModelSettingsAccount, readVendorAccountBalance } from "./vendorAccountBalance";
+import { getDesktopLocale } from "../../desktopLocale";
+import { modelClassOfVendor } from "../../telemetry/agentToolFailureTelemetry";
+import { recordTelemetryEvent } from "../../telemetry/telemetryOutbox";
+import type { ModelClass, OnboardingFailReason, OnboardingStep } from "../../shared/contracts/telemetry";
 
 import { readModelSettingsUsage, readModelUnitPrices } from "./modelSettingsUsage";
 import { assertTrustedSender } from "../../ipcSenderGuard";
@@ -31,12 +35,55 @@ function savedConnectionAuth(baseUrl: string, kind: AiSdkProviderKind): VendorAu
   return connectionAuthSpec({ baseUrl, authType: kind === "anthropic" ? "x-api-key" : "bearer" });
 }
 
+function providerClassFromEndpoint(baseUrl: string): ModelClass {
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" ? "local" : "custom";
+  } catch {
+    return "custom";
+  }
+}
+
+function recordOnboardingStepSafe(step: OnboardingStep, providerClass: ModelClass, failReason?: OnboardingFailReason): void {
+  try {
+    const version = typeof app?.getVersion === "function" ? app.getVersion() : "0.0.0";
+    const locale = getDesktopLocale();
+    recordTelemetryEvent({
+      eventName: "onboarding.step",
+      props: { step, providerClass, ...(step === "verify_failed" ? { failReason: failReason ?? "other" } : {}) },
+    }, version, locale);
+  } catch {
+    /* ignore in unit-test mocks without full app paths */
+  }
+}
+
 export function registerOnboardingIpc(): void {
   registerAntigravityIpc();
   ipcMain.handle("nomi:model-catalog:vendor-api-key:upsert", async (event, vendorKey: string, payload: unknown) => {
     assertTrustedSender(event);
-    try { return { ok: true, value: await upsertRendererCatalogVendorApiKey(vendorKey, payload) }; }
-    catch (error) { return { ok: false, error: error instanceof Error ? error.message : String(error) }; }
+    const raw = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
+    const fromApimartConnect = raw.source === "apimart-connect";
+    const hasSubmittedKey = typeof raw.apiKey === "string" && raw.apiKey.trim().length > 0;
+    const providerClass = modelClassOfVendor(vendorKey);
+    if (!fromApimartConnect && hasSubmittedKey) recordOnboardingStepSafe("key_submitted", providerClass);
+    try {
+      const value = await upsertRendererCatalogVendorApiKey(vendorKey, payload);
+      if (!fromApimartConnect && hasSubmittedKey) recordOnboardingStepSafe("verify_succeeded", providerClass);
+      return { ok: true, value };
+    } catch (error) {
+      if (!fromApimartConnect && hasSubmittedKey) {
+        const msg = error instanceof Error ? error.message : String(error);
+        const failReason: OnboardingFailReason = /invalid|unauthorized|401|403/i.test(msg)
+          ? "auth_failed"
+          : /quota|balance|402/i.test(msg)
+            ? "zero_quota"
+            : /network|fetch|timeout|econn/i.test(msg)
+              ? "network"
+              : "other";
+        recordOnboardingStepSafe("verify_failed", providerClass, failReason);
+      }
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
   });
 
   ipcMain.handle("nomi:onboarding:model-unit-prices", (event, vendorKey: string) => {
@@ -93,17 +140,36 @@ export function registerOnboardingIpc(): void {
     const baseUrl =
       providerKind === "anthropic" && !rawBaseUrl ? "https://api.anthropic.com" : rawBaseUrl;
     const apiKey = String(payload?.apiKey || "").trim();
-    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
+    const providerClass = /^https?:\/\//i.test(baseUrl) ? providerClassFromEndpoint(baseUrl) : "custom";
+    recordOnboardingStepSafe("key_submitted", providerClass);
+    if (!/^https?:\/\//i.test(baseUrl)) {
+      recordOnboardingStepSafe("verify_failed", providerClass, "invalid_format");
+      return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
+    }
     const extraHeaders = readExtraHeaders(payload?.headers);
     const proxyUrl = typeof payload?.proxyUrl === "string" ? payload.proxyUrl : undefined;
     const headers = buildAuthHeaders(providerKind, apiKey, extraHeaders, savedConnectionAuth(baseUrl, providerKind));
     // 发送前请求头守卫：自带裸 fetch 绕过发送闸，脏 key 先拦+说人话，不发 fetch。
     const headerProblem = findIllegalHeader(headers);
-    if (headerProblem) return { ok: false, failureKind: "auth", error: describeIllegalHeader(headerProblem).message };
+    if (headerProblem) {
+      recordOnboardingStepSafe("verify_failed", providerClass, "invalid_format");
+      return { ok: false, failureKind: "auth", error: describeIllegalHeader(headerProblem).message };
+    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {
-      return await fetchModelList(providerKind, baseUrl, headers, controller.signal, { proxyUrl });
+      const outcome = await fetchModelList(providerKind, baseUrl, headers, controller.signal, { proxyUrl });
+      if (!outcome.ok) {
+        const failReason: OnboardingFailReason = outcome.failureKind === "auth" || outcome.status === 401 || outcome.status === 403
+          ? "auth_failed"
+          : outcome.status === 402
+            ? "zero_quota"
+            : outcome.failureKind === "network"
+              ? "network"
+              : "other";
+        recordOnboardingStepSafe("verify_failed", providerClass, failReason);
+      }
+      return outcome;
     } finally {
       clearTimeout(timeout);
     }

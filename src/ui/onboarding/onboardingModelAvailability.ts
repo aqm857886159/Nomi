@@ -7,6 +7,7 @@ import {
 } from '../../../electron/shared/builtinVendorIdentity'
 import { vendorFieldLossNoticeAt } from '../../../electron/shared/vendorFieldLossNotice'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { trackOnboardingPromptShownOnce } from '../../workbench/onboarding/onboardingState'
 import type { DreaminaStatus } from './DreaminaMemberCard'
 import { projectModelSettingsCatalog } from './modelSettingsCatalogProjection'
 import { DREAMINA_CONNECTION_KEY } from './onboardingDrawerConstants'
@@ -156,7 +157,11 @@ async function fetchOnboardingModelAvailability(): Promise<ResolvedAvailability>
     bridge.modelCatalog.listModels() as Promise<Array<Record<string, unknown>>>,
     bridge.modelCatalog.listVendors() as Promise<Array<Record<string, unknown>>>,
   ])
-  return deriveOnboardingConnectionAvailability({ storedModels, storedVendors })
+  const resolved = deriveOnboardingConnectionAvailability({ storedModels, storedVendors })
+  if (!resolved.hasUsableModelConnection) {
+    trackOnboardingPromptShownOnce('builtin')
+  }
+  return resolved
 }
 
 let bridgeUnsubscribe: (() => void) | null = null

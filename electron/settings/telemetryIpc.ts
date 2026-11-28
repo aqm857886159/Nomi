@@ -60,6 +60,9 @@ export function registerTelemetryIpc(): void {
 export function withMainProcessFacts(eventName: TelemetryEventName, props: unknown, vendorKey: unknown): unknown {
   if (!props || typeof props !== 'object' || Array.isArray(props)) return props
   if (eventName === 'generation.completed') return { ...props, modelClass: modelClassOfVendor(typeof vendorKey === 'string' ? vendorKey : undefined) }
+  if (eventName === 'onboarding.step' && typeof vendorKey === 'string' && vendorKey.trim()) {
+    return { ...props, providerClass: modelClassOfVendor(vendorKey) }
+  }
   if (eventName === 'perf.session.summary') {
     const stall = takeMainStallTelemetryWindow()
     return { ...props, mainStallMax: mainStallMaxBucket(stall?.maxMs ?? null), mainStallCount: mainStallCountBucket(stall?.count ?? null) }

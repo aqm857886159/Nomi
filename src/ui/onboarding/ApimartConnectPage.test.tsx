@@ -530,4 +530,44 @@ describe('S6 · APIMart verification', () => {
     expect(html).toContain('[@container_(max-width:180px)]:hidden')
     expect(html).toContain('data-shell-here')
   })
+
+  it('余额为 0 先报 verify_failed(zero_quota)，充值回窗经 recheckApimartBalance 通过后补发一次 verify_succeeded', async () => {
+    const tracked: unknown[] = []
+    const save = vi.fn(), read = vi.fn(), back = vi.fn()
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    vi.stubGlobal('window', Object.assign(new EventTarget(), {
+      nomiDesktop: {
+        modelCatalog: { upsertVendorApiKey: save, recheckApimartBalance: read },
+        telemetry: { track: (payload: unknown) => { tracked.push(payload); return Promise.resolve({ queued: true }) } },
+      },
+      setTimeout, clearTimeout,
+    }))
+    const renderer = createReactTestRenderer()
+    let state!: ReturnType<typeof verification.useApimartVerification>
+    function Harness() { state = verification.useApimartVerification(back); return null }
+    const flush = () => renderer.render(<Harness />)
+    flush()
+    try {
+      const zeroAccount = { remainCredits: 0, remainUsd: 0, unlimited: false, fetchedAt: 1, topUpUrl: APIMART_REGISTER_URL }
+      save.mockResolvedValue({ status: 'received', checkedKeyId: 'k1', keyQuota: null, accountBalance: zeroAccount })
+      await state.check('sk-loopback')
+      flush()
+      expect(state.stage).toBe('topup')
+
+      read.mockResolvedValue({ status: 'received', checkedKeyId: 'k1', keyQuota: null, accountBalance: { ...zeroAccount, remainCredits: 30, remainUsd: 3 } })
+      await state.check()
+      flush()
+      expect(state.stage).toBe('passed')
+      await state.check()
+      flush()
+
+      expect(tracked).toEqual([
+        { eventName: 'onboarding.step', props: { step: 'key_submitted', providerClass: 'builtin' } },
+        { eventName: 'onboarding.step', props: { step: 'verify_failed', providerClass: 'builtin', failReason: 'zero_quota' } },
+        { eventName: 'onboarding.step', props: { step: 'verify_succeeded', providerClass: 'builtin' } },
+      ])
+    } finally {
+      renderer.close()
+    }
+  })
 })
