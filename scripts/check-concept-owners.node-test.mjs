@@ -1090,3 +1090,49 @@ test('resend-owner-bypass 全仓无第二份清单、无第二个放占用的口
   const source = workingTreeSource(fileURLToPath(new URL('..', import.meta.url)))
   assert.deepEqual(findResendOwnerBypass({ files: source.listFiles(), read: source.read }), [])
 })
+
+test('单源演进（superseded-owner-retained & supersedes）：推翻旧决定换新主人时保留旧实现必红，同提交删旧并记 supersedes 即绿', () => {
+  const repo = makeRepo()
+  try {
+    // 反例 1：converged 概念把 owner 换成新实现，却把旧主人 compareLanding 留在源码里当双轨 → 红
+    write(repo.root, {
+      'electron/shared/newLanding.ts': 'export function rankLanding(a: string, b: string) { return a.localeCompare(b) }\n',
+      [REGISTRY]: registry([concept({
+        owner: { path: 'electron/shared/newLanding.ts', symbol: 'rankLanding' },
+        write_api: [{ path: 'electron/shared/newLanding.ts', symbol: 'rankLanding' }],
+        supersedes: '2026-09-22 旧落家顺序 compareLanding（双轨易漂移，统一收归 rankLanding）',
+      })]),
+    })
+    const retained = run(repo)
+    assert.equal(retained.status, 1)
+    assert.match(retained.output, /superseded-owner-retained/)
+    assert.match(retained.output, /compareLanding/)
+
+    // 反例 2：supersedes 字段过短或为空 → registry-invalid 红
+    write(repo.root, {
+      'electron/shared/landing.ts': null,
+      [REGISTRY]: registry([concept({
+        owner: { path: 'electron/shared/newLanding.ts', symbol: 'rankLanding' },
+        write_api: [{ path: 'electron/shared/newLanding.ts', symbol: 'rankLanding' }],
+        supersedes: '太短',
+      })]),
+    })
+    const badSupersedes = run(repo)
+    assert.equal(badSupersedes.status, 1)
+    assert.match(badSupersedes.output, /registry-invalid/)
+    assert.match(badSupersedes.output, /supersedes/)
+
+    // 正例：同提交物理删除旧主人文件/定义，并在概念真源写实 supersedes → 绿
+    write(repo.root, {
+      [REGISTRY]: registry([concept({
+        owner: { path: 'electron/shared/newLanding.ts', symbol: 'rankLanding' },
+        write_api: [{ path: 'electron/shared/newLanding.ts', symbol: 'rankLanding' }],
+        supersedes: ['2026-09-22 旧落家顺序 electron/shared/landing.ts#compareLanding'],
+      })]),
+    })
+    const clean = run(repo)
+    assert.equal(clean.status, 0, clean.output)
+  } finally {
+    fs.rmSync(repo.root, { recursive: true, force: true })
+  }
+})

@@ -46,6 +46,8 @@ function filledSkeleton() {
   ]
   c.prevention = {
     kind: 'static-gate',
+    poka_yoke_tier: 'post-hoc-gate',
+    why_not_impossible_by_construction: '跨语言 JSON 工件无法由 TS 编译器表达，必须在静态门岗层统一阻断。',
     enforcement_path: BOUNDARY,
     invariant: text('不变量'),
     failure_mode: text('报红方式'),
@@ -72,10 +74,22 @@ test('未填的骨架不可能混过 validator（枚举位是非法 TODO，必�
   assert.ok(result.errors.length > 0)
 })
 
-test('按行内说明填完 TODO 后，recurring 合同过 validator 结构层', () => {
+test('按行内说明填完 TODO 后，recurring 合同（post-hoc-gate 与 impossible-by-construction 两档）均过 validator 结构层', () => {
   const result = validate(filledSkeleton())
   assert.deepEqual(result.errors, [])
   assert.equal(result.ok, true)
+
+  const sourceFixed = filledSkeleton()
+  sourceFixed.prevention = {
+    ...sourceFixed.prevention,
+    kind: 'centralized-boundary',
+    poka_yoke_tier: 'impossible-by-construction',
+    source_mechanism: 'shared-core',
+  }
+  delete sourceFixed.prevention.why_not_impossible_by_construction
+  const sourceResult = validate(sourceFixed)
+  assert.deepEqual(sourceResult.errors, [])
+  assert.equal(sourceResult.ok, true)
 })
 
 test('降档为 one_off（删 prevention）同样过结构层', () => {

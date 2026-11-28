@@ -56,8 +56,7 @@ export function buildSkeleton(id, today = new Date().toISOString().slice(0, 10),
       {
         kind: 'TODO(write|read)',
         path: 'TODO: 入口文件（须真实存在）——整张门表用 `node scripts/door-map.mjs <mutator 符号或文件>` 生成，别手写',
-        line: 0,
-        symbol: 'TODO: 该行真正出现的符号名；行号会随本次改动移动，改完重跑一次数门脚本',
+        symbol: 'TODO: 该文件真正出现的符号名；门表不含行号',
       },
     ],
     door_reduction: {
@@ -103,12 +102,15 @@ export function buildSkeleton(id, today = new Date().toISOString().slice(0, 10),
     ],
     prevention: {
       kind: 'TODO(centralized-boundary|schema-validation|type-system|runtime-assertion|static-gate|migration|dependency-upgrade)',
-      enforcement_path: 'TODO: 结构保证落点——必须 ∈ shared_boundaries.path、在本次 diff 中有变化、并出现在 artifacts 里',
+      poka_yoke_tier: 'TODO(impossible-by-construction|post-hoc-gate)',
+      source_mechanism:
+        'TODO(route-deletion|type-or-schema|shared-core)——仅 impossible-by-construction 必填（选 route-deletion 须有 legacy_paths=removed 或 door_reduction.after<before）；若选 post-hoc-gate 则删掉本字段并改填 why_not_impossible_by_construction（>=16 字说明为何不能在源头消灭错误路径）',
+      enforcement_path: 'TODO: 结构保证落点——必须 ∈ shared_boundaries.path、在本次 diff 中有变化、非纯文档/规则文件、并出现在 artifacts 里',
       invariant: 'TODO: 该结构强制的不变量',
       failure_mode: 'TODO: 被违反时如何失败（谁报红、什么样子）',
       exception_policy: 'none',
       strategy: 'TODO: 防复发策略一句话',
-      artifacts: ['TODO: 本次 diff 中变化的防复发工件——须含 enforcement_path，且至少一个非测试/非文档的结构件'],
+      artifacts: ['TODO: 本次 diff 中变化的防复发工件——须含 enforcement_path，且至少一个非测试/非文档/非规则表的代码或门岗结构件'],
     },
     class_regression_tests: ['TODO: 类级回归测试——必须 ⊆ regression_tests，且在本次 diff 中有变化'],
     legacy_paths: {
