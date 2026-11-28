@@ -9,15 +9,14 @@ import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 //   ③ 真实取消：忙态期间点击该胶囊触发真实取消，不重发第二次导出请求，主进程杀掉编码子进程并清理 .partial.mp4（exports 目录 0 产出），不弹红报错。
 //   ④ 恢复与重导：取消完成后立即恢复空闲「导出 MP4 · 1080p」，再次点击完整导出成功产出 1 个非空 MP4。
 //   ⑤ 进度条渲染阶段文案，且带 role=progressbar 的 aria-valuenow。
-import { createRequire } from 'node:module'
-import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
+import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/preview-export-busy')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -29,27 +28,20 @@ const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 for (const dir of [settingsDir, userDataDir, projectsDir]) fs.mkdirSync(dir, { recursive: true })
 
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
+const { assets: realMediaAssets } = requireRealMediaAssets(['video-canvas-follow-hand-1080p15'])
+const realSourceVideo = realMediaAssets.get('video-canvas-follow-hand-1080p15').file
 const PROJECT_ID = 'export-busy'
 const PROJECT_NAME = '导出忙态验收项目'
 const VIDEO_NAME = 'export-busy-source.mp4'
 const FPS = 30
-const CLIP_FRAMES = 450 // 15 秒 1080p 动态测试源：足够让真 ffmpeg 编码窗口稳定供点击取消与二次完整导出
-
-function encodeVideo(output) {
-  const run = spawnSync(ffmpegPath, [
-    '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=1920x1080:d=15:r=30',
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output,
-  ], { timeout: 180_000 })
-  if (run.status !== 0) throw new Error(`夹具编码失败: ${run.stderr?.toString().slice(-500)}`)
-}
+const CLIP_FRAMES = 450 // 15 秒真实 1080p 镜头：供真 ffmpeg 编码稳定观测忙态取消与二次完整导出
 
 function seedProject() {
   const projectRoot = path.join(projectsDir, PROJECT_ID)
   const importedDir = path.join(projectRoot, 'assets', 'imported')
   fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
   fs.mkdirSync(importedDir, { recursive: true })
-  encodeVideo(path.join(importedDir, VIDEO_NAME))
+  fs.copyFileSync(realSourceVideo, path.join(importedDir, VIDEO_NAME))
   const url = `nomi-local://asset/${encodeURIComponent(PROJECT_ID)}/assets/imported/${encodeURIComponent(VIDEO_NAME)}`
   const nodeId = `${PROJECT_ID}-source`
   const generationCanvas = {
@@ -178,17 +170,17 @@ try {
   await win.waitForFunction(
     () => document.querySelectorAll('[data-project-card="true"]').length > 0,
     undefined,
-    { timeout: 30_000 },
+    { timeout: stationTimeout({ operations: 2 }) },
   )
 
   const card = win.locator('[data-project-card="true"]').filter({ hasText: PROJECT_NAME }).first()
   await expectVisible(card, '夹具项目卡出现')
   await card.click()
-  await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: 20_000 })
+  await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: stationTimeout({ operations: 2 }) })
   await win.waitForFunction(
     () => Boolean(document.querySelector('nav.nomi-stepper')),
     undefined,
-    { timeout: 30_000 },
+    { timeout: stationTimeout({ operations: 2 }) },
   )
   const resume = win.getByRole('button', { name: /继续创作/ }).first()
   if (await resume.isVisible().catch(() => false)) {
@@ -196,7 +188,7 @@ try {
     await win.waitForFunction(
       () => ![...document.querySelectorAll('button')].some((el) => /继续创作/.test(el.textContent ?? '')),
       undefined,
-      { timeout: 30_000 },
+      { timeout: stationTimeout({ operations: 2 }) },
     )
   }
 
@@ -207,7 +199,7 @@ try {
     () => document.querySelector('nav.nomi-stepper [data-mode="preview"]')?.getAttribute('aria-current') === 'page'
       && Boolean(document.querySelector('.workbench-preview-player__stage')),
     undefined,
-    { timeout: 30_000 },
+    { timeout: stationTimeout({ operations: 2 }) },
   )
 
   const exportButton = win.locator(EXPORT_BUTTON).first()
@@ -282,7 +274,7 @@ try {
       return el?.dataset.exportBusy === 'true' && /导出中 \d+% · 取消/.test(el.textContent ?? '')
     },
     EXPORT_BUTTON,
-    { timeout: 30_000 },
+    { timeout: stationTimeout({ operations: 2 }) },
   )
 
   const busyBeforeCancel = await exportButton.evaluate((el) => ({
@@ -312,7 +304,7 @@ try {
   await win.waitForFunction(
     (selector) => document.querySelector(selector)?.dataset.exportBusy === 'false',
     EXPORT_BUTTON,
-    { timeout: 30_000 },
+    { timeout: stationTimeout({ operations: 2 }) },
   )
   const cancelSettledMs = Date.now() - cancelClickStartedAt
   // 短暂稳定窗口确认被杀进程绝不补写文件
@@ -354,12 +346,12 @@ try {
   await win.waitForFunction(
     (selector) => document.querySelector(selector)?.dataset.exportBusy === 'true',
     EXPORT_BUTTON,
-    { timeout: 30_000 },
+    { timeout: stationTimeout({ operations: 2 }) },
   )
   await win.waitForFunction(
     (selector) => document.querySelector(selector)?.dataset.exportBusy === 'false',
     EXPORT_BUTTON,
-    { timeout: 240_000 },
+    { timeout: stationTimeout({ operations: 16 }) },
   )
   const deadline = Date.now() + 60_000
   while (countFinalMp4Exports() <= exportsBefore && Date.now() < deadline) {
