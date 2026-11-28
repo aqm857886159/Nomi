@@ -167,6 +167,7 @@
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+    "tests/ux/feel-policy.test.mjs",
     "tests/ux/_feel.browser.mjs",
     "tests/ux/_feel-observer.browser.mjs"
   ],

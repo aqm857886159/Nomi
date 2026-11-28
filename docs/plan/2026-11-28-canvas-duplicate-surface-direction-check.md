@@ -23,7 +23,7 @@
 | 铁律 | 结论与最小证据 |
 |---|---|
 | ⑩ 说的=摆的 / ⑪ 能选到 | 不适用（本次不涉及意图参数映射或模型参数下拉过滤）。 |
-| ⑫ 点了=以为的 | **适用**：创作者在 0 节点空画布与未连模型面板首屏看到两套完全一样的 7 钮创建栏和两个紧挨的 `Nomi` 标题，破坏首屏唯一焦点；由 `resolveCanvasCreationSurface` + `_feel.mjs` 整屏扫描钉死（证据：`tests/ux/_feel.browser.mjs`、`docs/evidence/2026-11-28-canvas-duplicate-surface-guard/canvas-duplicate-guard.scorecard.md`）。 |
+| ⑫ 点了=以为的 | **适用**：创作者在 0 节点空画布与未连模型面板首屏看到两套完全一样的 7 钮创建栏和两个紧挨的 `Nomi` 标题，破坏首屏唯一焦点；逃逸账本 `USER-20261128-canvas-duplicate-surfaces` 结账挂类级矩阵检查 `tests/ux/feel-policy.test.mjs` 与整屏几何扫描 `tests/ux/_feel.browser.mjs`（证据：`docs/evidence/2026-11-28-canvas-duplicate-surface-guard/canvas-duplicate-guard.scorecard.md`）。 |
 
 ### 3. 不改结构的话，接下来会冒出什么（可验证预测）
 

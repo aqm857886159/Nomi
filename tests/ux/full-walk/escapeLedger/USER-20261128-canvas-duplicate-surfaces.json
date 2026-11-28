@@ -1,0 +1,31 @@
+{
+  "id": "USER-20261128-canvas-duplicate-surfaces",
+  "since": "2026-11-28",
+  "source": "用户 1440×900 生成画布空态真机截图反馈（右侧常驻面板双 Nomi 身份头 + 空画布中央 7 卡与底部 7 钮同屏重复）",
+  "category": "interaction-semantics",
+  "problem": "1440×900 生成画布空态（0 节点）正中央展示 7 张起步创建卡的同时，正下方底部又悬浮完全同构的 7 钮创建条；右侧未连模型常驻 Agent 面板顶栏 Nomi 下方约 22px 紧挨出现第二个 Nomi 身份头。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "fixedInPr": 1743,
+  "rootCauseContract": "docs/fixes/2026-11-28-canvas-duplicate-surface-guard.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/feel-policy.test.mjs"
+  },
+  "evidence": [
+    "src/ui/onboarding/onboardingS7aEntries.test.tsx",
+    "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
+    "tests/ux/feel-policy.test.mjs",
+    "tests/ux/_feel.browser.mjs",
+    "tests/ux/_feel-observer.browser.mjs"
+  ],
+  "completionCommits": [
+    "7e564bb9a"
+  ]
+}
