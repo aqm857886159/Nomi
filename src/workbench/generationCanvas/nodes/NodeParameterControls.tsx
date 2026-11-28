@@ -15,7 +15,7 @@ import type { ComposerGraph } from './composerGraphSnapshot'
 import { type ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
-  buildImageUrlSlots, resolveParameterReferenceAssignments, type ImageUrlSlot,
+  buildImageUrlSlots, type ImageUrlSlot,
 } from '../model/parameterReferenceSlots'
 import {
   getGenerationNodeExecutionKind,
@@ -33,14 +33,11 @@ import {
   type DynamicCatalogControl,
   buildEffectiveImageCatalogConfig,
   defaultPatchForCatalogControl,
-  getSlotNodeRef,
-  getSlotThumbUrl,
   imageCatalogReferenceSlot,
   isImportedComfyWorkflowModel,
   isParameterControl,
   nodeSelectedModelAddress,
   parameterControlRole,
-  readMeta,
   resultPreviewUrl,
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
@@ -59,8 +56,6 @@ import {
   currentArchetypeVariant,
   collectModeInputs,
   effectiveArchetypeMode,
-  readArchetypeArray,
-  referenceSlotStorage,
 } from './controls/archetypeMeta'
 import {
   archetypeModeChoices,
@@ -73,7 +68,7 @@ import {
   withoutTextModes,
 } from './controls/narrowedModeGuidance'
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
-import { resolveReferencePlacement, firstFrameTaggedSlot } from '../runner/referenceSlots'
+import { resolveNodeAssetSlotValues } from './controls/nodeAssetSlotValues'
 import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
 import { useVariantAxisLiveOf } from './controls/useVariantAxisLiveOf'
 import { modeTransportFor, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
@@ -98,9 +93,10 @@ import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelA
 import { buildAspectRatioNodePatch } from './nodeSizing'
 import { ASPECT_EXPLICIT_META_KEY } from './aspectExplicit'
 import { parseAspectRatioValue } from '../../../../electron/shared/aspectRatioValue'
-import { applyPickedNodeModel, buildModeSwitchMeta } from './buildNodeModelChangePatch'
+import { buildModeSwitchMeta } from './buildNodeModelChangePatch'
 import type { ModelVariantMenu } from '../../common/useDedupedModelSelect'
 import { isAspectRatioControl, parameterControlChangePatch } from './controls/parameterControlModel'
+import { useNodeAutoModelPicker } from './useNodeAutoModelPicker'
 
 type NodeParameterControlsProps = {
   node: GenerationCanvasNode
@@ -230,10 +226,15 @@ export default function NodeParameterControls({
     )
   }
 
-  const handleModelChange = (value: string, vendor?: string) => {
-    const { nodes, edges } = useGenerationCanvasStore.getState()
-    applyPickedNodeModel({ node: latestNode(node.id) || node, nodes, edges, modelOptions, value, vendor }, updateNode)
-  }
+  const { isAutoModel, leadingAutoOption, handleModelChange } = useNodeAutoModelPicker({
+    node,
+    meta,
+    modelOptions,
+    isImageLike,
+    isVideoLike,
+    latestNode,
+    updateNode,
+  })
 
   useNodeModelAutoSelect({
     node,
@@ -375,62 +376,23 @@ export default function NodeParameterControls({
     imageUrlSlots, arraySlots, sourceVideoSlot, archMode, slotReachByKey,
     singleReferenceCaption: t('generationCommon.parameters.channelSingleReferenceOnly'),
   })
-  // 档案节点：槽值统一由 resolveReferenceSlots（边 + 上传单一真相源）派生——这样连线参考在槽里
-  // 真的看得见（根治「显示读 meta、生成读边」分裂导致的「连线没用」）。按存储键回填到 assetValuesByKey。
-  // pending（连了边但源未生成/待抽帧）本片先不显示空位（占位态留 S4b）；非档案模型仍走旧启发式路径。
-  const resolvedFillUrlsByMetaKey = new Map<string, string[]>()
-  let firstFrameSlotKey: string | undefined
-  // 槽位**已占用位置数**（含「连了边但源未生成」的 pending fill，它占位但 url 为空）。容量判断（能否再加/连）
-  // 必须用它，而非「有 url 的显示图数」或「meta 数组长度」——否则被 pending 边占满的槽仍显示「+」、上传/连线
-  // 写得进去却落不下（resolveReferenceSlots 没空位放）→「参考图上不去 / 连线连不上」（2026-06-25 真机存档定位）。
-  const arrayOccupiedByKey = new Map<string, number>()
-  // 参考行的「在用 / 未用到」：和请求组装同一个推导（resolveReferencePlacement → placeUploadedImages）。
-  // 渠道只收得下单图的槽按 1 张算（与下面槽上限收窄同一份可达性），渠道压根发不出的槽按 0 张算——放不下的都淡显「未用到」。
-  const referencePlacement = archMode
-    ? resolveReferencePlacement(node, nodes, edges, {
-      capOf: (slot) => {
-        const storage = referenceSlotStorage(slot)
-        const reach = storage ? slotReachByKey[storage.metaKey] : undefined
-        return reach === 'none' ? 0 : reach === 'single' ? 1 : undefined
-      },
-    })
-    : { slots: [], unused: [], parked: [] }
-  if (archMode) {
-    const resolvedSlots = referencePlacement.slots
-    const taggedSlot = firstFrameTaggedSlot(resolvedSlots)
-    for (const rs of resolvedSlots) {
-      const storage = referenceSlotStorage({ kind: rs.slotKind })
-      if (storage) {
-        resolvedFillUrlsByMetaKey.set(
-          storage.metaKey,
-          rs.fills.map((f) => f.url).filter((u): u is string => Boolean(u)),
-        )
-        arrayOccupiedByKey.set(storage.metaKey, rs.fills.length)
-        if (rs === taggedSlot) firstFrameSlotKey = storage.metaKey
-      }
-    }
-  }
-  const assetValuesByKey: Record<string, string | string[]> = {}
-  const parameterAssignments = resolveParameterReferenceAssignments(node, nodes, edges, imageUrlSlots)
-  for (const s of imageUrlSlots) {
-    if (archMode && resolvedFillUrlsByMetaKey.has(s.key)) {
-      assetValuesByKey[s.key] = resolvedFillUrlsByMetaKey.get(s.key)![0] || ''
-      continue
-    }
-    const edgeSource = parameterAssignments.find((assignment) => assignment.slot.key === s.key)?.edge?.source
-    const nodeRef = edgeSource || getSlotNodeRef(meta, s.key)
-    const thumbNode = nodeRef ? nodes.find((n) => n.id === nodeRef) : undefined
-    assetValuesByKey[s.key] = edgeSource ? resultPreviewUrl(thumbNode) :
-      (thumbNode ? resultPreviewUrl(thumbNode) : null) ||
-      getSlotThumbUrl(meta, s.key, nodes) ||
-      readMeta(meta, s.key) ||
-      ''
-  }
-  for (const s of arraySlots)
-    assetValuesByKey[s.metaKey] = resolvedFillUrlsByMetaKey.get(s.metaKey) ?? readArchetypeArray(meta, s.metaKey)
-  if (sourceVideoSlot)
-    assetValuesByKey[sourceVideoSlot.metaKey] =
-      resolvedFillUrlsByMetaKey.get(sourceVideoSlot.metaKey)?.[0] || readMeta(meta, sourceVideoSlot.metaKey) || ''
+  const {
+    referencePlacement,
+    firstFrameSlotKey,
+    arrayOccupiedByKey,
+    assetValuesByKey,
+    parameterAssignments,
+  } = resolveNodeAssetSlotValues({
+    node,
+    nodes,
+    edges,
+    meta,
+    archMode,
+    slotReachByKey,
+    imageUrlSlots,
+    arraySlots,
+    sourceVideoSlot,
+  })
 
   const handleAssetPick = (slot: AssetSlot, asset: AssetRef) => {
     if (slot.form === 'array') {
@@ -523,6 +485,9 @@ export default function NodeParameterControls({
         onCatalogControlChange={handleCatalogControlChange}
         onParameterControlChange={handleParameterControlChange}
         variantMenu={variantMenu}
+        {...(leadingAutoOption ? { leadingModelOption: leadingAutoOption } : {})}
+        forceLeadingModelSelected={isAutoModel}
+        {...(isAutoModel ? { modelChipBoardAnchor: 'node.model-chip-auto' } : {})}
         {...(footer ? { footer } : {})}
         {...summary}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。

@@ -799,6 +799,11 @@ export const zhGenerationCommon = {
   },
   parameters: {
     auto: '自动',
+    autoWithModel: '自动 · {{model}}',
+    autoNone: '自动 · 暂无可用模型',
+    autoFollowsDefaultStrongest: '按设置里的默认 · 这件事现在最强的',
+    autoStrongest: '这件事现在最强的',
+    searchModels: '搜模型',
     // 摘要 pill 的文案覆盖（画布节点 summary 形态）：导入的 ComfyUI 工作流参数名是作者随手起的，
     // 串当前值成 `15 · 24` 没人认得出那是自己勾的东西（群反馈 2026-08-20 G2#433），改成报名字+条数。
     workflowParams: '工作流参数 · {{count}} 项',
@@ -2674,6 +2679,11 @@ export const enGenerationCommon = {
   },
   parameters: {
     auto: 'Auto',
+    autoWithModel: 'Auto · {{model}}',
+    autoNone: 'Auto · No models available',
+    autoFollowsDefaultStrongest: 'Follows your default · Strongest for this task',
+    autoStrongest: 'Strongest for this task',
+    searchModels: 'Search models',
     workflowParams: 'Workflow params · {{count}}',
     configureModel: 'Configure a model',
     openModelCatalog: 'Open model setup',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ModelOption } from '../../../config/models'
 import {
+  deriveGenerationDefaultMediaKind,
   deriveGenerationDefaultTaskKind,
   nodeHasImageReference,
   resolveDefaultModelOption,
@@ -9,7 +10,7 @@ import {
 const option = (value: string, vendor: string, modelKey?: string): ModelOption =>
   ({ value, vendor, modelKey, label: value } as ModelOption)
 
-describe('deriveGenerationDefaultTaskKind', () => {
+describe('deriveGenerationDefaultTaskKind & MediaKind', () => {
   it('splits each media kind by whether the card already has a reference', () => {
     const at = (isImageLike: boolean, isVideoLike: boolean, hasImageReference: boolean) =>
       deriveGenerationDefaultTaskKind({ isImageLike, isVideoLike, hasImageReference })
@@ -18,6 +19,10 @@ describe('deriveGenerationDefaultTaskKind', () => {
     expect(at(true, false, true)).toBe('image_edit')
     expect(at(false, true, false)).toBe('text_to_video')
     expect(at(false, true, true)).toBe('image_to_video')
+
+    expect(deriveGenerationDefaultMediaKind({ isImageLike: true, isVideoLike: false })).toBe('image')
+    expect(deriveGenerationDefaultMediaKind({ isImageLike: false, isVideoLike: true })).toBe('video')
+    expect(deriveGenerationDefaultMediaKind({ isImageLike: false, isVideoLike: false })).toBeNull()
   })
 
   it('judges video before image — a video card that also takes images is not image editing', () => {
@@ -37,22 +42,17 @@ describe('resolveDefaultModelOption', () => {
     option('seedream-4.0-apimart', 'apimart', 'seedream-4.0'),
   ]
 
-  it('matches on both vendor and model — same model name from two relays must not cross-wire', () => {
-    const picked = resolveDefaultModelOption(
-      options,
-      { text_to_image: { vendorKey: 'apimart', modelKey: 'seedream-4.0' } },
-      'text_to_image',
-    )
-    expect(picked?.value).toBe('seedream-4.0-apimart')
+  it('matches both text_to_image and image_edit against the unified image preference on vendor+model', () => {
+    const defaults = { image: { vendorKey: 'apimart', modelKey: 'seedream-4.0' } }
+    expect(resolveDefaultModelOption(options, defaults, 'text_to_image')?.value).toBe('seedream-4.0-apimart')
+    expect(resolveDefaultModelOption(options, defaults, 'image_edit')?.value).toBe('seedream-4.0-apimart')
   })
 
-  it('falls through when the preferred model is no longer available', () => {
-    // 供应商被删 / 模型被禁用 / 换了台机器没有那个本地工作流——都必须让位给自动挑选，
-    // 否则卡片钉在一个跑不了的模型上，生成钮一直灰。
+  it('falls through when the preferred model is unavailable for the active mode (e.g. t2i-only model on edit)', () => {
     expect(resolveDefaultModelOption(
       options,
-      { text_to_image: { vendorKey: 'gone', modelKey: 'seedream-4.0' } },
-      'text_to_image',
+      { image: { vendorKey: 'apimart', modelKey: 'z-image-turbo' } },
+      'image_edit',
     )).toBeUndefined()
   })
 
@@ -64,7 +64,7 @@ describe('resolveDefaultModelOption', () => {
   it('uses value as the model segment when the option carries no modelKey', () => {
     const picked = resolveDefaultModelOption(
       [option('local-workflow', 'comfyui-local')],
-      { text_to_video: { vendorKey: 'comfyui-local', modelKey: 'local-workflow' } },
+      { video: { vendorKey: 'comfyui-local', modelKey: 'local-workflow' } },
       'text_to_video',
     )
     expect(picked?.value).toBe('local-workflow')

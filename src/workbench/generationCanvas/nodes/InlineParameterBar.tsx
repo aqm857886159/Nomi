@@ -1,5 +1,3 @@
-import { shouldReduceMotion } from '../../../design/motion'
-import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -38,29 +36,7 @@ import {
 import { AdvancedSettingsIconButton, AdvancedSettingsSection } from './controls/AdvancedSettings'
 import { NodePromptToolCluster } from './NodePromptToolCluster'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
-import { resolveAnchoredPopoverPlacement } from '../../../design/anchoredPopoverPlacement'
-
-/**
- * 把一段滚进离它最近的可滚容器的可视区（最近对齐）：下沿在外就往下滚刚好够；段比可视区还高就让顶对齐。
- * 不用 `scrollIntoView`：它连 overflow-hidden 的祖先（画布卡、画布本身）一起滚。
- */
-function revealInScrollParent(el: HTMLElement): void {
-  let scroller: HTMLElement | null = el.parentElement
-  while (scroller) {
-    const overflowY = getComputedStyle(scroller).overflowY
-    if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break
-    scroller = scroller.parentElement
-  }
-  if (!scroller) return
-  const box = el.getBoundingClientRect()
-  const view = scroller.getBoundingClientRect()
-  const viewTop = view.top + scroller.clientTop
-  const viewBottom = viewTop + scroller.clientHeight
-  if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
-  const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
-  const reduce = shouldReduceMotion()
-  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
-}
+import { PANEL_W, revealInScrollParent, useStaticParameterPopover } from './useStaticParameterPopover'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
@@ -123,10 +99,22 @@ type InlineParameterBarProps = {
   modeLabel?: string
   onModeSelect?: (id: string) => void
   /**
-   * 模型下拉最前面的一项「不指定模型」（值为空串，选它 = `onModelChange('')`）。
-   * 画布节点不传；分镜行传「默认模型」——分镜没选模型时落画布用默认模型，用户要能选回去。
+   * 模型下拉最前面的一项（值为空串，选它 = `onModelChange('')`）：
+   * 分镜行传「默认模型」；画布节点传「自动 · 实际模型名」（AutoModel node.picker-auto-option）。
    */
-  leadingModelOption?: { label: string; description?: string; icon?: NomiSelectOption['icon'] }
+  leadingModelOption?: {
+    label: string
+    description?: string
+    icon?: NomiSelectOption['icon']
+    dividerAfter?: boolean
+    boardAnchor?: string
+    /** 为真时该选项在模型胶囊上绝不截断；窄底栏放不下时让参数胶囊自动换到下一行（AutoModel boundarySheet）。 */
+    neverTruncate?: boolean
+  }
+  /** 节点当前处于「自动 · 实际模型名」状态：触发器选中首项、底层参数仍读 `selectedModelOption`。 */
+  forceLeadingModelSelected?: boolean
+  /** 模型触发胶囊上的拍板图锚点（如 `node.model-chip-auto`）。 */
+  modelChipBoardAnchor?: string
   modelGroupLabels?: Record<'image' | 'video', string> | undefined
   /**
    * 面板最底下的一小段说明（分镜批量 / 多选：「哪些参数为什么没出现」）。画布节点不传。
@@ -194,6 +182,8 @@ export default function InlineParameterBar({
   modeLabel,
   onModeSelect,
   leadingModelOption,
+  forceLeadingModelSelected = false,
+  modelChipBoardAnchor,
   modelGroupLabels,
   panelFooter,
   footer,
@@ -209,7 +199,8 @@ export default function InlineParameterBar({
     variantMenu,
   )
 
-  // 参数去处只问一处（parameterPlacement）：有底栏时五类进「高级设置」，其余进面板；没有底栏的宿主全在面板里。
+  const modelSelectValue = forceLeadingModelSelected && leadingModelOption ? '' : modelSelect.modelValue
+  const neverTruncateModel = Boolean(leadingModelOption?.neverTruncate && modelSelectValue === '')
   const panelControls = footer ? renderedControls.filter((control) => parameterPlacement(control) === 'panel') : renderedControls
   const advancedControls = footer ? renderedControls.filter((control) => parameterPlacement(control) === 'advanced') : []
   const advancedChanged = advancedControls.some((control) => controlDiffersFromDefault(control, meta))
@@ -269,6 +260,7 @@ export default function InlineParameterBar({
     summaryIndex: Math.min(fitStep.summaryIndex, summaryCandidates - 1),
     modelEllipsis: fitStep.modelEllipsis,
   } : COMPOSER_YIELD_NONE
+  const autoWrapOnCramp = neverTruncateModel && yieldStep.modelEllipsis
   React.useLayoutEffect(() => {
     const row = footerRowRef.current
     const host = rulerRef.current
@@ -314,12 +306,13 @@ export default function InlineParameterBar({
       const gap = (el: Element): number => parseFloat(getComputedStyle(el).columnGap) || 0
       const modelText = model?.querySelector<HTMLElement>('span.truncate')
       // 只还原末级挤掉的文字；保留模型控件本来的 maxWidth。
-      const hiddenModel = modelText && yieldStep.modelEllipsis
+      const hiddenModel = modelText && yieldStep.modelEllipsis && !neverTruncateModel
         ? Math.min(modelText.scrollWidth, parseFloat(getComputedStyle(modelText).maxWidth) || Infinity) - modelText.clientWidth
         : 0
       const modeDelta = mode ? width(spans[texts.length - 2]) + gap(mode) : 0
       const fullIdentity = width(identity) + hiddenModel + (yieldStep.modeIconOnly ? modeDelta : 0)
-      const summaryFrame = summary ? width(summary) - width(spans[yieldStep.summaryIndex]) : 0
+      const displayedSummaryIndex = autoWrapOnCramp ? 0 : yieldStep.summaryIndex
+      const summaryFrame = summary ? width(summary) - width(spans[displayedSummaryIndex]) : 0
       const extra = fixed.reduce((sum, el) => sum + occupied(el), 0) + gap(row) * (fixed.length + (send ? 1 : 0))
       const paramGap = summary ? gap(identity.parentElement!.parentElement!) : 0
       const next = composerYieldPick({
@@ -342,89 +335,8 @@ export default function InlineParameterBar({
   const summaryText = fitCandidates ? fitCandidates[Math.min(yieldStep.summaryIndex, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
   const yieldContext = React.useMemo(() => ({ sendIconOnly: yieldStep.sendIconOnly }), [yieldStep.sendIconOnly])
 
-  // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
-  // 打开时以触发器（pill / ⚙）中心定位一次，之后绝不跟随；
-  // 比例变化通过节点原子锚定保证触发器本身不动。摘要开着时照常跟着值变（面板不跟随，钮变宽它也不跑）。
-  const [panelOpen, setPanelOpen] = React.useState(false)
-  const [panelInit, setPanelInit] = React.useState<{
-    left: number
-    top: number
-    maxHeight: number | undefined
-    side: 'above' | 'below'
-    /** 打开那一下先不可见地画一次、量出内容的本来高度，再定开向和限高（之后不再动）。 */
-    measured: boolean
-  } | null>(null)
-  // 触发器只有一个：那颗摘要 pill。
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
-  const panelRef = React.useRef<HTMLDivElement | null>(null)
-
-  // 面板是一叠分组，一个稳定的列宽才对得齐（只有一项也一样）。
-  const PANEL_W = 320
-  const PANEL_GAP = 6
-
-  const openPanel = (): void => {
-    const rect = triggerRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const vw = window.innerWidth
-    const centeredLeft = rect.left + rect.width / 2 - PANEL_W / 2
-    const left = Math.min(Math.max(8, centeredLeft), Math.max(8, vw - PANEL_W - 8))
-    setPanelInit({ left, top: 0, maxHeight: undefined, side: 'above', measured: false })
-    setPanelOpen(true)
-  }
-  // 开向和限高（2026-11-14 验收条件 2：Eleven v3 七项的面板顶到窗口顶、盖住顶栏、最后一项够不着）：
-  // 不限高、全摊开（用户 11-14 照 LibTV）；上方放得下就开上方（底栏贴卡底），不然下方放得下开下方，
-  // 两边都放不下开空间大的那边并限高、在面板里滚。可用区域是工作区（顶栏下面那块），不在壳里（实验室）就是窗口。
-  // 几何和别的锚定浮层同一个函数（resolveAnchoredPopoverPlacement）。定位仅此一次。
-  React.useLayoutEffect(() => {
-    if (!panelOpen || !panelInit || panelInit.measured) return
-    const trigger = triggerRef.current
-    const scroller = panelRef.current?.firstElementChild as HTMLElement | null | undefined
-    if (!trigger || !scroller) return
-    const rect = trigger.getBoundingClientRect()
-    const vh = window.innerHeight
-    const work = trigger.closest('[data-shell-main]')?.getBoundingClientRect()
-    const boundsTop = Math.max(0, work?.top ?? 0)
-    const boundsBottom = Math.min(vh, work?.bottom ?? vh)
-    // 面板外框 1px 描边上下各一。
-    const natural = scroller.scrollHeight + 2
-    const placed = resolveAnchoredPopoverPlacement(rect, { width: PANEL_W, height: natural }, 'center', PANEL_GAP, { width: window.innerWidth, height: boundsBottom - boundsTop, top: boundsTop }, 'top')
-    const side: 'above' | 'below' = placed.top < rect.top ? 'above' : 'below'
-    // 上方用 bottom 锚（内容变少时依然贴住触发器顶），下方用 top 锚；限高 = 那一边剩下的高度（内容变多时在面板里滚）。
-    const room = side === 'above' ? rect.top - PANEL_GAP - boundsTop - 8 : boundsBottom - 8 - rect.bottom - PANEL_GAP
-    setPanelInit({ left: panelInit.left, top: side === 'above' ? vh - rect.top + PANEL_GAP : rect.bottom + PANEL_GAP, maxHeight: Math.max(0, room - 2), side, measured: true })
-  }, [panelOpen, panelInit])
-  const closePanel = React.useCallback((): void => {
-    setPanelOpen(false)
-    setPanelInit(null)
-  }, [])
-
-  React.useEffect(() => {
-    if (!panelOpen) return
-    const onPointerDown = (event: PointerEvent): void => {
-      if (!workspaceInputSurfaceIsActive(triggerRef.current)) return
-      const target = event.target as Node
-      // 防御：panelRef 尚未挂上（portal 首帧/HMR 重建瞬间）时绝不误关——否则点面板内选项
-      // 会被当成「点外面」把面板关掉，表现为「点击不了」。
-      if (!panelRef.current) return
-      if (panelRef.current.contains(target)) return
-      if (triggerRef.current?.contains(target)) return
-      closePanel()
-    }
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (!workspaceInputSurfaceIsActive(triggerRef.current)) return
-      if (event.key !== 'Escape') return
-      // Let the inner combobox consume Escape first; the next Escape closes this panel.
-      if (event.target instanceof Element && event.target.closest('[data-nomi-select-dropdown], [data-mantine-stop-propagation="true"]')) return
-      event.stopPropagation()
-      closePanel()
-    }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    window.addEventListener('keydown', onKeyDown, true)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      window.removeEventListener('keydown', onKeyDown, true)
-    }
-  }, [panelOpen, closePanel])
+  // ── 参数浮层：静止定位（打开定位一次，绝不跟随，见 useStaticParameterPopover）。 ──
+  const { panelOpen, panelInit, triggerRef, panelRef, openPanel, closePanel } = useStaticParameterPopover()
 
 
   // 「改一个参数写到哪儿去」三件一组传下去：面板、高级设置、每个参数组共用同一份，
@@ -439,8 +351,8 @@ export default function InlineParameterBar({
     const hasAdvanced = advancedControls.length > 0
     return (
       <div className={cn('flex w-full min-w-0 shrink-0 flex-col', footer.className)} {...footer.attrs}>
-        <div ref={footerRowRef} data-node-composer-footer className={cn('flex w-full min-w-0 items-center gap-2', footer.wrap ? 'flex-wrap' : 'flex-nowrap')}>
-          <div data-bar-segment="model-params" className="flex min-w-0 flex-1 items-center">{params}</div>
+        <div ref={footerRowRef} data-node-composer-footer className={cn('flex w-full min-w-0 items-center gap-2', (footer.wrap || autoWrapOnCramp) ? 'flex-wrap' : 'flex-nowrap')}>
+          <div data-bar-segment="model-params" className={cn('flex flex-1 items-center', !autoWrapOnCramp && 'min-w-0')}>{params}</div>
           {/* 右边那排图标：提示词工具在前，高级设置在后（画板 T：图标之间隔 2、到「走」钮隔 8）。这个方式没有那五类 → 不出这颗。 */}
           {footer.tools || hasAdvanced ? (
             <NodePromptToolCluster ariaLabel={footer.toolsLabel ?? t('generationCommon.composerBarV1.promptTools')}>
@@ -602,18 +514,19 @@ export default function InlineParameterBar({
   // 有底栏（四处）时谁留下由重要性清单说了算（composerBarYield.ts）：模型名放得下就模型、方式、摘要都不缩，
   // 模型名都放不下时才末尾省略（title 是全名）。变体是短枚举，从不缩（2026-09-21 走查：「Variant 5.0」被压成「Variant E」）。
   // 没有底栏的（实验室里只要参数格的地方）照旧：模型那枚让位、摘要最宽 240。
-  const modelChipClass = wrap || (yielding && !fitCramped) ? 'shrink-0' : undefined
+  const modelChipClass = wrap || neverTruncateModel || (yielding && !fitCramped) ? 'shrink-0' : undefined
   const identityRow = (): JSX.Element => (
     // 判据：参数条一行里相邻两颗控件不许相压（`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
-    <div data-yield-item="" className={cn('flex items-center gap-1.5', (yielding && !yieldStep.modelEllipsis) ? 'shrink-0' : 'min-w-0')}>
+    <div data-yield-item="" className={cn('flex items-center gap-1.5', (neverTruncateModel || (yielding && !yieldStep.modelEllipsis)) ? 'shrink-0' : 'min-w-0')}>
       {!hideModel ? (
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.model')}
           placeholder={t('generationCommon.parameters.selectModel')}
-          triggerMaxWidth={wrap ? 260 : 200}
+          triggerMaxWidth={neverTruncateModel ? undefined : wrap ? 260 : 200}
+          boardAnchor={modelChipBoardAnchor}
           className={modelChipClass}
-          value={modelSelect.modelValue}
-          options={leadingModelOption ? [{ value: '', ...leadingModelOption }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
+          value={modelSelectValue}
+          options={leadingModelOption ? [{ value: '', label: leadingModelOption.label, description: leadingModelOption.description, icon: leadingModelOption.icon, dividerAfter: leadingModelOption.dividerAfter, boardAnchor: leadingModelOption.boardAnchor }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
           onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
           onChipChange={modelSelect.onModelProviderPick}
           footerAction={modelSelect.visibilityFooter}
@@ -701,8 +614,8 @@ export default function InlineParameterBar({
       className={cn(
         'generation-canvas-v2-node__params--parameters',
         'min-w-0',
-        // 分镜行最窄一档（wrap）放不下就整颗换行；其余一行（画布节点长相不变）。
-        cn('flex items-center', wrap ? 'flex-wrap gap-2' : 'gap-1.5'),
+        // 分镜行最窄一档（wrap）或窄生成框自动态（autoWrapOnCramp）放不下就把参数胶囊换到下一行，模型名不截断。
+        cn('flex items-center', wrap ? 'flex-wrap gap-2' : autoWrapOnCramp ? 'flex-wrap gap-1.5' : 'gap-1.5'),
         // 让法要知道「还剩多宽」：参数条吃满这一段，摘要槽吃满身份几格之后的剩余。
         yielding && 'flex-1',
       )}
@@ -710,7 +623,7 @@ export default function InlineParameterBar({
       <div className="contents">{identityRow()}</div>
       {showSummary && yielding ? (
         <div data-parameter-summary-slot="true" className={cn('relative flex items-center', fitCramped ? 'flex-none' : 'min-w-0 flex-1')}>
-          {summaryTrigger()}
+          {summaryTrigger(autoWrapOnCramp ? fullSummaryText : summaryText)}
           {panelPortal}
         </div>
       ) : showSummary ? (

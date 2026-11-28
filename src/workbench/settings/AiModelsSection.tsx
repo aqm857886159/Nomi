@@ -14,6 +14,7 @@ import { listWorkbenchModelCatalogModels, type ModelCatalogModelDto } from '../a
 import { DefaultGenerationModelsSection } from './DefaultGenerationModelsSection'
 import { VendorPreferenceOrderSection } from './VendorPreferenceOrderSection'
 import { ModelBoxOrderSection } from './ModelBoxOrderSection'
+import { useVendorPreferenceOrder } from '../common/useVendorPreference'
 import {
   getGenerationModelDefaults,
   loadGenerationModelDefaults,
@@ -92,6 +93,7 @@ export function AiModelsSection({
     }
   }, [])
 
+  const orderedVendorKeys = useVendorPreferenceOrder()
   const generationDefaults = React.useSyncExternalStore(
     subscribeGenerationModelDefaults,
     getGenerationModelDefaults,
@@ -180,6 +182,7 @@ export function AiModelsSection({
       <DefaultGenerationModelsSection
         models={models}
         vendorNameOf={vendorNameOf}
+        orderedVendorKeys={orderedVendorKeys}
         defaults={generationDefaults}
         onChange={handleDefaultsChange}
       />

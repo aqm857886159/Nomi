@@ -90,12 +90,12 @@ export function buildV4ModelRows(data: Pick<AgentPanelV4Data, 'models' | 'vendor
         }
       : { empty: t('agentPanelV4.modelNone') }),
   })
-  for (const [slot, taskKind] of [
-    [t('agentPanelV4.imageDefault'), 'text_to_image'],
-    [t('agentPanelV4.videoDefault'), 'text_to_video'],
+  for (const [slot, mediaKind, taskKind] of [
+    [t('agentPanelV4.imageDefault'), 'image', 'text_to_image'],
+    [t('agentPanelV4.videoDefault'), 'video', 'text_to_video'],
   ] as const) {
     const options = generationOptions.optionsByKind[taskKind]
-    const current = data.generationDefaults[taskKind]
+    const current = data.generationDefaults[mediaKind]
     const selectedValue = current ? generationOptions.encode(current) : ''
     const selectedModel = data.generationModels.find(model => model.vendorKey === current?.vendorKey && model.modelKey === current?.modelKey)
     const cost = selectedModel?.pricing?.enabled && selectedModel.pricing.cost > 0
@@ -111,7 +111,7 @@ export function buildV4ModelRows(data: Pick<AgentPanelV4Data, 'models' | 'vendor
         ? {
             options,
             selectedValue: selectedValue ?? '',
-            onChange: (value: string) => data.setGenerationDefault(taskKind, generationOptions.decode(value)),
+            onChange: (value: string) => data.setGenerationDefault(mediaKind, generationOptions.decode(value)),
           }
         : { empty: t('agentPanelV4.modelNone') }),
     })

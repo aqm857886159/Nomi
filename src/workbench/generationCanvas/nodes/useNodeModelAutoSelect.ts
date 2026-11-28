@@ -1,9 +1,12 @@
-import { lastGenerationChoice } from '../model/generationModelDefaults'
-// NodeParameterControls 的「模型自动选择」副作用集合（4 个 useEffect）。
-// 从组件抽出为 hook：默认选模型 / vendor 同步 / 供应商断开自愈 / archetype meta 初始化。
-// 所有派生写回都从 store 读取最新节点，避免两个同屏控制实例用旧快照互相触发。
+// NodeParameterControls 的「模型自动选择」副作用集合。
+// 2026-11-27 AutoModel 板（SG-1 / SG-2 / auto.name-is-what-runs）：
+// - 新卡不再读「跟上次一样」记忆；设置未配固定模型时，走唯一真源 `resolveAutoGenerationModel` 并标记 `modelAuto: true`；
+// - 处于 `modelAuto: true`（或继承自单能力默认模型 `modelFromDefault: true` 而当前模式不再支持该模型）的空闲节点，
+//   当模式切换（如 Kie 文生图 ↔ 改图行切换）、供应商变化或连败状态变化时，同步到 `resolveAutoGenerationModel` 算出的模型，
+//   确保左下胶囊「自动 · X」印出的名字与发送执行读取的 `node.meta` 完全同源。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { resolveAutoGenerationModel } from '../../../config/autoGenerationModel'
 import type { ModelOption } from '../../../config/models'
 import {
   parseCustomCapabilityContract,
@@ -11,6 +14,7 @@ import {
   resolveModelArchetype,
   variantRecordedInMeta,
 } from '../../../../electron/shared/modelArchetypes'
+import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { buildModelControls, defaultPatchForControls, isAspectRatioControl, readMeta } from './controls/parameterControlModel'
@@ -23,6 +27,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
 import { whenCanvasWriteBoundarySettled } from '../events/canvasWriteBoundary'
 import { selectedModelKey } from '../runner/catalogTaskResolve'
+import { isModelRecentlyAiling } from '../runner/modelHealthMemory'
 import { useToastStore } from '../../../ui/toast'
 import { classifyGenerationError } from '../../observability/classifyError'
 import { chooseDefaultModelOption, resolveArchetypeForOption, resolveRenderedControls, resolveRenderedMode } from './nodeModelArchetype'
@@ -33,6 +38,7 @@ import {
   subscribeGenerationModelDefaults,
 } from '../model/generationModelDefaults'
 import {
+  deriveGenerationDefaultMediaKind,
   deriveGenerationDefaultTaskKind,
   nodeHasImageReference,
   resolveDefaultModelOption,
@@ -52,12 +58,6 @@ import {
   vendorLabelFor,
 } from './nodeRecoveryNotice'
 
-/**
- * 档案命名空间 meta 的初始化（记下档案和默认摆法，来历不明；这次按什么发由 modeForInputs 按输入现算）。幂等：已是该档案 → null。
- * 「选默认模型」和「选到一个有档案的模型」两处共用：默认模型那一笔写里就把档案一起初始化好，
- * 不再先写模型、重渲、再写档案（2026-10-16 可疑点 i：新卡第一次挂载的级联写）。
- * 出生就带着参考的卡（提示词库「放上画布」带参考图）不用再促模式：那些参考本身就是输入，现算时按它们摆。
- */
 function initializedArchetypeMeta(
   meta: Record<string, unknown>,
   archetype: NonNullable<ReturnType<typeof resolveArchetypeForOption>>,
@@ -89,6 +89,7 @@ export function useNodeModelAutoSelect({
   updateNode,
 }: UseNodeModelAutoSelectArgs): void {
   const { t } = useTranslation()
+  const orderedVendorKeys = useVendorPreferenceOrder()
   const deferredWrites = React.useRef(new Set<string>())
   const latestNodeRef = React.useRef(node)
   latestNodeRef.current = node
@@ -114,11 +115,7 @@ export function useNodeModelAutoSelect({
       })
     }
   }, [updateNode])
-  // 「新建卡片默认模型」偏好装好没有。装好前**不能**挑模型：此刻偏好是空的，
-  // 挑出来的是「自动选择」的结果并会写进节点 meta，偏好随后才到——
-  // 用户看到的就是「我明明设了默认模型，新建的卡还是别的」。装好后订阅会触发重跑。
-  // 提示的前提有一半在 React 状态里（「节点钉着的模型是不是还在下拉里」），不在画布 store：模型清单一变就通知
-  // toast 所有者重新问一遍前提（撤回归所有者，这里只是把这个变化告诉它）。
+
   const revalidateListeners = React.useRef(new Set<() => void>())
   const selectionMissingRef = React.useRef(false)
   selectionMissingRef.current = Boolean(selectedModelValue) && !selectedModelOption
@@ -138,20 +135,68 @@ export function useNodeModelAutoSelect({
     void loadGenerationModelDefaults()
   }, [])
 
+  // ① 新卡初始化（及单能力默认模型切模式自动回退 + 自动态模型实时同源同步）
   React.useEffect(() => {
     if (!isGenerationNode) return
-    if (selectedModelValue) return
     const latestNode = getLatestNode()
+    const status = latestNode.status || 'idle'
+    if (status === 'queued' || status === 'running') return
     const latestMeta = latestNode.meta || {}
-    // 这张卡是 agent 草稿的投影，而候选指定的模型此刻解析不出来（不在可用清单里）。
-    // **绝不替他挑一个**：静默换掉之后，「agent 说的模型」和「卡上的模型」就对不上了，
-    // 而用户没有任何线索知道换过——2026-09-10 真机 bug 的形状正是这个。
-    // 诚实做法：保留 agent 的意图（戳仍在 meta 上），把缺口明着告诉用户（D4）。
+    const isAutoMeta = latestMeta.modelAuto === true
+    const isFromDefault = latestMeta.modelFromDefault === true
+
+    if (selectedModelValue) {
+      // 只有处于「自动」态，或继承了设置里的单能力默认模型但当前模式不支持它的空闲卡，才由自动真源重算。
+      if (!isAutoMeta && !(isFromDefault && !selectedModelOption)) return
+      const mediaKind = deriveGenerationDefaultMediaKind({ isImageLike, isVideoLike })
+      if (!mediaKind) return
+      const taskKind = deriveGenerationDefaultTaskKind({
+        isImageLike,
+        isVideoLike,
+        hasImageReference: nodeHasImageReference(latestMeta),
+      })
+      const preferred = isFromDefault ? resolveDefaultModelOption(modelOptions, getGenerationModelDefaults(), taskKind) : undefined
+      const autoResolved = preferred
+        ? null
+        : resolveAutoGenerationModel({
+            mediaKind,
+            options: modelOptions,
+            orderedVendorKeys,
+            isAiling: isModelRecentlyAiling,
+          })
+      const nextOption = preferred ?? autoResolved?.option
+      if (!nextOption?.value) return
+      const nextVendor = nextOption.vendor || null
+      const nextKey = nextOption.modelKey || nextOption.value
+      const nextAutoFlag = !preferred
+      const currentVendor = readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor') || null
+      if (selectedModelValue === nextKey && currentVendor === nextVendor && Boolean(latestMeta.modelAuto) === nextAutoFlag) {
+        return
+      }
+      const nextArchetype = resolveArchetypeForOption(nextOption, { variantId: undefined, modelId: nextOption.modelKey })
+      const modelMeta = replaceCustomCapabilityContractMeta(latestMeta, nextOption.meta)
+      let syncedMeta = projectParameterReferenceSlots({
+        ...modelMeta,
+        modelKey: nextKey,
+        modelAlias: nextOption.modelAlias || nextOption.value,
+        modelVendor: nextVendor,
+        vendor: nextVendor,
+        modelLabel: nextOption.label,
+        modelAuto: nextAutoFlag,
+        ...(isVideoLike
+          ? { videoModel: nextOption.value, videoModelVendor: nextVendor }
+          : { imageModel: nextOption.value, imageModelVendor: nextVendor }),
+      }, nextOption.meta)
+      if (nextArchetype) {
+        syncedMeta = initializedArchetypeMeta(syncedMeta, nextArchetype) || syncedMeta
+      }
+      writeDerivedMeta(node.id, { meta: syncedMeta })
+      return
+    }
+
     const candidateIdentity = readCandidateNodeIdentity(latestMeta)
     if (candidateIdentity?.modelKey) {
       useToastStore.getState().push({
-        // 一张卡同一时刻只有一条「模型说不了话」的提示（与切家提示共用一个 id）；同一个缺口再宣布不算再发生一次；
-        // 用户给这张卡选了模型 → 前提不成立，所有者撤回它（不靠这里的 effect 再跑一遍）。
         id: nodeRecoveryToastId(node.id),
         occurrence: `candidate-unavailable:${candidateIdentity.modelVendor}:${candidateIdentity.modelKey}`,
         reason: 'candidate-model-unavailable',
@@ -166,23 +211,26 @@ export function useNodeModelAutoSelect({
       return
     }
     if (!defaultsReady) return
+    const mediaKind = deriveGenerationDefaultMediaKind({ isImageLike, isVideoLike })
     const taskKind = deriveGenerationDefaultTaskKind({
       isImageLike,
       isVideoLike,
       hasImageReference: nodeHasImageReference(latestMeta),
     })
-    // 用户设过就用他的；没设、或设的那个此刻不可用（供应商删了/模型禁用了），
-    // 就让位给原有的健康挑选策略——绝不把卡片钉在一个跑不了的模型上。
     const preferred = resolveDefaultModelOption(modelOptions, getGenerationModelDefaults(), taskKind)
-    const last = taskKind && lastGenerationChoice(taskKind)
-    const remembered = last && taskKind ? resolveDefaultModelOption(modelOptions, { [taskKind]: last }, taskKind) : undefined
-    const firstOption = preferred ?? remembered ?? (taskKind ? modelOptions[0] : chooseDefaultModelOption(modelOptions, isImageLike, isVideoLike))
+    const autoResolved = !preferred && mediaKind
+      ? resolveAutoGenerationModel({
+          mediaKind,
+          options: modelOptions,
+          orderedVendorKeys,
+          isAiling: isModelRecentlyAiling,
+        })
+      : null
+    const firstOption = preferred ?? autoResolved?.option ?? chooseDefaultModelOption(modelOptions, isImageLike, isVideoLike)
     if (!firstOption?.value) return
     const firstControls = buildModelControls(firstOption.meta, isImageLike, isVideoLike)
     const explicitAspect = isVideoLike && latestMeta[ASPECT_EXPLICIT_META_KEY] === true
     const defaultPatch = defaultPatchForControls(explicitAspect ? firstControls.filter(control => !isAspectRatioControl(control)) : firstControls)
-    // 视频比例的产品默认（首选 16:9、已连输入全竖 9:16）与模型默认值同一笔写进去——只问唯一出处。
-    // 以前它要等生成框挂载 effect 再「纠正」一次：多一笔写，而且那个 effect 连 Agent 写的比例也改。
     const canvas = useGenerationCanvasStore.getState()
     const firstArchetype = resolveArchetypeForOption(firstOption, { variantId: undefined, modelId: firstOption.modelKey })
     const modelMeta = replaceCustomCapabilityContractMeta(latestMeta, firstOption.meta)
@@ -193,6 +241,7 @@ export function useNodeModelAutoSelect({
       modelVendor: firstOption.vendor || null,
       vendor: firstOption.vendor || null,
       modelLabel: firstOption.label,
+      ...(mediaKind ? { modelAuto: !preferred, modelFromDefault: Boolean(preferred) } : {}),
       ...defaultPatch,
       ...(isVideoLike
         ? { videoModel: firstOption.value, videoModelVendor: firstOption.vendor || null }
@@ -221,7 +270,7 @@ export function useNodeModelAutoSelect({
       defaultMeta = applyVideoAspectSeed(defaultMeta, aspectPatch)
     }
     writeDerivedMeta(node.id, { meta: defaultMeta })
-  }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, selectedModelValue, t, writeDerivedMeta])
+  }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, orderedVendorKeys, selectedModelOption, selectedModelValue, t, writeDerivedMeta])
 
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelOption) return
@@ -251,20 +300,8 @@ export function useNodeModelAutoSelect({
     writeDerivedMeta(node.id, { meta: nextMeta })
   }, [getLatestMeta, isGenerationNode, isVideoLike, node.id, selectedModelOption, writeDerivedMeta])
 
-  // ★变体合并迁移（2026-06-16，最大风险点）：旧项目 node.meta.modelKey 钉的是具体变体串
-  // （如 doubao-seedance-2.0-fast），合并后 picker 只剩基础 modelKey。把旧变体 modelKey 归一成
-  // 基础 modelKey + meta.archetype.variantId（保住「用户当初要 fast」），绝不让旧项目模型选择变空。
-  // 必须**早于**下面的「供应商断开自愈」effect 跑——归一后 selectedModelValue 变成基础 modelKey、
-  // 能在 picker 命中，自愈 effect 就不会误报「供应商已断开」toast。幂等：已归一 → no-op。
-  // 据 selectedModelValue 解析档案（此时旧 modelKey 仍命中基础档案的 identifierPatterns）。
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelValue) return
-    // ⚠️ 迁移只针对**已经解析不到**的旧串。一个在当前目录里活着的 (vendor, modelKey) 绝不能被改写：
-    // 变体的 identifierPatterns 是**供应商无关**的裸串，而不同供应商可以用同一个裸串命名不同的行——
-    // Runway 的真实 modelKey `veo3.1` 正好等于 veo-3.1 档案 fast 变体的 pattern，`seedance2` 同理。
-    // 少了这道闸，迁移会把活着的 Runway 节点改写成 APIMart 的基础串（veo3.1-fast / bytedance/seedance-2），
-    // 供应商却还留在 runway：轻则模式栏/参数显示成另一家的样子，重则 (runway, bytedance/seedance-2)
-    // 这个组合在目录里根本不存在 → 生成面板直接报「加载失败」。R13 真机走查抓到的就是这个。
     if (selectedModelOption) return
     const latestMeta = getLatestMeta()
     const sourceArchetype = resolveModelArchetype({
@@ -286,13 +323,6 @@ export function useNodeModelAutoSelect({
     })
   }, [getLatestMeta, isGenerationNode, isVideoLike, node.id, selectedModelOption, selectedModelValue, writeDerivedMeta])
 
-  // 「这张卡的模型说不了话」时给一条可点的替代建议（用户点击前绝不改写模型身份）：
-  //   ① 失败——点名**失败的那一家**：读失败记录（运行记录上的 attempt = 提交那一刻发给谁），不读节点现在选着谁；
-  //      失败记录里没有「发给谁」（旧记录 / 非供应商失败）就不点名、不出提示；换了家 / 换了模型以后这条失败不再描述这张卡，也不出。
-  //      只在分类认定它是**服务商那一侧**的事时才出（vendorSide）：读不出产物 / 本地校验 / 出站策略这类是我们这一侧的事，
-  //      点名供应商就是栽赃，换家也不是解法。
-  //   ② 断开——节点钉着的模型已从下拉移除（selectedModelOption===null，但 selectedModelValue 仍在）：点名节点现在钉着的那家。
-  // 提示的身份按节点、按「哪一次失败」定；撤回归 toast 所有者（validWhile）——节点一变、前提不成立就收掉，不靠这里再跑一遍。
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelValue) return
     const latestNode = getLatestNode()
@@ -301,9 +331,10 @@ export function useNodeModelAutoSelect({
     const failure = report?.vendorSide ? report : null
     if (selectedModelOption && !failure) return
     const latestMeta = getLatestMeta()
+    // 自动态或继承默认态在空闲切模式时由 effect ① 自动切到当前可用推荐模型，不误报「供应商已断开」。
+    if (!failure && (latestMeta.modelAuto === true || latestMeta.modelFromDefault === true) && modelOptions.length > 0) return
     const currentVendor = readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor')
     const sourceVendor = failure && failed ? failed.vendorKey : currentVendor
-    // 点名给用户看的是显示名，不是 key（key 只用来认「是哪一家」）。
     const sourceVendorLabel = vendorLabelFor(modelOptions, sourceVendor)
     const sourceArchetype = resolveModelArchetype({
       modelKey: selectedModelValue,
@@ -342,7 +373,6 @@ export function useNodeModelAutoSelect({
         const current = getLatestMeta()
         if (readMeta(current, 'modelVendor') !== readMeta(latestMeta, 'modelVendor')
           || readMeta(current, 'modelKey') !== readMeta(latestMeta, 'modelKey')) return
-        // 换到别家：人手选过的摆法按同一种意图带过去，其余不替节点挑方式（发送时按输入现算）。
         const carried = targetArchetype ? carryHumanModePreference(current, sourceArchetype, targetArchetype) : current
         updateNode(node.id, {
           meta: {
@@ -352,6 +382,8 @@ export function useNodeModelAutoSelect({
             modelVendor: optionVendor,
             vendor: optionVendor,
             modelLabel: target.label,
+            modelAuto: false,
+            modelFromDefault: false,
             ...(isVideoLike
               ? { videoModel: target.value, videoModelVendor: optionVendor }
               : { imageModel: target.value, imageModelVendor: optionVendor }),
@@ -376,18 +408,9 @@ export function useNodeModelAutoSelect({
     updateNode,
   ])
 
-  // 选到一个有内置档案的模型、还没有命名空间 meta 时，初始化 node.meta.archetype（落到默认模式）。
-  // 幂等：已是该档案则 no-op，不会循环。
-  // 初始化的同一笔写里对账活边参考（2026-07-28 群反馈）：「创建并连接」菜单 + 自动选模型不经
-  // handleModelChange，默认 t2i 会把已连参考晾在门外——UI 停在「文生图」误导用户（提交端虽有
-  // 咽喉 reconcile 兜底发送正确，但界面得当场说真话）。仅在初始化时刻对账，不做持续强制——
-  // 用户之后手动切回文生图是他的选择，提交时才由咽喉按「挂着参考=要用参考」纠正。
   React.useEffect(() => {
     if (!isGenerationNode || !archetype) return
     const latestNode = getLatestNode()
-    // 这一帧的档案是按渲染快照里的模型算的；store 里的节点可能已经换了模型（换模型那一笔刚写进去，这个宿主还没重渲）。
-    // 拿旧模型的档案去「初始化」新模型的节点，会把换模型时按参考挑好的方式改回旧档案的默认文生（真机走查 2026-10-22：
-    // 30 张参考换到 Veo 3.1 被打回文生、切回 Seedance 2.5 又被打回文生）。对不上就等下一帧。
     const latestModelKey = typeof latestNode.meta?.modelKey === 'string' ? latestNode.meta.modelKey : ''
     if (selectedModelOption && latestModelKey
       && ![selectedModelOption.modelKey, selectedModelOption.value, selectedModelOption.modelAlias].includes(latestModelKey)) return

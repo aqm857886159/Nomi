@@ -1,43 +1,25 @@
-// 「新建卡片默认模型」的渲染侧快照（范式同 systemPromptOverrides.ts：load-once + 模块级缓存 + 订阅）。
+// 「新建节点默认用哪个模型」的渲染侧快照（load-once + 模块级缓存 + 订阅）。
 //
-// 为什么要模块级缓存而不是纯 React state：挑模型发生在节点刚建出来的那一刻，
-// 是个**同步**判断；而偏好只能走异步 IPC 拿。所以必须有个「进程内已装好答案」的同步读取口。
-//
-// **`loaded` 不是可有可无的字段，它是这套东西正确性的关键。**
-// 首帧 IPC 还没回来时，快照是空的——若此刻就去挑模型，会挑成「自动选择」并把结果写进节点，
-// 然后偏好才姗姗来迟：用户看到的是「我明明设了默认模型，新建的卡还是别的」。
-// 所以调用方必须先问 `generationModelDefaultsLoaded()`，没装好就**什么都别做**，
-// 等订阅通知再挑。这与系统提示词那边「首帧降级到默认值」不同：那边降级是无害的（默认值本来就是答案），
-// 这边降级会**写坏用户数据**（把错模型钉进节点 meta）。
+// 2026-11-27 AutoModel 板（SG-1 / SG-2 / SG-3）：
+// - 收成 `image` / `video` 两项偏好（`schemaVersion: 2`）；缺席 = 「自动 · 实际模型名」。
+// - 同提交删除旧「跟上次一样」本地记忆（`lastGenerationChoice` / `rememberGenerationChoice`）：
+//   新卡默认写「自动 · 实际模型名」，不再跟随上一张卡的手选模型变化。
+// - **`loaded` 仍是关键守卫**：首帧 IPC 尚未返回前不抢挑模型，避免把已设固定默认的用户新卡错写成自动模型。
 
 import { getDesktopBridge } from '../../../desktop/bridge'
 import {
-  normalizeGenerationModelDefaults,
+  mediaKindForTaskKind,
+  type GenerationDefaultMediaKind,
   type GenerationDefaultTaskKind,
   type GenerationModelDefault,
   type GenerationModelDefaults,
 } from '../../../../electron/shared/contracts/generationModelDefaultsContract'
 
-export type GenerationModelDefaultMap = Partial<Record<GenerationDefaultTaskKind, GenerationModelDefault>>
+export type GenerationModelDefaultMap = Partial<Record<GenerationDefaultMediaKind, GenerationModelDefault>>
 
-// 渲染层要用这两个类型时**从这里取**，别各自去 import `electron/settings/…`：
-// 那是主进程的家，渲染层直连它是 `check:boundaries` 的 `src-no-import-electron`。
-// 本模块已经是渲染侧读写这份偏好的唯一入口，类型跟着它走是同一条边界。
-export type { GenerationDefaultTaskKind, GenerationModelDefault }
-
-const LAST_CHOICE_PREFIX = 'nomi:generation:last-model:'
-
-export function lastGenerationChoice(kind: GenerationDefaultTaskKind): GenerationModelDefault | undefined {
-  try {
-    const value = JSON.parse(localStorage.getItem(LAST_CHOICE_PREFIX + kind) || 'null')
-    return normalizeGenerationModelDefaults({ byTaskKind: { [kind]: value } }).byTaskKind[kind]
-  } catch { return undefined }
-}
-
-export function rememberGenerationChoice(kind: GenerationDefaultTaskKind | null, vendorKey: unknown, modelKey: unknown): void {
-  if (!kind || typeof vendorKey !== 'string' || !vendorKey || typeof modelKey !== 'string' || !modelKey) return
-  try { localStorage.setItem(LAST_CHOICE_PREFIX + kind, JSON.stringify({ vendorKey, modelKey })) } catch { /* Optional history. */ }
-}
+// 渲染层统一从本模块取类型与映射函数，避免直连主进程 settings 目录触发边界门岗。
+export { mediaKindForTaskKind }
+export type { GenerationDefaultMediaKind, GenerationDefaultTaskKind, GenerationModelDefault }
 
 const EMPTY: GenerationModelDefaultMap = {}
 
@@ -50,15 +32,12 @@ function emit(): void {
   for (const listener of [...listeners]) listener()
 }
 
-/** 同步读当前快照。**用它之前先问 generationModelDefaultsLoaded()**，理由见文件头。 */
+/** 同步读当前快照。**用它之前先问 generationModelDefaultsLoaded()**。 */
 export function getGenerationModelDefaults(): GenerationModelDefaultMap {
   return snapshot
 }
 
-/**
- * 偏好是否已经从磁盘装好。
- * 没装好时挑模型 = 拿空偏好当「用户没设」，会把错模型钉进新节点。调用方必须等。
- */
+/** 偏好是否已经从磁盘装好。没装好时调用方必须等待订阅通知再落默认模型。 */
 export function generationModelDefaultsLoaded(): boolean {
   return loaded
 }
@@ -78,13 +57,12 @@ function applySnapshot(next: GenerationModelDefaultMap): GenerationModelDefaultM
 }
 
 function toMap(value: GenerationModelDefaults | undefined): GenerationModelDefaultMap {
-  return { ...(value?.byTaskKind ?? {}) }
+  return { ...(value?.byKind ?? {}) }
 }
 
 /**
  * load-once：多次调用共用同一个 in-flight promise，不会打多次 IPC。
- * 非 Electron 环境（浏览器测试/预览）没有 bridge → 落到空 map 并标记已装好：
- * 那里本来就没有偏好可言，一直等下去反而会让节点永远挑不出模型。
+ * 非 Electron 环境（浏览器测试/预览）没有 bridge → 落到空 map 并标记已装好。
  */
 export function loadGenerationModelDefaults(): Promise<GenerationModelDefaultMap> {
   if (loaded) return Promise.resolve(snapshot)
@@ -109,7 +87,7 @@ export async function saveGenerationModelDefaults(
   const bridge = getDesktopBridge()?.settings?.generationModelDefaults
   if (!bridge?.set) return snapshot
   try {
-    const stored = await bridge.set({ schemaVersion: 1, byTaskKind: next })
+    const stored = await bridge.set({ schemaVersion: 2, byKind: next })
     return applySnapshot(toMap(stored))
   } catch {
     return snapshot

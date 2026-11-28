@@ -123,51 +123,49 @@ try {
   await generation.click()
   await canvasAddBar(getWin()).waitFor()
   await clickOrFail(canvasAddBar(getWin()).locator('button[data-node-kind="image"]'), '工具条上的「图片」')
-  await getWin().waitForTimeout(1400)
+  await getWin().locator('[aria-label="模型"]').filter({ hasNotText: /^$/ }).first()
+    .waitFor({ state: 'visible', timeout: 15_000 })
+  await getWin().waitForTimeout(400)
 
   const baseline = await readSelectedModel()
-  assert(Boolean(baseline), '没设默认时新卡也选出了模型（原有策略仍生效）', String(baseline))
+  assert(Boolean(baseline) && baseline.startsWith('自动 · '), '没设默认时新卡默认印「自动 · 实际模型名」（SG-2）', String(baseline))
   await snap('01-baseline-card.png')
 
-  // ── 进设置给「文生图」设一个默认模型 ──────────────────────────────────
+  // ── 进设置给「图片」一行设一个默认模型（AutoModel 2 行） ──────────────────
   await clickOrFail(getWin().locator('[aria-label*="设置"], button[title*="设置"]').first(), '顶栏设置')
   await getWin().waitForTimeout(900)
   await clickOrFail(getWin().locator('[data-settings-tab-id="ai"]').first(), 'AI 策略 tab')
   await getWin().waitForTimeout(700)
 
   const section = getWin().locator('[data-settings-section="default-generation-models"]')
-  await expectVisible(section, '「新建卡片默认模型」区块出现')
+  await expectVisible(section, '「新建节点默认用哪个模型」区块出现')
   passed += 1
-  console.log('  ✓ 「新建卡片默认模型」区块出现')
+  console.log('  ✓ 「新建节点默认用哪个模型」区块出现')
   await snap('02-settings-section.png')
 
-  await clickOrFail(section.locator('[aria-label="文字出图 默认模型"]'), '文字出图 默认模型下拉')
+  await clickOrFail(section.locator('[aria-label="图片 默认模型"]'), '图片 默认模型下拉')
   await getWin().waitForTimeout(400)
 
-  // 挑一个**不是**基线的选项，这样「默认生效了」才可证伪。
-  // 必须只看**可见**的 option：Mantine 的下拉挂在 body 的 portal 里，画布上那些没展开的
-  // 下拉（变体张数等）其选项也在 DOM 中——用裸 querySelectorAll 会挑到「1 张」这种货
-  // （本走查第一次跑就是这么错的）。
   const visibleOptions = getWin().locator('[role="option"]:visible')
-  const optionTexts = (await visibleOptions.allTextContents()).map((text) => text.trim())
-  const targetIndex = optionTexts.findIndex(
-    (text) => {
-      const model = text.slice('固定 · '.length)
-      return text.startsWith('固定 · ') && model !== baseline && !model.startsWith(baseline + ' · ')
-    },
+  const optionLabels = await visibleOptions.evaluateAll((els) =>
+    els.map((el) => (el.querySelector('[data-nomi-select-option-label]')?.textContent || el.textContent || '').trim()),
   )
-  assert(targetIndex >= 0, '下拉里有可选的模型', JSON.stringify(optionTexts))
-  const picked = optionTexts[targetIndex]
+  const baselineModelName = baseline.replace(/^自动 · /, '')
+  const targetIndex = optionLabels.findIndex(
+    (label, index) => index > 0 && label && label !== baselineModelName && !label.startsWith(baselineModelName + ' · '),
+  )
+  assert(targetIndex >= 0, '下拉里有与自动默认不同的可选模型', JSON.stringify(optionLabels))
+  const picked = optionLabels[targetIndex]
   await visibleOptions.nth(targetIndex).click({ timeout: 5000 })
-  assert(Boolean(picked), '选到了一个与基线不同的模型（否则这条走查证明不了任何事）', String(picked))
+  assert(Boolean(picked), '选到了一个与基线不同的模型', String(picked))
   await getWin().waitForTimeout(700)
   await snap('03-default-picked.png')
 
   const persisted = await readPersistedDefaults()
-  const entry = persisted?.byTaskKind?.text_to_image
+  const entry = persisted?.byKind?.image
   assert(
-    Boolean(entry?.vendorKey && entry?.modelKey),
-    '偏好以「供应商 + 模型」两段身份落盘（只存模型名会跨供应商串台）',
+    persisted?.schemaVersion === 2 && Boolean(entry?.vendorKey && entry?.modelKey),
+    '偏好以 schemaVersion 2 +「供应商 + 模型」两段身份落盘',
     JSON.stringify(entry),
   )
 
@@ -175,10 +173,7 @@ try {
   await getWin().keyboard.press('Escape')
   await getWin().waitForTimeout(700)
   await clickOrFail(canvasAddBar(getWin()).locator('button[data-node-kind="image"]'), '工具条上的「图片」')
-  // 等「第二张卡出现」这个**事实**，而不是睡一个够长的觉——真实耗时会变，
-  // sleep 不够长时读到的是 1 张，断言反而会把「还没渲染」当成「功能坏了」。
   await getWin().locator('.generation-canvas-v2-node').nth(1).waitFor({ state: 'visible', timeout: 15_000 })
-  // 模型芯片是异步挑出来的：等它有内容，否则读到空串。
   await getWin().locator('[aria-label="模型"]').filter({ hasNotText: /^$/ }).first()
     .waitFor({ state: 'visible', timeout: 15_000 })
 
@@ -188,7 +183,7 @@ try {
   const newest = await readSelectedModel()
   await snap('04-new-card-inherits.png')
   assert(
-    Boolean(newest) && newest !== baseline && (picked === '固定 · ' + newest || picked.startsWith('固定 · ' + newest + ' · ')),
+    Boolean(newest) && newest !== baseline && (picked === newest || picked.startsWith(newest + ' · ')),
     '新建的卡片继承了设置里的默认模型',
     `新卡是「${newest}」，设的是「${picked}」`,
   )

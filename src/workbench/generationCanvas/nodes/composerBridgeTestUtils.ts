@@ -16,7 +16,7 @@ const MOUNT_READS: BridgeAnswers = {
   'modelCatalog.listMappings': () => [],
   'projects.listAsync': async () => [],
   'assets.list': async () => ({ items: [], cursor: null }),
-  'settings.generationModelDefaults.get': async () => ({ schemaVersion: 1, byTaskKind: {} }),
+  'settings.generationModelDefaults.get': async () => ({ schemaVersion: 2, byKind: {} }),
   'promptLibrary.list': async () => ({ ok: true, prompts: [] }),
   'promptLibrary.userList': async () => ({ ok: true, prompts: [] }),
   // 发送键约价：生成框挂上后防抖读一次公开价；默认答「算不出」。

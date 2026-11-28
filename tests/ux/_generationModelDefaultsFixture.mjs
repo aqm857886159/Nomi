@@ -2,13 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 export function seedGenerationModelDefaults(settingsDir, models) {
-  const byTaskKind = {}
+  const byKind = {}
   for (const { kind, vendorKey, modelKey } of models) {
     const identity = { vendorKey, modelKey }
-    if (kind === 'image') Object.assign(byTaskKind, { text_to_image: identity, image_edit: identity })
-    if (kind === 'video') Object.assign(byTaskKind, { text_to_video: identity, image_to_video: identity })
+    if (kind === 'image') byKind.image = identity
+    if (kind === 'video') byKind.video = identity
   }
-  if (Object.keys(byTaskKind).length) {
-    fs.writeFileSync(path.join(settingsDir, 'generation-model-defaults.json'), `${JSON.stringify({ schemaVersion: 1, byTaskKind }, null, 2)}\n`)
+  if (Object.keys(byKind).length) {
+    fs.writeFileSync(path.join(settingsDir, 'generation-model-defaults.json'), `${JSON.stringify({ schemaVersion: 2, byKind }, null, 2)}\n`)
   }
 }

@@ -7,7 +7,7 @@ export function selectDefaultImageModels(catalog, defaults = {}) {
     && model.published !== false && vendors.has(model.vendorKey))
     .sort((left, right) => `${left.vendorKey}/${left.modelKey}`.localeCompare(`${right.vendorKey}/${right.modelKey}`))
   if (!rows.length) throw new Error('本次目录没有可用图片模型')
-  const configured = defaults.byTaskKind?.text_to_image
+  const configured = defaults.byKind?.image
   const selected = rows.find(row => row.vendorKey === configured?.vendorKey && row.modelKey === configured?.modelKey) ?? rows[0]
   const other = rows.find(row => row.vendorKey !== selected.vendorKey || row.modelKey !== selected.modelKey)
   const identity = row => row ? { vendorKey: row.vendorKey, modelKey: row.modelKey, label: row.labelZh ?? row.modelKey } : null
