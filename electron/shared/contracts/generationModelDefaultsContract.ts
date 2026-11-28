@@ -1,18 +1,21 @@
-// 「新建卡片默认模型」的用户偏好（用户 2026-08-18 拍板样张后实现）。
-//
-// 解决的摩擦：新建一张卡时，渲染侧是「从池子里挑第一个健康的模型」——不分任务类型。
-// 于是习惯用某个模型做视频的人，每开一张新卡都要重选一次，纯重复劳动。
+// 「新建节点默认用哪个模型」的用户偏好合同（2026-11-27 AutoModel 板拍板升至 schemaVersion 2）。
 //
 // 设计要点：
-// 1. **身份必须是双段 `(vendorKey, modelKey)`**。两个中转站完全可能提供同名模型
-//    （`seedream-4.0` 在 Kie.ai 和 APIMart 都有）——只记 modelKey 会串台：
-//    用户选的是 A 家的，落到卡片上变成 B 家的，账单和结果都不对。
-// 2. **缺席 = 自动选择**。不写默认值进盘：某一类没设置就是没设置，走原有的健康挑选策略。
-//    写一份「默认的默认」进文件会产生第二真相源，以后改挑选策略时老用户永远卡在旧值上。
-// 3. 清洗只做**格式**校验，不校验模型是否还存在——设置文件不该知道目录的死活。
-//    「设了但模型已被删/禁用」由渲染侧在应用时回退到健康挑选（见 generationModelDefaults.ts）。
+// 1. **按媒介收成 `image` / `video` 两项（SG-1）**：图片一行同时管文字出图与改图，
+//    视频一行同时管文字出视频与图片出视频。任务层仍保留四类 `GenerationDefaultTaskKind`
+//    供执行与规划层按模式校验发布资格（通过 `mediaKindForTaskKind` 映射到两项偏好）。
+// 2. **身份必须是双段 `(vendorKey, modelKey)`**：两个中转站可能提供同名模型，只记 modelKey 会串台。
+// 3. **缺席 = 自动（推荐梯队 + 本机可用连接 + 连败避让）**：不把当前推荐模型写死进盘，
+//    避免目录升级推荐模型后老用户永远卡在旧值上。
+// 4. **老用户旧 `schemaVersion: 1`（4 行 `byTaskKind`）不迁移（SG-3）**：读取旧版文件时不报错、
+//    不猜冲突四键，直接归一为 `{ schemaVersion: 2, byKind: {} }` 回到「自动」。
 
-/** 四类可以设默认模型的生成任务。与渲染侧 TaskKind 的同名成员一一对应。 */
+/** 两类可设默认模型的生成媒介（设置 › AI 策略 2 行）。 */
+export const GENERATION_DEFAULT_MEDIA_KINDS = ["image", "video"] as const;
+
+export type GenerationDefaultMediaKind = (typeof GENERATION_DEFAULT_MEDIA_KINDS)[number];
+
+/** 四类生成任务（与渲染侧 / 主进程规划层 TaskKind 一一对应）。 */
 export const GENERATION_DEFAULT_TASK_KINDS = [
   "text_to_image",
   "image_edit",
@@ -22,9 +25,20 @@ export const GENERATION_DEFAULT_TASK_KINDS = [
 
 export type GenerationDefaultTaskKind = (typeof GENERATION_DEFAULT_TASK_KINDS)[number];
 
+export const TASK_KINDS_BY_MEDIA: Readonly<
+  Record<GenerationDefaultMediaKind, readonly [GenerationDefaultTaskKind, GenerationDefaultTaskKind]>
+> = {
+  image: ["text_to_image", "image_edit"],
+  video: ["text_to_video", "image_to_video"],
+};
+
+export function mediaKindForTaskKind(taskKind: GenerationDefaultTaskKind): GenerationDefaultMediaKind {
+  return taskKind === "text_to_image" || taskKind === "image_edit" ? "image" : "video";
+}
+
 /**
- * 一条默认模型选择。两段都必填且非空——少任何一段都不构成一个可解析的模型身份，
- * 与其存半条不如当没设置（回退到自动选择，行为可预期）。
+ * 一条默认模型选择。两段都必填且非空——少任何一段都不构成唯一可解析的模型身份，
+ * 与其存半条不如当没设置（回退到自动，行为可预期）。
  */
 export type GenerationModelDefault = {
   vendorKey: string;
@@ -32,23 +46,27 @@ export type GenerationModelDefault = {
 };
 
 export type GenerationModelDefaults = {
-  schemaVersion: 1;
-  /** 只放用户显式设过的任务类型；缺席 = 该类走「自动选择」。 */
-  byTaskKind: Partial<Record<GenerationDefaultTaskKind, GenerationModelDefault>>;
+  schemaVersion: 2;
+  /** 只放用户显式设过的媒介类型；缺席 = 该类走「自动」。 */
+  byKind: Partial<Record<GenerationDefaultMediaKind, GenerationModelDefault>>;
 };
 
 export const DEFAULT_GENERATION_MODEL_DEFAULTS: GenerationModelDefaults = {
-  schemaVersion: 1,
-  byTaskKind: {},
+  schemaVersion: 2,
+  byKind: {},
 };
 
 /**
- * 单段 key 长度上限。不是产品限制，是防写坏：这份设置每次启动都要读进内存，
- * 没有上限时一个循环写入的 bug 就能把它撑爆。真实的 vendor/model key 都是短标识符。
+ * 单段 key 长度上限。防写坏保护：这份设置每次启动读进内存，真实的 vendor/model key 都是短标识符。
  */
 export const GENERATION_MODEL_KEY_MAX_LENGTH = 200;
 
+const MEDIA_KIND_SET = new Set<string>(GENERATION_DEFAULT_MEDIA_KINDS);
 const TASK_KIND_SET = new Set<string>(GENERATION_DEFAULT_TASK_KINDS);
+
+export function isGenerationDefaultMediaKind(value: unknown): value is GenerationDefaultMediaKind {
+  return typeof value === "string" && MEDIA_KIND_SET.has(value);
+}
 
 export function isGenerationDefaultTaskKind(value: unknown): value is GenerationDefaultTaskKind {
   return typeof value === "string" && TASK_KIND_SET.has(value);
@@ -67,24 +85,27 @@ function keySegment(value: unknown): string | null {
 }
 
 /**
- * 清洗一份可能来自旧版本 / 被手改过 / 被降级写坏的设置文件。
- * 丢弃：未知任务类型、形状不对的条目、两段 key 缺任何一段的条目。
- * 不做的事：不校验模型是否还在目录里（设置层不该知道目录死活，那是渲染侧应用时的事）。
+ * 清洗一份可能来自旧版本 / 被手改过 / 被写坏的设置文件。
+ * - SG-3：非 `schemaVersion: 2`（含老用户的 `schemaVersion: 1` 四行 `byTaskKind`）一律不迁移，
+ *   安全返回 `{ schemaVersion: 2, byKind: {} }` 回到「自动」。
+ * - 丢弃：未知媒介类型、形状不对的条目、两段 key 缺任何一段的条目。
  */
 export function normalizeGenerationModelDefaults(value: unknown): GenerationModelDefaults {
   const raw = record(value);
-  const rawByTaskKind = record(raw.byTaskKind);
-  const byTaskKind: Partial<Record<GenerationDefaultTaskKind, GenerationModelDefault>> = {};
-  for (const [taskKind, entry] of Object.entries(rawByTaskKind)) {
-    if (!isGenerationDefaultTaskKind(taskKind)) continue;
+  if (raw.schemaVersion !== 2) {
+    return { schemaVersion: 2, byKind: {} };
+  }
+  const rawByKind = record(raw.byKind);
+  const byKind: Partial<Record<GenerationDefaultMediaKind, GenerationModelDefault>> = {};
+  for (const [mediaKind, entry] of Object.entries(rawByKind)) {
+    if (!isGenerationDefaultMediaKind(mediaKind)) continue;
     const item = record(entry);
     const vendorKey = keySegment(item.vendorKey);
     const modelKey = keySegment(item.modelKey);
-    // 半条身份没有意义：解析不出唯一模型，落到卡片上必然是错的那一个。
     if (!vendorKey || !modelKey) continue;
-    byTaskKind[taskKind] = { vendorKey, modelKey };
+    byKind[mediaKind] = { vendorKey, modelKey };
   }
-  return { schemaVersion: 1, byTaskKind };
+  return { schemaVersion: 2, byKind };
 }
 
 /** 双段身份的稳定字符串形式，供 Map/Set 去重与比对使用。 */

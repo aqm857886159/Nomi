@@ -149,10 +149,10 @@ describe("默认模型解析：用户保存的偏好优先，正则阶梯只兜�
     opt({ value: "nano-banana", label: "Nano Banana", vendor: "my-relay", meta: { archetypeId: "nano-banana" } }),
   ]);
 
-  it("用户设了默认 → 用他的（哪怕正则阶梯会挑另一个）", () => {
+  it("用户设了默认 → 用他的（哪怕推荐阶梯会挑另一个）", () => {
     expect(pickStoryboardDefaultModel(entries, "image")?.modelId).toBe("gpt-image-2");
     const picked = pickSavedDefaultModel(entries, "image", {
-      text_to_image: { vendorKey: "my-relay", modelKey: "nano-banana" },
+      image: { vendorKey: "my-relay", modelKey: "nano-banana" },
     });
     expect(picked?.modelId).toBe("nano-banana");
     expect(picked?.vendor).toBe("my-relay");
@@ -160,17 +160,17 @@ describe("默认模型解析：用户保存的偏好优先，正则阶梯只兜�
 
   it("身份两段都要对：只有模型段命中不算（同名模型来自另一家会串台）", () => {
     expect(pickSavedDefaultModel(entries, "image", {
-      text_to_image: { vendorKey: "vendor-that-is-gone", modelKey: "nano-banana" },
+      image: { vendorKey: "vendor-that-is-gone", modelKey: "nano-banana" },
     })).toBeUndefined();
   });
 
-  it("文生图没设 → 退到图生图那条偏好（一份偏好覆盖同一媒介两个模式）", () => {
+  it("图片一行偏好覆盖同一媒介所有模式", () => {
     expect(pickSavedDefaultModel(entries, "image", {
-      image_edit: { vendorKey: "apimart", modelKey: "nano-banana" },
+      image: { vendorKey: "apimart", modelKey: "nano-banana" },
     })?.vendor).toBe("apimart");
   });
 
-  it("一个默认都没设 → undefined，由调用方回落兜底阶梯", () => {
+  it("一个默认都没设 → undefined，由调用方回落自动推荐阶梯", () => {
     expect(pickSavedDefaultModel(entries, "image", {})).toBeUndefined();
   });
 });

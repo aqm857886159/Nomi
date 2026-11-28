@@ -6,7 +6,7 @@ const fixed = model('gemini-3.1-flash-image-preview')
 const alternative = model('gpt-image-2')
 const newer = model('new-image-model')
 const catalog = models => ({ vendors: [{ key: 'provider', enabled: true }], models })
-const defaults = { byTaskKind: { text_to_image: fixed } }
+const defaults = { byKind: { image: fixed } }
 
 describe('默认模型跟随当次目录', () => {
   it('读取当前显式默认，目录换序也不变', () => {

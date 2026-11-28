@@ -2,7 +2,9 @@ import i18n from '../../../i18n'
 import type { ModelOption } from '../../../config/models'
 import { connectionCreateVerdictsForSource } from '../agent/referenceEdgeCapability'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
+import { resolveAutoGenerationModel } from '../../../config/autoGenerationModel'
 import { getGenerationModelDefaults } from '../model/generationModelDefaults'
+import { isModelRecentlyAiling } from '../runner/modelHealthMemory'
 import type { GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { findModelOptionByIdentifier } from '../adapters/modelOptionsAdapter'
 import { buildModeSwitchMeta, buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
@@ -199,7 +201,7 @@ export function pickDerivedModel(
   readMappings?: VendorMappingsReader,
 ): ModelOption | null {
   if (requires === 'upscale') return findUpscaleModelOption(options)
-  const preferred = getGenerationModelDefaults().image_edit
+  const preferred = getGenerationModelDefaults().image
   const preferredOption = preferred ? findModelOptionByIdentifier(options, preferred.modelKey, preferred.vendorKey) : null
   if (requires === 'layer-split') {
     if (!readMappings) return null
@@ -210,8 +212,13 @@ export function pickDerivedModel(
   const own = nodeSelectedModelAddress((source.meta ?? {}) as Record<string, unknown>)
   const sourceOption = source.kind === 'image' && own.modelKey ? findModelOptionByIdentifier(options, own.modelKey, own.vendorKey) : null
   if (sourceOption && fits(sourceOption)) return sourceOption
-  if (preferredOption) return preferredOption
-  return options.find(fits) ?? null
+  if (preferredOption && fits(preferredOption)) return preferredOption
+  const autoOption = resolveAutoGenerationModel({
+    mediaKind: 'image',
+    options: options.filter(fits),
+    isAiling: isModelRecentlyAiling,
+  })?.option
+  return autoOption ?? options.find(fits) ?? null
 }
 
 const BLOCKED_WITHOUT_MODEL = { 'image-edit': 'no-image-model', upscale: 'no-upscale-model', 'layer-split': 'no-layer-split-model' } as const satisfies Record<'image-edit' | 'upscale' | 'layer-split', DeriveBlockReason>

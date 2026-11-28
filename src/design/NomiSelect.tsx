@@ -58,6 +58,10 @@ export type NomiSelectOption = {
   /** 整行减淡（仍可点）——「能选但眼下不建议」，如近期连败的模型沉底后。 */
   dimmed?: boolean
   more?: boolean
+  /** 选项下方画一条细分隔线（如模型菜单顶部「自动 · 实际模型名」与下方平铺模型列表之间）。 */
+  dividerAfter?: boolean
+  /** 拍板图元素锚点（渲染为 `data-board`）。 */
+  boardAnchor?: string
 }
 
 export type NomiSelectProps = {
@@ -91,6 +95,10 @@ export type NomiSelectProps = {
   className?: string
   /** Long/model-file enums use a searchable, wrapping list; short selectors keep their compact layout. */
   searchable?: boolean
+  /** 搜索框自定义占位文案（如模型下拉「搜模型」）。缺省用 `common.searchOptions`。 */
+  searchPlaceholder?: string
+  /** 触发器按钮上的拍板图锚点（渲染为 `data-board`）。 */
+  boardAnchor?: string
   /** Nested floating panels own their portal so outside-click handling and scrolling stay correct. */
   portalTarget?: React.RefObject<HTMLElement | null>
   /**
@@ -167,6 +175,8 @@ export function NomiSelect({
   title,
   className,
   searchable = false,
+  searchPlaceholder,
+  boardAnchor,
   portalTarget,
   dropdownAlign = 'start',
   footerAction,
@@ -219,6 +229,7 @@ export function NomiSelect({
     <button
       type="button"
       aria-label={ariaLabel}
+      data-board={boardAnchor}
       title={iconOnly ? undefined : title ?? selected?.label ?? (value || undefined)}
       {...(iconOnly ? { 'aria-description': selected?.label } : {})}
       disabled={disabled}
@@ -308,8 +319,8 @@ export function NomiSelect({
               setSearch(event.currentTarget.value)
               combobox.updateSelectedOptionIndex()
             }}
-            aria-label={t('common.searchOptions')}
-            placeholder={t('common.searchOptions')}
+            aria-label={searchPlaceholder || t('common.searchOptions')}
+            placeholder={searchPlaceholder || t('common.searchOptions')}
             classNames={{ input: 'text-caption bg-nomi-paper text-nomi-ink border-nomi-line' }}
           />
         ) : null}
@@ -325,7 +336,7 @@ export function NomiSelect({
             return (
               <React.Fragment key={option.value}>
               {option.group && option.group !== visibleOptions[index - 1]?.group ? <Combobox.Header>{option.group}</Combobox.Header> : null}
-              <Combobox.Option value={option.value} disabled={option.disabled} active={isSel} title={option.description ? `${option.label} · ${option.description}` : option.label}
+              <Combobox.Option value={option.value} disabled={option.disabled} active={isSel} data-board={option.boardAnchor} title={option.description ? `${option.label} · ${option.description}` : option.label}
                 // 带小字的置灰行自己减淡名字和图标；Mantine 默认整行降透明度会把「为什么点不了」那句也一起抹淡。
                 {...(option.disabled && option.description ? { style: { opacity: 1 } } : {})}>
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
@@ -403,6 +414,7 @@ export function NomiSelect({
                   </span>
                 </span>
               </Combobox.Option>
+              {option.dividerAfter && index < visibleOptions.length - 1 ? <div className="mx-2 my-1 h-px bg-nomi-line-soft" aria-hidden="true" /> : null}
               </React.Fragment>
             )
           })}

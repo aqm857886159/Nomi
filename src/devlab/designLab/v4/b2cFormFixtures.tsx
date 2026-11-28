@@ -19,12 +19,12 @@ const B2C_MODELS: ModelCatalogModelDto[] = [
 export function B2cModelSpecimen(): JSX.Element {
   const { t } = useTranslation()
   const [selectedModel, selectModel] = React.useState(B2C_MODELS[0])
-  const [generationDefaults, setDefaults] = React.useState<GenerationModelDefaultMap>({ text_to_image: { vendorKey: 'b2c-catalog', modelKey: 'gpt-image-2' }, text_to_video: { vendorKey: 'b2c-catalog', modelKey: 'MiniMax-H3' } })
+  const [generationDefaults, setDefaults] = React.useState<GenerationModelDefaultMap>({ image: { vendorKey: 'b2c-catalog', modelKey: 'gpt-image-2' }, video: { vendorKey: 'b2c-catalog', modelKey: 'MiniMax-H3' } })
   const rows = buildV4ModelRows({
     models: B2C_MODELS.filter(model => model.kind === 'text'), generationModels: B2C_MODELS.filter(model => model.kind !== 'text'),
     vendors: { 'b2c-catalog': 'Catalog' }, orderedVendorKeys: ['b2c-catalog'], selectedModel,
     modelLabel: selectedModel?.labelZh ?? '', selectModel, generationDefaults,
-    setGenerationDefault: (kind, identity) => setDefaults(current => ({ ...current, [kind]: identity ?? undefined })),
+    setGenerationDefault: (kind, identity) => setDefaults(current => ({ ...current, [kind === 'image' || kind === 'video' ? kind : kind === 'text_to_image' || kind === 'image_edit' ? 'image' : 'video']: identity ?? undefined })),
   }, t)
   return <V4ModelPopover rows={rows} />
 }

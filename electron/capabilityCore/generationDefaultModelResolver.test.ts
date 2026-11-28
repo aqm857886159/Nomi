@@ -18,8 +18,6 @@ const state = (
   version: 11,
   vendors: [
     { key: "apimart", name: "APIMart", enabled: true, authType: "bearer", createdAt: "", updatedAt: "" },
-    // A no-auth vendor proves that local providers do not need a fabricated
-    // credential merely to resolve a saved default.
     { key: "other", name: "Other", enabled: true, authType: "none", createdAt: "", updatedAt: "" },
   ],
   models,
@@ -46,7 +44,7 @@ describe("generation storyboard default model resolver", () => {
   it("uses the saved vendor+model identity instead of the first catalog row", () => {
     const resolve = createGenerationDefaultModelResolver(
       state([model("apimart", "first-image", "image"), model("other", "saved-image", "image")]),
-      { schemaVersion: 1, byTaskKind: { text_to_image: { vendorKey: "other", modelKey: "saved-image" } } },
+      { schemaVersion: 2, byKind: { image: { vendorKey: "other", modelKey: "saved-image" } } },
     );
     expect(resolve("text_to_image")).toEqual({ moduleId: "generation.single-shot", providerId: "other", modelId: "saved-image", mode: "text_to_image" });
   });
@@ -54,8 +52,8 @@ describe("generation storyboard default model resolver", () => {
   it("blocks when the saved model is missing instead of silently choosing row zero", () => {
     const catalog = state([model("apimart", "healthy-image", "image")]);
     const resolve = createGenerationDefaultModelResolver(catalog, {
-      schemaVersion: 1,
-      byTaskKind: { text_to_image: { vendorKey: "missing", modelKey: "gone" } },
+      schemaVersion: 2,
+      byKind: { image: { vendorKey: "missing", modelKey: "gone" } },
     });
     expect(resolve("text_to_image")).toBeUndefined();
   });
@@ -64,7 +62,7 @@ describe("generation storyboard default model resolver", () => {
     const disabled = { ...model("apimart", "disabled-image", "image"), enabled: false };
     const resolve = createGenerationDefaultModelResolver(
       state([disabled]),
-      { schemaVersion: 1, byTaskKind: { text_to_image: { vendorKey: "apimart", modelKey: "disabled-image" } } },
+      { schemaVersion: 2, byKind: { image: { vendorKey: "apimart", modelKey: "disabled-image" } } },
     );
     expect(resolve("text_to_image")).toBeUndefined();
   });
@@ -72,27 +70,25 @@ describe("generation storyboard default model resolver", () => {
   it("keeps image-to-video as the declared mode for a saved video default", () => {
     const resolve = createGenerationDefaultModelResolver(
       state([model("apimart", "video", "video")]),
-      { schemaVersion: 1, byTaskKind: { image_to_video: { vendorKey: "apimart", modelKey: "video" } } },
+      { schemaVersion: 2, byKind: { video: { vendorKey: "apimart", modelKey: "video" } } },
     );
     expect(resolve("image_to_video")).toMatchObject({ modelId: "video", mode: "image_to_video" });
   });
 
-  it("does not select a model for a task kind that is not published", () => {
+  it("does not select a single-capability image default for a task kind that is not published", () => {
     const resolve = createGenerationDefaultModelResolver(
       state([model("apimart", "image-only", "image")]),
-      { schemaVersion: 1, byTaskKind: { image_edit: { vendorKey: "apimart", modelKey: "image-only" } } },
+      { schemaVersion: 2, byKind: { image: { vendorKey: "apimart", modelKey: "image-only" } } },
     );
-
-    // The catalog row is published for text_to_image only.  A saved image_edit
-    // preference must not make the semantic planner emit an unsupported mode.
+    expect(resolve("text_to_image")).toMatchObject({ modelId: "image-only", mode: "text_to_image" });
     expect(resolve("image_edit")).toBeUndefined();
   });
 
   it("does not treat a saved preference as executable when the credential record is missing", () => {
     const catalog = state([model("apimart", "image", "image")], {});
     const resolve = createGenerationDefaultModelResolver(catalog, {
-      schemaVersion: 1,
-      byTaskKind: { text_to_image: { vendorKey: "apimart", modelKey: "image" } },
+      schemaVersion: 2,
+      byKind: { image: { vendorKey: "apimart", modelKey: "image" } },
     });
 
     expect(resolve("text_to_image")).toBeUndefined();
@@ -105,7 +101,7 @@ describe("generation storyboard default model resolver", () => {
     });
     const resolve = createGenerationDefaultModelResolver(
       catalog,
-      { schemaVersion: 1, byTaskKind: { text_to_image: { vendorKey: "apimart", modelKey: "image" } } },
+      { schemaVersion: 2, byKind: { image: { vendorKey: "apimart", modelKey: "image" } } },
       { keyStatusProbe: probe },
     );
 
@@ -119,7 +115,7 @@ describe("generation storyboard default model resolver", () => {
     });
     const resolve = createGenerationDefaultModelResolver(
       catalog,
-      { schemaVersion: 1, byTaskKind: { text_to_image: { vendorKey: "apimart", modelKey: "image" } } },
+      { schemaVersion: 2, byKind: { image: { vendorKey: "apimart", modelKey: "image" } } },
       { keyStatusProbe: () => "locked" },
     );
 
@@ -131,8 +127,8 @@ describe("generation storyboard default model resolver", () => {
       apimart: { ...readyApimartKey, apiKey: "legacy-fixture", enc: "plain" },
     });
     const resolve = createGenerationDefaultModelResolver(catalog, {
-      schemaVersion: 1,
-      byTaskKind: { text_to_image: { vendorKey: "apimart", modelKey: "image" } },
+      schemaVersion: 2,
+      byKind: { image: { vendorKey: "apimart", modelKey: "image" } },
     });
 
     expect(resolve("text_to_image")).toBeUndefined();
@@ -144,10 +140,10 @@ describe("generation storyboard default model resolver", () => {
     const resolve = createGenerationDefaultModelResolver(
       catalog,
       {
-        schemaVersion: 1,
-        byTaskKind: {
-          text_to_image: { vendorKey: "apimart", modelKey: "image" },
-          text_to_video: { vendorKey: "apimart", modelKey: "video" },
+        schemaVersion: 2,
+        byKind: {
+          image: { vendorKey: "apimart", modelKey: "image" },
+          video: { vendorKey: "apimart", modelKey: "video" },
         },
       },
       { keyStatusProbe: probe },

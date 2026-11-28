@@ -1,59 +1,123 @@
-import { QuotedUiNames } from '../../ui/onboarding/QuotedUiNames'
-import { lastGenerationChoice } from '../generationCanvas/model/generationModelDefaults'
-// 「新建卡片默认模型」设置区（用户 2026-08-18 看样张后拍板）。
+// 「新建节点默认用哪个模型」设置区（2026-11-27 AutoModel 板 SG-1 / SG-3 定稿：图片、视频 2 行 + 实际模型名）。
 //
-// 解决的摩擦：新建一张卡时是「从池子里挑第一个健康的模型」，不分任务类型。
-// 偏好用某个模型做视频的人，每开一张新卡都要重选一次。
-//
-// 命名注意：本页下方已有一块叫「默认模型策略」，那块管的是**允许用哪些**（权限）。
-// 这块管的是**新建时默认选哪个**（偏好）。两者同屏，名字必须区分得开，否则没人分得清。
-//
-// 默认值是「自动选择」= 今天的行为，没设过的人完全无感（D4：可选的加速器，不是必须学的配置）。
+// 硬约束：
+// - auto.name-is-what-runs：「自动 · X」的 X 由 `resolveCatalogAutoGenerationModel`（与画布节点同源的
+//   `resolveAutoGenerationModel`）算出，禁止 UI 另写一套名字推导。
+// - auto.no-name-for-unusable：首选推荐模型本机不可用时印本机实际会用的模型（edge.vendor-fallback）；
+//   一个可用模型都没有时印「自动 · 暂无可用模型」并给「去接入供应商」（edge.none-available）。
+// - edge.single-capability-pick：手选仅支持单一子能力的模型（如 Z-Image Turbo 只能文字出图）时，
+//   胶囊印手选名，行副标诚实写出另一子能力用自动（实际模型名）。
+import { IconPlugConnected } from '@tabler/icons-react'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { NomiSelect } from '../../design'
-import type { ModelCatalogModelDto } from '../api/modelCatalogApi'
 import {
-  GENERATION_DEFAULT_TASK_KINDS,
+  GENERATION_DEFAULT_MEDIA_KINDS,
+  type GenerationDefaultMediaKind,
   type GenerationDefaultTaskKind,
 } from '../../../electron/shared/contracts/generationModelDefaultsContract'
+import {
+  inspectSingleCapabilityPick,
+  resolveCatalogAutoGenerationModel,
+  type AutoModelAilingProbe,
+} from '../../config/autoGenerationModel'
+import { NomiSelect, type NomiSelectOption } from '../../design'
+import { openModelSettingsHome } from '../../ui/onboarding/apimartConnectRoute'
+import { QuotedUiNames } from '../../ui/onboarding/QuotedUiNames'
+import { cn } from '../../utils/cn'
+import type { ModelCatalogModelDto } from '../api/modelCatalogApi'
 import type { GenerationModelDefaultMap } from '../generationCanvas/model/generationModelDefaults'
+import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
 import { buildDefaultModelOptions } from './defaultGenerationModelOptions'
 
 type Props = {
   models: readonly ModelCatalogModelDto[]
   vendorNameOf: (vendorKey: string) => string
+  orderedVendorKeys?: readonly string[]
+  isAiling?: AutoModelAilingProbe
   defaults: GenerationModelDefaultMap
   onChange: (next: GenerationModelDefaultMap) => void
 }
 
-const TASK_LABEL_KEY: Record<GenerationDefaultTaskKind, string> = {
-  text_to_image: 'settings.ai.defaultModels.textToImage',
-  image_edit: 'settings.ai.defaultModels.imageEdit',
-  text_to_video: 'settings.ai.defaultModels.textToVideo',
-  image_to_video: 'settings.ai.defaultModels.imageToVideo',
+const ROW_BOARD_ANCHOR: Record<GenerationDefaultMediaKind, string> = {
+  image: 'policy.default-image-row',
+  video: 'policy.default-video-row',
+}
+
+const ROW_TITLE_KEY: Record<GenerationDefaultMediaKind, string> = {
+  image: 'settings.ai.defaultModels.image',
+  video: 'settings.ai.defaultModels.video',
+}
+
+const ROW_SUBTITLE_KEY: Record<GenerationDefaultMediaKind, string> = {
+  image: 'settings.ai.defaultModels.imageSubtitle',
+  video: 'settings.ai.defaultModels.videoSubtitle',
+}
+
+const SINGLE_CAPABILITY_KEYS: Record<GenerationDefaultTaskKind, { withAuto: string; noAuto: string }> = {
+  text_to_image: {
+    withAuto: 'settings.ai.defaultModels.singleCapability.text_to_image',
+    noAuto: 'settings.ai.defaultModels.singleCapability.text_to_image_no_auto',
+  },
+  image_edit: {
+    withAuto: 'settings.ai.defaultModels.singleCapability.image_edit',
+    noAuto: 'settings.ai.defaultModels.singleCapability.image_edit_no_auto',
+  },
+  text_to_video: {
+    withAuto: 'settings.ai.defaultModels.singleCapability.text_to_video',
+    noAuto: 'settings.ai.defaultModels.singleCapability.text_to_video_no_auto',
+  },
+  image_to_video: {
+    withAuto: 'settings.ai.defaultModels.singleCapability.image_to_video',
+    noAuto: 'settings.ai.defaultModels.singleCapability.image_to_video_no_auto',
+  },
 }
 
 export function DefaultGenerationModelsSection({
   models,
   vendorNameOf,
+  orderedVendorKeys = [],
+  isAiling = isModelRecentlyAiling,
   defaults,
   onChange,
 }: Props): JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
-  const { optionsByKind, decode, encode } = React.useMemo(
+  const { optionsByMediaKind, decode, encode } = React.useMemo(
     () => buildDefaultModelOptions(models, vendorNameOf, t('settings.ai.defaultModels.auto')),
-    [models, vendorNameOf, t],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language 驱动模型名与能力描述双语重算
+    [models, vendorNameOf, t, i18n.language],
   )
 
-  const handlePick = (taskKind: GenerationDefaultTaskKind, value: string): void => {
+  const autoByKind = React.useMemo(
+    () => ({
+      image: resolveCatalogAutoGenerationModel({
+        models,
+        vendorNameOf,
+        mediaKind: 'image',
+        orderedVendorKeys,
+        isAiling,
+      }),
+      video: resolveCatalogAutoGenerationModel({
+        models,
+        vendorNameOf,
+        mediaKind: 'video',
+        orderedVendorKeys,
+        isAiling,
+      }),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language 驱动自动模型显示名重算
+    [models, vendorNameOf, orderedVendorKeys, isAiling, i18n.language],
+  )
+
+  const noneAvailable = autoByKind.image === null && autoByKind.video === null
+
+  const handlePick = (mediaKind: GenerationDefaultMediaKind, value: string): void => {
+    if (value === 'unavailable') return
     const next = { ...defaults }
-    // 空串 = 「自动选择」：删掉这一条而不是存一个空身份。缺席才是「没设过」的正确表达。
     const identity = value ? decode(value) : null
-    if (identity) next[taskKind] = identity
-    else delete next[taskKind]
+    if (identity) next[mediaKind] = identity
+    else delete next[mediaKind]
     onChange(next)
   }
 
@@ -63,42 +127,115 @@ export function DefaultGenerationModelsSection({
       className="mb-3"
       aria-labelledby="settings-default-models-title"
     >
-      <h3 id="settings-default-models-title" className="mb-1 text-caption font-medium text-nomi-ink-60">
+      <h3 id="settings-default-models-title" className="mb-1.5 text-caption font-semibold text-nomi-ink">
         {t('settings.ai.defaultModels.title')}
       </h3>
-      <div className="divide-y divide-nomi-line-soft rounded-nomi-sm border border-nomi-line px-3">
-        {GENERATION_DEFAULT_TASK_KINDS.map((taskKind) => {
-          const current = defaults[taskKind]
-          // 设过、但那个模型此刻不在目录里（供应商删了 / 模型禁用了 / 换了台机器）——
-          // 明着标出来，别让用户以为还生效着。生成时会自动回退到健康挑选。
+      <div className="divide-y divide-nomi-line-soft rounded-nomi border border-nomi-line bg-nomi-paper">
+        {GENERATION_DEFAULT_MEDIA_KINDS.map((mediaKind) => {
+          const current = defaults[mediaKind]
           const encoded = current ? encode(current) : null
-          const last = lastGenerationChoice(taskKind)
-          const options = optionsByKind[taskKind]
-          const missing = Boolean(current) && !options.some(o => o.value === encoded)
-          const lastOption = last && options.find(o => o.value === encode(last))
-          const autoModel = lastOption || options[1]
-          const labels = options.map(o => ({ ...o, label: o.value
-            ? t('settings.modelsHome.fixed', { model: o.label })
-            : autoModel ? t('settings.modelsHome.perKind', { model: autoModel.label }) : t('settings.ai.defaultModels.auto') }))
+          const manualOptions = optionsByMediaKind[mediaKind]
+          const missing = Boolean(current) && (!encoded || !manualOptions.some((option) => option.value === encoded))
+          const autoResolved = autoByKind[mediaKind]
+          const autoLabel = autoResolved
+            ? t('settings.ai.defaultModels.autoWithModel', { model: autoResolved.displayName })
+            : t('settings.ai.defaultModels.autoNone')
+
+          const autoOption: NomiSelectOption = {
+            value: '',
+            label: autoLabel,
+            ...(autoResolved ? { description: t('settings.ai.defaultModels.autoStrongest') } : {}),
+            dividerAfter: manualOptions.length > 0,
+            boardAnchor: 'policy.picker-auto-option',
+          }
+          const selectOptions: NomiSelectOption[] = missing
+            ? [
+                {
+                  value: 'unavailable',
+                  label: autoResolved
+                    ? t('settings.ai.defaultModels.unavailable', { model: autoResolved.displayName })
+                    : t('settings.ai.defaultModels.unavailableNoAuto'),
+                },
+                autoOption,
+                ...manualOptions,
+              ]
+            : [autoOption, ...manualOptions]
+
+          const singleCap = !missing && current
+            ? inspectSingleCapabilityPick({
+                models,
+                vendorNameOf,
+                mediaKind,
+                picked: current,
+                orderedVendorKeys,
+                isAiling,
+              })
+            : null
+
+          const rowTitle = t(ROW_TITLE_KEY[mediaKind])
+          const isDimmedEmpty = !current && !autoResolved
+
           return (
-            <div key={taskKind} className="flex min-h-9 min-w-0 items-center gap-2">
-              <span className="flex min-w-0 flex-1 items-center gap-2 text-caption text-nomi-ink-80">
-                {t(TASK_LABEL_KEY[taskKind])}
-                {current && !missing && <span className="whitespace-nowrap rounded-pill bg-nomi-ink-05 px-1.5 text-micro text-nomi-ink-60">{t('settings.ai.defaultModels.pinned')}</span>}
-              </span>
-              <NomiSelect
-                ariaLabel={t('settings.ai.defaultModels.pickerLabel', { task: t(TASK_LABEL_KEY[taskKind]) })}
-                placeholder={t('settings.ai.defaultModels.auto')}
-                value={missing ? 'unavailable' : encoded ?? ''}
-                options={missing ? [{ value: 'unavailable', label: t('settings.ai.defaultModels.unavailable') }, ...labels] : labels}
-                onChange={(next) => handlePick(taskKind, next)}
-                triggerMaxWidth={280}
-              />
+            <div
+              key={mediaKind}
+              data-board={ROW_BOARD_ANCHOR[mediaKind]}
+              data-default-model-kind={mediaKind}
+              className="flex min-w-0 items-center gap-3 px-3 py-2.5"
+            >
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="text-body-sm text-nomi-ink">{rowTitle}</span>
+                {singleCap ? (
+                  <span
+                    data-board="edge.single-capability-pick"
+                    className="whitespace-normal break-words text-caption leading-4 text-nomi-ink-60"
+                  >
+                    {singleCap.fallbackModelName
+                      ? t(SINGLE_CAPABILITY_KEYS[singleCap.supportedTask].withAuto, {
+                          model: singleCap.fallbackModelName,
+                        })
+                      : t(SINGLE_CAPABILITY_KEYS[singleCap.supportedTask].noAuto)}
+                  </span>
+                ) : (
+                  <span className="whitespace-normal break-words text-caption leading-4 text-nomi-ink-60">
+                    {t(ROW_SUBTITLE_KEY[mediaKind])}
+                  </span>
+                )}
+              </div>
+              <div
+                className="shrink-0"
+                data-board={!current && autoResolved?.isVendorFallback ? 'edge.vendor-fallback' : undefined}
+              >
+                <NomiSelect
+                  ariaLabel={t('settings.ai.defaultModels.pickerLabel', { task: rowTitle })}
+                  placeholder={autoLabel}
+                  value={missing ? 'unavailable' : encoded ?? ''}
+                  options={selectOptions}
+                  onChange={(next) => handlePick(mediaKind, next)}
+                  searchable={manualOptions.length > 0}
+                  searchPlaceholder={t('settings.ai.defaultModels.searchModels')}
+                  dropdownAlign="end"
+                  className={cn('shrink-0', isDimmedEmpty && '[&>span]:text-nomi-ink-60')}
+                />
+              </div>
             </div>
           )
         })}
       </div>
-      <p className="mt-2 text-micro text-nomi-ink-60"><QuotedUiNames text={t('settings.ai.defaultModels.hint')} /></p>
+      {noneAvailable ? (
+        <div className="mt-2 flex items-center gap-2" data-board="edge.none-available">
+          <button
+            type="button"
+            onClick={() => openModelSettingsHome()}
+            className="inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-body-sm font-medium text-nomi-accent hover:underline"
+          >
+            <IconPlugConnected size={14} stroke={1.8} aria-hidden="true" />
+            <span>{t('settings.ai.defaultModels.connectProvider')}</span>
+          </button>
+        </div>
+      ) : null}
+      <p data-board="policy.auto-caption" className="mt-2 text-caption text-nomi-ink-60">
+        <QuotedUiNames text={t('settings.ai.defaultModels.hint')} />
+      </p>
     </section>
   )
 }

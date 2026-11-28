@@ -6,6 +6,7 @@ import {
   type GenerationDefaultTaskKind,
   type GenerationModelDefaults,
 } from "../settings/generationModelDefaultsSettings";
+import { mediaKindForTaskKind } from "../shared/contracts/generationModelDefaultsContract";
 import { readCatalog } from "../catalog/catalogStore";
 import { type KeyStatusProbe } from "../catalog/secrets";
 import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
@@ -56,7 +57,7 @@ export function createGenerationDefaultModelResolver(
   return (taskKind) => {
     const candidates = executable(taskKind);
     if (candidates.length === 0) return undefined;
-    const preferred = defaults.byTaskKind[taskKind];
+    const preferred = defaults.byKind[mediaKindForTaskKind(taskKind)];
     const selected = preferred
       ? candidates.find((model) => model.vendorKey === preferred.vendorKey && model.modelKey === preferred.modelKey)
       : undefined;

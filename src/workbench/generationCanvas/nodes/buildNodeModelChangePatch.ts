@@ -1,5 +1,3 @@
-import { rememberGenerationChoice } from '../model/generationModelDefaults'
-import { deriveGenerationDefaultTaskKind, nodeHasImageReference } from './defaultNodeModelSelection'
 import type { NodeWriteAccess } from './nodeWriteAccess'
 import { resolveModelParams } from '../../../../electron/shared/videoCapabilities/resolveModelParams'
 import type { ModelOption } from '../../../config/models'
@@ -28,18 +26,13 @@ export type BuildNodeModelChangePatchInput = {
   modelOptions: readonly ModelOption[]
   value: string
   vendor?: string
+  modelAuto?: boolean
 }
 
-/** A manual picker choice also becomes the next node's last-used default. */
+/** Apply a picker choice to this node only (SG-2: never mutates new-card defaults). */
 export function applyPickedNodeModel(input: BuildNodeModelChangePatchInput, updateNode: NodeWriteAccess['updateNode']): void {
   const { node } = input
   const patch = buildNodeModelChangePatch(input)
-  const task = deriveGenerationDefaultTaskKind({
-    isImageLike: isImageLikeGenerationNodeKind(node.kind),
-    isVideoLike: isVideoLikeGenerationNodeKind(node.kind),
-    hasImageReference: nodeHasImageReference(node.meta),
-  })
-  rememberGenerationChoice(task, patch.meta.modelVendor, patch.meta.modelKey)
   updateNode(node.id, patch)
 }
 
@@ -51,6 +44,7 @@ export function buildNodeModelChangePatch({
   modelOptions,
   value,
   vendor,
+  modelAuto = false,
 }: BuildNodeModelChangePatchInput): { meta: Record<string, unknown> } {
   // 旧数据（按槽存的首 / 尾帧键）先按**换模型前**看得见的顺序落成规范的一份参考列表：之后列表就不再动了。
   const previousArchetype = archetypeForNode(node)
@@ -85,6 +79,8 @@ export function buildNodeModelChangePatch({
     modelVendor: nextOption?.vendor || null,
     vendor: nextOption?.vendor || null,
     modelLabel: nextOption?.label || value || null,
+    modelAuto,
+    modelFromDefault: false,
     ...(isVideoLike
       ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
       : { imageModel: nextOption?.value || value || null, imageModelVendor: nextOption?.vendor || null }),

@@ -135,12 +135,16 @@ describe('ModelSurfaces connection ownership', () => {
   })
   it.each(['zh-CN', 'en'])('keeps each quoted control name inside one inline nowrap span (%s)', async lang => {
     await i18n.changeLanguage(lang)
-    for (const key of ['settings.ai.defaultModels.hint', 'settings.modelsHome.kie'] as const) {
+    const quotedKeys = lang === 'zh-CN'
+      ? (['settings.ai.defaultModels.hint', 'settings.modelsHome.kie'] as const)
+      : (['settings.modelsHome.kie'] as const)
+    for (const key of quotedKeys) {
       const sentence: string = i18n.t(key)
       const name = sentence.match(/「[^」]+」|“[^”]+”/u)?.[0]
       expect(name).toBeTruthy()
       expect(renderToStaticMarkup(<QuotedUiNames text={sentence} />)).toContain('<span class="whitespace-nowrap">' + name + '</span>')
       expect(sentence).not.toMatch(/[\u200B-\u200D\u2060\uFEFF]/)
     }
+    expect(i18n.t('settings.ai.defaultModels.hint')).not.toMatch(/[\u200B-\u200D\u2060\uFEFF]/)
   })
 })

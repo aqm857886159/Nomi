@@ -1,15 +1,15 @@
-// 「新建卡片默认模型」的纯判定层（真值表靠单测钉死，hook 只负责副作用）。
+// 「新建节点默认用哪个模型」的纯判定层（真值表靠单测钉死，hook 只负责副作用）。
 //
 // 两件事收在这里：
-//   ① 这张卡属于四类任务里的哪一类（决定读哪一条偏好）；
-//   ② 偏好指向的模型此刻还能不能用（不能用就让位给原有的健康挑选策略）。
-//
-// 为什么②必须在这层判而不是信任设置文件：设置文件只存 `(vendorKey, modelKey)` 两段身份，
-// 不存模型死活——用户可能把那个供应商删了、把模型禁用了、或者换了台机器没有那个本地工作流。
-// 此时**必须回退**到自动挑选，而不是让卡片钉在一个跑不了的模型上（生成钮一直灰）。
+//   ① 这张卡属于哪类任务 / 哪类媒介（决定读 `byKind` 里的 `image` 还是 `video`）；
+//   ② 用户在设置页显式设过的固定模型此刻还能不能跑这个任务（不能跑就让位给 `resolveAutoGenerationModel`）。
 
 import type { ModelOption } from '../../../config/models'
-import type { GenerationDefaultTaskKind } from '../../../../electron/shared/contracts/generationModelDefaultsContract'
+import {
+  mediaKindForTaskKind,
+  type GenerationDefaultMediaKind,
+  type GenerationDefaultTaskKind,
+} from '../../../../electron/shared/contracts/generationModelDefaultsContract'
 import type { GenerationModelDefaultMap } from '../model/generationModelDefaults'
 
 type TaskKindInput = {
@@ -20,11 +20,8 @@ type TaskKindInput = {
 }
 
 /**
- * 这张卡该读哪一条默认模型偏好。既不是图也不是视频的卡（文本 / 剪辑 / 3D 等）返回 null——
- * 它们不在这四类里，不该被这套偏好碰。
- *
- * 视频优先于图片判断：视频卡同时满足 isImageLike 的实现存在（视频卡也吃图），
- * 先判视频才不会把「图生视频」错读成「图片编辑」。
+ * 这张卡此刻对应的生成任务（四类之一）。既不是图也不是视频的卡（文本 / 剪辑 / 3D 等）返回 null。
+ * 视频优先于图片判断：视频卡同时吃图，先判视频才不会把「图生视频」错当「图片编辑」。
  */
 export function deriveGenerationDefaultTaskKind({
   isImageLike,
@@ -36,7 +33,15 @@ export function deriveGenerationDefaultTaskKind({
   return null
 }
 
-/** ModelOption 的模型段身份。目录里 modelKey 缺席时 value 就是它的身份。 */
+export function deriveGenerationDefaultMediaKind({
+  isImageLike,
+  isVideoLike,
+}: Pick<TaskKindInput, 'isImageLike' | 'isVideoLike'>): GenerationDefaultMediaKind | null {
+  if (isVideoLike) return 'video'
+  if (isImageLike) return 'image'
+  return null
+}
+
 function optionModelKey(option: ModelOption): string {
   return (option.modelKey || option.value || '').trim()
 }
@@ -46,11 +51,10 @@ function optionVendorKey(option: ModelOption): string {
 }
 
 /**
- * 按用户偏好挑一个模型。挑不到（没设 / 设了但此刻不可用）返回 undefined，
- * 由调用方回退到原有的健康挑选策略。
- *
- * **两段都必须对上**：只比 modelKey 会串台——两个中转站提供同名模型时，
- * 用户选的是 A 家的，落到卡片上却可能是 B 家的，账单和结果都不对。
+ * 按用户在设置里显式设过的默认挑模型。
+ * - `options` 已经是按当前所需模式（如 `text_to_image` vs `image_edit`）筛好的可用候选；
+ * - 若用户没设（自动），或设的是单能力模型此刻跑不了当前模式（如设了 Z-Image Turbo 后往卡上加了参考图切改图），
+ *   返回 `undefined`，由调用方落到唯一真源 `resolveAutoGenerationModel`（对应 `edge.single-capability-pick`）。
  */
 export function resolveDefaultModelOption(
   options: readonly ModelOption[],
@@ -58,7 +62,7 @@ export function resolveDefaultModelOption(
   taskKind: GenerationDefaultTaskKind | null,
 ): ModelOption | undefined {
   if (!taskKind) return undefined
-  const preferred = defaults[taskKind]
+  const preferred = defaults[mediaKindForTaskKind(taskKind)]
   if (!preferred) return undefined
   return options.find(
     (option) =>

@@ -1,9 +1,9 @@
 import { getVendorPreference } from "../../api/vendorPreferenceApi";
 import {
   loadGenerationModelDefaults,
-  type GenerationDefaultTaskKind,
   type GenerationModelDefaultMap,
 } from "../model/generationModelDefaults";
+import { resolveAutoGenerationModel } from "../../../config/autoGenerationModel";
 import { orderByVendorPreference } from "../../../../electron/shared/contracts/vendorPreference";
 // 可用模型清单生成器：把 catalog 真实可用的模型 join 上各自档案（archetype），
 // flatten 成 agent 可读 / 计划清单卡可渲染的清单。
@@ -126,55 +126,41 @@ export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> 
   return orderByVendorPreference(buildAgentModelEntries(options.flat()), preference.orderedVendorKeys, (row) => row.vendor);
 }
 
-/**
- * 用户保存的「新建卡片默认模型」在这四类任务上的键。图片卡先读文生图、没设再读图生图；
- * 视频卡先读文生视频、没设再读图生视频——一份偏好覆盖同一媒介的两个模式，用户不必设四遍。
- */
-const DEFAULT_TASK_KINDS: Record<'image' | 'video', readonly GenerationDefaultTaskKind[]> = {
-  image: ['text_to_image', 'image_edit'],
-  video: ['text_to_video', 'image_to_video'],
-}
-
-/**
- * 按**用户保存的默认**挑模型。身份必须两段都对（`(vendorKey, modelKey)`）：只比模型段会串台——
- * 两个中转站提供同名模型时，用户选的是 A 家的，落到卡片上却可能是 B 家的，账单和结果都不对。
- * 偏好指向的模型此刻不在可用清单里（供应商删了 / 模型禁用了 / 换了台机器）→ 返回 undefined，
- * 由调用方回落，绝不把卡片钉在一个跑不了的模型上。
- */
 export function pickSavedDefaultModel(
   entries: readonly AgentModelEntry[],
   kind: 'image' | 'video',
   defaults: GenerationModelDefaultMap,
 ): AgentModelEntry | undefined {
-  const candidates = entries.filter((entry) => entry.kind === kind)
-  for (const taskKind of DEFAULT_TASK_KINDS[kind]) {
-    const preferred = defaults[taskKind]
-    if (!preferred) continue
-    const match = candidates.find(
-      (entry) => entry.vendor === preferred.vendorKey && entry.modelId === preferred.modelKey,
-    )
-    if (match) return match
-  }
-  return undefined
+  const preferred = defaults[kind]
+  if (!preferred) return undefined
+  return entries.find(
+    (entry) => entry.kind === kind && entry.vendor === preferred.vendorKey && entry.modelId === preferred.modelKey,
+  )
 }
 
 /**
- * **兜底**阶梯（只在「用户一个默认都没配」或配的那个此刻不可用时才轮到它）。
- *
- * 保留理由：全新用户还没进过设置页，此刻仍必须给出一个能跑的模型，否则 agent 建的卡是空的、
- * 生成钮直接是灰的——「什么都不给」比「给一个通用的好模型」更伤。它**不是权威**：
- * 权威是用户保存的默认（`pickSavedDefaultModel`），这条阶梯只在权威缺席时补位。
+ * **兜底**阶梯（只在「用户一个默认都没配」或配的那个此刻不可用时才轮到它）：
+ * 直接复用唯一真源 `resolveAutoGenerationModel`，与画布节点和设置页同梯队、同选家规则。
  */
 export function pickStoryboardDefaultModel(entries: readonly AgentModelEntry[], kind: 'image' | 'video', orderedVendorKeys: readonly string[] = []): AgentModelEntry | undefined {
   const candidates = entries.filter(entry => entry.kind === kind)
-  const byName = (re: RegExp) => candidates.find(entry => re.test(`${entry.modelId} ${entry.modelAlias ?? ''} ${entry.label}`))
-  const model = kind === 'image'
-    ? byName(/gpt[\s-]?image/i) ?? byName(/nano[\s-]?banana/i) ?? candidates[0]
-    : byName(/seedance/i) ?? candidates[0]
-  if (!model) return undefined
-  // 阶梯只决定「哪个模型」；同名多家时「哪一家」走全仓同一把尺（pickImplicitVendorMatch），
-  // 不是列表里第一个同名的——目录新接入的在前，自定义同名中转会悄悄变成默认（2026-09-21 同类扫描）。
-  return pickImplicitVendorMatch(candidates.filter(entry => entry.modelId === model.modelId), entry => entry.vendor, orderedVendorKeys) ?? model
+  if (candidates.length === 0) return undefined
+  const resolved = resolveAutoGenerationModel({
+    mediaKind: kind,
+    options: candidates.map(entry => ({
+      value: entry.modelId,
+      modelKey: entry.modelId,
+      modelAlias: entry.modelAlias,
+      vendor: entry.vendor ?? undefined,
+      label: entry.label,
+      kind: entry.kind,
+    })),
+    orderedVendorKeys,
+  })
+  if (!resolved) return undefined
+  return candidates.find(entry => (entry.vendor ?? '') === resolved.vendorKey && entry.modelId === resolved.modelKey)
+    ?? pickImplicitVendorMatch(candidates.filter(entry => entry.modelId === resolved.modelKey), entry => entry.vendor, orderedVendorKeys)
+    ?? candidates[0]
 }
 
 /**

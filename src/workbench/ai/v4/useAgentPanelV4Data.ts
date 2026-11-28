@@ -24,8 +24,10 @@ import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import {
   getGenerationModelDefaults,
   loadGenerationModelDefaults,
+  mediaKindForTaskKind,
   saveGenerationModelDefaults,
   subscribeGenerationModelDefaults,
+  type GenerationDefaultMediaKind,
   type GenerationDefaultTaskKind,
   type GenerationModelDefault,
   type GenerationModelDefaultMap,
@@ -112,7 +114,7 @@ export type AgentPanelV4Data = Readonly<{
   orderedVendorKeys: readonly string[]
   /** 「新建卡片默认模型」的当前值。Agent 帮你生成时用的就是它——弹层改的也是它，不另开一份偏好。 */
   generationDefaults: GenerationModelDefaultMap
-  setGenerationDefault: (taskKind: GenerationDefaultTaskKind, identity: GenerationModelDefault | null) => void
+  setGenerationDefault: (kind: GenerationDefaultMediaKind | GenerationDefaultTaskKind, identity: GenerationModelDefault | null) => void
   vendors: Readonly<Record<string, string>>
   selectedModel: ModelCatalogModelDto | undefined
   modelLabel: string
@@ -324,10 +326,11 @@ export function useAgentPanelV4Data(): AgentPanelV4Data {
     generationModels,
     orderedVendorKeys,
     generationDefaults,
-    setGenerationDefault: (taskKind, identity) => {
+    setGenerationDefault: (kind, identity) => {
+      const mediaKind: GenerationDefaultMediaKind = kind === 'image' || kind === 'video' ? kind : mediaKindForTaskKind(kind)
       const next: GenerationModelDefaultMap = { ...getGenerationModelDefaults() }
-      if (identity) next[taskKind] = identity
-      else delete next[taskKind]
+      if (identity) next[mediaKind] = identity
+      else delete next[mediaKind]
       void saveGenerationModelDefaults(next).catch(() => undefined)
     },
     vendors,

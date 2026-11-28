@@ -7,27 +7,41 @@ import { nodeRecoveryToastId } from './nodeRecoveryNotice'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { effectiveArchetypeMode } from './controls/archetypeMeta'
 
-const mocks = vi.hoisted(() => ({ effects: [] as Array<() => unknown>, push: vi.fn(), nodes: [] as GenerationCanvasNode[] }))
+const mocks = vi.hoisted(() => ({
+  effects: [] as Array<() => unknown>,
+  push: vi.fn(),
+  nodes: [] as GenerationCanvasNode[],
+  defaultsLoaded: false,
+  defaults: {} as Record<string, { vendorKey: string; modelKey: string }>,
+}))
 vi.mock('react', () => ({ default: {
   useRef: (current: unknown) => ({ current }),
   useCallback: (callback: unknown) => callback,
-  useSyncExternalStore: () => false,
+  useSyncExternalStore: (_sub: unknown, getSnapshot: () => unknown) => getSnapshot(),
   useEffect: (effect: () => unknown) => { mocks.effects.push(effect) },
 } }))
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string, values: unknown) => key + JSON.stringify(values) }),
 }))
+vi.mock('../../common/useVendorPreference', () => ({ useVendorPreferenceOrder: () => [] }))
 vi.mock('../store/generationCanvasStore', () => ({
   useGenerationCanvasStore: { getState: () => ({ nodes: mocks.nodes, edges: [] }), subscribe: () => () => {} },
 }))
 vi.mock('../../../ui/toast', () => ({ useToastStore: { getState: () => ({ push: mocks.push }) } }))
 vi.mock('../model/generationModelDefaults', () => ({
-  generationModelDefaultsLoaded: () => false, getGenerationModelDefaults: () => ({}),
-  loadGenerationModelDefaults: async () => {}, subscribeGenerationModelDefaults: () => () => {},
+  generationModelDefaultsLoaded: () => mocks.defaultsLoaded,
+  getGenerationModelDefaults: () => mocks.defaults,
+  loadGenerationModelDefaults: async () => {},
+  subscribeGenerationModelDefaults: () => () => {},
 }))
 
-beforeEach(() => { mocks.effects = []; mocks.push.mockReset() })
+beforeEach(() => {
+  mocks.effects = []
+  mocks.push.mockReset()
+  mocks.defaultsLoaded = false
+  mocks.defaults = {}
+})
 
 const current = { value: 'gpt-image-2', modelKey: 'gpt-image-2', vendor: 'apimart', label: 'GPT Image 2' } as ModelOption
 const alternative = { ...current, vendor: 'code-newcli-com', vendorName: '我的中转', label: 'GPT Image 2' } as ModelOption
@@ -244,4 +258,82 @@ it('a card born with reference images sends in the mode that takes them; a card 
   expect(sendMode({ ...identity, referenceImageUrls: ['data:image/png;base64,AA'] })).toBe('i2i')
   // 没带参考的新卡按文字生成
   expect(sendMode({ ...identity })).toBe('t2i')
+})
+
+it('board:AutoModel/node.model-chip-auto & board:AutoModel/node.picker-auto-option — new card defaults to Auto strongest model and single-capability default falls back to Auto on edit', () => {
+  mocks.defaultsLoaded = true
+  const flare = { value: 'gpt-image-2.6-flare', modelKey: 'gpt-image-2.6-flare', vendor: 'apimart', label: 'GPT Image 2.6 Flare' } as ModelOption
+  const sunburst = { value: 'gpt-image-2.6-sunburst', modelKey: 'gpt-image-2.6-sunburst', vendor: 'apimart', label: 'GPT Image 2.6 Sunburst' } as ModelOption
+
+  const blankNode = { id: 'auto-card', kind: 'image', title: '卡', position: { x: 0, y: 0 }, meta: {} } as GenerationCanvasNode
+  mocks.nodes = [blankNode]
+  mocks.effects = []
+  const updateBlank = vi.fn()
+  driveHook({
+    node: blankNode,
+    modelOptions: [flare, sunburst],
+    selectedModelValue: '',
+    selectedModelOption: null,
+    archetype: null,
+    isGenerationNode: true,
+    isImageLike: true,
+    isVideoLike: false,
+    updateNode: updateBlank,
+  })
+  for (const effect of mocks.effects) effect()
+  expect(updateBlank).toHaveBeenCalledWith(
+    'auto-card',
+    expect.objectContaining({
+      meta: expect.objectContaining({
+        modelKey: 'gpt-image-2.6-sunburst',
+        modelVendor: 'apimart',
+        modelAuto: true,
+        modelFromDefault: false,
+      }),
+    }),
+    { history: false },
+  )
+
+  // 用户在设置页选了单能力 Z-Image Turbo，往卡上加了参考图切到改图后，modelOptions 不再含 Z-Image Turbo → 自动回退 Sunburst 且不弹断连警告
+  mocks.defaults = { image: { vendorKey: 'apimart', modelKey: 'z-image-turbo' } }
+  const editNode = {
+    id: 'single-cap-card',
+    kind: 'image',
+    title: '改图卡',
+    position: { x: 0, y: 0 },
+    meta: {
+      modelKey: 'z-image-turbo',
+      modelVendor: 'apimart',
+      modelAuto: false,
+      modelFromDefault: true,
+      referenceImages: ['ref.png'],
+    },
+  } as unknown as GenerationCanvasNode
+  mocks.nodes = [editNode]
+  mocks.effects = []
+  const updateEdit = vi.fn()
+  driveHook({
+    node: editNode,
+    modelOptions: [flare, sunburst],
+    selectedModelValue: 'z-image-turbo',
+    selectedModelOption: null,
+    archetype: null,
+    isGenerationNode: true,
+    isImageLike: true,
+    isVideoLike: false,
+    updateNode: updateEdit,
+  })
+  for (const effect of mocks.effects) effect()
+  expect(mocks.push).not.toHaveBeenCalled()
+  expect(updateEdit).toHaveBeenCalledWith(
+    'single-cap-card',
+    expect.objectContaining({
+      meta: expect.objectContaining({
+        modelKey: 'gpt-image-2.6-sunburst',
+        modelVendor: 'apimart',
+        modelAuto: true,
+      }),
+    }),
+    { history: false },
+  )
 })

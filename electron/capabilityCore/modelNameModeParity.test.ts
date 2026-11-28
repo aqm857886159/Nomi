@@ -306,7 +306,7 @@ describe("U4 / U5：方式只由点名的模型的档案 + 这次真实输入决
       apiKeysByVendor: { apimart: { vendorKey: "apimart", apiKey: Buffer.from("synthetic").toString("base64"), enc: "safeStorage", enabled: true, createdAt: "", updatedAt: "" } },
     };
     const saved = { vendorKey: "apimart", modelKey: "doubao-seedance-2.0" };
-    const realDefault = createGenerationDefaultModelResolver(state, { schemaVersion: 1, byTaskKind: { text_to_video: saved, image_to_video: saved } });
+    const realDefault = createGenerationDefaultModelResolver(state, { schemaVersion: 2, byKind: { video: saved } });
     // 默认的答案只有身份四件，没有方式（2026-11-17 U4：以前这里带出「第一个同桶方式」，点名别家时被继承过去）。
     for (const kind of ["text_to_video", "image_to_video"] as const) {
       expect(realDefault(kind), kind).toStrictEqual({ moduleId: MODULE_ID, providerId: "apimart", modelId: "doubao-seedance-2.0", mode: kind });

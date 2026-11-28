@@ -93,7 +93,7 @@ describe('把真实凭据带进隔离副本', () => {
     expect(catalog.models.find((model) => model.modelKey === 'img-cheap')).toMatchObject({ published: true, enabled: true })
     expect(catalog.models.find((model) => model.modelKey === 'fixture-img')).toMatchObject({ published: false, enabled: false })
     expect(catalog.mappings).toEqual([{ vendorKey: 'apimart', modelKey: 'img-cheap', taskKind: 'text_to_image', enabled: true }])
-    expect(readJson(path.join(settingsDir, 'generation-model-defaults.json')).byTaskKind.text_to_image).toEqual({ vendorKey: 'apimart', modelKey: 'img-cheap' })
+    expect(readJson(path.join(settingsDir, 'generation-model-defaults.json')).byKind.image).toEqual({ vendorKey: 'apimart', modelKey: 'img-cheap' })
     expect(fs.existsSync(path.join(userDataDir, 'Local State'))).toBe(true)
   })
 
