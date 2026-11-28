@@ -23,19 +23,20 @@ export type CanvasPickRequest = {
   resident?: boolean
 }
 
-export type CanvasPickReturnToList = Readonly<{ inspectorKey: string | null }>
+export type CanvasPickReturnToList = Readonly<{
+  inspectorKey: string | null
+  /** 列表视图切去画布点选时，列表节点生成框会立即卸载一次；仅豁免这一次预期卸载，不影响后续取消。 */
+  unmountGracePending?: boolean
+}>
 
 type CanvasPickModeState = {
   request: CanvasPickRequest | null
   returnToList: CanvasPickReturnToList | null
-  /** 列表视图切去画布点选时，列表节点生成框会立即卸载一次；仅豁免这一次预期卸载，不影响后续取消。 */
-  listUnmountGrace: boolean
 }
 
 export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({
   request: null,
   returnToList: null,
-  listUnmountGrace: false,
 }))
 
 /**
@@ -45,14 +46,14 @@ export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({
  */
 export const canvasPickModeStoreLifetime = declareStoreLifetime({
   store: 'useCanvasPickModeStore',
-  fields: { request: 'project', returnToList: 'project', listUnmountGrace: 'project' },
-  releaseProject: () => useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false }),
+  fields: { request: 'project', returnToList: 'project' },
+  releaseProject: () => useCanvasPickModeStore.setState({ request: null, returnToList: null }),
 })
 
 function cancelPickOnExternalNavigation(): void {
   const { request } = useCanvasPickModeStore.getState()
   if (!request) return
-  useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
+  useCanvasPickModeStore.setState({ request: null, returnToList: null })
   request.onCancel?.()
 }
 
@@ -80,21 +81,22 @@ export function enterCanvasPickMode(request: CanvasPickRequest): () => void {
   const currentView = useGenerationViewStore.getState()
   const cameFromList = currentView.view === 'list'
   const returnToList: CanvasPickReturnToList | null = cameFromList
-    ? { inspectorKey: currentView.inspectorKey }
+    ? { inspectorKey: currentView.inspectorKey, unmountGracePending: !request.resident }
     : (prevState.request ? prevState.returnToList : null)
-  const listUnmountGrace = cameFromList && !request.resident
-  useCanvasPickModeStore.setState({ request, returnToList, listUnmountGrace })
+  useCanvasPickModeStore.setState({ request, returnToList })
   useWorkbenchStore.getState().setWorkspaceMode('generation')
   useGenerationViewStore.getState().setView('canvas')
   prevState.request?.onCancel?.()
   return () => {
     const current = useCanvasPickModeStore.getState()
     if (current.request !== request) return
-    if (current.listUnmountGrace) {
-      useCanvasPickModeStore.setState({ listUnmountGrace: false })
+    if (current.returnToList?.unmountGracePending) {
+      useCanvasPickModeStore.setState({
+        returnToList: { inspectorKey: current.returnToList.inspectorKey, unmountGracePending: false },
+      })
       return
     }
-    useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
+    useCanvasPickModeStore.setState({ request: null, returnToList: null })
   }
 }
 
@@ -117,7 +119,7 @@ export function useCanvasPickNodeState(nodeId: string): boolean | null {
 export function pickCanvasNode(nodeId: string): boolean {
   const { request, returnToList } = useCanvasPickModeStore.getState()
   if (!request || !request.eligible(nodeId)) return false
-  useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
+  useCanvasPickModeStore.setState({ request: null, returnToList: null })
   request.onPick(nodeId)
   restoreListViewIfNeeded(returnToList)
   return true
@@ -127,7 +129,7 @@ export function pickCanvasNode(nodeId: string): boolean {
 export function cancelCanvasPickMode(): boolean {
   const { request, returnToList } = useCanvasPickModeStore.getState()
   if (!request) return false
-  useCanvasPickModeStore.setState({ request: null, returnToList: null, listUnmountGrace: false })
+  useCanvasPickModeStore.setState({ request: null, returnToList: null })
   request.onCancel?.()
   restoreListViewIfNeeded(returnToList)
   return true
