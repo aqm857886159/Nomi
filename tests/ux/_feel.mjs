@@ -266,7 +266,7 @@ export async function scanFeel(root, { rules = {}, label = 'page' } = {}) {
         if (!r || (r.bottom - r.top > 180 && r.right - r.left > 120)) continue
         const children = [...el.children].filter((child) => {
           if (!elementSet.has(child)) return false
-          if (child.tagName === 'INPUT' && child.getAttribute('type') === 'file') return false
+          if (child.matches('input[type="file"]')) return false
           if (child.getAttribute('role') === 'separator') return false
           const cr = visibleRect(child)
           return Boolean(cr && cr.right - cr.left > 2 && cr.bottom - cr.top > 2)
@@ -274,7 +274,7 @@ export async function scanFeel(root, { rules = {}, label = 'page' } = {}) {
         if (children.length < 4 || children.length > 16) continue
         const buttons = []
         for (const slot of children) {
-          if (slot.tagName === 'BUTTON' || slot.getAttribute('role') === 'button') {
+          if (slot.matches('button, [role="button"]')) {
             buttons.push(slot)
             continue
           }

@@ -128,8 +128,8 @@
     },
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx": {
       "kind": "frozen",
-      "max": 1000,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 1000（2026-11-28 SM-3：零松弛按实测收紧）",
+      "max": 992,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 992（2026-11-28 底部工具条收口至 Overlays 互斥分支）",
       "topDeclarations": [
         {
           "name": "GenerationCanvasReactFlowInner",

@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { IconPlus } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
 import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
-import { canvasResidentAddIntents } from './canvasToolbarModel'
+import { canvasResidentAddIntents, resolveCanvasCreationSurface } from './canvasToolbarModel'
 import { intentActionLabel, intentCardLabel, intentIcon, useCanvasAddIntentAction } from './canvasAddIntentActions'
 import { CanvasMoreAddMenu } from './CanvasToolbar'
 
@@ -17,20 +17,6 @@ type CanvasEmptyStateProps = {
   /** 新卡的期望落点（同左缘工具条：视口锚换算的画布坐标，避让由 store.addNode 做）。 */
   getInsertionPosition: () => { x: number; y: number }
   readOnly?: boolean
-}
-
-export type CanvasCreationSurface = 'none' | 'empty-starter' | 'toolbar'
-
-/** 空画布（0 节点）由中央起步格独占创建入口；一旦有 ≥1 节点才切换到底部工具条，避免同屏双工具栏打架。 */
-export function resolveCanvasCreationSurface({
-  readOnly,
-  nodeCount,
-}: {
-  readOnly: boolean
-  nodeCount: number
-}): CanvasCreationSurface {
-  if (readOnly) return 'none'
-  return nodeCount === 0 ? 'empty-starter' : 'toolbar'
 }
 
 const TILE_CLASS = cn(

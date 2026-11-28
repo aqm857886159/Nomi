@@ -3,9 +3,8 @@ import fs from 'node:fs'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import * as CanvasEmptyStateModule from './CanvasEmptyState'
 import { CanvasEmptyState } from './CanvasEmptyState'
-import { canvasResidentAddIntents } from './canvasToolbarModel'
+import { canvasResidentAddIntents, resolveCanvasCreationSurface } from './canvasToolbarModel'
 
 vi.mock('react-i18next', () => ({ initReactI18next: { type: '3rdParty', init: () => {} }, useTranslation: () => ({ t: (key: string) => key }) }))
 
@@ -43,19 +42,16 @@ describe('empty canvas task cards & toolbar exclusivity', () => {
   })
 
   it('enforces strict mutual exclusion between empty-canvas starter tiles and bottom CanvasToolbar', () => {
-    const resolveSurface = (CanvasEmptyStateModule as Record<string, unknown>).resolveCanvasCreationSurface as
-      | ((input: { readOnly: boolean; nodeCount: number }) => string)
-      | undefined
-    expect(typeof resolveSurface).toBe('function')
-    expect(resolveSurface!({ readOnly: false, nodeCount: 0 })).toBe('empty-starter')
-    expect(resolveSurface!({ readOnly: false, nodeCount: 1 })).toBe('toolbar')
-    expect(resolveSurface!({ readOnly: false, nodeCount: 12 })).toBe('toolbar')
-    expect(resolveSurface!({ readOnly: true, nodeCount: 0 })).toBe('none')
-    expect(resolveSurface!({ readOnly: true, nodeCount: 3 })).toBe('none')
+    expect(resolveCanvasCreationSurface({ readOnly: false, nodeCount: 0 })).toBe('empty-starter')
+    expect(resolveCanvasCreationSurface({ readOnly: false, nodeCount: 1 })).toBe('toolbar')
+    expect(resolveCanvasCreationSurface({ readOnly: false, nodeCount: 12 })).toBe('toolbar')
+    expect(resolveCanvasCreationSurface({ readOnly: true, nodeCount: 0 })).toBe('none')
+    expect(resolveCanvasCreationSurface({ readOnly: true, nodeCount: 3 })).toBe('none')
 
     const stageSource = fs.readFileSync(new URL('../reactFlow/GenerationCanvasReactFlow.tsx', import.meta.url), 'utf8')
     const overlaysSource = fs.readFileSync(new URL('../reactFlow/GenerationCanvasReactFlowOverlays.tsx', import.meta.url), 'utf8')
-    expect(stageSource).toContain("resolveCanvasCreationSurface({ readOnly, nodeCount: nodes.length }) === 'toolbar'")
+    expect(stageSource).not.toContain('CanvasToolbar')
+    expect(overlaysSource).toContain("resolveCanvasCreationSurface({ readOnly, nodeCount: nodes.length }) === 'toolbar'")
     expect(overlaysSource).toContain('readOnly={readOnly}')
   })
 

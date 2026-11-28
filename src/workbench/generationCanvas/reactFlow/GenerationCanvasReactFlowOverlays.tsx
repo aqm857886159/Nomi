@@ -1,11 +1,12 @@
 import React, { type JSX } from 'react'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 import { CanvasEmptyState } from '../components/CanvasEmptyState'
+import { resolveCanvasCreationSurface } from '../components/canvasToolbarModel'
 import { CanvasNavigationStack } from '../components/CanvasNavigationStack'
 import NodeContextMenu, { type NodeContextMenuAction } from '../components/NodeContextMenu'
 import FrameContextMenu, { type FrameContextMenuAction } from '../components/FrameContextMenu'
 import type { CanvasFrameMenuState } from '../components/useCanvasFrameActions'
-import { NodeAddMenu } from '../components/CanvasToolbar'
+import CanvasToolbar, { NodeAddMenu } from '../components/CanvasToolbar'
 import { NodeDeriveMenu } from '../quickActions/NodeDeriveMenu'
 import { SelectionPromptSaveController } from '../components/SelectionPromptSaveController'
 import { CanvasArrivalHint } from '../components/CanvasArrivalHint'
@@ -119,7 +120,11 @@ export function GenerationCanvasReactFlowOverlays({
   return (
     <>
       {screenshotOverlay}
-      {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} getInsertionPosition={getInsertionPosition} readOnly={readOnly} /> : null}
+      {nodes.length === 0 ? (
+        <CanvasEmptyState activeCategoryId={activeCategoryId} getInsertionPosition={getInsertionPosition} readOnly={readOnly} />
+      ) : resolveCanvasCreationSurface({ readOnly, nodeCount: nodes.length }) === 'toolbar' ? (
+        <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} stageWidth={stageSize.width || undefined} />
+      ) : null}
       <CanvasPickModeLayer />
       {contextNodeMenu && contextNodeMenu.target !== 'blank' ? (
         // 刀 1：这一个菜单走 `WorkbenchMenu`（Portal 到 body + 视口坐标），

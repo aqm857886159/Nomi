@@ -11,6 +11,7 @@
   ],
   "scope_paths": [
     "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+    "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
     "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
@@ -20,7 +21,8 @@
     "tests/ux/_feel-observer.mjs",
     "tests/ux/uiDriverOptions.mjs",
     "tests/ux/ui.mjs",
-    "scripts/check-feel.mjs"
+    "scripts/check-feel.mjs",
+    "scripts/file-size-baseline.json"
   ],
   "entry_points": [
     "ProjectAgentResidentShell mounts NoTextModelRecoveryCard inside AgentPanelV4Panel (emptyOverride and flowTail)",
@@ -67,13 +69,13 @@
     },
     {
       "kind": "read",
-      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
-      "symbol": "CanvasToolbar"
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "CanvasEmptyState"
     },
     {
       "kind": "read",
       "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
-      "symbol": "CanvasEmptyState"
+      "symbol": "CanvasToolbar"
     },
     {
       "kind": "read",
@@ -89,7 +91,7 @@
   "generality_proof": "Removing NomiIdentityRow from NoTextModelRecoveryCard eliminates duplicate panel identity across all three recovery card states; gating CanvasEmptyState and CanvasToolbar through resolveCanvasCreationSurface makes co-mounting structurally impossible for any category or node mutation; and generic DOM rules in scanFeel/_feel-observer catch any future panel/dialog duplicate header or duplicate stage toolbar across the entire app without product selectors.",
   "shared_boundaries": [
     {
-      "path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "path": "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
       "symbol": "resolveCanvasCreationSurface",
       "responsibility": "Single decision owner determining whether the empty-canvas starter row, the bottom floating toolbar, or neither (readOnly) may mount."
     },
@@ -141,13 +143,14 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
-    "invariant": "Canvas creation surfaces are mutually exclusive via resolveCanvasCreationSurface, NoTextModelRecoveryCard never renders an inner Nomi header inside AgentPanelV4Panel, and _feel-observer ratchets duplicate-nearby-header and duplicate-action-bar at 0.",
+    "enforcement_path": "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
+    "invariant": "Canvas creation surfaces are mutually exclusive via resolveCanvasCreationSurface in GenerationCanvasReactFlowOverlays, NoTextModelRecoveryCard never renders an inner Nomi header inside AgentPanelV4Panel, and _feel-observer ratchets duplicate-nearby-header and duplicate-action-bar at 0.",
     "failure_mode": "Unit tests fail if dual Nomi headers or dual creation toolbars co-render, and Playwright feel observer throws Feel baseline drift on any ratchet checkpoint with duplicate nearby headers or isomorphic action bars.",
     "exception_policy": "none",
-    "strategy": "Consolidate creation-surface visibility into resolveCanvasCreationSurface, delete inner NomiIdentityRow usage in NoTextModelRecoveryCard, and enforce generic viewport-wide duplicate header/toolbar detection in _feel.mjs and _feel-observer.mjs.",
+    "strategy": "Consolidate creation-surface visibility into resolveCanvasCreationSurface and a single GenerationCanvasReactFlowOverlays branch, delete inner NomiIdentityRow usage in NoTextModelRecoveryCard, and enforce generic viewport-wide duplicate header/toolbar detection in _feel.mjs and _feel-observer.mjs.",
     "artifacts": [
       "src/workbench/ai/NoTextModelRecoveryCard.tsx",
+      "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
       "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
       "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
       "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
@@ -191,7 +194,7 @@
   "detected_by": "user",
   "recurrence_check_on": "2026-12-28",
   "invariant_owner_layer": {
-    "layer": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+    "layer": "src/workbench/generationCanvas/components/canvasToolbarModel.ts",
     "tests": [
       "src/workbench/generationCanvas/components/CanvasEmptyState.test.tsx",
       "src/ui/onboarding/onboardingS7aEntries.test.tsx",
