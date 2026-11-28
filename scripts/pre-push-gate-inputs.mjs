@@ -53,8 +53,6 @@ export const GATE_INPUTS = Object.freeze({
   'check:asset-evidence': { roots: ['electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/asset-evidence-baseline.json'], entries: ['scripts/check-asset-evidence.mjs'] },
   // check-media-import-owner.mjs：媒体导入口的唯一 owner，扫 electron / src
   'check:media-import-owner': { roots: ['electron','src'], exts: ['ts','tsx'], files: ['scripts/media-import-owner-baseline.json'], entries: ['scripts/check-media-import-owner.mjs'] },
-  // check-canvas-edge-writers.mjs：画布领地里谁能直接写 .edges（TS 语法树），扫这四个根目录
-  'check:canvas-edge-writers': { roots: ['src/workbench/generationCanvas','src/workbench/project','electron/capabilityCore','electron/shared/canvas'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-canvas-edge-writers.mjs'] },
   // check-storyboard-owner.mjs：src/workbench 下的 ts / tsx（谁直接读 shot.params），2026-10-10 修好 Windows 路径后接入
   'check:storyboard-owner': { roots: ['src/workbench'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-storyboard-owner.mjs'] },
   // check-transport-assembly.mjs：受检接口与它的生产装配点，固定四个 electron/capabilityCore 文件
