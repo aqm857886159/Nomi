@@ -10,7 +10,7 @@
 2. **PostHog Privacy-Safe Funnel Documentation（https://posthog.com/docs/product-analytics/funnels ，对照本仓 `electron/telemetry/telemetrySettings.ts:20`）** · 本地优先与隐私导向分析在不采集用户标识与文本内容时，通过固定枚举步骤（如 `prompt_shown -> setup_opened -> key_submitted -> verify_succeeded -> first_generation_succeeded`）与粗粒度安装账龄分桶计算激活转化与断点分布 · **对本决定的影响**：采用固定 6 步闭合 `onboarding.step` 与基于本机 `telemetry-settings.json` 首次创建时间的 `installAgeBucket` 四档分桶，精确时间戳永不出本机。
 3. **VS Code Telemetry & Disclosure Architecture（https://code.visualstudio.com/docs/supporting/FAQ#_telemetry ，对照本仓 `electron/telemetry/telemetryClaims.test.ts:41`）** · VS Code 对开启遥测的客户端同时记录动作总分母（回合完成数、重试次数 `retryCount`）与失败细分码，且在设置页提供与代码校验器逐项对账的公开字段说明 · **对本决定的影响**：补齐 `agent.turn.completed`（含 `retryCount === 0` 一次做对率分母）、`timeline.adopted`（生成后真实上轴转化）与 `export.completed.failureReason`，并由 `telemetryClaims.test.ts` 100% 锁死中英告知说明与白名单校验器的一致性。
 
-出口：不引入第三方分析 SDK（P0 隐私承诺要求不经任何第三方、只发 Nomi 自有接收端），沿用现有主进程 `telemetryOutbox` + `telemetryEvents` 闭合白名单与 `intake-radar` 纯函数聚合。
+出口：不涉及：本改动仅在离散动作结算点异步旁路记录闭合遥测枚举并修复诊断投影，不新增任何阻断用户继续操作的保护门或拦截器。
 
 ## 设计卡
 
