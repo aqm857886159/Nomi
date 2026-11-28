@@ -336,7 +336,7 @@
   },
   "electron/workspace/workspaceManifest.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 11
+      "count": 8
     }
   },
   "electron/workspace/workspaceManifestLock.ts": {

@@ -13,7 +13,7 @@
 // 2026-10-05 核实没有任何生产调用方，按 P1 整族删除（docs/plan/2026-10-05-engine-convergence-cut1.md §1.2）。
 import fs from 'node:fs'
 import path from 'node:path'
-import { listProjects, createProject, readProject } from '../projects/repository'
+import { listProjects, createProject, createProjectAsync, readProjectAsync } from '../projects/repository'
 import { readCatalog } from '../catalog/catalogStore'
 import { deriveModelListing, type ModelListingEntry } from '../catalog/modelCatalogListing'
 import {
@@ -79,7 +79,7 @@ export async function importProjectAsset(input: {
   contentHash: string
   version: 1
 }> {
-  if (!readProject(input.projectId)) throw new Error(`项目不存在: ${input.projectId}`)
+  if (!(await readProjectAsync(input.projectId))) throw new Error(`项目不存在: ${input.projectId}`)
   const raw = String(input.path || '')
   // I/O 先做（realpath 解软链 + stat），判据本身保持纯函数。
   let realPath: string | null = null
@@ -144,6 +144,11 @@ export async function listAllProjects(): Promise<Array<{ id: string; name: strin
 
 export function createNamedProject(name?: string): { id: string; name: string } {
   const record = createProject(name ? { name } : {})
+  return { id: record.id, name: record.name }
+}
+
+export async function createNamedProjectAsync(name?: string): Promise<{ id: string; name: string }> {
+  const record = await createProjectAsync(name ? { name } : {})
   return { id: record.id, name: record.name }
 }
 

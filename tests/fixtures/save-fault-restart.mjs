@@ -13,13 +13,31 @@ if (!root.startsWith(temp + path.sep)) throw new Error('save restart fixture mus
 const marker = JSON.parse(fs.readFileSync(path.join(root, '.save-fault-fixture.json'), 'utf8'))
 if (marker.id !== input.id) throw new Error('save restart fixture identity mismatch')
 const deps = { settingsRoot: path.join(root, 'settings'), defaultProjectsRoot: path.join(root, 'projects') }
+const realSetTimeout = globalThis.setTimeout.bind(globalThis)
 mock.method(fs, 'fsyncSync', () => {})
 mock.method(fs, 'fsync', (_fd, callback) => { callback(null) })
+mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(input.nowMs) })
+const fakeSetTimeout = globalThis.setTimeout.bind(globalThis)
+const fakeClearTimeout = globalThis.clearTimeout.bind(globalThis)
+const activeFakeTimers = new Set()
+globalThis.setTimeout = ((callback, delay, ...args) => {
+  let handle
+  const wrapped = (...cbArgs) => {
+    activeFakeTimers.delete(handle)
+    return typeof callback === 'function' ? callback(...cbArgs) : undefined
+  }
+  handle = fakeSetTimeout(wrapped, delay, ...args)
+  activeFakeTimers.add(handle)
+  return handle
+})
+globalThis.clearTimeout = ((handle) => {
+  activeFakeTimers.delete(handle)
+  return fakeClearTimeout(handle)
+})
 const { saveWorkspaceProject } = await import('../../electron/workspace/workspaceRepository.ts')
 const { setDurabilityMode } = await import('../../electron/durability.ts')
 const { tryAcquireWorkspaceManifestLock } = await import('../../electron/workspace/workspaceManifestLock.ts')
 setDurabilityMode('durable')
-mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(input.nowMs) })
 mock.method(Atomics, 'wait', (_array, _index, _value, timeout) => {
   if (!Number.isFinite(timeout) || timeout <= 0) throw new Error('unbounded sync wait in restart fixture')
   mock.timers.tick(timeout)
@@ -34,9 +52,14 @@ try {
   }
   const pending = saveWorkspaceProject(input.id, { payload: { text: 'fresh-process' } }, deps)
     .then(value => { saved = value; settled = true }, error => { failure = error; settled = true })
-  for (let turn = 0; !settled && turn < 2048; turn++) {
+  for (let turn = 0; !settled && turn < 16384; turn++) {
     await yieldTurn()
-    mock.timers.tick(10)
+    if (settled) break
+    if (activeFakeTimers.size > 0) {
+      mock.timers.tick(20)
+    } else {
+      await new Promise(resolve => realSetTimeout(resolve, 1))
+    }
   }
   if (!settled) throw new Error('restart save exceeded fake-clock turn bound')
   await pending

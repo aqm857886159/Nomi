@@ -1,8 +1,11 @@
 import path from "node:path";
+import pLimit from "p-limit";
 import { readJsonFile, readJsonFileAsync, writeJsonFileAtomic, writeJsonFileAtomicAsync } from "../jsonFile";
 
 const SCHEMA_VERSION = 1;
 const BASELINE_FILE = "workspace-sync-baseline.json";
+const baselineAsyncQueues = new Map<string, ReturnType<typeof pLimit>>();
+const activeAsyncBaselineWrites = new Map<string, Map<string, WorkspaceSyncBaseline>>();
 
 export type WorkspaceSyncBaseline = {
   rootPath: string;
@@ -75,21 +78,27 @@ export function followWorkspaceSyncBaselineAfterOwnWrite(
   write: { beforeHash: string; after: { revision: number; contentHash: string } },
 ): "followed" | "diverged" | "absent" {
   const id = String(projectId || "").trim();
+  const target = baselinePath(settingsRoot);
   const store = readStore(settingsRoot);
   const baseline = store.projects[id];
   if (!baseline) return "absent";
   if (baseline.contentHash !== write.beforeHash) return "diverged";
-  store.projects[id] = { rootPath: baseline.rootPath, revision: write.after.revision, contentHash: write.after.contentHash };
-  writeJsonFileAtomic(baselinePath(settingsRoot), store);
+  const updated = { rootPath: baseline.rootPath, revision: write.after.revision, contentHash: write.after.contentHash };
+  store.projects[id] = updated;
+  writeJsonFileAtomic(target, store);
+  activeAsyncBaselineWrites.get(target)?.set(id, updated);
   return "followed";
 }
 
 export function writeWorkspaceSyncBaseline(settingsRoot: string, projectId: string, baseline: WorkspaceSyncBaseline): void {
   const id = String(projectId || "").trim();
   if (!id) throw new Error("projectId is required");
+  const target = baselinePath(settingsRoot);
   const store = readStore(settingsRoot);
-  store.projects[id] = { rootPath: path.resolve(baseline.rootPath), revision: baseline.revision, contentHash: baseline.contentHash };
-  writeJsonFileAtomic(baselinePath(settingsRoot), store);
+  const updated = { rootPath: path.resolve(baseline.rootPath), revision: baseline.revision, contentHash: baseline.contentHash };
+  store.projects[id] = updated;
+  writeJsonFileAtomic(target, store);
+  activeAsyncBaselineWrites.get(target)?.set(id, updated);
 }
 
 export async function writeWorkspaceSyncBaselineAsync(
@@ -99,11 +108,35 @@ export async function writeWorkspaceSyncBaselineAsync(
 ): Promise<void> {
   const id = String(projectId || "").trim();
   if (!id) throw new Error("projectId is required");
-  const store = await readStoreAsync(settingsRoot);
-  store.projects[id] = {
-    rootPath: path.resolve(baseline.rootPath),
-    revision: baseline.revision,
-    contentHash: baseline.contentHash,
-  };
-  await writeJsonFileAtomicAsync(baselinePath(settingsRoot), store);
+  const target = baselinePath(settingsRoot);
+  const limit = baselineAsyncQueues.get(target) ?? pLimit(1);
+  baselineAsyncQueues.set(target, limit);
+  try {
+    await limit(async () => {
+      const concurrentSync = new Map<string, WorkspaceSyncBaseline>();
+      activeAsyncBaselineWrites.set(target, concurrentSync);
+      try {
+        const store = await readStoreAsync(settingsRoot);
+        store.projects[id] = {
+          rootPath: path.resolve(baseline.rootPath),
+          revision: baseline.revision,
+          contentHash: baseline.contentHash,
+        };
+        for (const [syncId, syncBaseline] of concurrentSync) store.projects[syncId] = syncBaseline;
+        concurrentSync.clear();
+        for (;;) {
+          await writeJsonFileAtomicAsync(target, store);
+          if (concurrentSync.size === 0) break;
+          for (const [syncId, syncBaseline] of concurrentSync) store.projects[syncId] = syncBaseline;
+          concurrentSync.clear();
+        }
+      } finally {
+        activeAsyncBaselineWrites.delete(target);
+      }
+    });
+  } finally {
+    if (baselineAsyncQueues.get(target) === limit && limit.activeCount === 0 && limit.pendingCount === 0) {
+      baselineAsyncQueues.delete(target);
+    }
+  }
 }

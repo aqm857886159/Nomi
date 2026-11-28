@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureExportDirs } from "../export/exportPaths";
-import { writeJsonFileAtomicAsync } from "../jsonFile";
+import { readJsonFileAsync, writeJsonFileAtomicAsync } from "../jsonFile";
 import type { JsonRecord } from "../jsonUtils";
 import { PROJECT_FILE, ensureDir, getProjectLocationState, getProjectsRoot, getWorkspaceRepositoryDeps, readJson } from "../runtimePaths";
 import { logWarn } from "../logging/logger";
@@ -31,10 +31,12 @@ import {
 } from "../shared/projectDeleteIntent";
 import {
   createWorkspaceProject,
+  createWorkspaceProjectAsync,
   deleteWorkspaceProject,
   diagnoseWorkspaceProject,
   listWorkspaceProjects,
   readWorkspaceProject,
+  readWorkspaceProjectAsync,
   recoverWorkspaceProject,
   resolveWorkspaceProjectDir,
   saveWorkspaceProject,
@@ -174,19 +176,36 @@ export async function listProjects(): Promise<Array<Omit<ProjectRecord, "payload
 // ~/Documents/Nomi Projects）下自动生成一个项目文件夹，再复用 workspace 那套
 // 初始化/注册/资源落盘逻辑。这样用户「新建项目」无需每次选文件夹也能立刻开工，
 // 而「打开文件夹」仍是显式选目录（见 NomiStudioApp 的两个入口）。
-export function createDefaultProject(input: unknown): ProjectRecord {
+function prepareDefaultProjectTarget(input: unknown): { root: string; rootPath: string } {
   const location = getProjectLocationState();
   // 默认位置在 Nomi 自己的目录里（0.24.0 允许这样设）就拒绝新建，不静默改设置、不换目录：渲染层说清为什么、去设置换。
   // 环境变量托管的位置不判（见 workspaceLocationPolicy 文件头）。
   if (location.source !== "environment") assertUserOwnedLocation(location.path);
   const root = location.path;
-  ensureDir(root);
   const rawName =
     input && typeof input === "object" && !Array.isArray(input) ? (input as JsonRecord).name : undefined;
   const folderBase = sanitizeName(rawName, "project");
   const unique = `${folderBase}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
-  const rootPath = path.join(root, unique);
+  return { root, rootPath: path.join(root, unique) };
+}
+
+export function createDefaultProject(input: unknown): ProjectRecord {
+  const { root, rootPath } = prepareDefaultProjectTarget(input);
+  ensureDir(root);
   return createWorkspaceProject(
+    {
+      rootPath,
+      record: input,
+      origin: { source: "native", nativeRootPath: root },
+    },
+    getWorkspaceRepositoryDeps(),
+  );
+}
+
+export async function createDefaultProjectAsync(input: unknown): Promise<ProjectRecord> {
+  const { root, rootPath } = prepareDefaultProjectTarget(input);
+  await fs.promises.mkdir(root, { recursive: true });
+  return createWorkspaceProjectAsync(
     {
       rootPath,
       record: input,
@@ -210,6 +229,19 @@ export function createProject(input: unknown): ProjectRecord {
   return createDefaultProject(input);
 }
 
+export async function createProjectAsync(input: unknown): Promise<ProjectRecord> {
+  const rootPath = getInputRootPath(input);
+  if (rootPath) {
+    assertUserOwnedLocation(rootPath);
+    return createWorkspaceProjectAsync(
+      { rootPath, record: input, origin: { source: "folder" } },
+      getWorkspaceRepositoryDeps(),
+    );
+  }
+
+  return createDefaultProjectAsync(input);
+}
+
 export function readProject(projectId: string): ProjectRecord | null {
   const id = String(projectId || "").trim();
   const workspaceRecord = readWorkspaceProject(id, getWorkspaceRepositoryDeps());
@@ -218,6 +250,21 @@ export function readProject(projectId: string): ProjectRecord | null {
   const projectDir = legacyProjectDirById(id);
   if (!projectDir) return null;
   return normalizeProjectRecord(readJson<ProjectRecord>(path.join(projectDir, PROJECT_FILE), {} as ProjectRecord));
+}
+
+export async function readProjectAsync(projectId: string): Promise<ProjectRecord | null> {
+  const id = String(projectId || "").trim();
+  const workspaceRecord = await readWorkspaceProjectAsync(id, getWorkspaceRepositoryDeps());
+  if (workspaceRecord) return workspaceRecord;
+
+  const projectDir = legacyProjectDirById(id);
+  if (!projectDir) return null;
+  try {
+    const raw = await readJsonFileAsync(path.join(projectDir, PROJECT_FILE), { retrySharingViolation: true });
+    return normalizeProjectRecord(raw ?? ({} as ProjectRecord));
+  } catch {
+    return normalizeProjectRecord({} as ProjectRecord);
+  }
 }
 
 export function diagnoseProject(projectId: string) {

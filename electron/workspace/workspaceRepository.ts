@@ -4,11 +4,13 @@ import crypto from "node:crypto";
 import path from "node:path";
 import pLimit from "p-limit";
 import { readJsonFile } from "../jsonFile";
-import { migrateLegacyProjectFolder } from "./legacyProjectMigration";
+import { migrateLegacyProjectFolder, migrateLegacyProjectFolderAsync } from "./legacyProjectMigration";
 import {
   initializeWorkspace,
+  initializeWorkspaceAsync,
   isWorkspaceBoundaryError,
   readWorkspaceManifest,
+  readWorkspaceManifestAsync,
   readWorkspaceManifestSnapshot,
   readWorkspaceManifestSnapshotAsync,
   recoverWorkspaceManifest,
@@ -236,6 +238,15 @@ function hasLegacyProjectFile(rootPath: string): boolean {
   }
 }
 
+async function hasLegacyProjectFileAsync(rootPath: string): Promise<boolean> {
+  try {
+    const filePath = path.join(path.resolve(rootPath), "project.json");
+    return (await fs.promises.stat(filePath)).isFile();
+  } catch {
+    return false;
+  }
+}
+
 function findRecentEntry(projectId: string, deps: WorkspaceRepositoryDeps) {
   return listRecentWorkspaces(deps.settingsRoot).find((entry) => entry.id === projectId) ?? null;
 }
@@ -247,6 +258,31 @@ function readManifestOrMigrateLegacy(rootPath: string): WorkspaceProjectRecordV2
   return migrateLegacyProjectFolder(rootPath);
 }
 
+async function readManifestOrMigrateLegacyAsync(rootPath: string): Promise<WorkspaceProjectRecordV2 | null> {
+  const manifest = (await readWorkspaceManifestSnapshotAsync(rootPath)) ?? (await readWorkspaceManifestAsync(rootPath));
+  if (manifest) return manifest;
+  if (!(await hasLegacyProjectFileAsync(rootPath))) return null;
+  return migrateLegacyProjectFolderAsync(rootPath);
+}
+
+function workspaceCreateInitInput(recordInput: unknown) {
+  const raw = asRecordInput(recordInput);
+  return {
+    ...(typeof raw.id === "string" && raw.id.trim() ? { id: raw.id.trim() } : {}),
+    name: inputName(raw),
+    ...(typeof raw.seedKey === "string" && raw.seedKey.trim() ? { seedKey: raw.seedKey.trim() } : {}),
+    ...(raw.draft === true ? { draft: true } : {}),
+    payload: inputPayload(recordInput),
+  };
+}
+
+function resolveFallbackOrigin(rootPath: string, defaultProjectsRoot: string): WorkspaceOrigin {
+  const defaultRoot = path.resolve(defaultProjectsRoot);
+  return rootPath !== defaultRoot && rootPath.startsWith(`${defaultRoot}${path.sep}`)
+    ? { source: "native", nativeRootPath: defaultRoot }
+    : { source: "folder" };
+}
+
 export function createWorkspaceProject(
   input: { rootPath: string; record: unknown; origin?: WorkspaceOrigin },
   deps: WorkspaceRepositoryDeps,
@@ -256,26 +292,38 @@ export function createWorkspaceProject(
   // 两个文件夹都不碰（收敛单不变量 ⑤）。
   const existingId = readWorkspaceFolderProjectId(rootPath);
   if (existingId) assertWorkspaceFolderBindable(deps.settingsRoot, { id: existingId, name: "", rootPath });
-  const raw = asRecordInput(input.record);
-  const initialized = initializeWorkspace(rootPath, {
-    ...(typeof raw.id === "string" && raw.id.trim() ? { id: raw.id.trim() } : {}),
-    name: inputName(raw),
-    ...(typeof raw.seedKey === "string" && raw.seedKey.trim() ? { seedKey: raw.seedKey.trim() } : {}),
-    ...(raw.draft === true ? { draft: true } : {}),
-    payload: inputPayload(input.record),
-  });
+  const initialized = initializeWorkspace(rootPath, workspaceCreateInitInput(input.record));
   const record = normalizeWorkspaceProjectRecord(initialized);
-  const defaultRoot = path.resolve(deps.defaultProjectsRoot);
-  const fallbackOrigin: WorkspaceOrigin =
-    rootPath !== defaultRoot && rootPath.startsWith(`${defaultRoot}${path.sep}`)
-      ? { source: "native", nativeRootPath: defaultRoot }
-      : { source: "folder" };
+  const fallbackOrigin = resolveFallbackOrigin(rootPath, deps.defaultProjectsRoot);
   // 登记的是用户这次打开 / 新建的目录，不是清单里创建时写下的 lastKnownRootPath（改名 / 挪走后它就是旧路径）。
   bindWorkspaceLocation(deps.settingsRoot, { id: record.id, name: record.name, rootPath, origin: input.origin ?? fallbackOrigin });
   const manifestPath = workspaceProjectFile(rootPath);
   if (fs.existsSync(manifestPath)) {
     const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
     writeWorkspaceSyncBaseline(deps.settingsRoot, record.id, { rootPath, revision: record.revision, contentHash });
+  }
+  return normalizeWorkspaceProjectRecord({ ...record, lastKnownRootPath: rootPath });
+}
+
+export async function createWorkspaceProjectAsync(
+  input: { rootPath: string; record: unknown; origin?: WorkspaceOrigin },
+  deps: WorkspaceRepositoryDeps,
+): Promise<WorkspaceProjectRecordV2> {
+  const rootPath = path.resolve(input.rootPath);
+  const existingId = readWorkspaceFolderProjectId(rootPath);
+  if (existingId) assertWorkspaceFolderBindable(deps.settingsRoot, { id: existingId, name: "", rootPath });
+  const initialized = await initializeWorkspaceAsync(rootPath, workspaceCreateInitInput(input.record));
+  const record = normalizeWorkspaceProjectRecord(initialized);
+  const fallbackOrigin = resolveFallbackOrigin(rootPath, deps.defaultProjectsRoot);
+  await bindWorkspaceLocationAsync(deps.settingsRoot, { id: record.id, name: record.name, rootPath, origin: input.origin ?? fallbackOrigin });
+  const manifestPath = workspaceProjectFile(rootPath);
+  try {
+    const contentHash = crypto.createHash("sha256").update(await fs.promises.readFile(manifestPath)).digest("hex");
+    const createdStamp = manifestStamp(rootPath);
+    rememberResolvedProjectDir(resolvedProjectDirKey(record.id, deps), rootPath, createdStamp);
+    await writeWorkspaceSyncBaselineAsync(deps.settingsRoot, record.id, { rootPath, revision: record.revision, contentHash });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
   }
   return normalizeWorkspaceProjectRecord({ ...record, lastKnownRootPath: rootPath });
 }
@@ -354,6 +402,21 @@ export function readWorkspaceProject(
     return null;
   }
   const manifest = readManifestOrMigrateLegacy(entry.rootPath);
+  if (!manifest || manifest.id !== projectId) {
+    return null;
+  }
+  return normalizeWorkspaceProjectRecord({ ...manifest, lastKnownRootPath: entry.rootPath });
+}
+
+export async function readWorkspaceProjectAsync(
+  projectId: string,
+  deps: WorkspaceRepositoryDeps,
+): Promise<WorkspaceProjectRecordV2 | null> {
+  const entry = findRecentEntry(projectId, deps);
+  if (!entry || entry.missing) {
+    return null;
+  }
+  const manifest = await readManifestOrMigrateLegacyAsync(entry.rootPath);
   if (!manifest || manifest.id !== projectId) {
     return null;
   }

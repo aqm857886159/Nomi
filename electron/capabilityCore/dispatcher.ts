@@ -5,7 +5,7 @@ import crypto from 'node:crypto'
 import {
   addProjectNodes,
   connectProjectNodes,
-  createNamedProject,
+  createNamedProjectAsync,
   deleteProjectNodes,
   listAllProjects,
   setProjectNodePrompt,
@@ -373,7 +373,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       return { projects: withHandles }
     }
     case 'project.create': {
-      const created = createNamedProject(typeof params.name === 'string' ? params.name : undefined)
+      const created = await createNamedProjectAsync(typeof params.name === 'string' ? params.name : undefined)
       if (!ctx.projectSession) return created
       const selection = await ctx.projectSession.authority.issueProjectSelection(
         'created_project',

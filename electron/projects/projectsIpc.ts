@@ -9,7 +9,7 @@ import { ipcMain } from "electron";
 import { sweepAbandonedUploadStaging } from "../assets/scratchCleanup";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { projectDirById } from "./repository";
-import { measureProjectOpenMainStageSync } from "./projectOpenTimeline";
+import { measureProjectOpenMainStage, measureProjectOpenMainStageSync } from "./projectOpenTimeline";
 import { applyCanvasNodePatch } from "./projectCanvasWrite";
 import { quarantineWriteResult, type QuarantineWriteFailure, type QuarantineWriteOutcome } from "./projectQuarantine";
 import type { ProjectBinding } from "../shared/projectBinding";
@@ -25,6 +25,7 @@ export type ProjectsIpcDeps = {
   listProjects: () => Promise<unknown>;
   createProject: (record: unknown) => unknown;
   readProject: (projectId: string) => unknown;
+  readProjectAsync?: (projectId: string) => Promise<unknown>;
   saveProject: (projectId: string, record: unknown) => unknown;
   /** intent 来自渲染层确认框，未经校验（主进程 deleteProject 自己核，缺失 / 不认识即拒绝）。 */
   deleteProject: (projectId: string, intent: unknown) => Promise<unknown>;
@@ -53,6 +54,7 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
     listProjects,
     createProject,
     readProject,
+    readProjectAsync,
     saveProject,
     deleteProject,
     diagnoseProject,
@@ -74,6 +76,11 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
   ipcMain.handle("nomi:projects:read-async", (event, projectId: unknown) => {
     assertTrustedSender(event);
     const id = String(projectId || "");
+    if (readProjectAsync) {
+      return measureProjectOpenMainStage("read-project", () => readProjectAsync(id)).finally(() => {
+        sweepProjectUploadStagingSoon(id);
+      });
+    }
     const record = measureProjectOpenMainStageSync("read-project", () => readProject(id));
     sweepProjectUploadStagingSoon(id);
     return record;
