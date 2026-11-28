@@ -765,16 +765,19 @@ describe('顶栏入口侧接线 ③：窄窗临时收起（跨阈值回顶栏、
     expect(mounted.disk(), '拉宽自动停回后存档仍逐字节不变').toBe(diskBefore)
   })
 
-  it('顶栏入口的 roomy 接线（topbarRoomy(barWidth)）：960 临时收起出胶囊，800 退回脸 + 角标，点开成浮窗不出胶囊', () => {
+  it('顶栏入口的开合舞台移交与 roomy 接线：开着退成 toggle 图标，960 临时收起出胶囊，800 退回脸 + 角标', () => {
     mounted = mountTopbarAndHost({ surface: 'creation', initialForm: 'dock', initialWidth: 1200 })
     useResidentActivityStore.getState().setResidentDockBadge('needs-confirm', 'idle', 2, 2)
     mounted.flush()
-    // 宽窗开着停靠：不出胶囊，显示按下态脸 + 角标。
-    expect(mounted.mustEntry().getAttribute('data-shape')).toBe('face')
+    // 宽窗开着停靠：活小人已移交至面板头，顶栏入口退成安静线性侧栏开关（无黑底脸、无角标、无红蓝点）。
+    expect(mounted.mustEntry().getAttribute('data-shape')).toBe('toggle')
     expect(mounted.mustEntry().getAttribute('aria-pressed')).toBe('true')
-    expect(mounted.mustEntry().querySelector('[data-nomi-entry-badge]')?.textContent).toBe('2')
+    expect(mounted.mustEntry().querySelector('[data-nomi-entry-toggle]')).not.toBeNull()
+    expect(mounted.mustEntry().querySelector('[data-nomi-agent-face]')).toBeNull()
+    expect(mounted.mustEntry().querySelector('[data-nomi-entry-badge]')).toBeNull()
+    expect(mounted.mustEntry().querySelector('[data-nomi-entry-dot]')).toBeNull()
 
-    // 960px（< 1060 触发窄窗临时收起，但 ≥ 900 顶栏仍 roomy）：面板收起 → 入口长出浅橙胶囊。
+    // 960px（< 1060 触发窄窗临时收起，但 ≥ 900 顶栏仍 roomy）：面板收起 → 入口接回舞台并长出浅橙胶囊。
     mounted.resizeWindow(960)
     expect(mounted.hostForm()).toBe('collapsed')
     expect(mounted.mustEntry().getAttribute('aria-pressed')).toBe('false')
@@ -785,16 +788,19 @@ describe('顶栏入口侧接线 ③：窄窗临时收起（跨阈值回顶栏、
     mounted.resizeWindow(800)
     expect(mounted.mustEntry().getAttribute('data-shape'), '800px 小于 900 时必须从胶囊退回脸 + 角标').toBe('face')
     expect(mounted.mustEntry().querySelector('[data-nomi-entry-capsule]')).toBeNull()
+    expect(mounted.mustEntry().querySelector('[data-nomi-agent-face]')).not.toBeNull()
     expect(mounted.mustEntry().querySelector('[data-nomi-entry-badge]')?.textContent).toBe('2')
 
-    // 回到 960px 再从入口点开成临时浮窗：面板开着不出胶囊（D5）。
+    // 回到 960px 再从入口点开成临时浮窗：面板开着再次移交舞台，顶栏回到安静侧栏开关 toggle。
     mounted.resizeWindow(960)
     expect(mounted.mustEntry().getAttribute('data-shape')).toBe('capsule')
     mounted.clickEntry()
     expect(mounted.hostForm()).toBe('float')
     expect(mounted.mustEntry().getAttribute('aria-pressed')).toBe('true')
-    expect(mounted.mustEntry().getAttribute('data-shape')).toBe('face')
-    expect(mounted.mustEntry().querySelector('[data-nomi-entry-badge]')?.textContent).toBe('2')
+    expect(mounted.mustEntry().getAttribute('data-shape')).toBe('toggle')
+    expect(mounted.mustEntry().querySelector('[data-nomi-entry-toggle]')).not.toBeNull()
+    expect(mounted.mustEntry().querySelector('[data-nomi-agent-face]')).toBeNull()
+    expect(mounted.mustEntry().querySelector('[data-nomi-entry-badge]')).toBeNull()
   })
 
   it('项目库页（workspaceMode=null）顶栏不挂 Nomi 入口', () => {

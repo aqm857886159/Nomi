@@ -12,6 +12,7 @@ export const feelMode = (journey) => ratchetJourneys.has(journey) ? 'ratchet' : 
 export const feelSurfaceKey = ({ journey, screenshotName, rule }) => JSON.stringify([journey, screenshotName, rule])
 const sameScreenshot = (entry, result) => entry.journey === result.journey && entry.screenshotName === result.screenshotName
 const recordOnlyRules = new Set(['repeated-rows'])
+const zeroBudgetRules = new Set(['duplicate-nearby-header', 'duplicate-action-bar', 'duplicate-persona-stage'])
 
 /** Density candidates need human action-value review; never a product-specific selector. */
 async function scanRepeatedRows(page) {
@@ -88,8 +89,8 @@ export function compareFeelBaseline(result, baseline) {
     if (recordOnlyRules.has(rule)) return []
     const actual = counts.get(rule) || 0
     const entry = expected.find((entry) => entry.rule === rule)
-    if (!entry) return []
-    const allowed = entry.count
+    if (!entry && !zeroBudgetRules.has(rule)) return []
+    const allowed = entry ? entry.count : 0
     return actual === allowed ? [] : [{ rule, actual, allowed, kind: actual > allowed ? 'new' : 'reduced-update-baseline' }]
   })
 }

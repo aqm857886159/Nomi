@@ -1,0 +1,31 @@
+{
+  "name": "整屏体感几何扫描与同屏重复角色、头部、动作条零预算棘轮",
+  "subject": "test-harness.feel-viewport-scan",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/_feel.mjs",
+    "symbol": "scanFeel"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/_feel.mjs",
+      "symbol": "scanFeel"
+    },
+    {
+      "path": "tests/ux/_feel-observer.mjs",
+      "symbol": "installFeelObserver"
+    }
+  ],
+  "parity_test": "tests/ux/feel-policy.test.mjs",
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "tests/ux/_feel-observer.mjs",
+    "tests/ux/ui.mjs"
+  ],
+  "since": "2026-11-28",
+  "notes": "合同 docs/fixes/2026-11-28-canvas-duplicate-surface-guard.root-cause.json：整屏 DOM 几何体感扫描归 scanFeel 与 installFeelObserver，覆盖溢出、贴边、遮挡及跨组件拼装后的 duplicate-persona-stage、duplicate-nearby-header、duplicate-action-bar，由 check-feel.mjs 守卫零产品词选择器耦合。"
+}

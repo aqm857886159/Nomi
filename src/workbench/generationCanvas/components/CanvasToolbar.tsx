@@ -206,7 +206,6 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId, stageW
   const workflowTemplates = useGenerationCanvasStore((state) => state.workflowTemplates)
   const instantiateWorkflowTemplate = useGenerationCanvasStore((state) => state.instantiateWorkflowTemplate)
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
-  React.useEffect(() => { void useCanvasMenuPreferenceStore.getState().load().catch(() => {}) }, [])
   const [moreOpen, setMoreOpen] = React.useState(false)
   const moreAnchorRef = React.useRef<HTMLButtonElement>(null)
   const closeMore = React.useCallback(() => setMoreOpen(false), [])
