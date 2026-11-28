@@ -131,7 +131,7 @@ export function GenerationListView(): JSX.Element {
   return (
     <div ref={rootRef} className="flex h-full min-h-0 flex-col bg-nomi-paper" data-generation-list data-list-layout="grid" aria-label={t('generationList.aria')}>
       <div
-        className="flex shrink-0 items-center justify-between border-b border-nomi-line-soft py-2.5"
+        className="flex shrink-0 items-center border-b border-nomi-line-soft py-2.5"
         style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}
       >
         <ListCreateBar variant="toolbar" onCreatedNode={handleCreatedNode} />

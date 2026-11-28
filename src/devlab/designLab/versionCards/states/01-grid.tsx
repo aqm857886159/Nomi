@@ -6,7 +6,7 @@ import type { LabState } from '../../labScreen'
 import { VersionCardsStage } from '../versionCardsLabKit'
 
 const SOURCE = 'docs/plan/2026-10-06-version-cards-reconcile.md §7（用户 10-06：和节点一样、宫格、去图标）'
-const MIRRORS = 'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:357'
+const MIRRORS = 'src/workbench/generationCanvas/nodes/NodeStageSurface.tsx:324'
 
 const NEIGHBOURS = [
   { id: 'vc-n1', title: '镜头 1 · 雨夜入场', x: 440, y: 120, versionNo: 7 },

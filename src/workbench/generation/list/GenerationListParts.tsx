@@ -109,8 +109,8 @@ export function ListCardMedia({
       data-list-media-kind={kind}
     >
       {node?.kind === 'text' || execution === 'text' ? (
-        <div className="flex size-full flex-col justify-between p-3.5 text-left" data-list-media="text-summary">
-          <p className={cn('m-0 line-clamp-3 whitespace-pre-line text-body-sm leading-relaxed', textSummary ? 'text-nomi-ink-80' : 'text-nomi-ink-40')}>
+        <div className="flex size-full flex-col gap-2 p-3.5 text-left" data-list-media="text-summary">
+          <p className={cn('m-0 flex-1 line-clamp-3 whitespace-pre-line text-body-sm leading-relaxed', textSummary ? 'text-nomi-ink-80' : 'text-nomi-ink-40')}>
             {textSummary || t('generationList.textEmpty')}
           </p>
           <span className="inline-flex items-center gap-1 text-micro text-nomi-ink-40">
@@ -120,8 +120,8 @@ export function ListCardMedia({
         </div>
       ) : node && execution === 'audio' ? (
         transcriptText ? (
-          <div className="flex size-full flex-col justify-between p-3.5 text-left" data-list-media="audio-transcript">
-            <p className="m-0 line-clamp-3 text-body-sm leading-relaxed text-nomi-ink-80">{transcriptText}</p>
+          <div className="flex size-full flex-col gap-2 p-3.5 text-left" data-list-media="audio-transcript">
+            <p className="m-0 flex-1 line-clamp-3 text-body-sm leading-relaxed text-nomi-ink-80">{transcriptText}</p>
             <span className="inline-flex items-center gap-1 text-micro text-nomi-accent">
               <IconFileText size={13} stroke={1.6} aria-hidden />
               {t('generationCommon.audio.generateSubtitle')}

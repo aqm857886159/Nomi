@@ -7,9 +7,9 @@
     "count": 2,
     "reason": "保留：两个下载转圈（border-t 强调色）是进度反馈"
   },
-  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": {
+  "src/workbench/generationCanvas/nodes/NodeStageSurface.tsx": {
     "count": 1,
-    "reason": "保留：剪贴板导入 / 抠图处理中的脉冲环是进度反馈"
+    "reason": "保留：剪贴板导入 / 抠图处理中的脉冲环是进度反馈（随共享舞台从 BaseGenerationNode 迁至 NodeStageSurface）"
   },
   "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx": {
     "count": 1,

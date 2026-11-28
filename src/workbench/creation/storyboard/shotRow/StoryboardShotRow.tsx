@@ -23,7 +23,7 @@ import { findModelOptionByIdentifier } from '../../../../config/modelOptionResol
 import { useVendorPreferenceOrder } from '../../../common/useVendorPreference'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import type { ModelOption } from '../../../../config/models'
-import { resolveShotArchetypeMode } from './shotRowModel'
+import { buildShotModeChangePatch, resolveShotArchetypeMode } from './shotRowModel'
 import { isPortraitBox, visualColumnWidth, type FrameMediaBox } from './shotFrameGeometry'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
@@ -38,7 +38,6 @@ import { dropBindingsForUrls, removeReferenceWithMention } from './shotReference
 import { ReferenceNamesContext, clipReferenceName, dedupeChipNames } from '../../../assets/referenceNames'
 import { droppedMentionUrls } from '../../../assets/promptMentions'
 import ShotComposerBar from './ShotComposerBar'
-import { buildStoryboardModeChangeParams } from './storyboardComposerModel'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
 import type { NomiEditorSource } from '../../../common/useNomiRichTextEditor'
 import type { ShotVariant } from './shotVariants'
@@ -429,10 +428,9 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           }}
           onInsertMention={mentionSearch ? insertMention : undefined}
           onTriggerMention={mentionSearch ? triggerAtMention : undefined}
-          onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate({
-            modeId,
-            params: buildStoryboardModeChangeParams(modelOption, shot.params, modeId, isImageShot ? 'image' : 'video'),
-          })}
+          onSwitchMode={exec?.resultUrl || exec?.status === 'generating' ? undefined : (modeId) => onUpdate(
+            buildShotModeChangePatch(modelOption, shot, modeId),
+          )}
           planned={exec?.plannedFirstFrame ?? null}
           layout={{ placement: 'above' }}
         />

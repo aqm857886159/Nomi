@@ -80,6 +80,22 @@
   "registered": [
     {
       "members": [
+        "canvas",
+        "list-detail"
+      ],
+      "reason": "NodeStageHost 标识共享节点舞台 NodeStageSurface 的挂载宿主（React Flow 画布反向缩放浮条宿主 canvas 与列表大详情 600px 内联同轴宿主 list-detail），与顶栏视图切换词表 [canvas | list] 及生成框宿主 [canvas | inline | modal] 语义不同。",
+      "site": "src/workbench/generationCanvas/nodes/nodeStageHostContext.ts::type:NodeStageHost/type-union"
+    },
+    {
+      "members": [
+        "canvas-only",
+        "shared-stage"
+      ],
+      "reason": "NodeSurfaceStageMode 是编译期穷尽契约 NODE_SURFACE_CONTRACTS 的唯一舞台策略词表：shared-stage 表示画布与列表大详情共用 NodeStageSurface，canvas-only 表示多节点空间工具在列表大详情显式给出直达画布入口。",
+      "site": "src/workbench/generationCanvas/nodes/nodeSurfaceContract.ts::type:NodeSurfaceStageMode/type-union"
+    },
+    {
+      "members": [
         "first_generation_succeeded",
         "key_submitted",
         "prompt_shown",
