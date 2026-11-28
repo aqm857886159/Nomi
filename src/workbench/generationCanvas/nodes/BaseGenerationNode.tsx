@@ -4,7 +4,6 @@ import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useWhiteboardSession } from './whiteboard/whiteboardSession'
 import { NodeInlineWhiteboardHost } from './whiteboard/NodeInlineWhiteboardHost'
-import { useTranslation } from 'react-i18next'
 import ProvenancePanel from './ProvenancePanel'
 import { resolveNodeRenderKind, isCardRenderKind, nodeHasGenerationComposer } from './resolveRenderKind'
 import ShotMountBadges from './render/ShotMountBadges'
@@ -23,7 +22,7 @@ import { isLocalImageOpPending, isRemoveBackgroundPending, isRemoveBackgroundRes
 import { useNodeDragResize } from './useNodeDragResize'
 import { useWaitingForFrameSource, useShotIdentity, useMountedCards } from '../hooks/useNodeRelationships'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
-import { PendingGenerationPlaceholder, LocalImageOpPendingStatus, RemoveBackgroundPendingPlaceholder } from './render/CardCommon'
+import { PendingGenerationPlaceholder, LocalImageOpPendingStatus, RemoveBackgroundPendingPlaceholder, NodeResizeHandles } from './render/CardCommon'
 import { previewBackgroundClass } from './render/previewBackground'
 import PanoramaUploadFallback from './PanoramaUploadFallback'
 import { cn } from '../../../utils/cn'
@@ -41,14 +40,13 @@ import { sampleRowOwnsProgress } from '../model/sampleFacts'
 import { NodeBelowRowSpace } from './nodeOutsideRows'
 import { ProductionShotOverlays } from './ProductionShotOverlays'
 import { useHasNodeAttachedPanel } from './nodeAttachedPanel'
-import { WorkbenchButton } from '../../../design'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
 import { TechnicalReviewBadge } from './TechnicalReviewBadge'
 import { DerivedReadyBadge } from '../quickActions/DerivedReadyBadge'
 import { isDerivedPromptReady } from '../quickActions/deriveFromNode'
 import { useArtifactNodeSlots } from './artifact/artifactNodeSlots'
-import { RESIZE_DIRECTIONS, getNodeResizeBounds, resolveNodeVisualSize } from './nodeSizing'
+import { getNodeResizeBounds, resolveNodeVisualSize } from './nodeSizing'
 import { NodeDerivedCopyBadge } from './NodeDerivedCopyBadge'
 import { NodeLabelRow } from './NodeLabelRow'
 import { NodeLayerSplitStatus } from './NodeLayerSplitStatus'
@@ -83,7 +81,6 @@ function BaseGenerationNodeImpl({
   const reportFeedback = React.useCallback((message: string) => {
     notify({ identity: `BaseGenerationNodeImpl:${node.id}`, reason: 'interaction', message, level: 'inline', present: setFeedback })
   }, [node.id])
-  const { t } = useTranslation()
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -377,35 +374,9 @@ function BaseGenerationNodeImpl({
           <NodeGenerationComposer onFeedback={reportFeedback} node={node} visualSize={visualSize} readOnly={readOnly} />
         </NodeBelowRowSpace.Provider>
       ) : null}
-      {selected && !readOnly && !flowManagedLayout
-        ? RESIZE_DIRECTIONS.map((direction) => (
-            <WorkbenchButton
-              key={direction}
-              className={cn(
-                'generation-canvas-v2-node__resize-zone',
-                `generation-canvas-v2-node__resize-zone--${direction}`,
-                'absolute z-[6] p-0 border-0 bg-transparent',
-                'focus-visible:outline-2 focus-visible:outline-nomi-ink focus-visible:outline-offset-2',
-                (direction === 'n' || direction === 's') && 'left-[10px] w-[calc(100%-20px)] h-[10px] cursor-ns-resize',
-                direction === 'n' && 'top-[-5px]',
-                direction === 's' && 'bottom-[-5px]',
-                (direction === 'e' || direction === 'w') && 'top-[10px] w-[10px] h-[calc(100%-20px)] cursor-ew-resize',
-                direction === 'e' && 'right-[-5px]',
-                direction === 'w' && 'left-[-5px]',
-                (direction === 'ne' || direction === 'nw' || direction === 'se' || direction === 'sw') && 'w-4 h-4',
-                (direction === 'ne' || direction === 'sw') && 'cursor-nesw-resize',
-                (direction === 'nw' || direction === 'se') && 'cursor-nwse-resize',
-                direction === 'ne' && 'top-[-8px] right-[-8px]',
-                direction === 'nw' && 'top-[-8px] left-[-8px]',
-                direction === 'se' && 'right-[-8px] bottom-[-8px]',
-                direction === 'sw' && 'bottom-[-8px] left-[-8px]',
-              )}
-              aria-label={t('generationCommon.node.resizeAria', { direction })}
-              title={t('generationCommon.node.resize')}
-              onPointerDown={handleResizePointerDown(direction)}
-            />
-          ))
-        : null}
+      {selected && !readOnly && !flowManagedLayout ? (
+        <NodeResizeHandles onResizePointerDown={handleResizePointerDown} />
+      ) : null}
     </article>
   )
 }

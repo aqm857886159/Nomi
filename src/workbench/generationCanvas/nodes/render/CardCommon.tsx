@@ -18,7 +18,8 @@ import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { getGenerationNodeLabel } from '../../model/generationNodeKinds'
 import { NodeTryList } from '../../quickActions/NodeTryList'
 import { useNodeTryRecipes } from '../../quickActions/nodeTryRecipes'
-import { resolveNodeVisualSize } from '../nodeSizing'
+import { RESIZE_DIRECTIONS, resolveNodeVisualSize } from '../nodeSizing'
+import { WorkbenchButton } from '../../../../design'
 import { getGenerationNodeIcon } from '../renderRegistry'
 import { useEmptyNodeActivation } from './NodeEmptyStateContext'
 
@@ -490,4 +491,43 @@ export function UploadFallback({
  */
 export function placeholderLabel(categoryName: string | undefined, title: string | undefined): string {
   return categoryName || title || i18n.t('generationCommon.card.node')
+}
+
+export function NodeResizeHandles({
+  onResizePointerDown,
+}: {
+  onResizePointerDown: (direction: (typeof RESIZE_DIRECTIONS)[number]) => (event: React.PointerEvent<HTMLButtonElement>) => void
+}): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <>
+      {RESIZE_DIRECTIONS.map((direction) => (
+        <WorkbenchButton
+          key={direction}
+          className={cn(
+            'generation-canvas-v2-node__resize-zone',
+            `generation-canvas-v2-node__resize-zone--${direction}`,
+            'absolute z-[6] p-0 border-0 bg-transparent',
+            'focus-visible:outline-2 focus-visible:outline-nomi-ink focus-visible:outline-offset-2',
+            (direction === 'n' || direction === 's') && 'left-[10px] w-[calc(100%-20px)] h-[10px] cursor-ns-resize',
+            direction === 'n' && 'top-[-5px]',
+            direction === 's' && 'bottom-[-5px]',
+            (direction === 'e' || direction === 'w') && 'top-[10px] w-[10px] h-[calc(100%-20px)] cursor-ew-resize',
+            direction === 'e' && 'right-[-5px]',
+            direction === 'w' && 'left-[-5px]',
+            (direction === 'ne' || direction === 'nw' || direction === 'se' || direction === 'sw') && 'w-4 h-4',
+            (direction === 'ne' || direction === 'sw') && 'cursor-nesw-resize',
+            (direction === 'nw' || direction === 'se') && 'cursor-nwse-resize',
+            direction === 'ne' && 'top-[-8px] right-[-8px]',
+            direction === 'nw' && 'top-[-8px] left-[-8px]',
+            direction === 'se' && 'right-[-8px] bottom-[-8px]',
+            direction === 'sw' && 'bottom-[-8px] left-[-8px]',
+          )}
+          aria-label={t('generationCommon.node.resizeAria', { direction })}
+          title={t('generationCommon.node.resize')}
+          onPointerDown={onResizePointerDown(direction)}
+        />
+      ))}
+    </>
+  )
 }
