@@ -19,6 +19,7 @@ import { bridgeStdioToHttp, NOMI_INTERRUPTED_MESSAGE, NOMI_SESSION_LOST_MESSAGE,
 import { MCP_VERIFY_PROBE_NAME, mcpHttpIdentityHeaders } from './mcpHttpEndpoint'
 import { startMcpHttpServer, type McpHttpServerHandle } from './mcpHttpServer'
 import { createNomiMcpServer } from './mcpProtocol'
+import { createTestMcpHost } from './__tests__/mcpHostTestUtils'
 import { ensureToken, signMcpClient } from './security'
 import { verifyHttpEntry } from './mcpVerifyHttp'
 
@@ -32,11 +33,11 @@ function startServer(port = 0, maxSessions = 32): Promise<McpHttpServerHandle> {
   return startMcpHttpServer({
     port,
     maxSessions,
-    sessionFor: (id) => createNomiMcpServer({
+    sessionFor: (id) => createNomiMcpServer(createTestMcpHost({
       invoke: async () => ({}),
       isAppOpen: () => true,
       getAuthenticatedClient: () => id.connection.authenticatedClient,
-    }),
+    })),
   }).then((server) => { servers.push(server); return server })
 }
 

@@ -23,6 +23,7 @@ import { migrateMcpHostsToHttp } from './mcpHostMigration'
 import { writeMcpHttpEndpoint } from './mcpHttpEndpoint'
 import { startMcpHttpServer, type McpHttpServerHandle } from './mcpHttpServer'
 import { createNomiMcpServer } from './mcpProtocol'
+import { createTestMcpHost } from './__tests__/mcpHostTestUtils'
 import { CAPABILITY_DIR_ENV, ensureToken } from './security'
 import { verifyMcp } from './mcpVerify'
 
@@ -45,11 +46,11 @@ beforeEach(async () => {
   ensureToken()
   server = await startMcpHttpServer({
     port: 0,
-    sessionFor: (identity) => createNomiMcpServer({
+    sessionFor: (identity) => createNomiMcpServer(createTestMcpHost({
       invoke: async () => ({}),
       isAppOpen: () => true,
       getAuthenticatedClient: () => identity.connection.authenticatedClient,
-    }),
+    })),
   })
   // 稳定地址取显式覆盖：测试里服务在随机端口上，宿主配置写的就是这个端口。
   vi.stubEnv('NOMI_MCP_HTTP_PORT', String(server.port))

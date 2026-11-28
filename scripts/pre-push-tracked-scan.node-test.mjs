@@ -10,7 +10,6 @@ import { makeTempDir } from './_test-temp.mjs'
 
 /** 已存在、尚未迁移的推送前脚本扫描路径；只减不增，迁走时同提交删除。 */
 export const REPO_SCAN_BASELINE = Object.freeze([
-  'scripts/check-asset-evidence.mjs',
   'scripts/check-batch-machines.mjs',
   'scripts/check-board-parity.mjs',
   'scripts/check-capability-lifecycle.mjs',
@@ -32,7 +31,6 @@ export const REPO_SCAN_BASELINE = Object.freeze([
   'scripts/check-outbound-policy.mjs',
   'scripts/check-platform-archetypes.mjs',
   'scripts/check-read-path-writes.mjs',
-  'scripts/check-run-task-grant.mjs',
   'scripts/check-script-network-retry.mjs',
   'scripts/check-skill-ipc-coverage.mjs',
   'scripts/check-store-lifetime.mjs',

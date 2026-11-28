@@ -518,11 +518,6 @@
       "count": 4
     }
   },
-  "scripts/check-asset-evidence.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "scripts/check-control-contract.test.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1

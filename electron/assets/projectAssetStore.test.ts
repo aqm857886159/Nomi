@@ -176,7 +176,7 @@ describe("writeAsset canonical media filename", () => {
       fs.writeFileSync(source, mediaFixture("valid.mp4"));
       const stored = (entry === "copyAssetFile"
         ? await copyAssetFile("project-1", source, longWithoutExtension, "application/octet-stream", { kind: "reference" }, null)
-        : moveAssetFile("project-1", source, longWithoutExtension, "application/octet-stream", { kind: "reference" })) as Stored;
+        : moveAssetFile("project-1", source, longWithoutExtension, "application/octet-stream", { kind: "reference", sourceEvidence: { source: "user" } })) as Stored;
       expect(stored.data?.relativePath).toMatch(/\.mp4$/);
       expect(path.posix.basename(stored.data?.relativePath || "").length).toBeLessThanOrEqual(90);
     });
@@ -274,7 +274,7 @@ describe("writeAsset canonical media filename", () => {
     fs.writeFileSync(source, mediaFixture("valid.mp4"));
     expect(() => entry === "writeAsset"
       ? writeAsset("project-1", mediaFixture("valid.mp4"), "result.mp4", "video/mp4", { kind: "generated" })
-      : moveAssetFile("project-1", source, "result.mp4", "video/mp4", { kind: "generated" })).toThrow("generated_output_requires_verified_publish");
+      : moveAssetFile("project-1", source, "result.mp4", "video/mp4", { kind: "generated" } as never)).toThrow("generated_output_requires_verified_publish");
     expect(fs.existsSync(path.join(projectRoot, "assets", "generated"))).toBe(false);
     expect(fs.existsSync(source)).toBe(true);
   });
@@ -347,7 +347,7 @@ describe("writeAsset canonical media filename", () => {
 describe('existing project media attachment receipts', () => {
   it('returns the canonical original identity and full receipt for a local reference', async () => {
     const stored = await writeAsset('project-1', Buffer.from('original'), 'portrait.png', 'image/png', { kind: 'upload' }) as { id: string; data: { url: string } }
-    const receipt = await importRemoteAsset({ projectId: 'project-1', url: stored.data.url, kind: 'upload', expectedKind: null }) as { id: string; data: { size: number; contentHash: string } }
+    const receipt = await importRemoteAsset({ projectId: 'project-1', url: stored.data.url, kind: 'upload', expectedKind: null }, { sourceEvidence: { source: 'user' } }) as { id: string; data: { size: number; contentHash: string } }
     expect(receipt.id).toBe(stored.id)
     expect(receipt.data.size).toBe(8)
     expect(receipt.data.contentHash).toMatch(/^[a-f0-9]{64}$/)

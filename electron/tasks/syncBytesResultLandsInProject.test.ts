@@ -468,7 +468,8 @@ describe.each([
   it("tasks:run（令牌路）：发生成请求前拒，令牌原样留着，不弹付费卡", async () => {
     responder = noProjectResponder(cell);
     const grantId = mintSpendGrant({ nodeIds: ["node-1"], maxAttemptsPerNode: 1 });
-    const error = await runTask(noProjectPayload(cell, { grantId }), TOKEN_ADMISSION).then(() => null, (caught: Error) => caught);
+    const base = noProjectPayload(cell, {});
+    const error = await runTask({ ...base, request: { ...base.request, extras: { ...base.request.extras, grantId } } }, TOKEN_ADMISSION).then(() => null, (caught: Error) => caught);
     expect(error, "must refuse").toBeInstanceOf(Error);
     expect(error!.message).toMatch(/项目|project/i);
     expectNoGeneration();

@@ -1,109 +1,52 @@
 {
   "version": 1,
   "entries": {
-    "electron/runtime.ts": {
-      "kind": "legacy",
-      "max": 645,
-      "reason": "…→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 519（2026-09-01 actual-cost 接线时把两处终态 trace 收成单行，净瘦身）→ 490（2026-09-17 TaskRequest/CachedTask 抽到 electron/taskTypes.ts）→ 486（2026-09-21 合并 ① 按门岗提示拧紧）→ 482（2026-10-16 #1213 结果读取收进 tasks/taskResultReading）→ 479（同日 V-1213：无 mapping 兜底也走唯一读法，删 extractAssetUrl 再导出）；格式化口径 665 → 660（2026-11-07 配音落盘修复：只给文件流视频写的那句拒绝并进 tasks/projectFileResult 的判据） → 657（2026-11-09 一次出几份：逐份落地收成 assets/localizeTaskAsset 的 localizeTaskAssets，续查那一跳共用） → 645（2026-11-17 没验证也能用：首用发送入口改读共享可用性，按门岗提示拧紧）",
-      "topDeclarations": [
-        {
-          "name": "runTask",
-          "lines": 306
-        },
-        {
-          "name": "buildProfileTaskResult",
-          "lines": 95
-        },
-        {
-          "name": "executeProfileOperation",
-          "lines": 86
-        }
-      ]
-    },
     "electron/integrationCertification/integrationSession.ts": {
       "kind": "legacy",
-      "max": 1406,
-      "reason": "Conversational model integration boundary: the session service keeps the state machine, receipt contract, canonical certification and recovery transitions together. It is reviewed as one security boundary and must be split only along a stable ownership seam, not by moving methods into a second writer. (2026-08-29)；1695→1652（2026-09-10 把 workflow 绑定净化与「谁来编译说明卡」的裁决各抽成独立模块）→ 1338（2026-09-15 棘轮锁定：门岗自己报「已瘦身」要求下调，来自 main 的既有瘦身，不是本 PR 改的）→ 1394（2026-09-21 会话容量合同：读盘那一段整体搬进 integrationSessionRecord，服务层只剩一行委托） → 1406（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
+      "max": 1399,
+      "reason": "Conversational model integration boundary: the session service keeps the state machine, receipt contract, canonical certification and recovery transitions together. It is reviewed as one security boundary and must be split only along a stable ownership seam, not by moving methods into a second writer. (2026-08-29)；1695→1652（2026-09-10 把 workflow 绑定净化与「谁来编译说明卡」的裁决各抽成独立模块）→ 1338（2026-09-15 棘轮锁定：门岗自己报「已瘦身」要求下调，来自 main 的既有瘦身，不是本 PR 改的）→ 1394（2026-09-21 会话容量合同：读盘那一段整体搬进 integrationSessionRecord，服务层只剩一行委托） → 1406（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线） → 1399（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "IntegrationSessionService",
-          "lines": 890
+          "lines": 889
         },
         {
           "name": "createRuntimeIntegrationSessionService",
-          "lines": 321
+          "lines": 315
         },
         {
           "name": "IntegrationSession",
-          "lines": 40
+          "lines": 39
         }
       ]
     },
     "src/ui/onboarding/OnboardingDrawer.tsx": {
       "kind": "legacy",
-      "max": 847,
-      "reason": "Existing SettingsDialog shell now owns the durable integration handoff projection alongside the legacy model settings pages. Keep this reviewed baseline until the planned settings-surface extraction. (2026-08-29)；795（2026-09-21 合并 ① 按门岗提示拧紧，只减不增）",
+      "max": 845,
+      "reason": "Existing SettingsDialog shell now owns the durable integration handoff projection alongside the legacy model settings pages. Keep this reviewed baseline until the planned settings-surface extraction. (2026-08-29)；795（2026-09-21 合并 ① 按门岗提示拧紧，只减不增） → 845（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "OnboardingDrawer",
-          "lines": 779
-        }
-      ]
-    },
-    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": {
-      "kind": "legacy",
-      "max": 490,
-      "reason": "…→ 524（2026-10-11 全景浮条抽成 PanoramaNodeToolbar）→ 544（2026-10-11 切图确认条抽成 ImageCropGridActionBar）→ 549（2026-10-08 列表角标 / 「在列表里看」进来时把两段多行 import 收成一行）→ 555（2026-10-06 预览底纹收进 previewBackgroundClass）→ 557 → 558（2026-10-02 结果托盘不再要 selected 入参）…→ 560（2026-09-25 浮框放置层删除后的注释收短）…→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）→ 654（2026-09-21 合并 ① 按门岗提示拧紧） → 569（2026-10-31：按用户裁定删除等待preset四处接线） → 525（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）→ 490（2026-11-26 独立副本角标抽成 NodeDerivedCopyBadge，样片行接线后锁紧）",
-      "topDeclarations": [
-        {
-          "name": "BaseGenerationNodeImpl",
-          "lines": 468
-        },
-        {
-          "name": "BaseGenerationNode",
-          "lines": 21
-        },
-        {
-          "name": "BaseGenerationNodeProps",
-          "lines": 10
-        }
-      ]
-    },
-    "electron/main.ts": {
-      "kind": "legacy",
-      "max": 682,
-      "reason": "Project Agent Host 迁移巨壳（M1 transplant：electron 切片随 r2 入库、renderer 切片随本次 cutover 入库；上游 pr223 原型已人工评审同一批 owner，数字按本分支实际行数锁棘轮，只减不增，下一个分解批次按稳定 ownership seam 拆分后逐个出表）。834→836：并 origin/main 的 TikHub connector（#296）加 registerTikhubConnectorIpc 的 import+调用两行；836→839：#298-v2 自定义 MCP 客户端 profile 接入（registerCustomMcpProfileIpc + watchMcpProfiles + import）3行；839→846：registerIntegrationHandoffIpc + registerIntegrationSessionIpc 的 import+调用（integration certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）7行；仍远低于本分支起点 847。846→828：console.* 收口到 logging/logger 时，把 registerDevDiagnostics（dev-only 窗口诊断挂钩，整族最后都落在 logDevDetail 上）搬进 electron/logging/devDiagnostics.ts（−26 行），同 commit 加回「profile 被隔离时日志跟着走」那段带注释的 setPath（+8 行）。Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后折叠一行多名 import，曾 907；m1 侧栏收起修复顺手折叠 hydrate/navigate 多行调用参数，实际 903，锁棘轮只减不增）。PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳已按 Rule 9 全部拆完、双双出白名单；壳缩到 740 / DrawingTool 壳 760；generationCanvasStore.ts 拆出 slices 后缩到 161；NodeParameterControls.tsx 抽出 controls/parameterControlModel.ts + archetypeMeta.ts + ModeBar.tsx 后缩到 605；Scene3DFullscreen.tsx 拆出七个子模块后缩到 771。",
-      "topDeclarations": [
-        {
-          "name": "registerIpc",
-          "lines": 232
-        },
-        {
-          "name": "<IfStatement>",
-          "lines": 64
-        },
-        {
-          "name": "createWindow",
-          "lines": 51
+          "lines": 775
         }
       ]
     },
     "electron/productionRun/productionRunDriverOps.ts": {
       "kind": "frozen",
-      "max": 1130,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 1130（2026-11-09 一次出几份：产物号 artifactIdentifierForJob 和按序号派生的号原样收进 productionArtifactIdentity，行为不变）",
+      "max": 1124,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 1130（2026-11-09 一次出几份：产物号 artifactIdentifierForJob 和按序号派生的号原样收进 productionArtifactIdentity，行为不变） → 1124（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "createDriverOps",
-          "lines": 1006
+          "lines": 1002
         },
         {
           "name": "DriverOpsDeps",
-          "lines": 37
+          "lines": 31
         },
         {
           "name": "semanticGenerationReadiness",
-          "lines": 27
+          "lines": 21
         }
       ]
     },
@@ -114,15 +57,15 @@
       "topDeclarations": [
         {
           "name": "OperationLedger",
-          "lines": 465
+          "lines": 464
         },
         {
           "name": "validateOperation",
-          "lines": 177
+          "lines": 176
         },
         {
           "name": "validateMode",
-          "lines": 59
+          "lines": 58
         }
       ]
     },
@@ -133,15 +76,15 @@
       "topDeclarations": [
         {
           "name": "buildToolOutcome",
-          "lines": 550
+          "lines": 548
         },
         {
           "name": "RUN_STATUS_HINT",
-          "lines": 94
+          "lines": 93
         },
         {
           "name": "buildArtifactBodyOutcome",
-          "lines": 66
+          "lines": 65
         }
       ]
     },
@@ -152,15 +95,15 @@
       "topDeclarations": [
         {
           "name": "validateClip",
-          "lines": 112
+          "lines": 111
         },
         {
           "name": "validateTimeline",
-          "lines": 84
+          "lines": 82
         },
         {
           "name": "TimelineOperation",
-          "lines": 81
+          "lines": 80
         }
       ]
     },
@@ -170,35 +113,35 @@
       "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 860（2026-11-24 Q-smell 味道④：拆解 planningForCall 上帝函数并将纯投影/门禁回执收进 mcpGenerationProjections.ts）",
       "topDeclarations": [
         {
-          "name": "createGenerationPlanningHandler",
-          "lines": 827
+          "name": "planningForCall",
+          "lines": 103
         },
         {
-          "name": "GenerationPlanningHandlerDependencies",
-          "lines": 50
+          "name": "handleGateRequestOperation",
+          "lines": 98
         },
         {
-          "name": "gateRowsFor",
-          "lines": 19
+          "name": "createMultiShotDraftOperation",
+          "lines": 61
         }
       ]
     },
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx": {
       "kind": "frozen",
-      "max": 1003,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 1000,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 1000（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "GenerationCanvasReactFlowInner",
-          "lines": 907
+          "lines": 886
         },
         {
           "name": "GenerationCanvasReactFlow",
-          "lines": 8
+          "lines": 9
         },
         {
           "name": "StagingCaptureHost",
-          "lines": 4
+          "lines": 3
         }
       ]
     },
@@ -209,7 +152,7 @@
       "topDeclarations": [
         {
           "name": "dispatch",
-          "lines": 617
+          "lines": 611
         },
         {
           "name": "DispatchContext",
@@ -217,26 +160,26 @@
         },
         {
           "name": "projectSessionOpenPublicError",
-          "lines": 38
+          "lines": 37
         }
       ]
     },
     "electron/productionRun/productionRunService.ts": {
       "kind": "frozen",
-      "max": 965,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 965（2026-10-31：重新取回这条命令原样收进productionRetrievalReopen，行为不变）",
+      "max": 934,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 965（2026-10-31：重新取回这条命令原样收进productionRetrievalReopen，行为不变） → 934（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "createProductionRunService",
-          "lines": 895
+          "lines": 855
         },
         {
           "name": "ServiceDeps",
-          "lines": 22
+          "lines": 21
         },
         {
-          "name": "<ExportDeclaration>",
-          "lines": 7
+          "name": "identifier",
+          "lines": 6
         }
       ]
     },
@@ -247,87 +190,72 @@
       "topDeclarations": [
         {
           "name": "KIE_CURATED_MAPPINGS",
-          "lines": 147
+          "lines": 146
         },
         {
           "name": "KIE_CURATED_MODELS",
-          "lines": 78
+          "lines": 77
         },
         {
           "name": "reconcileModels",
-          "lines": 62
+          "lines": 66
         }
       ]
     },
     "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx": {
       "kind": "frozen",
-      "max": 883,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 883（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
+      "max": 862,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 883（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线） → 862（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "WhiteboardDrawingTool",
-          "lines": 824
+          "lines": 759
         },
         {
           "name": "WhiteboardDrawingToolProps",
-          "lines": 18
+          "lines": 17
         },
         {
           "name": "fileToDataUrl",
-          "lines": 15
+          "lines": 14
         }
       ]
     },
     "electron/agentLane/laneHost.mts": {
       "kind": "frozen",
-      "max": 897,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 885,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 885（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "openLane",
-          "lines": 812
+          "lines": 776
         },
         {
           "name": "interruptedToolCallIds",
-          "lines": 22
+          "lines": 13
         },
         {
           "name": "PART_TYPE_BY_EVENT",
-          "lines": 12
+          "lines": 11
         }
       ]
     },
     "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx": {
       "kind": "frozen",
-      "max": 856,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 856（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
+      "max": 846,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 856（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线） → 846（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "StoryboardPlanEditor",
-          "lines": 776
+          "lines": 708
         },
         {
           "name": "StoryboardPlanEditorFooter",
-          "lines": 69
+          "lines": 60
         },
         {
-          "name": "EMPTY_STRATEGY_PLAN",
-          "lines": 2
-        }
-      ]
-    },
-    "electron/assets/projectAssetStore.ts": {
-      "kind": "frozen",
-      "max": 794,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆；910 → 886（2026-11-07 配音落盘修复那一轮：落盘文件的类型与位置——effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath——拆到 assets/storedAssetFile.ts，删别名 stableStoredAssetId）；886 → 794（2026-11-21 素材来源收成一处：来源清洗与 meta 定稿拆到 assets/assetSourceEvidence.ts，删 rightsStatus 迁移分支）",
-      "topDeclarations": [
-        {
-          "name": "importRemoteAssetToStore",
-          "lines": 92
-        },
-        {
-          "name": "publishVerifiedGeneratedAsset",
-          "lines": 79
+          "name": "ACTIVE_PLAN_SOURCE",
+          "lines": 4
         }
       ]
     },
@@ -338,72 +266,53 @@
       "topDeclarations": [
         {
           "name": "readableToolDetailRows",
-          "lines": 135
+          "lines": 134
         },
         {
           "name": "readableToolSummary",
-          "lines": 133
+          "lines": 132
         },
         {
           "name": "proposalForTool",
-          "lines": 103
+          "lines": 102
         }
       ]
     },
     "src/workbench/assets/AssetLibraryPanel.tsx": {
       "kind": "frozen",
-      "max": 838,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-11-24 Q-smell 味道②：compact 与网格渲染两份 AssetGridCell 克隆收成 renderAssetCell，行为不变）",
+      "max": 837,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-11-24 Q-smell 味道②：compact 与网格渲染两份 AssetGridCell 克隆收成 renderAssetCell，行为不变） → 837（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "AssetLibraryContent",
-          "lines": 770
+          "lines": 744
         },
         {
           "name": "AssetLibraryContentProps",
-          "lines": 10
+          "lines": 9
         },
         {
           "name": "DEFAULT_GRID_COLS",
-          "lines": 2
-        }
-      ]
-    },
-    "electron/productionRun/productionGenerationSubmission.ts": {
-      "kind": "frozen",
-      "max": 755,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-10-31：结果回执、取回错误、provider状态分组和把job补到产物原样收进productionGenerationMaterialization，行为不变）→ 772（2026-11-01：执行绑定的构造原样收进productionGenerationBinding，腾出位置给模型拒绝参考链接的记账，行为不变） → 755（2026-11-09 一次出几份：回执 → 产物原样收进 productionGenerationMaterialization 的 artifactFromMaterializationReceipt，行为不变）",
-      "topDeclarations": [
-        {
-          "name": "createProductionGenerationSubmission",
-          "lines": 562
-        },
-        {
-          "name": "ensureBinding",
-          "lines": 46
-        },
-        {
-          "name": "ProductionGenerationSubmissionDependencies",
-          "lines": 35
+          "lines": 1
         }
       ]
     },
     "electron/catalog/assetLocalization.ts": {
       "kind": "frozen",
-      "max": 850,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 850（2026-11-01：剪枝与去传输提示原样收进activeAssetPruning，腾出位置给「发链接还是传文件」的唯一决定点，行为不变）",
+      "max": 815,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 850（2026-11-01：剪枝与去传输提示原样收进activeAssetPruning，腾出位置给「发链接还是传文件」的唯一决定点，行为不变） → 815（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "resolveLocalAsset",
-          "lines": 260
-        },
-        {
-          "name": "resolveAssetIngestionWithFallback",
-          "lines": 113
+          "lines": 256
         },
         {
           "name": "localizeAssetsForVendor",
-          "lines": 110
+          "lines": 107
+        },
+        {
+          "name": "resolveAssetIngestionWithFallback",
+          "lines": 95
         }
       ]
     },
@@ -414,87 +323,49 @@
       "topDeclarations": [
         {
           "name": "ClipNode",
-          "lines": 798
+          "lines": 791
         },
         {
           "name": "Props",
-          "lines": 2
+          "lines": 1
         },
         {
           "name": "ClipNodeExportDestination",
-          "lines": 2
-        }
-      ]
-    },
-    "electron/capabilityCore/mcpGenerationMultiShot.ts": {
-      "kind": "frozen",
-      "max": 794,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
-      "topDeclarations": [
-        {
-          "name": "createMultiShotCreateHelpers",
-          "lines": 241
-        },
-        {
-          "name": "presentStoryboardAuthoring",
-          "lines": 69
-        },
-        {
-          "name": "draftShotFromStoryboard",
-          "lines": 54
+          "lines": 1
         }
       ]
     },
     "src/ui/onboarding/CustomCallEditor.tsx": {
       "kind": "frozen",
-      "max": 845,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 825,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 825（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "CustomCallEditor",
-          "lines": 794
+          "lines": 768
         },
         {
           "name": "CustomCallTarget",
-          "lines": 8
+          "lines": 7
         },
         {
           "name": "inputCls",
-          "lines": 3
-        }
-      ]
-    },
-    "src/workbench/creation/storyboard/StoryboardShotTable.tsx": {
-      "kind": "frozen",
-      "max": 742,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 742（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
-      "topDeclarations": [
-        {
-          "name": "StoryboardShotTable",
-          "lines": 667
-        },
-        {
-          "name": "ShotRowWithMention",
-          "lines": 67
-        },
-        {
-          "name": "Props",
-          "lines": 34
+          "lines": 2
         }
       ]
     },
     "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx": {
       "kind": "frozen",
-      "max": 811,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆。839→812：方式格下拉行（controls/modeMenuOptions.tsx）、首尾帧对调钮判据（referenceWrites.frameSwapControl）、参考行 AssetSlot 列表（controls/composerAssetSlots.ts）搬出 → 811（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
+      "max": 804,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆。839→812：方式格下拉行（controls/modeMenuOptions.tsx）、首尾帧对调钮判据（referenceWrites.frameSwapControl）、参考行 AssetSlot 列表（controls/composerAssetSlots.ts）搬出 → 811（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线） → 804（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "NodeParameterControls",
-          "lines": 714
+          "lines": 687
         },
         {
           "name": "NodeParameterControlsProps",
-          "lines": 12
+          "lines": 9
         }
       ]
     },
@@ -505,53 +376,34 @@
       "topDeclarations": [
         {
           "name": "createProductionRunRepository",
-          "lines": 630
+          "lines": 628
         },
         {
           "name": "summarize",
-          "lines": 25
+          "lines": 24
         },
         {
-          "name": "withReadDefaults",
-          "lines": 17
-        }
-      ]
-    },
-    "src/workbench/ai/ProjectAgentResidentShell.tsx": {
-      "kind": "frozen",
-      "max": 762,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 762（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
-      "topDeclarations": [
-        {
-          "name": "ProjectAgentResidentShell",
-          "lines": 752
-        },
-        {
-          "name": "usePanelSize",
-          "lines": 16
-        },
-        {
-          "name": "lastFlowFailed",
-          "lines": 5
+          "name": "readJsonLines",
+          "lines": 13
         }
       ]
     },
     "electron/capabilityCore/apimartGenerationProvider.ts": {
       "kind": "frozen",
-      "max": 824,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 811,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 811（2026-11-28 SM-3：零松弛按实测收紧）",
       "topDeclarations": [
         {
           "name": "createCatalogGenerationProvider",
-          "lines": 402
+          "lines": 432
         },
         {
           "name": "projectionRequest",
-          "lines": 102
+          "lines": 105
         },
         {
           "name": "selectCatalogSelection",
-          "lines": 40
+          "lines": 39
         }
       ]
     },
@@ -562,15 +414,15 @@
       "topDeclarations": [
         {
           "name": "importModelCatalogPackage",
-          "lines": 94
+          "lines": 93
         },
         {
           "name": "applyVendorUpsert",
-          "lines": 81
+          "lines": 74
         },
         {
           "name": "applyMappingUpsert",
-          "lines": 53
+          "lines": 51
         }
       ]
     },
@@ -581,15 +433,15 @@
       "topDeclarations": [
         {
           "name": "createNomiMcpServer",
-          "lines": 527
+          "lines": 525
         },
         {
           "name": "guardMcpTransport",
-          "lines": 57
+          "lines": 50
         },
         {
-          "name": "createMcpProtocol",
-          "lines": 31
+          "name": "projectToolsList",
+          "lines": 27
         }
       ]
     },
@@ -600,15 +452,15 @@
       "topDeclarations": [
         {
           "name": "VideoEditStage",
-          "lines": 683
+          "lines": 682
         },
         {
           "name": "DerivedClip",
-          "lines": 75
+          "lines": 73
         },
         {
           "name": "EditInitial",
-          "lines": 19
+          "lines": 18
         }
       ]
     }
