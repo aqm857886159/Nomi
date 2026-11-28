@@ -1,25 +1,41 @@
 import { isPerfSummaryProps, type PerfSummaryProps } from '../shared/contracts/perfTelemetry'
 import {
-  GENERATION_FAILURE_STAGES, GENERATION_LOCAL_REFUSALS, GENERATION_MODES, GENERATION_STAGE_DURATIONS, GENERATION_UPSTREAM_STATUSES,
-  LAST_EXIT_VALUES, MAIN_STALL_COUNT_VALUES, MAIN_STALL_MAX_VALUES, MODEL_CLASS_VALUES,
-  TELEMETRY_ERROR_TYPE_PATTERN, TELEMETRY_RESULT_VALUES,
-  type CapabilitySlot, type DurationBucket, type GenerationFailureStage, type GenerationLocalRefusal, type GenerationMode, type GenerationStageDuration,
-  type GenerationUpstreamStatus, type LastExit, type MainStallCount, type MainStallMax, type ModelClass, type TelemetryResult,
+  AGENT_FAULT_CATEGORIES, AGENT_RETRY_COUNTS, AGENT_TOOL_CALLS_BUCKETS,
+  EXPORT_FAILURE_REASONS, GENERATION_FAILURE_STAGES, GENERATION_LOCAL_REFUSALS, GENERATION_MODES, GENERATION_STAGE_DURATIONS, GENERATION_UPSTREAM_STATUSES,
+  INSTALL_AGE_BUCKETS, LAST_EXIT_VALUES, MAIN_STALL_COUNT_VALUES, MAIN_STALL_MAX_VALUES, MODEL_CLASS_VALUES,
+  ONBOARDING_FAIL_REASONS, ONBOARDING_STEPS, TELEMETRY_ERROR_TYPE_PATTERN, TELEMETRY_IDENTIFIER_PATTERN, TELEMETRY_RESULT_VALUES, TIMELINE_ADOPTED_SOURCES,
+  type AgentFaultCategory, type AgentRetryCount, type AgentToolCallsBucket, type CapabilitySlot, type DurationBucket, type ExportFailureReason,
+  type GenerationFailureStage, type GenerationLocalRefusal, type GenerationMode, type GenerationStageDuration,
+  type GenerationUpstreamStatus, type InstallAgeBucket, type LastExit, type MainStallCount, type MainStallMax, type ModelClass,
+  type OnboardingFailReason, type OnboardingStep, type TelemetryResult, type TimelineAdoptedSource,
 } from '../shared/contracts/telemetry'
 import { isGenerationProblemCode, type GenerationProblemCode } from '../shared/generationProblem'
 
-export type { CapabilitySlot, DurationBucket, ModelClass }
+export { TELEMETRY_IDENTIFIER_PATTERN }
+export type {
+  AgentFaultCategory, AgentRetryCount, AgentToolCallsBucket, CapabilitySlot, DurationBucket, ExportFailureReason,
+  InstallAgeBucket, ModelClass, OnboardingFailReason, OnboardingStep, TimelineAdoptedSource,
+}
 const TELEMETRY_SCHEMA_VERSION = 1 as const
-export const TELEMETRY_EVENT_NAMES = ['app.started', 'generation.completed', 'export.completed', 'update.action', 'agent.tool.failed', 'perf.session.summary'] as const
+export const TELEMETRY_EVENT_NAMES = [
+  'app.started',
+  'onboarding.step',
+  'generation.completed',
+  'timeline.adopted',
+  'export.completed',
+  'update.action',
+  'agent.tool.failed',
+  'agent.turn.completed',
+  'perf.session.summary',
+] as const
 export type TelemetryEventName = typeof TELEMETRY_EVENT_NAMES[number]
 /**
  * 告知范围的版本号。用户在设置页 / 同意卡上看到并同意的是哪一版文字，就记哪一版。
- *   1 = 功能使用、耗时区间、成败、失败类别、Agent 工具失败
+ *   1 = 完成情况、耗时区间、失败原因类别、Agent 工具失败
  *   2 = 在 1 之上加「界面流畅度分档数字 + 粗略场景与设备档位」（perf.session.summary）
  * 加新**一类**数据 = 改告知文字 + 这里 +1 + 在下面的表里给新事件标上它需要的版本。
  * 给已有事件补一格、且这一格落在它已有的类里，不升档、不对已开启的人重新确认（用户 2026-11-13「已经开了 说明他愿意做数据反馈」）。
- * 2026-11-13 补的几格各落在哪一类：生成的阶段 / 上游状态类别 / 本机拒绝码 / 方式 / 模型种类 / 分段耗时 = 范围 1 的
- * 「耗时区间、成败、失败类别」；上次怎么退出 = 范围 1 的「成败」；补丁号 = 原有的版本号；主进程停顿 = 范围 2 的「流畅度分档」。
+ * 2026-11-28 全维度闭环第 1 刀补的漏斗事件全部落在范围 1 的「完成情况、耗时区间、失败原因类别」内，物理闭合枚举，零内容字段。
  * 告知文字照样要改成属实：设置页说明与事件表的对账在 telemetryClaims.test.ts。
  */
 export const TELEMETRY_SCOPE_VERSION = 2 as const
@@ -27,11 +43,14 @@ export type TelemetryScopeVersion = 1 | 2
 /** 每个事件至少要用户同意过哪一版告知范围才能入队。Record 是穷举的：新增事件名不标版本就编译不过。 */
 export const TELEMETRY_EVENT_MIN_SCOPE: Record<TelemetryEventName, TelemetryScopeVersion> = {
   'app.started': 1,
+  'onboarding.step': 1,
   'generation.completed': 1,
+  'timeline.adopted': 1,
   'export.completed': 1,
   'update.action': 1,
   // 范围 1 的「失败类别、Agent 工具失败」：工具名与失败码都是我们自己写的标识符，没有用户的一个字。
   'agent.tool.failed': 1,
+  'agent.turn.completed': 1,
   'perf.session.summary': 2,
 }
 type ExportFormat = 'mp4' | 'webm' | 'gif' | 'unknown'
@@ -48,8 +67,27 @@ export type UpdateFailureReason = 'network' | 'parse' | 'other'
  * 仍在告知范围 1 的「失败类别」里：只能是码表里的值，校验拒收表外的任何字符串。
  */
 export type AgentToolFailedProps = { toolName: string; failureCode: string; attempt: 1 | 2 | 3 | 4 | 5; breakerTripped: boolean; modelClass: ModelClass; reason?: GenerationProblemCode }
-/** 工具名与失败码的形状：小写标识符。用户写的话（含空格、中文、大写、标点）过不了这一道。 */
-export const TELEMETRY_IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]{0,47}$/
+
+export type OnboardingStepProps = {
+  step: OnboardingStep
+  providerClass: ModelClass
+  failReason?: OnboardingFailReason
+}
+
+export type AgentTurnCompletedProps = {
+  result: TelemetryResult
+  durationBucket: DurationBucket
+  modelClass: ModelClass
+  toolCallsBucket: AgentToolCallsBucket
+  retryCount: AgentRetryCount
+  breakerTripped: boolean
+  faultCategory?: AgentFaultCategory
+}
+
+export type TimelineAdoptedProps = {
+  capability: CapabilitySlot
+  source: TimelineAdoptedSource
+}
 
 /**
  * 一次画布生成的结局（2026-11-13 补细）。每一格回答一个问题，取值全是闭合集合（`shared/contracts/telemetry.ts`）：
@@ -78,11 +116,14 @@ type GenerationCompletedProps = {
 type PerfSessionSummaryProps = PerfSummaryProps & { mainStallMax: MainStallMax; mainStallCount: MainStallCount }
 
 export type TelemetryProps =
-  | { eventName: 'app.started'; props: { appMajor: number; appMinor: number; osFamily: 'macos' | 'windows' | 'linux' | 'other'; locale: 'zh-CN' | 'en'; /** 上一次启动是怎么结束的（本机退出标记，下次启动才知道）。 */ lastExit: LastExit } }
+  | { eventName: 'app.started'; props: { appMajor: number; appMinor: number; osFamily: 'macos' | 'windows' | 'linux' | 'other'; locale: 'zh-CN' | 'en'; /** 上一次启动是怎么结束的（本机退出标记，下次启动才知道）。 */ lastExit: LastExit; /** 安装至今粗账龄分档（兼容旧队列可选）。 */ installAgeBucket?: InstallAgeBucket } }
+  | { eventName: 'onboarding.step'; props: OnboardingStepProps }
   | { eventName: 'generation.completed'; props: GenerationCompletedProps }
-  | { eventName: 'export.completed'; props: { format: ExportFormat; durationBucket: DurationBucket; result: TelemetryResult } }
+  | { eventName: 'timeline.adopted'; props: TimelineAdoptedProps }
+  | { eventName: 'export.completed'; props: { format: ExportFormat; durationBucket: DurationBucket; result: TelemetryResult; failureReason?: ExportFailureReason } }
   | { eventName: 'update.action'; props: { action: UpdateAction; result: TelemetryResult; reason?: UpdateFailureReason } }
   | { eventName: 'agent.tool.failed'; props: AgentToolFailedProps }
+  | { eventName: 'agent.turn.completed'; props: AgentTurnCompletedProps }
   | { eventName: 'perf.session.summary'; props: PerfSessionSummaryProps }
 
 export type TelemetryEnvelope = {
@@ -99,6 +140,7 @@ const RESULT_SET = new Set<TelemetryResult>(TELEMETRY_RESULT_VALUES)
 const DURATION_SET = new Set<DurationBucket>(['<1s', '1-5s', '>5s'])
 const CAPABILITY_SET = new Set<CapabilitySlot>(['text', 'image', 'image-edit', 'video', 'audio', '3d'])
 const EXPORT_SET = new Set<ExportFormat>(['mp4', 'webm', 'gif', 'unknown'])
+const EXPORT_FAILURE_REASON_SET = new Set<string>(EXPORT_FAILURE_REASONS)
 const UPDATE_SET = new Set<UpdateAction>(['check', 'download', 'install'])
 const UPDATE_REASON_SET = new Set<UpdateFailureReason>(['network', 'parse', 'other'])
 const MODEL_CLASS_SET = new Set<string>(MODEL_CLASS_VALUES)
@@ -108,6 +150,13 @@ const UPSTREAM_SET = new Set<string>(GENERATION_UPSTREAM_STATUSES)
 const FAILURE_STAGE_SET = new Set<string>(GENERATION_FAILURE_STAGES)
 const LOCAL_REFUSAL_SET = new Set<string>(GENERATION_LOCAL_REFUSALS)
 const LAST_EXIT_SET = new Set<string>(LAST_EXIT_VALUES)
+const INSTALL_AGE_SET = new Set<string>(INSTALL_AGE_BUCKETS)
+const ONBOARDING_STEP_SET = new Set<string>(ONBOARDING_STEPS)
+const ONBOARDING_FAIL_REASON_SET = new Set<string>(ONBOARDING_FAIL_REASONS)
+const AGENT_TOOL_CALLS_SET = new Set<string>(AGENT_TOOL_CALLS_BUCKETS)
+const AGENT_RETRY_COUNT_SET = new Set<number>(AGENT_RETRY_COUNTS)
+const AGENT_FAULT_CATEGORY_SET = new Set<string>(AGENT_FAULT_CATEGORIES)
+const TIMELINE_ADOPTED_SOURCE_SET = new Set<string>(TIMELINE_ADOPTED_SOURCES)
 const MAIN_STALL_MAX_SET = new Set<string>(MAIN_STALL_MAX_VALUES)
 const MAIN_STALL_COUNT_SET = new Set<string>(MAIN_STALL_COUNT_VALUES)
 
@@ -174,6 +223,46 @@ function hasAgentToolFailedKeys(props: Record<string, unknown>): boolean {
   return hasExactKeys(props, [...base, 'reason']) && isGenerationProblemCode(props.reason)
 }
 
+function hasAppStartedKeys(props: Record<string, unknown>): boolean {
+  const base = ['appMajor', 'appMinor', 'osFamily', 'locale', 'lastExit']
+  if (!('installAgeBucket' in props)) return hasExactKeys(props, base)
+  return hasExactKeys(props, [...base, 'installAgeBucket']) && INSTALL_AGE_SET.has(String(props.installAgeBucket))
+}
+
+function isOnboardingStepProps(props: Record<string, unknown>): boolean {
+  if (!ONBOARDING_STEP_SET.has(String(props.step)) || !MODEL_CLASS_SET.has(String(props.providerClass))) return false
+  if (props.step === 'verify_failed') {
+    return hasExactKeys(props, ['step', 'providerClass', 'failReason']) && ONBOARDING_FAIL_REASON_SET.has(String(props.failReason))
+  }
+  return hasExactKeys(props, ['step', 'providerClass'])
+}
+
+function isExportCompletedProps(props: Record<string, unknown>): boolean {
+  const baseValid = EXPORT_SET.has(props.format as ExportFormat)
+    && DURATION_SET.has(props.durationBucket as DurationBucket)
+    && RESULT_SET.has(props.result as TelemetryResult)
+  if (!baseValid) return false
+  if (!('failureReason' in props)) return hasExactKeys(props, ['format', 'durationBucket', 'result'])
+  return hasExactKeys(props, ['format', 'durationBucket', 'result', 'failureReason'])
+    && props.result === 'failure'
+    && EXPORT_FAILURE_REASON_SET.has(String(props.failureReason))
+}
+
+function isAgentTurnCompletedProps(props: Record<string, unknown>): boolean {
+  const base = ['result', 'durationBucket', 'modelClass', 'toolCallsBucket', 'retryCount', 'breakerTripped']
+  const baseValid = RESULT_SET.has(props.result as TelemetryResult)
+    && DURATION_SET.has(props.durationBucket as DurationBucket)
+    && MODEL_CLASS_SET.has(String(props.modelClass))
+    && AGENT_TOOL_CALLS_SET.has(String(props.toolCallsBucket))
+    && typeof props.retryCount === 'number' && AGENT_RETRY_COUNT_SET.has(props.retryCount)
+    && typeof props.breakerTripped === 'boolean'
+  if (!baseValid) return false
+  if (props.result === 'failure') {
+    return hasExactKeys(props, [...base, 'faultCategory']) && AGENT_FAULT_CATEGORY_SET.has(String(props.faultCategory))
+  }
+  return hasExactKeys(props, base)
+}
+
 /**
  * 「这个进程是谁启动的」——以启动事实为准，不靠猜：tests/ux/_launchApp.mjs 是走查 / 评测唯一的
  * 启动器，它钉死 NOMI_E2E=1（真实资料副本跑的付费测试也走它）。普通用户的 App 不会有这个变量。
@@ -186,15 +275,18 @@ export function isTelemetryProps(value: unknown, eventName: TelemetryEventName):
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const props = value as Record<string, unknown>
   if (Object.values(props).some((item) => !isPrimitive(item))) return false
-  if (eventName === 'app.started') return hasExactKeys(props, ['appMajor', 'appMinor', 'osFamily', 'locale', 'lastExit']) && Number.isInteger(props.appMajor) && Number.isInteger(props.appMinor) && ['macos', 'windows', 'linux', 'other'].includes(String(props.osFamily)) && ['zh-CN', 'en'].includes(String(props.locale)) && LAST_EXIT_SET.has(String(props.lastExit))
+  if (eventName === 'app.started') return hasAppStartedKeys(props) && Number.isInteger(props.appMajor) && Number.isInteger(props.appMinor) && ['macos', 'windows', 'linux', 'other'].includes(String(props.osFamily)) && ['zh-CN', 'en'].includes(String(props.locale)) && LAST_EXIT_SET.has(String(props.lastExit))
+  if (eventName === 'onboarding.step') return isOnboardingStepProps(props)
   if (eventName === 'generation.completed') return isGenerationProps(props)
-  if (eventName === 'export.completed') return hasExactKeys(props, ['format', 'durationBucket', 'result']) && EXPORT_SET.has(props.format as ExportFormat) && DURATION_SET.has(props.durationBucket as DurationBucket) && RESULT_SET.has(props.result as TelemetryResult)
+  if (eventName === 'timeline.adopted') return hasExactKeys(props, ['capability', 'source']) && CAPABILITY_SET.has(props.capability as CapabilitySlot) && TIMELINE_ADOPTED_SOURCE_SET.has(String(props.source))
+  if (eventName === 'export.completed') return isExportCompletedProps(props)
   if (eventName === 'update.action') return hasUpdateKeys(props) && UPDATE_SET.has(props.action as UpdateAction) && RESULT_SET.has(props.result as TelemetryResult)
   if (eventName === 'agent.tool.failed') return hasAgentToolFailedKeys(props)
     && typeof props.toolName === 'string' && TELEMETRY_IDENTIFIER_PATTERN.test(props.toolName)
     && typeof props.failureCode === 'string' && TELEMETRY_IDENTIFIER_PATTERN.test(props.failureCode)
     && Number.isInteger(props.attempt) && (props.attempt as number) >= 1 && (props.attempt as number) <= 5
     && typeof props.breakerTripped === 'boolean' && MODEL_CLASS_SET.has(String(props.modelClass))
+  if (eventName === 'agent.turn.completed') return isAgentTurnCompletedProps(props)
   if (eventName === 'perf.session.summary') return isPerfSessionSummaryProps(props)
   return false
 }

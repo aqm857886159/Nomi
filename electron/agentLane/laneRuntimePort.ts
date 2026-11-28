@@ -25,6 +25,7 @@ import type { ModelAvailabilityFacts } from '../shared/agentCapabilities/modelSp
 import type { SkillRecord } from '../skills/skillStore'
 import type { LaneDeclaredDefaults } from './laneModelContext'
 import type { PendingSpendRead } from '../shared/contracts/pendingSpendConfirm'
+import type { AgentFaultCategory, TelemetryResult } from '../shared/contracts/telemetry'
 
 export type { LaneHandle, LaneProjection }
 export type { LaneToolEffect, LaneToolFailureShape, LaneToolNextAction, LaneToolSpec }
@@ -254,6 +255,11 @@ export interface OpenLaneOptions {
    * 只有工具名、码、第几次、是否已拦下：**不带入参、不带正文、不带用户文字**。
    */
   onToolFailure?: (event: LaneToolFailureEvent) => void
+  /**
+   * 每一个回合结算时报给宿主一次——桌面装配层拿它发匿名 `agent.turn.completed` 漏斗分母。
+   * 只带闭合枚举与粗分档输入，不带提示词、回复或错误原文。
+   */
+  onTurnCompleted?: (event: LaneTurnCompletedEvent) => void
 }
 
 /** 一次工具失败交给宿主的事实。见 `OpenLaneOptions.onToolFailure`。 */
@@ -267,6 +273,16 @@ export type LaneToolFailureEvent = Readonly<{
   breakerTripped: boolean
   /** 起草期被拒的闭合原因码（`generationProblem.ts`）；只有带原因的失败才有。 */
   reason?: string
+}>
+
+/** 一次 Agent 回合结算交给宿主的闭合事实。见 `OpenLaneOptions.onTurnCompleted`。 */
+export type LaneTurnCompletedEvent = Readonly<{
+  result: TelemetryResult
+  durationMs: number
+  toolCallCount: number
+  retryCount: number
+  breakerTripped: boolean
+  faultCategory?: AgentFaultCategory
 }>
 
 /** `productionRunId` → 领域投影出的那一份事实。解不出来返回 `undefined`，**不返回空对象**。 */

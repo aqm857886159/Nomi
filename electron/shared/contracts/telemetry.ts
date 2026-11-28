@@ -11,6 +11,58 @@ export type CapabilitySlot = 'text' | 'image' | 'image-edit' | 'video' | 'audio'
  * 主进程在门口只认形状（短的 kebab-case 标识），装不下一句话、一个路径或一个 URL。
  */
 export const TELEMETRY_ERROR_TYPE_PATTERN = /^[a-z][a-z0-9-]{0,39}$/
+/** 工具名与失败码的闭合形状：小写字母加数字与下划线，物理装不下自然语言句子、路径或密钥。 */
+export const TELEMETRY_IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]{0,47}$/
+
+// ── 2026-11-28 全维度匿名产品数据闭环（第 1 刀）：全部新增维度均为闭合枚举或粗分档 ────────────────
+/** 安装账龄粗分档（基于本机遥测配置文件首次创建时间粗算，精确时间戳不出本机）。 */
+export const INSTALL_AGE_BUCKETS = ['d0', 'd1-7', 'd8-30', 'd30plus'] as const
+export type InstallAgeBucket = typeof INSTALL_AGE_BUCKETS[number]
+
+/** 首日激活与模型接入漏斗固定步骤。 */
+export const ONBOARDING_STEPS = [
+  'prompt_shown',
+  'setup_opened',
+  'key_submitted',
+  'verify_succeeded',
+  'verify_failed',
+  'first_generation_succeeded',
+] as const
+export type OnboardingStep = typeof ONBOARDING_STEPS[number]
+
+/** 模型接入验证失败的闭合原因类别。 */
+export const ONBOARDING_FAIL_REASONS = ['invalid_format', 'auth_failed', 'zero_quota', 'network', 'other'] as const
+export type OnboardingFailReason = typeof ONBOARDING_FAIL_REASONS[number]
+
+/** Agent 单回合工具调用次数分档。 */
+export const AGENT_TOOL_CALLS_BUCKETS = ['0', '1-2', '3-5', '6plus'] as const
+export type AgentToolCallsBucket = typeof AGENT_TOOL_CALLS_BUCKETS[number]
+
+/** Agent 单回合重试次数闭合范围（0 = 一次做对）。 */
+export const AGENT_RETRY_COUNTS = [0, 1, 2, 3, 4, 5] as const
+export type AgentRetryCount = typeof AGENT_RETRY_COUNTS[number]
+
+/** Agent 回合失败时的闭合故障大类。 */
+export const AGENT_FAULT_CATEGORIES = [
+  'auth',
+  'quota',
+  'context_overflow',
+  'stream_cut',
+  'timeout',
+  'protocol_or_schema',
+  'tool_refused',
+  'upstream',
+  'other',
+] as const
+export type AgentFaultCategory = typeof AGENT_FAULT_CATEGORIES[number]
+
+/** 时间轴片段真实采纳来源。 */
+export const TIMELINE_ADOPTED_SOURCES = ['canvas', 'storyboard', 'agent', 'import'] as const
+export type TimelineAdoptedSource = typeof TIMELINE_ADOPTED_SOURCES[number]
+
+/** 导出失败的闭合原因类别。 */
+export const EXPORT_FAILURE_REASONS = ['ffmpeg_error', 'missing_media', 'disk_or_permission', 'other'] as const
+export type ExportFailureReason = typeof EXPORT_FAILURE_REASONS[number]
 
 // ── 2026-11-13 补细：每一格的全部合法取值（主进程白名单、渲染层推导、雷达都只认这里）────────────────
 /**
@@ -86,6 +138,27 @@ export function mainStallCountBucket(count: number | null): MainStallCount {
   if (count <= 0) return '0'
   if (count <= 3) return '1-3'
   return count <= 10 ? '4-10' : 'gt-10'
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+export function installAgeBucketFromElapsedMs(elapsedMs: number): InstallAgeBucket {
+  if (!Number.isFinite(elapsedMs) || elapsedMs < DAY_MS) return 'd0'
+  if (elapsedMs < 8 * DAY_MS) return 'd1-7'
+  if (elapsedMs <= 30 * DAY_MS) return 'd8-30'
+  return 'd30plus'
+}
+
+export function agentToolCallsBucket(count: number): AgentToolCallsBucket {
+  if (!Number.isFinite(count) || count <= 0) return '0'
+  if (count <= 2) return '1-2'
+  if (count <= 5) return '3-5'
+  return '6plus'
+}
+
+export function clampAgentRetryCount(count: number): AgentRetryCount {
+  if (!Number.isFinite(count) || count <= 0) return 0
+  return Math.min(5, Math.trunc(count)) as AgentRetryCount
 }
 export type TelemetrySettingsView = {
   schemaVersion: 1

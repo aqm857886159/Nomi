@@ -46,13 +46,12 @@ export const CONCURRENCY = Math.min(6, Math.max(3, os.availableParallelism() - 2
 export const FAILURE_TAIL_LINES = 25
 
 const CODE_FILE = /^(?:src|electron|evals|scripts|tests)\/.*\.(?:[cm]?[jt]sx?)$/
-const SCRIPT_FILE = /^(?:scripts|tests|evals)\/.*\.(?:mjs|cjs)$/
 
 /**
  * 放进推送前的门岗。name 必须是 package.json gates:contracts 里的 check，命令取它的 package.json 脚本（见 gateCommands）。
  * when: 什么改动才需要跑（null = 总跑）。选的依据是「这道门看哪片地」：
  *   filesize / self-written / prior-art / boundary-owners 看的是登记表与全仓体积，改什么都可能碰到 → 总跑；
- *   test-waits / mjs-parse / ipc-sender-binding 只看代码，且各自只看一片地 → 该片地没动就不跑。
+ *   test-waits / ipc-sender-binding 只看代码，且各自只看一片地 → 该片地没动就不跑。
  */
 export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:filesize', when: null },
@@ -60,10 +59,9 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:self-written', when: null },
   { name: 'check:boundary-owners', when: null },
   { name: 'check:test-waits', when: (files) => files.some((file) => CODE_FILE.test(file)) },
-  { name: 'check:mjs-parse', when: (files) => files.some((file) => SCRIPT_FILE.test(file)) },
   { name: 'check:ipc-sender-binding', when: (files) => files.some((file) => file.startsWith('electron/')) },
   // 2026-10-09 加：10-09 上午 #1133 / #1135 / #1128 / #1137 推送前全绿、CI Contracts 各红好几处，全是下面这几道（本机 Windows 实测 7–13 秒）
-  // 2026-11-23 T-8 收口：check:renderer-sync-ipc / check:builtin-vendor-literals / check:main-console 已迁入 eslint.config.mjs，推送前由 lint:changed 覆盖（见 PRE_PUSH_ALIASES）。
+  // 2026-11-23 T-8 与 2026-11-28 SM-gates-B2 收口：纯语法 / 模块边门岗已迁入 eslint.config.mjs 与 .dependency-cruiser.mjs，推送前由 lint:changed 覆盖。
   { name: 'check:tokens', when: (files) => touchesGateInputs('check:tokens', files) },
   { name: 'check:vocabularies', when: (files) => touchesGateInputs('check:vocabularies', files) },
   { name: 'check:controls', when: (files) => touchesGateInputs('check:controls', files) },
@@ -72,7 +70,6 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:error-surface', when: (files) => touchesGateInputs('check:error-surface', files) },
   { name: 'check:heavy-path', when: (files) => touchesGateInputs('check:heavy-path', files) },
   { name: 'check:read-path-writes', when: (files) => touchesGateInputs('check:read-path-writes', files) },
-  { name: 'check:batch-machines', when: (files) => touchesGateInputs('check:batch-machines', files) },
   { name: 'check:capability-lifecycle', when: (files) => touchesGateInputs('check:capability-lifecycle', files) },
   { name: 'check:no-default-overwrite', when: (files) => touchesGateInputs('check:no-default-overwrite', files) },
   { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
@@ -93,7 +90,6 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:escape-ledger', when: null },
   // 2026-10-11：性能场景登记表结构（纯 node，亚秒级）
   { name: 'check:perf-scenarios', when: null },
-  { name: 'check:adoption-bridge', when: null },
   { name: 'check:skill-ipc-coverage', when: null },
   { name: 'check:skills-format', when: null },
   { name: 'check:announced-card', when: null },
@@ -110,11 +106,6 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:tikhub-search', when: null },
   { name: 'check:nul-bytes', when: null },
   { name: 'check:git-path-quoting', when: null },
-  { name: 'check:model-availability', when: null },
-  { name: 'check:model-identity', when: null },
-  { name: 'check:outbound-policy', when: null },
-  // 2026-10-10：scripts/ 里 gh / git 网络 / GitHub·Cloudflare API 调用必须走共用瞬断重试（#1155 后 main 上一次 fetch failed 判红的同类）；纯 node，本机约 3 秒，只在动到 scripts 时跑
-  { name: 'check:script-network-retry', when: (files) => touchesGateInputs('check:script-network-retry', files) },
 ])
 
 const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'

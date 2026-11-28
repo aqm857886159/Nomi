@@ -13,6 +13,9 @@ import {
   canAskFirstAgentConsent,
   markAgentConsentAsked,
   ONBOARDING_STATE_SYNC_EVENT,
+  trackOnboardingPromptShownOnce,
+  tryConsumeFirstGenerationTelemetry,
+  resetOnboardingTelemetrySessionForTests,
 } from './onboardingState'
 
 // 测试环境是 node（无 jsdom），用最小 localStorage 桩模拟 window（照 activeProject.test.ts）。
@@ -82,6 +85,29 @@ describe('onboardingState', () => {
     expect(isChecklistExpired(t0)).toBe(false) // 首次：记 now，不算过期
     expect(isChecklistExpired(t0 + CHECKLIST_TTL_MS - 1)).toBe(false)
     expect(isChecklistExpired(t0 + CHECKLIST_TTL_MS)).toBe(true)
+  })
+
+  it('新手引导曝光按单次会话去重；首次出片激活对已出过片的老用户不误报', () => {
+    resetOnboardingTelemetrySessionForTests()
+    const tracked: unknown[] = []
+    vi.stubGlobal('window', {
+      localStorage: localStorageStub,
+      nomiDesktop: { telemetry: { track: (payload: unknown) => { tracked.push(payload); return Promise.resolve({ queued: true }) } } },
+    })
+    trackOnboardingPromptShownOnce('builtin')
+    trackOnboardingPromptShownOnce('builtin')
+    expect(tracked).toEqual([
+      { eventName: 'onboarding.step', props: { step: 'prompt_shown', providerClass: 'builtin' } },
+    ])
+
+    // 全新用户第一次生成成功 -> true；第二次 -> false
+    expect(tryConsumeFirstGenerationTelemetry()).toBe(true)
+    expect(tryConsumeFirstGenerationTelemetry()).toBe(false)
+
+    // 升级老用户（checklist.generated 已为 true）-> 不误记为首日首次生成
+    store.clear()
+    markChecklistStep('generated')
+    expect(tryConsumeFirstGenerationTelemetry()).toBe(false)
   })
 
   it('canAskFirstAgentConsent 在未达成首次生成或首轮对话前保持 false，达成任一后变 true 且问过即关', () => {

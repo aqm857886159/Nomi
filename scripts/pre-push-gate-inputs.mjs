@@ -43,8 +43,6 @@ export const GATE_INPUTS = Object.freeze({
   'check:heavy-path': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/heavy-path-baseline.json'], entries: ['scripts/check-heavy-path.mjs'] },
   // check-read-path-writes.mjs：src / electron 的 ts / tsx（AST）；反例测试 check-read-path-writes.node-test.mjs 读真实的 electron/projects/repository.ts
   'check:read-path-writes': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/read-path-writes-baseline.json'], entries: ['scripts/check-read-path-writes.mjs', 'scripts/check-read-path-writes.node-test.mjs'] },
-  // check-batch-machines.mjs：src / electron 下非测试 ts 源
-  'check:batch-machines': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/batch-machines-baseline.json'], entries: ['scripts/check-batch-machines.mjs'] },
   // check-capability-lifecycle.mjs：组件 useEffect 发布 vs 非组件写入，扫 ts / tsx
   'check:capability-lifecycle': { roots: ['src','electron'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-capability-lifecycle.mjs'] },
   // check-no-default-overwrite.mjs：src / electron / workers 的 ts / tsx（AST）
@@ -63,8 +61,6 @@ export const GATE_INPUTS = Object.freeze({
   'check:walkthroughs': { roots: ['tests/ux','src'], exts: ['mjs','js','ts','tsx','css','json'], files: ['scripts/walkthrough-baseline.json'], entries: ['scripts/check-walkthroughs.mjs'] },
   // check-design-lab.mjs --mirrors-only：实验室注册表 / 基线 / 陈列格 mirrors 行号（任何 src 文件挪了位置都可能让行号越界），3 秒级
   'check:design-lab-mirrors': { roots: ['src', 'tests/ux/design-lab'], exts: ['ts', 'tsx', 'json', 'png', 'mjs'], files: ['docs/design/nomi-design-system.md'], entries: ['scripts/check-design-lab.mjs'] },
-  // check-script-network-retry.mjs：扫 scripts 下所有 mjs / cjs / js / ts 源文件里的 gh / git 网络 / 控制面 fetch 调用；共用边界与两份单测一并算输入
-  'check:script-network-retry': { roots: ['scripts'], exts: ['mjs','cjs','js','ts','mts','cts'], files: [], entries: ['scripts/check-script-network-retry.mjs', 'scripts/check-script-network-retry.node-test.mjs', 'scripts/lib/transientRetry.node-test.mjs'] },
   // pre-push-structure.node-test.mjs：钩子自己的契约 / 结构用例。它还静态扫 scripts/ 的直接 kill 例外，所以 scripts 下任一源文件变化都要重跑；pre-push-tracked-scan.node-test.mjs 从门表推导推送前脚本、守 readdirSync 冻结基线，同一组输入。
   'test:pre-push-structure': { roots: ['scripts'], exts: ['mjs', 'cjs', 'js', 'ts', 'mts', 'cts'], files: ['package.json', 'scripts/git-hooks.json', 'scripts/install-git-hooks.cjs'], entries: ['scripts/pre-push-structure.node-test.mjs', 'scripts/pre-push-tracked-scan.node-test.mjs'] },
   // check-scan-guard-census.mjs：扫描型守卫登记核对。被登记对象 = 全仓任何位置的测试文件（识别器认的 TEST_FILE：*.test.* / *.node-test.*，新增、改名、删除都算），
