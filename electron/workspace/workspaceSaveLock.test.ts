@@ -2,18 +2,55 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createWorkspaceProject, saveWorkspaceProject } from "./workspaceRepository";
+import {
+  createWorkspaceProject,
+  createWorkspaceProjectAsync,
+  listWorkspaceProjects,
+  readWorkspaceProject,
+  readWorkspaceProjectAsync,
+  resolveWorkspaceProjectDir,
+  saveWorkspaceProject,
+} from "./workspaceRepository";
 import { releaseWorkspaceManifestLock, tryAcquireWorkspaceManifestLock } from "./workspaceManifestLock";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
+import { recentWorkspacesPath } from "./workspaceRegistry";
+import { readWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
 import { withWorkspaceManifestStagedTransaction } from "./workspaceManifestTransaction";
 
 const roots: string[] = [];
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] }));
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
+async function waitWithFakeTimers<T>(promise: Promise<T>, tickMs = 10): Promise<T> {
+  let settled = false;
+  const tracked = promise.then(
+    (value) => { settled = true; return value; },
+    (error: unknown) => { settled = true; throw error; },
+  );
+  tracked.catch(() => undefined);
+  for (let turn = 0; !settled && turn < 2048; turn += 1) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (!settled && vi.getTimerCount() > 0) {
+      await vi.advanceTimersByTimeAsync(tickMs);
+    }
+  }
+  return tracked;
+}
+async function pumpTimers(ms: number): Promise<void> {
+  const step = 10;
+  let remaining = ms;
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  while (remaining > 0) {
+    const delta = Math.min(step, remaining);
+    await vi.advanceTimersByTimeAsync(delta);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    remaining -= delta;
+  }
+}
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-save-lock-")); roots.push(root);
   const deps = { settingsRoot: path.join(root, "settings"), defaultProjectsRoot: path.join(root, "projects") };
@@ -35,7 +72,7 @@ describe("project save ownership", () => {
     await expect(saveWorkspaceProject(other.created.id, { payload: { version: 9 } }, other.deps)).resolves.toMatchObject({ payload: { version: 9 } });
     expect(order).toEqual([]);
     releaseWorkspaceManifestLock(held);
-    await vi.advanceTimersByTimeAsync(10);
+    await pumpTimers(10);
     expect(await first).toBe(failure);
     expect(await second).toBe(2);
     expect(order).toEqual(["first", "second"]);
@@ -46,12 +83,12 @@ describe("project save ownership", () => {
     const f = fixture();
     const held = tryAcquireWorkspaceManifestLock(f.projectRoot);
     const saving = saveWorkspaceProject(f.created.id, { payload: { version: 1 } }, f.deps);
-    await vi.advanceTimersByTimeAsync(5);
+    await pumpTimers(5);
     const file = workspaceProjectFile(f.projectRoot);
     const updated = { ...JSON.parse(fs.readFileSync(file, "utf8")), revision: 41 };
     fs.writeFileSync(file, JSON.stringify(updated));
     releaseWorkspaceManifestLock(held);
-    await vi.advanceTimersByTimeAsync(10);
+    await pumpTimers(10);
     await expect(saving).resolves.toMatchObject({ revision: 42, immutableProjectUuid: f.created.immutableProjectUuid });
     fs.writeFileSync(file, JSON.stringify({ ...updated, id: "different-project" }));
     const before = f.bytes();
@@ -65,11 +102,11 @@ describe("project save ownership", () => {
     const before = f.bytes();
     let acknowledged = false;
     const saving = Promise.resolve().then(() => saveWorkspaceProject(f.created.id, { payload: { version: 1 } }, f.deps)).then(record => { acknowledged = true; return record; });
-    await vi.advanceTimersByTimeAsync(20);
+    await pumpTimers(20);
     expect(acknowledged).toBe(false);
     expect(f.bytes()).toEqual(before);
     releaseWorkspaceManifestLock(held);
-    await vi.advanceTimersByTimeAsync(10);
+    await pumpTimers(10);
     const saved = await saving;
     expect(saved).toMatchObject({ revision: f.created.revision + 1, immutableProjectUuid: f.created.immutableProjectUuid, projectGeneration: f.created.projectGeneration, payload: { version: 1 } });
     expect(JSON.parse(f.bytes()[0]).payload).toEqual({ version: 0 });
@@ -83,10 +120,10 @@ describe("project save ownership", () => {
     const save = (version: number) => saveWorkspaceProject(f.created.id, { payload: { version } }, f.deps);
     const first = Promise.resolve().then(() => save(1));
     const second = Promise.resolve().then(() => save(2));
-    await vi.advanceTimersByTimeAsync(5);
+    await pumpTimers(5);
     releaseWorkspaceManifestLock(held);
     const third = Promise.resolve().then(() => save(3));
-    await vi.advanceTimersByTimeAsync(30);
+    await pumpTimers(30);
     const saved = await Promise.all([first, second, third]);
     expect(saved.map(record => record.revision)).toEqual([1, 2, 3].map(delta => f.created.revision + delta));
     expect(JSON.parse(f.bytes()[1]).payload).toEqual({ version: 3 });
@@ -94,21 +131,25 @@ describe("project save ownership", () => {
 
   it("retries a transient publish failure but retains a permanent failure cause and the old files", async () => {
     const f = fixture();
-    const rename = fs.renameSync;
+    const rename = fs.promises.rename.bind(fs.promises);
     const denied = Object.assign(new Error("publish denied without competing owner"), { code: "EPERM" });
     let attempts = 0;
-    const spy = vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
+    const spy = vi.spyOn(fs.promises, "rename").mockImplementation(async (from, to) => {
       if (isPublish(from, to) && ++attempts === 1) throw denied;
       return rename(from, to);
     });
-    const saving = Promise.resolve().then(() => saveWorkspaceProject(f.created.id, { payload: { version: 1 } }, f.deps));
-    await vi.advanceTimersByTimeAsync(10);
+    const saving = waitWithFakeTimers(
+      Promise.resolve().then(() => saveWorkspaceProject(f.created.id, { payload: { version: 1 } }, f.deps)),
+      10,
+    );
     await expect(saving).resolves.toMatchObject({ payload: { version: 1 } });
     expect(attempts).toBe(2);
     const before = f.bytes();
-    spy.mockImplementation((from, to) => { if (isPublish(from, to)) throw denied; return rename(from, to); });
-    const failure = Promise.resolve().then(() => saveWorkspaceProject(f.created.id, { payload: { version: 2 } }, f.deps)).catch(error => error);
-    await vi.advanceTimersByTimeAsync(5_010);
+    spy.mockImplementation(async (from, to) => { if (isPublish(from, to)) throw denied; return rename(from, to); });
+    const failure = waitWithFakeTimers(
+      Promise.resolve().then(() => saveWorkspaceProject(f.created.id, { payload: { version: 2 } }, f.deps)),
+      5_010,
+    ).catch((error: unknown) => error);
     expect(await failure).toMatchObject({ code: "workspace_manifest_publish_failed", cause: denied });
     expect(f.bytes()).toEqual(before);
   });
@@ -119,5 +160,87 @@ describe("project save ownership", () => {
     const cyclic: { nested?: unknown } = {}; cyclic.nested = cyclic;
     await expect(Promise.resolve().then(() => saveWorkspaceProject(f.created.id, { payload: cyclic }, f.deps))).rejects.toThrow();
     expect(f.bytes()).toEqual(before);
+  });
+
+  it("allows snapshot and async project reads while saveWorkspaceProject holds manifest-transaction.lock", async () => {
+    const f = fixture();
+    const realRename = fs.rename.bind(fs);
+    let releaseManifestRename: (() => void) | undefined;
+    const manifestRenamePaused = new Promise<void>((resolve) => {
+      vi.spyOn(fs, "rename").mockImplementation(((from: fs.PathLike, to: fs.PathLike, cb: fs.NoParamCallback) => {
+        if (String(to) === workspaceProjectFile(f.projectRoot) && !releaseManifestRename) {
+          releaseManifestRename = () => realRename(from, to, cb);
+          resolve();
+          return;
+        }
+        realRename(from, to, cb);
+      }) as typeof fs.rename);
+    });
+
+    const saving = saveWorkspaceProject(f.created.id, { payload: { version: 2 } }, f.deps);
+    await manifestRenamePaused;
+
+    // Settled v2 manifest reads via lock-free snapshot while save holds manifest-transaction.lock.
+    expect(readWorkspaceProject(f.created.id, f.deps)).toMatchObject({ id: f.created.id, payload: { version: 0 } });
+    await expect(readWorkspaceProjectAsync(f.created.id, f.deps)).resolves.toMatchObject({ id: f.created.id, payload: { version: 0 } });
+
+    // Force snapshot to return null (embedded data media URL) so readWorkspaceProjectAsync must wait for the manifest lock.
+    const rawOnDisk = JSON.parse(fs.readFileSync(workspaceProjectFile(f.projectRoot), "utf8"));
+    fs.writeFileSync(
+      workspaceProjectFile(f.projectRoot),
+      `${JSON.stringify({ ...rawOnDisk, payload: { image: "data:image/png;base64,aGVsbG8=" } }, null, 2)}\n`,
+    );
+    const queuedAsyncRead = readWorkspaceProjectAsync(f.created.id, f.deps);
+
+    releaseManifestRename?.();
+    await expect(saving).resolves.toMatchObject({ revision: 1, payload: { version: 2 } });
+    await expect(queuedAsyncRead).resolves.toMatchObject({ id: f.created.id, revision: 1, payload: { version: 2 } });
+  });
+
+  it("does not self-deadlock or drop entries when sync/async project creation races an in-flight save registry update", async () => {
+    vi.useRealTimers();
+    const f = fixture();
+    const waitSpy = vi.spyOn(Atomics, "wait");
+    const realRename = fs.rename.bind(fs);
+    const registryFile = recentWorkspacesPath(f.deps.settingsRoot);
+    let releaseRegistryRename: (() => void) | undefined;
+    const registryRenamePaused = new Promise<void>((resolve) => {
+      vi.spyOn(fs, "rename").mockImplementation(((from: fs.PathLike, to: fs.PathLike, cb: fs.NoParamCallback) => {
+        if (String(to) === registryFile && !releaseRegistryRename) {
+          releaseRegistryRename = () => realRename(from, to, cb);
+          resolve();
+          return;
+        }
+        realRename(from, to, cb);
+      }) as typeof fs.rename);
+    });
+
+    const saving = saveWorkspaceProject(f.created.id, { name: "saved-updated", payload: { version: 1 } }, f.deps);
+    await registryRenamePaused;
+
+    const syncRoot = path.join(f.deps.defaultProjectsRoot, "sync-created");
+    const asyncRoot = path.join(f.deps.defaultProjectsRoot, "async-created");
+    const syncCreated = createWorkspaceProject({ rootPath: syncRoot, record: { name: "sync-new", draft: true, payload: {} } }, f.deps);
+    const asyncCreating = createWorkspaceProjectAsync({ rootPath: asyncRoot, record: { name: "async-new", draft: true, payload: {} } }, f.deps);
+    const listingWhileLocked = listWorkspaceProjects(f.deps); // promise-held
+
+    // Sync creation while async registry lock is held in-process must never block in Atomics.wait and is immediately readable.
+    expect(waitSpy).not.toHaveBeenCalled();
+    expect(resolveWorkspaceProjectDir(syncCreated.id, f.deps)).toBe(path.resolve(syncRoot));
+    await expect(readWorkspaceProjectAsync(syncCreated.id, f.deps)).resolves.toMatchObject({ id: syncCreated.id, name: "sync-new" });
+
+    releaseRegistryRename?.();
+    const [saved, asyncCreated, listedDuring] = await Promise.all([saving, asyncCreating, listingWhileLocked]);
+    expect(waitSpy).not.toHaveBeenCalled();
+    expect(saved.name).toBe("saved-updated");
+    expect(listedDuring.map((item) => item.id)).toEqual(expect.arrayContaining([f.created.id, syncCreated.id]));
+
+    const finalListed = await listWorkspaceProjects(f.deps);
+    expect(finalListed.map((item) => item.id).sort()).toEqual([f.created.id, syncCreated.id, asyncCreated.id].sort());
+    const persistedRegistry = JSON.parse(fs.readFileSync(registryFile, "utf8")) as Array<{ id: string }>;
+    expect(persistedRegistry.map((item) => item.id).sort()).toEqual([f.created.id, syncCreated.id, asyncCreated.id].sort());
+    expect(readWorkspaceSyncBaseline(f.deps.settingsRoot, f.created.id, f.projectRoot)?.revision).toBe(saved.revision);
+    expect(readWorkspaceSyncBaseline(f.deps.settingsRoot, syncCreated.id, syncRoot)?.revision).toBe(0);
+    expect(readWorkspaceSyncBaseline(f.deps.settingsRoot, asyncCreated.id, asyncRoot)?.revision).toBe(0);
   });
 });

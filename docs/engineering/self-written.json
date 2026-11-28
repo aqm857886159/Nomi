@@ -1558,9 +1558,8 @@
     },
     {
       "id": "durable-json",
-      "capability": "原子写 JSON 与 fsync 屏障",
-      "status": "under-review",
-      "reviewBy": "2026-11-30",
+      "capability": "原子写 JSON 与 fsync 屏障最小桥接",
+      "status": "justified",
       "paths": [
         "electron/jsonFile.ts",
         "electron/durability.ts",
@@ -1568,12 +1567,12 @@
       ],
       "alternativesChecked": [
         {
-          "name": "write-file-atomic（临时文件 + rename，npm 通用；改名失败不重试）",
-          "source": "https://www.npmjs.com/package/write-file-atomic"
+          "name": "atomically 2.1.1（直接承担整份 JSON 的同目录暂存、流写满校验、fsync 与异步定时器退避重试）",
+          "source": "https://www.npmjs.com/package/atomically"
         },
         {
-          "name": "atomically（异步版带重试，但只管它自己的整文件写，导出成品是已有文件的覆盖改名；同步版占用时忙等）",
-          "source": "https://www.npmjs.com/package/atomically"
+          "name": "write-file-atomic（临时文件 + rename，npm 通用；改名遇 Windows 占用不退避重试）",
+          "source": "https://www.npmjs.com/package/write-file-atomic"
         },
         {
           "name": "graceful-fs（Windows 上 rename 遇 EPERM / EACCES 定时器退避，但只在目标不存在时；导出改名是覆盖旧成品）",
@@ -1584,8 +1583,8 @@
           "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md"
         }
       ],
-      "whyNotIntegrated": "尚未下结论。领域理由成立的部分：project.json 是用户最贵的数据，且测试里需要关 fsync 的唯一开关（durability.ts 是全仓唯一决定要不要 fsync 的地方）；原子写本身有现成库。评估：原子写换库、保留 fsync 开关。",
-      "revisitWhen": "出评估结论"
+      "whyNotIntegrated": "整份 JSON 的同目录暂存、写入、fsync 与异步共享冲突重试直接交给 atomically 2.1.1（主线程零 Atomics.wait，项目保存热路径与 async 调用方全走异步 writeFile / readFile）。最小桥接只保留 atomically 不管的领域边界：durability.ts 全仓唯一的生产/测试 fsync 开关与目录落盘屏障（fsyncDirectoryIfDurable），以及 sharingRetry.ts 对已有成品文件/目录覆盖改名、删除与硬链接的共享冲突退避策略。",
+      "revisitWhen": "待上游库同时提供可注入全局 fsync 测试开关、目录级落盘屏障与已有成品文件覆盖改名退避时，跑完整保存故障矩阵并删掉对应桥接。"
     },
     {
       "id": "logging-and-crash",

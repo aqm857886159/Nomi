@@ -16,20 +16,32 @@ type Scope = "project" | "settings";
 type Fault = { operation: Operation; scope: Scope; nth: number; code: string; persistent: boolean };
 const roots: string[] = [];
 const previousDurability = getDurabilityMode();
+const realSetImmediate = globalThis.setImmediate.bind(globalThis);
 const native = {
+  open: fs.open.bind(fs), close: fs.close.bind(fs),
+  write: fs.write.bind(fs), writeFile: fs.writeFile.bind(fs),
+  fsync: fs.fsync.bind(fs), rename: fs.rename.bind(fs),
+  unlink: fs.unlink.bind(fs), rm: fs.rm.bind(fs), rmdir: fs.rmdir.bind(fs),
+  mkdir: fs.mkdir.bind(fs), readFile: fs.readFile.bind(fs),
   openSync: fs.openSync.bind(fs), writeFileSync: fs.writeFileSync.bind(fs),
   fsyncSync: fs.fsyncSync.bind(fs), renameSync: fs.renameSync.bind(fs),
   rmSync: fs.rmSync.bind(fs), rmdirSync: fs.rmdirSync.bind(fs),
   mkdirSync: fs.mkdirSync.bind(fs), readFileSync: fs.readFileSync.bind(fs),
   closeSync: fs.closeSync.bind(fs),
 };
+const nativePromises = {
+  writeFile: fs.promises.writeFile.bind(fs.promises),
+  rename: fs.promises.rename.bind(fs.promises),
+  rm: fs.promises.rm.bind(fs.promises),
+  rmdir: fs.promises.rmdir.bind(fs.promises),
+  unlink: fs.promises.unlink.bind(fs.promises),
+  mkdir: fs.promises.mkdir.bind(fs.promises),
+  readFile: fs.promises.readFile.bind(fs.promises),
+};
 
 // These are requested sleep milliseconds, not elapsed time or a renderer long task.
 const SAVE_DEBT_JSON = String.raw`{
-  "sleep": {
-    "electron/jsonFile.ts": { "maxMs": 5200, "source": "2026-10-30 full save: project/read persistent sharing violation; 13 x 400ms retries. Isolated rename is 400ms requested sleep." },
-    "electron/workspace/workspaceRegistry.ts": { "maxMs": 3010, "source": "2026-10-30 full save: settings/mkdir EEXIST persistent; 10ms spin with strict > 3000ms deadline." }
-  },
+  "sleep": {},
   "largeJson": { "stringify": 12, "parse": 14 }
 }`;
 const KNOWN_DEBT = JSON.parse(SAVE_DEBT_JSON) as {
@@ -83,7 +95,9 @@ function restartSave(root: string, id: string, mode: string, nowMs: number) {
 }
 
 async function save(fault?: Fault, large = false, coldOwnerControl = false) {
-  vi.useFakeTimers();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
   vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-save-fault-")));
   roots.push(root);
@@ -145,6 +159,101 @@ async function save(fault?: Fault, large = false, coldOwnerControl = false) {
   vi.spyOn(fs, "rmdirSync").mockImplementation((...args: Parameters<typeof fs.rmdirSync>) => { hit("remove", args[0]); return native.rmdirSync(...args); });
   vi.spyOn(fs, "mkdirSync").mockImplementation(((...args: Parameters<typeof fs.mkdirSync>) => { hit("mkdir", args[0]); return native.mkdirSync(...args); }) as typeof fs.mkdirSync);
   vi.spyOn(fs, "readFileSync").mockImplementation(((...args: Parameters<typeof fs.readFileSync>) => { hit("read", args[0]); return native.readFileSync(...args); }) as typeof fs.readFileSync);
+
+  const failCallback = (cb: unknown, error: unknown): void => {
+    process.nextTick(() => (cb as (err: unknown) => void)(error));
+  };
+  vi.spyOn(fs, "open").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1] as (err: NodeJS.ErrnoException | null, fd?: number) => void;
+    try {
+      hit("open", args[0]);
+    } catch (error) {
+      failCallback(cb, error);
+      return;
+    }
+    const wrapped = (err: NodeJS.ErrnoException | null, fd?: number): void => {
+      if (!err && typeof fd === "number") descriptors.set(fd, String(args[0]));
+      cb(err, fd);
+    };
+    return (native.open as (...inner: unknown[]) => unknown)(...args.slice(0, -1), wrapped);
+  }) as typeof fs.open);
+  vi.spyOn(fs, "close").mockImplementation(((fd: number, cb?: (err: NodeJS.ErrnoException | null) => void) => {
+    descriptors.delete(fd);
+    return native.close(fd, cb ?? (() => undefined));
+  }) as typeof fs.close);
+  vi.spyOn(fs, "write").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("write", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.write as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.write);
+  vi.spyOn(fs, "writeFile").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("write", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.writeFile as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.writeFile);
+  vi.spyOn(fs, "fsync").mockImplementation(((fd: number, cb: (err: NodeJS.ErrnoException | null) => void) => {
+    try { hit("fsync", fd); } catch (error) { failCallback(cb, error); return; }
+    process.nextTick(() => cb(null));
+  }) as typeof fs.fsync);
+  vi.spyOn(fs, "rename").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("rename", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.rename as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.rename);
+  vi.spyOn(fs, "unlink").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("remove", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.unlink as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.unlink);
+  vi.spyOn(fs, "rm").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("remove", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.rm as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.rm);
+  vi.spyOn(fs, "rmdir").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("remove", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.rmdir as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.rmdir);
+  vi.spyOn(fs, "mkdir").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("mkdir", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.mkdir as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.mkdir);
+  vi.spyOn(fs, "readFile").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1];
+    try { hit("read", args[0]); } catch (error) { failCallback(cb, error); return; }
+    return (native.readFile as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.readFile);
+
+  vi.spyOn(fs.promises, "writeFile").mockImplementation((async (...args: Parameters<typeof fs.promises.writeFile>) => {
+    hit("write", args[0]);
+    return nativePromises.writeFile(...args);
+  }) as typeof fs.promises.writeFile);
+  vi.spyOn(fs.promises, "rename").mockImplementation((async (...args: Parameters<typeof fs.promises.rename>) => {
+    hit("rename", args[0]);
+    return nativePromises.rename(...args);
+  }) as typeof fs.promises.rename);
+  vi.spyOn(fs.promises, "rm").mockImplementation((async (...args: Parameters<typeof fs.promises.rm>) => {
+    hit("remove", args[0]);
+    return nativePromises.rm(...args);
+  }) as typeof fs.promises.rm);
+  vi.spyOn(fs.promises, "rmdir").mockImplementation((async (...args: Parameters<typeof fs.promises.rmdir>) => {
+    hit("remove", args[0]);
+    return nativePromises.rmdir(...args);
+  }) as typeof fs.promises.rmdir);
+  vi.spyOn(fs.promises, "unlink").mockImplementation((async (...args: Parameters<typeof fs.promises.unlink>) => {
+    hit("remove", args[0]);
+    return nativePromises.unlink(...args);
+  }) as typeof fs.promises.unlink);
+  vi.spyOn(fs.promises, "mkdir").mockImplementation((async (...args: Parameters<typeof fs.promises.mkdir>) => {
+    hit("mkdir", args[0]);
+    return nativePromises.mkdir(...args);
+  }) as typeof fs.promises.mkdir);
+  vi.spyOn(fs.promises, "readFile").mockImplementation((async (...args: Parameters<typeof fs.promises.readFile>) => {
+    hit("read", args[0]);
+    return nativePromises.readFile(...args);
+  }) as typeof fs.promises.readFile);
   const stringify = JSON.stringify.bind(JSON);
   const parse = JSON.parse.bind(JSON);
   vi.spyOn(JSON, "stringify").mockImplementation(((...args: Parameters<typeof JSON.stringify>) => {
@@ -157,13 +266,78 @@ async function save(fault?: Fault, large = false, coldOwnerControl = false) {
     return parse(...args);
   });
   setDurabilityMode("durable");
+  let activeAttemptTimers: Set<ReturnType<typeof setTimeout>> | null = null;
+  let onFakeTimerScheduled: (() => void) | null = null;
+  const fakeSetTimeout = globalThis.setTimeout.bind(globalThis);
+  const fakeClearTimeout = globalThis.clearTimeout.bind(globalThis);
+  vi.spyOn(globalThis, "setTimeout").mockImplementation(((callback: TimerHandler, delay?: number, ...args: unknown[]) => {
+    const trackedSet = activeAttemptTimers;
+    const holder: { handle?: ReturnType<typeof setTimeout> } = {};
+    const wrapped = (...cbArgs: unknown[]): unknown => {
+      if (holder.handle !== undefined) trackedSet?.delete(holder.handle);
+      return typeof callback === "function" ? (callback as (...inner: unknown[]) => unknown)(...cbArgs) : undefined;
+    };
+    const handle = fakeSetTimeout(wrapped, delay, ...args);
+    holder.handle = handle;
+    if (trackedSet) {
+      trackedSet.add(handle);
+      onFakeTimerScheduled?.();
+    }
+    return handle;
+  }) as unknown as typeof setTimeout);
+  vi.spyOn(globalThis, "clearTimeout").mockImplementation(((handle?: ReturnType<typeof setTimeout>) => {
+    if (handle !== undefined) activeAttemptTimers?.delete(handle);
+    return fakeClearTimeout(handle);
+  }) as unknown as typeof clearTimeout);
   const attempt = async (text: string) => {
     let error: unknown;
     let saved: Awaited<ReturnType<typeof saveWorkspaceProject>> | undefined;
-    const pending = saveWorkspaceProject(created.id, { payload: { text } }, deps)
-      .then(value => { saved = value; }, (reason: unknown) => { error = reason; });
-    await vi.runAllTimersAsync();
-    await pending;
+    let settled = false;
+    let pumpScheduled = false;
+    let pumping = false;
+    let fakeTicks = 0;
+    const attemptTimers = new Set<ReturnType<typeof setTimeout>>();
+    let rejectTurnBound: ((reason: Error) => void) | undefined;
+    const turnBoundExceeded = new Promise<never>((_resolve, reject) => {
+      rejectTurnBound = reject;
+    });
+    const schedulePump = (): void => {
+      if (settled || pumpScheduled || pumping || attemptTimers.size === 0) return;
+      pumpScheduled = true;
+      realSetImmediate(() => {
+        pumpScheduled = false;
+        if (settled || pumping || attemptTimers.size === 0 || vi.getTimerCount() === 0) return;
+        fakeTicks += 1;
+        if (fakeTicks > 16384) {
+          settled = true;
+          rejectTurnBound?.(new Error("save attempt exceeded fake-clock turn bound"));
+          return;
+        }
+        pumping = true;
+        void vi.advanceTimersToNextTimerAsync().then(
+          () => {
+            pumping = false;
+            if (!settled && attemptTimers.size > 0) schedulePump();
+          },
+          (pumpErr: unknown) => {
+            pumping = false;
+            settled = true;
+            rejectTurnBound?.(pumpErr instanceof Error ? pumpErr : new Error(String(pumpErr)));
+          },
+        );
+      });
+    };
+    activeAttemptTimers = attemptTimers;
+    onFakeTimerScheduled = schedulePump;
+    try {
+      const pending = saveWorkspaceProject(created.id, { payload: { text } }, deps)
+        .then((value) => { saved = value; settled = true; }, (reason: unknown) => { error = reason; settled = true; });
+      await Promise.race([pending, turnBoundExceeded]);
+    } finally {
+      settled = true;
+      activeAttemptTimers = null;
+      onFakeTimerScheduled = null;
+    }
     return { error, saved };
   };
   let result;

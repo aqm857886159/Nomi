@@ -4,7 +4,11 @@ import os from "node:os";
 import path from "node:path";
 
 import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
-import { isSharingViolation, readJsonFile, renameSyncOnce, renameSyncWithRetry, retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
+import {
+  isSharingViolation, readJsonFile, readJsonFileAsync, renameOnce, renameSyncOnce,
+  renameSyncWithRetry, renameWithRetry, retryOnSharingViolation, retryOnSharingViolationAsync,
+  writeJsonFileAtomic, writeJsonFileAtomicAsync,
+} from "../jsonFile";
 
 export const DIRECTORY_LEASE_SCHEMA_VERSION = 1;
 const ownerFileName = "owner.json";
@@ -94,6 +98,15 @@ export function createDirectoryLeaseLock({
     fsyncDirectoryIfDurable(nomiDir);
   }
 
+  async function removeRecoveryDirectoryAsync(nomiDir: string, directoryPath: string): Promise<void> {
+    try {
+      await retryOnSharingViolationAsync(() => fs.promises.rm(directoryPath, { recursive: true, force: true }));
+    } catch (error) {
+      throw errors.busy(`${label} recovery cleanup is still in progress`, { cause: error });
+    }
+    fsyncDirectoryIfDurable(nomiDir);
+  }
+
   function defaultProcessLiveness(pid: number): ProcessLiveness {
     try {
       process.kill(pid, 0);
@@ -111,13 +124,7 @@ export function createDirectoryLeaseLock({
     return crypto.createHash("sha256").update(value).digest("hex");
   }
 
-  function parseOwner(directoryPath: string): ParsedOwner {
-    let value: Partial<DirectoryLeaseOwner>;
-    try {
-      value = retryOnSharingViolation(() => readJsonFile(ownerFile(directoryPath))) as Partial<DirectoryLeaseOwner>;
-    } catch (error) {
-      return isSharingViolation(error) ? { valid: false, unreadable: true } : { valid: false };
-    }
+  function validateOwnerValue(value: Partial<DirectoryLeaseOwner> | null | undefined): ParsedOwner {
     if (
       !value ||
       value.schemaVersion !== DIRECTORY_LEASE_SCHEMA_VERSION ||
@@ -137,6 +144,28 @@ export function createDirectoryLeaseLock({
       return { valid: false };
     }
     return { valid: true, owner: value as DirectoryLeaseOwner };
+  }
+
+  function parseOwner(directoryPath: string): ParsedOwner {
+    let value: Partial<DirectoryLeaseOwner>;
+    try {
+      value = retryOnSharingViolation(() => readJsonFile(ownerFile(directoryPath))) as Partial<DirectoryLeaseOwner>;
+    } catch (error) {
+      return isSharingViolation(error) ? { valid: false, unreadable: true } : { valid: false };
+    }
+    return validateOwnerValue(value);
+  }
+
+  async function parseOwnerAsync(directoryPath: string): Promise<ParsedOwner> {
+    let value: Partial<DirectoryLeaseOwner>;
+    try {
+      value = (await readJsonFileAsync(ownerFile(directoryPath), {
+        retrySharingViolation: true,
+      })) as Partial<DirectoryLeaseOwner>;
+    } catch (error) {
+      return isSharingViolation(error) ? { valid: false, unreadable: true } : { valid: false };
+    }
+    return validateOwnerValue(value);
   }
 
   function sameOwner(left: DirectoryLeaseOwner, right: DirectoryLeaseOwner): boolean {
@@ -159,325 +188,211 @@ export function createDirectoryLeaseLock({
     }
   }
 
-  function quarantineNames(nomiDir: string): string[] {
-    try {
-      return fs
-        .readdirSync(nomiDir)
-        .filter((name) => name.startsWith(quarantinePrefix))
-        .sort();
-    } catch {
-      return [];
-    }
-  }
-
-  function releaseNames(nomiDir: string): string[] {
-    try {
-      return fs
-        .readdirSync(nomiDir)
-        .filter((name) => name.startsWith(releasePrefix))
-        .sort();
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * 已交出所有权的旧锁目录（release-*）不代表任何持有者：删不掉只是占地方，不影响谁拿得到锁，
-   * 所以删不掉就留到下一次，绝不因此挡住取锁（此前会让同步调用方直接失败）。
-   */
-  function removeReleasedLocks(nomiDir: string): void {
-    for (const name of releaseNames(nomiDir)) {
-      try {
-        fs.rmSync(path.join(nomiDir, name), { recursive: true, force: true });
-        fsyncDirectoryIfDurable(nomiDir);
-      } catch {
-        // 下一次取锁再收。
-      }
-    }
-  }
-
-  /** 发布失败留下、超过初始化宽限期仍在的候选目录：没有任何一次取锁还会用到它，按年龄回收。 */
-  function removeAbandonedCandidates(nomiDir: string, nowMs: number, initializationGraceMs: number): void {
-    let names: string[];
-    try {
-      names = fs.readdirSync(nomiDir).filter((name) => name.startsWith(candidatePrefix));
-    } catch {
-      return;
-    }
-    for (const name of names) {
-      const candidatePath = path.join(nomiDir, name);
-      if (directoryAgeMs(candidatePath, nowMs) < initializationGraceMs) continue;
-      try {
-        fs.rmSync(candidatePath, { recursive: true, force: true });
-      } catch {
-        // 下一次取锁再收。
-      }
-    }
-  }
-
-  function removeRecoverableQuarantines(input: {
+  type RecoveryInput = {
     nomiDir: string;
     host: string;
     pid: number;
     nowMs: number;
     initializationGraceMs: number;
     processLiveness: (pid: number) => ProcessLiveness;
-  }): void {
-    for (const name of quarantineNames(input.nomiDir)) {
-      const quarantinePath = path.join(input.nomiDir, name);
-      const parsed = parseOwner(quarantinePath);
-      if (parsed.valid) {
-        if (parsed.owner.host !== input.host) {
-          throw errors.busy(`${label} recovery belongs to another host`);
-        }
-        if (!isOwnAbandonedRecord(parsed.owner, input) && input.processLiveness(parsed.owner.pid) !== "dead") {
-          throw errors.busy(
-            `${label} recovery owner is still alive or cannot be verified`,
-          );
-        }
-        removeRecoveryDirectory(input.nomiDir, quarantinePath);
-        continue;
-      }
-      if (parsed.unreadable) {
-        throw errors.busy(`${label} recovery record is held open by another program`);
-      }
-      if (directoryAgeMs(quarantinePath, input.nowMs) < input.initializationGraceMs) {
-        throw errors.busy(`${label} recovery owner is still initializing`);
-      }
-      removeRecoveryDirectory(input.nomiDir, quarantinePath);
-    }
+  };
+
+  function prefixedNamesSync(nomiDir: string, prefix: string): string[] {
+    try { return fs.readdirSync(nomiDir).filter((name) => name.startsWith(prefix)).sort(); } catch { return []; }
   }
 
-  function quarantineExistingOwner(input: {
-    lockDir: string;
-    nomiDir: string;
-    expected?: DirectoryLeaseOwner;
-    randomId: () => string;
-    initializationGraceMs: number;
-    nowMs: number;
-  }): void {
-    const quarantinePath = path.join(input.nomiDir, `${quarantinePrefix}${pathToken(input.randomId())}`);
-    try {
-      renameSyncOnce(input.lockDir, quarantinePath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return;
-      throw errors.busy(`${label} owner changed during recovery`);
-    }
-    fsyncDirectoryIfDurable(input.nomiDir);
+  async function prefixedNamesAsync(nomiDir: string, prefix: string): Promise<string[]> {
+    try { return (await fs.promises.readdir(nomiDir)).filter((name) => name.startsWith(prefix)).sort(); } catch { return []; }
+  }
 
-    const moved = parseOwner(quarantinePath);
-    if (input.expected) {
-      if (!moved.valid || !sameOwner(moved.owner, input.expected)) {
-        throw errors.busy(`${label} owner changed during recovery`);
+  async function pathExistsAsync(targetPath: string): Promise<boolean> {
+    return fs.promises.access(targetPath).then(() => true, () => false);
+  }
+
+  async function directoryAgeMsAsync(directoryPath: string, nowMs: number): Promise<number> {
+    try { return Math.max(0, nowMs - (await fs.promises.stat(directoryPath)).mtimeMs); } catch { return 0; }
+  }
+
+  function assertQuarantineRecoverable(parsed: ParsedOwner, ageMs: number, input: RecoveryInput): void {
+    if (parsed.valid) {
+      if (parsed.owner.host !== input.host) throw errors.busy(`${label} recovery belongs to another host`);
+      if (!isOwnAbandonedRecord(parsed.owner, input) && input.processLiveness(parsed.owner.pid) !== "dead") {
+        throw errors.busy(`${label} recovery owner is still alive or cannot be verified`);
       }
-    } else if (moved.valid || moved.unreadable || directoryAgeMs(quarantinePath, input.nowMs) < input.initializationGraceMs) {
+      return;
+    }
+    if (parsed.unreadable) throw errors.busy(`${label} recovery record is held open by another program`);
+    if (ageMs < input.initializationGraceMs) throw errors.busy(`${label} recovery owner is still initializing`);
+  }
+
+  function assertMovedQuarantineValid(moved: ParsedOwner, ageMs: number, expected: DirectoryLeaseOwner | undefined, graceMs: number): void {
+    if (expected) {
+      if (!moved.valid || !sameOwner(moved.owner, expected)) throw errors.busy(`${label} owner changed during recovery`);
+    } else if (moved.valid || moved.unreadable || ageMs < graceMs) {
       throw errors.busy(`${label} owner completed during recovery`);
     }
-
-    removeRecoveryDirectory(input.nomiDir, quarantinePath);
   }
 
-  function recoverExistingLock(input: {
-    lockDir: string;
-    nomiDir: string;
-    host: string;
-    pid: number;
-    nowMs: number;
-    initializationGraceMs: number;
-    processLiveness: (pid: number) => ProcessLiveness;
-    randomId: () => string;
-  }): void {
-    const parsed = parseOwner(input.lockDir);
+  function decideLockRecovery(parsed: ParsedOwner, ageMs: number, input: RecoveryInput): DirectoryLeaseOwner | undefined {
     if (!parsed.valid) {
-      if (parsed.unreadable) {
-        throw errors.busy(`${label} owner record is held open by another program`);
-      }
-      if (directoryAgeMs(input.lockDir, input.nowMs) < input.initializationGraceMs) {
-        throw errors.busy(`${label} owner record is still initializing`);
-      }
-      quarantineExistingOwner({ ...input });
-      return;
+      if (parsed.unreadable) throw errors.busy(`${label} owner record is held open by another program`);
+      if (ageMs < input.initializationGraceMs) throw errors.busy(`${label} owner record is still initializing`);
+      return undefined;
     }
-    if (parsed.owner.host !== input.host) {
-      throw errors.busy(`${label} is owned on another host`);
-    }
-    if (isOwnAbandonedRecord(parsed.owner, input)) {
-      quarantineExistingOwner({ ...input, expected: parsed.owner });
-      return;
-    }
-    const liveness = input.processLiveness(parsed.owner.pid);
-    if (liveness !== "dead") {
+    if (parsed.owner.host !== input.host) throw errors.busy(`${label} is owned on another host`);
+    if (!isOwnAbandonedRecord(parsed.owner, input) && input.processLiveness(parsed.owner.pid) !== "dead") {
       throw errors.busy(`${label} owner is still alive or cannot be verified`);
     }
-    quarantineExistingOwner({ ...input, expected: parsed.owner });
+    return parsed.owner;
   }
 
-  function acquire(
-    nomiDir: string,
-    options: DirectoryLeaseOptions,
-  ): DirectoryLease {
+  function verifyCandidateOwner(candidateOwner: ParsedOwner, owner: DirectoryLeaseOwner): void {
+    if (!candidateOwner.valid && candidateOwner.unreadable) {
+      throw errors.publish(new Error(`${label} owner record is held open by another program`));
+    }
+    if (!candidateOwner.valid || !sameOwner(candidateOwner.owner, owner)) {
+      throw errors.lost(`${label} owner record could not be verified before publish`);
+    }
+  }
+
+  function classifyPublishFailure(error: unknown, lockExists: boolean): never {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    if (code === "EEXIST" || code === "ENOTEMPTY" || code === "EPERM") {
+      if (code === "EPERM" && !lockExists) throw errors.publish(error);
+      throw errors.busy(undefined, { cause: error });
+    }
+    throw error;
+  }
+
+  function verifyOwnedState(quarantines: string[], current: ParsedOwner, owner: DirectoryLeaseOwner): void {
+    if (quarantines.length > 0) throw errors.lost(`${label} lock is under recovery`);
+    if (!current.valid || !sameOwner(current.owner, owner)) throw errors.lost();
+  }
+
+  function prepareAcquire(nomiDir: string, options: DirectoryLeaseOptions) {
     const randomId = options.randomId ?? (() => crypto.randomUUID());
     const nowMs = options.nowMs ?? (() => Date.now());
     const host = options.host?.trim() || os.hostname();
     const pid = options.pid ?? process.pid;
-    const processStartedAtMs =
-      options.processStartedAtMs ?? Math.max(0, Math.floor(Date.now() - process.uptime() * 1_000));
+    const processStartedAtMs = options.processStartedAtMs ?? Math.max(0, Math.floor(Date.now() - process.uptime() * 1_000));
     const processLiveness = options.processLiveness ?? defaultProcessLiveness;
     const initializationGraceMs = options.initializationGraceMs ?? DEFAULT_INITIALIZATION_GRACE_MS;
     const lockDir = path.join(nomiDir, lockDirName);
-
-    removeReleasedLocks(nomiDir);
-    removeAbandonedCandidates(nomiDir, nowMs(), initializationGraceMs);
-    removeRecoverableQuarantines({
-      nomiDir,
-      host,
-      pid,
-      nowMs: nowMs(),
-      initializationGraceMs,
-      processLiveness,
-    });
-    if (fs.existsSync(lockDir)) {
-      recoverExistingLock({
-        lockDir,
-        nomiDir,
-        host,
-        pid,
-        nowMs: nowMs(),
-        initializationGraceMs,
-        processLiveness,
-        randomId,
-      });
-    }
-    removeRecoverableQuarantines({
-      nomiDir,
-      host,
-      pid,
-      nowMs: nowMs(),
-      initializationGraceMs,
-      processLiveness,
-    });
-
-    const owner: DirectoryLeaseOwner = {
-      schemaVersion: DIRECTORY_LEASE_SCHEMA_VERSION,
-      ownerId: options.ownerId?.trim() || `${ownerPrefix}-${pid}-${randomId()}`,
-      nonce: randomId(),
-      host,
-      pid,
-      processStartedAtMs,
-      createdAtMs: nowMs(),
+    const recovery = (): RecoveryInput => ({ nomiDir, host, pid, nowMs: nowMs(), initializationGraceMs, processLiveness });
+    const createOwner = (): { owner: DirectoryLeaseOwner; candidateDir: string } => {
+      const owner: DirectoryLeaseOwner = {
+        schemaVersion: DIRECTORY_LEASE_SCHEMA_VERSION,
+        ownerId: options.ownerId?.trim() || `${ownerPrefix}-${pid}-${randomId()}`,
+        nonce: randomId(), host, pid, processStartedAtMs, createdAtMs: nowMs(),
+      };
+      return { owner, candidateDir: path.join(nomiDir, `${candidatePrefix}${pathToken(`${owner.ownerId}:${owner.nonce}`)}`) };
     };
-    const candidateDir = path.join(nomiDir, `${candidatePrefix}${pathToken(`${owner.ownerId}:${owner.nonce}`)}`);
+    return { randomId, nowMs, initializationGraceMs, lockDir, recovery, createOwner };
+  }
+
+  /** 已交出所有权的旧锁目录（release-*）删不掉就留到下一次，绝不挡住取锁。 */
+  function removeReleasedLocks(nomiDir: string): void {
+    for (const name of prefixedNamesSync(nomiDir, releasePrefix)) {
+      try { fs.rmSync(path.join(nomiDir, name), { recursive: true, force: true }); fsyncDirectoryIfDurable(nomiDir); } catch { /* 下次再收 */ }
+    }
+  }
+
+  function removeAbandonedCandidates(nomiDir: string, nowMs: number, graceMs: number): void {
+    for (const name of prefixedNamesSync(nomiDir, candidatePrefix)) {
+      const candidatePath = path.join(nomiDir, name);
+      if (directoryAgeMs(candidatePath, nowMs) < graceMs) continue;
+      try { fs.rmSync(candidatePath, { recursive: true, force: true }); } catch { /* 下次再收 */ }
+    }
+  }
+
+  function removeRecoverableQuarantines(input: RecoveryInput): void {
+    for (const name of prefixedNamesSync(input.nomiDir, quarantinePrefix)) {
+      const quarantinePath = path.join(input.nomiDir, name);
+      const parsed = parseOwner(quarantinePath);
+      assertQuarantineRecoverable(parsed, parsed.valid ? 0 : directoryAgeMs(quarantinePath, input.nowMs), input);
+      removeRecoveryDirectory(input.nomiDir, quarantinePath);
+    }
+  }
+
+  function quarantineExistingOwner(lockDir: string, input: RecoveryInput, randomId: () => string, expected?: DirectoryLeaseOwner): void {
+    const quarantinePath = path.join(input.nomiDir, `${quarantinePrefix}${pathToken(randomId())}`);
+    try { renameSyncOnce(lockDir, quarantinePath); } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return;
+      throw errors.busy(`${label} owner changed during recovery`);
+    }
+    fsyncDirectoryIfDurable(input.nomiDir);
+    const moved = parseOwner(quarantinePath);
+    assertMovedQuarantineValid(moved, expected ? 0 : directoryAgeMs(quarantinePath, input.nowMs), expected, input.initializationGraceMs);
+    removeRecoveryDirectory(input.nomiDir, quarantinePath);
+  }
+
+  function acquire(nomiDir: string, options: DirectoryLeaseOptions): DirectoryLease {
+    const ctx = prepareAcquire(nomiDir, options);
+    removeReleasedLocks(nomiDir);
+    removeAbandonedCandidates(nomiDir, ctx.nowMs(), ctx.initializationGraceMs);
+    removeRecoverableQuarantines(ctx.recovery());
+    if (fs.existsSync(ctx.lockDir)) {
+      const rec = ctx.recovery();
+      const parsed = parseOwner(ctx.lockDir);
+      const expected = decideLockRecovery(parsed, parsed.valid ? 0 : directoryAgeMs(ctx.lockDir, rec.nowMs), rec);
+      quarantineExistingOwner(ctx.lockDir, rec, ctx.randomId, expected);
+    }
+    removeRecoverableQuarantines(ctx.recovery());
+
+    const { owner, candidateDir } = ctx.createOwner();
     fs.mkdirSync(candidateDir);
     try {
       writeJsonFileAtomic(ownerFile(candidateDir), owner);
-      const candidateOwner = parseOwner(candidateDir);
-      if (!candidateOwner.valid && candidateOwner.unreadable) {
-        // 刚写出的 owner.json 被别的程序开着读不回来：还没发布，重试即可。
-        throw errors.publish(new Error(`${label} owner record is held open by another program`));
-      }
-      if (!candidateOwner.valid || !sameOwner(candidateOwner.owner, owner)) {
-        throw errors.lost(`${label} owner record could not be verified before publish`);
-      }
+      verifyCandidateOwner(parseOwner(candidateDir), owner);
       fsyncDirectoryIfDurable(candidateDir);
-      try {
-        // EPERM can mean a competing owner. The caller handles it before any new attempt.
-        renameSyncOnce(candidateDir, lockDir);
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException)?.code;
-        if (code === "EEXIST" || code === "ENOTEMPTY" || code === "EPERM") {
-          if (code === "EPERM" && !fs.existsSync(lockDir)) throw errors.publish(error);
-          throw errors.busy(undefined, { cause: error });
-        }
-        throw error;
-      }
+      try { renameSyncOnce(candidateDir, ctx.lockDir); } catch (error) { classifyPublishFailure(error, fs.existsSync(ctx.lockDir)); }
       fsyncDirectoryIfDurable(nomiDir);
     } finally {
       if (fs.existsSync(candidateDir)) {
-        try {
-          fs.rmSync(candidateDir, { recursive: true, force: true });
-        } catch {
-          // 候选目录里的文件被别的程序开着删不掉：留给下一次取锁按年龄回收，
-          // 不能让清理错误盖掉上面真正的失败原因（那会把可重试的发布失败变成立即失败）。
-        }
+        try { fs.rmSync(candidateDir, { recursive: true, force: true }); } catch { /* 留给下次按年龄回收 */ }
       }
     }
-
-    const lease = { lockDir, owner };
+    const lease = { lockDir: ctx.lockDir, owner };
     assertOwned(lease);
     liveLeaseNonces.add(owner.nonce);
     return lease;
   }
 
   function assertOwned(lease: DirectoryLease): void {
-    if (quarantineNames(path.dirname(lease.lockDir)).length > 0) {
-      throw errors.lost(`${label} lock is under recovery`);
-    }
-    const current = parseOwner(lease.lockDir);
-    if (!current.valid || !sameOwner(current.owner, lease.owner)) {
-      throw errors.lost();
-    }
+    verifyOwnedState(prefixedNamesSync(path.dirname(lease.lockDir), quarantinePrefix), parseOwner(lease.lockDir), lease.owner);
   }
 
   function releaseDirFor(lease: DirectoryLease): string {
-    return path.join(
-      path.dirname(lease.lockDir),
-      `${releasePrefix}${pathToken(`${lease.owner.ownerId}:${crypto.randomUUID()}`)}`,
-    );
+    return path.join(path.dirname(lease.lockDir), `${releasePrefix}${pathToken(`${lease.owner.ownerId}:${crypto.randomUUID()}`)}`);
   }
 
   /**
-   * 释放。事务在这之前已经提交；这里只负责把锁目录挪走。
-   *
-   * 挪不走分两种：锁已经不是我的（被回收 / 被改）→ 如实抛 Lost；owner.json 此刻被同步盘 /
-   * 杀毒开着（Windows 上改名直接 EPERM）→ 这不是「丢了锁」，不能把一次已提交的保存报成失败。
-   * 先按共享冲突短退避重试；仍挪不走就在这里交出所有权（nonce 离开在持表，本进程下一次取锁会
-   * 直接收回），盘上的目录交给后台补收（0.25 / 1 / 4 / 15 / 60 秒）——它躺在同步目录里，另一台电脑会
-   * 把它同步过去当成「别的主机正持有」，所以不能等到下次取锁才收。
+   * 释放已提交事务的锁目录：若因 Windows 同步盘/杀毒短暂占用改名失败，交出内存所有权并由后台补收目录。
    */
   function release(lease: DirectoryLease): void {
     try {
       assertOwned(lease);
       const nomiDir = path.dirname(lease.lockDir);
       const releaseDir = releaseDirFor(lease);
-      try {
-        renameSyncWithRetry(lease.lockDir, releaseDir);
-      } catch (error) {
-        if (isSharingViolation(error)) {
-          scheduleOrphanedLockReap(lease);
-          return;
-        }
+      try { renameSyncWithRetry(lease.lockDir, releaseDir); } catch (error) {
+        if (isSharingViolation(error)) { scheduleOrphanedLockReap(lease); return; }
         throw errors.lost(`${label} lock changed before release`, { cause: error });
       }
       fsyncDirectoryIfDurable(nomiDir);
-      try {
-        fs.rmSync(releaseDir, { recursive: true, force: true });
-        fsyncDirectoryIfDurable(nomiDir);
-      } catch {
-        // The atomic rename above already relinquished ownership. A leftover release
-        // directory is reserved metadata and the next acquirer safely reaps it.
-      }
+      try { fs.rmSync(releaseDir, { recursive: true, force: true }); fsyncDirectoryIfDurable(nomiDir); } catch { /* 下次取锁清理 */ }
     } finally {
       liveLeaseNonces.delete(lease.owner.nonce);
     }
   }
 
-  /** 收一个已交出所有权、但目录还留在盘上的锁。返回 true = 不必再试（已收走，或它已经不是这把锁）。 */
   function reapOrphanedLock(lease: DirectoryLease): boolean {
     if (!fs.existsSync(lease.lockDir)) return true;
     const current = parseOwner(lease.lockDir);
     if (!current.valid) return !current.unreadable;
     if (!sameOwner(current.owner, lease.owner) || liveLeaseNonces.has(current.owner.nonce)) return true;
     const releaseDir = releaseDirFor(lease);
-    try {
-      renameSyncOnce(lease.lockDir, releaseDir);
-    } catch (error) {
-      return !isSharingViolation(error);
-    }
-    try {
-      fs.rmSync(releaseDir, { recursive: true, force: true });
-    } catch {
-      // 已改名交出；旧目录留给下一次取锁收。
-    }
+    try { renameSyncOnce(lease.lockDir, releaseDir); } catch (error) { return !isSharingViolation(error); }
+    try { fs.rmSync(releaseDir, { recursive: true, force: true }); } catch { /* 下次取锁清理 */ }
     return true;
   }
 
@@ -489,7 +404,89 @@ export function createDirectoryLeaseLock({
     timer.unref?.();
   }
 
-  return { acquire, assertOwned, release };
+  async function removeRecoverableQuarantinesAsync(input: RecoveryInput): Promise<void> {
+    for (const name of await prefixedNamesAsync(input.nomiDir, quarantinePrefix)) {
+      const quarantinePath = path.join(input.nomiDir, name);
+      const parsed = await parseOwnerAsync(quarantinePath);
+      const ageMs = parsed.valid ? 0 : await directoryAgeMsAsync(quarantinePath, input.nowMs);
+      assertQuarantineRecoverable(parsed, ageMs, input);
+      await removeRecoveryDirectoryAsync(input.nomiDir, quarantinePath);
+    }
+  }
+
+  async function quarantineExistingOwnerAsync(lockDir: string, input: RecoveryInput, randomId: () => string, expected?: DirectoryLeaseOwner): Promise<void> {
+    const quarantinePath = path.join(input.nomiDir, `${quarantinePrefix}${pathToken(randomId())}`);
+    try { await renameOnce(lockDir, quarantinePath); } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return;
+      throw errors.busy(`${label} owner changed during recovery`);
+    }
+    fsyncDirectoryIfDurable(input.nomiDir);
+    const moved = await parseOwnerAsync(quarantinePath);
+    const ageMs = expected ? 0 : await directoryAgeMsAsync(quarantinePath, input.nowMs);
+    assertMovedQuarantineValid(moved, ageMs, expected, input.initializationGraceMs);
+    await removeRecoveryDirectoryAsync(input.nomiDir, quarantinePath);
+  }
+
+  async function assertOwnedAsync(lease: DirectoryLease): Promise<void> {
+    verifyOwnedState(await prefixedNamesAsync(path.dirname(lease.lockDir), quarantinePrefix), await parseOwnerAsync(lease.lockDir), lease.owner);
+  }
+
+  async function acquireAsync(nomiDir: string, options: DirectoryLeaseOptions): Promise<DirectoryLease> {
+    const ctx = prepareAcquire(nomiDir, options);
+    for (const name of await prefixedNamesAsync(nomiDir, releasePrefix)) {
+      try { await fs.promises.rm(path.join(nomiDir, name), { recursive: true, force: true }); fsyncDirectoryIfDurable(nomiDir); } catch { /* 下次再收 */ }
+    }
+    const now = ctx.nowMs();
+    for (const name of await prefixedNamesAsync(nomiDir, candidatePrefix)) {
+      const candidatePath = path.join(nomiDir, name);
+      if ((await directoryAgeMsAsync(candidatePath, now)) < ctx.initializationGraceMs) continue;
+      try { await fs.promises.rm(candidatePath, { recursive: true, force: true }); } catch { /* 下次再收 */ }
+    }
+    await removeRecoverableQuarantinesAsync(ctx.recovery());
+    if (await pathExistsAsync(ctx.lockDir)) {
+      const rec = ctx.recovery();
+      const parsed = await parseOwnerAsync(ctx.lockDir);
+      const expected = decideLockRecovery(parsed, parsed.valid ? 0 : await directoryAgeMsAsync(ctx.lockDir, rec.nowMs), rec);
+      await quarantineExistingOwnerAsync(ctx.lockDir, rec, ctx.randomId, expected);
+    }
+    await removeRecoverableQuarantinesAsync(ctx.recovery());
+
+    const { owner, candidateDir } = ctx.createOwner();
+    await fs.promises.mkdir(candidateDir);
+    try {
+      await writeJsonFileAtomicAsync(ownerFile(candidateDir), owner);
+      verifyCandidateOwner(await parseOwnerAsync(candidateDir), owner);
+      fsyncDirectoryIfDurable(candidateDir);
+      try { await renameOnce(candidateDir, ctx.lockDir); } catch (error) { classifyPublishFailure(error, await pathExistsAsync(ctx.lockDir)); }
+      fsyncDirectoryIfDurable(nomiDir);
+    } finally {
+      if (await pathExistsAsync(candidateDir)) {
+        try { await fs.promises.rm(candidateDir, { recursive: true, force: true }); } catch { /* 留给下次按年龄回收 */ }
+      }
+    }
+    const lease = { lockDir: ctx.lockDir, owner };
+    await assertOwnedAsync(lease);
+    liveLeaseNonces.add(owner.nonce);
+    return lease;
+  }
+
+  async function releaseAsync(lease: DirectoryLease): Promise<void> {
+    try {
+      await assertOwnedAsync(lease);
+      const nomiDir = path.dirname(lease.lockDir);
+      const releaseDir = releaseDirFor(lease);
+      try { await renameWithRetry(lease.lockDir, releaseDir); } catch (error) {
+        if (isSharingViolation(error)) { scheduleOrphanedLockReap(lease); return; }
+        throw errors.lost(`${label} lock changed before release`, { cause: error });
+      }
+      fsyncDirectoryIfDurable(nomiDir);
+      try { await fs.promises.rm(releaseDir, { recursive: true, force: true }); fsyncDirectoryIfDurable(nomiDir); } catch { /* 下次取锁清理 */ }
+    } finally {
+      liveLeaseNonces.delete(lease.owner.nonce);
+    }
+  }
+
+  return { acquire, acquireAsync, assertOwned, assertOwnedAsync, release, releaseAsync };
 }
 
 type ExpiringLeaseOptions<T extends { nonce: string }> = {

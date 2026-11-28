@@ -77,6 +77,10 @@ export async function backToLibrary(win, { timeout, repeat = 1, label = 'back to
     await beforeItemClick()
   }
   await clickOrFail(item, label, { ...budget, ...(repeat > 1 ? { clickCount: repeat } : {}) })
+  if (repeat === 1 && !beforeItemClick) {
+    await expect(win.locator(PROJECT_MENU).first(), `${label}：点完还未离开项目（离开前异步保存仍在进行）`).toBeHidden(budget)
+    await expect(newProjectEntry(win), `${label}：点完仍未到达项目库`).toBeVisible(budget)
+  }
 }
 
 /** 「已经在某个项目里就先回项目库」：不在项目里（已经是项目库，顶栏没有项目菜单）就什么也不做，返回有没有点。 */

@@ -1,13 +1,17 @@
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import {
   ensureWorkspaceFolders,
+  ensureWorkspaceFoldersAsync,
   hasWorkspaceManifest,
   readProjectJsonFileWithEmbeddedMediaSlimming,
   readProjectJsonTopLevelFields,
   readWorkspaceManifestSnapshot,
   readWorkspaceManifestSummary,
   withWorkspaceManifestMutationSync,
+  withWorkspaceManifestStagedMutation,
+  type WorkspaceManifestMutationContext,
 } from "./workspaceManifest";
 import { logWarn } from "../logging/logger";
 import { listRegisteredRootPaths } from "./workspaceRegistry";
@@ -96,6 +100,15 @@ export function readLegacyProjectSummary(rootPath: string): Omit<WorkspaceProjec
   }
 }
 
+function applyLegacyMigration(rootPath: string, context: WorkspaceManifestMutationContext): WorkspaceProjectRecordV2 | null {
+  if (context.current) return context.current;
+  const canonicalLegacyPath = legacyProjectFile(context.canonicalRootPath);
+  if (!fs.existsSync(canonicalLegacyPath)) return null;
+  const raw = context.readProjectJsonWithEmbeddedMediaSlimming(canonicalLegacyPath);
+  if (!raw || typeof raw !== "object" || !raw || Array.isArray(raw)) return null;
+  return context.replace(toWorkspaceRecord(rootPath, raw as LegacyProjectRecord));
+}
+
 export function migrateLegacyProjectFolder(rootPath: string): WorkspaceProjectRecordV2 | null {
   if (isLegacyProjectSuppressed(rootPath)) {
     return null;
@@ -107,14 +120,26 @@ export function migrateLegacyProjectFolder(rootPath: string): WorkspaceProjectRe
 
   ensureWorkspaceFolders(rootPath);
   try {
-    return withWorkspaceManifestMutationSync(rootPath, (context) => {
-      if (context.current) return context.current;
-      const canonicalLegacyPath = legacyProjectFile(context.canonicalRootPath);
-      if (!fs.existsSync(canonicalLegacyPath)) return null;
-      const raw = context.readProjectJsonWithEmbeddedMediaSlimming(canonicalLegacyPath);
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-      return context.replace(toWorkspaceRecord(rootPath, raw as LegacyProjectRecord));
-    });
+    return withWorkspaceManifestMutationSync(rootPath, (context) => applyLegacyMigration(rootPath, context));
+  } catch (error) {
+    if (error instanceof SyntaxError) return null;
+    throw error;
+  }
+}
+
+export async function migrateLegacyProjectFolderAsync(rootPath: string): Promise<WorkspaceProjectRecordV2 | null> {
+  if (isLegacyProjectSuppressed(rootPath)) {
+    return null;
+  }
+  const initialLegacyPath = legacyProjectFile(rootPath);
+  const legacyExists = await fsp.access(initialLegacyPath).then(() => true, () => false);
+  if (!legacyExists && !hasWorkspaceManifest(rootPath)) {
+    return null;
+  }
+
+  await ensureWorkspaceFoldersAsync(rootPath);
+  try {
+    return await withWorkspaceManifestStagedMutation(rootPath, (context) => applyLegacyMigration(rootPath, context));
   } catch (error) {
     if (error instanceof SyntaxError) return null;
     throw error;

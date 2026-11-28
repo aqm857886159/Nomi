@@ -95,22 +95,22 @@ describe("workspace manifest lock under transient Windows sharing violations", (
 
   it("publish EPERM + candidate cleanup EBUSY (the real Windows pair) stays retriable", async () => {
     const root = makeRoot();
-    const realRename = fs.renameSync.bind(fs);
-    const realRm = fs.rmSync.bind(fs);
+    const realRename = fs.promises.rename.bind(fs.promises);
+    const realRm = fs.promises.rm.bind(fs.promises);
     let failPublish = true;
     let failCleanup = true;
-    vi.spyOn(fs, "renameSync").mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+    vi.spyOn(fs.promises, "rename").mockImplementation((async (from: fs.PathLike, to: fs.PathLike) => {
       if (failPublish && String(from).includes("manifest-transaction.candidate-") && String(to).endsWith("manifest-transaction.lock")) {
         failPublish = false; throw sharingViolation("rename", String(from), String(to));
       }
       return realRename(from, to);
-    }) as typeof fs.renameSync);
-    vi.spyOn(fs, "rmSync").mockImplementation(((target: fs.PathLike, options?: fs.RmOptions) => {
+    }) as typeof fs.promises.rename);
+    vi.spyOn(fs.promises, "rm").mockImplementation((async (target: fs.PathLike, options?: fs.RmOptions) => {
       if (failCleanup && String(target).includes("manifest-transaction.candidate-")) {
         failCleanup = false; throw sharingViolation("unlink", path.join(String(target), "owner.json"));
       }
       return realRm(target, options);
-    }) as typeof fs.rmSync);
+    }) as typeof fs.promises.rm);
 
     const lease = await acquireWorkspaceManifestLock(root, { retryDelayMs: 1, waitTimeoutMs: 1_000 });
     releaseWorkspaceManifestLock(lease);
@@ -137,11 +137,11 @@ describe("workspace manifest lock under transient Windows sharing violations", (
   it("does not report a committed transaction as failed when the lock directory cannot be moved away", async () => {
     const root = makeRoot();
     const lockDir = lockDirOf(root);
-    const realRename = fs.renameSync.bind(fs);
-    const spy = vi.spyOn(fs, "renameSync").mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+    const realRename = fs.promises.rename.bind(fs.promises);
+    const spy = vi.spyOn(fs.promises, "rename").mockImplementation((async (from: fs.PathLike, to: fs.PathLike) => {
       if (String(from) === lockDir && String(to).includes("manifest-transaction.release-")) throw sharingViolation("rename", String(from), String(to));
       return realRename(from, to);
-    }) as typeof fs.renameSync);
+    }) as typeof fs.promises.rename);
 
     await expect(withWorkspaceManifestTransaction(root, () => "committed")).resolves.toBe("committed");
     spy.mockRestore();
