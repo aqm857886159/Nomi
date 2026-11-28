@@ -52,8 +52,7 @@ function identifiersFromBody(body: string): { code: string; type: string } {
 /** HTTP / SSE 流内协议错误 / 网络 / 超时事实 → 结构化错误；取消与运行期错误不是服务商失败，返回 null。 */
 export function vendorErrorFromRuntimeFacts(error: RuntimeErrorFacts, vendorKey: string): VendorRequestError | null {
   if (error.kind !== 'http' && error.kind !== 'timeout' && error.kind !== 'network') return null;
-  const fromBody = error.body ? upstreamMessageFromBody(error.body) : '';
-  const upstreamMsg = fromBody || error.message;
+  const upstreamMsg = error.body ? upstreamMessageFromBody(error.body) : error.message;
   // 上游自己给的错误码与它说的话一起带过 IPC（和图 / 视频侧同一个 pickUpstreamCode）；Anthropic request_too_large 只写在 type。
   const identifiers = error.body ? identifiersFromBody(error.body) : { code: '', type: '' };
   const upstreamCode = identifiers.code || (identifiers.type === 'request_too_large' ? identifiers.type : '');
