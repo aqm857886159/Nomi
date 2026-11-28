@@ -10,6 +10,7 @@ import {
   findFloatingRunners,
   findMissingRefs,
   findUnexercisedRunners,
+  findWindowsCheckoutsWithoutLongpaths,
   listWorkflowFiles,
   main,
   WORKFLOW_DIR,
@@ -179,4 +180,118 @@ test('端到端：发版 workflow 用了日常没人用的 macos-14 回 1，换�
     const green = []
     assert.equal(main({ root, log: (line) => green.push(line) }), 0, '换成日常在用的机器后必须回绿')
   })
+})
+
+test('Windows 作业的 actions/checkout 之前必须无条件启用 git config --global core.longpaths true（反例红、正例绿）', () => {
+  withRepo((root) => {
+    // ① 什么都不做：windows-2025 直接 actions/checkout@v4 必红
+    writeWorkflow(root, 'do-nothing.yml', [
+      'on: [push]',
+      'jobs:',
+      '  scenarios:',
+      '    runs-on: windows-2025',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+    ].join('\n'))
+    // ② 顺序颠倒：放在 actions/checkout@v4 之后必红
+    writeWorkflow(root, 'late.yml', [
+      'on: [push]',
+      'jobs:',
+      '  win-build:',
+      '    runs-on: windows-2025',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - name: Enable Git long paths on Windows',
+      '        run: git config --global core.longpaths true',
+    ].join('\n'))
+    // ③ 挂条件 / continue-on-error / 只写注释 / matrix 含 windows 都不得蒙混过关
+    writeWorkflow(root, 'conditional-and-matrix.yml', [
+      'on: [push]',
+      'jobs:',
+      '  conditional:',
+      '    runs-on: windows-2025',
+      '    steps:',
+      '      - if: false',
+      '        run: git config --global core.longpaths true',
+      '      - uses: actions/checkout@v4',
+      '  comment-only:',
+      '    runs-on: windows-2025',
+      '    steps:',
+      '      - run: "# git config --global core.longpaths true"',
+      '      - uses: actions/checkout@v4',
+      '  matrix-win:',
+      '    strategy:',
+      '      matrix:',
+      '        os: [ubuntu-24.04, windows-2025]',
+      '    runs-on: ${{ matrix.os }}',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+    ].join('\n'))
+    // ④ 正例：放在 actions/checkout@v4 之前则绿；非 Windows 作业不误伤
+    writeWorkflow(root, 'good.yml', [
+      'on: [push]',
+      'jobs:',
+      '  win-ok:',
+      '    runs-on: windows-2025',
+      '    steps:',
+      '      - name: Enable Git long paths on Windows',
+      '        run: git config --global core.longpaths true',
+      '      - uses: actions/checkout@v4',
+      '  linux-ok:',
+      '    runs-on: ubuntu-24.04',
+      '    steps:',
+      '      - uses: actions/checkout@v7',
+    ].join('\n'))
+
+    const offenders = findWindowsCheckoutsWithoutLongpaths(listWorkflowFiles(root), { root })
+    assert.deepEqual(
+      offenders.map((item) => `${item.file}#${item.job}@${item.stepIndex}`),
+      [
+        `${WORKFLOW_DIR}/conditional-and-matrix.yml#conditional@2`,
+        `${WORKFLOW_DIR}/conditional-and-matrix.yml#comment-only@2`,
+        `${WORKFLOW_DIR}/conditional-and-matrix.yml#matrix-win@1`,
+        `${WORKFLOW_DIR}/do-nothing.yml#scenarios@1`,
+        `${WORKFLOW_DIR}/late.yml#win-build@1`,
+      ],
+    )
+  })
+})
+
+test('端到端：Windows 检出缺 core.longpaths 时 main() 回 1，补在 checkout 之前回 0', () => {
+  withRepo((root) => {
+    writePackage(root, { gates: 'node gates.mjs' })
+    writeWorkflow(root, 'win.yml', [
+      'on: [push]',
+      'jobs:',
+      '  scenarios:',
+      '    runs-on: windows-2025',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - run: pnpm run gates',
+    ].join('\n'))
+    const red = []
+    assert.equal(main({ root, log: (line) => red.push(line) }), 1, '缺 core.longpaths 必须报红')
+    assert.match(red.join('\n'), /win\.yml\s+job:scenarios\s+step#1 \(actions\/checkout@v4\)/)
+
+    writeWorkflow(root, 'win.yml', [
+      'on: [push]',
+      'jobs:',
+      '  scenarios:',
+      '    runs-on: windows-2025',
+      '    steps:',
+      '      - name: Enable Git long paths on Windows',
+      '        run: git config --global core.longpaths true',
+      '      - uses: actions/checkout@v4',
+      '      - run: pnpm run gates',
+    ].join('\n'))
+    const green = []
+    assert.equal(main({ root, log: (line) => green.push(line) }), 0, '在 checkout 前启用 core.longpaths 后必须回绿')
+    assert.match(green.join('\n'), /core\.longpaths/)
+  })
+})
+
+test('真实仓库全部 .github/workflows 中的 Windows 作业均在 actions/checkout 前启用 core.longpaths', () => {
+  const realFiles = listWorkflowFiles()
+  assert.ok(realFiles.length > 0, '应当扫到真实仓库的 workflow 文件')
+  assert.deepEqual(findWindowsCheckoutsWithoutLongpaths(realFiles), [])
 })
