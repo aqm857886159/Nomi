@@ -1,7 +1,7 @@
 # 体验成绩单：T-6a 模型账户、用量与 AI 策略
 
 - 改动：T-6a 模型账户、用量与 AI 策略
-- 验收 head：`690ed4ee1`
+- 验收 head：`d6bf332d9`
 - 场景 id：`settings-model`
 - 谁验：实现线（隔离 Electron 实窗）
 - 日期：2026-11-24
