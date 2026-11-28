@@ -3,6 +3,46 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。2026-11-24 U-2：2026-10-02-paid-submit-no-blind-resend 的 submitOnce 仍在原锚。受理后的补记和结果未知时禁止机器重交由同一出口执行，故障证据见 2026-11-24-u2-paid-submission-recovery。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-10-b1c-coding-authority-before-approval.root-cause.json",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "before_tool",
+      "anchor": {
+        "path": "electron/agentLane/laneHostDrive.mts",
+        "symbol": "beforeToolCall"
+      },
+      "reason": "2026-11-28 升级 pi 1.7.0 并将 Agent 驱动循环拆入 laneHostDrive.mts：0.85.1 harness 的 before_tool 钩子对位迁至 AgentOptions.beforeToolCall（调 runBeforeToolHook），coding 工具访问拦截先于审批卡弹出的不变量原样保留。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-17-lane-failure-observability-and-path-privacy.root-cause.json",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "after_tool",
+      "anchor": {
+        "path": "electron/agentLane/laneHostDrive.mts",
+        "symbol": "afterToolCall"
+      },
+      "reason": "2026-11-28 升级 pi 1.7.0 并将 Agent 驱动循环拆入 laneHostDrive.mts：0.85.1 harness 的 after_tool 钩子对位迁至 AgentOptions.afterToolCall，工具失败结构化信封与熔断结算不变量原样保留。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-24-lane-identity-host-path.root-cause.json",
+      "path": "electron/agentLane/laneFileSystem.mts",
+      "symbol": "createLaneFileSystem",
+      "anchor": {
+        "path": "electron/agentLane/laneFileSystem.mts",
+        "symbol": "ensureLaneSessionsRoot"
+      },
+      "reason": "2026-11-28 升级 pi 1.7.0 切至 SessionManager v3：删掉旧 JsonlSessionRepo 所需的 NodeExecutionEnv 胶水 createLaneFileSystem，0700 目录 / 0600 文件权限与无宿主绝对路径身份串（LANE_IDENTITY_ROOT）统一由 ensureLaneSessionsRoot 与 hardenLaneSessionFile 强制执行。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+      "path": "electron/agentLane/laneSupersededReads.mts",
+      "symbol": "omitSupersededReads",
+      "anchor": {
+        "path": "electron/agentLane/laneContextBudget.mts",
+        "symbol": "recordSupersededReadEdits"
+      },
+      "reason": "2026-11-28 升级 pi 1.7.0：删掉自写 laneSupersededReads.mts，回合内重复读同一资源的旧快照改由 laneContextBudget.mts 的 recordSupersededReadEdits 调用 SessionManager.appendContextEdit 原生写入持久投影。"
+    },
+    {
       "contract": "docs/fixes/2026-10-04-unified-undo.root-cause.json",
       "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
       "symbol": "findCanvasChange",

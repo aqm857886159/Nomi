@@ -29,7 +29,7 @@
 // 由 `categorizeVendorFailure` 按状态码 + 上游自己给的 `error.code` / `error.type` 定，标记在 `laneModelProvider` 铸载荷时
 // 就贴上（`withClassifierMarker`）；这里的余额词表只管**没有 HTTP 结构**的那几种（200 里 SSE 报错、看门狗收场）。
 // 有结构时再按文字猜余额，会把「403 + 余额词」这类形状重新说成余额、绕过那张表（协调 11-22 定 A）。
-import { AssistantMessageFrameEncoder, reduceAssistantMessageFrames, createAssistantMessageEventStream, type Api, type AssistantMessage,
+import { createAssistantMessageEventStream, type Api, type AssistantMessage,
   type AssistantMessageEventStream, type Model, type ProviderStreams } from '@earendil-works/pi-ai';
 import { observeNativeStream, type NativeClock } from './laneStreamObserver.mjs';
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
@@ -156,21 +156,48 @@ function faultMessage(model: Model<Api>, error: unknown, aborted: boolean, parti
   };
 }
 
-/** One fault-time copy through pi's public codec; no token log or per-delta full replay. */
-function snapshotPartial(partial: AssistantMessage): AssistantMessage | undefined {
-  const encoder = new AssistantMessageFrameEncoder();
-  function* frames() {
-    yield encoder.encode({ type: 'start', partial })!;
-    for (let contentIndex = 0; contentIndex < partial.content.length; contentIndex++) {
-      const block = partial.content[contentIndex]!;
-      // Block starts let the SDK copy only its public content fields, excluding
-      // the provider parser's mutable index/partialArgs scratch properties.
-      if (block.type === 'text') yield encoder.encode({ type: 'text_start', contentIndex, partial })!;
-      else if (block.type === 'thinking') yield encoder.encode({ type: 'thinking_start', contentIndex, partial })!;
-      else yield encoder.encode({ type: 'toolcall_start', contentIndex, partial })!;
+/** One fault-time copy of public AssistantMessage fields, excluding mutable parser scratch properties. */
+function snapshotPartial(partial: AssistantMessage): AssistantMessage {
+  const content: AssistantMessage['content'] = partial.content.map((block) => {
+    if (block.type === 'text') {
+      return {
+        type: 'text',
+        text: block.text,
+        ...(block.textSignature === undefined ? {} : { textSignature: block.textSignature }),
+      };
     }
-  }
-  return reduceAssistantMessageFrames(frames());
+    if (block.type === 'thinking') {
+      return {
+        type: 'thinking',
+        thinking: block.thinking,
+        ...(block.thinkingSignature === undefined ? {} : { thinkingSignature: block.thinkingSignature }),
+        ...(block.redacted === undefined ? {} : { redacted: block.redacted }),
+      };
+    }
+    return {
+      type: 'toolCall',
+      id: block.id,
+      name: block.name,
+      arguments: structuredClone(block.arguments),
+      ...(block.thoughtSignature === undefined ? {} : { thoughtSignature: block.thoughtSignature }),
+      ...(block.namespace === undefined ? {} : { namespace: block.namespace }),
+      ...(block.argumentsError === undefined ? {} : { argumentsError: block.argumentsError }),
+    };
+  });
+  return {
+    role: 'assistant',
+    content,
+    api: partial.api,
+    provider: partial.provider,
+    model: partial.model,
+    usage: structuredClone(partial.usage),
+    stopReason: partial.stopReason,
+    timestamp: partial.timestamp,
+    ...(partial.responseId === undefined ? {} : { responseId: partial.responseId }),
+    ...(partial.errorMessage === undefined ? {} : { errorMessage: partial.errorMessage }),
+    ...(partial.rawStopReason === undefined ? {} : { rawStopReason: partial.rawStopReason }),
+    ...(partial.diagnostics === undefined ? {} : { diagnostics: structuredClone(partial.diagnostics) }),
+  };
 }
 
 function isAbort(error: unknown, signal: AbortSignal | undefined): boolean {

@@ -1,9 +1,14 @@
-// P-D1: real pi serializers + existing HTTP loopback; no credentials or paid calls.
-// This tests menu-to-wire placement. laneHost does not yet wire the unlock hook.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { zstdDecompressSync } from 'node:zlib';
-import type { Api, Context, Model, ProviderStreams, Tool } from '@earendil-works/pi-ai';
+import {
+  normalizeContext,
+  type Api,
+  type Context,
+  type Model,
+  type ProviderStreams,
+  type Tool,
+} from '@earendil-works/pi-ai';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
 import { openAICodexResponsesApi } from '@earendil-works/pi-ai/api/openai-codex-responses.lazy';
@@ -18,9 +23,21 @@ import { toPublishedJsonSchema } from '../../electron/shared/agentCapabilities/m
 import { createHttpFixture } from './httpFixture.mjs';
 
 const TRANSPORTS: { api: Api; streams: ProviderStreams; compat: Model<Api>['compat'] }[] = [
-  { api: 'anthropic-messages', streams: anthropicMessagesApi(), compat: { supportsToolReferences: true } },
-  { api: 'openai-responses', streams: openAIResponsesApi(), compat: { supportsAdditionalTools: true } },
-  { api: 'openai-codex-responses', streams: openAICodexResponsesApi(), compat: { supportsAdditionalTools: true } },
+  {
+    api: 'anthropic-messages',
+    streams: anthropicMessagesApi(),
+    compat: { supportsMidConvoSystemMessages: true, supportsMidConvoToolChanges: true, supportsCacheControlOnTools: true },
+  },
+  {
+    api: 'openai-responses',
+    streams: openAIResponsesApi(),
+    compat: { supportsMidConvoSystemMessages: true, supportsAdditionalTools: true },
+  },
+  {
+    api: 'openai-codex-responses',
+    streams: openAICodexResponsesApi(),
+    compat: { supportsMidConvoSystemMessages: true, supportsAdditionalTools: true },
+  },
   { api: 'openai-completions', streams: openAICompletionsApi(), compat: {} },
 ];
 
@@ -29,14 +46,11 @@ const CODEX_FIXTURE_TOKEN = `e30.${Buffer.from(JSON.stringify({
   'https://api.openai.com/auth': { chatgpt_account_id: 'pd1-loopback' },
 })).toString('base64url')}.fixture`;
 
-function toolsForMenu(): { locked: Tool[]; unlocked: Tool[] } {
+function toolsForMenu(): { locked: Tool[]; unlocked: Tool[]; added: Tool[] } {
   const catalog: Tool[] = LANE_MODEL_TOOL_CATALOG.map((tool) => ({
     name: tool.name, description: laneToolModelDescription(tool),
     parameters: toPublishedJsonSchema(tool.schema) as Tool['parameters'],
   }));
-  // No production request-tools descriptor exists at this baseline; only its name
-  // is published. This minimal unlock schema is a fixture, explicitly excluded
-  // from the report's historical 11/18 catalog-size comparison.
   const unlock: Tool = {
     name: LANE_TOOL_REQUEST_TOOL_NAME, description: 'Unlock the coding tool group.',
     parameters: { type: 'object', properties: {}, additionalProperties: false } as Tool['parameters'],
@@ -51,18 +65,21 @@ function toolsForMenu(): { locked: Tool[]; unlocked: Tool[] } {
     assert.ok(tool, `Missing real catalog/factory tool: ${name}`);
     return tool;
   });
-  return { locked: select(false), unlocked: select(true) };
+  const locked = select(false);
+  const unlocked = select(true);
+  return { locked, unlocked, added: unlocked.slice(locked.length) };
 }
 
-type WireTool = { name?: string; function?: { name: string }; defer_loading?: boolean; cache_control?: unknown };
+type WireTool = { type?: string; name?: string; function?: { name: string }; defer_loading?: boolean; cache_control?: unknown };
 function wireTools(body: Record<string, unknown>): WireTool[] {
-  assert.ok(Array.isArray(body.tools), 'A successful request must carry a tool menu');
+  if (body.tools === undefined) return [];
+  assert.ok(Array.isArray(body.tools), 'Request tools when present must be an array');
   return body.tools as WireTool[];
 }
 const names = (tools: WireTool[]) => tools.map((tool) => tool.name ?? tool.function?.name);
 
 for (const transport of TRANSPORTS) {
-  for (const arm of ['enabled', 'default', 'without-addedToolNames'] as const) {
+  for (const arm of ['enabled', 'default', 'top-level-redeclaration'] as const) {
     test(`P-D1 ${transport.api} / ${arm}: locked → unlock → sticky third request`, async (t) => {
       const http = await createHttpFixture([
         { type: 'tool', calls: [{ id: 'unlock1', name: LANE_TOOL_REQUEST_TOOL_NAME, arguments: {} }] },
@@ -75,22 +92,21 @@ for (const transport of TRANSPORTS) {
         baseUrl: transport.api === 'anthropic-messages' ? http.baseURL.replace(/\/v1$/, '') : http.baseURL,
         reasoning: false, input: ['text'], contextWindow: 128_000, maxTokens: 64,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        ...(arm === 'default' ? {} : { compat: transport.compat }),
+        ...(arm === 'enabled' ? { compat: transport.compat } : {}),
       };
-      const { locked, unlocked } = toolsForMenu();
+      const { locked, unlocked, added } = toolsForMenu();
+      const addedNames = LANE_CODING_TOOL_NAMES.filter((name) => name !== 'read');
       assert.deepEqual(unlocked.slice(0, locked.length), locked);
-      assert.deepEqual(unlocked.slice(locked.length).map((tool) => tool.name), LANE_CODING_TOOL_NAMES.filter(name => name !== 'read'));
+      assert.deepEqual(added.map((tool) => tool.name), addedNames);
       const context: Context = {
         systemPrompt: 'P-D1 deterministic transport placement fixture.', tools: locked,
         messages: [{ role: 'user', content: 'Unlock coding.', timestamp: 1 }],
       };
       for (let turn = 1; turn <= 3; turn++) {
-        const reply = await transport.streams.stream(model, context, {
+        const reply = await transport.streams.stream(model, normalizeContext(context), {
           apiKey: transport.api === 'openai-codex-responses' ? CODEX_FIXTURE_TOKEN : 'fixture-key',
           transport: 'sse', maxTokens: 64, cacheRetention: 'short', sessionId: 'pd1-loopback',
           signal: AbortSignal.timeout(10_000),
-          // Codex compresses HTTP bodies. The existing fixture consumes JSON;
-          // decode losslessly at its boundary, keeping pi's serialized payload.
           fetch: async (input, init) => {
             const request = new Request(input, init);
             if (request.headers.get('content-encoding') !== 'zstd') return fetch(request);
@@ -107,12 +123,17 @@ for (const transport of TRANSPORTS) {
           const call = reply.content.find((part) => part.type === 'toolCall');
           assert.ok(call?.type === 'toolCall');
           assert.equal(call.name, LANE_TOOL_REQUEST_TOOL_NAME);
-          context.tools = unlocked;
           context.messages.push({
             role: 'toolResult', toolCallId: call.id, toolName: call.name,
             content: [{ type: 'text', text: 'Coding unlocked.' }], isError: false, timestamp: 2,
-            ...(arm === 'without-addedToolNames' ? {} : { addedToolNames: LANE_CODING_TOOL_NAMES.filter(name => name !== 'read') }),
           });
+          if (arm === 'top-level-redeclaration') {
+            context.tools = unlocked;
+          } else {
+            context.messages.push({
+              role: 'system', content: '', toolsAdded: added, timestamp: 2,
+            });
+          }
         } else if (turn === 2) {
           context.messages.push({ role: 'user', content: 'Keep the same tools.', timestamp: 3 });
         }
@@ -121,47 +142,43 @@ for (const transport of TRANSPORTS) {
       const [first, second, third] = http.requests.map((request) => request.body);
       const initial = wireTools(first);
       const expanded = wireTools(second);
-      const deferred = arm === 'enabled' && transport.api !== 'openai-completions';
-      const transcriptDefinitions = deferred && transport.api.endsWith('responses');
-      assert.deepEqual(names(initial), locked.map((tool) => tool.name));
-      if (transport.api === 'anthropic-messages' && !deferred) {
-        // pi places the cache breakpoint on the last immediate tool. With
-        // deferral off it moves to the new tail; report this instead of hiding it.
-        const definitions = (tools: WireTool[]) => tools.map(({ cache_control: _marker, ...tool }) => tool);
-        assert.deepEqual(definitions(expanded.slice(0, initial.length)), definitions(initial));
-        assert.ok(initial.at(-1)?.cache_control);
-        assert.equal(expanded[initial.length - 1].cache_control, undefined);
-        assert.ok(expanded.at(-1)?.cache_control);
-      } else {
-        assert.deepEqual(expanded.slice(0, initial.length), initial, 'Full definitions, flags and order stay stable');
-      }
+      const nativeChanges = arm === 'enabled' && transport.api !== 'openai-completions';
+      const responsesInPlace = nativeChanges && transport.api.endsWith('responses');
+
       assert.deepEqual(wireTools(third), expanded, 'Sticky unlock must not flip the third request menu');
-      assert.deepEqual(names(expanded), (transcriptDefinitions ? locked : unlocked).map((tool) => tool.name));
-      if (transport.api.endsWith('responses')) {
-        const input = second.input as Record<string, unknown>[];
-        const additions = input.filter((item) => item.type === 'additional_tools');
-        assert.equal(additions.length, transcriptDefinitions ? 1 : 0);
-        if (transcriptDefinitions) {
-          assert.deepEqual(names(wireTools(additions[0])), LANE_CODING_TOOL_NAMES.filter(name => name !== 'read'));
-          const additionIndex = input.indexOf(additions[0]);
-          assert.equal(input[additionIndex - 1]?.type, 'function_call_output');
-          assert.deepEqual((third.input as unknown[]).slice(0, input.length), input);
-          assert.equal(third.instructions, first.instructions);
-        }
-      } else if (transport.api === 'anthropic-messages') {
-        assert.equal(expanded.filter((tool) => tool.defer_loading === true).length,
-          deferred ? LANE_CODING_TOOL_NAMES.filter(name => name !== 'read').length : 0);
-        const references = JSON.stringify(second.messages).match(/"type":"tool_reference"/g) ?? [];
-        assert.equal(references.length, deferred ? LANE_CODING_TOOL_NAMES.filter(name => name !== 'read').length : 0);
+
+      if (responsesInPlace) {
+        assert.equal(initial.length, 0);
+        assert.equal(expanded.length, 0);
+        const firstAdditions = (first.input as Record<string, unknown>[]).filter((item) => item.type === 'additional_tools');
+        const secondAdditions = (second.input as Record<string, unknown>[]).filter((item) => item.type === 'additional_tools');
+        assert.equal(firstAdditions.length, 1);
+        assert.deepEqual(names(wireTools(firstAdditions[0]!)), locked.map((tool) => tool.name));
+        assert.equal(secondAdditions.length, 2);
+        assert.deepEqual(names(wireTools(secondAdditions[1]!)), addedNames);
+        assert.deepEqual((third.input as unknown[]).slice(0, (second.input as unknown[]).length), second.input);
+        assert.equal(third.instructions, first.instructions);
+      } else if (transport.api === 'anthropic-messages' && nativeChanges) {
+        assert.deepEqual(names(initial.slice(0, locked.length)), locked.map((tool) => tool.name));
+        assert.deepEqual(expanded, initial, 'Native Anthropic tool_addition keeps top-level tools byte-identical');
+        const additions = JSON.stringify(second.messages).match(/"type":"tool_addition"/g) ?? [];
+        assert.equal(additions.length, addedNames.length);
         assert.deepEqual(second.system, first.system);
       } else {
-        assert.ok(!JSON.stringify(second.messages).includes('additional_tools'));
-        assert.ok(!expanded.some((tool) => tool.defer_loading));
+        assert.deepEqual(names(initial), locked.map((tool) => tool.name));
+        assert.deepEqual(names(expanded), unlocked.map((tool) => tool.name));
+        if (transport.api === 'anthropic-messages') {
+          const definitions = (tools: WireTool[]) => tools.map(({ cache_control: _marker, ...tool }) => tool);
+          assert.deepEqual(definitions(expanded.slice(0, initial.length)), definitions(initial));
+          assert.deepEqual(second.system, first.system);
+        } else {
+          assert.deepEqual(expanded.slice(0, initial.length), initial, 'Full definitions, flags and order stay stable');
+        }
       }
       t.diagnostic(JSON.stringify({ api: transport.api, arm, paidCalls: 0,
         catalogCount: LANE_MODEL_TOOL_CATALOG.length, unlockFixtureCount: 1,
         topLevelCounts: http.requests.map((request) => wireTools(request.body).length),
-        toolArrayBytes: http.requests.map((request) => Buffer.byteLength(JSON.stringify(request.body.tools))),
+        toolArrayBytes: http.requests.map((request) => Buffer.byteLength(JSON.stringify(request.body.tools ?? []))),
       }));
     });
   }

@@ -30,6 +30,20 @@ export function anthropicBaseUrl(baseURL: string): string {
   return /\/v\d+$/i.test(trimmed) ? trimmed : `${trimmed}/v1`;
 }
 
+export function googleGenerativeBaseUrl(baseURL: string): string {
+  const trimmed = (baseURL || 'https://generativelanguage.googleapis.com/v1beta').trim().replace(/\/+$/, '');
+  try {
+    const url = new URL(trimmed);
+    if (!url.pathname || url.pathname === '/') {
+      url.pathname = '/v1beta';
+      return url.toString().replace(/\/+$/, '');
+    }
+  } catch {
+    // Keep the configured value so request/configuration validation remains authoritative.
+  }
+  return trimmed;
+}
+
 /**
  * Catalog connection rules shared by every model call (Agent lane, text tasks, adapter compiler).
  * 协议按行：这一行声明了 `textProtocol` 就走它，没声明 = 连接的协议（高级区手选的那一个）。
@@ -41,7 +55,9 @@ export function vendorModelConnection(vendor: Vendor, model: Model, apiKey: stri
     kind,
     baseURL: kind === 'anthropic'
       ? anthropicBaseUrl((vendor.baseUrlHint || '').trim() || 'https://api.anthropic.com/v1')
-      : resolveSdkBaseUrl(vendor),
+      : kind === 'google-generative-ai'
+        ? googleGenerativeBaseUrl(vendor.baseUrlHint || '')
+        : resolveSdkBaseUrl(vendor),
     apiKey,
     authType: vendor.authType,
     modelId: (model.modelAlias || model.modelKey).trim(),

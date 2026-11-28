@@ -1,4 +1,3 @@
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { createInternalDocumentReadVerifiedInvocationFactory } from '../capabilityCore/verifiedCapabilityInvocation'
@@ -25,7 +24,7 @@ function callTool(
     examples: [], nextAction: 'none', effect, schema: z.object({}),
     execution: { timeoutMs }, execute,
   }])
-  return tool.execute('call', {}, () => undefined, undefined, {} as never, { ...BACKGROUND_CONTEXT, abortSignal: signal })
+  return tool.execute('call', {}, signal, () => undefined)
 }
 
 beforeEach(() => {

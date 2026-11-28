@@ -21,8 +21,7 @@ async function fixture(t: TestContext) {
   }, { trustedSkillRoots: [skill] }));
   const run = async (name: string, args: unknown) => {
     const tool = tools.find((candidate) => candidate.name === name)!;
-    return tool.execute('fixture', args as never, (() => undefined) as never, undefined, {} as never,
-      { abortSignal: new AbortController().signal } as never);
+    return tool.execute('fixture', args as never, new AbortController().signal);
   };
   return { project, skill, outside, run };
 }

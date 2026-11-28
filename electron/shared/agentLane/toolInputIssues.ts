@@ -323,6 +323,175 @@ export function issuesFromTypeBox(errors: readonly TypeBoxLikeError[], args: unk
   return dedupe(out);
 }
 
+// ── 来源二（pi 1.7.0）：`@earendil-works/pi-schema` 的结构化 `ValidationError` ────────
+
+/** `pi-schema@1.7.0` `compile(...).parse(...)` 返回的错误项（零依赖结构子集）。 */
+export type PiSchemaLikeError = Readonly<{
+  path: string;
+  keyword: string;
+  message: string;
+}>;
+
+function schemaAllowedValuesAt(schema: unknown, segments: readonly string[], message: string): string[] {
+  const node = schemaNodeAt(schema, segments) as Record<string, unknown> | undefined;
+  if (node) {
+    if (Array.isArray(node.enum)) return node.enum.map(String);
+    if (Object.prototype.hasOwnProperty.call(node, "const")) return [String(node.const)];
+    const unionValues: string[] = [];
+    for (const branch of [...(Array.isArray(node.anyOf) ? node.anyOf : []), ...(Array.isArray(node.oneOf) ? node.oneOf : [])]) {
+      if (branch && typeof branch === "object" && Object.prototype.hasOwnProperty.call(branch, "const")) {
+        unionValues.push(String((branch as Record<string, unknown>).const));
+      }
+    }
+    if (unionValues.length > 0) return unionValues;
+  }
+  if (segments.length > 0) {
+    const parent = schemaNodeAt(schema, segments.slice(0, -1)) as Record<string, unknown> | undefined;
+    const tagKey = segments[segments.length - 1]!;
+    if (parent) {
+      const tagged: string[] = [];
+      for (const branch of [...(Array.isArray(parent.anyOf) ? parent.anyOf : []), ...(Array.isArray(parent.oneOf) ? parent.oneOf : [])]) {
+        const props = branch && typeof branch === "object" ? (branch as Record<string, unknown>).properties : undefined;
+        const prop = props && typeof props === "object" ? (props as Record<string, unknown>)[tagKey] : undefined;
+        if (prop && typeof prop === "object" && Object.prototype.hasOwnProperty.call(prop, "const")) {
+          tagged.push(String((prop as Record<string, unknown>).const));
+        }
+      }
+      if (tagged.length > 0) return tagged;
+    }
+  }
+  const match = /^expected one of (\[[\s\S]*\])$/.exec(message);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[1]!) as unknown;
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch { /* truncated >20 list; fall through */ }
+  }
+  const single = /^expected (.+)$/.exec(message);
+  if (single) {
+    try { return [String(JSON.parse(single[1]!))]; } catch { return [single[1]!]; }
+  }
+  return [];
+}
+
+function schemaNumberAt(schema: unknown, segments: readonly string[], keyword: string): number | undefined {
+  const node = schemaNodeAt(schema, segments) as Record<string, unknown> | undefined;
+  if (node) {
+    for (const branch of schemaBranches(node as JsonSchemaNode)) {
+      const candidate = (branch as Record<string, unknown>)[keyword];
+      if (typeof candidate === "number") return candidate;
+    }
+  }
+  return undefined;
+}
+
+export function issuesFromPiSchema(errors: readonly PiSchemaLikeError[], args: unknown, schema: unknown): ToolInputIssue[] {
+  const out: ToolInputIssue[] = [];
+  for (const error of errors) {
+    const segments = pointerSegments(error.path);
+    let wrappedNonArrayPrefix: { path: string; receivedType: string; received?: string } | undefined;
+    for (let index = 0; index < segments.length; index += 1) {
+      if (!/^\d+$/.test(segments[index]!)) continue;
+      const parentSegments = segments.slice(0, index);
+      const parentValue = valueAt(args, parentSegments);
+      if (parentValue === undefined || Array.isArray(parentValue)) continue;
+      const parentNode = schemaNodeAt(schema, parentSegments);
+      const expectsArray = parentNode
+        ? schemaBranches(parentNode).some((branch) => branch.type === "array" || (Array.isArray(branch.type) && branch.type.includes("array")))
+        : false;
+      if (expectsArray) {
+        const parentReceived = receivedOf(parentValue);
+        wrappedNonArrayPrefix = {
+          path: joinPath(parentSegments),
+          receivedType: typeNameOf(parentValue),
+          ...(parentReceived ? { received: parentReceived } : {}),
+        };
+        break;
+      }
+    }
+    if (wrappedNonArrayPrefix) {
+      out.push({
+        path: wrappedNonArrayPrefix.path,
+        kind: "wrong_type",
+        expected: "array",
+        receivedType: wrappedNonArrayPrefix.receivedType,
+        ...(wrappedNonArrayPrefix.received ? { received: wrappedNonArrayPrefix.received } : {}),
+      });
+      continue;
+    }
+    const path = joinPath(segments);
+    const value = valueAt(args, segments);
+    const received = receivedOf(value);
+    switch (error.keyword) {
+      case "required":
+      case "dependentRequired":
+        out.push({ path, kind: "missing" });
+        break;
+      case "additionalProperties":
+      case "unevaluatedProperties":
+        if (segments.length > 0) {
+          out.push(unknownFieldIssue(segments.slice(0, -1), segments[segments.length - 1]!, schema));
+        } else {
+          out.push({ path, kind: "invalid", note: error.message });
+        }
+        break;
+      case "enum":
+      case "const": {
+        const allowed = schemaAllowedValuesAt(schema, segments, error.message);
+        const nearest = typeof value === "string" && allowed.length > 0 ? closestKey(value, allowed) : undefined;
+        out.push({ path, kind: "not_allowed", allowed, ...(nearest ? { nearest } : {}), ...(received ? { received } : {}) });
+        break;
+      }
+      case "anyOf":
+      case "oneOf": {
+        if (error.message.startsWith("expected one of ")) {
+          const allowed = schemaAllowedValuesAt(schema, segments, error.message);
+          const nearest = typeof value === "string" && allowed.length > 0 ? closestKey(value, allowed) : undefined;
+          out.push({ path, kind: "not_allowed", allowed, ...(nearest ? { nearest } : {}), ...(received ? { received } : {}) });
+        } else {
+          out.push({ path, kind: "invalid", note: error.message, ...(received ? { received } : {}) });
+        }
+        break;
+      }
+      case "type": {
+        const expected = /^expected (.+), got /.exec(error.message)?.[1] ?? "";
+        out.push({ path, kind: "wrong_type", ...(expected ? { expected } : {}), receivedType: typeNameOf(value), ...(received ? { received } : {}) });
+        break;
+      }
+      case "minItems": {
+        const min = schemaNumberAt(schema, segments, "minItems") ?? (/expected at least (\d+)/.exec(error.message) ? Number(RegExp.$1) : undefined);
+        out.push({ path, kind: "too_few", ...(min !== undefined ? { min } : {}) });
+        break;
+      }
+      case "maxItems": {
+        const max = schemaNumberAt(schema, segments, "maxItems") ?? (/expected at most (\d+)/.exec(error.message) ? Number(RegExp.$1) : undefined);
+        out.push({ path, kind: "too_many", ...(max !== undefined ? { max } : {}) });
+        break;
+      }
+      case "minimum":
+      case "exclusiveMinimum": {
+        const min = schemaNumberAt(schema, segments, error.keyword) ?? (/expected >=? (-?\d+(?:\.\d+)?)/.exec(error.message) ? Number(RegExp.$1) : undefined);
+        out.push({ path, kind: "out_of_range", ...(min !== undefined ? { min } : {}), ...(received ? { received } : {}) });
+        break;
+      }
+      case "maximum":
+      case "exclusiveMaximum": {
+        const max = schemaNumberAt(schema, segments, error.keyword) ?? (/expected <=? (-?\d+(?:\.\d+)?)/.exec(error.message) ? Number(RegExp.$1) : undefined);
+        out.push({ path, kind: "out_of_range", ...(max !== undefined ? { max } : {}), ...(received ? { received } : {}) });
+        break;
+      }
+      case "minLength": {
+        const limit = schemaNumberAt(schema, segments, "minLength") ?? (/expected at least (\d+)/.exec(error.message) ? Number(RegExp.$1) : undefined);
+        out.push(limit === 1 ? { path, kind: "missing", expected: "string" } : { path, kind: "invalid", note: error.message });
+        break;
+      }
+      default:
+        out.push({ path, kind: "invalid", note: error.message, ...(received ? { received } : {}) });
+    }
+  }
+  return dedupe(out);
+}
+
 // ── 来源三：准入层（模型档案的参数事实） ─────────────────────────────────
 
 /** `executionContract.ParameterRejection` 的结构子集（不 import 主进程那一层）。 */

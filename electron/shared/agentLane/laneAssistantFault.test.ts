@@ -41,10 +41,11 @@ describe('laneAssistantFaultOf', () => {
     }
   })
 
-  it('抄自 pi 的两句字面量还在依赖源码里', () => {
+  it('抄自 pi 的断流字面量与宿主溢出回退字面量仍在运行时源码里', () => {
     const completions = readFileSync(resolve('node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js'), 'utf8')
     expect(completions).toContain(`"${PI_STREAM_CUT_MESSAGE}"`)
-    const response = readFileSync(resolve('node_modules/@earendil-works/pi-agent-core/dist/harness/runtime/drive/response.js'), 'utf8')
-    expect(response).toContain(`"${PI_CONTEXT_OVERFLOW_MESSAGE}"`)
+    expect(PI_CONTEXT_OVERFLOW_MESSAGE).toBe('Assistant request exceeded the context window')
+    const hostDrive = readFileSync(resolve('electron/agentLane/laneHostDrive.mts'), 'utf8')
+    expect(hostDrive).toContain('errorMessage: PI_CONTEXT_OVERFLOW_MESSAGE')
   })
 })

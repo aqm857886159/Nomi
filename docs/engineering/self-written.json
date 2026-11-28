@@ -935,11 +935,11 @@
       ],
       "alternativesChecked": [
         {
-          "name": "pi harness 的 before_tool 钩子（只有钩子，没有对话框）",
-          "source": "node_modules/@earendil-works/pi-agent-core/dist/harness/hooks.d.ts:17"
+          "name": "pi-agent-core 的 AgentOptions.beforeToolCall 钩子（只有钩子，没有对话框）",
+          "source": "node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts:16"
         },
         {
-          "name": "pi RPC 的 extension_ui_request / response（属于 AgentSession 栈，harness 不提供）",
+          "name": "pi RPC 的 extension_ui_request / response（属于 CLI AgentSession 栈，底层 Agent 不提供）",
           "source": "node_modules/@earendil-works/pi-coding-agent/docs/rpc.md:1184"
         },
         {
@@ -947,8 +947,8 @@
           "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md"
         }
       ],
-      "whyNotIntegrated": "领域约束：花钱与写画布必须由用户批准，且批准有七种结局（确认 / 拒绝 / 改口 / 停止 / 关窗 / 重启…）要给用户不同的话；pi 的确认只有 yes / no / 取消，harness 层连对话框都没有。形状（按 id 匹配、阻塞到回复、取消是一等结局）已经照 pi 的协议抄了。当前回合要求暂停生成时，Nomi 在审批前禁止单镜和批量生成，草稿编辑照常进行。pi 的 before_tool 提供执行时机，暂停生成与编辑草稿的区分由 Nomi 判定。",
-      "revisitWhen": "pi 的 harness 层提供带结局枚举的待决确认原语时；或 0.24 B（付费卡并进投影）落地后复查是否还有第二份「等」。若框架能把用户的当轮指令与卡片答复绑定到指定工具的暂停状态，复查应用侧是否只需保留生成与草稿编辑的领域判据。"
+      "whyNotIntegrated": "领域约束：花钱与写画布必须由用户批准，且批准有七种结局（确认 / 拒绝 / 改口 / 停止 / 关窗 / 重启…）要给用户不同的话；pi 的确认只有 yes / no / 取消，底层 Agent 层没有对话框。形状（按 id 匹配、阻塞到回复、取消是一等结局）已经照 pi 的协议抄了。当前回合要求暂停生成时，Nomi 在审批前禁止单镜和批量生成，草稿编辑照常进行。",
+      "revisitWhen": "pi-agent-core 提供带结局枚举的待决确认原语时；或付费卡并进投影落地后复查是否还有第二份「等」。"
     },
     {
       "id": "lane-provider-watchdog",
@@ -1028,7 +1028,7 @@
     },
     {
       "id": "lane-tool-input-boundary",
-      "capability": "工具入参失败的唯一边界：TypeBox / Zod / 准入三种报错归一成一份字段清单，给模型的正文（哪个字段、该填什么、一个对的例子）与面板信封同出一处，pi 的立即失败接进连续同错止损",
+      "capability": "工具入参失败的唯一边界：@earendil-works/pi-schema / Zod / 准入三种报错归一成一份字段清单，给模型的正文（哪个字段、该填什么、一个对的例子）与面板信封同出一处，pi 的立即失败接进连续同错止损",
       "status": "justified",
       "paths": [
         "electron/agentLane/laneToolInputBoundary.mts",
@@ -1036,16 +1036,16 @@
       ],
       "alternativesChecked": [
         {
-          "name": "pi 的 validateToolArguments（在用：判通不通过只用这一把尺子；它只给一段文本，并把收到的参数整份回显）",
-          "source": "node_modules/@earendil-works/pi-ai/dist/utils/validation.js:280"
+          "name": "pi-ai 的 validateToolArguments（在用：判通不通过只用这一把尺子；它只抛一段文本，并把收到的参数回显）",
+          "source": "node_modules/@earendil-works/pi-ai/dist/utils/validation.js:18"
         },
         {
-          "name": "pi 的 prepareToolCall：prepareArguments / 校验抛错与 before_tool 拦截都成立即结果、跳过 after_tool（包 prepareArguments 是它留给工具的官方口子）",
-          "source": "node_modules/@earendil-works/pi-agent-core/dist/harness/execution/tools.js:25"
+          "name": "pi-agent-core 的 prepareToolCall：prepareArguments / 校验抛错与 beforeToolCall 拦截都成立即结果、跳过 afterToolCall",
+          "source": "node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js:390"
         },
         {
-          "name": "TypeBox 编译校验器的结构化错误（在用：Compile().Errors() 的 keyword / instancePath / params）",
-          "source": "node_modules/typebox/build/compile/validator.d.mts:22"
+          "name": "@earendil-works/pi-schema 的结构化错误（在用：compile({ formats, coerce: true }).parse() 的 ValidationError[]，彻底替换旧 TypeBox 双轨）",
+          "source": "node_modules/@earendil-works/pi-schema/dist/validator.d.ts:36"
         },
         {
           "name": "Vercel AI SDK repairToolCall / InvalidToolInputError（框架只抛结构化错误，修复与话术由应用自写）",
@@ -1056,8 +1056,8 @@
           "source": "https://modelcontextprotocol.io/seps/1303-input-validation-errors-as-tool-execution-errors.md"
         }
       ],
-      "whyNotIntegrated": "领域约束：第三种报错来源是按镜头的模型参数准入（这个模型收哪些参数、哪一档），错一次再发就可能重付一次生成的钱；pi 和 TypeBox 只管形状，准入层与契约层的说法、计数规则（同错三次就停、用户一句话清零）和面板 zh / en 信封是我们的。判通不通过只用 pi 自己的校验器，结构化错误只用 TypeBox 自己的，这里只写归一与说法。",
-      "revisitWhen": "pi 的校验抛出结构化错误（而不是一段文本），或立即结果也经过 after_tool 时：届时删掉 piVerdict 的文本解析与熔断在入参边界的那一侧"
+      "whyNotIntegrated": "领域约束：第三种报错来源是按镜头的模型参数准入（这个模型收哪些参数、哪一档），错一次再发就可能重付一次生成的钱；pi-schema 只管 JSON Schema 形状，准入层与契约层的说法、计数规则（同错三次就停、用户一句话清零）和面板 zh / en 信封是我们的。判通不通过与结构化错误全部复用 pi-ai / pi-schema 同一把尺子，这里只写归一与说法。",
+      "revisitWhen": "pi-ai 的 validateToolArguments 直接携带 ValidationError[] 抛出，且立即结果也经过 afterToolCall 时"
     },
     {
       "id": "lane-tool-surface",
@@ -1095,7 +1095,7 @@
     },
     {
       "id": "lane-coding-tools",
-      "capability": "pi 自带 coding 工具的接入：路径包容、bash 的 OS 沙箱策略、execute 签名转接",
+      "capability": "pi 自带 coding 工具的接入：路径包容、bash 的 OS 沙箱策略与 Windows PowerShell 策略接线",
       "status": "justified",
       "paths": [
         "electron/agentLane/laneCodingTools.mts",
@@ -1104,7 +1104,7 @@
       ],
       "alternativesChecked": [
         {
-          "name": "pi 的 7 个 coding 工具与 BashOperations 插槽（在用，一个执行器都不自研）",
+          "name": "pi 的 7 个跨平台 coding 工具定义与 BashOperations 插槽（在用，一个执行器都不自研）",
           "source": "electron/agentLane/laneCodingTools.mts:1"
         },
         {
@@ -1112,20 +1112,20 @@
           "source": "electron/agentLane/laneCodingSandbox.mts:1"
         },
         {
-          "name": "pi 的 powershell 工具与 Git Bash / shellPath 的 Windows 方案（尚未接）",
-          "source": "node_modules/@earendil-works/pi-coding-agent/docs/windows.md:1"
+          "name": "pi 1.7.0 的 createPowerShellToolDefinition 与 createLocalPowerShellOperations（已在 win32 接线并强制确认）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/dist/core/tools/powershell.d.ts:1"
         }
       ],
-      "whyNotIntegrated": "只出策略不出执行：沙箱 allowWrite 从项目根 derive、不读用户可编辑配置（领域约束：用户是创作者，可编辑的沙箱配置等于留后门）。Windows 的 PowerShell 工具 pi 有、我们没接，是缺口而不是理由。",
-      "revisitWhen": "Windows 命令沙箱起不来的真因定位后：缺 bash 就接 createPowerShellTool；OS 沙箱起不来则沿用 active:false 降级",
-      "revisitBy": "2026-10-31"
+      "whyNotIntegrated": "只出策略不出执行：沙箱 allowWrite 从项目根 derive、不读用户可编辑配置（领域约束：用户是创作者，可编辑的沙箱配置等于留后门）；Windows 下已接入原生 PowerShell 工具并因不经过 bash OS 沙箱而统一走确认闸。",
+      "revisitWhen": "@anthropic-ai/sandbox-runtime 或 pi 原生支持 Windows PowerShell 进程级沙箱包裹时，将 powershell 并入免逐次强制确认通道"
     },
     {
       "id": "lane-session-io",
-      "capability": "会话落盘与历史读：pi 的 JsonlSessionRepo 之上的权限、原子替换、分页与输入还原",
+      "capability": "会话落盘与历史读：pi 1.7.0 SessionManager v3 之上的 0600 权限、单持有者互斥、v4→v3 无损迁移、分页与输入还原",
       "status": "justified",
       "paths": [
         "electron/agentLane/laneSession.mts",
+        "electron/agentLane/laneSessionV4Migration.mts",
         "electron/agentLane/laneFileSystem.mts",
         "electron/agentLane/laneHistory.mts",
         "electron/agentLane/laneHistoryPage.mts",
@@ -1138,16 +1138,16 @@
       ],
       "alternativesChecked": [
         {
-          "name": "pi 的 JsonlSessionRepo / Session / Branch API（在用）",
-          "source": "electron/agentLane/laneSession.mts:17"
+          "name": "pi 1.7.0 的 SessionManager v3 / buildSessionProjection / appendContextEdit（在用）",
+          "source": "electron/agentLane/laneSession.mts:13"
         },
         {
-          "name": "pi 会话文件不指定 mode（世界可读）",
+          "name": "pi 会话文件不指定 mode（世界可读）且不包含 0.85.1 实验 harness v4 分支迁回 v3",
           "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md"
         }
       ],
-      "whyNotIntegrated": "适配层，不是第二份持久化：会话里是用户的原稿正文，所以文件 0600 / 目录 0700、原子替换由我们注入的 FileSystem 保证（领域约束：隐私承诺）。",
-      "revisitWhen": "pi 的 JsonlSessionRepo 自己默认 0600，或提供注入 mode 的选项时"
+      "whyNotIntegrated": "适配层，不是第二份持久化：会话里是用户的原稿正文，所以文件 0600 / 目录 0700 由我们收紧（领域约束：隐私承诺），且老用户 0.85.1 的 v4 会话文件在首次打开时无损单向升级到 SessionManager v3。",
+      "revisitWhen": "pi 的 SessionManager 默认写 0600 文件权限且存量 v4 迁移窗口结束时"
     },
     {
       "id": "lane-workspace",
@@ -1238,6 +1238,7 @@
       "status": "justified",
       "paths": [
         "electron/agentLane/laneHost.mts",
+        "electron/agentLane/laneHostDrive.mts",
         "electron/agentLane/laneRuntimePort.ts",
         "electron/agentLane/laneIpc.ts",
         "electron/agentLane/laneCommandCodec.ts",

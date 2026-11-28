@@ -10,7 +10,6 @@
 import fs from 'node:fs'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import i18n from '../../src/i18n'
@@ -221,7 +220,7 @@ describe('F-C · 场景 1–4 前序闭合防线对账', () => {
       execute: (_params, { signal }) => registry.execute(invocation, { signal }).then(() => ({ ok: true as const, text: 'ok' })),
     }
     const [tool] = createLaneTools([descriptor])
-    const pending = tool.execute('fc-timeout-call', {}, () => undefined, undefined, {} as never, { ...BACKGROUND_CONTEXT }).catch((err: unknown) => err)
+    const pending = tool.execute('fc-timeout-call', {}, undefined, () => undefined).catch((err: unknown) => err)
     await vi.advanceTimersByTimeAsync(MODEL_TOOL_READ_TIMEOUT_MS_VALUE)
     const settled = await pending
     expect(settled).toBeInstanceOf(Error)

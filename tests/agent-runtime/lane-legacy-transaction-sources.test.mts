@@ -7,7 +7,6 @@ import { stableProjectAgentJson } from '../../electron/shared/legacyAgentJson.js
 import { migrateLaneLegacy } from '../../electron/agentLane/laneLegacyMigration.mjs';
 import { openLaneHistory } from '../../electron/agentLane/laneHistory.mjs';
 import { openLaneSession } from '../../electron/agentLane/laneSession.mjs';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import { createLaneFixture } from './laneFixture.mjs';
 
 const binding = { projectId: 'fixture', immutableProjectUuid: '12345678-1234-4234-8234-123456789abc', projectGeneration: 1 };
@@ -88,7 +87,7 @@ test('reserved migration session refuses a preexisting foreign session without o
   const fx = await createLaneFixture(t, []); const lane = await fx.openLane({ ...fx.options, laneName: 'occupied' });
   const sessionId = lane.sessionId; await lane.close();
   await assert.rejects(() => openLaneSession({ projectDir: fx.projectDir, laneName: 'occupied',
-    createSessionId: '22345678-1234-4234-8234-123456789abc' }, BACKGROUND_CONTEXT), /legacy-target-session-conflict/);
+    createSessionId: '22345678-1234-4234-8234-123456789abc' }), /legacy-target-session-conflict/);
   const cold = await openLaneHistory({ projectDir: fx.projectDir, laneName: 'occupied' });
   try { assert.equal(cold.sessionId, sessionId); } finally { await cold.close(); }
 });

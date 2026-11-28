@@ -16,7 +16,6 @@
 //
 // 模型 schema 只使用通用标准支持的声明；标准外约束保留在 description。
 // laneTools.mts 的 descriptor.schema.safeParse 仍以原 Zod 校验，返回既有结构化错误。
-import type { TSchema } from 'typebox';
 import { z, type ZodTypeAny } from 'zod';
 import { modelFacingBranch } from '../shared/agentCapabilities/jsonArgTolerance.js';
 import {
@@ -243,10 +242,10 @@ export interface ModelVisibleSchemaOptions {
  * `pi-agent-core/dist/types.d.ts:347`），不要去松 schema——松 schema 松的是**所有**调用，
  * 而 `prepareArguments` 只捏合这一次。
  */
-export function toModelVisibleSchema(schema: ZodTypeAny, options: ModelVisibleSchemaOptions): TSchema {
+export function toModelVisibleSchema(schema: ZodTypeAny, options: ModelVisibleSchemaOptions): Record<string, unknown> {
   const json = toPublishedJsonSchema(schema);
   assertModelVisibleSchemaLossless(schema, json, options);
-  return json as unknown as TSchema;
+  return json;
 }
 
 /**

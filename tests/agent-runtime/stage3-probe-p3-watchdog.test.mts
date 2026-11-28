@@ -13,11 +13,10 @@ import assert from 'node:assert/strict';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test } from 'node:test';
 import type { Provider } from '@earendil-works/pi-ai';
-import type { HarnessEvent } from '@earendil-works/pi-agent-core';
 
 import { observeNativeStream } from '../../electron/agentLane/laneStreamObserver.mjs';
 import { createLaneFixture } from './laneFixture.mjs';
-import { PROBE_CONTEXT, openProbeLane } from './stage3ProbeHarness.mjs';
+import { PROBE_CONTEXT, openProbeLane, type ProbeEvent } from './stage3ProbeHarness.mjs';
 
 /** 首字节永不返回：服务器收到请求后**什么都不写**。 */
 const NEVER_FIRST_BYTE = { type: 'deferred' as const, beforeReply: () => new Promise<never>(() => {}) };
@@ -50,7 +49,7 @@ test('P3 ① · today the lane has no watchdog: a stream that never sends its fi
 
 test('P3 ① positive control · the same stalled stream ends within the budget once observeNativeStream is on the provider', async (t) => {
   const fixture = await createLaneFixture(t, [NEVER_FIRST_BYTE, { type: 'text', text: 'Recovered.' }]);
-  const events: HarnessEvent[] = [];
+  const events: ProbeEvent[] = [];
   const probe = await openProbeLane(fixture, fixture.options, { wrapProvider: (provider) => withWatchdog(provider, 300) });
   probe.harness.events.on('retry_scheduled', (event) => { events.push(event); });
   probe.harness.events.on('retry_end', (event) => { events.push(event); });

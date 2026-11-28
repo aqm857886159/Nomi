@@ -24,7 +24,7 @@ export type ModelDeclaration = {
 /** 这几个键是声明；别处只许经 `readModelDeclaration` 读、经初值函数写。 */
 export const MODEL_DECLARATION_KEYS = ["textProtocol", "reasoning", "thinkingLevelMap", "compat", "inputModalities", "requestBodyOverrides"] as const;
 
-const PROTOCOLS = new Set(["openai-compatible", "openai-responses", "anthropic"]);
+const PROTOCOLS = new Set(["openai-compatible", "openai-responses", "anthropic", "google-generative-ai"]);
 const MODALITIES = new Set(["pdf", "audio", "video"]);
 
 function levelMap(value: unknown): Record<string, string | null> | undefined {

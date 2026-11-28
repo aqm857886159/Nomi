@@ -1,260 +1,727 @@
-// Agent lane · 会话落盘（pi 的 `JsonlSessionRepo`，不是我们自己的第二份持久化）
+// Agent lane · 会话落盘（`pi-coding-agent@1.7.0` 的 `SessionManager` v3，不是自研第二份持久化）
 //
-// **为什么这一整个文件只有百来行**：会话的序列化、追加、恢复、分支、版本迁移全部是 pi 的活
-// （R29 登记表 `session-persistence` 那一条）。Nomi 在这里只回答三个问题——
-// 「写到哪儿」「叫什么名字」「谁在持有它」。
-//
-// ⚠️ 探针报告 §3.3 实测的那个坑：`sessionsRoot` **不是**最终目录，`JsonlSessionRepo`
-// 会在它下面按 `cwd` 生成一层 slug 子目录。如果把宿主的绝对路径当 `cwd` 传进去，
-// 用户把项目文件夹改个名，同一个项目就会长出第二个 slug 目录——旧会话还在盘上，
-// 但 `list({cwd})` 按新 cwd 一条都查不到，用户看到的是「我的历史没了」。
-// 所以这里传一个**稳定的、与宿主路径无关的常量**，slug 就跟着稳定。
-import { join, relative, sep } from 'node:path';
-import { readFile, rm } from 'node:fs/promises';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
-import { laneTraceDirectory, writeLaneTrace, writeTraceFile, type LaneTraceTurn } from './laneTrace.mjs';
+// 会话的序列化、追加、恢复、分支树、版本迁移与上下文投影全部交给 pi 的 `SessionManager`
+// （R29 登记表 `session-persistence`）。Nomi 在这里只回答四件事：
+//   1. 写到哪儿（`<project>/.nomi/agent-sessions/--nomi-lane-<name>--/`，不绑宿主绝对路径）；
+//   2. 谁在持有它（进程内同一份 `.jsonl` 只允许一个所有者，防双写损坏，见上游 #8852）；
+//   3. 文件与目录权限（`0o600` / `0o700` fail-closed）；
+//   4. 存量 `0.85.1` v4 JSONL 打开前单向无损升级至 v3（`laneSessionV4Migration.mts`）。
+import { open, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { join, relative, resolve, sep } from 'node:path';
+import type { AgentMessage } from '@earendil-works/pi-agent-core';
+import type { JsonValue, Usage } from '@earendil-works/pi-ai';
+import type {
+  SessionEntry,
+  SessionManager as PiSessionManager,
+  SessionContext as PiSessionContext,
+} from '@earendil-works/pi-coding-agent';
+import type {
+  LaneBranchQuery,
+  LaneEntry,
+  LaneSnapshot,
+} from '../shared/agentLane/laneSnapshotTypes.js';
+import {
+  ensureLaneSessionsRoot,
+  hardenLaneSessionFile,
+  LANE_FILE_MODE,
+  LANE_IDENTITY_ROOT,
+} from './laneFileSystem.mjs';
+import {
+  parseAnyLaneSessionHeader,
+  upgradeV4SessionFileIfNeeded,
+} from './laneSessionV4Migration.mjs';
+import { LANE_TRACE_REDACTIONS_NOTE } from './laneTraceRedaction.mjs';
+import { laneTraceDirectory, LANE_TRACE_NOTE, writeLaneTrace, writeTraceFile, type LaneTraceTurn } from './laneTrace.mjs';
 import { refreshLiveLaneTrace } from './laneTraceRecorder.mjs';
-import { JsonlSessionRepo, type JsonlSessionMetadata } from '@earendil-works/pi-agent-core/harness/session';
-import type { Context } from '@earendil-works/pi-agent-core/harness/context';
-import type { Session } from '@earendil-works/pi-agent-core';
-import { createLaneFileSystem, ensureLaneSessionsRoot, LANE_IDENTITY_ROOT } from './laneFileSystem.mjs';
+
+const LANE_LEAF_POINTER_NOTE = 'nomi.session.leaf';
+const DETACHED_TRACE_NOTES = new Set<string>([LANE_TRACE_NOTE, LANE_TRACE_REDACTIONS_NOTE]);
+
+function isDetachedTraceEntry(entry: SessionEntry): boolean {
+  return entry.type === 'custom' && entry.parentId === null && DETACHED_TRACE_NOTES.has(entry.customType);
+}
+
+function isLeafPointerEntry(entry: SessionEntry): entry is Extract<SessionEntry, { type: 'custom' }> {
+  return entry.type === 'custom' && entry.parentId === null && entry.customType === LANE_LEAF_POINTER_NOTE;
+}
+
+function restorePersistedLeaf(manager: PiSessionManager): void {
+  const entries = manager.getEntries();
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]!;
+    if (isDetachedTraceEntry(entry)) continue;
+    if (isLeafPointerEntry(entry)) {
+      const targetId = entry.data && typeof entry.data === 'object' && 'targetId' in entry.data
+        ? (entry.data as { targetId?: unknown }).targetId
+        : undefined;
+      if (targetId === null) {
+        manager.resetLeaf();
+        return;
+      }
+      if (typeof targetId === 'string' && entries.some((candidate) => candidate.id === targetId)) {
+        manager.branch(targetId);
+        return;
+      }
+      continue;
+    }
+    manager.branch(entry.id);
+    return;
+  }
+  manager.resetLeaf();
+}
+
+interface SessionManagerStatic {
+  create(cwd: string, sessionDir?: string, options?: { id?: string }): PiSessionManager;
+  open(path: string, sessionDir?: string, cwdOverride?: string): PiSessionManager;
+  inMemory(cwd?: string): PiSessionManager;
+}
+
+let cachedSessionManagerClass: Promise<SessionManagerStatic> | undefined;
+function loadSessionManagerClass(): Promise<SessionManagerStatic> {
+  // 直接定位包内 `./core/session-manager.js`，避免在打开项目只读历史路径上拖进 `pi-coding-agent/dist/index.js` CLI 桶。
+  const moduleUrl = new URL('./core/session-manager.js', import.meta.resolve('@earendil-works/pi-coding-agent')).href;
+  return (cachedSessionManagerClass ??= (import(moduleUrl) as Promise<{ SessionManager: SessionManagerStatic }>)
+    .then((mod) => mod.SessionManager));
+}
 
 /**
- * 一条对话的 `cwd`。它只用来生成 slug 目录名与 `list()` 的过滤键，**不是文件系统路径**。
- *
- * 三件事一起写在这一个函数里，因为它们是同一个决定的三面：
- *
- * ① **必须是绝对路径。** `JsonlSessionRepo` 把 cwd 交给 `FileSystem.absolutePath()`
- *    （`repo.js:180`），而我们的 `NodeExecutionEnv` 的 cwd 就是项目目录——传相对串
- *    `'nomi-project'` 会被解析成 `<项目绝对路径>/nomi-project`，slug 目录名里于是带着
- *    项目的完整路径。用户把项目文件夹改个名，`list()` 按新路径算出的 slug 就对不上盘上
- *    那个旧的，历史「消失」——而这正是本文件开头那段注释想避免的事。
- *    「绝对串原样穿过 `path.resolve`」**只在 POSIX 上成立**：Windows 会给它补上项目所在盘符
- *    （`C:\nomi-lane\main`），列表按前缀一条都认不出。所以身份不交给宿主解析——
- *    `createLaneFileSystem` 对 `LANE_IDENTITY_ROOT` 下的串原样返回，那是唯一的解析入口。
- * ② **一条对话一个 cwd。** 「一个项目多条对话」= 多个 `laneName`，每条自己一个 slug 目录
- *    （方案 §2.2 G2）。列表 = `repo.list()` 走一遍目录读表头；删除 = `repo.delete()`。
- *    两样都是 pi 自己的能力，我们不另记一份对话索引（R29：框架给的不许再造一份）。
- * ③ **laneName 的字符集由 `laneCommandCodec` 守。** 走到这里的名字已经不含 `/`、`\`、`:`，
- *    所以 pi 的 slug 编码（把这三个字符换成 `-`）不会把两条不同的对话折成同一个目录。
+ * 一条对话的稳定身份串（写进表头 `cwd` 并决定目录 slug，不是宿主文件系统路径）。
+ * 用户重命名或移动项目文件夹后，列表与重开仍认出同一条历史。
  */
 export function laneSessionCwd(laneName: string): string {
   return `${LANE_IDENTITY_ROOT}${laneName}`;
 }
 
-
-/** 会话根目录。跟着项目走，删项目即删历史——这是本地优先该有的样子。 */
+/** 会话根目录。跟着项目走，删项目即删历史。 */
 export function laneSessionsRoot(projectDir: string): string {
   return join(projectDir, '.nomi', 'agent-sessions');
 }
 
-/**
- * 一个项目 = 一个 `JsonlSessionRepo` 实例，**进程内共享**。
- *
- * 这不是缓存优化，是一条正确性不变量。上游 [#8852](https://github.com/earendil-works/pi/issues/8852)：
- * **同一个进程里把同一条 JSONL 会话打开两次，会写出重复的 `seq` 并把文件写坏。**
- * pi 自己挡住了这件事——`JsonlSessionRepo` 里有一张 `openSessions` 表，重复 `open()`
- * 直接抛「Session is already open」（`session/jsonl/repo.js:86-87`）。
- *
- * 但那张表是**每个 repo 实例一份的**。每次开 lane 都 `new JsonlSessionRepo(...)`，
- * 等于给每个打开者发一张只有自己的名单，pi 的这道防线就被绕过去了——而 Nomi 是
- * Electron 多窗口：一个项目被两个窗口打开是**日常操作**，不是边缘情况。
- *
- * 所以正确的修法不是我们再写一把锁（那是 R28 说的「自研一份框架已有的能力」，
- * 而且 `check:framework-boundary` 已经把 `electron/agentLane/` 划进 `session-persistence`
- * 的 scope，写了当场红），而是**让 pi 的名单只有一张**。
- */
-const openRepos = new Map<string, { repo: JsonlSessionRepo; holders: number }>();
-
-async function acquireRepo(projectDir: string): Promise<JsonlSessionRepo> {
-  const root = laneSessionsRoot(projectDir);
-  const existing = openRepos.get(root);
-  if (existing) {
-    existing.holders += 1;
-    return existing.repo;
-  }
-  await ensureLaneSessionsRoot(root);
-  const repo = new JsonlSessionRepo({ fileSystem: createLaneFileSystem(projectDir), sessionsRoot: root });
-  openRepos.set(root, { repo, holders: 1 });
-  return repo;
+/** 与 pi 默认会话目录同构的稳定 slug（`--nomi-lane-<name>--`），不随宿主盘符变化。 */
+export function laneSessionSlug(cwd: string): string {
+  return `--${cwd.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')}--`;
 }
 
-async function releaseRepo(projectDir: string, context: Context): Promise<void> {
+export function laneSessionDirectory(projectDir: string, laneName: string): string {
+  return join(laneSessionsRoot(projectDir), laneSessionSlug(laneSessionCwd(laneName)));
+}
+
+export interface LaneSessionMetadata {
+  readonly id: string;
+  readonly cwd: string;
+  readonly path: string;
+  readonly createdAt: number;
+  readonly modifiedAt: number;
+}
+
+export interface LaneSessionSummary {
+  laneName: string;
+  sessionId: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+const HEADER_READ_BYTES = 4_096;
+
+async function readFirstLine(filePath: string): Promise<string | undefined> {
+  let handle;
+  try {
+    handle = await open(filePath, 'r');
+    const buffer = Buffer.allocUnsafe(HEADER_READ_BYTES);
+    const { bytesRead } = await handle.read(buffer, 0, HEADER_READ_BYTES, 0);
+    if (bytesRead === 0) return undefined;
+    const chunk = buffer.subarray(0, bytesRead).toString('utf8');
+    const newline = chunk.indexOf('\n');
+    return newline === -1 ? chunk : chunk.slice(0, newline);
+  } catch {
+    return undefined;
+  } finally {
+    await handle?.close().catch(() => undefined);
+  }
+}
+
+async function scanSessionDirectory(directory: string): Promise<LaneSessionMetadata[]> {
+  let names: string[];
+  try {
+    names = await readdir(directory);
+  } catch {
+    return [];
+  }
+  const found: LaneSessionMetadata[] = [];
+  for (const name of names) {
+    if (!name.endsWith('.jsonl')) continue;
+    const filePath = join(directory, name);
+    const firstLine = await readFirstLine(filePath);
+    if (!firstLine) continue;
+    const header = parseAnyLaneSessionHeader(firstLine);
+    if (!header) continue;
+    try {
+      const info = await stat(filePath);
+      found.push({
+        id: header.id,
+        cwd: header.cwd,
+        path: resolve(filePath),
+        createdAt: header.createdAt,
+        modifiedAt: Math.trunc(info.mtimeMs),
+      });
+    } catch {
+      // Skip concurrently removed files.
+    }
+  }
+  return found;
+}
+
+async function listAllSessionMetadata(projectDir: string, laneName?: string): Promise<LaneSessionMetadata[]> {
+  if (laneName !== undefined) {
+    return scanSessionDirectory(laneSessionDirectory(projectDir, laneName));
+  }
   const root = laneSessionsRoot(projectDir);
-  const holder = openRepos.get(root);
-  if (!holder) return;
-  holder.holders -= 1;
-  if (holder.holders > 0) return;
-  openRepos.delete(root);
-  await holder.repo.close(context);
+  let subdirs;
+  try {
+    subdirs = await readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const all: LaneSessionMetadata[] = [];
+  for (const entry of subdirs) {
+    if (!entry.isDirectory()) continue;
+    all.push(...(await scanSessionDirectory(join(root, entry.name))));
+  }
+  return all;
+}
+
+function emptyUsage(): Usage {
+  return {
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 0,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  };
+}
+
+function addUsage(target: Usage, delta: Usage | undefined): void {
+  if (!delta) return;
+  target.input += delta.input ?? 0;
+  target.output += delta.output ?? 0;
+  target.cacheRead += delta.cacheRead ?? 0;
+  target.cacheWrite += delta.cacheWrite ?? 0;
+  target.totalTokens += delta.totalTokens ?? 0;
+  if (delta.cost) {
+    target.cost.input += delta.cost.input ?? 0;
+    target.cost.output += delta.cost.output ?? 0;
+    target.cost.cacheRead += delta.cost.cacheRead ?? 0;
+    target.cost.cacheWrite += delta.cost.cacheWrite ?? 0;
+    target.cost.total += delta.cost.total ?? 0;
+  }
+}
+
+function toTimestampMs(iso: string): number {
+  const parsed = Date.parse(iso);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toLaneEntry(entry: SessionEntry, seq: number): LaneEntry {
+  const base = {
+    id: entry.id,
+    parentId: entry.parentId,
+    seq,
+    timestamp: toTimestampMs(entry.timestamp),
+  };
+  switch (entry.type) {
+    case 'message':
+      return { ...base, type: 'message', message: entry.message as AgentMessage };
+    case 'custom':
+      return { ...base, type: 'custom', customType: entry.customType, ...(entry.data === undefined ? {} : { data: entry.data as JsonValue }) };
+    case 'compaction':
+      return {
+        ...base,
+        type: 'compaction',
+        summary: entry.summary,
+        firstKeptEntryId: entry.firstKeptEntryId,
+        tokensBefore: entry.tokensBefore,
+        ...(entry.details === undefined ? {} : { details: entry.details as JsonValue }),
+        ...(entry.usage ? { usage: entry.usage } : {}),
+        ...(entry.fromHook === undefined ? {} : { fromHook: entry.fromHook }),
+      };
+    case 'branch_summary':
+      return {
+        ...base,
+        type: 'branch_summary',
+        fromId: entry.fromId,
+        summary: entry.summary,
+        ...(entry.details === undefined ? {} : { details: entry.details as JsonValue }),
+        ...(entry.usage ? { usage: entry.usage } : {}),
+        ...(entry.fromHook === undefined ? {} : { fromHook: entry.fromHook }),
+      };
+    case 'context_edit':
+      return { ...base, type: 'context_edit', targetId: entry.targetId, replacement: entry.replacement };
+    case 'model_change':
+      return { ...base, type: 'model_change', provider: entry.provider, modelId: entry.modelId };
+    case 'thinking_level_change':
+      return { ...base, type: 'thinking_level_change', thinkingLevel: entry.thinkingLevel };
+    case 'usage':
+      return {
+        ...base,
+        type: 'usage',
+        kind: entry.kind,
+        provider: entry.provider,
+        model: entry.model,
+        usage: entry.usage,
+        ...(entry.note === undefined ? {} : { note: entry.note }),
+      };
+    case 'label':
+      return { ...base, type: 'label', targetId: entry.targetId, label: entry.label };
+    case 'session_info':
+      return { ...base, type: 'session_info', ...(entry.name === undefined ? {} : { name: entry.name }) };
+    case 'custom_message':
+      return {
+        ...base,
+        type: 'message',
+        message: {
+          role: 'custom',
+          customType: entry.customType,
+          content: entry.content,
+          display: entry.display,
+          ...(entry.details === undefined ? {} : { details: entry.details }),
+          timestamp: base.timestamp,
+        } as AgentMessage,
+      };
+  }
+}
+
+export interface LaneSession {
+  readonly metadata: LaneSessionMetadata;
+  readonly manager: PiSessionManager;
+  entries(): LaneEntry[];
+  branchEntries(fromId?: string | null): LaneEntry[];
+  activeTranscript(): LaneEntry[];
+  findBranchEntries(query?: LaneBranchQuery): LaneEntry[];
+  getEntry(id: string): LaneEntry | undefined;
+  getEntries(ids: readonly string[]): Map<string, LaneEntry>;
+  getTipId(): string | null;
+  getStats(): LaneSnapshot['stats'];
+  buildSessionContext(): PiSessionContext;
+  branchTo(parentId: string | null): void;
+  appendMessage(message: AgentMessage): Promise<string>;
+  appendCustomEntry(customType: string, data?: JsonValue): Promise<string>;
+  appendDetachedCustomEntry(customType: string, data?: JsonValue): Promise<string>;
+  appendCompaction(
+    summary: string,
+    firstKeptEntryId: string,
+    tokensBefore: number,
+    details?: JsonValue,
+    fromHook?: boolean,
+    usage?: Usage,
+  ): Promise<string>;
+  appendContextEdit(targetId: string, replacement: { content: Array<{ type: 'text'; text: string }> } | null): Promise<string>;
+  appendModelChange(provider: string, modelId: string): Promise<string>;
+  appendThinkingLevelChange(thinkingLevel: string): Promise<string>;
+  close(): Promise<void>;
+}
+
+function createLaneSessionAdapter(manager: PiSessionManager, metadata: LaneSessionMetadata, onClose: () => void): LaneSession {
+  let closed = false;
+  const assertOpen = () => {
+    if (closed) throw new Error('Closed');
+  };
+
+  const indexedEntries = (): { list: LaneEntry[]; byId: Map<string, LaneEntry> } => {
+    const raw = manager.getEntries();
+    const list: LaneEntry[] = [];
+    const byId = new Map<string, LaneEntry>();
+    let seq = 0;
+    for (let index = 0; index < raw.length; index += 1) {
+      const item = raw[index]!;
+      if (isLeafPointerEntry(item)) continue;
+      seq += 1;
+      const converted = toLaneEntry(item, seq);
+      list.push(converted);
+      byId.set(converted.id, converted);
+    }
+    return { list, byId };
+  };
+
+  const branchEntries = (fromId?: string | null): LaneEntry[] => {
+    if (fromId === null) return [];
+    const { byId } = indexedEntries();
+    const rawBranch = fromId === undefined ? manager.getBranch() : manager.getBranch(fromId);
+    return rawBranch.map((entry) => byId.get(entry.id)!).filter(Boolean);
+  };
+
+  const activeTranscript = (): LaneEntry[] => {
+    const branch = branchEntries();
+    let latestCompactionIndex = -1;
+    for (let index = branch.length - 1; index >= 0; index -= 1) {
+      if (branch[index]!.type === 'compaction') {
+        latestCompactionIndex = index;
+        break;
+      }
+    }
+    if (latestCompactionIndex === -1) return branch;
+    const compaction = branch[latestCompactionIndex]!;
+    if (compaction.type !== 'compaction') return branch;
+    const keptIndex = compaction.firstKeptEntryId
+      ? branch.findIndex((entry, idx) => idx < latestCompactionIndex && entry.id === compaction.firstKeptEntryId)
+      : -1;
+    if (keptIndex === -1) return branch.slice(latestCompactionIndex);
+    return [
+      compaction,
+      ...branch.slice(keptIndex, latestCompactionIndex),
+      ...branch.slice(latestCompactionIndex + 1),
+    ];
+  };
+
+  const findBranchEntries = (query: LaneBranchQuery = {}): LaneEntry[] => {
+    const tip = query.start === undefined ? manager.getLeafId() : query.start;
+    if (!tip) return [];
+    const branch = branchEntries(tip);
+    const newestFirst = query.order === 'newestFirst';
+    const ordered = newestFirst ? [...branch].reverse() : branch;
+    const out: LaneEntry[] = [];
+    for (const entry of ordered) {
+      if (query.cursor !== undefined) {
+        if (newestFirst ? entry.seq >= query.cursor.seq : entry.seq <= query.cursor.seq) continue;
+      }
+      const matchesFilter = (query.type === undefined || entry.type === query.type)
+        && (query.customType === undefined || (entry.type === 'custom' && entry.customType === query.customType));
+      if (matchesFilter) {
+        out.push(entry);
+      }
+      if (query.stopAtId !== undefined && entry.id === query.stopAtId) break;
+      if (query.stopAtType !== undefined && entry.type === query.stopAtType) break;
+      if (query.limit !== undefined && out.length >= query.limit) break;
+    }
+    return out;
+  };
+
+  const harden = async (): Promise<void> => {
+    if (!metadata.path) return;
+    await hardenLaneSessionFile(metadata.path);
+  };
+
+  return {
+    metadata,
+    manager,
+    entries: () => indexedEntries().list,
+    branchEntries,
+    activeTranscript,
+    findBranchEntries,
+    getEntry: (id) => indexedEntries().byId.get(id),
+    getEntries: (ids) => {
+      const { byId } = indexedEntries();
+      const result = new Map<string, LaneEntry>();
+      for (const id of ids) {
+        const entry = byId.get(id);
+        if (entry) result.set(id, entry);
+      }
+      return result;
+    },
+    getTipId: () => manager.getLeafId(),
+    getStats: () => {
+      const { list } = indexedEntries();
+      const usage = emptyUsage();
+      let messageCount = 0;
+      for (const entry of list) {
+        if (entry.type === 'message') {
+          messageCount += 1;
+          if (entry.message.role === 'assistant') addUsage(usage, entry.message.usage);
+        } else if ((entry.type === 'compaction' || entry.type === 'branch_summary') && entry.usage) {
+          addUsage(usage, entry.usage);
+        } else if (entry.type === 'usage') {
+          addUsage(usage, entry.usage);
+        }
+      }
+      return { messageCount, usage };
+    },
+    buildSessionContext: () => manager.buildSessionContext(),
+    branchTo: (parentId) => {
+      assertOpen();
+      if (manager.isPersisted()) {
+        manager.resetLeaf();
+        manager.appendCustomEntry(LANE_LEAF_POINTER_NOTE, { targetId: parentId });
+      }
+      if (parentId === null) manager.resetLeaf();
+      else manager.branch(parentId);
+    },
+    appendMessage: async (message) => {
+      assertOpen();
+      const id = manager.appendMessage(message as Parameters<PiSessionManager['appendMessage']>[0]);
+      await harden();
+      return id;
+    },
+    appendCustomEntry: async (customType, data) => {
+      assertOpen();
+      const id = manager.appendCustomEntry(customType, data);
+      await harden();
+      return id;
+    },
+    appendDetachedCustomEntry: async (customType, data) => {
+      assertOpen();
+      const prevLeaf = manager.getLeafId();
+      manager.resetLeaf();
+      const id = manager.appendCustomEntry(customType, data);
+      if (prevLeaf === null) manager.resetLeaf();
+      else manager.branch(prevLeaf);
+      await harden();
+      return id;
+    },
+    appendCompaction: async (summary, firstKeptEntryId, tokensBefore, details, fromHook, usage) => {
+      assertOpen();
+      const id = manager.appendCompaction(summary, firstKeptEntryId, tokensBefore, details, fromHook, usage);
+      await harden();
+      return id;
+    },
+    appendContextEdit: async (targetId, replacement) => {
+      assertOpen();
+      const id = manager.appendContextEdit(targetId, replacement);
+      await harden();
+      return id;
+    },
+    appendModelChange: async (provider, modelId) => {
+      assertOpen();
+      const id = manager.appendModelChange(provider, modelId);
+      await harden();
+      return id;
+    },
+    appendThinkingLevelChange: async (thinkingLevel) => {
+      assertOpen();
+      const id = manager.appendThinkingLevelChange(thinkingLevel);
+      await harden();
+      return id;
+    },
+    close: async () => {
+      if (closed) return;
+      closed = true;
+      onClose();
+    },
+  };
+}
+
+/**
+ * 进程内单持有者登记（上游 #8852：同一条 JSONL 会话在同进程内被打开两次会交错写坏文件）。
+ * 同时锁会话文件路径与正在打开中的 `(projectDir, laneName)`，并发打开同一条对话当场拒之门外。
+ */
+const openSessionPaths = new Set<string>();
+const openingLaneKeys = new Set<string>();
+
+function alreadyOpenError(target: string): Error {
+  return new Error(
+    `Nomi lane session ${target} already has an owner in this process. `
+    + 'One session has exactly one owner: opening the same JSONL twice writes duplicate entries '
+    + 'and corrupts the transcript (upstream pi #8852).',
+  );
 }
 
 export interface LaneSessionOpen {
-  session: Session<JsonlSessionMetadata>
-  sessionId: string
-  /** 交还这个项目的 repo 持有权。最后一个持有者走了才真的关。 */
-  release(context: Context): Promise<void>
-}
-
-/** 盘上一条对话。`laneName` 从 `cwd` 反解出来——真相是文件表头，不是我们另记的索引。 */
-export interface LaneSessionSummary {
-  laneName: string
-  sessionId: string
-  createdAt: number
-  updatedAt: number
+  session: LaneSession;
+  sessionId: string;
+  release(): Promise<void>;
 }
 
 /**
  * 这个项目盘上有哪些对话，最近更新的在前。
- *
- * 不带 `cwd` 的 `repo.list()` 会走遍 sessionsRoot 下每个 slug 目录、只读每个文件的**表头**
- * （`repo.js:listDirectory` → `readTextLines({maxLines:1})`），所以列一百条对话读的是一百行，
- * 不是一百份转录。这就是不另建索引文件的底气：索引会和真相分叉，表头不会。
- *
- * 一条 lane 理论上只该有一个会话（`openLaneSession` 按 lane 复用）。真出现两个（比如
- * 一次崩溃留下的半截文件），取**最新**的那个并把旧的留在盘上——静默删掉用户的转录，
- * 比多留一个文件危险得多。
+ * 只读每个 `.jsonl` 文件首行表头（v3 与 v4 都认），绝不创建目录或写盘（冷开零写入）。
  */
-export async function listLaneSessions(projectDir: string, context: Context): Promise<LaneSessionSummary[]> {
-  const repo = await acquireRepo(projectDir);
-  try {
-    const all = await repo.list(undefined, context);
-    const byLane = new Map<string, LaneSessionSummary>();
-    for (const metadata of all) {
-      if (!metadata.cwd.startsWith(LANE_IDENTITY_ROOT)) continue;
-      const laneName = metadata.cwd.slice(LANE_IDENTITY_ROOT.length);
-      if (!laneName) continue;
-      const summary: LaneSessionSummary = {
-        laneName, sessionId: metadata.id, createdAt: metadata.createdAt, updatedAt: metadata.modifiedAt,
-      };
-      const existing = byLane.get(laneName);
-      if (!existing || existing.createdAt < summary.createdAt) byLane.set(laneName, summary);
+export async function listLaneSessions(projectDir: string): Promise<LaneSessionSummary[]> {
+  const all = await listAllSessionMetadata(projectDir);
+  const byLane = new Map<string, LaneSessionSummary>();
+  for (const metadata of all) {
+    if (!metadata.cwd.startsWith(LANE_IDENTITY_ROOT)) continue;
+    const laneName = metadata.cwd.slice(LANE_IDENTITY_ROOT.length);
+    if (!laneName) continue;
+    const summary: LaneSessionSummary = {
+      laneName,
+      sessionId: metadata.id,
+      createdAt: metadata.createdAt,
+      updatedAt: metadata.modifiedAt,
+    };
+    const existing = byLane.get(laneName);
+    if (!existing || existing.createdAt < summary.createdAt) byLane.set(laneName, summary);
+  }
+  return [...byLane.values()].sort((left, right) => right.updatedAt - left.updatedAt
+    || left.laneName.localeCompare(right.laneName));
+}
+
+/** 删掉一条对话的落盘转录与派生轨迹；若该会话正被持有则直接抛错。 */
+export async function deleteLaneSession(projectDir: string, laneName: string): Promise<boolean> {
+  const known = await listAllSessionMetadata(projectDir, laneName);
+  if (known.length === 0) return false;
+  for (const metadata of known) {
+    if (openSessionPaths.has(metadata.path)) {
+      throw alreadyOpenError(metadata.id);
     }
-    return [...byLane.values()].sort((left, right) => right.updatedAt - left.updatedAt
-      || left.laneName.localeCompare(right.laneName));
+  }
+  for (const metadata of known) {
+    await rm(metadata.path, { force: true });
+    await rm(laneTraceDirectory(metadata), { recursive: true, force: true });
+  }
+  return true;
+}
+
+async function openExistingMetadata(metadata: LaneSessionMetadata, laneName: string): Promise<LaneSessionOpen> {
+  if (openSessionPaths.has(metadata.path)) {
+    throw alreadyOpenError(metadata.id);
+  }
+  openSessionPaths.add(metadata.path);
+  let transferred = false;
+  const releaseOwner = () => {
+    openSessionPaths.delete(metadata.path);
+  };
+  try {
+    await upgradeV4SessionFileIfNeeded(metadata.path, laneName);
+    const SessionManager = await loadSessionManagerClass();
+    const manager = SessionManager.open(metadata.path, join(metadata.path, '..'), metadata.cwd);
+    restorePersistedLeaf(manager);
+    const session = createLaneSessionAdapter(manager, metadata, releaseOwner);
+    transferred = true;
+    return {
+      session,
+      sessionId: metadata.id,
+      release: async () => { await session.close(); },
+    };
   } finally {
-    await releaseRepo(projectDir, context);
+    if (!transferred) releaseOwner();
   }
 }
 
-/**
- * 删掉一条对话的落盘转录。**这一条只删这一条 lane 的文件**，不碰目录里别的东西。
- *
- * pi 的 `repo.delete()` 对一条**还开着**的会话直接抛（`repo.js:113`）——那正是我们要的：
- * 删一条正在写的对话会留下一个半截文件，而调用方本来就该先切走再删。
- */
-export async function deleteLaneSession(projectDir: string, laneName: string, context: Context): Promise<boolean> {
-  const repo = await acquireRepo(projectDir);
+async function createNewSession(projectDir: string, laneName: string, explicitId?: string): Promise<LaneSessionOpen> {
+  const root = laneSessionsRoot(projectDir);
+  const dir = laneSessionDirectory(projectDir, laneName);
+  const cwd = laneSessionCwd(laneName);
+  await ensureLaneSessionsRoot(root);
+  await ensureLaneSessionsRoot(dir);
+  const SessionManager = await loadSessionManagerClass();
+  const manager = SessionManager.create(cwd, dir, explicitId ? { id: explicitId } : undefined);
+  const rawFile = manager.getSessionFile();
+  if (!rawFile) throw new Error('SessionManager did not assign a session file path');
+  const filePath = resolve(rawFile);
+  if (openSessionPaths.has(filePath)) {
+    throw alreadyOpenError(manager.getSessionId());
+  }
+  openSessionPaths.add(filePath);
+  let transferred = false;
+  const releaseOwner = () => {
+    openSessionPaths.delete(filePath);
+  };
   try {
-    const cwd = laneSessionCwd(laneName);
-    const known = await repo.list({ cwd }, context);
-    if (known.length === 0) return false;
-    for (const metadata of known) {
-      await repo.delete(metadata, context);
-      await rm(laneTraceDirectory(metadata), { recursive: true, force: true });
-    }
-    return true;
+    const header = manager.getHeader();
+    if (!header) throw new Error('SessionManager did not initialize a session header');
+    // 以 `0o600` 原子建好首行表头并交给 `setSessionFile` 激活 `flushed = true`：
+    //   1. 新项目第一次打开后列表与按 sessionId 重开立即可见（与 0.85.1 行为完全一致）；
+    //   2. `nomi.input` 自定义 role 与纯 custom 笔记无需等首条 `user`/`assistant` 就能落盘；
+    //   3. 文件从诞生起即为 `0o600`，不存在先 `0o644` 再 chmod 的竞争窗口。
+    await writeFile(filePath, `${JSON.stringify(header)}\n`, { mode: LANE_FILE_MODE, flag: 'wx' });
+    await hardenLaneSessionFile(filePath);
+    manager.setSessionFile(filePath);
+    const info = await stat(filePath);
+    const metadata: LaneSessionMetadata = {
+      id: manager.getSessionId(),
+      cwd,
+      path: filePath,
+      createdAt: toTimestampMs(header.timestamp),
+      modifiedAt: Math.trunc(info.mtimeMs),
+    };
+    const session = createLaneSessionAdapter(manager, metadata, releaseOwner);
+    transferred = true;
+    return {
+      session,
+      sessionId: metadata.id,
+      release: async () => { await session.close(); },
+    };
   } finally {
-    await releaseRepo(projectDir, context);
+    if (!transferred) releaseOwner();
   }
 }
 
-/**
- * 打开（或新建）一条 lane 的会话。
- *
- * · 给了 `sessionId` 就必须找得到——**找不到就抛**，不静默新建一条。
- *   静默新建的后果是用户点进一条历史对话、看到一片空白，而系统认为一切正常。
- * · 没给 `sessionId`：这条 lane 盘上已经有会话就**接着它**，没有才新建。
- *   「按名字打开同一条对话」是多 lane 的全部意义——每次开都新建的话，
- *   对话列表里同一个名字会长出一串空壳，而用户以为他点开的是昨天那条。
- */
 export async function openLaneSession(
-  options: { projectDir: string; laneName?: string; sessionId?: string; createSessionId?: string }, context: Context,
+  options: { projectDir: string; laneName?: string; sessionId?: string; createSessionId?: string },
 ): Promise<LaneSessionOpen> {
-  const repo = await acquireRepo(options.projectDir);
-  const release = (releaseContext: Context) => releaseRepo(options.projectDir, releaseContext);
-  const cwd = laneSessionCwd(options.laneName ?? 'main');
+  const laneName = options.laneName ?? 'main';
+  const laneKey = `${resolve(options.projectDir)}\u0000${laneName}`;
+  if (openingLaneKeys.has(laneKey)) {
+    throw alreadyOpenError(options.sessionId ?? `"${laneName}"`);
+  }
+  openingLaneKeys.add(laneKey);
   try {
-    const known = await repo.list({ cwd }, context);
+    const known = await listAllSessionMetadata(options.projectDir, laneName);
     if (options.createSessionId !== undefined) {
-      if (options.sessionId !== undefined || known.length > 1
-        || (known.length === 1 && known[0].id !== options.createSessionId)) throw new Error('legacy-target-session-conflict');
-      const session = known[0] ? await repo.open(known[0], context)
-        : await repo.create({ cwd, id: options.createSessionId }, context);
-      return { session, sessionId: session.metadata.id, release };
+      if (
+        options.sessionId !== undefined
+        || known.length > 1
+        || (known.length === 1 && known[0]!.id !== options.createSessionId)
+      ) {
+        throw new Error('legacy-target-session-conflict');
+      }
+      return known[0]
+        ? await openExistingMetadata(known[0], laneName)
+        : await createNewSession(options.projectDir, laneName, options.createSessionId);
     }
     if (options.sessionId === undefined) {
-      // 同一条 lane 下有多份时取最新的那份（见 `listLaneSessions` 的同一条裁决）。
-      const newest = known.reduce<JsonlSessionMetadata | undefined>(
-        (best, candidate) => (best && best.createdAt >= candidate.createdAt ? best : candidate), undefined);
-      const session = newest ? await repo.open(newest, context) : await repo.create({ cwd }, context);
-      return { session, sessionId: session.metadata.id, release };
+      const newest = known.reduce<LaneSessionMetadata | undefined>(
+        (best, candidate) => (best && best.createdAt >= candidate.createdAt ? best : candidate),
+        undefined,
+      );
+      return newest
+        ? await openExistingMetadata(newest, laneName)
+        : await createNewSession(options.projectDir, laneName);
     }
     const metadata = known.find((candidate) => candidate.id === options.sessionId);
     if (!metadata) {
       throw new Error(`Nomi lane session ${options.sessionId} is not on disk under ${laneSessionsRoot(options.projectDir)}`);
     }
-    const session = await repo.open(metadata, context);
-    return { session, sessionId: metadata.id, release };
-  } catch (cause) {
-    await release(context);
-    // pi 的那句「Session is already open」是对的，但它说不出**为什么这件事致命**。
-    // 补一句，因为读到它的人下一步要判断的是「换个窗口打开」还是「文件坏了」。
-    if (cause instanceof Error && /already open/i.test(cause.message)) {
-      throw new Error(
-        `Nomi lane session ${options.sessionId ?? `"${options.laneName ?? 'main'}"`} already has an owner in this process. `
-        + 'One session has exactly one owner: opening the same JSONL twice writes duplicate seq numbers '
-        + 'and corrupts the transcript (upstream pi #8852).',
-        { cause },
-      );
-    }
-    throw cause;
+    return await openExistingMetadata(metadata, laneName);
+  } finally {
+    openingLaneKeys.delete(laneKey);
   }
 }
 
-/** One reader of the derived trace.jsonl; both the index summary and the feedback bundle use it. */
 async function readTraceRows(directory: string): Promise<LaneTraceTurn[]> {
-  return (await readFile(join(directory, 'trace.jsonl'), 'utf8')).trim().split('\n').filter(Boolean)
-    .map(line => JSON.parse(line) as LaneTraceTurn);
+  return (await readFile(join(directory, 'trace.jsonl'), 'utf8'))
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as LaneTraceTurn);
 }
 
-/**
- * One conversation's per-turn trace, rebuilt if stale. This is the feedback bundle's and the
- * trajectory upload's only source of turns: the field allowlist that decides what may leave the
- * machine lives in `electron/telemetry/trajectoryProjection.ts`, never here — this side stays the
- * complete local view so the user can still read his own manuscript in trace.md.
- */
 export async function readLaneTraceTurns(projectDir: string, laneName: string): Promise<LaneTraceTurn[]> {
   return readTraceRows(await openLaneTraceDirectory(projectDir, laneName));
 }
 
-/** Resolve from pi metadata, never from a renderer-supplied filesystem path. */
+/** Resolve from pi session headers on disk, never from a renderer-supplied filesystem path. */
 export async function openLaneTraceDirectory(projectDir: string, laneName?: string): Promise<string> {
-  const context = BACKGROUND_CONTEXT;
-  const repo = await acquireRepo(projectDir);
-  try {
-    const all = await repo.list(laneName === undefined ? undefined : { cwd: laneSessionCwd(laneName) }, context);
-    const known = all.filter(item => item.cwd.startsWith(LANE_IDENTITY_ROOT));
-    if (laneName !== undefined && !known.length) throw new Error('agent_lane_conversation_missing');
-    const summaries: string[] = [];
-    let selected: { createdAt: number; directory: string } | undefined;
-    for (const metadata of known) {
-      let directory = await refreshLiveLaneTrace(metadata.path);
-      if (!directory) {
-        const session = await repo.open(metadata, context);
-        try { directory = await writeLaneTrace(session); }
-        finally { await session.close(context); }
+  const all = await listAllSessionMetadata(projectDir, laneName);
+  const known = all.filter((item) => item.cwd.startsWith(LANE_IDENTITY_ROOT));
+  if (laneName !== undefined && !known.length) throw new Error('agent_lane_conversation_missing');
+  const root = laneSessionsRoot(projectDir);
+  if (laneName === undefined) {
+    await ensureLaneSessionsRoot(root);
+  }
+  const summaries: string[] = [];
+  let selected: { createdAt: number; directory: string } | undefined;
+  for (const metadata of known) {
+    const itemLane = metadata.cwd.slice(LANE_IDENTITY_ROOT.length);
+    let directory = await refreshLiveLaneTrace(metadata.path);
+    if (!directory) {
+      const opened = await openExistingMetadata(metadata, itemLane);
+      try {
+        directory = await writeLaneTrace(opened.session);
+      } finally {
+        await opened.release();
       }
-      const rows = await readTraceRows(directory);
-      const total = rows.every(row => row.estimatedCostUsd !== null)
-        ? rows.reduce((sum, row) => sum + (row.estimatedCostUsd ?? 0), 0) : null;
-      const link = relative(laneSessionsRoot(projectDir), join(directory, 'trace.md')).split(sep).map(encodeURIComponent).join('/');
-      summaries.push(`- [${metadata.id}](${link}) · ${rows.length} turns · estimated USD ${total ?? 'unknown'}`);
-      if (!selected || metadata.createdAt > selected.createdAt) selected = { createdAt: metadata.createdAt, directory };
     }
-    if (laneName !== undefined) return selected!.directory;
-    const root = laneSessionsRoot(projectDir);
-    await writeTraceFile(root, 'index.md', ['# Agent traces', '', 'Local pi sessions · costs are estimates, not a bill.', '', ...summaries, ''].join('\n'));
-    return root;
-  } finally { await releaseRepo(projectDir, context); }
+    const rows = await readTraceRows(directory);
+    const total = rows.every((row) => row.estimatedCostUsd !== null)
+      ? rows.reduce((sum, row) => sum + (row.estimatedCostUsd ?? 0), 0)
+      : null;
+    const link = relative(root, join(directory, 'trace.md')).split(sep).map(encodeURIComponent).join('/');
+    summaries.push(`- [${metadata.id}](${link}) · ${rows.length} turns · estimated USD ${total ?? 'unknown'}`);
+    if (!selected || metadata.createdAt > selected.createdAt) {
+      selected = { createdAt: metadata.createdAt, directory };
+    }
+  }
+  if (laneName !== undefined) return selected!.directory;
+  await writeTraceFile(root, 'index.md', ['# Agent traces', '', 'Local pi sessions · costs are estimates, not a bill.', '', ...summaries, ''].join('\n'));
+  return root;
 }

@@ -9,7 +9,7 @@
 
 /** Nomi's boundary. SDK objects and types stay in the private pi directory. */
 export interface NomiModelConfig {
-  kind: 'openai-compatible' | 'openai-responses' | 'anthropic'
+  kind: 'openai-compatible' | 'openai-responses' | 'anthropic' | 'google-generative-ai'
   providerId: string
   modelId: string
   baseURL: string

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { z } from 'zod';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import { openLaneSession } from '../../electron/agentLane/laneSession.mjs';
 import type { LaneComposerContext } from '../../electron/shared/agentLane/laneDesktopContracts.js';
 import { createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
@@ -48,9 +47,8 @@ test('admitted canvas input survives two compactions and an unrelated unsent dra
   assert.match(newBody, /UNSENT_DRAFT_TEMPLATE/);
   assert.doesNotMatch(newBody, /ADMITTED_TEMPLATE|ADMITTED_SKILL/);
   await host.close();
-  const opened = await openLaneSession({ projectDir: f.projectDir }, BACKGROUND_CONTEXT);
-  f.after(async () => { await opened.session.close(BACKGROUND_CONTEXT); await opened.release(BACKGROUND_CONTEXT); });
-  const branch = await opened.session.branch('main', BACKGROUND_CONTEXT);
-  const entries = await branch!.findEntries({ order: 'oldestFirst' }, BACKGROUND_CONTEXT);
+  const opened = await openLaneSession({ projectDir: f.projectDir });
+  f.after(async () => { await opened.release(); });
+  const entries = opened.session.findBranchEntries({ order: 'oldestFirst' });
   assert.ok(entries.filter(entry => entry.type === 'compaction').length >= 2, 'two actual SDK compactions persisted');
 });

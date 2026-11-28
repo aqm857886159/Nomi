@@ -13,7 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { app } from "electron";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Entry } from "@earendil-works/pi-agent-core";
+import type { LaneEntry } from "../shared/agentLane/laneSnapshotTypes";
 import { executeTextTask } from "../textTaskRunner";
 import { runTaskIpcGuard } from "../tasks/taskIpcGuard";
 import { appendEvents, readEvents, resetEventLogStateForTests, setEventLogProjectDirResolverForTests } from "../events/eventLogRepository";
@@ -185,7 +185,7 @@ describe("A3：Agent 派生轨迹只留错误类别", () => {
     // 旧会话里 Nomi 自己写过的运行记录：error 是整段 JSON 原文。
     { type: "custom", id: "n1", parentId: null, timestamp: 5, customType: LANE_TRACE_NOTE, data: { runId: "r", fromTipId: null, tipId: "r1",
       startedAt: 1, endedAt: 5, status: "failed", pricing: "unpriced", error: JSON.stringify({ message: said }), model: { provider: "p", model: "m" }, tools: [] } },
-  ] as unknown as Entry[];
+  ] as unknown as LaneEntry[];
 
   it("errors 与失败工具摘要里没有原话；类别照留", () => {
     const rows = deriveLaneTrace(entries, "s1");
@@ -296,20 +296,19 @@ describe("A3：Nomi 写进 pi 会话的运行记录不带 pi 的错误对象（V
   it("run_end(failed) 的错误原文不进会话条目", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lane-recorder-"));
     try {
-      const handlers = new Map<string, (event: Record<string, unknown>) => void>();
       const committed: { customType?: string; data?: unknown }[] = [];
-      const harness = { events: { on: (name: string, listener: (event: Record<string, unknown>) => void) => { handlers.set(name, listener); return () => undefined; } } };
       const session = {
         metadata: { path: path.join(dir, "s1.jsonl"), id: "s1" },
-        idGenerator: { next: () => `e${committed.length}` },
-        findEntries: async () => [],
-        mutate: async (work: (mutator: { commit(items: { entry: { customType?: string; data?: unknown } }[]): Promise<void> }, context: unknown) => Promise<void>, context: unknown) =>
-          work({ commit: async (items) => { for (const item of items) committed.push(item.entry); } }, context),
+        entries: () => [],
+        branchEntries: () => [],
+        appendCustomEntry: async (customType: string, data?: unknown) => {
+          committed.push({ customType, data });
+          return `e${committed.length}`;
+        },
       };
-      const trace = attachLaneTrace({ harness: harness as never, session: session as never, pricing: "unpriced", secrets: [], model: { provider: "p", model: "m" } });
-      handlers.get("run_start")!({ runId: "r1", startedAt: 1 });
-      handlers.get("run_end")!({ runId: "r1", fromTipId: null, tipId: null, endedAt: 2, status: "failed",
-        error: { message: "401 Access denied: fixture-recorder-pass-42; contact gateway admin" } });
+      const trace = attachLaneTrace({ session: session as never, pricing: "unpriced", secrets: [], model: { provider: "p", model: "m" } });
+      trace.onRunStart({ runId: "r1", startedAt: 1 });
+      trace.onRunEnd({ runId: "r1", fromTipId: null, tipId: null, endedAt: 2, status: "failed" });
       await trace.flush();
       const note = committed.find((entry) => entry.customType === LANE_TRACE_NOTE);
       expect(note).toBeDefined();

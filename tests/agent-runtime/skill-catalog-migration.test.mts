@@ -12,8 +12,7 @@ import fs from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
-import { formatSkillInvocation, type Skill } from '@earendil-works/pi-agent-core';
+import { parseSkillBlock } from '@earendil-works/pi-coding-agent';
 
 import { createLaneCodingPaths } from '../../electron/agentLane/laneCodingPaths.mjs';
 import { openLaneNativeDesktop } from '../../electron/agentLane/laneNativeDesktop.mjs';
@@ -27,7 +26,7 @@ import {
   toLaneSkillIndexEntry,
   toPiSkills,
 } from '../../electron/agentLane/laneSkillCatalog.mjs';
-import { renderSelectedSkillPrompt } from '../../electron/agentLane/laneSkillPrompt.mjs';
+import { formatPiSkillBlock, renderSelectedSkillPrompt } from '../../electron/agentLane/laneSkillPrompt.mjs';
 import {
   SELECTED_SKILL_FRAMING, SKILL_TOOL_AUTHORITY_PLACEMENT, SKILL_TOOL_AUTHORITY_SECTION,
 } from '../../electron/shared/agentLane/skillPromptPlacement.js';
@@ -129,7 +128,7 @@ test('S1 · 原生装配：单文件技能能被 lane 的 read 工具真的读�
   t.after(() => desktop.close());
   assert.deepEqual(desktop.skillIndex.current().entries.map((entry) => entry.name), ['loose-skill']);
   const read = desktop.tools.find((tool) => tool.name === 'read')!;
-  const content = await read.execute('loose', { path: loosePath } as never, (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT);
+  const content = await read.execute('loose', { path: loosePath } as never);
   assert.match(JSON.stringify(content), /单文件正文/, '看得见就必须读得到');
 });
 
@@ -412,21 +411,33 @@ const selected = (overrides: Partial<SkillRecord> = {}): Pick<SkillRecord, 'name
   content: '# Method\nWrite, review, revise.', ...overrides,
 });
 
-test('S53 · 信封逐字等于 pi 的 formatSkillInvocation；S51 · 交代四句在信封之前', () => {
+test('S53 · 信封逐字对齐 pi-coding-agent parseSkillBlock 标准技能块；S51 · 交代四句在信封之前', () => {
   const skill = selected();
   const prompt = renderSelectedSkillPrompt(skill, 'omitted');
-  const piSkill: Skill = { name: skill.name, description: skill.description, content: skill.content, filePath: skill.filePath };
-  assert.equal(prompt, `${SELECTED_SKILL_FRAMING}\n\n${formatSkillInvocation(piSkill)}`);
+  const envelope = formatPiSkillBlock(skill);
+  assert.equal(prompt, `${SELECTED_SKILL_FRAMING}\n\n${envelope}`);
+  assert.deepEqual(parseSkillBlock(envelope), {
+    name: skill.name,
+    location: skill.filePath,
+    content: `References are relative to ${path.dirname(skill.filePath)}.\n\n${skill.content}`,
+    userMessage: undefined,
+  });
   assert.ok(prompt.includes('本轮用户在输入框里挂了一条技能'));
   assert.ok(prompt.includes('要真的写进你调用工具时的入参里'));
   assert.ok(prompt.indexOf('本轮用户在输入框里挂了一条技能') < prompt.indexOf('<skill name='));
 });
 
-test('S54 · 三臂都从那一个参数可达；after_body 走的是 pi 的 additionalInstructions', () => {
+test('S54 · 三臂都从那一个参数可达；after_body 走的是 pi parseSkillBlock 的 userMessage（additionalInstructions）', () => {
   const skill = selected({ content: '# Method\n做点什么。' });
-  const piSkill: Skill = { name: skill.name, description: skill.description, content: skill.content, filePath: skill.filePath };
   const after = renderSelectedSkillPrompt(skill, 'after_body');
-  assert.equal(after, `${SELECTED_SKILL_FRAMING}\n\n${formatSkillInvocation(piSkill, SKILL_TOOL_AUTHORITY_SECTION)}`);
+  const afterEnvelope = formatPiSkillBlock(skill, SKILL_TOOL_AUTHORITY_SECTION);
+  assert.equal(after, `${SELECTED_SKILL_FRAMING}\n\n${afterEnvelope}`);
+  assert.deepEqual(parseSkillBlock(afterEnvelope), {
+    name: skill.name,
+    location: skill.filePath,
+    content: `References are relative to ${path.dirname(skill.filePath)}.\n\n${skill.content}`,
+    userMessage: SKILL_TOOL_AUTHORITY_SECTION.trim(),
+  });
   assert.ok(after.indexOf('关于工具，一律以本条提示词里的') > after.indexOf('</skill>'));
   const before = renderSelectedSkillPrompt(skill, 'before_body');
   assert.ok(before.indexOf('关于工具，一律以本条提示词里的') < before.indexOf('<skill name='));
@@ -452,16 +463,16 @@ test('S50 · 进提示词的只有方法正文：拿盘上真技能，frontmatte
   assert.ok(prompt.length < record.body.length + SELECTED_SKILL_FRAMING.length + SKILL_TOOL_AUTHORITY_SECTION.length);
 });
 
-test('S52 · 拼技能信封的只有 pi：仓内主进程源码里不出现手拼的 <skill name=', () => {
+test('S52 · 拼技能信封的只有 laneSkillPrompt 单一权威（对齐 pi-coding-agent parseSkillBlock）', () => {
   const offenders: string[] = [];
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (['node_modules', 'dist', 'dist-electron', '.tmp'].includes(entry.name)) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (/\.(ts|mts|cts)$/.test(entry.name) && !/\.test\./.test(entry.name) && fs.readFileSync(full, 'utf8').includes('<skill name=')) offenders.push(path.relative(repoRoot, full));
+      else if (/\.(ts|mts|cts)$/.test(entry.name) && !/\.test\./.test(entry.name) && fs.readFileSync(full, 'utf8').includes('<skill name=')) offenders.push(path.relative(repoRoot, full).split(path.sep).join('/'));
     }
   };
   walk(path.join(repoRoot, 'electron'));
-  assert.deepEqual(offenders, []);
+  assert.deepEqual(offenders, ['electron/agentLane/laneSkillPrompt.mts']);
 });

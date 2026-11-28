@@ -1,81 +1,71 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { test } from 'node:test';
-import { createRequire } from 'node:module';
-import { AgentHarness, reduceLaneSnapshot } from '@earendil-works/pi-agent-core';
-import { MemorySessionRepo, operationMeta } from '@earendil-works/pi-agent-core/harness/session';
-import { BACKGROUND_CONTEXT as context } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels } from '@earendil-works/pi-ai';
-import { createLaneFixture } from './laneFixture.mjs';
-import { createNomiProvider } from '../../electron/agentLane/laneModelProvider.mjs';
+import { fileURLToPath } from 'node:url';
 import { laneInputIntent } from '../../electron/agentLane/laneInputIntent.mjs';
+import { openTempLaneSession } from './laneFixture.mjs';
 
-const require = createRequire(import.meta.url);
+function resolvedPackageVersion(specifier: string): string {
+  let dir = path.dirname(fileURLToPath(import.meta.resolve(specifier)));
+  for (;;) {
+    const candidate = path.join(dir, 'package.json');
+    if (fs.existsSync(candidate)) {
+      const pkg = JSON.parse(fs.readFileSync(candidate, 'utf8')) as { name?: string; version?: string };
+      if (pkg.name === specifier && pkg.version) return pkg.version;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) throw new Error(`package.json not found for ${specifier}`);
+    dir = parent;
+  }
+}
 
-test('R01/R04 public fixed SDK exports, run metadata lifetime and consumed steer ancestry', async t => {
-  assert.equal(require('@earendil-works/pi-agent-core/package.json').version, '0.85.1');
-  const f = await createLaneFixture(t, [{ type: 'text', text: 'done' }]);
-  const session = await new MemorySessionRepo().create({}, context);
-  const configured = await createNomiProvider(f.options.model, globalThis.fetch);
-  const models = createModels({ credentials: configured.credentials }); models.setProvider(configured.provider);
-  const { harness } = await AgentHarness.create({ session, models, model: configured.model, tools: [] }, context);
-  f.after(() => harness.close(context));
-  await assert.rejects(harness.watchSession(context), /watchSession|not implemented/i);
-  const lane = await harness.lane('main', context);
-  const accepted = await lane.accept({ kind: 'prompt', prompt: 'ORIGINAL_INTENT' }, context);
-  assert.ok(accepted.ok);
-  const id = accepted.value.operationId;
-  const meta = (await session.getValue(operationMeta(id), context))!.value;
-  assert.equal(meta.intent.kind, 'run');
-  const queued = await lane.steer('STEER_ONLY_THREE', undefined, context);
-  assert.ok(queued.ok);
-  assert.doesNotMatch((await laneInputIntent(session, 'main', id, [], context)).quote, /STEER_ONLY_THREE/,
-    'unconsumed queued input is not a current instruction');
-  let observed = '';
-  harness.hooks.on('transform_context', async (event, hookContext) => {
-    observed = (await laneInputIntent(session, 'main', event.runId, [], hookContext)).quote;
-    return undefined;
-  });
-  const driven = await lane.drive({ operationId: id, waitForRetry: true }, context);
-  assert.ok(driven.ok);
-  assert.match(observed, /ORIGINAL_INTENT/);
-  assert.match(observed, /STEER_ONLY_THREE/);
-  assert.ok(meta.intent.kind === 'run' && !meta.intent.promptEntryIds.includes(queued.value.entryId), 'steer does not mutate initial prompt IDs');
-  assert.equal(await session.getValue(operationMeta(id), context), undefined, 'terminal cleanup removes operation metadata');
-  assert.deepEqual(await laneInputIntent(session, 'main', id, [], context), { quote: '' }, 'completed operation is not revived');
-  const next = await lane.accept({ kind: 'prompt', prompt: 'NEW_JOB' }, context);
-  assert.ok(next.ok);
-  const nextIntent = await laneInputIntent(session, 'main', next.value.operationId, [], context);
+test('R01/R04 public fixed SDK exports, run metadata lifetime and consumed steer ancestry', async (t) => {
+  assert.equal(resolvedPackageVersion('@earendil-works/pi-agent-core'), '1.7.0');
+  assert.equal(resolvedPackageVersion('@earendil-works/pi-ai'), '1.7.0');
+  assert.equal(resolvedPackageVersion('@earendil-works/pi-coding-agent'), '1.7.0');
+  assert.equal(resolvedPackageVersion('@earendil-works/pi-schema'), '1.7.0');
+
+  const session = await openTempLaneSession(t);
+  const promptId = await session.appendMessage({ role: 'user', content: 'ORIGINAL_INTENT', timestamp: 1 });
+  const runMeta = { sourceTipId: null, promptEntryIds: [promptId] };
+
+  // Unconsumed queued steer is not persisted to SessionManager yet, so it is not part of current intent.
+  const beforeSteer = laneInputIntent(session, runMeta, []);
+  assert.match(beforeSteer.quote, /ORIGINAL_INTENT/);
+  assert.doesNotMatch(beforeSteer.quote, /STEER_ONLY_THREE/);
+
+  // Once consumed by Agent, steer is appended on the branch after `promptId` and enters current intent.
+  await session.appendMessage({ role: 'user', content: 'STEER_ONLY_THREE', timestamp: 2 });
+  const duringRun = laneInputIntent(session, runMeta, []);
+  assert.match(duringRun.quote, /ORIGINAL_INTENT/);
+  assert.match(duringRun.quote, /STEER_ONLY_THREE/);
+  assert.deepEqual(runMeta.promptEntryIds, [promptId], 'steer does not mutate initial prompt IDs');
+
+  // Completed operation clears activeRunMeta -> idle intent is empty.
+  assert.deepEqual(laneInputIntent(session, undefined, []), { quote: '' });
+
+  // Next operation starts from current tipId and only quotes its own input.
+  const prevTip = session.getTipId();
+  const nextPromptId = await session.appendMessage({ role: 'user', content: 'NEW_JOB', timestamp: 3 });
+  const nextIntent = laneInputIntent(
+    session,
+    { sourceTipId: prevTip, promptEntryIds: [nextPromptId] },
+    [],
+  );
   assert.match(nextIntent.quote, /NEW_JOB/);
   assert.doesNotMatch(nextIntent.quote, /ORIGINAL_INTENT|STEER_ONLY_THREE/);
   assert.equal(nextIntent.input, undefined, 'plain new input does not inherit prepared context');
-  await lane.abort(context);
 });
 
-test('R05 upstream watch resnapshot buffers entries and preserves original ordering across navigation', async t => {
-  const f = await createLaneFixture(t, []);
-  const session = await new MemorySessionRepo().create({}, context);
-  const configured = await createNomiProvider(f.options.model, globalThis.fetch);
-  const models = createModels({ credentials: configured.credentials }); models.setProvider(configured.provider);
-  const { harness } = await AgentHarness.create({ session, models, model: configured.model, tools: [] }, context);
-  f.after(() => harness.close(context));
-  const lane = await harness.lane('main', context);
-  const first = await lane.appendCustomEntry('fixture', { number: 1 }, context);
-  const watch = await lane.watch(context);
-  let snapshot = watch.snapshot;
-  let resolveSeen!: () => void;
-  const seen = new Promise<void>(resolve => { resolveSeen = resolve; });
-  watch.start(async (event, eventContext) => {
-    if (reduceLaneSnapshot(snapshot, event) === 'rebase') snapshot = await watch.resnapshot(eventContext);
-    if (event.type === 'entry_added' && event.entry.type === 'custom' && event.entry.data
-      && typeof event.entry.data === 'object' && !Array.isArray(event.entry.data) && event.entry.data.number === 3) resolveSeen();
-  });
-  await lane.appendCustomEntry('fixture', { number: 2 }, context);
-  const navigated = await lane.navigateTree(first, { summarize: false }, context);
-  assert.ok(navigated.ok);
-  await lane.appendCustomEntry('fixture', { number: 3 }, context);
-  await seen;
-  const branch = await session.branch('main', context);
-  assert.deepEqual(snapshot.transcript.map(e => e.id), (await branch!.findEntries({ order: 'oldestFirst' }, context)).map(e => e.id));
-  watch.unsubscribe();
-  await assert.rejects(watch.resnapshot(context), /unsubscribed/);
+test('R05 SessionManager v3 branch navigation preserves exact ancestor ordering across tree jumps', async (t) => {
+  const session = await openTempLaneSession(t);
+  const first = await session.appendCustomEntry('fixture', { number: 1 });
+  await session.appendCustomEntry('fixture', { number: 2 });
+  session.branchTo(first);
+  const third = await session.appendCustomEntry('fixture', { number: 3 });
+  assert.deepEqual(
+    session.findBranchEntries({ order: 'oldestFirst' }).map((e: { id: string }) => e.id),
+    [first, third],
+  );
 });

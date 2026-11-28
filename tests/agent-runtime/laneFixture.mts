@@ -7,7 +7,7 @@ import { mkdtemp, rm, readdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestContext } from 'node:test';
-import { laneSessionsRoot } from '../../electron/agentLane/laneSession.mjs';
+import { laneSessionsRoot, openLaneSession, type LaneSession } from '../../electron/agentLane/laneSession.mjs';
 import { openLane } from '../../electron/agentLane/laneHost.mjs';
 
 import { createDocumentLaneTools, type DocumentLanePort } from '../../electron/agentLane/laneDocumentTools.js';
@@ -147,8 +147,22 @@ export async function readFixtureNativeEntries(projectDir: string): Promise<Arra
     }
   }
   if (files.length !== 1) throw new Error(`Expected one native session, found ${files.length}`);
-  return (await readFile(files[0]!, 'utf8')).trim().split('\n').flatMap(line => {
-    const transaction = JSON.parse(line);
-    return Array.isArray(transaction) ? transaction : [transaction];
-  }).filter(row => row.kind === 'entry');
+  const rows = (await readFile(files[0]!, 'utf8')).trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  return rows
+    .filter((row) => row && typeof row === 'object' && row.type !== 'session')
+    .map((row, index) => ({ ...row, seq: index + 1 }));
+}
+
+export async function openTempLaneSession(t?: TestContext): Promise<LaneSession> {
+  const projectDir = await mkdtemp(join(tmpdir(), 'nomi-temp-lane-session-'));
+  const opened = await openLaneSession({ projectDir });
+  const closeAll = async () => {
+    await opened.release().catch(() => undefined);
+    await rm(projectDir, { recursive: true, force: true });
+  };
+  if (t) registerFixtureCleanup(t, closeAll);
+  return {
+    ...opened.session,
+    close: closeAll,
+  };
 }

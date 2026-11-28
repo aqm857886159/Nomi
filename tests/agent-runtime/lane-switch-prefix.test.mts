@@ -32,11 +32,7 @@ test('B1c 24-turn loopback keeps the tool and system prefix after switching grou
 });
 
 test('B1c legacy coding menu restores file access without granting it to a locked history', async t => {
-  const { AgentHarness } = await import('@earendil-works/pi-agent-core');
-  const { createModels } = await import('@earendil-works/pi-ai');
-  const { BACKGROUND_CONTEXT: context } = await import('@earendil-works/pi-agent-core/harness/context');
   const { openLaneSession } = await import('../../electron/agentLane/laneSession.mjs');
-  const { createNomiProvider } = await import('../../electron/agentLane/laneModelProvider.mjs');
   const { writeFile } = await import('node:fs/promises');
   const { LANE_CODING_TOOL_NAMES } = await import('../../electron/agentLane/laneCodingTools.mjs');
   const { laneToolMenu } = await import('../../electron/agentLane/laneToolGroups.mjs');
@@ -46,16 +42,11 @@ test('B1c legacy coding menu restores file access without granting it to a locke
       { type: 'text', text: 'Read receipt checked.' },
     ]);
     await writeFile(path.join(fixture.projectDir, 'private.txt'), 'LEGACY_CODING_CONTENT');
-    const configured = await createNomiProvider(fixture.options.model, globalThis.fetch);
-    const models = createModels({ credentials: configured.credentials });
-    models.setProvider(configured.provider);
-    const old = await openLaneSession({ projectDir: fixture.projectDir, laneName: 'main' }, context);
-    const { harness } = await AgentHarness.create({ session: old.session, models, model: configured.model,
-      tools: [], activeToolNames: [...new Set([...laneToolMenu().activeToolNames, ...(previouslyUnlocked ? LANE_CODING_TOOL_NAMES : [])])],
-    }, context);
-    await harness.lane('main', context);
-    await harness.close(context);
-    await old.release(context);
+    const old = await openLaneSession({ projectDir: fixture.projectDir, laneName: 'main' });
+    await old.session.appendCustomEntry('nomi.ui.active-tools', {
+      names: [...new Set([...laneToolMenu().activeToolNames, ...(previouslyUnlocked ? LANE_CODING_TOOL_NAMES : [])])],
+    });
+    await old.release();
     const lane = await fixture.openLane({ ...fixture.options, sessionId: old.sessionId,
       tools: LANE_MODEL_TOOL_CATALOG.map(spec => bindLaneTool(spec, async () => ({ ok: true, text: '' }))),
       native: { settingsRoot: path.join(fixture.projectDir, 'settings'), skills: [] },

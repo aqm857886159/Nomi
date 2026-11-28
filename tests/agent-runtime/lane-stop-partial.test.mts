@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createModels, createAssistantMessageEventStream, type AssistantMessage } from '@earendil-works/pi-ai'
+import { createModels, createAssistantMessageEventStream, normalizeContext, type AssistantMessage } from '@earendil-works/pi-ai'
 import { createNomiProvider } from '../../electron/agentLane/laneModelProvider.mjs'
 import { guardProviderStreams } from '../../electron/agentLane/laneProviderGuard.mjs'
 import { openLane } from '../../electron/agentLane/laneHost.mjs'
@@ -101,7 +101,7 @@ for (const cause of ['abort', 'timeout'] as const) {
       firstResponseMs: 30_000, firstTokenMs: 30_000, idleMs: 30_000,
       clock: { set: (callback) => { timeout = callback; return callback }, clear: () => undefined },
     })
-    const stream = guarded.stream(model, { messages: [] }, { signal: controller.signal })
+    const stream = guarded.stream(model, normalizeContext({ messages: [] }), { signal: controller.signal })
     upstream.push({ type: 'start', partial: message })
     await stream[Symbol.asyncIterator]().next()
     if (cause === 'abort') controller.abort()

@@ -171,8 +171,8 @@ test('G3b ② · 按停止：pi 自己合成 cancelled 结果，宿主在 abort 
   assert.equal(fixture.document.text(), before, 'the tool never ran');
   assert.equal(lane.projection().pending, undefined, 'the card is gone');
   const [result] = toolResults(lane.projection());
-  assert.equal(result?.text, 'Tool execution was cancelled before completion.',
-    'resolve-on-abort 得到的是 pi 自己的 abortedOutcome —— reject 那一臂会被洗成内部串 "Abort requested"');
+  assert.equal(result?.text, 'Operation aborted',
+    'resolve-on-abort 得到的是 pi 1.7.0 自己的 aborted 结果（agent-loop.js:509）—— reject 那一臂会被洗成异常 message');
   assert.equal(fixture.http.requests.length, 1, 'stopping does not spend another model request');
   // 记录**在 abort 之后**才落进转录：abort 不是一个转录边界，写在钩子里的那条会悬在
   // `queues` 里，用户永远看不到（探针 §2.1）。

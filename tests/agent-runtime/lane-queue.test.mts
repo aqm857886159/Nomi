@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { z } from 'zod';
 
-import type { LaneSnapshot } from '@earendil-works/pi-agent-core';
+import type { LaneSnapshot } from '../../electron/shared/agentLane/laneSnapshotTypes.js';
 import type { AssistantMessage } from '@earendil-works/pi-ai';
 
 import { projectLaneSnapshot, type LaneModelFacts } from '../../electron/shared/agentLane/laneProjection.js';

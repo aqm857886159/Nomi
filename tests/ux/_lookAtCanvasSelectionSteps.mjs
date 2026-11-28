@@ -79,12 +79,24 @@ function loadContextSnapshotProjector() {
   return projectAgentContextSnapshot
 }
 
-/** 宿主发给模型之前对消息做的那一步（laneHost 的 transform_context = omitSupersededReads + 内部工具声明），诊断用。 */
-function loadSentTransform() {
-  const { omitSupersededReads } = tsxRequire('../../electron/agentLane/laneSupersededReads.mts', import.meta.url)
+/** 宿主发给模型之前对消息做的那一步（SessionManager.appendContextEdit + collectSupersededReadEdits + 内部工具声明），诊断用。 */
+async function loadSentTransform() {
+  const { SessionManager } = await import('@earendil-works/pi-coding-agent')
+  const { collectSupersededReadEdits } = tsxRequire('../../electron/agentLane/laneContextBudget.mts', import.meta.url)
   const { modelFacingToolSpecs } = tsxRequire('../../electron/shared/agentCapabilities/modelFacingToolRegistry.ts', import.meta.url)
   const specs = modelFacingToolSpecs('internal')
-  return (messages) => omitSupersededReads(messages, specs)
+  return (messages) => {
+    const manager = SessionManager.inMemory('/nomi-lane/walk')
+    for (const message of messages) {
+      const id = manager.appendMessage(message)
+      if (message.role === 'toolResult') {
+        for (const edit of collectSupersededReadEdits(manager.getBranch(), specs, id)) {
+          manager.appendContextEdit(edit.targetId, { content: [{ type: 'text', text: edit.note }] })
+        }
+      }
+    }
+    return manager.buildSessionContext().messages
+  }
 }
 
 /** 经画布 store 的真动作布场景：44 个节点按 spec 顺序落画布（不选），再选中其中 40 个。返回带真 id 的场景。 */
@@ -261,7 +273,7 @@ export async function runSelectionJourney(journey, { walk, modelLabel, expectedM
   const scene = await seedSelectionScene(win)
   const snapshot = await win.evaluate(() => JSON.parse(JSON.stringify(window.__nomiCanvasStore.getState().readSnapshot())))
   const facts = sceneProjectionFacts(scene, snapshot, loadProjector())
-  const transform = loadSentTransform()
+  const transform = await loadSentTransform()
   const byKey = new Map(scene.nodes.map((node) => [node.key, node]))
   journey.scene = {
     nodes: scene.nodes.length, selected: scene.selectedIds.length, total: facts.total, markedSelected: facts.markedSelectedCount,

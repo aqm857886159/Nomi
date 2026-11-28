@@ -3,21 +3,21 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { AgentHarness, reduceLaneSnapshot, type LaneSnapshot } from '@earendil-works/pi-agent-core';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels } from '@earendil-works/pi-ai';
-import { Type } from 'typebox';
+import { obj } from '@earendil-works/pi-schema';
+import type { LaneSnapshot } from '../../electron/shared/agentLane/laneSnapshotTypes.js';
 import { findLaneReceiptAuthority } from '../../electron/agentLane/laneReceiptAuthority.mjs';
 import { LANE_RECEIPT_AUTHORITY_NOTE } from '../../electron/shared/agentLane/laneReceiptAuthority.js';
-import { createNomiProvider } from '../../electron/agentLane/laneModelProvider.mjs';
-import { openLaneSession } from '../../electron/agentLane/laneSession.mjs';
 import { projectLaneSnapshot } from '../../electron/shared/agentLane/laneProjection.js';
 import { createHttpFixture } from './httpFixture.mjs';
+import { openProbeLane, PROBE_CONTEXT } from './stage3ProbeHarness.mjs';
 
 const authority = { receiptProposalId: 'fixture-receipt', approvalId: 'fixture-approval', actionHash: 'fixture-action-hash' };
 const note = { ...authority, toolCallId: 'fixture-call' };
-type ReceiptSnapshot = Pick<LaneSnapshot, 'transcript' | 'queues'>;
-const customEntry = (id: string, data = note): LaneSnapshot['transcript'][number] => ({
+type ReceiptSnapshot = {
+  transcript: LaneSnapshot['transcript'];
+  queues: LaneSnapshot['queues'][number][];
+};
+const customEntry = (id: string, data = note): Extract<LaneSnapshot['transcript'][number], { type: 'custom' }> => ({
   id, parentId: null, seq: 1, timestamp: 0, type: 'custom', customType: LANE_RECEIPT_AUTHORITY_NOTE, data,
 });
 const queuedEntry = (entryId: string, data: unknown = note): LaneSnapshot['queues'][number] => ({
@@ -31,51 +31,79 @@ test('a real before_tool durable authority is queryable inside execute and after
     { type: 'tool', calls: [{ id: 'fixture-call', name: 'receipt_probe', arguments: {} }] },
     { type: 'text', text: 'Fixture complete.' },
   ]);
-  const ctx = BACKGROUND_CONTEXT;
   let first: Awaited<ReturnType<typeof open>> | undefined;
   let reopened: Awaited<ReturnType<typeof open>> | undefined;
   let executionAuthority: ReturnType<typeof findLaneReceiptAuthority>;
   let queuedWhileExecuting = false;
-  const configured = await createNomiProvider({ kind: 'openai-compatible', providerId: 'fixture', modelId: 'fixture',
-    baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture' }, globalThis.fetch);
-  const models = createModels({ credentials: configured.credentials });
-  models.setProvider(configured.provider);
+
   async function open(sessionId?: string) {
-    const opened = await openLaneSession({ projectDir, laneName: 'main', sessionId }, ctx);
-    const { harness } = await AgentHarness.create({ session: opened.session, models, model: configured.model,
-      systemPrompt: 'Receipt fixture.', tools: [{ name: 'receipt_probe', label: 'Fixture', description: 'Fixture.',
-        parameters: Type.Object({}), execute: async () => {
-          const snapshot = first!.snapshot;
-          queuedWhileExecuting = snapshot.queues.some((entry) => entry.type === 'custom' && entry.customType === LANE_RECEIPT_AUTHORITY_NOTE);
-          executionAuthority = findLaneReceiptAuthority(snapshot, authority.receiptProposalId);
-          assert.deepEqual(executionAuthority, authority, 'Renderer receipt preparation needs this authority before the tool finishes.');
-          assert.equal(projectLaneSnapshot(snapshot, { pricing: 'unpriced', supportedThinkingLevels: ['off'] }).parts
-            .filter((part) => part.kind === 'host-note' && part.noteType === LANE_RECEIPT_AUTHORITY_NOTE).length, 0);
-          return { content: [{ type: 'text' as const, text: 'Fixture result.' }], details: {} };
-        } }] }, ctx);
-    const lane = await harness.lane('main', ctx);
-    const watch = await lane.watch(ctx);
-    const snapshot = watch.snapshot;
-    watch.start((event) => { reduceLaneSnapshot(snapshot, event); });
-    return { lane, harness, snapshot, sessionId: opened.sessionId,
-      close: async () => { watch.unsubscribe(); await harness.close(ctx); await opened.session.close(ctx); await opened.release(ctx); } };
+    const cleanups: Array<() => void | Promise<void>> = [];
+    const probe = await openProbeLane(
+      { after: (fn) => { cleanups.push(fn); } },
+      {
+        fetch: globalThis.fetch,
+        projectDir,
+        systemPrompt: 'Receipt fixture.',
+        model: {
+          kind: 'openai-compatible',
+          providerId: 'fixture',
+          modelId: 'fixture',
+          baseURL: http.baseURL,
+          authType: 'api-key',
+          apiKey: 'fixture',
+        },
+        tools: [],
+      },
+      sessionId ? { sessionId } : {},
+    );
+    const watch = await probe.lane.watch(PROBE_CONTEXT);
+    let snapshot = watch.snapshot;
+    watch.start((next) => { snapshot = next; });
+    await probe.harness.setTools([{
+      name: 'receipt_probe',
+      label: 'Fixture',
+      description: 'Fixture.',
+      parameters: obj({}),
+      execute: async () => {
+        const current = await watch.resnapshot(PROBE_CONTEXT);
+        queuedWhileExecuting = current.queues.some((entry) => entry.type === 'custom' && entry.customType === LANE_RECEIPT_AUTHORITY_NOTE);
+        executionAuthority = findLaneReceiptAuthority(current, authority.receiptProposalId);
+        assert.deepEqual(executionAuthority, authority, 'Renderer receipt preparation needs this authority before the tool finishes.');
+        assert.equal(projectLaneSnapshot(current, { pricing: 'unpriced', supportedThinkingLevels: ['off'] }).parts
+          .filter((part) => part.kind === 'host-note' && part.noteType === LANE_RECEIPT_AUTHORITY_NOTE).length, 0);
+        return { content: [{ type: 'text' as const, text: 'Fixture result.' }], details: {} };
+      },
+    }]);
+    await probe.lane.setActiveTools(['receipt_probe']);
+    return {
+      lane: probe.lane,
+      harness: probe.harness,
+      snapshot: () => snapshot,
+      resnapshot: () => watch.resnapshot(PROBE_CONTEXT),
+      sessionId: probe.sessionId,
+      close: async () => {
+        watch.unsubscribe();
+        await probe.close();
+      },
+    };
   }
   try {
     first = await open();
-    first.harness.hooks.on('before_tool', async (_event, context) => {
-      await first!.lane.appendCustomEntry(LANE_RECEIPT_AUTHORITY_NOTE, note, context);
+    first.harness.hooks.on('before_tool', async () => {
+      await first!.lane.appendCustomEntry(LANE_RECEIPT_AUTHORITY_NOTE, note, PROBE_CONTEXT);
       return undefined;
     });
-    await first.lane.prompt('Run the receipt fixture.', undefined, ctx);
+    await first.lane.prompt('Run the receipt fixture.', undefined, PROBE_CONTEXT);
     assert.equal(queuedWhileExecuting, true, 'The fixture must exercise the real queued-write boundary.');
     assert.deepEqual(executionAuthority, authority);
-    assert.deepEqual(findLaneReceiptAuthority(first.snapshot, authority.receiptProposalId), authority);
-    assert.equal(first.snapshot.queues.length, 0);
+    const settled = await first.resnapshot();
+    assert.deepEqual(findLaneReceiptAuthority(settled, authority.receiptProposalId), authority);
+    assert.equal(settled.queues.length, 0);
     const sessionId = first.sessionId;
     await first.close();
     first = undefined;
     reopened = await open(sessionId);
-    assert.deepEqual(findLaneReceiptAuthority(reopened.snapshot, authority.receiptProposalId), authority);
+    assert.deepEqual(findLaneReceiptAuthority(await reopened.resnapshot(), authority.receiptProposalId), authority);
   } finally {
     await first?.close();
     await reopened?.close();

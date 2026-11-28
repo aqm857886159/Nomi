@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context'
 import { createCanvasLaneTools } from './laneCanvasTools'
 import { createLaneTools } from './laneTools.mts'
 import type { CanvasWriteResult } from '../shared/agentCapabilities/canvasWrite'
@@ -26,7 +25,7 @@ describe('canvas write tool result closure', () => {
     const [tool] = createLaneTools([canvasDescriptor])
     const result = await tool.execute('call-1', {
       fileType: 'text', title: 'R13_UNDO_CANVAS', content: '真实回合画布撤销',
-    }, (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT)
+    }, undefined, (() => undefined) as never)
     const text = result.content.filter(part => part.type === 'text').map(part => part.text).join('')
     expect(text).toContain('changeId=canvas:v1:proposal-1')
     expect(result.details).toMatchObject({ changeId: 'canvas:v1:proposal-1' })

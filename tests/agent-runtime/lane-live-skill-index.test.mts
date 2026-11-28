@@ -11,7 +11,6 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { test } from 'node:test';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import { createLaneSkillIndexSource } from '../../electron/agentLane/laneSkillCatalog.mjs';
 import { createLaneCodingPaths } from '../../electron/agentLane/laneCodingPaths.mjs';
 import { openLaneNativeDesktop } from '../../electron/agentLane/laneNativeDesktop.mjs';
@@ -159,14 +158,12 @@ test('原生装配：技能给函数时，会话中途导入的技能下一个�
   const imported = await landSkill(root, 'mid-session');
   // 落盘了，但这条 lane 还没跨过回合边界：索引与可信根都还是上一份。
   assert.deepEqual(desktop.skillIndex.current().entries, []);
-  await assert.rejects(read.execute('too-early', { path: imported.filePath } as never,
-    (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT), /outside this project/);
+  await assert.rejects(read.execute('too-early', { path: imported.filePath } as never), /outside this project/);
 
   records = [imported];
   await desktop.skillIndex.refresh();
   assert.deepEqual(desktop.skillIndex.current().entries.map((entry) => entry.name), ['mid-session']);
   assert.match(desktop.skillIndex.current().promptSection, /mid-session/);
-  const content = await read.execute('after-refresh', { path: imported.filePath } as never,
-    (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT);
+  const content = await read.execute('after-refresh', { path: imported.filePath } as never);
   assert.match(JSON.stringify(content), /正文/, '看得见就必须读得到：索引与可信根同源');
 });

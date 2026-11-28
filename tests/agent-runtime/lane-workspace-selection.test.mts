@@ -4,7 +4,6 @@ import { promisify } from 'node:util'
 import { readFile, writeFile, rm, stat, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import test from 'node:test'
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context'
 import { openLaneWorkspace } from '../../electron/agentLane/laneWorkspace.mjs'
 import { openLaneHistory } from '../../electron/agentLane/laneHistory.mjs'
 import { deleteLaneSession, listLaneSessions } from '../../electron/agentLane/laneSession.mjs'
@@ -63,7 +62,7 @@ test('missing, malformed and stale selection can only choose a real existing ses
   await workspace.execute({ kind: 'lane-create', laneName: 'survivor' })
   await workspace.execute({ kind: 'lane-delete', laneName: 'main' })
   await workspace.close()
-  const before = await listLaneSessions(fixture.projectDir, BACKGROUND_CONTEXT)
+  const before = await listLaneSessions(fixture.projectDir)
   for (const value of [undefined, '{', JSON.stringify({ laneName: 'main', sessionId: 'deleted-id' }),
     JSON.stringify({ laneName: 'survivor', sessionId: 'wrong-identity' })]) {
     if (value === undefined) await rm(selectionPath(fixture.projectDir), { force: true })
@@ -111,16 +110,16 @@ test('an explicit missing selection cannot create a conversation in a nonempty p
   const fixture = await createLaneFixture(t, [])
   const workspace = await openLaneWorkspace(fixture.options)
   await workspace.close()
-  const before = await listLaneSessions(fixture.projectDir, BACKGROUND_CONTEXT)
+  const before = await listLaneSessions(fixture.projectDir)
   await assert.rejects(openLaneWorkspace({ ...fixture.options, laneName: 'deleted' }), /agent_lane_conversation_missing/)
-  assert.deepEqual(await listLaneSessions(fixture.projectDir, BACKGROUND_CONTEXT), before)
+  assert.deepEqual(await listLaneSessions(fixture.projectDir), before)
 })
 
 test('a deleted selected session with no survivors creates exactly one fresh main', async t => {
   const fixture = await createLaneFixture(t, [])
   const workspace = await openLaneWorkspace(fixture.options)
   await workspace.close()
-  assert.equal(await deleteLaneSession(fixture.projectDir, 'main', BACKGROUND_CONTEXT), true)
+  assert.equal(await deleteLaneSession(fixture.projectDir, 'main'), true)
   const cold = await coldHistory(fixture.projectDir)
   assert.equal(cold.active.lane, 'main')
   assert.equal(cold.lanes.length, 1)

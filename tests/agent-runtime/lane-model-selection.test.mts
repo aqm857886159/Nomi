@@ -2,17 +2,13 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { AgentHarness } from '@earendil-works/pi-agent-core';
-import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels } from '@earendil-works/pi-ai';
+import { z } from 'zod';
 import { openLane } from '../../electron/agentLane/laneHost.mjs';
-import { createNomiProvider } from '../../electron/agentLane/laneModelProvider.mjs';
 import { laneSessionsRoot, openLaneSession, listLaneSessions } from '../../electron/agentLane/laneSession.mjs';
-import { createLaneTools } from '../../electron/agentLane/laneTools.mjs';
 import { openLaneWorkspace } from '../../electron/agentLane/laneWorkspace.mjs';
 import type { NomiModelConfig } from '../../electron/shared/agentLane/laneModelConfig.js';
 import { createHttpFixture } from './httpFixture.mjs';
-import { createLaneFixture } from './laneFixture.mjs';
+import { createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 test('reopening the same model preserves saved session bytes and updatedAt', async (t) => {
   const fixture = await createLaneFixture(t, [{ type: 'text', text: 'Saved fixture.' }]);
@@ -24,14 +20,14 @@ test('reopening the same model preserves saved session bytes and updatedAt', asy
   const root = laneSessionsRoot(fixture.projectDir);
   const files = (await readdir(root, { recursive: true })).filter((file) => file.endsWith('.jsonl'));
   const beforeBytes = await Promise.all(files.map((file) => readFile(join(root, file), 'utf8')));
-  const beforeList = await listLaneSessions(fixture.projectDir, BACKGROUND_CONTEXT);
+  const beforeList = await listLaneSessions(fixture.projectDir);
   const reopened = await openLane(fixture.options);
   t.after(() => reopened.close());
   assert.deepEqual(reopened.projection(), beforeProjection);
   await reopened.close();
   assert.deepEqual(await Promise.all(files.map((file) => readFile(join(root, file), 'utf8'))), beforeBytes,
     'opening unchanged history must not append a configuration commit');
-  assert.deepEqual(await listLaneSessions(fixture.projectDir, BACKGROUND_CONTEXT), beforeList,
+  assert.deepEqual(await listLaneSessions(fixture.projectDir), beforeList,
     'updatedAt must stay unchanged, preserving conversation list order');
   assert.equal(fixture.http.requests.length, 1);
 });
@@ -73,38 +69,38 @@ for (const change of ['same-provider-model', 'different-provider-protocol'] as c
   });
 }
 
-test('model rebinding retains the SDK active tools added by a real tool result without activating the rest', async (t) => {
+test('model rebinding retains persisted active tools on the branch without activating the rest', async (t) => {
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'unlock-selection', name: 'read_script', arguments: {} }] },
-    { type: 'text', text: 'Selection read unlocked.' },
     { type: 'tool', calls: [{ id: 'use-selection', name: 'write_script', arguments: { content: ' More.', where: 'end' } }] },
     { type: 'text', text: 'Selection read after model replacement.' },
   ]);
-  const context = BACKGROUND_CONTEXT;
-  const opened = await openLaneSession({ projectDir: fixture.projectDir, laneName: 'main' }, context);
-  const configured = await createNomiProvider(fixture.options.model, globalThis.fetch);
-  const models = createModels({ credentials: configured.credentials });
-  models.setProvider(configured.provider);
-  const tools = createLaneTools(fixture.options.tools).map((tool) => tool.name === 'read_script'
-    ? { ...tool, execute: async (...args: Parameters<typeof tool.execute>) => ({
-      ...await tool.execute(...args), addedToolNames: ['write_script'],
-    }) } : tool);
-  const { harness } = await AgentHarness.create<undefined>({ session: opened.session, models, model: configured.model,
-    systemPrompt: fixture.options.systemPrompt, tools, activeToolNames: ['read_script'] }, context);
-  let closingSeed: Promise<void> | undefined;
-  const closeSeed = () => closingSeed ??= (async () => {
-    try { await harness.close(context); } finally { await opened.release(context); }
-  })();
-  t.after(closeSeed);
-  const seeded = await harness.lane('main', context);
-  assert.equal((await seeded.prompt('Unlock the fixture selection reader.', undefined, context)).ok, true);
-  assert.deepEqual(await seeded.getActiveTools(context), ['read_script', 'write_script']);
-  await closeSeed();
-  const host = await openLane({ ...fixture.options, model: { ...fixture.options.model, modelId: 'replacement-model' } });
+  const opened = await openLaneSession({ projectDir: fixture.projectDir, laneName: 'main' });
+  await opened.session.appendCustomEntry('nomi.ui.active-tools', { names: ['read_script', 'write_script'] });
+  await opened.release();
+
+  const inactiveTool = {
+    name: 'inactive_extra_tool',
+    contractId: 'document.read',
+    description: 'Must stay inactive.',
+    promptSnippet: 'inactive.',
+    nextAction: 'none' as const,
+    describe: FIXTURE_DESCRIBE,
+    effect: 'read' as const,
+    execution: { timeoutMs: 5_000 },
+    schema: z.object({}).strict(),
+    examples: [],
+    execute: async () => ({ ok: true as const, text: 'unused' }),
+  };
+
+  const host = await openLane({
+    ...fixture.options,
+    tools: [...fixture.options.tools, inactiveTool],
+    model: { ...fixture.options.model, modelId: 'replacement-model' },
+  });
   t.after(() => host.close());
   await host.execute({ kind: 'prompt', text: 'Read the fixture selection.' });
-  assert.equal(fixture.http.requests.length, 4, 'the reopened host completes a real tool turn with the new model');
-  const body = fixture.http.requests[2]!.body as { model: string; tools: Array<{ function: { name: string } }> };
+  assert.equal(fixture.http.requests.length, 2, 'the reopened host completes a real tool turn with the new model');
+  const body = fixture.http.requests[0]!.body as { model: string; tools: Array<{ function: { name: string } }> };
   assert.equal(body.model, 'replacement-model');
   assert.deepEqual(body.tools.map((tool) => tool.function.name), ['read_script', 'write_script']);
   assert.ok(host.projection().parts.some((part) => part.kind === 'tool-result' && part.toolCallId === 'use-selection' && !part.isError));

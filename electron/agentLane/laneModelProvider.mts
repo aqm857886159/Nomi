@@ -11,6 +11,7 @@ import { clampThinkingLevel, createAssistantMessageEventStream, createProvider, 
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
+import { googleGenerativeAIApi } from '@earendil-works/pi-ai/api/google-generative-ai.lazy';
 import { z } from 'zod';
 import type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { LANE_OUTPUT_TRUNCATED_DIAGNOSTIC, LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
@@ -26,7 +27,7 @@ export type { NomiStreamGuard } from './laneProviderGuard.mjs';
 export type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 
 export const modelConfigSchema = z.object({
-  kind: z.enum(['openai-compatible', 'openai-responses', 'anthropic']),
+  kind: z.enum(['openai-compatible', 'openai-responses', 'anthropic', 'google-generative-ai']),
   providerId: z.string().min(1).refine((value) => value === value.trim(), 'providerId must be exact'),
   modelId: z.string().min(1).refine((value) => value === value.trim(), 'modelId must be exact'),
   baseURL: z.string().url().refine((value) => /^https?:\/\//.test(value), 'HTTP model endpoint required'),
@@ -68,6 +69,7 @@ const protocols = {
   'openai-compatible': { api: 'openai-completions', streams: openAICompletionsApi },
   'openai-responses': { api: 'openai-responses', streams: openAIResponsesApi },
   anthropic: { api: 'anthropic-messages', streams: anthropicMessagesApi },
+  'google-generative-ai': { api: 'google-generative-ai', streams: googleGenerativeAIApi },
 } as const;
 
 function anthropicFetch(baseURL: string, fetchRequest: NonNullable<StreamOptions['fetch']>) {
@@ -100,6 +102,7 @@ export async function prewarmProviderProtocols(protocols: readonly NomiModelConf
     'openai-compatible': () => import('@earendil-works/pi-ai/api/openai-completions'),
     'openai-responses': () => import('@earendil-works/pi-ai/api/openai-responses'),
     anthropic: () => import('@earendil-works/pi-ai/api/anthropic-messages'),
+    'google-generative-ai': () => import('@earendil-works/pi-ai/api/google-generative-ai'),
   } satisfies Record<NomiModelConfig['kind'], () => Promise<unknown>>;
   const yieldToMain = () => new Promise<void>((resolve) => setImmediate(resolve));
   for (const protocol of new Set(protocols)) {
@@ -257,10 +260,20 @@ function simplePicksReasoning(model: Model<Api>, options: SimpleStreamOptions | 
   return options?.reasoning !== undefined && clampThinkingLevel(model, options.reasoning) !== 'off';
 }
 
-/** `stream`（协议原生选项）这次点名了推理：OpenAI 两条的 `reasoningEffort` / `reasoningSummary`，Anthropic 的 `thinkingEnabled: true`。 */
+/** `stream`（协议原生选项）这次点名了推理：OpenAI 两条的 `reasoningEffort` / `reasoningSummary`，Anthropic 的 `thinkingEnabled: true`，Google 的 `thinking.enabled: true`。 */
 function streamPicksReasoning(options: StreamOptions | undefined): boolean {
-  const picked = options as { reasoningEffort?: unknown; reasoningSummary?: unknown; thinkingEnabled?: unknown } | undefined;
-  return Boolean(picked?.reasoningEffort || picked?.reasoningSummary || picked?.thinkingEnabled === true);
+  const picked = options as {
+    reasoningEffort?: unknown;
+    reasoningSummary?: unknown;
+    thinkingEnabled?: unknown;
+    thinking?: { enabled?: unknown };
+  } | undefined;
+  return Boolean(
+    picked?.reasoningEffort
+    || picked?.reasoningSummary
+    || picked?.thinkingEnabled === true
+    || picked?.thinking?.enabled === true,
+  );
 }
 
 export async function createNomiProvider(input: NomiModelConfig, fetchRequest: typeof globalThis.fetch, guard?: NomiStreamGuard) {
@@ -293,10 +306,20 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
         throw new Error('Expected a provider request object');
       }
       const body = { ...payload } as Record<string, unknown>;
+      const cap = options?.maxTokens ?? declaredOutputCap(config);
+      if (config.kind === 'google-generative-ai') {
+        const currentConfig = body.config && typeof body.config === 'object' && !Array.isArray(body.config)
+          ? { ...(body.config as Record<string, unknown>) }
+          : {};
+        if (cap === undefined) delete currentConfig.maxOutputTokens;
+        else currentConfig.maxOutputTokens = cap;
+        if (config.temperature !== undefined) currentConfig.temperature = config.temperature;
+        body.config = currentConfig;
+        return (await options?.onPayload?.(body, selected)) ?? body;
+      }
       delete body.max_tokens;
       delete body.max_completion_tokens;
       delete body.max_output_tokens;
-      const cap = options?.maxTokens ?? declaredOutputCap(config);
       if (cap !== undefined) {
         body[config.kind === 'openai-responses' ? 'max_output_tokens' : 'max_tokens'] = cap;
       }

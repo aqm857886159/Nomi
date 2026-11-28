@@ -19,6 +19,7 @@
       "@earendil-works/pi-coding-agent",
       "@earendil-works/pi-agent-core",
       "@earendil-works/pi-ai",
+      "@earendil-works/pi-schema",
       "@xyflow/react",
       "ai",
       "@mantine/core",
@@ -115,121 +116,72 @@
       "packages": [
         "@earendil-works/pi-coding-agent",
         "@earendil-works/pi-agent-core",
-        "@earendil-works/pi-ai"
+        "@earendil-works/pi-ai",
+        "@earendil-works/pi-schema"
       ],
-      "version": "0.85.1",
+      "version": "1.7.0",
       "fourColumnTable": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
       "historyContextConformance": "docs/research/2026-09-19-pi-history-read-side/prior-art.md",
-      "referenceConformance": {"doc": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md", "upstreamVersion": "0.85.1", "verifiedAt": "2026-10-01", "note": "参考实现 = pi coding agent 0.85.1（docs + dist/core 公共面 + pi-agent-core harness 运行时源码）。九层全在、未裁剪。09-07 那份（docs/research/2026-09-07-pi-reference-implementation-conformance.md）的 24 条没想到：已关 19、部分 2、待核 2；新的没想到 N-1…N-6 带阶段列在报告末尾。开放问题：进程内改用 AgentSession 未评估。"},
+      "referenceConformance": {"doc": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md", "upstreamVersion": "1.7.0", "verifiedAt": "2026-11-28", "note": "参考实现 = pi coding agent 1.7.0（Agent + SessionManager v3 + pi-schema + coding tools 含 Windows PowerShell + @google/genai@3.6.1 自定义 fetch）。九层全在、未裁剪；已同提交删掉 laneSupersededReads、TypeBox 工具校验双轨、BomTolerantExecutionEnv 与 6 参 adaptPiTool 胶水。"},
       "why": "2026-09-06 #546 架构评审：接入时只接了最底层的 agent loop，pi 已提供的会话持久化、有序转录、重试、价格与 steer/followUp 各被我们重写了一份，而且更差。这张表把那次评审的结论钉成机器判据。",
       "surface": {
-        "why": "2026-09-07 真实事故：electron/agentLane/laneTools.mts:175 给所有 lane 工具硬写 executionMode:'sequential'，而 pi 的 AgentHarnessTool.executionMode 逐工具可选；同一个对象字面量里 replay 已经改成从 mutates 派生。四列表与逐层对照都看的是「层」，看不见「字段」，所以两份都没拦住。",
+        "why": "2026-09-07 真实事故：electron/agentLane/laneTools.mts 给所有 lane 工具硬写 executionMode:'sequential'，而 pi 的 AgentTool.executionMode 逐工具可选；同一个对象字面量里 replay 已经改成从 mutates 派生。四列表与逐层对照都看的是「层」，看不见「字段」，所以两份都没拦住。",
         "scope": ["electron/agentLane/"],
         "sources": [
           {
             "package": "@earendil-works/pi-agent-core",
-            "dtsPath": "node_modules/@earendil-works/pi-agent-core/dist/harness/session/types.d.ts",
+            "dtsPath": "node_modules/@earendil-works/pi-agent-core/dist/types.d.ts",
             "types": [
               {
-                "name": "BranchScan",
-                "why": "Read-side paging; fixed-version field evidence in docs/research/2026-09-19-pi-history-read-side/prior-art.md.",
-                "declaredIn": [
-                  "node_modules/@earendil-works/pi-agent-core/"
-                ],
-                "anchors": [
-                  {
-                    "kind": "typeAnnotation",
-                    "name": "BranchScan"
-                  }
-                ],
-                "fields": {
-                  "start": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHistoryPage.mts:17"
-                  },
-                  "cursor": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHistoryPage.mts:17"
-                  },
-                  "limit": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHistoryPage.mts:17"
-                  },
-                  "order": {
-                    "verdict": "constant",
-                    "value": "'newestFirst'",
-                    "reason": "Read latest entries via original SDK cursors; reverse once for chronological display."
-                  },
-                  "stopAtType": {
-                    "verdict": "unused",
-                    "why": "UI paging includes every original entry kind and does not stop at compaction."
-                  },
-                  "stopAtId": {
-                    "verdict": "unused",
-                    "why": "UI paging includes every original entry kind and does not stop at compaction."
-                  },
-                  "type": {
-                    "verdict": "unused",
-                    "why": "UI paging includes every original entry kind and does not stop at compaction."
-                  },
-                  "customType": {
-                    "verdict": "unused",
-                    "why": "UI paging includes every original entry kind and does not stop at compaction."
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "package": "@earendil-works/pi-agent-core",
-            "dtsPath": "node_modules/@earendil-works/pi-agent-core/dist/harness/types.d.ts",
-            "types": [
-              {
-                "name": "AgentHarnessTool",
-                "why": "每个 Nomi lane 工具都要造一个这个形状（laneTools.mts）。这是本门岗的起因：这个类型的字段是「逐工具可选」的，而我们对所有工具写同一份。",
+                "name": "AgentTool",
+                "why": "每个 Nomi lane 工具都要造一个这个形状（laneTools.mts）。这是本门岗的起因：这个类型的字段是「逐工具可选」的，而我们对所有工具写同一份就会静默吞掉并行读或安全重放。",
                 "declaredIn": ["node_modules/@earendil-works/"],
                 "anchors": [
                   {
                     "kind": "typeAnnotation",
-                    "name": "AgentHarnessTool"
+                    "name": "AgentTool"
                   }
                 ],
                 "fields": {
                   "label": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:170"
+                    "at": "electron/agentLane/laneTools.mts:132"
                   },
                   "prepareArguments": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:182"
+                    "at": "electron/agentLane/laneTools.mts:138"
+                  },
+                  "outputSchema": {
+                    "verdict": "unused",
+                    "why": "outputSchema 对应 structuredContent（给模型之外的程序调用方读，不进模型上下文）。Nomi lane 工具通过 LaneToolOutcome 已将模型正文（content）与界面收据（details / nextAction）分离，再挂一份 outputSchema 会把同一份结果契约维护两遍。"
                   },
                   "replay": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:180"
+                    "at": "electron/agentLane/laneTools.mts:136"
                   },
                   "executionMode": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:186"
+                    "at": "electron/agentLane/laneTools.mts:135"
                   },
                   "name": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:169"
+                    "at": "electron/agentLane/laneTools.mts:131"
                   },
                   "description": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:173"
+                    "at": "electron/agentLane/laneTools.mts:133"
                   },
                   "parameters": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:174"
+                    "at": "electron/agentLane/laneTools.mts:134"
                   },
                   "constrainedSampling": {
                     "verdict": "unused",
-                    "why": "约束采样是让模型在采样阶段就产不出非法参数的加固。Nomi lane 工具的参数校验必须发生在 execute 里（laneTools.mts:189 的 schema.safeParse + §3.3 形状 throw），因为失败正文要同时喂给模型和面板收据；开了它会变成同一条不变量两层各管一半，而两层的失败正文不一样。"
+                    "why": "约束采样是让模型在采样阶段就产不出非法参数的加固。Nomi lane 工具的参数校验必须发生在 laneToolInputBoundary 与 execute 里（pi-schema + Zod safeParse + §3.3 形状失败），因为失败正文要同时喂给模型自纠和面板收据；开了它会变成同一条不变量两层各管一半。"
                   },
                   "execute": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneTools.mts:184"
+                    "at": "electron/agentLane/laneTools.mts:140"
                   }
                 }
               }
@@ -237,161 +189,144 @@
           },
           {
             "package": "@earendil-works/pi-agent-core",
-            "dtsPath": "node_modules/@earendil-works/pi-agent-core/dist/harness/agent-harness.d.ts",
+            "dtsPath": "node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts",
             "types": [
               {
-                "name": "AgentHarnessOptions",
-                "why": "整条 lane 的装配面：会话、模型、重试、压缩、steer/followUp 排队模式全在这张表上。2026-09-06 #546 那批自研债，每一条都对应这里一颗没接的开关。",
+                "name": "AgentOptions",
+                "why": "pi 1.7.0 Agent 的完整运行装配面：初始状态、流式驱动、请求前注入、工具前后钩子、回合结束判停、steer/followUp 排队模式与身份头全在这张表上。",
                 "declaredIn": ["node_modules/@earendil-works/"],
                 "anchors": [
                   {
-                    "kind": "callArgument",
-                    "name": "AgentHarness.create"
+                    "kind": "typeAnnotation",
+                    "name": "AgentOptions"
                   }
                 ],
                 "fields": {
-                  "session": {
+                  "initialState": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:75"
+                    "at": "electron/agentLane/laneHostDrive.mts:333"
                   },
-                  "models": {
+                  "convertToLlm": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:75"
+                    "at": "electron/agentLane/laneHostDrive.mts:346"
                   },
-                  "model": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:75"
-                  },
-                  "thinkingLevel": {
+                  "transformContext": {
                     "verdict": "unused",
-                    "why": "思考档位是模型档案的属性，Nomi 的模型选择在渲染层按档案给（P4：能力按模型身份声明），lane 这层不该再持有一份档位判断——持有就等于两处各决定一次「这个模型要不要思考」。"
+                    "why": "上下文投影与旧读折叠统一由 SessionManager v3 的 buildSessionProjection / appendContextEdit 持久维护，并在 prepareRequest 注入；再挂 transformContext 会造出不落盘的第二套上下文裁剪。"
                   },
-                  "activeToolNames": {
+                  "streamFn": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:76"
+                    "at": "electron/agentLane/laneHostDrive.mts:340"
                   },
-                  "tools": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:75"
-                  },
-                  "toolContext": {
+                  "getApiKey": {
                     "verdict": "unused",
-                    "why": "lane 工具是无上下文的（AgentHarnessTool<undefined>）：每个工具自己从主进程服务取项目状态，不靠 pi 把一份宿主上下文透传进来。透传会把「工具能看见什么」这条边界从工具自己的实现移到装配处，审批闸就再也说不清这次调用能碰到什么。"
+                    "why": "供应商凭据由 Nomi 加密存储经 createNomiProvider 的 InMemoryCredentialStore 与 auth.apiKey.resolve 统一提供，不在 Agent 层开第二条取密钥通道。"
                   },
-                  "systemPrompt": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:75"
-                  },
-                  "resources": {
+                  "onPayload": {
                     "verdict": "unused",
-                    "why": "2026-09-18 还清那笔 debt 时的裁决：技能的发现与解析已经是 pi 的——`loadSourcedSkills`（electron/agentLane/laneSkillCatalog.mts）出目录、`formatSkillsForPrompt` 出 <available_skills>、`formatSkillInvocation` 出选中技能的信封（laneSkillPrompt.mts）。这一格收的是 pi-coding-agent 那套 Resources（prompts / themes / AGENTS 文件 + 系统提示词装配），Nomi 没有 prompts/themes/AGENTS 这些概念，系统提示词由 composeLaneSystemPrompt 按回合求值（laneHost.mts）；把技能塞进 resources 会让同一份索引有两个装配点。所以不构造它，技能走上面三个 pi 函数。"
+                    "why": "出站报文改写唯一收敛在 createNomiProvider 的 requestOptions.onPayload（laneModelProvider.mts:304），那里是唯一知道供应商协议差异的地方；在 Agent 层再挂一份会造出第二个改写点。"
                   },
-                  "streamOptions": {
+                  "onResponse": {
                     "verdict": "unused",
-                    "why": "流式参数（温度、最大 token、headers）在 Nomi 这条路上由 provider 装配决定：createNomiProvider 的 requestOptions/onPayload 是唯一改写出站报文的地方（laneModelProvider.mts:132-160）。在 lane 这层再给一份会造出第二个改写点，而两处只有一处会被 payload 探针看见。"
+                    "why": "HTTP 状态与响应头观测统一由 createNomiProvider 的 observeModelFetch 在传输层记录并脱敏，不在 Agent 层重复挂钩。"
                   },
-                  "retry": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:183",
-                    "why": "阶段 3c（方案 §1.6 第三行）：显式传 LANE_RETRY_POLICY = {enabled:true, maxRetries:3, baseDelayMs:1000}——仍是 pi 自己的 RetryPolicy，不是自研重试；写死的原因是 harness 默认无 jitter、无上限（上游 #8826 open），3 次上限下最长 4s 让 #8826 对我们无感。改数字要先改 laneHost 里那一个常量。"
+                  "onProviderStreamEvent": {
+                    "verdict": "unused",
+                    "why": "流式首字节与空闲超时看门狗统一由 guardProviderStreams 在 ProviderStreams 层包裹，不耦合适配器私有的原始流事件。"
                   },
-                  "compaction": {
+                  "beforeToolCall": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneContextBudget.mts:13",
-                    "why": "B1b: 80k 成本预算派生 pi reserveTokens；原生 compact 保留分镜/画布引用并附最新目录。见 docs/plan/2026-09-09-agent-lane-context-budget.md。"
+                    "at": "electron/agentLane/laneHostDrive.mts:415"
+                  },
+                  "afterToolCall": {
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneHostDrive.mts:419"
+                  },
+                  "finishTurn": {
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneHostDrive.mts:417"
+                  },
+                  "prepareRequest": {
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneHostDrive.mts:372"
+                  },
+                  "prepareNextTurn": {
+                    "verdict": "unused",
+                    "why": "已挂载带已完成回合上下文的 prepareNextTurnWithContext（laneHostDrive.mts:395），无需再同时挂无上下文旧口 prepareNextTurn。"
+                  },
+                  "prepareNextTurnWithContext": {
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneHostDrive.mts:395"
                   },
                   "steeringMode": {
                     "verdict": "constant",
                     "value": "'one-at-a-time'",
-                    "reason": "创作是可撤销的：一条指令要对应一轮、一次可单独看见也可单独撤销的改动。pi 的默认 'all' 会把用户连打的三句一次性注入同一轮（harness/runtime/harness.js:44-45），三条指令的效果搅进同一批改动里，用户既看不出哪一句造成了哪一处，也没法只撤其中一句。这条约束来自领域（本地创作 + 每步可回退），不是排队策略的取舍。介入槽 2026-09-05 已拍板五形态，方案 §1.3 的三态映射就建在这颗上。"
+                    "reason": "创作是可撤销的：一条指令要对应一轮、一次可单独看见也可单独撤销的改动。默认 'all' 会把用户连打的多句一次性注入同一轮，效果搅进同一批改动里无法逐句撤回。"
                   },
                   "followUpMode": {
                     "verdict": "constant",
                     "value": "'one-at-a-time'",
-                    "reason": "同 steeringMode：这两颗是同一件事的两半（这一步之前插队 vs 整轮跑干之后再说），一半写死一半用默认会让「等它做完再说」批量灌进同一轮，用户仍旧撤不动其中一句。"
+                    "reason": "同 steeringMode：这两颗是同一件事的两半（这一步之前插队 vs 整轮跑干之后再说），一半写死一半用默认会让排队指令批量灌进同一轮，用户仍撤不动其中一句。"
+                  },
+                  "sessionId": {
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneHostDrive.mts:341"
+                  },
+                  "thinkingBudgets": {
+                    "verdict": "unused",
+                    "why": "思考档位映射由模型档案经 Model.thinkingLevelMap 声明（P4：能力按模型身份声明），不在会话级硬塞 token 预算覆盖。"
+                  },
+                  "transport": {
+                    "verdict": "upstream-default",
+                    "default": "'sse'",
+                    "why": "SSE 流式传输才能经过自定义 fetch 接受 Nomi 的逐跳出站鉴权与首字节看门狗；WebSocket 传输不走 fetch。"
+                  },
+                  "maxRetryDelayMs": {
+                    "verdict": "upstream-default",
+                    "default": "60000",
+                    "why": "pi-ai 默认 60s 上限拒绝服务端超长 Retry-After 阻塞，把重试等待交回宿主可见的退避循环（LANE_RETRY_POLICY）。"
                   },
                   "toolExecution": {
                     "verdict": "constant",
                     "value": "'sequential'",
-                    "reason": "花钱与写盘的工具串行执行是审批闸的前提：before_tool 钩子逐次问用户「这一步允不允许」，并行执行会让两条待批的调用同时挂在同一个人面前，而其中一条可能已经改了另一条要读的文稿。这是领域约束（本地创作 + 花钱要审批），不是实现偏好。"
+                    "reason": "花钱与写盘的工具串行执行是审批闸的前提：beforeToolCall 逐次问用户这一步允不允许，并行执行会让两条待批调用同时挂在同一个人面前且互相篡改文稿状态。"
                   },
-                  "toProviderMessages": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:199",
-                    "reason": "公开的消息适配钩子负责将 nomi.input 的已验证附件声明转成 provider 内容，再交 pi convertToLlm。转录仍存用户输入与声明，不存附件字节；onPayload 保留协议观测职责，不承担附件解析。"
-                  },
-                  "entryProjectors": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:78"
+                  "identity": {
+                    "verdict": "constant",
+                    "value": "{ attribution: null }",
+                    "reason": "桌面工作台用用户自己的 API Key 直连供应商；置空 attribution 禁止向用户付费请求注入第三方 CLI 归属头（HTTP-Referer: pi.dev）。"
                   }
                 }
-              },
+              }
+            ]
+          },
+          {
+            "package": "@earendil-works/pi-coding-agent",
+            "dtsPath": "node_modules/@earendil-works/pi-coding-agent/dist/core/compaction/compaction.d.ts",
+            "types": [
               {
-                "name": "HookMap",
-                "why": "pi 的扩展点全表。我们只挂了 before_tool（审批闸），其余每一个都该有一条「为什么不挂」——钩子的返回形状同理：block/args 用了哪些、没用哪些。",
-                "anchors": [],
-                "expand": ["before_tool", "before_tool.result"],
+                "name": "CompactionSettings",
+                "why": "pi-coding-agent 原生上下文压缩的阈值契约（laneContextBudget.mts）：reserveTokens 与 keepRecentTokens 直接决定长创作对话何时摘要与保留多少近期上下文。",
+                "declaredIn": ["node_modules/@earendil-works/"],
+                "anchors": [
+                  {
+                    "kind": "typeAnnotation",
+                    "name": "CompactionSettings"
+                  }
+                ],
                 "fields": {
-                  "before_run": {
-                    "verdict": "unused",
-                    "why": "开跑前不改 prompt：系统提示词由 composeLaneSystemPrompt 在装配处一次拼好（laneHost.mts:73），运行时再插一段就出现了两个提示词来源。"
+                  "enabled": {
+                    "verdict": "constant",
+                    "value": "true",
+                    "reason": "长创作会话跨数十轮分镜与画布读写，关掉原生压缩会让单次请求超上下文窗口硬挂或静默暴涨单轮 token 花费。"
                   },
-                  "before_drive": {
-                    "verdict": "unused",
-                    "why": "驱动前没有需要拦的事——审批发生在工具那一层（before_tool），不是整条 run 那一层。"
-                  },
-                  "before_run_end": {
-                    "verdict": "unused",
-                    "why": "自动追问会绕过用户：Nomi 的下一回合必须由人发起（介入槽），不由宿主替他续一句。"
-                  },
-                  "transform_context": {
-                    "verdict": "unused",
-                    "why": "改写喂给模型的转录会让面板显示的和模型看到的分叉——这条链上唯一允许的差别是截断，而截断已经在工具结果那层做了（truncateForModel）。"
-                  },
-                  "before_request": {
-                    "verdict": "unused",
-                    "why": "逐次请求改流式参数是 streamOptions 的运行时版本，同样落在「出站报文只允许一个改写点」那条约束上（见 AgentHarnessOptions.toProviderMessages）。"
-                  },
-                  "before_payload": {
-                    "verdict": "unused",
-                    "why": "报文改写点已经在 createNomiProvider 的 onPayload（laneModelProvider.mts:145），那里是唯一知道供应商协议差异的地方；在钩子里再改一次就是第二个真相源。"
-                  },
-                  "after_response": {
-                    "verdict": "unused",
-                    "why": "响应消息不改：改了之后转录里存的就不是模型真的说过的话，事后追责与复现全部失真。"
-                  },
-                  "before_tool": {
+                  "reserveTokens": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:89"
+                    "at": "electron/agentLane/laneContextBudget.mts:82"
                   },
-                  "after_tool": {
-                    "verdict": "unused",
-                    "why": "工具结果的投影走 laneProjection 的转录投影一条路；在钩子里再改一次结果会让投影和真实转录分叉（同一语义两份定义）。"
-                  },
-                  "before_compaction": {
+                  "keepRecentTokens": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneContextBudget.mts:25",
-                    "why": "B1b: 80k 成本预算派生 pi reserveTokens；原生 compact 保留分镜/画布引用并附最新目录。见 docs/plan/2026-09-09-agent-lane-context-budget.md。"
-                  },
-                  "before_navigation": {
-                    "verdict": "unused",
-                    "why": "分支导航（回到转录某个节点重开）目前没有产品入口；有入口时它会连着撤销栈一起设计，那时再裁。"
-                  },
-                  "before_tool.event": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:241"
-                  },
-                  "before_tool.result": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:245"
-                  },
-                  "before_tool.result.args": {
-                    "verdict": "unused",
-                    "why": "审批闸只有「放行 / 拦下」两种结果，永远不改模型填的参数：改了参数，面板收据上写的和实际执行的就不是一回事，而用户是照收据点的头。"
-                  },
-                  "before_tool.result.block": {
-                    "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:245"
+                    "at": "electron/agentLane/laneContextBudget.mts:83"
                   }
                 }
               }
@@ -403,7 +338,7 @@
             "types": [
               {
                 "name": "Model",
-                "why": "createNomiProvider 每次都要造一个 Model<Api>（electron/agentLane/laneModelProvider.mts:117）。cost / contextWindow / reasoning 这三格直接决定 pi 的记账、压缩阈值与思考档位——写死一个值就等于把这三件事从 Nomi 的模型档案里摘下来。",
+                "why": "createNomiProvider 每次都要造一个 Model<Api>（electron/agentLane/laneModelProvider.mts:229）。cost / contextWindow / reasoning 这三格直接决定 pi 的记账、压缩阈值与思考档位——写死一个值就等于把这三件事从 Nomi 的模型档案里摘下来。",
                 "anchors": [
                   {
                     "kind": "typeAnnotation",
@@ -411,62 +346,79 @@
                   }
                 ],
                 "fields": {
+                  "type": {
+                    "verdict": "upstream-default",
+                    "default": "'chat'",
+                    "why": "pi-ai 对省略 type 的 Model 默认视为 chat 模型（types.d.ts:680）；图片与视频生成在 Nomi 走画布节点与生成账本专属链路，不混入对话流。"
+                  },
                   "id": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:118"
+                    "at": "electron/agentLane/laneModelProvider.mts:230"
                   },
                   "name": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:118"
+                    "at": "electron/agentLane/laneModelProvider.mts:230"
                   },
                   "api": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:119"
+                    "at": "electron/agentLane/laneModelProvider.mts:231"
                   },
                   "provider": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:118"
+                    "at": "electron/agentLane/laneModelProvider.mts:230"
                   },
                   "baseUrl": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:119"
+                    "at": "electron/agentLane/laneModelProvider.mts:231"
                   },
                   "reasoning": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:119"
+                    "at": "electron/agentLane/laneModelProvider.mts:231"
                   },
                   "thinkingLevelMap": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:124"
+                    "at": "electron/agentLane/laneModelProvider.mts:236"
+                  },
+                  "promptCache": {
+                    "verdict": "unused",
+                    "why": "promptCache 仅描述上游模型目录的缓存 TTL 元数据；Nomi 请求级缓存控制由 cacheRetention 与 sessionId 驱动，不在自定义模型描述上虚构 TTL。"
                   },
                   "input": {
                     "verdict": "constant",
                     "value": "['text', 'image']",
-                    "reason": "这条通道只接文本与图片：音频/视频产物在 Nomi 走生成画布的产物链，不进模型对话的输入位（进了就等于把大文件塞进转录，冷恢复时要重放整段）。"
+                    "reason": "这条通道只接文本与图片（PDF 经 nativePdfPayload 在支持协议的 onPayload 按标记注入）：音视频大产物在 Nomi 走生成画布产物链，不塞进转录重放。"
+                  },
+                  "inputLimits": {
+                    "verdict": "unused",
+                    "why": "附件体积、数量与图片尺寸上限在 Nomi 桌面入参准入层（mediaImportPolicy / laneDesktopAttachments）前置拦截并给出双语报错，不在 provider 层静默裁图。"
                   },
                   "cost": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:125"
+                    "at": "electron/agentLane/laneModelProvider.mts:239"
                   },
                   "contextWindow": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:128"
+                    "at": "electron/agentLane/laneModelProvider.mts:242"
                   },
                   "maxTokens": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:128"
+                    "at": "electron/agentLane/laneModelProvider.mts:242"
                   },
                   "samplingParams": {
                     "verdict": "unused",
-                    "why": "采样参数由 Nomi 的任务参数决定并在 onPayload 写进报文（laneModelProvider.mts:157 起的 temperature 等），那里是唯一知道「这次任务要多稳」的地方；在模型档案上再挂一份会让同一个参数有两个来源。"
+                    "why": "采样参数由 Nomi 的任务参数决定并在 onPayload 写进报文（laneModelProvider.mts:315 起的 temperature 等），那里是唯一知道「这次任务要多稳」的地方；在模型档案上再挂一份会让同一个参数有两个来源。"
+                  },
+                  "samplingParamsByThinkingLevel": {
+                    "verdict": "unused",
+                    "why": "同 samplingParams：按档采样覆盖统一在 Nomi 模型档案与 onPayload 单点收口，不在 Model 描述层再叠第二份来源。"
                   },
                   "headers": {
                     "verdict": "unused",
-                    "why": "请求头在 createNomiProvider 里按 authType 组装并做了 null 抑制（laneModelProvider.mts:130-136）——那是安全边界（keyless 服务器不许带 Authorization）。模型档案上再开一个 headers 口子会绕过那段抑制。"
+                    "why": "请求头在 createNomiProvider 里按 authType 组装并做了 null 抑制（laneModelProvider.mts:289-295）——那是安全边界（keyless 服务器不许带 Authorization）。模型档案上再开一个 headers 口子会绕过那段抑制。"
                   },
                   "compat": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneModelProvider.mts:193"
+                    "at": "electron/agentLane/laneModelProvider.mts:238"
                   }
                 }
               }
@@ -477,8 +429,8 @@
       "capabilities": [
         {
           "id": "session-persistence",
-          "provides": "AgentHarness lanes use public Session/Branch persistence and paged history; legacy coding-agent uses SessionManager. Runtime transcript is a compacted working set, not UI history.",
-          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:334 `static inMemory`",
+          "provides": "SessionManager v3 owns append-only JSONL persistence, parentId branch trees, compaction/context_edit projection, and version migration; UI page caches never feed model context.",
+          "evidence": "@earendil-works/pi-coding-agent@1.7.0 dist/core/session-manager.d.ts `export declare class SessionManager` / `buildSessionProjection` / `appendContextEdit`",
           "scope": ["electron/agentLane/"],
           "forbidden": [
             {
@@ -495,8 +447,8 @@
         },
         {
           "id": "retry-policy",
-          "provides": "RetryPolicy：模型请求的重试与退避策略，由 settings.retry 与 provider.maxRetries 驱动",
-          "evidence": "@earendil-works/pi-ai@0.85.1 `RetryPolicy`（经 pi-coding-agent dist/core/compaction/compaction.d.ts:8 import、:105 `completeSummarization(..., retry?: RetryPolicy, ...)` 透出）；pi-coding-agent dist/core/settings-manager.d.ts:81 `retry?: RetrySettings`",
+          "provides": "RetryPolicy + isRetryableAssistantError + retryDelayMs：模型请求的重试判定与指数退避，由 LANE_RETRY_POLICY 与 provider 重试驱动",
+          "evidence": "@earendil-works/pi-ai@1.7.0 dist/utils/retry.d.ts `RetryPolicy` / `retryDelayMs` / `isRetryableAssistantError`；pi-coding-agent@1.7.0 dist/core/compaction/compaction.d.ts:107 `completeSummarization(..., retry?: RetryPolicy)`",
           "scope": ["electron/agentLane/"],
           "forbidden": [
             {
@@ -513,8 +465,8 @@
         },
         {
           "id": "context-compaction",
-          "provides": "自动压缩 compaction（只调 reserveTokens / keepRecentTokens）：超阈值时在回合之间摘要旧消息、保留尾巴、落可回放条目；切点与摘要全是 pi 的",
-          "evidence": "@earendil-works/pi-agent-core dist/harness/compaction/compaction.js:144 `shouldCompact`、dist/harness/runtime/drive/structural.js:837 `prepareCompactionThreshold`；@earendil-works/pi-coding-agent docs/compaction.md；我们的唯一设置入口 electron/agentLane/laneContextBudget.mts `laneCompactionSettings`",
+          "provides": "自动压缩 compaction + appendContextEdit：超阈值时用 prepareCompaction + compact 摘要旧消息、保留尾巴、落可回放条目；重复读经 appendContextEdit 原生替换模型投影",
+          "evidence": "@earendil-works/pi-coding-agent@1.7.0 dist/core/compaction/compaction.d.ts:55 `estimateProjectedContextTokens` / :59 `shouldCompact` / :135 `prepareCompaction` / :144 `compact`；我们的唯一设置入口 electron/agentLane/laneContextBudget.mts `laneCompactionSettings`",
           "scope": ["electron/agentLane/"],
           "forbidden": [
             {
@@ -524,15 +476,15 @@
             },
             {
               "id": "hand-rolled-context-trimming",
-              "pattern": "fitContextToBudget|elideOldToolResults|pruneToolResults|trimContextToBudget",
-              "why": "自己裁剪每次请求的消息视图，等于第二个压缩器：失去 pi 的切点规则、摘要和可回放的 compaction 条目；该调的是 laneCompactionSettings 的 reserveTokens / keepRecentTokens。"
+              "pattern": "fitContextToBudget|elideOldToolResults|pruneToolResults|trimContextToBudget|foldSupersededReadResults",
+              "why": "自己裁剪每次请求的消息视图，等于第二个压缩器：失去 pi 的切点规则、摘要、context_edit 投影和可回放的 compaction 条目。"
             }
           ]
         },
         {
           "id": "steering",
-          "provides": "AgentSession.steer() / followUp()：把用户的新指令按流式状态排进当前回合或下一回合",
-          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:375 `steer(text, images?)`、:383 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
+          "provides": "Agent.steer() / followUp()：把用户的新指令按流式状态排进当前回合或下一回合",
+          "evidence": "@earendil-works/pi-agent-core@1.7.0 dist/agent.d.ts:97 `steer(message)` / :99 `followUp(message)`",
           "scope": ["electron/agentLane/"],
           "forbidden": [
             {
@@ -549,8 +501,8 @@
         },
         {
           "id": "resource-loading",
-          "provides": "DefaultResourceLoader：扩展 / skills / prompts / themes / AGENTS 文件的发现、加载与系统提示词装配",
-          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
+          "provides": "DefaultResourceLoader & loadSkillsFromDir：扩展 / skills / prompts / themes / AGENTS 文件的发现、加载与系统提示词装配",
+          "evidence": "@earendil-works/pi-coding-agent@1.7.0 dist/core/resource-loader.d.ts `DefaultResourceLoader`；dist/core/skills.d.ts `loadSkillsFromDir`",
           "scope": ["electron/agentLane/"],
           "forbidden": [
             {
@@ -566,14 +518,14 @@
             {
               "id": "private-skill-directory-walk",
               "pattern": "discoverSkillRecordsFromRoots|createLaneInstalledSkills",
-              "why": "2026-09-18 之前仓里有两份自研的技能遍历器（skillStore 的 discoverSkillRecordsFromRoots 只认 root/<dir>/SKILL.md；laneInstalledSkills 对不叫 SKILL.md 的路径直接抛），各自比 pi 的 loadSkills 窄一点——以 my-skill.md 分发的技能在 pi / Claude Code 装得进、在 Nomi 报错。发现只能来自 pi 的 loadSourcedSkills（laneSkillCatalog.mts）；投影、受众、内容寻址、软链纪律才是我们的活。"
+              "why": "发现只能来自 pi 的 loadSkillsFromDir（laneSkillCatalog.mts）；投影、受众、内容寻址、软链纪律才是我们的活。"
             }
           ]
         },
         {
           "id": "ordered-transcript",
-          "provides": "AgentHarness lane.watch and reduceLaneSnapshot own ordered runtime state; Branch.findEntries owns original history order. UI page caches never feed model context or replace the reducer.",
-          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:103 `AgentSessionEventListener`",
+          "provides": "Agent.subscribe + SessionManager branch entries own ordered runtime and persisted transcript state; projectLaneSnapshot reduces neutral LaneSnapshot without re-ordering.",
+          "evidence": "@earendil-works/pi-agent-core@1.7.0 dist/agent.d.ts:83 `subscribe`；@earendil-works/pi-coding-agent@1.7.0 dist/core/session-manager.d.ts `getBranch`",
           "scope": ["electron/agentLane/", "electron/shared/agentLane/"],
           "forbidden": [
             {
@@ -585,8 +537,8 @@
         },
         {
           "id": "coding-tools",
-          "provides": "pi 自带 7 个 coding 工具（read/grep/find/ls/edit/write/bash）与它们的 operations 插槽、BashSpawnHook、输出截断、system-prompt 贡献。工具的执行、schema、渲染全部由 pi 提供；宿主只出范围、沙箱、审批三样策略。",
-          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/sdk.d.ts:71 `export { …createBashTool, createCodingTools, createEditTool, createFindTool, createGrepTool, createLsTool, createReadTool, createWriteTool… }`；dist/core/tools/bash.d.ts:56-68 `BashToolOptions.operations` / `spawnHook`；dist/core/tools/bash.d.ts:10-13 `bashToolSystemPromptContribution`",
+          "provides": "pi 自带 8 个 coding 工具定义（read/grep/find/ls/edit/write/bash 及 Windows powershell）与它们的 operations 插槽、BashSpawnHook、输出截断、promptSnippet/promptGuidelines。工具的执行、schema、渲染全部由 pi 提供；宿主只出范围、沙箱、审批三样策略。",
+          "evidence": "@earendil-works/pi-coding-agent@1.7.0 dist/index.d.ts `createBashToolDefinition / createPowerShellToolDefinition / createReadToolDefinition / createEditToolDefinition / createWriteToolDefinition / createGrepToolDefinition / createFindToolDefinition / createLsToolDefinition`",
           "scope": [
             "electron/agentLane/"
           ],
@@ -598,15 +550,15 @@
             },
             {
               "id": "own-file-tool-schema",
-              "pattern": "name:\\s*.(read|write|edit|grep|find|ls|bash).\\s*,[\\s\\S]{0,300}?schema:\\s*z\\.",
+              "pattern": "name:\\s*.(read|write|edit|grep|find|ls|bash|powershell).\\s*,[\\s\\S]{0,300}?schema:\\s*z\\.",
               "why": "把 pi 的工具翻译成 zod 的 LaneToolSpec 再翻回 JSON Schema，就是把它重写了一遍：上游改了描述或参数，我们这份静默漂移，而漂移的症状是模型少知道一件事、没人会发现。"
             }
           ]
         },
         {
           "id": "skill-prompt-format",
-          "provides": "pi 出 formatSkillsForPrompt：把技能列表渲染成 Agent Skills 标准的 <available_skills> 段（XML 转义、disable-model-invocation 过滤、「相对路径按技能目录解析」那句话、以及 read/bash 二选一的取正文指令）。宿主只做两件 pi 不知道的事：Nomi 的 SkillRecord → pi 的 Skill 形状，和「这条技能要不要 coding 工具」。",
-          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/index.d.ts:21 `export { formatSkillsForPrompt, … }`；dist/core/skills.d.ts:44 `formatSkillsForPrompt(skills, fileReadTool?: \"read\" | \"bash\")`；dist/core/skills.js:275-298 渲染体",
+          "provides": "pi 出 formatSkillsForPrompt：把技能列表渲染成 Agent Skills 标准的 <available_skills> 段（XML 转义、disableModelInvocation 过滤、相对路径解析说明与 read 取正文指令）。",
+          "evidence": "@earendil-works/pi-coding-agent@1.7.0 dist/index.d.ts `export { formatSkillsForPrompt, … }`；dist/core/skills.d.ts `formatSkillsForPrompt`",
           "scope": [
             "electron/agentLane/"
           ],
@@ -614,7 +566,7 @@
             {
               "id": "own-available-skills-xml",
               "pattern": "<available_skills>",
-              "why": "手拼这段 XML 就是把 pi 的渲染重写一遍：转义漏一个 & 会让整段提示词在模型眼里断掉，而漏掉 disable-model-invocation 过滤会把用户明确藏起来的技能送进模型。两样都不报错。渲染只能来自 formatSkillsForPrompt；映射与解锁判断才是我们的活。"
+              "why": "手拼这段 XML 就是把 pi 的渲染重写一遍：转义漏一个 & 会让整段提示词在模型眼里断掉，而漏掉 disableModelInvocation 过滤会把用户明确藏起来的技能送进模型。渲染只能来自 formatSkillsForPrompt；映射与解锁判断才是我们的活。"
             }
           ]
         }

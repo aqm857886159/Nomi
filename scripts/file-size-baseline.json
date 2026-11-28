@@ -221,25 +221,6 @@
         }
       ]
     },
-    "electron/agentLane/laneHost.mts": {
-      "kind": "frozen",
-      "max": 885,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 885（2026-11-28 SM-3：零松弛按实测收紧）",
-      "topDeclarations": [
-        {
-          "name": "openLane",
-          "lines": 776
-        },
-        {
-          "name": "interruptedToolCallIds",
-          "lines": 13
-        },
-        {
-          "name": "PART_TYPE_BY_EVENT",
-          "lines": 11
-        }
-      ]
-    },
     "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx": {
       "kind": "frozen",
       "max": 846,
