@@ -37,6 +37,9 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
+      - name: Enable Git long paths on Windows
+        run: git config --global core.longpaths true
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
@@ -84,6 +87,9 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
+      - name: Enable Git long paths on Windows
+        run: git config --global core.longpaths true
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}

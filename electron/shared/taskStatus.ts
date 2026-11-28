@@ -9,19 +9,13 @@
  */
 import type { GenerationProviderTaskState } from '../capabilityCore/generationRuntimeAdapter'
 
-export type TaskStatus = 'queued' | 'running' | 'succeeded' | 'failed'
-
-export const TASK_STATUS_PHASE = {
-  queued: 'in-flight',
-  running: 'in-flight',
-  succeeded: 'terminal',
-  failed: 'terminal',
-} as const satisfies Record<TaskStatus, 'in-flight' | 'terminal'>
-
-export function isTerminalTaskStatus(status: string | undefined | null): status is 'succeeded' | 'failed' {
-  return typeof status === 'string' && Object.prototype.hasOwnProperty.call(TASK_STATUS_PHASE, status)
-    && TASK_STATUS_PHASE[status as TaskStatus] === 'terminal'
-}
+export {
+  TASK_STATUSES,
+  TASK_STATUS_PHASE,
+  isTerminalTaskStatus,
+  type TaskStatus,
+  type TaskTerminalStatus,
+} from './contracts/taskStatus'
 
 // ── 上游任务状态词表——**全仓唯一一份**（与上面的 TaskStatus 同住：词 → 归类 → 四种状态，一个文件说完）。
 //

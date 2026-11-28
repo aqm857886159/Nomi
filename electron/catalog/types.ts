@@ -642,23 +642,34 @@ export function selectTaskMapping(
   const candidates = exact.length > 0 ? exact : generic;
   if (candidates.length === 0) return null;
   const requestedMode = (modeId || "").trim();
+  // A single **mode-less** candidate can safely serve several UI modes: that is the
+  // designed shared-wire case (one vendor endpoint behind several UI modes, and older
+  // rows predate modeId entirely). It serves every mode that no mode-specific mapping
+  // in the same bucket claims — including an omitted mode — so one row may carry a
+  // shared wire plus one extra step of its own (the draft row's `sample-final`).
+  // A candidate that declares a **different** mode must never be borrowed — its body is
+  // that other mode's contract, so the requested mode's reference keys are simply absent
+  // and the request silently degrades to the other mode's shape. That is how
+  // `runway/happyhorse_1_0/reference` (declares 10 reference images) quietly became
+  // "one promptImage", and how three fal modes borrowed a sibling's wire. Fail closed
+  // instead; the caller surfaces the gap.
+  const modeless = candidates.filter((m) => !(m.modeId || "").trim());
   if (requestedMode) {
     const exactMode = candidates.filter((m) => (m.modeId || "").trim() === requestedMode);
     if (exactMode.length === 1) return exactMode[0];
-    // A single **mode-less** candidate can safely serve several UI modes: that is the
-    // designed shared-wire case (one vendor endpoint behind several UI modes, and older
-    // rows predate modeId entirely). A single candidate that declares a **different**
-    // mode must never be borrowed — its body is that other mode's contract, so the
-    // requested mode's reference keys are simply absent and the request silently
-    // degrades to the other mode's shape. That is how `runway/happyhorse_1_0/reference`
-    // (declares 10 reference images) quietly became "one promptImage", and how three fal
-    // modes borrowed a sibling's wire. Fail closed instead; the caller surfaces the gap.
-    const onlyCandidateIsModeless = candidates.length === 1 && !(candidates[0].modeId || "").trim();
-    return exactMode.length === 0 && onlyCandidateIsModeless ? candidates[0] : null;
+    // A mode that this model claims in **another** task kind is that mapping's alone: the
+    // request arrived in the wrong bucket. The shared mapping here must not serve it — for the
+    // draft row that would turn "make HD from draft X" into a brand-new paid draft (i2v body +
+    // `draft: true` + the node's references). Fail closed.
+    const claimedElsewhere = mappings.some((m) => m.enabled && m.vendorKey === vendorKey && m.taskKind !== taskKind
+      && (m.modelKey || "").trim() === key && (m.modeId || "").trim() === requestedMode);
+    if (claimedElsewhere) return null;
+    return exactMode.length === 0 && modeless.length === 1 ? modeless[0] : null;
   }
-  // Once a model has multiple mode-specific mappings, an omitted mode is
+  if (candidates.length === 1) return candidates[0];
+  // Several mode-specific mappings and no single shared one: an omitted mode is
   // ambiguous and must fail closed instead of silently selecting the first row.
-  return candidates.length === 1 ? candidates[0] : null;
+  return modeless.length === 1 ? modeless[0] : null;
 }
 
 /**

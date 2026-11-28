@@ -560,6 +560,75 @@ export function routingEnforced(createdAt, table = loadRoutingTable()) {
   return new Date(createdAt) >= new Date(`${table.effectiveFrom}T00:00:00Z`)
 }
 
+export const GENERATED_ALLOWLIST_FILE = 'docs/engineering/generated-allowlist.json'
+
+// 登记表使用仓库相对 glob：* 匹配一段，**/ 匹配零到多级目录。
+function generatedGlob(glob) {
+  const pattern = glob.split(/(\*\*\/|\*\*|\*)/).map(part => {
+    if (part === '**/') return '(?:[^/]+/)*'
+    if (part === '**') return '.*'
+    if (part === '*') return '[^/]*'
+    return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }).join('')
+  return new RegExp(`^${pattern}$`, 's')
+}
+
+export function isGeneratedArtifact(name) {
+  return (name.startsWith('docs/') && /\.(json|jsonl|txt|log|html|csv|ndjson)$/i.test(name)) || /\.candidates\.json$/i.test(name)
+}
+
+export function validateGeneratedAllowlist(allowlist, label = GENERATED_ALLOWLIST_FILE) {
+  const lines = []
+  const matchers = []
+  if (!Array.isArray(allowlist)) lines.push(`✖ ${label} 应为数组`)
+  else for (const [index, item] of allowlist.entries()) {
+    const missing = ['glob', 'reason', 'owner'].filter(key => typeof item?.[key] !== 'string' || !item[key].trim())
+    if (missing.length) lines.push(`✖ ${label} 第 ${index + 1} 项需要非空字符串：${missing.join('、')}`)
+    else matchers.push(generatedGlob(item.glob.trim()))
+  }
+  return { lines, matchers }
+}
+
+export function checkGeneratedWeight(files, allowlist, { headAllowlist = undefined, unapprovedGlobs = [] } = {}) {
+  const baseValid = validateGeneratedAllowlist(allowlist)
+  const lines = [...baseValid.lines]
+  const matchers = baseValid.matchers
+  let headMatchers = []
+  if (headAllowlist !== undefined) {
+    const headValid = validateGeneratedAllowlist(headAllowlist, `PR 提交的 ${GENERATED_ALLOWLIST_FILE}`)
+    lines.push(...headValid.lines)
+    headMatchers = headValid.matchers
+  }
+
+  let total = 0
+  const counted = []
+  let blockedByUnapproved = false
+  for (const file of files) {
+    const name = norm(file.path)
+    if (isRemoved(file.status) || file.binary) continue
+    if (!isGeneratedArtifact(name)) continue
+    if (matchers.some(re => re.test(name))) continue
+    if (!Number.isSafeInteger(file.additions) || file.additions < 0) {
+      lines.push(`✖ 取不到机器产出文件 ${name} 的文本新增行数`)
+      continue
+    }
+    if (file.additions === 0) continue
+    if (headMatchers.some(re => re.test(name))) blockedByUnapproved = true
+    counted.push({ path: name, additions: file.additions })
+    total += file.additions
+    if (file.additions > 1000) lines.push(`✖ 机器产出 ${name} 新增 ${file.additions} 行，超过单文件 1000 行`)
+  }
+  if (total > 2000) lines.push(`✖ 机器产出合计新增 ${total} 行，超过 2000 行：${counted.map(f => `${f.path} (+${f.additions})`).join('、')}`)
+  const ok = lines.length === 0
+  if (!ok) {
+    lines.push(`  → 原始转储留在本机工作树、不提交；报告里写结论和数字；确实要进仓库的，登记进 ${GENERATED_ALLOWLIST_FILE} 并写理由`)
+    if (blockedByUnapproved && unapprovedGlobs.length > 0) {
+      lines.push(`  → 本 PR 新增或放宽的登记规则（${unapprovedGlobs.join('、')}）不能在同一 PR 内自行豁免超标文件；请先单独合入登记表，或由协调运行 node scripts/coord-approve.mjs --pr <号> --allowlist 确认`)
+    }
+  }
+  return { ok, lines, total, counted }
+}
+
 // ── 规则与门岗的改动范围（#1033，2026-10-05；2026-10-06 从 merge-preflight 挪到这里，CI 也跑）──────────────
 // #1032 事故：一张只该换截图基线的卡，提交里混进本地旧文件，把刚合入的 #1031 整个回退——CLAUDE.md、rules.json、
 // 八个门岗脚本、逃逸账本，44 个文件删 752 行。判据：碰到下面这些路径的 PR，正文 `## 碰到的规则与门岗` 一节必须逐个点名；
@@ -567,7 +636,7 @@ export function routingEnforced(createdAt, table = loadRoutingTable()) {
 export const PROTECTED_PATHS = [
   /^(?:CLAUDE|AGENTS)\.md$/,
   /^docs\/engineering-rules\.md$/,
-  /^docs\/engineering\/(?:rules\.json|rules\.md|experience-system\.md|design-card\.md|test-routing\.json|self-written\.json)$/,
+  /^docs\/engineering\/(?:rules\.json|rules\.md|experience-system\.md|design-card\.md|test-routing\.json|generated-allowlist\.json|self-written\.json)$/,
   /^docs\/engineering\/concept-owners\/[^/]+$/,
   /^scripts\/(?:check-[^/]+|run-gates[^/]*|merge-preflight[^/]*|experience-full-run[^/]*|validation-policy[^/]*|git-delivery[^/]*|[^/]+-lib\.mjs|[^/]*baseline[^/]*\.json)$/,
   /^scripts\/claude-hooks\//,

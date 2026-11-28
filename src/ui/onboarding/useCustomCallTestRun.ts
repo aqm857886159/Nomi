@@ -3,7 +3,37 @@ import { useTranslation } from 'react-i18next'
 import type { CustomCallTestResult } from '../../desktop/modelCatalogBridgeTypes'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { CustomCallTarget } from './CustomCallEditor'
-import type { CustomCallScriptMode } from './customCallScriptModes'
+import type { CustomCallCatalogModel, CustomCallScriptMode } from './customCallScriptModes'
+
+export function useCustomCallCatalogModel(
+  target: CustomCallTarget | null,
+  targetKey: string,
+): CustomCallCatalogModel | null {
+  const bridge = getDesktopBridge()
+  const [catalogModel, setCatalogModel] = React.useState<CustomCallCatalogModel | null>(null)
+  // 目录读是异步 IPC：按 targetKey 读一次落进 state（原始键作依赖：父组件刷新不许冲掉正在编辑的草稿）。
+  React.useEffect(() => {
+    setCatalogModel(null)
+    if (!target || !bridge) return
+    let alive = true
+    void Promise.resolve(bridge.modelCatalog.listModels({ vendorKey: target.vendorKey }))
+      .then((models) => {
+        if (!alive) return
+        const found = (models as CustomCallCatalogModel[]).find(
+          (model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey,
+        )
+        setCatalogModel(found ?? null)
+      })
+      .catch(() => {
+        if (alive) setCatalogModel(null)
+      })
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bridge, targetKey])
+  return catalogModel
+}
 
 export type CustomCallTestRunState =
   | { phase: 'idle' }

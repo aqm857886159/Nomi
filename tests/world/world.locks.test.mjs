@@ -91,6 +91,41 @@ describe('写盘判决（纯函数）', () => {
     expect(judgeWrite([frame('electron/catalog/catalogStore.ts'), frame('electron/catalog/catalogStore.test.ts')])).toEqual({ block: false })
     expect(judgeWrite([frame('electron/catalog/catalogStore.ts'), frame('electron/foo/bar.test.ts')])).toMatchObject({ block: true, reason: 'owner-write-path' })
   })
+  it('经 atomically + tests/setup/durability.ts 转发的产品主人写盘 → 放行', () => {
+    expect(
+      judgeWrite([
+        frame('tests/setup/world/fsLock.ts', 'patched'),
+        frame('tests/setup/durability.ts', 'forwarder'),
+        frame('node_modules/.pnpm/atomically@2.1.1/node_modules/atomically/dist/index.js', 'writeFileSync'),
+        frame('electron/jsonFile.ts', 'writeJsonFileAtomic'),
+        frame('electron/configFileStore.ts', 'writeConfigFileAtomic'),
+        frame('electron/catalog/catalogStore.ts', 'saveCatalog'),
+      ]),
+    ).toEqual({ block: false })
+    expect(
+      judgeWrite([
+        frame('tests/setup/world/fsLock.ts', 'patched'),
+        frame('tests/setup/durability.ts', 'forwarder'),
+        frame('node_modules/.pnpm/atomically@2.1.1/node_modules/atomically/dist/index.js', 'writeFileSync'),
+        frame('electron/jsonFile.ts', 'writeJsonFileAtomic'),
+        frame('electron/configFileStore.ts', 'writeConfigFileAtomic'),
+        frame('electron/catalog/catalogStore.ts', 'saveCatalog'),
+        frame('tests/world/index.ts', 'buildWorld'),
+        frame('electron/foo.test.ts'),
+      ]),
+    ).toEqual({ block: false })
+  })
+  it('测试经 durability.ts 转发直调 writeJsonFileAtomic 写主人文件 → 仍按 raw-primitive 拦截', () => {
+    expect(
+      judgeWrite([
+        frame('tests/setup/world/fsLock.ts', 'patched'),
+        frame('tests/setup/durability.ts', 'forwarder'),
+        frame('node_modules/.pnpm/atomically@2.1.1/node_modules/atomically/dist/index.js', 'writeFileSync'),
+        frame('electron/jsonFile.ts', 'writeJsonFileAtomic'),
+        frame('electron/foo.test.ts'),
+      ]),
+    ).toEqual({ block: true, reason: 'raw-primitive' })
+  })
   it('parseStack 取绝对路径帧', () => {
     const frames = parseStack(`Error\n    at f (${REPO_ROOT}/a.ts:1:2)\n    at ${REPO_ROOT}/b.ts:3:4\n    at node:internal/x:1:1`)
     expect(frames.map((f) => path.basename(f.file))).toEqual(['a.ts', 'b.ts'])

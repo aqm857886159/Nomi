@@ -235,3 +235,50 @@ describe('settled attempts retain their own outcome during regeneration', () => 
     expect(view.rows.find(row => row.id === 'new')?.phaseText).toContain('生成中')
   })
 })
+
+describe('出高清那一行按样片号认（D-1126-sd-hd-retry-route）', () => {
+  const HOUR = 3_600_000
+  const T0 = 1_800_000_000_000
+  const sample = {
+    id: 's1', type: 'video', url: 'nomi-local://asset/p/s1.mp4', taskId: 'draft-1', model: 'doubao-seedance-2.5-sample', createdAt: T0,
+    provenance: { provider: 'apimart', timestamp: T0, params: { extras: { archetype: { id: 'seedance-2.5-apimart-sample', modeId: 'text_to_video' }, modelKey: 'doubao-seedance-2.5-sample', modelVendor: 'apimart' } } },
+  }
+  const finalAt = (createdAt: number) => ({
+    id: `f-${createdAt}`, type: 'video', url: 'nomi-local://asset/p/f.mp4', taskId: 'final-task', createdAt,
+    provenance: { provider: 'apimart', timestamp: createdAt, params: { extras: { archetype: { id: 'seedance-2.5-apimart-sample', modeId: 'sample-final' }, draft_task_id: 'draft-1', resolution: '1080p' } } },
+  })
+  const sampleNode = (patch: Partial<GenerationCanvasNode> = {}) => node('v', { kind: 'video', status: 'success', result: sample, history: [], ...patch } as Partial<GenerationCanvasNode>)
+  const hdRow = (patch: Partial<GenerationQueueEntry> = {}) => entry({ id: 'hd', batchId: 'b1', nodeId: 'v', state: 'error', error: 'HTTP 500 upstream', enqueuedAt: T0 + HOUR, draftTaskId: 'draft-1', ...patch })
+
+  it('节点照成功画，这一行仍是失败；「重试」只带样片号和清晰度', () => {
+    const view = buildTaskCenterView({ entries: [hdRow()], batches, nodes: [sampleNode()], fallbackTitle: 'Shot', now: T0 + 2 * HOUR })
+    expect(view.rows[0]).toMatchObject({ group: 'done', outcome: 'error' })
+    expect(view.rows[0].action).toEqual({ kind: 'retry_sample_final', nodeId: 'v', sampleFinal: { draftTaskId: 'draft-1', resolution: '1080p' } })
+    expect(view.summary.failed).toBe(1)
+  })
+
+  it('更早的出高清失败行（之后又照常生成过）同样只走再出高清，不走普通重试', () => {
+    const later = entry({ id: 'later', batchId: 'b1', nodeId: 'v', state: 'success', enqueuedAt: T0 + 3 * HOUR })
+    const view = buildTaskCenterView({ entries: [hdRow(), later], batches, nodes: [sampleNode()], fallbackTitle: 'Shot', now: T0 + 4 * HOUR })
+    expect(view.rows.find((row) => row.id === 'hd')?.action).toEqual({ kind: 'retry_sample_final', nodeId: 'v', sampleFinal: { draftTaskId: 'draft-1', resolution: '1080p' } })
+  })
+
+  it('样片过期 / 不在了：如实留着失败，不给任何重试（不退回重新出样片）', () => {
+    const expired = buildTaskCenterView({ entries: [hdRow()], batches, nodes: [sampleNode()], fallbackTitle: 'Shot', now: T0 + 72 * HOUR })
+    expect(expired.rows[0]).toMatchObject({ outcome: 'error', action: null })
+    const gone = buildTaskCenterView({ entries: [hdRow()], batches, nodes: [sampleNode({ result: undefined })], fallbackTitle: 'Shot', now: T0 + 2 * HOUR })
+    expect(gone.rows[0]).toMatchObject({ outcome: 'error', action: null })
+  })
+
+  it('这次的高清版后来到了（找回）→ 这一行算成；更早出过的高清版不算', () => {
+    const landed = buildTaskCenterView({ entries: [hdRow()], batches, nodes: [sampleNode({ history: [finalAt(T0 + 2 * HOUR)] } as Partial<GenerationCanvasNode>)], fallbackTitle: 'Shot', now: T0 + 3 * HOUR })
+    expect(landed.rows[0]).toMatchObject({ group: 'done', outcome: 'success' })
+    const older = buildTaskCenterView({ entries: [hdRow()], batches, nodes: [sampleNode({ history: [finalAt(T0 + HOUR / 2)] } as Partial<GenerationCanvasNode>)], fallbackTitle: 'Shot', now: T0 + 3 * HOUR })
+    expect(older.rows[0]).toMatchObject({ outcome: 'error' })
+  })
+
+  it('反例：普通失败行照旧是普通重试', () => {
+    const view = buildTaskCenterView({ entries: [entry({ nodeId: 'p', state: 'error', error: 'HTTP 500 upstream' })], batches, nodes: [node('p', { status: 'error', error: 'HTTP 500 upstream' })], fallbackTitle: 'Shot', now: T0 })
+    expect(view.rows[0].action).toEqual({ kind: 'retry_generation', nodeId: 'p' })
+  })
+})

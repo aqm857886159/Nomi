@@ -11,10 +11,12 @@
     "symbol": "renameSyncOnce"
   },
   "write_api": [
+    { "path": "electron/jsonFile.ts", "symbol": "renameOnce" },
     { "path": "electron/jsonFile.ts", "symbol": "renameSyncOnce" },
     { "path": "electron/jsonFile.ts", "symbol": "renameSyncWithRetry" },
     { "path": "electron/jsonFile.ts", "symbol": "renameWithRetry" },
-    { "path": "electron/jsonFile.ts", "symbol": "writeJsonFileAtomic" }
+    { "path": "electron/jsonFile.ts", "symbol": "writeJsonFileAtomic" },
+    { "path": "electron/jsonFile.ts", "symbol": "writeJsonFileAtomicAsync" }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],

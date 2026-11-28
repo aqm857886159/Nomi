@@ -79,9 +79,9 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:AgentSelectionChip/chip.selection",
+      "assertions": ["board:AgentSelectionChip/chip.selection"],
       "userDecision": {
         "quote": "行，按推荐",
         "date": "2026-11-17"
@@ -95,7 +95,7 @@
       "states": [
         "empty"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "行，按推荐",
@@ -104,7 +104,6 @@
       "note": "所答的问题原文：「助手选区：芯片显示什么助手就收到什么，不一致的一律以芯片为准，行吗？」，其中含删掉「· 已变更」。用户没有看到这一项的图，是按文字同意的。同 PR 删文案键 clipStale 和只为它存在的代码，residentSelection.test.ts 守它不回来。"
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "censusId": "ASC-01",

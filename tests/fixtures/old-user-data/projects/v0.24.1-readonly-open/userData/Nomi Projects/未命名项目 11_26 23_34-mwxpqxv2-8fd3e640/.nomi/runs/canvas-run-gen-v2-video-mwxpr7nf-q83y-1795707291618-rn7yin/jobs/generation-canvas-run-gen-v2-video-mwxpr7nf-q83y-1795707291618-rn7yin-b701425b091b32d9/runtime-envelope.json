@@ -1,0 +1,158 @@
+{
+  "runId": "canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin",
+  "jobId": "generation-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9",
+  "runtimeTaskId": "runtime-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9-attempt-1",
+  "contractHash": "b701425b091b32d93e00695637971dac88dd73be2e28a3867460c5ae613ee71f",
+  "providerIdempotencyKey": "generation:canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin:generation-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9:b701425b091b32d93e00695637971dac88dd73be2e28a3867460c5ae613ee71f:attempt-1",
+  "requestFingerprint": "da0ab95591b4e90966a130ec14fc499391c8defdad908b62c70c9645523d67c8",
+  "request": {
+    "moduleId": "generation.canvas",
+    "providerId": "canvas:apimart",
+    "modelId": "doubao-seedance-2.5",
+    "mode": "text_to_video",
+    "prompt": "林夏在雨夜咖啡馆靠窗坐下翻开相册，缓慢推镜",
+    "parameters": {
+      "vendor": "apimart",
+      "request": {
+        "kind": "text_to_video",
+        "prompt": "林夏在雨夜咖啡馆靠窗坐下翻开相册，缓慢推镜",
+        "extras": {
+          "modelKey": "doubao-seedance-2.5",
+          "modelAlias": "doubao-seedance-2.5",
+          "modelVendor": "apimart",
+          "vendor": "apimart",
+          "modelLabel": "Seedance 2.5",
+          "videoModel": "doubao-seedance-2.5",
+          "videoModelVendor": "apimart",
+          "archetype": {
+            "id": "seedance-2.5-apimart",
+            "modeId": "t2v"
+          },
+          "size": "16:9",
+          "resolution": "720p",
+          "duration": 5,
+          "generate_audio": true,
+          "return_last_frame": false,
+          "aspect_ratio": "16:9",
+          "nodeId": "gen-v2-video-mwxpr7nf-q83y",
+          "nodeKind": "video",
+          "idempotencyKey": "run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin",
+          "archetypeInput": {},
+          "projectId": "project-1795707276012-f4tys8"
+        }
+      }
+    },
+    "references": [],
+    "contractHash": "b701425b091b32d93e00695637971dac88dd73be2e28a3867460c5ae613ee71f",
+    "idempotencyKey": "generation:canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin:generation-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9:b701425b091b32d93e00695637971dac88dd73be2e28a3867460c5ae613ee71f:attempt-1",
+    "requestFingerprint": "da0ab95591b4e90966a130ec14fc499391c8defdad908b62c70c9645523d67c8",
+    "executionBinding": {
+      "immutableProjectUuid": "f222f861-90cd-479f-89ba-baf9d0f1baf2",
+      "projectGeneration": 1,
+      "runId": "canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin",
+      "shotId": "generation-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9",
+      "contractHash": "b701425b091b32d93e00695637971dac88dd73be2e28a3867460c5ae613ee71f",
+      "runtimeTaskId": "runtime-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9-attempt-1",
+      "providerNamespace": "canvas:apimart",
+      "providerIdempotencyKey": "generation:canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin:generation-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9:b701425b091b32d93e00695637971dac88dd73be2e28a3867460c5ae613ee71f:attempt-1",
+      "requestFingerprint": "da0ab95591b4e90966a130ec14fc499391c8defdad908b62c70c9645523d67c8",
+      "runtimeEnvelopeRef": ".nomi/runs/canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin/jobs/generation-canvas-run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin-b701425b091b32d9/runtime-envelope.json",
+      "fencingEpoch": 1
+    }
+  },
+  "schemaVersion": 1,
+  "state": "materialized",
+  "updatedAt": "2026-11-26T15:34:58.848Z",
+  "providerTaskId": "s-walk-video-2",
+  "rawReceipt": {
+    "id": "s-walk-video-2",
+    "kind": "text_to_video",
+    "status": "queued",
+    "assets": [],
+    "raw": {
+      "code": 200,
+      "data": [
+        {
+          "status": "submitted",
+          "task_id": "s-walk-video-2"
+        }
+      ]
+    }
+  },
+  "lastPoll": {
+    "status": "succeeded",
+    "revision": 2,
+    "raw": {
+      "id": "s-walk-video-2",
+      "kind": "text_to_video",
+      "status": "succeeded",
+      "assets": [
+        {
+          "type": "video",
+          "url": "nomi-local://asset/project-1795707276012-f4tys8/assets/generated/2026-11-26/video-1795707298747.mp4",
+          "thumbnailUrl": "nomi-local://asset/project-1795707276012-f4tys8/assets/generated/2026-11-26/video-1795707298747.preview.jpg",
+          "previewState": "ready",
+          "assetId": "asset-d1c6006bc26c2c078822",
+          "assetName": "video-1795707298747.mp4",
+          "durationSeconds": 2,
+          "width": 640,
+          "height": 360,
+          "providerUrl": "http://127.0.0.1:64319/fixture/video-1.mp4"
+        }
+      ],
+      "raw": {
+        "code": 200,
+        "data": {
+          "id": "s-walk-video-2",
+          "status": "completed",
+          "result": {
+            "videos": [
+              {
+                "id": "s-walk-video-2",
+                "url": [
+                  "http://127.0.0.1:64319/fixture/video-1.mp4"
+                ],
+                "thumbnail_url": "http://127.0.0.1:64319/fixture/image-1.png",
+                "filename": "fixture-video-1.mp4"
+              }
+            ]
+          }
+        }
+      },
+      "provenance": {
+        "provider": "apimart",
+        "modelKey": "doubao-seedance-2.5",
+        "prompt": "林夏在雨夜咖啡馆靠窗坐下翻开相册，缓慢推镜",
+        "params": {
+          "extras": {
+            "size": "16:9",
+            "resolution": "720p",
+            "duration": 5,
+            "generate_audio": true,
+            "return_last_frame": false,
+            "modelKey": "doubao-seedance-2.5",
+            "modelAlias": "doubao-seedance-2.5",
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "modelLabel": "Seedance 2.5",
+            "videoModel": "doubao-seedance-2.5",
+            "videoModelVendor": "apimart",
+            "archetype": {
+              "id": "seedance-2.5-apimart",
+              "modeId": "t2v"
+            },
+            "aspect_ratio": "16:9",
+            "nodeId": "gen-v2-video-mwxpr7nf-q83y",
+            "nodeKind": "video",
+            "idempotencyKey": "run-gen-v2-video-mwxpr7nf-q83y-1795707291618-rn7yin",
+            "archetypeInput": {},
+            "projectId": "project-1795707276012-f4tys8"
+          }
+        },
+        "vendorRequestId": "s-walk-video-2",
+        "timestamp": 1795707298802
+      }
+    },
+    "observedAt": "2026-11-26T15:34:58.803Z"
+  }
+}

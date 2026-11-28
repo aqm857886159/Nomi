@@ -10,7 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_AUTOMATION_POLICY_SETTINGS } from '../settings/automationPolicyContract'
+import { DEFAULT_AUTOMATION_POLICY_SETTINGS } from './contracts/automationPolicyContract'
 import {
   BUILTIN_MCP_CLIENTS,
   DEFAULT_TRUSTED_MCP_CLIENTS,

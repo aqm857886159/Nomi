@@ -1,0 +1,10 @@
+{"commandId":"generation.seal:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:v1:ecd8c490dcbdd7ce596038004286c8ba102717bd84ce5ae79d70f18ed26b6859","expectedRevision":0,"resultRevision":1,"eventCursors":[2]}
+{"commandId":"canvas-shot-decide:generation-authorization:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:v1:n1:3a85303b-1562-460e-8cb0-8237101613bd","expectedRevision":1,"resultRevision":2,"eventCursors":[3]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:job-bind:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce","expectedRevision":2,"resultRevision":3,"eventCursors":[4]}
+{"commandId":"canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce:1:budget:reserve","expectedRevision":3,"resultRevision":4,"eventCursors":[5]}
+{"commandId":"canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce:1:submit-intent","expectedRevision":4,"resultRevision":5,"eventCursors":[6]}
+{"commandId":"canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce:1:submitting","expectedRevision":5,"resultRevision":6,"eventCursors":[7]}
+{"commandId":"canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:generation-canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd-ecd8c490dcbdd7ce:1:provider-accepted","expectedRevision":6,"resultRevision":7,"eventCursors":[8]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:plan-submit:v1","expectedRevision":7,"resultRevision":8,"eventCursors":[9]}
+{"commandId":"single-shot:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:running:6","expectedRevision":8,"resultRevision":9,"eventCursors":[10]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-video-mwxpstwo-iz0y-1795707367199-b784rd:poll:9:running","expectedRevision":9,"resultRevision":10,"eventCursors":[11]}

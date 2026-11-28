@@ -216,11 +216,9 @@ const APIMART_CURATED_MAPPINGS: CuratedMapping[] = [
       create: mp.create, query: APIMART_IMAGE_QUERY, statusMapping: APIMART_IMAGE_STATUS,
     })),
   ),
+  // 视频映射原样带上（含只服务某一方式的 modeId，如样片行的出高清），补上模型与查询口。
   ...APIMART_VIDEO_MODELS.flatMap((m) =>
-    m.mappings.map((mp) => ({
-      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
-      create: mp.create, query: APIMART_VIDEO_QUERY, statusMapping: APIMART_VIDEO_STATUS,
-    })),
+    m.mappings.map((mp) => ({ ...mp, modelKey: m.modelKey, query: APIMART_VIDEO_QUERY, statusMapping: APIMART_VIDEO_STATUS })),
   ),
   // 音频同步族：无 query / 无 statusMapping（响应即结果，runtime 第四路收口）。
   ...APIMART_AUDIO_MODELS.flatMap((m) =>

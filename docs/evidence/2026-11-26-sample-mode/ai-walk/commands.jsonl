@@ -1,0 +1,73 @@
+{"t":"2026-11-26T16:01:54.244Z","ms":2307,"action":"goto","name":"model-menu","args":["video"],"ok":true}
+{"t":"2026-11-26T16:01:56.704Z","ms":75,"action":"shot","name":"ai-01-model-menu","ok":true}
+{"t":"2026-11-26T16:02:03.769Z","ms":908,"action":"click","target":"text:Seedance 2.5（样片模式）","ok":true}
+{"t":"2026-11-26T16:02:04.982Z","ms":428,"action":"fill","sel":"css:[data-prompt-box] .ProseMirror","val":"远景，雨后天台，人物转身看向窗外","ok":true}
+{"t":"2026-11-26T16:02:05.714Z","ms":135,"action":"shot","name":"ai-02-before-send","ok":true}
+{"t":"2026-11-26T16:02:12.398Z","ms":894,"action":"click","target":"aria:生成素材","ok":true}
+{"t":"2026-11-26T16:02:13.444Z","ms":1200,"action":"wait","ok":true}
+{"t":"2026-11-26T16:02:14.799Z","ms":87,"action":"shot","name":"ai-03-generating","ok":true}
+{"t":"2026-11-26T16:02:15.187Z","ms":5000,"action":"wait","ok":true}
+{"t":"2026-11-26T16:02:20.491Z","ms":91,"action":"shot","name":"ai-04-sample-ready","ok":true}
+{"t":"2026-11-26T16:02:30.751Z","ms":1,"action":"read","js":"JSON.stringify([...document.querySelectorAll('.react-flow__resize-control')].map(e=>{const r=e.getBoundingClientRect();return [e.className.replace('react-flow__resize-control',''),Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]}))","ok":true}
+{"t":"2026-11-26T16:02:30.903Z","ms":1,"action":"read","js":"JSON.stringify((()=>{const c=document.querySelector('.generation-canvas-v2-node');const r=c.getBoundingClientRect();return [c.offsetWidth,c.offsetHeight,Math.round(r.left),Math.round(r.top),Math.round(r.right),Math.round(r.bottom), String(document.elementFromPoint(r.right, r.top+r.height*0.75)?.className).slice(0,80)]})())","ok":true}
+{"t":"2026-11-26T16:02:37.883Z","ms":1,"action":"read","js":"String(document.elementFromPoint(872.5, 419)?.className)+' | '+String(document.elementFromPoint(872, 419)?.className)+' | '+String(document.elementFromPoint(872, 524)?.className)","ok":true}
+{"t":"2026-11-26T16:02:38.189Z","ms":784,"action":"drag","x1":872,"y1":419,"x2":600,"y2":419,"steps":10,"ok":true}
+{"t":"2026-11-26T16:02:39.124Z","ms":2,"action":"read","js":"document.querySelector('.generation-canvas-v2-node').offsetWidth","ok":true}
+{"t":"2026-11-26T16:02:44.595Z","ms":703,"action":"drag","x1":872.5,"y1":419,"x2":600,"y2":419,"steps":10,"ok":true}
+{"t":"2026-11-26T16:02:45.603Z","ms":2,"action":"read","js":"document.querySelector('.generation-canvas-v2-node').offsetWidth","ok":true}
+{"t":"2026-11-26T16:03:00.474Z","ms":715,"action":"drag","x1":872,"y1":524,"x2":600,"y2":524,"steps":10,"ok":true}
+{"t":"2026-11-26T16:03:01.493Z","ms":1,"action":"read","js":"document.querySelector('.generation-canvas-v2-node').offsetWidth","ok":true}
+{"t":"2026-11-26T16:03:10.303Z","ms":1,"action":"read","js":"JSON.stringify((()=>{const n=document.querySelector('.react-flow__node');return {t:n.style.transform, vp:document.querySelector('.react-flow__viewport').style.transform}})())","ok":true}
+{"t":"2026-11-26T16:03:22.445Z","ms":722,"action":"drag","x1":300,"y1":300,"x2":900,"y2":300,"steps":10,"ok":true}
+{"t":"2026-11-26T16:03:23.319Z","ms":1,"action":"read","js":"JSON.stringify([...document.querySelectorAll('.react-flow__resize-control.handle')].map(e=>{const r=e.getBoundingClientRect();return [e.className.replace('react-flow__resize-control nodrag',''),r.left+r.width/2,r.top+r.height/2, String(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)?.className).slice(0,50)]}))","ok":true}
+{"t":"2026-11-26T16:03:28.186Z","ms":731,"action":"drag","x1":684,"y1":524,"x2":400,"y2":524,"steps":10,"ok":true}
+{"t":"2026-11-26T16:03:29.220Z","ms":17,"action":"read","js":"document.querySelector('.generation-canvas-v2-node').offsetWidth","ok":true}
+{"t":"2026-11-26T16:03:43.662Z","ms":2,"action":"read","js":"String(document.elementFromPoint(685, 400)?.className).slice(0,60)","ok":true}
+{"t":"2026-11-26T16:03:43.968Z","ms":820,"action":"drag","x1":685,"y1":400,"x2":400,"y2":400,"steps":10,"ok":true}
+{"t":"2026-11-26T16:03:44.941Z","ms":1,"action":"read","js":"document.querySelector('.generation-canvas-v2-node').offsetWidth + ' ' + document.querySelector('.react-flow__viewport').style.transform","ok":true}
+{"t":"2026-11-26T16:03:53.158Z","ms":1,"action":"read","js":"JSON.stringify((()=>{const r=document.querySelector('.react-flow__resize-control.handle.bottom.right').getBoundingClientRect();const x=Math.round(r.left+r.width/2)+4,y=Math.round(r.top+r.height/2)+4;return [x,y,document.elementsFromPoint(x,y).slice(0,4).map(e=>String(e.className).slice(0,40))]})())","ok":true}
+{"t":"2026-11-26T16:03:57.258Z","ms":680,"action":"drag","x1":403,"y1":528,"x2":150,"y2":528,"steps":10,"ok":true}
+{"t":"2026-11-26T16:03:58.243Z","ms":1,"action":"read","js":"document.querySelector('.generation-canvas-v2-node').offsetWidth + ' ' + document.querySelector('.react-flow__viewport').style.transform","ok":true}
+{"t":"2026-11-26T16:04:06.903Z","ms":1,"action":"read","js":"JSON.stringify([document.querySelector('.react-flow__node').style.cssText, document.querySelector('.react-flow__node').className])","ok":true}
+{"t":"2026-11-26T16:04:22.697Z","ms":1,"action":"read","js":"(()=>{window.__dbg=[];for(const n of ['pointerdown','mousedown','pointerup','lostpointercapture','pointercancel','dragstart']){window.addEventListener(n,e=>window.__dbg.push(n+':'+String(e.target?.className).slice(0,40)),true)};return 'ok'})()","ok":true}
+{"t":"2026-11-26T16:04:23.002Z","ms":2,"action":"read","js":"JSON.stringify((()=>{const r=document.querySelector('.react-flow__resize-control.handle.bottom.right').getBoundingClientRect();return [Math.round(r.left+r.width/2)+4,Math.round(r.top+r.height/2)+4]})())","ok":true}
+{"t":"2026-11-26T16:04:26.658Z","ms":667,"action":"drag","x1":403,"y1":528,"x2":200,"y2":528,"steps":10,"ok":true}
+{"t":"2026-11-26T16:04:27.477Z","ms":1,"action":"read","js":"JSON.stringify([document.querySelector('.generation-canvas-v2-node').offsetWidth, window.__dbg])","ok":true}
+{"t":"2026-11-26T16:04:55.140Z","ms":753,"action":"drag","x1":700,"y1":300,"x2":950,"y2":300,"steps":10,"ok":true}
+{"t":"2026-11-26T16:04:56.044Z","ms":2,"action":"read","js":"JSON.stringify([...document.querySelectorAll('.react-flow__resize-control')].map(e=>{const r=e.getBoundingClientRect();return [e.className.replace('react-flow__resize-control nodrag',''),+r.left.toFixed(2),+r.top.toFixed(2),+r.width.toFixed(2),+r.height.toFixed(2)]}))","ok":true}
+{"t":"2026-11-26T16:05:01.995Z","ms":1,"action":"read","js":"(()=>{window.__dbg=[];return String(document.elementFromPoint(439,524)?.className).slice(0,50)})()","ok":true}
+{"t":"2026-11-26T16:05:02.148Z","ms":884,"action":"drag","x1":439,"y1":524,"x2":439,"y2":400,"steps":12,"ok":true}
+{"t":"2026-11-26T16:05:03.336Z","ms":1,"action":"read","js":"JSON.stringify([document.querySelector('.generation-canvas-v2-node').offsetWidth, document.querySelector('.generation-canvas-v2-node').offsetHeight, window.__dbg])","ok":true}
+{"t":"2026-11-26T16:05:23.540Z","ms":15002,"action":"click","target":"role:button=出高清","ok":false,"error":"locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: '出高清' }).first()\n"}
+{"t":"2026-11-26T16:05:38.695Z","ms":700,"action":"wait","ok":true}
+{"t":"2026-11-26T16:05:39.549Z","ms":97,"action":"shot","name":"ai-05-hd-in-flight","ok":true}
+{"t":"2026-11-26T16:05:39.949Z","ms":5000,"action":"wait","ok":true}
+{"t":"2026-11-26T16:05:45.104Z","ms":83,"action":"shot","name":"ai-06-hd-done","ok":true}
+{"t":"2026-11-26T16:05:52.328Z","ms":4,"action":"snap","ok":true}
+{"t":"2026-11-26T16:05:56.934Z","ms":891,"action":"click","target":"aria:出 1080p 高清版","ok":true}
+{"t":"2026-11-26T16:05:58.128Z","ms":600,"action":"wait","ok":true}
+{"t":"2026-11-26T16:05:59.036Z","ms":105,"action":"shot","name":"ai-05-hd-in-flight","ok":true}
+{"t":"2026-11-26T16:05:59.446Z","ms":6000,"action":"wait","ok":true}
+{"t":"2026-11-26T16:06:05.751Z","ms":131,"action":"shot","name":"ai-06-hd-done","ok":true}
+{"t":"2026-11-26T18:01:22.859Z","ms":15,"action":"snap","ok":true}
+{"t":"2026-11-26T18:01:26.365Z","ms":925,"action":"click","target":"aria:铺开 2 个版本","ok":true}
+{"t":"2026-11-26T18:01:27.443Z","ms":600,"action":"wait","ok":true}
+{"t":"2026-11-26T18:01:28.351Z","ms":102,"action":"shot","name":"ai-07-versions","ok":true}
+{"t":"2026-11-26T18:01:48.728Z","ms":759,"action":"drag","x1":700,"y1":520,"x2":300,"y2":520,"steps":10,"ok":true}
+{"t":"2026-11-26T18:01:49.640Z","ms":1,"action":"read","js":"JSON.stringify((()=>{const r=document.querySelector('[data-version-card=\"1\"]').getBoundingClientRect();return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]})())","ok":true}
+{"t":"2026-11-26T18:01:53.307Z","ms":5002,"action":"hover","target":"xy:629,250","ok":false,"error":"locator.hover: Timeout 5000ms exceeded.\nCall log:\n  - waiting for getByText('xy:629,250').first()\n"}
+{"t":"2026-11-26T18:01:58.462Z","ms":70,"action":"shot","name":"ai-08-hover-v1","ok":true}
+{"t":"2026-11-26T18:02:01.721Z","ms":325,"action":"move","x":629,"y":250,"ok":true}
+{"t":"2026-11-26T18:02:02.350Z","ms":112,"action":"shot","name":"ai-08-hover-v1","ok":true}
+{"t":"2026-11-26T18:02:11.126Z","ms":879,"action":"click","target":"text:设为主图","ok":true}
+{"t":"2026-11-26T18:02:12.310Z","ms":500,"action":"wait","ok":true}
+{"t":"2026-11-26T18:02:13.115Z","ms":903,"action":"click","target":"aria:收起版本","ok":true}
+{"t":"2026-11-26T18:02:14.323Z","ms":7,"action":"snap","ok":true}
+{"t":"2026-11-26T18:02:18.443Z","ms":879,"action":"click","target":"aria:出 1080p 高清版","ok":true}
+{"t":"2026-11-26T18:02:19.626Z","ms":500,"action":"wait","ok":true}
+{"t":"2026-11-26T18:02:20.433Z","ms":110,"action":"shot","name":"ai-09-confirm","ok":true}
+{"t":"2026-11-26T18:02:27.249Z","ms":835,"action":"click","target":"role:button=取消","ok":true}
+{"t":"2026-11-26T18:02:28.388Z","ms":1500,"action":"wait","ok":true}
+{"t":"2026-11-26T18:02:30.194Z","ms":83,"action":"shot","name":"ai-10-after-cancel","ok":true}
+{"t":"2026-11-26T18:02:30.582Z","ms":1,"action":"read","js":"document.querySelectorAll('[role=dialog]').length + ' dialogs; row=' + document.querySelector('[data-sample-row]')?.getAttribute('data-sample-state')","ok":true}
+{"t":"2026-11-26T18:02:35.441Z","ms":0,"action":"quit","ok":true}

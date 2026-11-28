@@ -7,6 +7,7 @@
 // 至多 3 项（输入方式 · 最高分辨率 · 最长时长），文案走 i18n（zh / en 两套）。
 import type { ModelArchetype } from '../../electron/shared/modelArchetypes/types'
 import type { ModelParameterControl } from '../../electron/shared/videoCapabilities/types'
+import { sampleFinalResolution } from '../../electron/shared/videoCapabilities/sampleMode'
 import i18n from '../i18n'
 
 const MAX_ITEMS = 3
@@ -79,10 +80,16 @@ export function modelCapabilityLine(archetype: ModelArchetype | null | undefined
   if (!archetype) return ''
   const resolution = maxResolution(archetype)
   const seconds = archetype.kind === 'video' ? maxSeconds(archetype) : 0
-  const items = [
+  // 样片行（样片档案）：说的是它的两步——样片档多少、满意后出到多少，都读档案的样片规格。
+  const sample = archetype.sampleOf?.spec
+  const items = (sample ? [
+    tr('sampleDraft', { value: sample.draftResolution }),
+    tr('sampleFinal', { value: sampleFinalResolution(sample) }),
+    seconds > 0 ? tr('maxSeconds', { count: seconds }) : '',
+  ] : [
     inputPhrase(archetype),
     resolution ? tr('upTo', { value: resolution }) : '',
     seconds > 0 ? tr('maxSeconds', { count: seconds }) : '',
-  ].filter(Boolean)
+  ]).filter(Boolean)
   return items.slice(0, MAX_ITEMS).join(' · ')
 }

@@ -10,7 +10,7 @@ const SOURCE = 'docs/design/boards/2026-11-12-mode-bar/ModeBar.board.json（样�
 const MIRRORS = [
   'src/workbench/common/useDedupedModelSelect.ts:1',
   'src/design/NomiSelect.tsx:238',
-  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:456',
+  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:434',
 ]
 const stage = (scenario: B3Scenario): (() => React.JSX.Element) => () => <ComposerB3Stage scenario={scenario} />
 

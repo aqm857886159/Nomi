@@ -1,0 +1,15 @@
+{"commandId":"generation.seal:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:v1:2ed9f5142bdfda87029b08434081361d7b3a7d91bb5fcfac677e7f40dca1879a","expectedRevision":0,"resultRevision":1,"eventCursors":[2]}
+{"commandId":"canvas-shot-decide:generation-authorization:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:v1:n1:a8eeb549-cb9d-45fc-afa7-46e81124664f","expectedRevision":1,"resultRevision":2,"eventCursors":[3]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:job-bind:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87","expectedRevision":2,"resultRevision":3,"eventCursors":[4]}
+{"commandId":"canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87:1:budget:reserve","expectedRevision":3,"resultRevision":4,"eventCursors":[5]}
+{"commandId":"canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87:1:submit-intent","expectedRevision":4,"resultRevision":5,"eventCursors":[6]}
+{"commandId":"canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87:1:submitting","expectedRevision":5,"resultRevision":6,"eventCursors":[7]}
+{"commandId":"canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87:1:provider-accepted","expectedRevision":6,"resultRevision":7,"eventCursors":[8]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:plan-submit:v1","expectedRevision":7,"resultRevision":8,"eventCursors":[9]}
+{"commandId":"single-shot:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:running:6","expectedRevision":8,"resultRevision":9,"eventCursors":[10]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:poll:9:running","expectedRevision":9,"resultRevision":10,"eventCursors":[11]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:poll:10:succeeded","expectedRevision":10,"resultRevision":11,"eventCursors":[12]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:materialize-artifact:canvas-artifact-s-walk-image-7","expectedRevision":11,"resultRevision":12,"eventCursors":[13]}
+{"commandId":"generation.runtime:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:materialize-job:generation-canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5-2ed9f5142bdfda87","expectedRevision":12,"resultRevision":13,"eventCursors":[14]}
+{"commandId":"single-shot:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:stage-completed:13","expectedRevision":13,"resultRevision":14,"eventCursors":[15]}
+{"commandId":"single-shot:canvas-run-gen-v2-image-mwxpspll-xn8o-1795707360276-9ym0c5:completed:14","expectedRevision":14,"resultRevision":15,"eventCursors":[16]}

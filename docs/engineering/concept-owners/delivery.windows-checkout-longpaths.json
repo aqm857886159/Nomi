@@ -1,0 +1,30 @@
+{
+  "name": "Windows 工作流长路径检出门岗",
+  "subject": "delivery.windows-checkout-longpaths",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/check-workflow-script-refs.mjs",
+    "symbol": "findWindowsCheckoutsWithoutLongpaths"
+  },
+  "write_api": [
+    {
+      "path": "scripts/check-workflow-script-refs.mjs",
+      "symbol": "findWindowsCheckoutsWithoutLongpaths"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/check-workflow-script-refs.node-test.mjs",
+  "allowed_consumers": [
+    ".github/workflows/win-installer.yml",
+    ".github/workflows/win-gate.yml",
+    ".github/workflows/desktop-rc.yml",
+    ".github/workflows/desktop-preview.yml",
+    ".github/workflows/win-invalid-state-probe.yml"
+  ],
+  "since": "2026-11-28",
+  "notes": "全仓 .github/workflows/*.{yml,yaml} 中所有跑在 Windows runner 上的作业，在每次 actions/checkout 前必须无条件执行 git config --global core.longpaths true，由 check:workflow-script-refs 在 Contracts 与 pre-push 双处守卫。"
+}

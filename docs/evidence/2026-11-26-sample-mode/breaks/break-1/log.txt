@@ -1,0 +1,12 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ zh-CN/light menu
+✗ zh-CN/light sample
+board:SampleMode/sample.below-row：样片出完节点下方出这一行
+
+expect(locator).toHaveAttribute(expected) failed
+
+Locator: locator('.react-flow__node[data-id="gen-v2-video-mwxx36g5-jhb8"]').first().locator('[data-sample-row]').first()
+Expected: "ready"
+Timeout: 90000ms
+Error: element(s) not found
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-1

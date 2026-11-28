@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
+import pLimit from "p-limit";
+import { retryOnSharingViolation, retryOnSharingViolationAsync, writeJsonFileAtomic, writeJsonFileAtomicAsync } from "../jsonFile";
 import { workspaceFolderCopyError } from "../shared/contracts/projectLocation";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import {
@@ -10,7 +11,24 @@ import {
   type WorkspaceOrigin,
 } from "./workspaceTypes";
 
+type ActiveAsyncRegistryLock = {
+  entries: RecentWorkspaceEntry[] | null;
+  syncEpoch: number;
+};
+
+const activeAsyncRegistryLocks = new Map<string, ActiveAsyncRegistryLock>();
+const releasingAsyncRegistryLocks = new Set<string>();
+const registryAsyncQueues = new Map<string, ReturnType<typeof pLimit>>();
+
+function registryLockDir(settingsRoot: string): string {
+  return `${recentWorkspacesPath(settingsRoot)}.lock`;
+}
+
 function readRecentWorkspaceEntries(settingsRoot: string): RecentWorkspaceEntry[] {
+  const active = activeAsyncRegistryLocks.get(registryLockDir(settingsRoot));
+  if (active?.entries) {
+    return active.entries.map((entry) => normalizeRecentWorkspaceEntry(entry));
+  }
   const registryPath = recentWorkspacesPath(settingsRoot);
   if (!fs.existsSync(registryPath)) {
     return [];
@@ -22,8 +40,37 @@ function readRecentWorkspaceEntries(settingsRoot: string): RecentWorkspaceEntry[
   return raw.map((entry) => normalizeRecentWorkspaceEntry(entry));
 }
 
+async function readRecentWorkspaceEntriesAsync(settingsRoot: string): Promise<RecentWorkspaceEntry[]> {
+  const active = activeAsyncRegistryLocks.get(registryLockDir(settingsRoot));
+  if (active?.entries) {
+    return active.entries.map((entry) => normalizeRecentWorkspaceEntry(entry));
+  }
+  const registryPath = recentWorkspacesPath(settingsRoot);
+  let text: string;
+  try {
+    text = await retryOnSharingViolationAsync(() => fsp.readFile(registryPath, "utf8"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return [];
+    throw error;
+  }
+  const raw = JSON.parse(text);
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.map((entry) => normalizeRecentWorkspaceEntry(entry));
+}
+
 function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEntry[]): void {
   writeJsonFileAtomic(recentWorkspacesPath(settingsRoot), entries);
+  const active = activeAsyncRegistryLocks.get(registryLockDir(settingsRoot));
+  if (active) {
+    active.entries = entries;
+    active.syncEpoch += 1;
+  }
+}
+
+function writeRecentWorkspacesAsync(settingsRoot: string, entries: RecentWorkspaceEntry[]): Promise<void> {
+  return writeJsonFileAtomicAsync(recentWorkspacesPath(settingsRoot), entries);
 }
 
 /**
@@ -33,7 +80,12 @@ function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEnt
  * 用原子 mkdir 做锁（跨进程有效），自旋退避；3s 上限 + 陈旧锁兜底，绝不死等（最坏退化回原无锁行为）。
  */
 function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
-  const lockDir = `${recentWorkspacesPath(settingsRoot)}.lock`;
+  const lockDir = registryLockDir(settingsRoot);
+  // 同进程异步写者正持有或正在释放该锁：JS 单线程下主线程跑 Atomics.wait 会把事件循环死卡 3000ms，
+  // 让异步回调没机会跑完并触发强拆锁与旧快照覆盖。本进程已持有跨进程锁，直接与内存态协同合入。
+  if (activeAsyncRegistryLocks.has(lockDir) || releasingAsyncRegistryLocks.has(lockDir)) {
+    return fn();
+  }
   const spin = new Int32Array(new SharedArrayBuffer(4));
   const deadline = Date.now() + 3000;
   let locked = false;
@@ -69,6 +121,75 @@ function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
       } catch {
         /* 已释放 */
       }
+    }
+  }
+}
+
+async function mutateRegistryAsync<T>(
+  settingsRoot: string,
+  mutate: (entries: RecentWorkspaceEntry[]) => { result: T; nextEntries: RecentWorkspaceEntry[] | null },
+): Promise<T> {
+  const lockDir = registryLockDir(settingsRoot);
+  const limit = registryAsyncQueues.get(lockDir) ?? pLimit(1);
+  registryAsyncQueues.set(lockDir, limit);
+  try {
+    return await limit(async () => {
+      const deadline = Date.now() + 3000;
+      let locked = false;
+      for (;;) {
+        try {
+          await fsp.mkdir(lockDir);
+          locked = true;
+          break;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "EEXIST") break;
+          if (Date.now() > deadline) {
+            try {
+              await fsp.rm(lockDir, { recursive: true, force: true });
+              await fsp.mkdir(lockDir);
+              locked = true;
+            } catch {
+              /* 夺锁失败也继续（最坏=退化回原行为，不卡死） */
+            }
+            break;
+          }
+          await new Promise<void>((resolve) => setTimeout(resolve, 10));
+        }
+      }
+      const active: ActiveAsyncRegistryLock = { entries: null, syncEpoch: 0 };
+      activeAsyncRegistryLocks.set(lockDir, active);
+      try {
+        const epochBeforeRead = active.syncEpoch;
+        const diskEntries = await readRecentWorkspaceEntriesAsync(settingsRoot);
+        const baseEntries = active.syncEpoch !== epochBeforeRead && active.entries ? active.entries : diskEntries;
+        const { result, nextEntries } = mutate(baseEntries);
+        if (nextEntries !== null) {
+          active.entries = nextEntries;
+          for (;;) {
+            const target = active.entries!;
+            const epochAtWrite = active.syncEpoch;
+            await writeRecentWorkspacesAsync(settingsRoot, target);
+            if (active.syncEpoch === epochAtWrite) break;
+          }
+        }
+        return result;
+      } finally {
+        activeAsyncRegistryLocks.delete(lockDir);
+        if (locked) {
+          releasingAsyncRegistryLocks.add(lockDir);
+          try {
+            await retryOnSharingViolationAsync(() => fsp.rmdir(lockDir));
+          } catch {
+            /* 已释放 */
+          } finally {
+            releasingAsyncRegistryLocks.delete(lockDir);
+          }
+        }
+      }
+    });
+  } finally {
+    if (registryAsyncQueues.get(lockDir) === limit && limit.activeCount === 0 && limit.pendingCount === 0) {
+      registryAsyncQueues.delete(lockDir);
     }
   }
 }
@@ -145,6 +266,21 @@ function strictDescendantOf(rootPath: string, candidatePath: string): boolean {
   return candidate !== root && candidate.startsWith(`${root}${path.sep}`);
 }
 
+function computeBackfilledOrigins(entries: RecentWorkspaceEntry[], nativeRootPath: string): RecentWorkspaceEntry[] | null {
+  let changed = false;
+  const next = entries.map((entry) => {
+    if (storedOrigin(entry)) return entry;
+    changed = true;
+    return normalizeRecentWorkspaceEntry({
+      ...entry,
+      ...(strictDescendantOf(nativeRootPath, entry.rootPath)
+        ? { source: "native", nativeRootPath }
+        : { source: "folder" }),
+    });
+  });
+  return changed ? sortRecentWorkspaces(next) : null;
+}
+
 /**
  * 老 registry 没有来源字段。切换默认位置前，必须用“旧默认根”冻结一次来源；之后永不重算。
  */
@@ -152,22 +288,11 @@ export function backfillWorkspaceOrigins(
   settingsRoot: string,
   defaultProjectsRoot: string,
 ): void {
+  if (readRecentWorkspaceEntries(settingsRoot).every((entry) => Boolean(storedOrigin(entry)))) return;
   const nativeRootPath = path.resolve(defaultProjectsRoot);
   return withRegistryLock(settingsRoot, () => {
-    const entries = readRecentWorkspaceEntries(settingsRoot);
-    let changed = false;
-    const next = entries.map((entry) => {
-      if (storedOrigin(entry)) return entry;
-      changed = true;
-      return normalizeRecentWorkspaceEntry({
-        ...entry,
-        ...(strictDescendantOf(nativeRootPath, entry.rootPath)
-          ? { source: "native", nativeRootPath }
-          : { source: "folder" }),
-      });
-    });
-    const sorted = sortRecentWorkspaces(next);
-    if (changed) writeRecentWorkspaces(settingsRoot, sorted);
+    const sorted = computeBackfilledOrigins(readRecentWorkspaceEntries(settingsRoot), nativeRootPath);
+    if (sorted) writeRecentWorkspaces(settingsRoot, sorted);
   });
 }
 
@@ -280,6 +405,37 @@ export function bindWorkspaceLocation(settingsRoot: string, binding: WorkspaceLo
   });
 }
 
+/** 异步保存 / 新建热路径用的单条登记：同一份合并与冲突判据，锁等待与原子写均走异步定时器，不占主线程。 */
+export function bindWorkspaceLocationAsync(
+  settingsRoot: string,
+  binding: WorkspaceLocationBinding,
+): Promise<RecentWorkspaceEntry[]> {
+  assertExplicitBinding(binding);
+  return mutateRegistryAsync(settingsRoot, (entries) => {
+    const conflict = liveBindingConflict(entries, binding);
+    if (conflict) throw workspaceFolderCopyError({ projectName: conflict.boundName, originalRootPath: conflict.boundRootPath });
+    const next = sortRecentWorkspaces(mergeWorkspaceBinding(entries, binding));
+    return { result: next, nextEntries: next };
+  });
+}
+
+function applyWorkspaceBindingsBatch(
+  initialEntries: RecentWorkspaceEntry[],
+  bindings: WorkspaceLocationBinding[],
+): { entries: RecentWorkspaceEntry[]; conflicts: WorkspaceLocationConflict[]; changed: boolean } {
+  let entries = initialEntries;
+  const conflicts: WorkspaceLocationConflict[] = [];
+  for (const binding of bindings) {
+    const conflict = liveBindingConflict(entries, binding);
+    if (conflict) {
+      conflicts.push(conflict);
+      continue;
+    }
+    entries = mergeWorkspaceBinding(entries, binding);
+  }
+  return { entries: sortRecentWorkspaces(entries), conflicts, changed: conflicts.length < bindings.length };
+}
+
 /**
  * 批量登记（启动对账一次登记 N 个，性能根因边界三）：一次取锁、一次读、一次写。逐条登记在「发现阶段一次登记 N 个项目」时
  * 是 O(n²) 写放大（实测 346 条 = 1752ms）。合并语义与单条完全一致；撞上还在的原件的那条跳过、原登记不动，冲突照实返回
@@ -295,18 +451,8 @@ export function bindWorkspaceLocations(
   }
 
   return withRegistryLock(settingsRoot, () => {
-    let entries = readRecentWorkspaceEntries(settingsRoot);
-    const conflicts: WorkspaceLocationConflict[] = [];
-    for (const binding of bindings) {
-      const conflict = liveBindingConflict(entries, binding);
-      if (conflict) {
-        conflicts.push(conflict);
-        continue;
-      }
-      entries = mergeWorkspaceBinding(entries, binding);
-    }
-    const next = sortRecentWorkspaces(entries);
-    if (conflicts.length < bindings.length) writeRecentWorkspaces(settingsRoot, next);
+    const { entries: next, conflicts, changed } = applyWorkspaceBindingsBatch(readRecentWorkspaceEntries(settingsRoot), bindings);
+    if (changed) writeRecentWorkspaces(settingsRoot, next);
     return { entries: next, conflicts };
   });
 }

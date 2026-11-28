@@ -43,12 +43,36 @@ export function whiteboardDraftIdentity(node: GenerationCanvasNode): string {
   return node.result ? resultIdentity(node.result) : `board:${node.id}`
 }
 
+/** 结果 `raw` 里图层分离的标记键（落地时写，见 runner/landTaskResults）。 */
+export const LAYER_SPLIT_RAW_KEY = 'layerSplit'
+
+/** 图层分离落地的结果带的标记：拆成了几层（含底图）。「N 层」状态行、画板悬停提示、打开画板接着编图层都认它。 */
+export type LayerSplitResultMark = { layers: number }
+
+export function readLayerSplitMark(result: { raw?: unknown } | null | undefined): LayerSplitResultMark | null {
+  const raw = result?.raw
+  if (!raw || typeof raw !== 'object') return null
+  const mark = (raw as Record<string, unknown>)[LAYER_SPLIT_RAW_KEY]
+  const layers = mark && typeof mark === 'object' ? Number((mark as Record<string, unknown>).layers) : NaN
+  return Number.isSafeInteger(layers) && layers >= 1 ? { layers } : null
+}
+
+function resultWhiteboardState(node: GenerationCanvasNode): WhiteboardState | undefined {
+  const raw = node.result?.raw
+  return raw && typeof raw === 'object' ? readWhiteboardState({ meta: { whiteboardState: (raw as Record<string, unknown>).whiteboardState } }) : undefined
+}
+
+/**
+ * 图片节点打开画板时从哪份白板接着编：这一版结果上的草稿（meta，按结果身份认）优先。
+ * 没有这一版的草稿时：图层分离落地的结果读它自己带的白板（`raw.whiteboardState`，各层在里面）；其余照旧——
+ * 草稿属于别的版本才读结果带的白板，否则 undefined（画板把结果图导入成「原图」）。
+ */
 export function readWhiteboardEditingState(node: GenerationCanvasNode) {
   if (node.kind === 'whiteboard') return readWhiteboardState(node)
   const identity = node.result ? resultIdentity(node.result) : null
-  if (!identity || !node.meta?.whiteboardResultIdentity || node.meta.whiteboardResultIdentity === identity) return readWhiteboardState(node)
-  const raw = node.result?.raw
-  return raw && typeof raw === 'object' ? readWhiteboardState({ meta: { whiteboardState: (raw as Record<string, unknown>).whiteboardState } }) : undefined
+  const draftForThisResult = !identity || !node.meta?.whiteboardResultIdentity || node.meta.whiteboardResultIdentity === identity
+  if (!draftForThisResult) return resultWhiteboardState(node)
+  return readWhiteboardState(node) ?? (readLayerSplitMark(node.result) ? resultWhiteboardState(node) : undefined)
 }
 
 export function inferWhiteboardAspectRatio(width: unknown, height: unknown): AspectRatioKey {

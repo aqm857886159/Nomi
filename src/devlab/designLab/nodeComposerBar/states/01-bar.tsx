@@ -12,8 +12,8 @@ import type { LabState } from '../../labScreen'
 const SOURCE = 'docs/design/2026-09-10-node-composer-bar-v1.md §v1.1（摘要 pill + 统一面板）'
 const FLAT_SOURCE = 'docs/design/2026-09-10-node-composer-bar-v1.md §v1.2（面板里选项摊开 · 单参数直出）'
 const MIRRORS = [
-  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:166',
-  'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx:414',
+  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:45',
+  'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx:420',
   'src/workbench/generationCanvas/nodes/NodePromptToolCluster.tsx:22',
   'src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx:26',
 ]
@@ -70,7 +70,7 @@ export const COMPOSER_BAR_STATES: readonly LabState[] = [
     id: 'composer-bar-panel-flat-options',
     name: 'v1.2 · 参数面板展开：选项全摊开，一个下拉都没有（比例带图形 / 清晰度 / 时长滑杆）',
     source: FLAT_SOURCE,
-    mirrors: 'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:670',
+    mirrors: 'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:663',
     coverage: 'component-only',
     capture: 'viewport',
     scheme: 'light',
@@ -80,7 +80,7 @@ export const COMPOSER_BAR_STATES: readonly LabState[] = [
     id: 'composer-bar-panel-solo-direct',
     name: 'v1.2 · 只有一个参数（Agnes Image 只声明「尺寸」）：点 pill 一步直出选项，没有面板壳',
     source: FLAT_SOURCE,
-    mirrors: 'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:670',
+    mirrors: 'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:663',
     coverage: 'component-only',
     capture: 'viewport',
     scheme: 'light',

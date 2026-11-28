@@ -1,0 +1,13 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ zh-CN/light menu
+✓ zh-CN/light sample
+✗ zh-CN/light hd
+board:SampleMode/sample.hd-progress：出高清中样片被生成遮罩盖住（基线已证：这张节点上样片的等待面在）
+
+expect(locator).toHaveCount(expected) failed
+
+Locator:  locator('.react-flow__node[data-id="gen-v2-video-mwxy03z2-xz8p"]').first().locator('[data-generating-placement]')
+Expected: 0
+Received: 1
+Timeout:  1000ms
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks-46/break-6

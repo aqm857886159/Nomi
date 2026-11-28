@@ -23,9 +23,7 @@
     {
       "id": "layout.docked",
       "label": "导演台占画布区，右侧 Agent 面板可见（布局 A）",
-      "candidates": [
-        "001-layout.docked"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "narrow",
@@ -38,9 +36,7 @@
     {
       "id": "topbar.back-title",
       "label": "顶栏左：‹ 返回画布 + 工程名 · 镜头 N",
-      "candidates": [
-        "002-topbar.back-title"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "selected",
@@ -56,9 +52,7 @@
     {
       "id": "topbar.mode",
       "label": "顶栏中：导演 / 精修 切换",
-      "candidates": [
-        "003-topbar.mode"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "selected",
@@ -71,9 +65,7 @@
     {
       "id": "topbar.history",
       "label": "顶栏右：撤销 / 重做",
-      "candidates": [
-        "004-topbar.history"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "disabled",
@@ -86,9 +78,7 @@
     {
       "id": "topbar.produce",
       "label": "顶栏右：主按钮「出成片」",
-      "candidates": [
-        "005-topbar.produce"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "disabled",
@@ -104,9 +94,7 @@
     {
       "id": "topbar.produce-menu",
       "label": "主按钮旁 ▾：只导出预演 MP4 / 截图 / 打开产出",
-      "candidates": [
-        "006-topbar.produce-menu"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "disabled",
@@ -119,9 +107,7 @@
     {
       "id": "viewport.scene",
       "label": "视口：白模场景 + 网格 + 角色名牌（编辑辅助物收起）",
-      "candidates": [
-        "007-viewport.scene"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "empty",
@@ -135,9 +121,7 @@
     {
       "id": "viewport.camera-markers",
       "label": "视口：编号机位 1–N、选中镜头高亮、走位虚线",
-      "candidates": [
-        "008-viewport.camera-markers"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "states": [
         "selected",
@@ -150,9 +134,7 @@
     {
       "id": "viewport.identity-color",
       "label": "视口：角色按身份配色、主体与布景明暗分开",
-      "candidates": [
-        "009-viewport.identity-color"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "states": [
         "dark"
@@ -163,9 +145,7 @@
     {
       "id": "viewport.pip",
       "label": "视口左下预览小窗：▷ 镜头 N · 景别 · 运镜 + 画幅；空态「还没有机位 / 节目预览」",
-      "candidates": [
-        "010-viewport.pip"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "empty",
@@ -180,9 +160,7 @@
     {
       "id": "shotstrip.head",
       "label": "镜头条头：▷ 播放 + 时间 +「景别和运镜是实测值」",
-      "candidates": [
-        "011-shotstrip.head"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "empty",
@@ -195,9 +173,7 @@
     {
       "id": "shotstrip.card",
       "label": "镜头卡：序号 · 实测时间窗 / 实测景别 · 运镜 / 第三行说明",
-      "candidates": [
-        "012-shotstrip.card"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "selected",
@@ -214,9 +190,7 @@
     {
       "id": "shotstrip.issue-chip",
       "label": "镜头卡上的问题徽标（「已修：出画 → 拉近」）",
-      "candidates": [
-        "013-shotstrip.issue-chip"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "states": [
         "error",
@@ -229,9 +203,7 @@
     {
       "id": "shotstrip.playhead",
       "label": "播放指针穿过当前卡",
-      "candidates": [
-        "014-shotstrip.playhead"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "dark"
@@ -242,9 +214,7 @@
     {
       "id": "shotstrip.select",
       "label": "点卡跳到该镜开头；Ctrl 加选多镜",
-      "candidates": [
-        "015-shotstrip.select"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "selected",
@@ -256,9 +226,7 @@
     {
       "id": "agent.focus-tag",
       "label": "Agent 输入框上的「正在改：镜头 N」标签（七态）",
-      "candidates": [
-        "016-agent.focus-tag"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "selected",
@@ -273,9 +241,7 @@
     {
       "id": "agent.tool-trace",
       "label": "对话里的 stage_shot 过程与检查结果",
-      "candidates": [
-        "017-agent.tool-trace"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "loading",
@@ -289,9 +255,7 @@
     {
       "id": "agent.composer",
       "label": "在右侧 Agent 面板里说话搭场景、改某一镜（同一个会话，退出导演台也在）",
-      "candidates": [
-        "018-agent.composer"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "empty",
@@ -306,9 +270,7 @@
     {
       "id": "empty.examples",
       "label": "空态给 3 个示例句（一句话就能搭预演）",
-      "candidates": [
-        "019-empty.examples"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "states": [
         "empty",
@@ -321,9 +283,7 @@
     {
       "id": "mode.refine",
       "label": "精修：今天整套专业工具原样（#991「选中才出」）",
-      "candidates": [
-        "020-mode.refine"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "selected",
@@ -338,9 +298,7 @@
     {
       "id": "switch.legacy",
       "label": "切回旧导演台的入口（默认开 3D-BOX，用户可退回旧导演台：全屏 + 底部「描述场景…」）",
-      "candidates": [
-        "021-switch.legacy"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "selected",
@@ -356,9 +314,7 @@
     {
       "id": "external.mcp-face",
       "label": "对外 MCP 面不变：nomi_canvas_edit 的摆位参考 / 运镜参考照旧",
-      "candidates": [
-        "022-external.mcp-face"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "states": [
         "zh-en"
@@ -370,9 +326,9 @@
       "id": "notice.staging-attach",
       "label": "站位参考图接不上目标镜头时的后台提示：目标模型只吃文字 / 写边没落下，各一句，都说清图留在了画布上；带「定位节点」，点了画布对准并选中那张站位图",
       "change": "keep",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:Director3dbox/notice.staging-attach",
+      "assertions": ["board:Director3dbox/notice.staging-attach"],
       "states": [
         "error",
         "zh-en"
@@ -397,9 +353,9 @@
       "id": "notice.camera-move-attach",
       "label": "运镜参考小片 / 3D-BOX 预演挂到目标镜头时的后台提示：目标不是视频镜头 / 为注入参考视频切到全能参考 / 参考视频槽被用户的片占满 / 模型不接参考视频只能写成文字，各一句；带「定位节点」，点了画布对准并选中目标镜头",
       "change": "keep",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:Director3dbox/notice.camera-move-attach",
+      "assertions": ["board:Director3dbox/notice.camera-move-attach"],
       "states": [
         "error",
         "zh-en"
@@ -428,24 +384,6 @@
       },
       "note": "四句文案原样沿用词典，第 2 轮没有新文案；改的是出口。CameraMoveCaptureHost 以前调旧 toast()：只说一句、没有去处，用户不知道说的是哪个镜头。现在和站位提示同一个出口 agent/hostNotice.ts 的 notifyHostOutcome（notify 后台档 +「定位节点」；同一个镜头的提示只留最新一条）。Host 自己 toast / notify / 发定位事件，agent/attachDoors.guard.test.ts 就红。协调 10-24 定在本板认领（同 #1300 口径），不出样张。走查：director-electron ③b（运镜小片的目标是图片节点 → 提示「运镜参考只能喂给视频镜头节点…」+「定位节点」，点了画布对准并选中那个节点，目标不被改）。其余三句什么情形给，由挂接核单测 agent/attachCameraMoveToTarget.test.ts、attachCameraMoveToTarget.reference.test.ts 钉住。板上原文 = 产品词典（copy 的键就是词典键），directorFunctionCensus.test.ts 逐字核对。"
     }
-  ],
-  "decor": [
-    "d01-mockup-title",
-    "d02-mockup-subtitle",
-    "d03-taskcard",
-    "d04-controls-layout",
-    "d05-controls-gradient",
-    "d06-hint",
-    "d07-layout-b-chatfloat",
-    "d08-v1-empty-hint",
-    "d09-v3-pro-left",
-    "d10-v3-pro-right",
-    "d11-v3-tracks",
-    "d12-notes-ab",
-    "d13-notes-delete-table",
-    "d14-notes-checkpoints",
-    "d15-notes-old-decisions",
-    "d16-agent-header-dot"
   ],
   "functionCensus": [
     {

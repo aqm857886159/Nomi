@@ -22,30 +22,45 @@ import type { ModelCatalogStatus } from '../../../config/modelCatalogStatus'
 import {
   type DynamicCatalogControl,
   type DynamicModelControl,
-  catalogControlInitialValue,
-  controlInitialValue,
-  controlValueToString,
   controlDiffersFromDefault,
-  isParameterControl,
-  optionValue,
   parameterPlacement,
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
-import { summaryFitCandidates } from './composerHeadlineSummary'
+import { fallbackSummaryParts, summaryFitCandidates } from './composerHeadlineSummary'
 import { nomiSelectTriggerText } from '../../../design/NomiSelect'
 import { ComposerSendButton, COMPOSER_SEND_FRAME } from './ComposerSendButton'
 import { COMPOSER_YIELD_NONE, ComposerBarYieldContext, composerYieldPick, modeHasIcon, sameComposerYieldStep, type ComposerYieldStep } from './composerBarYield'
 import { useDedupedModelSelect, type ModelVariantMenu } from '../../common/useDedupedModelSelect'
-import { localizeAutoOption } from './parameterOptionPresentation'
 import {
   ParameterOptionGroup,
   ParameterPanelGroup,
 } from './controls/ParameterControlBody'
 import { AdvancedSettingsIconButton, AdvancedSettingsSection } from './controls/AdvancedSettings'
 import { NodePromptToolCluster } from './NodePromptToolCluster'
-import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { resolveAnchoredPopoverPlacement } from '../../../design/anchoredPopoverPlacement'
+
+/**
+ * 把一段滚进离它最近的可滚容器的可视区（最近对齐）：下沿在外就往下滚刚好够；段比可视区还高就让顶对齐。
+ * 不用 `scrollIntoView`：它连 overflow-hidden 的祖先（画布卡、画布本身）一起滚。
+ */
+function revealInScrollParent(el: HTMLElement): void {
+  let scroller: HTMLElement | null = el.parentElement
+  while (scroller) {
+    const overflowY = getComputedStyle(scroller).overflowY
+    if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break
+    scroller = scroller.parentElement
+  }
+  if (!scroller) return
+  const box = el.getBoundingClientRect()
+  const view = scroller.getBoundingClientRect()
+  const viewTop = view.top + scroller.clientTop
+  const viewBottom = viewTop + scroller.clientHeight
+  if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
+  const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
+  const reduce = shouldReduceMotion()
+  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
+}
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
@@ -84,6 +99,19 @@ type InlineParameterBarProps = {
    * 不传 = 面板里各参数的当前值，从后往前整值地退。
    */
   summaryParts?: readonly { text: string; dropRank: number }[]
+  /**
+   * 摘要格最前面的图标（图层分离那一格的叠层图标，板 2026-11-26-layer-split · layers.composer-cell）。
+   * 有它，让法在摘要整值退完之后再多一档「只剩图标」（裁定 C-E5），悬停 / 读屏给全文。不传 = 原样。
+   */
+  summaryIcon?: React.ReactNode
+  /**
+   * 没有面板可开时（层数写死的模型：一个可调参数都没有），摘要照样摆成一格、不带 ▾、点不开（layers.pro-fixed）。
+   * 不传 = 原样（没有面板就不出这一格）。
+   */
+  summaryStatic?: boolean
+  summaryBoardAnchor?: string
+  /** 宿主给面板里某一项下面挂一句（按控件 key）：如图层分离层数多时的花钱提醒，只提醒不拦。 */
+  controlNotices?: Readonly<Record<string, React.ReactNode>>
   /**
    * 视频节点底栏的「方式」一格（模型 → 变体 → 方式 → 参数）：下拉，和模型菜单同一个浮层组件、同一个方向。
    * 只在模型有两种以上方式时传；画布节点用它，不再往参数面板里传 modeChoices。
@@ -142,60 +170,6 @@ export type ComposerFooterSlots = {
 //   付费确认卡；D2（用户 2026-10-23 拍板）付费卡上不再有参数控件，那种摆法随旧卡一起删了。
 // 「生成方式」（文生/图生 tab）在画布上仍住 composer 顶部，不进面板（2026-07-17 用户拍板第 2 点）。
 
-/** 摘要 pill 的单参数短文本：当前值的纯 label（不带价签）。boolean=开显示参数名/关跳过；空值跳过。 */
-function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>, autoLabel: string): string {
-  if (!isParameterControl(control)) {
-    const value = catalogControlInitialValue(control, meta)
-    const matched = control.options.find((o) => optionValue(o) === value)
-    const label = matched ? (typeof matched === 'string' ? matched : matched.label) : value
-    return localizeAutoOption(value, label, autoLabel).text
-  }
-  if (control.type === 'boolean') {
-    return (controlInitialValue(control, meta) || 'false') === 'true'
-      ? translateModelDisplayText(control.label)
-      : ''
-  }
-  const value = controlInitialValue(control, meta)
-  if (!value) return ''
-  const matched = control.options.find((o) => controlValueToString(o.value) === value)
-  return localizeAutoOption(value, matched ? matched.label : value, autoLabel).text
-}
-
-/**
- * 把一段滚进离它最近的可滚容器的可视区（最近对齐）：下沿在外就往下滚刚好够；段比可视区还高就让顶对齐。
- * 不用 `scrollIntoView`：它连 overflow-hidden 的祖先（画布卡、画布本身）一起滚。
- */
-function revealInScrollParent(el: HTMLElement): void {
-  let scroller: HTMLElement | null = el.parentElement
-  while (scroller) {
-    const overflowY = getComputedStyle(scroller).overflowY
-    if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break
-    scroller = scroller.parentElement
-  }
-  if (!scroller) return
-  const box = el.getBoundingClientRect()
-  const view = scroller.getBoundingClientRect()
-  const viewTop = view.top + scroller.clientTop
-  const viewBottom = viewTop + scroller.clientHeight
-  if (box.bottom <= viewBottom + 0.5 && box.top >= viewTop - 0.5) return
-  const delta = box.height > scroller.clientHeight ? box.top - viewTop : box.bottom > viewBottom ? box.bottom - viewBottom : box.top - viewTop
-  const reduce = shouldReduceMotion()
-  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
-}
-
-/**
- * 没有拍板过「那几个值」的执行类（声音 / 文本 / 3D）的摘要：面板里各参数的当前值，每个值是一个整值，
- * 放不下从后往前整值地减（2026-11-14 验收条件 2：Eleven v3 曾被截成「JBFqnCBs… · … · B…」）。
- * 自由文本（音色 ID 这类）不进摘要：它在摘要里读不出意思，点开面板看全。
- */
-function fallbackSummaryParts(controls: readonly DynamicModelControl[], meta: Record<string, unknown>, autoLabel: string): { text: string; dropRank: number }[] {
-  const texts = controls
-    .filter((control) => !(isParameterControl(control) && control.type === 'text'))
-    .map((control) => summaryPart(control, meta, autoLabel))
-    .filter(Boolean)
-  return texts.map((text, index) => ({ text, dropRank: texts.length - index }))
-}
-
 export default function InlineParameterBar({
   modelOptions,
   hideModel = false,
@@ -210,6 +184,10 @@ export default function InlineParameterBar({
   summaryOverride,
   wrap = false,
   summaryParts,
+  summaryIcon,
+  summaryStatic = false,
+  summaryBoardAnchor,
+  controlNotices,
   modeMenu,
   modeChoices,
   activeModeId = '',
@@ -273,7 +251,9 @@ export default function InlineParameterBar({
 
   // ── 底栏挤的时候谁留下（composerBarYield.ts 的重要性清单，四处同一条）：只在这里量一次，经 context 发给生成钮。 ──
   // 候选宽由原件加减纯文字与外框推得；关闭的影子根不承载控件身份。
-  const fitCandidates = footer && !wrap && parts.length ? summaryFitCandidates(parts) : null
+  // 摘要格带图标时，整值退完还能再退一档：只剩图标（空串 = 只画图标，悬停 / 读屏给全文）。
+  const fitCandidates = footer && !wrap && parts.length ? [...summaryFitCandidates(parts), ...(summaryIcon ? [''] : [])] : null
+  const emptySummaryText = summaryIcon ? '' : t('generationCommon.parameters.parameters')
   const modeCollapsible = modeHasIcon(modeMenu?.options, modeMenu?.value)
   const sendCollapsible = Boolean(footer?.send?.label)
   const summaryCandidates = fitCandidates?.length ?? 1
@@ -305,7 +285,7 @@ export default function InlineParameterBar({
     if (rulerRoot.current?.host !== host) rulerRoot.current = host.attachShadow({ mode: 'closed' })
     const root = rulerRoot.current
     const texts = [
-      ...(fitCandidates ?? [fullSummaryText]).map(text => text || t('generationCommon.parameters.parameters')),
+      ...(fitCandidates ?? [fullSummaryText]).map(text => text || emptySummaryText),
       modeMenu ? nomiSelectTriggerText(modeMenu.options.find(option => option.value === modeMenu.value), modeMenu.value, t('common.select')) : '',
       footer?.send?.label ? footer.send.busy ? t('storyboardEditor.frame.generating') : footer.send.label : '',
     ]
@@ -480,6 +460,7 @@ export default function InlineParameterBar({
                       variant="primary"
                       className="shrink-0 rounded-pill px-3.5 font-semibold"
                       data-bar-segment="generate"
+                      data-board="entry.composer-connect"
                       data-composer-connect="true"
                       onClick={(event) => {
                         event.preventDefault()
@@ -536,6 +517,7 @@ export default function InlineParameterBar({
           size="sm"
           variant="primary"
           className="shrink-0 rounded-pill px-3 font-semibold"
+          data-board="entry.composer-connect"
           data-composer-connect="true"
           onClick={(event) => {
             event.preventDefault()
@@ -575,7 +557,7 @@ export default function InlineParameterBar({
         ) : null}
         {/* 全部参数都在这里（摘要 pill 只是读，不占走任何一个）。 */}
         {panelControls.map((control) => (
-          <ParameterPanelGroup key={control.key} control={control} {...controlWiring} />
+          <ParameterPanelGroup key={control.key} control={control} notice={controlNotices?.[control.key]} {...controlWiring} />
         ))}
         {hasProvider ? (
           <div className="flex flex-col gap-1.5">
@@ -600,6 +582,7 @@ export default function InlineParameterBar({
         role="group"
         aria-label={t('generationCommon.parameters.panel')}
         data-agent-parameter-panel="true"
+        data-board={summaryBoardAnchor === 'layers.composer-cell' ? 'layers.params-panel' : undefined}
         className="nokey fixed rounded-nomi-lg border border-nomi-line bg-nomi-paper"
         style={{
           zIndex: 600,
@@ -650,14 +633,34 @@ export default function InlineParameterBar({
     </div>
   )
 
+  // 没有面板可开、宿主要求照样摆一格（层数写死的模型）：静态格，样子同摘要 pill、没有 ▾、不可点。
+  const staticSummary = !hasPanel && summaryStatic && parts.length > 0
+  const showSummary = hasPanel || staticSummary
+  const summaryIconNode = summaryIcon ? <span aria-hidden className="inline-flex shrink-0 text-nomi-ink-60">{summaryIcon}</span> : null
+
   /** 触发器：一颗报当前配置的摘要 pill，点开是参数面板。 */
-  const summaryTrigger = (text = summaryText): JSX.Element | null => hasPanel ? (
+  const summaryTrigger = (text = summaryText): JSX.Element | null => staticSummary ? (
+    <span
+      // 走查锚点同摘要 pill；不是按钮（没有 role、点了什么都不开）。
+      data-parameter-summary={text}
+      data-parameter-summary-static="true"
+      data-board={summaryBoardAnchor}
+      data-yield-item=""
+      title={fullSummaryText}
+      aria-label={fullSummaryText}
+      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-pill border border-nomi-line bg-nomi-ink-05 pl-2.5 pr-2.5 text-caption text-nomi-ink-80 min-w-0"
+    >
+      {summaryIconNode}
+      <span className="min-w-0 truncate">{text}</span>
+    </span>
+  ) : hasPanel ? (
     <button
       ref={triggerRef}
       type="button"
       // 走查锚点：断言得能拿到那串摘要本身，
       // 不能靠中文 aria-label 去找（换个语言就断了）。
       data-parameter-summary={text}
+      data-board={summaryBoardAnchor}
       data-yield-item=""
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
@@ -674,8 +677,9 @@ export default function InlineParameterBar({
       )}
       style={fitCandidates || wrap || yielding ? undefined : { maxWidth: 240 }}
     >
+      {summaryIconNode}
       <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates || yielding ? 'none' : 240 }}>
-        {text || t('generationCommon.parameters.parameters')}
+        {text || emptySummaryText}
       </span>
       <IconChevronDown
         size={ICON_TIERS.corner.size}
@@ -704,12 +708,12 @@ export default function InlineParameterBar({
       )}
     >
       <div className="contents">{identityRow()}</div>
-      {hasPanel && yielding ? (
+      {showSummary && yielding ? (
         <div data-parameter-summary-slot="true" className={cn('relative flex items-center', fitCramped ? 'flex-none' : 'min-w-0 flex-1')}>
           {summaryTrigger()}
           {panelPortal}
         </div>
-      ) : hasPanel ? (
+      ) : showSummary ? (
         <div className="min-w-0 contents">
           {summaryTrigger()}
           {panelPortal}

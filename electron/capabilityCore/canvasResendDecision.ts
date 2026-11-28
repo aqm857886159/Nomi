@@ -21,6 +21,8 @@ type ResendDecision = ResendDecisionScope & {
   inFlight: ReadonlyMap<string, string | undefined>;
   /** 结果未知、人确认后可以放行的那几笔（画布 Run 或制作 Run 里的那一笔）。 */
   release: ReadonlyArray<{ runId: string; jobId: string }>;
+  /** Only a user-requested resend may authorize another completed derived order. */
+  completedRunId?: string;
   expiresAt: number;
   usedBy?: string;
 };
@@ -39,9 +41,9 @@ export function createResendDecisions(now: () => number = Date.now) {
   }
 
   return {
-    mint(scope: ResendDecisionScope, open: { inFlight: ReadonlyMap<string, string | undefined>; release: ReadonlyArray<{ runId: string; jobId: string }> }): ResendDecision {
+    mint(scope: ResendDecisionScope, open: { inFlight: ReadonlyMap<string, string | undefined>; release: ReadonlyArray<{ runId: string; jobId: string }>; completedRunId?: string }): ResendDecision {
       for (const [id, decision] of decisions) if (decision.expiresAt <= now()) decisions.delete(id);
-      const decision: ResendDecision = { ...scope, decisionId: crypto.randomUUID(), inFlight: new Map(open.inFlight), release: [...open.release], expiresAt: now() + DECISION_TTL_MS };
+      const decision: ResendDecision = { ...scope, decisionId: crypto.randomUUID(), inFlight: new Map(open.inFlight), release: [...open.release], completedRunId: open.completedRunId, expiresAt: now() + DECISION_TTL_MS };
       decisions.set(decision.decisionId, decision);
       return decision;
     },
@@ -51,9 +53,9 @@ export function createResendDecisions(now: () => number = Date.now) {
       return Boolean(decision && !decision.usedBy && decision.release.some(entry => entry.runId === target.runId && entry.jobId === target.jobId));
     },
     /** 提交第一次带着号来就把号用掉（同一个运行记录号的重放仍认它）；节点对不上的号不算数、也不用掉。 */
-    take(decisionId: string | undefined, target: ResendDecisionScope & { nodeId: string; runRecordId: string }): ResendDecision | undefined {
+    take(decisionId: string | undefined, target: ResendDecisionScope & { nodeId: string; runRecordId: string }, completedRunId?: string): ResendDecision | undefined {
       const decision = live(decisionId, target);
-      if (!decision || decision.nodeId !== target.nodeId) return undefined;
+      if (!decision || decision.nodeId !== target.nodeId || (completedRunId && decision.completedRunId !== completedRunId)) return undefined;
       if (decision.usedBy && decision.usedBy !== target.runRecordId) return undefined;
       decision.usedBy = target.runRecordId;
       return decision;
@@ -76,6 +78,10 @@ export function createCanvasShotResend(
 ) {
   const decisions = createResendDecisions();
 
+  // The submit refusal opens the existing renderer confirmation flow. Bind that card to
+  // the completed order that prompted it, even if another derived order finishes meanwhile.
+  const completedPrompts = new Map<string, { runId: string; senderId: number }>();
+  const promptKey = (scope: ResendDecisionScope) => JSON.stringify([scope.senderId, scope.projectId, scope.nodeId]);
   /** 制作 Run 里那一笔结果未知的作业（按节点找那一镜，或任务中心点名的那一笔）；不是结果未知就没有。 */
   function unknownProductionJob(projectId: string, nodeId: string | undefined, production: CanvasResendDecideInput["production"]): { runId: string; jobId: string } | null {
     const runId = production?.runId?.trim();
@@ -99,9 +105,11 @@ export function createCanvasShotResend(
       const release = open.flatMap(entry => entry.reason === "needs_reconcile" && entry.jobId ? [{ runId: entry.runId, jobId: entry.jobId }] : []);
       const production = unknownProductionJob(input.projectId, input.nodeId, input.production);
       if (production && !release.some(entry => entry.runId === production.runId && entry.jobId === production.jobId)) release.push(production);
+      const completedRunId = input.resend ? completedPrompts.get(promptKey(input))?.runId : undefined;
+      completedPrompts.delete(promptKey(input));
       const decision = decisions.mint(
         { projectId: input.projectId, ...(input.nodeId ? { nodeId: input.nodeId } : {}), senderId: input.senderId },
-        { inFlight: new Map(open.filter(entry => entry.reason === "in_flight").map(entry => [entry.runId, entry.jobId])), release },
+        { inFlight: new Map(open.filter(entry => entry.reason === "in_flight").map(entry => [entry.runId, entry.jobId])), release, completedRunId },
       );
       return { action: "ask", decisionId: decision.decisionId, resultUnknown: release.length > 0 || input.resultUnknown === true, release, open };
     },
@@ -119,9 +127,17 @@ export function createCanvasShotResend(
       };
       return open.find(entry => entry.reason === "needs_reconcile" || !covered(entry));
     },
+    confirmsCompleted(input: ResendDecisionScope & { nodeId: string; runRecordId: string; resendDecisionId?: string }, previous: ProductionRun): boolean {
+      if (decisions.take(input.resendDecisionId, input, previous.runId)) return true;
+      completedPrompts.set(promptKey(input), { runId: previous.runId, senderId: input.senderId });
+      return false;
+    },
     /** 放行结果未知的那一笔之前核对：只有决定号里列出的才放（渲染层多报一笔就拒）。 */
     covers: decisions.covers,
-    dropSender: decisions.dropSender,
+    dropSender(senderId: number) {
+      decisions.dropSender(senderId);
+      for (const [key, prompt] of completedPrompts) if (prompt.senderId === senderId) completedPrompts.delete(key);
+    },
   };
 }
 

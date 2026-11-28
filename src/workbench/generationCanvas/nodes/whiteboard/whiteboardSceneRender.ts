@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps -- Imperative Leafer scene refs stay stable across pointer updates. */
+import { useLayoutEffect, useState } from 'react'
 import type { CanvasAsset, CanvasText, CanvasDimensions, LayerItem } from './lib/canvas'
 import type {
   CanvasAssetTransform,
@@ -7,8 +9,10 @@ import type {
   CanvasStroke,
   LeaferBox,
   LeaferGroup,
+  LeaferRenderContext,
   LeaferSceneContext,
   MutableDraftEraserPath,
+  SceneTransforms,
 } from './whiteboardCanvasTypes'
 import { MIN_ASSET_SIZE } from './whiteboardCanvasTypes'
 import {
@@ -46,7 +50,9 @@ export type RenderWhiteboardSceneParams = {
   draftEraserPathRef: RefLike<MutableDraftEraserPath | null>
 }
 
-export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): void {
+export type LeaferSceneImage = InstanceType<LeaferSceneContext['Image']>
+
+export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): { visibleImages: LeaferSceneImage[] } {
   const {
     context,
     assets,
@@ -70,6 +76,7 @@ export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): void
     canvasObjectNodesRef.current = new Map()
     layerObjectTargetsRef.current = new Map()
     draftEraserPathRef.current = null
+    const visibleImages: LeaferSceneImage[] = []
 
     const assetsByLayer = groupItemsByLayer(assets)
     const strokesByLayer = groupItemsByLayer(strokes)
@@ -171,6 +178,17 @@ export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): void
               canvasObjectId: asset.id
             })
 
+            const groupedImage = new Image({
+              x: 0,
+              y: 0,
+              width: assetBounds.width,
+              height: assetBounds.height,
+              url: asset.url,
+              cornerRadius: 8,
+              hittable: false
+            })
+            if (layer.visible) visibleImages.push(groupedImage)
+
             addCanvasObjectGroup(
               groupContent,
               assetGroup,
@@ -179,15 +197,7 @@ export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): void
                 id: asset.id,
                 bounds: assetBounds
               },
-              new Image({
-                x: 0,
-                y: 0,
-                width: assetBounds.width,
-                height: assetBounds.height,
-                url: asset.url,
-                cornerRadius: 8,
-                hittable: false
-              }),
+              groupedImage,
               layerStrokes.filter((stroke) => stroke.tool === 'eraser'),
               Group,
               Path,
@@ -286,6 +296,17 @@ export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): void
           canvasObjectId: asset.id
         })
 
+        const assetImage = new Image({
+          x: 0,
+          y: 0,
+          width: assetBounds.width,
+          height: assetBounds.height,
+          url: asset.url,
+          cornerRadius: 8,
+          hittable: false
+        })
+        if (layer.visible) visibleImages.push(assetImage)
+
         addCanvasObjectGroup(
           layerGroup,
           assetGroup,
@@ -294,15 +315,7 @@ export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): void
             id: asset.id,
             bounds: assetBounds
           },
-          new Image({
-            x: 0,
-            y: 0,
-            width: assetBounds.width,
-            height: assetBounds.height,
-            url: asset.url,
-            cornerRadius: 8,
-            hittable: false
-          }),
+          assetImage,
           layerStrokes.filter((stroke) => stroke.tool === 'eraser'),
           Group,
           Path,
@@ -386,4 +399,141 @@ export function renderWhiteboardScene(params: RenderWhiteboardSceneParams): void
     }
 
     layerGroupsRef.current = layerGroups
+    return { visibleImages }
+}
+
+type SettlingImage = {
+  ready?: boolean
+  error?: unknown
+  on?: (type: string, listener: () => void) => void
+  off?: (type: string, listener: () => void) => void
+}
+
+export type WhiteboardSceneReadyState = {
+  ready: boolean
+  decodedImages: number
+  editableCount: number
+}
+
+export function useWhiteboardSceneReady(params: {
+  renderContextRef: RefLike<LeaferRenderContext | null>
+  assets: CanvasAsset[]
+  texts: CanvasText[]
+  strokes: CanvasStroke[]
+  layers: LayerItem[]
+  dimensions: CanvasDimensions
+  sceneTransforms?: SceneTransforms
+  renderReadyVersion: number
+  objectOffsetsRef: RefLike<Map<string, CanvasObjectOffset>>
+  assetTransformsRef: RefLike<Map<string, CanvasAssetTransform>>
+  objectFlipStatesRef: RefLike<Map<string, CanvasObjectFlipState>>
+  layerGroupsRef: RefLike<Map<string, LeaferGroup>>
+  canvasObjectNodesRef: RefLike<Map<string, LeaferBox>>
+  layerObjectTargetsRef: RefLike<Map<string, CanvasObjectTarget>>
+  draftEraserPathRef: RefLike<MutableDraftEraserPath | null>
+}): WhiteboardSceneReadyState {
+  const {
+    renderContextRef,
+    assets,
+    texts,
+    strokes,
+    layers,
+    dimensions,
+    sceneTransforms,
+    renderReadyVersion,
+    objectOffsetsRef,
+    assetTransformsRef,
+    objectFlipStatesRef,
+    layerGroupsRef,
+    canvasObjectNodesRef,
+    layerObjectTargetsRef,
+    draftEraserPathRef,
+  } = params
+
+  const [sceneReadyState, setSceneReadyState] = useState<WhiteboardSceneReadyState>({
+    ready: false,
+    decodedImages: 0,
+    editableCount: 0,
+  })
+
+  useLayoutEffect(() => {
+    const context = renderContextRef.current
+    if (!context) {
+      setSceneReadyState({ ready: false, decodedImages: 0, editableCount: 0 })
+      return
+    }
+
+    const { visibleImages } = renderWhiteboardScene({
+      context,
+      assets,
+      texts,
+      strokes,
+      layers,
+      dimensions,
+      objectOffsets: objectOffsetsRef.current,
+      assetTransforms: assetTransformsRef.current,
+      objectFlipStates: objectFlipStatesRef.current,
+      layerGroupsRef,
+      canvasObjectNodesRef,
+      layerObjectTargetsRef,
+      draftEraserPathRef,
+    })
+
+    const editableCount = canvasObjectNodesRef.current.size
+    const imageList = visibleImages as unknown as SettlingImage[]
+    const isSettled = (img: SettlingImage) => Boolean(img.ready || img.error)
+    let cancelled = false
+    let raf1: number | null = null
+    let raf2: number | null = null
+    const listeners: Array<{ img: SettlingImage; fn: () => void }> = []
+
+    const detachAll = () => {
+      for (const entry of listeners.splice(0)) {
+        entry.img.off?.('image.loaded', entry.fn)
+        entry.img.off?.('image.error', entry.fn)
+      }
+    }
+
+    const markReadyAfterPaint = () => {
+      if (cancelled) return
+      const decodedImages = imageList.filter((img) => Boolean(img.ready)).length
+      raf1 = window.requestAnimationFrame(() => {
+        raf2 = window.requestAnimationFrame(() => {
+          if (!cancelled) {
+            setSceneReadyState({
+              ready: true,
+              decodedImages,
+              editableCount: canvasObjectNodesRef.current.size,
+            })
+          }
+        })
+      })
+    }
+
+    setSceneReadyState({ ready: false, decodedImages: 0, editableCount })
+    if (imageList.every(isSettled)) {
+      markReadyAfterPaint()
+    } else {
+      const checkSettled = () => {
+        if (cancelled || !imageList.every(isSettled)) return
+        detachAll()
+        markReadyAfterPaint()
+      }
+      for (const img of imageList) {
+        if (isSettled(img)) continue
+        img.on?.('image.loaded', checkSettled)
+        img.on?.('image.error', checkSettled)
+        listeners.push({ img, fn: checkSettled })
+      }
+    }
+
+    return () => {
+      cancelled = true
+      if (raf1 !== null) window.cancelAnimationFrame(raf1)
+      if (raf2 !== null) window.cancelAnimationFrame(raf2)
+      detachAll()
+    }
+  }, [assets, layers, renderReadyVersion, strokes, texts, sceneTransforms])
+
+  return sceneReadyState
 }

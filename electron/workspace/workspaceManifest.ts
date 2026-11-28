@@ -1,11 +1,10 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 
 import { extensionFromMime, localAssetUrl } from "../assets/assetPaths";
 import { parseDataUrl } from "../assets/assetBytes";
-import { readJsonFile } from "../jsonFile";
+import { readJsonFile, retryOnSharingViolation, retryOnSharingViolationAsync } from "../jsonFile";
 import {
   withWorkspaceManifestTransaction,
   withWorkspaceManifestTransactionSync,
@@ -32,10 +31,7 @@ import {
 import { logWarn } from "../logging/logger";
 import { mayContainBuildArtifactUrl } from "../shared/buildArtifactUrl";
 import { collectBuildArtifactUrls, createBuildArtifactRewriter, keepBuildArtifactUrl, rejectNewBuildArtifactUrl } from "./buildArtifactMigration";
-
-function workspaceId(): string {
-  return `workspace-${crypto.randomUUID()}`;
-}
+import { applyInitializeWorkspace, type InitializeWorkspaceInput } from "./workspaceManifestInit";
 
 type TopLevelFieldsOptions = {
   keys: string[];
@@ -296,15 +292,18 @@ function readProjectJsonInTransaction(transaction: WorkspaceManifestTransaction,
   return localized.changed ? transaction.replaceJson(filePath, localized.value) : raw;
 }
 
-function readManifestState(transaction: WorkspaceManifestTransaction): ManifestState | null {
-  const raw = transaction.readJson(transaction.manifestPath);
+function readStoredState(
+  transaction: WorkspaceManifestTransaction,
+  filePath: string,
+  label: "Workspace manifest" | "Workspace project backup",
+  identityLabel: string,
+): ManifestState | null {
+  const raw = transaction.readJson(filePath);
   if (raw === null) return null;
   const rawRecord = toProjectRecordObject(raw);
-  if (!rawRecord) throw new Error("Workspace manifest must be an object");
+  if (!rawRecord) throw new Error(`${label} must be an object`);
   const record = normalizeWorkspaceProjectRecord(rawRecord);
-  if (identityState(record) === "partial") {
-    throw new WorkspaceProjectIdentityUnavailableError("Workspace project identity is only partially present");
-  }
+  if (identityState(record) === "partial") throw new WorkspaceProjectIdentityUnavailableError(identityLabel);
   return { raw: rawRecord, record };
 }
 
@@ -336,18 +335,6 @@ function localizeManifestState(
   return { raw: persistedRaw, record: normalizeWorkspaceProjectRecord(persistedRaw) };
 }
 
-function readBackupState(transaction: WorkspaceManifestTransaction): ManifestState | null {
-  const raw = transaction.readJson(workspaceProjectBackupFile(transaction.canonicalRootPath));
-  if (raw === null) return null;
-  const rawRecord = toProjectRecordObject(raw);
-  if (!rawRecord) throw new Error("Workspace project backup must be an object");
-  const record = normalizeWorkspaceProjectRecord(rawRecord);
-  if (identityState(record) === "partial") {
-    throw new WorkspaceProjectIdentityUnavailableError("Workspace project backup identity is only partially present");
-  }
-  return { raw: rawRecord, record };
-}
-
 function mentionsIdentity(record: Record<string, unknown>): boolean {
   return (
     Object.prototype.hasOwnProperty.call(record, "immutableProjectUuid") ||
@@ -359,8 +346,18 @@ function createMutationContext(
   transaction: WorkspaceManifestTransaction,
   options: WorkspaceManifestMutationOptions,
 ): WorkspaceManifestMutationContext {
-  const rawMainBaseline = readManifestState(transaction);
-  const backupBaseline = readBackupState(transaction);
+  const rawMainBaseline = readStoredState(
+    transaction,
+    transaction.manifestPath,
+    "Workspace manifest",
+    "Workspace project identity is only partially present",
+  );
+  const backupBaseline = readStoredState(
+    transaction,
+    workspaceProjectBackupFile(transaction.canonicalRootPath),
+    "Workspace project backup",
+    "Workspace project backup identity is only partially present",
+  );
   const baselineIdentity = assertManifestBackupPair(rawMainBaseline, backupBaseline);
   const mainBaseline = localizeManifestState(transaction, rawMainBaseline, options);
   const mainRawBaseline = mainBaseline ? cloneJson(mainBaseline.raw) : null;
@@ -381,6 +378,21 @@ function createMutationContext(
     }
   };
 
+  const persistValidated = (
+    filePath: string,
+    value: unknown,
+    resource: "manifest" | "backup",
+    identity: ManifestIdentity,
+  ): { identity: ManifestIdentity; record: WorkspaceProjectRecordV2 } => {
+    const persisted = transaction.replaceJson(filePath, value);
+    const persistedRaw = toProjectRecordObject(persisted);
+    const label = resource === "backup" ? "Persisted workspace project backup" : "Persisted workspace manifest";
+    if (!persistedRaw) throw new Error(`${label} must be an object`);
+    const record = normalizeWorkspaceProjectRecord(persistedRaw);
+    assertProjectId(record, resource);
+    return { identity: assertCandidateIdentity(persistedRaw, identity, resource), record };
+  };
+
   return {
     canonicalRootPath: transaction.canonicalRootPath,
     current: mainBaseline ? frozenJsonClone(mainBaseline.record) : null,
@@ -391,34 +403,23 @@ function createMutationContext(
       return readProjectJsonInTransaction(transaction, filePath);
     },
     replaceBackup(record) {
-      if (backupReplaced) {
-        throw new Error("Workspace manifest transaction may replace the backup only once");
-      }
+      if (backupReplaced) throw new Error("Workspace manifest transaction may replace the backup only once");
       const inputRecord = toProjectRecordObject(record);
       if (!inputRecord) throw new Error("Workspace project backup must be an object");
       const rawRecord = cloneJsonPreservingUndefined(inputRecord);
-      const normalized = normalizeWorkspaceProjectRecord(rawRecord);
-      assertProjectId(normalized, "backup");
-      assertCandidateIdentity(rawRecord, effectiveIdentity(), "backup");
-      const persisted = transaction.replaceJson(workspaceProjectBackupFile(transaction.canonicalRootPath), rawRecord);
-      const persistedRaw = toProjectRecordObject(persisted);
-      if (!persistedRaw) throw new Error("Persisted workspace project backup must be an object");
-      const persistedRecord = normalizeWorkspaceProjectRecord(persistedRaw);
-      assertProjectId(persistedRecord, "backup");
-      stagedBackupIdentity = assertCandidateIdentity(persistedRaw, effectiveIdentity(), "backup");
+      assertProjectId(normalizeWorkspaceProjectRecord(rawRecord), "backup");
+      const identity = effectiveIdentity();
+      assertCandidateIdentity(rawRecord, identity, "backup");
+      const saved = persistValidated(workspaceProjectBackupFile(transaction.canonicalRootPath), rawRecord, "backup", identity);
+      stagedBackupIdentity = saved.identity;
       backupReplaced = true;
-      return persistedRecord;
+      return saved.record;
     },
     replace(next) {
-      if (manifestReplaced) {
-        throw new Error("Workspace manifest transaction may replace the manifest only once");
-      }
+      if (manifestReplaced) throw new Error("Workspace manifest transaction may replace the manifest only once");
       const nextRaw = toProjectRecordObject(next);
       if (!nextRaw) throw new Error("Workspace manifest must be an object");
-      let merged = {
-        ...(mainRawBaseline ?? {}),
-        ...cloneJsonPreservingUndefined(nextRaw),
-      };
+      let merged = { ...(mainRawBaseline ?? {}), ...cloneJsonPreservingUndefined(nextRaw) };
       const authoritativeIdentity = effectiveIdentity();
       if (
         authoritativeIdentity.state === "complete" &&
@@ -431,8 +432,7 @@ function createMutationContext(
           projectGeneration: authoritativeIdentity.projectGeneration,
         };
       }
-      const normalized = normalizeWorkspaceProjectRecord(merged);
-      assertProjectId(normalized, "manifest");
+      assertProjectId(normalizeWorkspaceProjectRecord(merged), "manifest");
       assertCandidateIdentity(merged, authoritativeIdentity, "manifest");
       const persistedValue =
         options.localizeEmbeddedMedia === false
@@ -443,14 +443,9 @@ function createMutationContext(
               transaction,
               rejectNewBuildArtifactUrl(collectBuildArtifactUrls(mainRawBaseline)),
             ).value;
-      const persisted = transaction.replaceJson(transaction.manifestPath, persistedValue);
-      const persistedRecord = toProjectRecordObject(persisted);
-      if (!persistedRecord) throw new Error("Persisted workspace manifest must be an object");
-      const record = normalizeWorkspaceProjectRecord(persistedRecord);
-      assertProjectId(record, "manifest");
-      assertCandidateIdentity(persistedRecord, authoritativeIdentity, "manifest");
+      const saved = persistValidated(transaction.manifestPath, persistedValue, "manifest", authoritativeIdentity);
       manifestReplaced = true;
-      return record;
+      return saved.record;
     },
   };
 }
@@ -532,19 +527,31 @@ export function readProjectJsonTopLevelFields(
   return out;
 }
 
+function handleManifestReadError(error: unknown): null {
+  if (
+    isWorkspaceBoundaryError(error) ||
+    error instanceof WorkspaceManifestLockBusyError ||
+    error instanceof WorkspaceProjectIdentityUnavailableError
+  ) {
+    throw error;
+  }
+  logWarn("workspace", "manifest-read-failed", undefined, error);
+  return null;
+}
+
 export function readWorkspaceManifest(rootPath: string): WorkspaceProjectRecordV2 | null {
   try {
     return withWorkspaceManifestMutationSync(rootPath, (context) => context.current);
   } catch (error) {
-    if (
-      isWorkspaceBoundaryError(error) ||
-      error instanceof WorkspaceManifestLockBusyError ||
-      error instanceof WorkspaceProjectIdentityUnavailableError
-    ) {
-      throw error;
-    }
-    logWarn("workspace", "manifest-read-failed", undefined, error);
-    return null;
+    return handleManifestReadError(error);
+  }
+}
+
+export async function readWorkspaceManifestAsync(rootPath: string): Promise<WorkspaceProjectRecordV2 | null> {
+  try {
+    return await withWorkspaceManifestStagedMutation(rootPath, (context) => context.current);
+  } catch (error) {
+    return handleManifestReadError(error);
   }
 }
 
@@ -607,10 +614,12 @@ function snapshotFromRawManifest(
 export function readWorkspaceManifestSnapshot(rootPath: string): WorkspaceProjectRecordV2 | null {
   try {
     const canonicalRootPath = fs.realpathSync(rootPath);
-    const rawRecord = toProjectRecordObject(readJsonFile(workspaceProjectFile(canonicalRootPath)));
+    const rawRecord = toProjectRecordObject(retryOnSharingViolation(() => readJsonFile(workspaceProjectFile(canonicalRootPath))));
     if (!rawRecord) return null;
     const backupPath = workspaceProjectBackupFile(canonicalRootPath);
-    const backup = fs.existsSync(backupPath) ? { raw: toProjectRecordObject(readJsonFile(backupPath)) } : null;
+    const backup = fs.existsSync(backupPath)
+      ? { raw: toProjectRecordObject(retryOnSharingViolation(() => readJsonFile(backupPath))) }
+      : null;
     return snapshotFromRawManifest(rawRecord, backup);
   } catch (error) {
     if (error instanceof WorkspaceProjectIdentityUnavailableError) throw error;
@@ -623,10 +632,15 @@ export async function readWorkspaceManifestSnapshotAsync(rootPath: string): Prom
   try {
     const manifestFile = await resolveWorkspaceReadFile(rootPath, "manifest");
     if (!manifestFile) return null;
-    const rawRecord = toProjectRecordObject(JSON.parse(await fsp.readFile(manifestFile, "utf8")));
+    const rawRecord = toProjectRecordObject(
+      JSON.parse(await retryOnSharingViolationAsync(() => fsp.readFile(manifestFile, "utf8"))),
+    );
     if (!rawRecord) return null;
     const backupFile = await resolveWorkspaceReadFile(rootPath, "backup");
-    const backup = backupFile === null ? null : { raw: toProjectRecordObject(JSON.parse(await fsp.readFile(backupFile, "utf8"))) };
+    const backup =
+      backupFile === null
+        ? null
+        : { raw: toProjectRecordObject(JSON.parse(await retryOnSharingViolationAsync(() => fsp.readFile(backupFile, "utf8")))) };
     return snapshotFromRawManifest(rawRecord, backup);
   } catch (error) {
     if (error instanceof WorkspaceProjectIdentityUnavailableError) throw error;
@@ -717,83 +731,44 @@ export function recoverWorkspaceManifest(
   });
 }
 
+function workspaceSubdirs(canonicalRootPath: string): string[] {
+  return [
+    workspaceNomiDir(canonicalRootPath),
+    workspaceAssetsGeneratedDir(canonicalRootPath),
+    workspaceAssetsImportedDir(canonicalRootPath),
+    workspaceExportsDir(canonicalRootPath),
+  ];
+}
+
 export function ensureWorkspaceFolders(rootPath: string): void {
   const resolvedRootPath = path.resolve(rootPath);
   fs.mkdirSync(resolvedRootPath, { recursive: true });
-  const canonicalRootPath = fs.realpathSync(resolvedRootPath);
-  fs.mkdirSync(workspaceNomiDir(canonicalRootPath), { recursive: true });
-  fs.mkdirSync(workspaceAssetsGeneratedDir(canonicalRootPath), { recursive: true });
-  fs.mkdirSync(workspaceAssetsImportedDir(canonicalRootPath), { recursive: true });
-  fs.mkdirSync(workspaceExportsDir(canonicalRootPath), { recursive: true });
+  for (const dir of workspaceSubdirs(fs.realpathSync(resolvedRootPath))) fs.mkdirSync(dir, { recursive: true });
+}
+
+export async function ensureWorkspaceFoldersAsync(rootPath: string): Promise<void> {
+  const resolvedRootPath = path.resolve(rootPath);
+  await fsp.mkdir(resolvedRootPath, { recursive: true });
+  const canonicalRootPath = await fsp.realpath(resolvedRootPath);
+  await Promise.all(workspaceSubdirs(canonicalRootPath).map((dir) => fsp.mkdir(dir, { recursive: true })));
 }
 
 export function initializeWorkspace(
   rootPath: string,
-  input: {
-    id?: string;
-    name?: string;
-    seedKey?: string;
-    draft?: boolean;
-    payload?: unknown;
-  } = {},
+  input: InitializeWorkspaceInput = {},
 ): WorkspaceProjectRecordV2 {
   ensureWorkspaceFolders(rootPath);
-  return withWorkspaceManifestMutationSync(rootPath, (context) => {
-    if (context.current && context.currentRaw) {
-      const mainIdentity = manifestIdentity(context.currentRaw as Record<string, unknown>);
-      const backupIdentity = manifestIdentity(context.currentBackupRaw as Record<string, unknown> | null);
-      if (mainIdentity.state === "none" && backupIdentity.state === "complete") {
-        return context.replace(context.currentRaw as Record<string, unknown>);
-      }
-      if (!context.currentBackupRaw) {
-        context.replaceBackup(context.currentRaw as Record<string, unknown>);
-      } else if (mainIdentity.state === "complete" && backupIdentity.state === "none") {
-        context.replaceBackup({
-          ...context.currentBackupRaw,
-          immutableProjectUuid: mainIdentity.immutableProjectUuid,
-          projectGeneration: mainIdentity.projectGeneration,
-        });
-      }
-      return context.current;
-    }
+  return withWorkspaceManifestMutationSync(rootPath, (context) =>
+    applyInitializeWorkspace(context, rootPath, input, manifestIdentity),
+  );
+}
 
-    if (context.currentBackup && context.currentBackupRaw) {
-      const requestedId = input.id?.trim();
-      if (requestedId && requestedId !== context.currentBackup.id) {
-        throw new Error("Staged workspace backup belongs to a different project");
-      }
-      const backupIdentity = manifestIdentity(context.currentBackupRaw as Record<string, unknown>);
-      const staged: Record<string, unknown> =
-        backupIdentity.state === "complete"
-          ? { ...context.currentBackupRaw }
-          : {
-              ...context.currentBackupRaw,
-              immutableProjectUuid: crypto.randomUUID(),
-              projectGeneration: 1,
-            };
-      if (backupIdentity.state !== "complete") context.replaceBackup(staged);
-      return context.replace(staged);
-    }
-
-    const now = Date.now();
-    const candidate = {
-      id: input.id?.trim() || workspaceId(),
-      name: input.name?.trim() || path.basename(context.canonicalRootPath) || "Untitled Workspace",
-      version: 2,
-      createdAt: now,
-      updatedAt: now,
-      savedAt: now,
-      revision: 0,
-      immutableProjectUuid: crypto.randomUUID(),
-      projectGeneration: 1,
-      // This remains a user-facing locator only. Locking and identity always use
-      // context.canonicalRootPath and never trust this persisted hint.
-      lastKnownRootPath: path.resolve(rootPath),
-      ...(input.seedKey?.trim() ? { seedKey: input.seedKey.trim() } : {}),
-      ...(input.draft === true ? { draft: true } : {}),
-      payload: input.payload,
-    } satisfies WorkspaceProjectRecordV2;
-    context.replaceBackup(candidate);
-    return context.replace(candidate);
-  });
+export async function initializeWorkspaceAsync(
+  rootPath: string,
+  input: InitializeWorkspaceInput = {},
+): Promise<WorkspaceProjectRecordV2> {
+  await ensureWorkspaceFoldersAsync(rootPath);
+  return withWorkspaceManifestStagedMutation(rootPath, (context) =>
+    applyInitializeWorkspace(context, rootPath, input, manifestIdentity),
+  );
 }

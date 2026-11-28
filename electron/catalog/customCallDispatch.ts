@@ -17,7 +17,9 @@ import { assertLocalAssetTransportReady, resolveAssetIngestionWithFallback } fro
 import { decryptApiKeyRecord } from "./secrets";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "../assets/localAssetFile";
 import { unlocalizedTaskAsset } from "../tasks/unlocalizedTaskAsset";
-import { taskTemplateParams } from "./taskParams";
+import { assertLayerSplitNotScriptRouted, taskTemplateParams } from "./taskParams";
+import { LAYER_SPLIT_MODE_ID } from "../shared/modelArchetypes/modeForInputs";
+import { resolveModelArchetype } from "../shared/modelArchetypes";
 import { collectCustomCallAssets, CustomCallScriptError, joinCustomCallUrl, runCustomCallScript } from "./customCallRunner";
 import { readCatalog } from "./catalogStore";
 import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
@@ -70,6 +72,12 @@ export async function saveCustomCallMedia(input: Pick<CustomCallDispatchInput, "
 
 export async function runCustomCallTask(input: CustomCallDispatchInput): Promise<TaskResult> {
   const { vendor, model, apiKey, customConfig, script, taskKind, modeId, request, kind, wantedKind, projectId, nodeId, grantId, taskId, spendGate } = input;
+  const resolvedMode = modeId === LAYER_SPLIT_MODE_ID
+    ? { layerSplit: { maxLayers: 1 } }
+    : modeId
+      ? resolveModelArchetype(model, { variant: { variantId: request.extras?.variantId, modelId: request.extras?.model } })?.modes.find((candidate) => candidate.id === modeId)
+      : undefined;
+  assertLayerSplitNotScriptRouted(resolvedMode, { sends: "script" });
   // S8 指纹缓存同语义：脚本内容进 recipe（改脚本=新配方），mappingId 槽复用为脚本指纹。
   const scriptHash = crypto.createHash("sha1").update(script).digest("hex").slice(0, 16);
   const recipe = buildNormalizedRecipe({ vendor, model, mappingId: `custom-call:${scriptHash}`, request });
@@ -171,15 +179,18 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
     }
     throw error;
   }
-  // 文本：脚本 return { text }。**raw 合成成与文本任务执行器完全相同的 OpenAI choices 形状**
-  // （textTaskRunner.ts 的 executeTextTask），这样下游解析一行都不用改——文本产出只有一种形状，不是两种。
+  // 转写的正文与音频执行器一致，同时保留脚本的 choices 回执。
   if (executed.text !== undefined) {
     const textResult: TaskResult = {
       id: taskId,
       kind,
       status: "succeeded",
       assets: [],
-      raw: { choices: [{ message: { role: "assistant", content: executed.text } }], customCall: true },
+      raw: {
+        ...(kind === "transcribe" && { text: executed.text }),
+        choices: [{ message: { role: "assistant", content: executed.text } }],
+        customCall: true,
+      },
       provenance: buildTaskProvenance({ vendor, model, request, vendorRequestId: taskId }),
     };
     traceVendorCompleted(projectId, { runId: taskId, nodeId, status: "succeeded", assetCount: 0 });

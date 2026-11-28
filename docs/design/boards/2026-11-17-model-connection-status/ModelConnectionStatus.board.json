@@ -9,7 +9,7 @@
     {
       "kind": "same-surface",
       "product": "LibTV",
-      "absent": "LibTV 是平台积分制，创作者不填自己的密钥，没有「自己接入的连接 + 验证状态」这一处。查了协调存的 liblib.tv 首页快照（Nomi-coord/tmp/R-tapnow-libtv/https___www_liblib_tv.html，没有 API Key / 密钥字样）和 Nomi-coord/tmp/coord-libtv 下 11-14 至 11-16 的截图，都没有这一面。没有开 LibTV 实机翻设置页。"
+      "absent": "LibTV 是平台积分制，创作者不填自己的密钥，没有「自己接入的连接 + 验证状态」这一处。查了协调存的 liblib.tv 首页快照（协调资料里的 https___www_liblib_tv.html，没有 API Key / 密钥字样）和 协调资料里的 coord-libtv 下 11-14 至 11-16 的截图，都没有这一面。没有开 LibTV 实机翻设置页。"
     },
     {
       "url": "https://docs.cherry-studio-ai.com/pre-basic/settings/providers",
@@ -99,9 +99,9 @@
         "zh-en",
         "narrow"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ModelConnectionStatus/list.row-status",
+      "assertions": ["board:ModelConnectionStatus/list.row-status"],
       "note": "D-1117-delete-verification 取代未验证状态；删除健康检查说法。结构与位置不变，ModelStatusMark 取词取色。"
     },
     {
@@ -112,9 +112,9 @@
         "zh-en",
         "narrow"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "board:ModelConnectionStatus/detail.badge",
+      "assertions": ["board:ModelConnectionStatus/detail.badge"],
       "note": "D-1117-delete-verification 取代未验证状态；删除健康检查说法。结构与位置不变，ModelStatusMark 取词取色。"
     },
     {
@@ -124,11 +124,11 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "协调会话：未拍板，等用户看这一档的真截图",
       "note": "D-1117-delete-verification：T2 候选 A 已定；与列表取同一展示投影。",
-      "assertion": "board:ModelConnectionStatus/detail.badge"
+      "assertions": ["board:ModelConnectionStatus/detail.badge"]
     },
     {
       "id": "legacy.failed-words",
@@ -137,7 +137,7 @@
       "states": [
         "empty"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "可以，推送",
@@ -152,7 +152,7 @@
       "states": [
         "empty"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "dropped",
       "userDecision": {
         "quote": "可以（D-1117-delete-verification：验证这一步整段删掉）",
@@ -161,7 +161,6 @@
       "note": "D-1117-delete-verification：合入可使用绿点，不保留独立档位。"
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "censusId": "MCS-01",

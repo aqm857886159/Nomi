@@ -31,6 +31,8 @@ import { declaredModeParams, effectiveModeParams } from "../shared/modelArchetyp
 import variantsSnapshot from "./modeParamsVariants.snapshot.json";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import { applyHeadlessParamDefaults } from "../catalog/taskParams";
+import { ModeRouteMissingError } from "../catalog/modeInputRefusal";
+import { selectTaskMapping, type Mapping } from "../catalog/types";
 import { createGenerationNode } from "../../src/workbench/generationCanvas/model/graphOps";
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
@@ -125,6 +127,7 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
   it("每个多方式档案 × 目录行 × 方式：冻结请求只含这次发出方式声明的键；主进程再过一遍管辖键逐值不变", () => {
     const leaks: string[] = [];
     const diffs: string[] = [];
+    const layerSplitRefused: string[] = [];
     const archetypes = new Set<string>();
     let checked = 0;
     for (const { row, archetype } of multiModeRows()) {
@@ -138,11 +141,17 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
         const leaked = undeclaredGovernedKeys(extras, archetype);
         if (leaked.length) leaks.push(`${where}: ${leaked.join(",")}`);
         let main: Record<string, unknown> | undefined;
+        // 图层分离只认线缆：发送口要看这条 mapping 的 create body 读不读开关键，所以这一格带上真 body（其余方式照旧只比管辖键）。
+        const layerSplitBody = mode.layerSplit
+          ? selectTaskMapping(seeded.mappings as Mapping[], row.vendorKey, request.kind as Mapping["taskKind"], row.modelKey, mode.id)?.create?.body
+          : undefined;
         try {
-          main = applyHeadlessParamDefaults(extras, { modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, modelMeta: row.meta, taskKind: request.kind, modeId: sentModeIdOf(extras) }, undefined);
+          main = applyHeadlessParamDefaults(extras, { modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, modelMeta: row.meta, taskKind: request.kind, modeId: sentModeIdOf(extras) }, undefined, layerSplitBody);
         } catch (error) {
           // 能力声明闸拒发的组合与本卡无关（两边都不发），只记不比。
           if (/capabilit|声明/i.test((error as Error).message)) continue;
+          // 这一家的线缆拆不了图层：发送前拒（两边都不发），点名冻结在下面。
+          if (error instanceof ModeRouteMissingError && mode.layerSplit) { layerSplitRefused.push(`${row.vendorKey}/${row.modelKey}/${mode.id}`); continue; }
           throw error;
         }
         if (governedProjection(extras, governed, wireStringKeys) !== governedProjection(main, governed, wireStringKeys)) {
@@ -158,6 +167,8 @@ describe("方式参数 owner：渲染层与主进程是同一份答案", () => {
     }
     expect(leaks).toEqual([]);
     expect(diffs).toEqual([]);
+    // 5.0 Pro 与 Runway / fal 共用档案，那两家的线缆不读 layer_decomposition（与 taskParams.modeInputRoutes 同一份点名）。
+    expect(layerSplitRefused.sort()).toEqual(["fal/bytedance/seedream/v5/pro/layers", "runway/seedream5_pro/layers"]);
     expect(archetypes.size).toBeGreaterThan(20);
     expect(checked).toBeGreaterThan(100);
   });

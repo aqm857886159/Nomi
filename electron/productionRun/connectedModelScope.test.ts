@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { connectedModelScope } from "./connectedModelScope";
 import type { ModelListingEntry } from "../catalog/modelCatalogListing";
-import { DEFAULT_AUTOMATION_POLICY_SETTINGS, normalizeAutomationPolicySettings } from "../settings/automationPolicyContract";
+import { DEFAULT_AUTOMATION_POLICY_SETTINGS, normalizeAutomationPolicySettings } from "../shared/contracts/automationPolicyContract";
 
 const references: ModelListingEntry["references"] = {
   image: false, video: false, audio: false, multiImage: false, referenceModes: [],

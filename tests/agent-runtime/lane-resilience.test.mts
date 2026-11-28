@@ -373,18 +373,18 @@ test('S4 截断 · a tool call cut off at the output cap is not run, and the tur
   const errors = errorParts(projection);
   assert.equal(errors.length, 1);
   const text = errors[0]!.text;
-  // 这句话不许被任何一个判据接走：重试（再写一遍同样长的调用）、上下文溢出（去压缩一份没溢出的上下文）、
-  // 本机的看门狗 / 断流事实、生成域的任何一个已知类别（不新增界面种类，面板落「没见过的错误」那一句）。
+  // 这句话不许触发重试（再写一遍同样长的调用）或误触发上下文溢出（去压缩一份没溢出的上下文）；
+  // 投影层按诊断槽认成 output-truncated（cutToolCall: true），交面板渲染可操作工具截断指引，不再落「没见过的错误」。
   const message = { stopReason: 'error', errorMessage: text, usage: { input: 10, output: UNDECLARED_LIMIT, cacheRead: 0 } } as AssistantMessage;
   assert.equal(isRetryableAssistantError(message), false);
   assert.equal(isContextOverflow(message, 128_000), false);
-  assert.equal(laneAssistantFaultOf(text), undefined);
-  assert.equal(decideGenerationFailure({ message: text, locale: 'zh-CN' }).kind, 'unknown');
+  assert.deepEqual(laneAssistantFaultOf(text), { kind: 'output-truncated', cutToolCall: true });
+  assert.deepEqual(errors[0]!.fault, { kind: 'output-truncated', cutToolCall: true });
   assert.equal(errors[0]!.transient, undefined);
   await lane.close();
   const diagnostics = await truncationDiagnostics(fixture.projectDir);
   assert.equal(diagnostics.length, 1, 'the internal reason rides on the message, not in its text');
-  assert.deepEqual(diagnostics[0]!.details, { reason: 'output_cap_tool_call', outputTokens: UNDECLARED_LIMIT, intendedOutputLimit: UNDECLARED_LIMIT });
+  assert.deepEqual(diagnostics[0]!.details, { reason: 'output_cap_tool_call', outputTokens: UNDECLARED_LIMIT, intendedOutputLimit: 0 });
 });
 
 test('S4 截断 阳性对照 · the same call with a normal finish runs', async (t) => {
@@ -412,26 +412,33 @@ test('S4 截断 · a declared output cap is the limit the cut is measured agains
     { reason: 'output_cap_tool_call', outputTokens: 4000, intendedOutputLimit: 4000 });
 });
 
-test('S4 截断 · a text-only reply cut at the cap is left to pi (still a length finish, text kept)', async (t) => {
+test('S4 截断 · a text-only reply cut at the cap keeps its prose and emits an actionable output-truncated notice', async (t) => {
   const fixture = await createLaneFixture(t, [
-    { type: 'text', text: 'A long answer that was cut', finishReason: 'length', usage: { input: 10, output: UNDECLARED_LIMIT } },
+    { type: 'text', text: 'A long answer that was cut', finishReason: 'length', usage: { input: 10, output: 4096 } },
   ]);
   const lane = await fixture.openLane(fixture.options);
   await lane.execute({ kind: 'prompt', text: 'Say something long.' });
   const texts = lane.projection().parts.filter((part) => part.kind === 'assistant-text').map((part) => part.text);
   assert.deepEqual(texts, ['A long answer that was cut']);
-  assert.equal(errorParts(lane.projection()).length, 0);
+  assert.equal(fixture.http.requests.length, 1);
+  const errors = errorParts(lane.projection());
+  assert.equal(errors.length, 1);
+  assert.deepEqual(errors[0]!.fault, { kind: 'output-truncated' });
 });
 
-test('S4 截断 · Anthropic default cap: the cut tool call never runs (records which path pi took)', async (t) => {
-  // Anthropic 协议没声明上限时请求体发 4096，而 descriptor 记 16,384：pi 认为「还没到上限」→ 走它的压缩那条路，
-  // 不经本机的截断判定。这里只钉「半截调用从不执行」，走了哪条路记进诊断，上限对齐归 S4-上限。
+test('S4 截断 · Anthropic default cap (4096) aligns descriptor and wire cap so cut tool call settles on first request', async (t) => {
   const cut = { type: 'tool' as const, calls: READ_CALL, finishReason: 'length' as const, usage: { input: 10, output: 4096 } };
-  const fixture = await createLaneFixture(t, [cut, { type: 'text', text: 'Summary.' }, cut, { type: 'text', text: 'Summary.' }, cut]);
+  const fixture = await createLaneFixture(t, [cut, { type: 'text', text: 'Must not be reached.' }]);
   const lane = await fixture.openLane({ ...fixture.options, model: { ...fixture.options.model, kind: 'anthropic' } });
   await lane.execute({ kind: 'prompt', text: 'Read the script.' });
   assert.equal(toolResults(lane.projection()).length, 0);
-  t.diagnostic(`anthropic default cap: requests=${fixture.http.requests.length}; errors=${JSON.stringify(errorParts(lane.projection()).map((part) => part.text.slice(0, 120)))}`);
+  assert.equal(fixture.http.requests.length, 1);
+  const errors = errorParts(lane.projection());
+  assert.equal(errors.length, 1);
+  assert.deepEqual(errors[0]!.fault, { kind: 'output-truncated', cutToolCall: true });
+  await lane.close();
+  assert.deepEqual((await truncationDiagnostics(fixture.projectDir))[0]?.details,
+    { reason: 'output_cap_tool_call', outputTokens: 4096, intendedOutputLimit: 4096 });
 });
 
 // ── 工具级超时 ───────────────────────────────────────────────────────────────

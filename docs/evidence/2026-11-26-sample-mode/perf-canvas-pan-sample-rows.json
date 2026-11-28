@@ -1,0 +1,60 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "6a4d7689e",
+  "head": "6a4d7689e3ad00317b7b9ec4b2329785ce0f7120",
+  "dirty": true,
+  "sourceTree": "007b5131943d26e0370b7aa43b479baed6b68388",
+  "date": "2026-11-26",
+  "runs": 5,
+  "results": [
+    {
+      "id": "canvas-pan-sample-rows",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 9.8,
+          "p95": 9.8
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          9.8,
+          9.5,
+          9.8,
+          9.6,
+          9.8
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "baseline": {
+        "median": 9.8,
+        "p95": 9.9,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-26",
+        "commit": "6a4d7689e",
+        "noisy": true
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

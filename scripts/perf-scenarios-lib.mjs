@@ -115,7 +115,8 @@ export const DRIVERS = Object.freeze({
   // 内联画板的四个场景（tests/ux/whiteboard-perf.probe.mjs，--scene 选；CDP Performance.getMetrics + 页内 rAF / PerformanceObserver + 共用 response 计时器）：
   //   idle-panel：面板开着不动时每秒读矩形次数 / 布局+样式重算次数 / 主线程忙碌占比；open-type：点「画板」到能操作 + 打字响应；
   //   many-images：画布上 24 张可见图片时在画板里拖图的帧间隔与长任务；moving-panel：画布滚轮缩放时面板偏离锚点的帧数；
-  //   done-export：最坏画板（4096² + 12 张图 + 24 笔）点「完成」到节点上看见导出的图（response）。
+  //   done-export：最坏画板（4096² + 12 张图 + 24 笔）点「完成」到节点上看见导出的图（response）；
+  //   split-board-open：图层分离上限的板（底图 + 99 层）点「画板」到能操作（openToInteractive）+ 点「图层」到 100 行列全（response）。
   'tests/ux/whiteboard-perf.probe.mjs': {
     supports: ['openToInteractive', 'response', 'frameGapP95', 'longTasks', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff'],
     buildArgs: (script, args, { runs, label }) => [script, ...args, '--runs', String(runs), '--label', label],
@@ -125,7 +126,7 @@ export const DRIVERS = Object.freeze({
       const pick = (key) => complete.map((sample) => sample[key]).filter(isNumber)
       return {
         openToInteractive: pick('openToInteractiveMs'),
-        response: complete.map((sample) => sample.doneToVisibleMs ?? sample.typeResponseP95Ms).filter(isNumber),
+        response: complete.map((sample) => sample.doneToVisibleMs ?? sample.typeResponseP95Ms ?? sample.layersPanelMs).filter(isNumber),
         frameGapP95: pick('frameP95Ms'),
         longTasks: complete.map((sample) => sample.longTasks ?? sample.openLongTasks).filter(isNumber),
         idleRectReadsPerSec: pick('idleRectReadsPerSec'),

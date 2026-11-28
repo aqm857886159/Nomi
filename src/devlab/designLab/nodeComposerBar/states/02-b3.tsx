@@ -8,8 +8,8 @@ import type { LabState } from '../../labScreen'
 
 const SOURCE = 'docs/design/boards/2026-10-18/ComposerB3.board.json（画布「Nomi 0.24 交互方案」B3 / E1 各格）'
 const MIRRORS = [
-  'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx:343',
-  'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:700',
+  'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx:347',
+  'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:693',
   'src/workbench/assets/AssetReference.tsx:96',
 ]
 

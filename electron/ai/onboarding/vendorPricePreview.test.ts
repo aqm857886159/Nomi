@@ -51,6 +51,48 @@ describe("read-only public media price", () => {
       expect(quote(d, { ...input, ...change })).toBeNull();
   });
 
+  // 图层分离的预扣约价（设计卡 docs/plan/2026-11-26-layer-split.md ★9 第 8 条，D-1126-se-auto-tier）。
+  // 数是 2026-11-26 从 APIMart 公开价目原样抄的字段（GET /api/pricing/model?model=seedream-5-5 与 /api/pricing/models/all）。
+  // 反例：把档位表里 auto → 高档改成低档 → 第一条红；删掉「首张免费」那一项 → 第三条红；层数超过公开上限仍报价 → 第四条红。
+  describe("layer split: layer cap × reservation tier price + input image fee", () => {
+    const layerQuery: VendorPriceQuery = { vendorKey: "apimart", kind: "image", modelId: "seedream-5-5", size: "auto", count: 1,
+      referenceCount: 1, hasVideoInput: false, layerSplit: { maxImages: 30 } };
+    const detail55 = { model_name: "seedream-5-5", membership: { category: "image" }, resolution_enabled: true,
+      resolution_paid_prices: { "1K": 0.016, "2K": 0.028, "1.5K": 0.016 }, paid_price: 0.028,
+      layer_decomposition_max_images: 100, layer_decomposition_paid_prices: { "1K": 0.016, "2K": 0.028 },
+      input_image_paid_price: 0.0064, input_image_first_free: false };
+    const list55 = { success: true, data: { models: { image: [{ id: "seedream-5-5", specification: "image", fixed_prices: { unit: "usd_per_image" } }] } } };
+    const layerQuote = (d: Record<string, unknown> = detail55, input = layerQuery, list: unknown = list55) => quote(d, input, list);
+
+    it("auto and 2K reserve at the higher tier, 1K and 1.5K at the lower one", () => {
+      expect(layerQuote()?.usd).toBeCloseTo(30 * 0.028 + 0.0064, 9);
+      expect(layerQuote()?.credits).toBeCloseTo((30 * 0.028 + 0.0064) * 10, 9);
+      expect(layerQuote(detail55, { ...layerQuery, size: "2K" })?.usd).toBeCloseTo(30 * 0.028 + 0.0064, 9);
+      for (const size of ["1K", "1.5K"]) expect(layerQuote(detail55, { ...layerQuery, size })?.usd).toBeCloseTo(30 * 0.016 + 0.0064, 9);
+      expect(layerQuote(detail55, { ...layerQuery, layerSplit: { maxImages: 8 } })?.usd).toBeCloseTo(8 * 0.028 + 0.0064, 9);
+    });
+    it("is marked as an upper bound (reserved at the layer limit, settled by actual layers) so the send key prints ≤", () => {
+      expect(layerQuote()).toMatchObject({ basis: "upper-bound" });
+    });
+    it("a model whose first input image is free is not charged for it", () => {
+      expect(layerQuote({ ...detail55, input_image_first_free: true })?.usd).toBeCloseTo(30 * 0.028, 9);
+    });
+    it("prints no number when anything it needs is missing or unproved", () => {
+      for (const patch of [{ layerSplit: { maxImages: 101 } }, { layerSplit: { maxImages: 0 } }, { size: "4K" }, { referenceCount: 0 }, { referenceCount: 2 }, { count: 2 },
+        { modelId: "doubao-seedream-5-0-pro" }])
+        expect(layerQuote(detail55, { ...layerQuery, ...patch } as VendorPriceQuery), JSON.stringify(patch)).toBeNull();
+      for (const patch of [{ layer_decomposition_paid_prices: { "1K": 0.016 } }, { input_image_paid_price: undefined }, { layer_decomposition_max_images: undefined },
+        { billing_tiers: [{}] }, { membership: { category: "video" } }])
+        expect(layerQuote({ ...detail55, ...patch }), JSON.stringify(patch)).toBeNull();
+      expect(layerQuote(detail55, layerQuery, null)).toBeNull();
+      expect(layerQuote(detail55, layerQuery, { success: true, data: { models: { image: [{ id: "seedream-5-5", specification: "image", fixed_prices: { unit: "usd_per_call" } }] } } })).toBeNull();
+    });
+    it("5.0 Pro prints no number: its page does not say which tier auto reserves at", () => {
+      const pro = { ...detail55, model_name: "doubao-seedream-5-0-pro", layer_decomposition_max_images: 17, input_image_first_free: true };
+      expect(layerQuote(pro, { ...layerQuery, modelId: "doubao-seedream-5-0-pro", layerSplit: { maxImages: 17 } })).toBeNull();
+    });
+  });
+
   it("sends only a public GET to the real configured service origin, shares simultaneous reads, and never quotes a relay as APIMart", async () => {
     const connection = (baseUrlHint: string) => vi.mocked(readCatalog).mockReturnValue({ vendors: [{ key: "apimart", baseUrlHint }] } as ReturnType<typeof readCatalog>);
     connection("https://api.apib.ai/v1");

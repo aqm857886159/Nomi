@@ -27,6 +27,12 @@ describe('modelCapabilityLine（一行能力描述，按档案现算）', () => 
     expect(modelCapabilityLine(undefined)).toBe('')
   })
 
+  it('样片行：说它的两步（样片档 · 满意后出到的清晰度 · 最长时长），清晰度从样片规格读（板 SampleMode sample.picker-row）', async () => {
+    expect(modelCapabilityLine(getArchetypeById('seedance-2.5-apimart-sample'))).toBe('480p 低成本试片 · 满意后出 1080p · 最长 30 秒')
+    await i18n.changeLanguage('en')
+    expect(modelCapabilityLine(getArchetypeById('seedance-2.5-apimart-sample'))).toBe('Low-cost 480p draft · 1080p when it works · Up to 30 s')
+  })
+
   it('英文界面走英文词表，同一份档案同一个结构', async () => {
     await i18n.changeLanguage('en')
     const line = modelCapabilityLine(getArchetypeById('seedance-2.5-apimart'))

@@ -52,8 +52,8 @@
     },
     "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": {
       "kind": "legacy",
-      "max": 525,
-      "reason": "…→ 524（2026-10-11 全景浮条抽成 PanoramaNodeToolbar）→ 544（2026-10-11 切图确认条抽成 ImageCropGridActionBar）→ 549（2026-10-08 列表角标 / 「在列表里看」进来时把两段多行 import 收成一行）→ 555（2026-10-06 预览底纹收进 previewBackgroundClass）→ 557 → 558（2026-10-02 结果托盘不再要 selected 入参）…→ 560（2026-09-25 浮框放置层删除后的注释收短）…→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）→ 654（2026-09-21 合并 ① 按门岗提示拧紧） → 569（2026-10-31：按用户裁定删除等待preset四处接线） → 525（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）",
+      "max": 490,
+      "reason": "…→ 524（2026-10-11 全景浮条抽成 PanoramaNodeToolbar）→ 544（2026-10-11 切图确认条抽成 ImageCropGridActionBar）→ 549（2026-10-08 列表角标 / 「在列表里看」进来时把两段多行 import 收成一行）→ 555（2026-10-06 预览底纹收进 previewBackgroundClass）→ 557 → 558（2026-10-02 结果托盘不再要 selected 入参）…→ 560（2026-09-25 浮框放置层删除后的注释收短）…→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）→ 654（2026-09-21 合并 ① 按门岗提示拧紧） → 569（2026-10-31：按用户裁定删除等待preset四处接线） → 525（2026-11-24 Q-smell 味道④：锁紧空闲已瘦身基线）→ 490（2026-11-26 独立副本角标抽成 NodeDerivedCopyBadge，样片行接线后锁紧）",
       "topDeclarations": [
         {
           "name": "BaseGenerationNodeImpl",
@@ -242,8 +242,8 @@
     },
     "electron/catalog/seedBuiltins.ts": {
       "kind": "frozen",
-      "max": 938,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 935,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆；→ 935（2026-11-26 APIMart 视频映射原样展开）",
       "topDeclarations": [
         {
           "name": "KIE_CURATED_MAPPINGS",

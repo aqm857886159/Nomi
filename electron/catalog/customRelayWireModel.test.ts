@@ -256,7 +256,7 @@ describe("类检查：出站模型名不许绕过 owner 自己算（全仓普查
     "electron/capabilityCore/appIntegrationCanvasShot.ts": "日志 / 回执里的模型标识，不出站",
     "electron/catalog/catalogCommit.ts": "冒烟请求的 extras 身份；出站 model 仍经 templateContext → owner",
     "electron/catalog/modelListReconcile.ts": "与供应商模型列表对账，不出站",
-    "electron/catalog/parameterReferenceContract.ts": "节点 meta 的目录身份，不出站",
+    "electron/shared/contracts/parameterReferenceContract.ts": "节点 meta 的目录身份，不出站",
     "electron/providerAdapter/serviceCatalog.ts": "接入登记时别名的默认值（写目录，不是出站报文）",
     "electron/vendor/provenance.ts": "产物出处记录，不出站",
   };

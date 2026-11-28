@@ -17,6 +17,10 @@
     },
     {
       "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "bindWorkspaceLocationAsync"
+    },
+    {
+      "path": "electron/workspace/workspaceRegistry.ts",
       "symbol": "bindWorkspaceLocations"
     },
     {

@@ -48,16 +48,28 @@ describe('asset import under Windows sharing violations', () => {
 
   it('retries a transient sharing violation while linking the staged copy into the project', async () => {
     const source = path.join(root, 'source.png'); fs.writeFileSync(source, bytes)
-    const realLink = fs.linkSync.bind(fs)
-    let failures = 2
-    vi.spyOn(fs, 'linkSync').mockImplementation(((existing: fs.PathLike, target: fs.PathLike) => {
-      if (failures > 0) { failures -= 1; throw sharingViolation('EPERM', String(existing)) }
-      return realLink(existing, target)
+    const realLinkSync = fs.linkSync.bind(fs)
+    let uploadFailures = 2
+    const syncSpy = vi.spyOn(fs, 'linkSync').mockImplementation(((existing: fs.PathLike, target: fs.PathLike) => {
+      if (uploadFailures > 0) { uploadFailures -= 1; throw sharingViolation('EPERM', String(existing)) }
+      return realLinkSync(existing, target)
     }) as typeof fs.linkSync)
 
     const asset = await copyAssetFile('one', source, 'photo.png', 'image/png', { kind: 'upload' }, null) as Asset
-    expect(failures).toBe(0)
+    expect(uploadFailures).toBe(0)
     expect(fs.readFileSync(asset.data.absolutePath)).toEqual(bytes)
+    syncSpy.mockRestore()
+
+    const realLinkAsync = fs.promises.link.bind(fs.promises)
+    let bucketFailures = 2
+    vi.spyOn(fs.promises, 'link').mockImplementation((async (existing: fs.PathLike, target: fs.PathLike) => {
+      if (bucketFailures > 0) { bucketFailures -= 1; throw sharingViolation('EBUSY', String(existing)) }
+      return realLinkAsync(existing, target)
+    }) as typeof fs.promises.link)
+
+    const bucketAsset = await copyAssetFile('one', source, 'ref.png', 'image/png', { kind: 'reference' }, null) as Asset
+    expect(bucketFailures).toBe(0)
+    expect(fs.readFileSync(bucketAsset.data.absolutePath)).toEqual(bytes)
   })
 
   it('retries moving a freshly written file that antivirus briefly holds open', () => {

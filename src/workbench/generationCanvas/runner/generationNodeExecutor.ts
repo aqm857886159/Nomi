@@ -26,6 +26,8 @@ export type GenerationNodeExecutorContext = {
   /** 提交幂等键（= node run.id）：透传到 extras.idempotencyKey，让同一次意图提交在 electron 侧 at-most-once。 */
   idempotencyKey?: string
   onMediaDimensions?: (dimensions: MediaDimensions) => void
+  /** 出高清（样片两步的第二步）：只带样片号和目标清晰度；不解析参考、不并连线提示词、不追加提示词后缀。 */
+  sampleFinal?: CatalogTaskActionOptions['sampleFinal']
 }
 
 export type GenerationNodeExecutor = (
@@ -49,6 +51,16 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
     const references = resolveGenerationReferences(node, context)
     const promptNode = withConnectedTextPrompts(node, context)
     return generateImage(promptNode, { references, ...gate, ...(onProgress ? { onProgress } : {}), ...(context.onMediaDimensions ? { onMediaDimensions: context.onMediaDimensions } : {}) })
+  }
+  if (executionKind === 'video' && context.sampleFinal) {
+    return generateVideo(node, {
+      projectTarget,
+      sampleFinal: context.sampleFinal,
+      ...(context.canvasRun ? { canvasRun: context.canvasRun } : {}),
+      ...(context.idempotencyKey ? { idempotencyKey: context.idempotencyKey } : {}),
+      ...(onProgress ? { onProgress } : {}),
+      ...(context.onMediaDimensions ? { onMediaDimensions: context.onMediaDimensions } : {}),
+    })
   }
   if (executionKind === 'video') {
     const references = resolveGenerationReferences(node, context)

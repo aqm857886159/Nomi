@@ -1,0 +1,18 @@
+{
+  "out": "/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-1",
+  "stations": [
+    {
+      "run": "zh-CN-light",
+      "station": "menu",
+      "ok": true,
+      "ms": 966
+    },
+    {
+      "run": "zh-CN-light",
+      "station": "sample",
+      "ok": false,
+      "ms": 92309,
+      "error": "board:SampleMode/sample.below-row：样片出完节点下方出这一行\n\nexpect(locator).toHaveAttribute(expected) failed\n\nLocator: locator('.react-flow__node[data-id=\"gen-v2-video-mwxx36g5-jhb8\"]').first().locator('[data-sample-row]').first()\nExpected: \"ready\""
+    }
+  ]
+}

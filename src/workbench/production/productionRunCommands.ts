@@ -1,4 +1,4 @@
-import type { ProductionRun, RunCommand } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun, RunCommand } from '../../../electron/shared/contracts/productionRunTypes'
 
 /**
  * 主进程的唯一判定（resumeOutlook）说「继续了也一镜都不会派」时，run.control 写口抛 NothingToResumeError（码 `nothing_to_resume`）。

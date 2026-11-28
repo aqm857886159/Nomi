@@ -1,0 +1,13 @@
+diff --git a/src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx b/src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx
+index 30fb2a160..6d85fe426 100644
+--- a/src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx
++++ b/src/workbench/generationCanvas/nodes/sampleRow/NodeSampleRow.tsx
+@@ -35,7 +35,7 @@ type NodeSampleRowProps = {
+ 
+ export function NodeSampleRow({ node, onFeedback, flowWidth, readOnly = false, onSpace }: NodeSampleRowProps): JSX.Element | null {
+   const facts = React.useMemo(() => sampleRowOf(node), [node])
+-  return facts ? <SampleRowBody node={node} facts={facts} onFeedback={onFeedback} flowWidth={flowWidth} readOnly={readOnly} onSpace={onSpace} /> : null
++  return facts && false ? <SampleRowBody node={node} facts={facts} onFeedback={onFeedback} flowWidth={flowWidth} readOnly={readOnly} onSpace={onSpace} /> : null
+ }
+ 
+ function SampleRowBody({ node, facts, onFeedback, flowWidth, readOnly, onSpace }: NodeSampleRowProps & { facts: SampleRowFacts }): JSX.Element {

@@ -1,5 +1,5 @@
 import pLimit from "p-limit"
-import { readProject, saveProject, type ProjectRecord } from './repository'
+import { readProjectAsync, saveProject, type ProjectRecord } from './repository'
 import { sameProjectAgentBinding, type ProjectBinding } from '../shared/projectBinding'
 
 type CanvasRecord = {
@@ -35,7 +35,7 @@ export async function applyCanvasNodePatch(input: {
   expectedBinding?: ProjectBinding
 }): Promise<{ applied: boolean }> {
   return serializeProjectCanvasWrite(input.projectId, async () => {
-    const record = readProject(input.projectId)
+    const record = await readProjectAsync(input.projectId)
     if (!record) return { applied: false }
     if (input.expectedBinding && !sameProjectAgentBinding(input.expectedBinding, projectBindingOf(record))) {
       throw new Error('project_binding_stale')

@@ -21,7 +21,7 @@ const FIT_CALLERS: Record<string, string> = {
 const FOCUS_DISPATCHERS: Record<string, string> = {
   'workbench/sidebar/CategoryTree.tsx': '侧栏点节点定位',
   'workbench/creation/storyboard/StoryboardPlanEditor.tsx': '分镜表「在画布上查看」按钮',
-  'workbench/generationCanvas/nodes/BaseGenerationNode.tsx': '节点「定位来源」角标',
+  'workbench/generationCanvas/nodes/NodeDerivedCopyBadge.tsx': '节点「定位来源」角标',
   'workbench/generationCanvas/components/BatchPlanOverlay.tsx': '批量条上点被卡住的那一镜',
   'workbench/generationCanvas/nodes/completeNodeConnection.ts': 'toast 上的「定位」动作',
   'workbench/generationCanvas/nodes/director/agent/hostNotice.ts': '导演台 Host（站位出图 / 运镜小片挂接）提示上的「定位节点」动作：图和目标镜头常落在视口外，用户点了才对准它',

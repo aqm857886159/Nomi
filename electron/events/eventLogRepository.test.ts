@@ -14,6 +14,7 @@ import {
   setEventLogProjectDirResolverForTests,
   setEventLogSecretsProvider,
 } from "./eventLogRepository";
+import * as logger from "../logging/logger";
 import { redactDeep } from "./redact";
 import { stripOversizeStrings } from "./eventLogRepository";
 
@@ -44,6 +45,33 @@ describe("eventLogRepository", () => {
     expect(events[0].ts).toMatch(/^\d{4}-/);
   });
 
+  it("reading a missing or empty history leaves it exactly as found", () => {
+    const dir = path.join(tmpRoot, "p1", ".nomi", "events");
+    expect(readEvents("p1")).toEqual([]);
+    expect(fs.existsSync(dir)).toBe(false);
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "log-0.jsonl");
+    fs.writeFileSync(file, "");
+    expect(readEvents("p1")).toEqual([]);
+    expect(fs.statSync(file).size).toBe(0);
+  });
+
+  it("routes preview diagnostics before opening a writer, including mixed batches", () => {
+    const info = vi.spyOn(logger, "logInfo").mockImplementation(() => undefined);
+    try {
+      const preview = [evt("preview.local.response", { status: 206 }), evt("preview.video.state", { state: "playing" })];
+      const dir = path.join(tmpRoot, "p1", ".nomi", "events");
+      expect(appendEvents("p1", preview).length).toBe(0);
+      expect(fs.existsSync(dir)).toBe(false);
+      const batch = appendEvents("p1", [evt("canvas.node.added"), ...preview, evt("agent.turn.finished")]);
+      expect(batch.map(e => [e.seq, e.type])).toEqual([[1, "canvas.node.added"], [2, "agent.turn.finished"]]);
+      expect(readEvents("p1")).toEqual(batch);
+      expect(info.mock.calls.map(call => call[1])).toEqual([...preview, ...preview].map(e => e.type));
+    } finally {
+      info.mockRestore();
+    }
+  });
+
   it("单段全损(解析为空但含 seq)时按 raw 高水位恢复,不重号", () => {
     // 模拟:唯一段 log-0.jsonl 的行全部 JSON 损坏(parseLines 得空),但文本里仍含 "seq":5。
     // 旧逻辑 segments.length===1 → seq 回退 0 → 下一条 append 得 seq 1,与历史重号。
@@ -69,7 +97,9 @@ describe("eventLogRepository", () => {
     fs.appendFileSync(logPath, '{"v":1,"seq":2,"type":"torn'); // 模拟崩溃撕裂
     resetEventLogStateForTests();
     setEventLogProjectDirResolverForTests((projectId) => path.join(tmpRoot, projectId));
+    const before = fs.readFileSync(logPath);
     expect(readEvents("p1")).toHaveLength(1);
+    expect(fs.readFileSync(logPath).equals(before)).toBe(true);
     appendEvents("p1", [evt("b")]);
     expect(readEvents("p1").map((e) => e.seq)).toEqual([1, 2]);
   });

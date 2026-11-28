@@ -56,7 +56,7 @@
   },
   "electron/assets/projectAssetStore.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 13
+      "count": 12
     }
   },
   "electron/assets/projectCacheFile.ts": {
@@ -196,10 +196,7 @@
   },
   "electron/jsonFile.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 8
-    },
-    "main-sync-wait/no-restricted-syntax": {
-      "count": 1
+      "count": 4
     }
   },
   "electron/preload.ts": {
@@ -339,7 +336,7 @@
   },
   "electron/workspace/workspaceManifest.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 11
+      "count": 8
     }
   },
   "electron/workspace/workspaceManifestLock.ts": {
@@ -372,7 +369,7 @@
   },
   "electron/workspace/workspaceRepository.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
-      "count": 9
+      "count": 8
     }
   },
   "electron/workspace/workspaceSync.ts": {
@@ -481,11 +478,6 @@
       "count": 1
     }
   },
-  "scripts/board-extract.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 4
-    }
-  },
   "scripts/browser-live-capture-sweep.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -527,11 +519,6 @@
     }
   },
   "scripts/check-asset-evidence.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "scripts/check-board-parity.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

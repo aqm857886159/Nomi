@@ -4,6 +4,7 @@ import type { DesktopAssetDto } from '../../../desktop/bridge'
 import type { BrowserAssetCanvasImportItem } from '../overlay/globalAssetPopoverEvents'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
+import { captureErrorCode } from '../../../../electron/shared/contracts/browserCaptureError'
 import type {
   AssetPopoverDockMode,
   BrowserAssetPromptCaptureRequest,
@@ -133,8 +134,7 @@ const captureError = (key: string): string =>
   i18n.t(`browserAssets.capture.error.${key}` as 'browserAssets.capture.error.forbidden')
 
 export function browserAssetImportErrorMessage(reason: string, url: string): string {
-  // 不锚行首：渲染层拿到的是 IPC 包裹后的 message（Error invoking remote method …: Error: [nomi-capture:…]）。
-  const code = /\[nomi-capture:([a-z-]+)\]/i.exec(reason)?.[1]?.toLowerCase()
+  const code = captureErrorCode(reason)
   if (code && CAPTURE_ERROR_CODE_KEYS[code]) return captureError(CAPTURE_ERROR_CODE_KEYS[code])
   // 旧构建/渲染层自产错误没有 code——按字符串归类（保留旧口径）。
   // 这里匹配的中文是**上游错误原文**(不是我们要显示的字),故留中文;显示一律走上面的 i18n。

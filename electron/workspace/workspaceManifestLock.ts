@@ -87,6 +87,15 @@ function canonicalWorkspaceRoot(actualRootPath: string): string {
   return canonical;
 }
 
+async function canonicalWorkspaceRootAsync(actualRootPath: string): Promise<string> {
+  const canonical = await fs.promises.realpath(actualRootPath);
+  const stat = await fs.promises.stat(canonical);
+  if (!stat.isDirectory()) {
+    throw new Error("Workspace root must be a directory");
+  }
+  return canonical;
+}
+
 function tryAcquireCanonicalWorkspaceManifestLock(
   canonicalRootPath: string,
   options: WorkspaceManifestLockOptions,
@@ -103,6 +112,29 @@ function tryAcquireCanonicalWorkspaceManifestLock(
   return { canonicalRootPath, ...lock.acquire(nomiDir, options) };
 }
 
+async function tryAcquireCanonicalWorkspaceManifestLockAsync(
+  canonicalRootPath: string,
+  options: WorkspaceManifestLockOptions,
+): Promise<WorkspaceManifestLockLease> {
+  const nomiDir = workspaceNomiDir(canonicalRootPath);
+  try {
+    await fs.promises.mkdir(nomiDir);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    if (code === "ENOENT") throw new WorkspaceRootMissingError(canonicalRootPath, { cause: error });
+    if (code !== "EEXIST") throw error;
+  }
+  try {
+    return { canonicalRootPath, ...(await lock.acquireAsync(nomiDir, options)) };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      const rootStillExists = await fs.promises.access(canonicalRootPath).then(() => true, () => false);
+      if (!rootStillExists) throw new WorkspaceRootMissingError(canonicalRootPath, { cause: error });
+    }
+    throw error;
+  }
+}
+
 export function tryAcquireWorkspaceManifestLock(
   actualRootPath: string,
   options: WorkspaceManifestLockOptions = {},
@@ -114,13 +146,13 @@ export async function acquireWorkspaceManifestLock(
   actualRootPath: string,
   options: WorkspaceManifestLockOptions = {},
 ): Promise<WorkspaceManifestLockLease> {
-  const canonicalRootPath = canonicalWorkspaceRoot(actualRootPath);
+  const canonicalRootPath = await canonicalWorkspaceRootAsync(actualRootPath);
   const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
   const waitTimeoutMs = options.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
   const deadline = Date.now() + waitTimeoutMs;
   for (;;) {
     try {
-      return tryAcquireCanonicalWorkspaceManifestLock(canonicalRootPath, options);
+      return await tryAcquireCanonicalWorkspaceManifestLockAsync(canonicalRootPath, options);
     } catch (error) {
       if (!(error instanceof WorkspaceManifestLockBusyError || error instanceof WorkspaceManifestLockPublishError) || Date.now() >= deadline) {
         throw error;
@@ -134,6 +166,14 @@ export function assertWorkspaceManifestLockOwned(lease: WorkspaceManifestLockLea
   lock.assertOwned(lease);
 }
 
+export function assertWorkspaceManifestLockOwnedAsync(lease: WorkspaceManifestLockLease): Promise<void> {
+  return lock.assertOwnedAsync(lease);
+}
+
 export function releaseWorkspaceManifestLock(lease: WorkspaceManifestLockLease): void {
   lock.release(lease);
+}
+
+export function releaseWorkspaceManifestLockAsync(lease: WorkspaceManifestLockLease): Promise<void> {
+  return lock.releaseAsync(lease);
 }

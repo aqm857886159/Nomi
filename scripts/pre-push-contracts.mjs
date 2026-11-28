@@ -79,14 +79,12 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
   { name: 'check:storyboard-owner', when: (files) => touchesGateInputs('check:storyboard-owner', files) },
   { name: 'check:transport-assembly', when: (files) => touchesGateInputs('check:transport-assembly', files) },
-  { name: 'check:canvas-edge-writers', when: (files) => touchesGateInputs('check:canvas-edge-writers', files) },
   { name: 'check:dangling-tokens', when: (files) => touchesGateInputs('check:dangling-tokens', files) },
   { name: 'check:dangling-tailwind', when: (files) => touchesGateInputs('check:dangling-tailwind', files) },
   { name: 'check:walkthroughs', when: (files) => touchesGateInputs('check:walkthroughs', files) },
   // 全仓登记一致性类的小门岗（本机 Windows 实测每项 1–5 秒、main 上是绿的）：它们看的是登记表 / 文档 / 工作流 / 清单，几乎任何改动都可能碰到 → 总跑（和 filesize / self-written 同一口径）
   { name: 'check:gates-chain', when: null },
   { name: 'check:desktop-rc-workflow', when: null },
-  { name: 'check:cla-workflow', when: null },
   { name: 'check:workflow-script-refs', when: null },
   { name: 'check:workflow-protected-writes', when: null },
   { name: 'check:icons', when: null },
@@ -597,7 +595,11 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
       return 1
     }
     if (!pr.available) {
-      console.error(`[pre-push] 正文类门岗跳过：${pr.reason}；CI 侧仍会查`)
+      console.error(`[pre-push] 正文类门岗跳过正文，仍查机器产出重量：${pr.reason}；CI 侧仍会查完整正文`)
+      for (const name of bodyGates) {
+        const script = 'scripts/check-pr-judgement.mjs'
+        tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script)], { NOMI_PR_JUDGEMENT_STAGE: 'push' }, { name })) }))
+      }
     } else {
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {

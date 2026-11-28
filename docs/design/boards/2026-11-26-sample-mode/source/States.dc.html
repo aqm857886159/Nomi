@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>样片 · 全部状态与边界</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+.nm{font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",system-ui,sans-serif;color:var(--ink);font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+.L{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--ink:oklch(0.22 0.01 80);--i80:oklch(0.32 0.01 80);--i60:oklch(0.50 0.01 80);--i40:oklch(0.68 0.01 80);--i20:oklch(0.88 0.005 80);--i10:oklch(0.94 0.003 80);--i05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--line2:oklch(0.95 0.003 80);--acc:oklch(0.55 0.13 250);--accs:color-mix(in srgb,oklch(0.55 0.13 250) 12%,white);--dgi:oklch(0.45 0.13 25);--wni:oklch(0.45 0.085 72);--wns:oklch(0.968 0.024 72);--wne:oklch(0.905 0.07 72);--veil:oklch(0.12 0.01 80 / 0.74);--sh-sm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--sh-md:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);--sh-lg:0 4px 8px oklch(0 0 0 / 0.05),0 20px 50px oklch(0 0 0 / 0.08);--dot:oklch(0.88 0.005 80)}
+.D{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--ink:oklch(0.93 0.006 85);--i80:oklch(0.84 0.006 85);--i60:oklch(0.70 0.006 85);--i40:oklch(0.62 0.006 85);--i20:oklch(0.42 0.006 85);--i10:oklch(0.34 0.006 85);--i05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--line2:oklch(0.31 0.007 80);--acc:oklch(0.70 0.13 250);--accs:color-mix(in srgb,oklch(0.70 0.13 250) 26%,oklch(0.235 0.007 80));--dgi:oklch(0.82 0.13 25);--wni:oklch(0.82 0.085 72);--wns:oklch(0.295 0.04 72);--wne:oklch(0.395 0.058 72);--veil:oklch(0.05 0.004 80 / 0.86);--sh-sm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22);--sh-md:0 2px 5px oklch(0 0 0 / 0.30),0 14px 34px oklch(0 0 0 / 0.32);--sh-lg:0 4px 10px oklch(0 0 0 / 0.30),0 24px 64px oklch(0 0 0 / 0.40);--dot:oklch(0.30 0.006 85);color:var(--ink)}
+.board{display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--paper)}
+.bh{display:flex;flex-direction:column;gap:4px}
+.bh h1{margin:0;font-size:16px;line-height:24px;font-weight:600}
+.bh p{margin:0;font-size:13px;line-height:20px;color:var(--i60)}
+.sec{font-size:13px;line-height:20px;font-weight:600;margin:0}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.cell{display:flex;flex-direction:column;gap:8px}
+.ch{font-size:12px;line-height:18px;color:var(--i80);min-height:36px}
+.ch b{font-weight:600;color:var(--ink)}
+.tile{position:relative;height:360px;border-radius:10px;overflow:hidden;background-color:var(--bg);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:20px 20px;box-shadow:inset 0 0 0 1px var(--line2)}
+.band{padding:16px;border-radius:14px;background:var(--bg);display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center}
+.abs{position:absolute}
+.nw{white-space:nowrap}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cap{font-size:12px;line-height:18px}
+.mic{font-size:11px;line-height:16px}
+.c60{color:var(--i60)}.c80{color:var(--i80)}
+.w6{font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+.ico{flex:none;display:block}
+.lab{position:absolute;display:flex;align-items:center;gap:6px;height:28px}
+.kind{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);font-size:12px;line-height:18px;white-space:nowrap;flex:none}
+.ttl{font-size:12px;line-height:18px;color:var(--i60)}
+.media{position:absolute;border-radius:10px;overflow:hidden;box-shadow:var(--sh-sm)}
+.scene{position:absolute;inset:0;background:linear-gradient(180deg,oklch(0.80 0.05 55) 0%,oklch(0.88 0.05 75) 46%,oklch(0.56 0.05 235) 47%,oklch(0.36 0.04 240) 100%)}
+.scene2{position:absolute;inset:0;background:linear-gradient(180deg,oklch(0.62 0.03 240) 0%,oklch(0.72 0.03 230) 55%,oklch(0.48 0.03 230) 56%,oklch(0.34 0.03 235) 100%)}
+.sun{position:absolute;border-radius:999px;background:oklch(0.95 0.05 85)}
+.fig{position:absolute;border-radius:5px 5px 2px 2px;background:oklch(0.22 0.02 260)}
+.fighead{position:absolute;border-radius:999px;background:oklch(0.22 0.02 260)}
+.lh{position:absolute;background:oklch(0.30 0.02 250)}
+.umb{position:absolute;border-radius:999px 999px 0 0;background:oklch(0.58 0.17 28)}
+.vbar{position:absolute;left:0;right:0;bottom:0;height:28px;background:var(--veil);display:flex;align-items:center;gap:8px;padding:0 8px;color:oklch(1 0 0)}
+.scrub{flex:1;height:3px;border-radius:2px;background:oklch(1 0 0 / 0.35)}
+.vbadge{position:absolute;right:8px;top:8px;height:20px;min-width:20px;padding:0 6px;border-radius:999px;background:oklch(1 0 0 / 0.88);color:oklch(0.16 0.01 80);box-shadow:var(--sh-sm);font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.wait{position:absolute;inset:0;background:var(--i05);box-shadow:inset 0 0 0 1px var(--line);border-radius:10px}
+.sbar{position:absolute;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-radius:999px;background:color-mix(in oklch,var(--paper) 90%,transparent);font-size:12px;line-height:18px;font-weight:500;color:var(--i60);white-space:nowrap}
+.pdot{width:6px;height:6px;border-radius:999px;background:var(--acc);flex:none}
+.strip{position:absolute;display:flex;align-items:center;justify-content:space-between;gap:8px;height:28px}
+.strip.wrap{flex-wrap:wrap;height:auto;row-gap:6px}
+.st{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:999px;font-size:12px;line-height:16px;white-space:nowrap;background:var(--i10);color:var(--i80)}
+.st.w{background:var(--wns);color:var(--wni);box-shadow:inset 0 0 0 1px var(--wne)}
+.st.x{background:var(--i05);color:var(--i60)}
+.ob{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:999px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line),var(--sh-sm);font-size:12px;line-height:16px;font-weight:600;color:var(--ink);white-space:nowrap;border:0;font-family:inherit}
+.ob .cost{display:inline-flex;align-items:center;gap:3px;color:var(--i60);font-weight:600}
+.busy{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--i60);white-space:nowrap}
+.err{position:absolute;display:flex;gap:6px;font-size:12px;line-height:18px;color:var(--dgi)}
+.tip{position:absolute;background:var(--ink);color:var(--paper);border-radius:8px;padding:6px 10px;font-size:12px;line-height:18px;box-shadow:var(--sh-md);z-index:4}
+.tipw{white-space:normal}
+.dlg{position:absolute;background:var(--paper);border-radius:16px;box-shadow:inset 0 0 0 1px var(--line),var(--sh-lg);padding:16px;display:flex;flex-direction:column;gap:10px}
+.dic{width:32px;height:32px;border-radius:10px;background:var(--accs);color:var(--acc);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:600;border:0;font-family:inherit;white-space:nowrap}
+.btn.pri{background:var(--ink);color:var(--paper)}
+.btn.gh{background:transparent;color:var(--i80)}
+.pnl{position:absolute;background:var(--paper);border-radius:12px;box-shadow:inset 0 0 0 1px var(--line),var(--sh-md);padding:12px;display:flex;flex-direction:column;gap:12px}
+.pg{display:flex;flex-direction:column;gap:6px}
+.pl{font-size:11px;line-height:12px;font-weight:600;color:var(--i40)}
+.sg{display:flex;flex-wrap:wrap;gap:2px;padding:2px;border-radius:10px;background:var(--i10);width:max-content;max-width:100%}
+.sg span{height:24px;padding:0 10px;border-radius:8px;display:inline-flex;align-items:center;font-size:12px;line-height:16px;color:var(--i80);white-space:nowrap}
+.sg .on{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:var(--sh-sm)}
+.sl{display:flex;align-items:center;gap:12px}
+.tr{position:relative;flex:1;height:4px;border-radius:2px;background:var(--i10)}
+.fl{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--ink)}
+.kn{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:999px;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ink),var(--sh-sm)}
+.swr{display:flex;align-items:center;justify-content:space-between;font-size:12px;line-height:16px;color:var(--i80)}
+.sw{position:relative;width:28px;height:16px;border-radius:999px;background:var(--ink);flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:14px;width:12px;height:12px;border-radius:999px;background:var(--paper)}
+</style>
+</helmet>
+<div class="nm L board" style="width:1760px;height:1880px">
+<div class="bh">
+<h1>全部状态与边界 · 节点局部（外面的窗口和主状态板一样）</h1>
+<p>每格只画一个视频节点：上面标签行、画面、下面新加的那一行。横版节点默认宽 420、竖版 260、手动最小 240；这里横版按 300 画，⑩ 和 E5 按最小 240 画。⑪ 画生成框点开的参数面板。画布缩放是整体缩放，不改变折行。积分数都是示意。</p>
+</div>
+<p class="sec">中文 · 浅色</p>
+<div class="grid">
+<!-- ① 生成样片中 -->
+<div class="cell"><div class="ch"><b>① 样片生成中</b> · 用今天的等待面和状态条；下面这一行等出了结果才出现</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px;box-shadow:none"><div class="wait"></div><span class="sbar"><span class="pdot" aria-hidden="true"></span>生成中</span></div>
+</div></div>
+<!-- ② 就绪 APIMart -->
+<div class="cell"><div class="ch"><b>② 就绪 · APIMart 3 天</b> · 剩多久从模型档案算，这里剩 2 天</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 剩 2 天</span><button type="button" class="ob" title="出 1080p 高清版" aria-label="出 1080p 高清版，约 21.6 积分">出高清<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+</div></div>
+<!-- ③ 别家 24h + 悬停 -->
+<div class="cell"><div class="ch"><b>③ 别家 · 24 小时</b> · 同一行，字按档案变；悬停小标说清过期后会怎样</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st" style="box-shadow:inset 0 0 0 1px var(--i40)"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 剩 21 小时</span><button type="button" class="ob" title="出 1080p 高清版" aria-label="出 1080p 高清版，约 21.6 积分">出高清<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+<div class="tip tipw" style="left:15px;top:265px;width:290px">样片 21 小时后过期。<span class="nw">过期后不能再出高清，</span><span class="nw">要重拍一条样片。</span></div>
+</div></div>
+<!-- ④ 将过期 -->
+<div class="cell"><div class="ch"><b>④ 剩不到 2 小时</b> · 同一枚小标换提醒色，字照样写剩多久</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st w"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 剩 48 分钟</span><button type="button" class="ob" title="出 1080p 高清版" aria-label="出 1080p 高清版，约 21.6 积分">出高清<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+</div></div>
+<!-- ⑤ 已过期 -->
+<div class="cell"><div class="ch"><b>⑤ 已过期</b> · 小标置灰；按钮换成「重拍样片」（按下即生成，印样片价），不留一颗点不动的灰按钮</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st x" style="box-shadow:inset 0 0 0 1px var(--i40)"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 已过期</span><button type="button" class="ob"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>重拍样片<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>5.4</span></button></div>
+<div class="tip tipw" style="left:15px;top:265px;width:290px">样片超过 3 天已失效，<span class="nw">不能再出高清。</span><span class="nw">重拍一条样片再出高清。</span></div>
+</div></div>
+<!-- ⑥ 高清生成中 -->
+<div class="cell"><div class="ch"><b>⑥ 高清生成中</b> · 样片照常能看能播；按钮位置写「高清生成中」，不画假进度</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 剩 2 天</span><span class="busy" style="padding-right:4px"><span class="pdot" aria-hidden="true"></span>高清生成中</span></div>
+</div></div>
+<!-- ⑦ 已出高清版 -->
+<div class="cell"><div class="ch"><b>⑦ 已出高清版（版本栈最多 2 版）</b> · 第 2 版「高清版」1080p 当主图，角标 2；高清版是普通视频，没有下面那一行</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbadge num">2</div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="tip" style="left:178px;top:92px">铺开 2 个版本</div>
+</div></div>
+<!-- ⑧ 出高清没成 -->
+<div class="cell"><div class="ch"><b>⑧ 出高清没成</b> · 原因和「没扣费」整句写在这一行下面；样片还在，按钮不变，再点就是重试</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 剩 2 天</span><button type="button" class="ob" title="出 1080p 高清版" aria-label="出 1080p 高清版，约 21.6 积分">出高清<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+<div class="err" style="left:15px;top:265px;width:300px"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-top:2px" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span>出高清没成：上游超时，没扣费。样片还在。</span></div>
+</div></div>
+<!-- ⑨ 估不出价 -->
+<div class="cell"><div class="ch"><b>⑨ 估不出价</b> · 按钮不印数、不写 0；悬停沿用发送键那句</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 剩 2 天</span><button type="button" class="ob" style="box-shadow:inset 0 0 0 1px var(--i40),var(--sh-sm)" title="出 1080p 高清版" aria-label="出 1080p 高清版">出高清</button></div>
+<div class="tip" style="left:170px;top:265px">暂时估不出这次用量</div>
+</div></div>
+<!-- ⑩ 竖版最窄 + 28 字名 -->
+<div class="cell"><div class="ch"><b>⑩ 窄节点 + 28 字镜头名</b> · 中文这一行最长约 247 宽：<span class="nw">竖版默认 260 放得下，</span><span class="nw">最小 240 折成两行（按钮靠右）</span></div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:240px"><span class="kind">视频</span><span class="ttl ell">雨后清晨的海边栈道上少女缓缓转身回望远处灯塔慢推近景特写</span></div>
+<div class="media" style="left:15px;top:54px;width:240px;height:135px"><div class="scene"></div><div class="sun" style="left:150px;top:22px;width:24px;height:24px"></div><div class="lh" style="left:194px;top:30px;width:4px;height:26px"></div><div class="fighead" style="left:72px;top:38px;width:10px;height:10px"></div><div class="fig" style="left:69px;top:48px;width:15px;height:26px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span></div></div>
+<div class="strip wrap" style="left:15px;top:195px;width:240px;justify-content:flex-end"><span class="st" style="margin-right:auto"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>样片 · 剩 21 小时</span><button type="button" class="ob" title="出 1080p 高清版" aria-label="出 1080p 高清版，约 21.6 积分">出高清<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+<div class="abs cap c60" style="left:15px;top:270px;width:290px">画布缩到 40% 以下时，这一行跟标签行一起藏起（照标签行今天的规矩）。</div>
+</div></div>
+<!-- ⑪ 参数面板：清晰度只有 480p -->
+<div class="cell"><div class="ch"><b>⑪ 参数面板 · 清晰度只有 480p</b> · 照今天的规则：只有一个取值也照样占一组、亮着，不画锁、不藏、不另加说明</div><div class="tile">
+<div class="pnl" role="group" aria-label="Seedance 2.5（样片模式）的参数" style="left:15px;top:20px;width:300px">
+<div class="pg"><div class="pl">比例</div><div class="sg"><span class="on">自适应</span><span>16:9</span><span>9:16</span><span>1:1</span><span>4:3</span><span>3:4</span><span>21:9</span></div></div>
+<div class="pg"><div class="pl">清晰度</div><div class="sg"><span class="on">480p</span></div></div>
+<div class="pg"><div class="pl">时长(秒)</div><div class="sl"><span class="tr"><span class="fl" style="width:3.8%"></span><span class="kn" style="left:3.8%"></span></span><span class="cap c80 num" style="min-width:28px;text-align:right">5</span></div></div>
+<div class="swr"><span>生成音频</span><span class="sw" role="switch" aria-checked="true" aria-label="生成音频"></span></div>
+</div>
+<div class="abs cap c60" style="left:15px;top:262px;width:300px">比例、时长、音频照普通版。样片对其它参数有没有限制，文档没写，记在「没验证的」。</div>
+</div></div>
+<!-- ⑫ 普通 Seedance 2.5 选 480p -->
+<div class="cell"><div class="ch"><b>⑫ 普通 Seedance 2.5 选 480p</b> · 是永久成片：没有下面那一行，不会过期、不出高清；老项目里的 480p 视频也一样</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">视频</span><span class="ttl ell">海边清晨，回头望灯塔</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="abs cap c60" style="left:15px;top:235px;width:300px">只有从「Seedance 2.5（样片模式）」那一行生成的才是样片（11-24 稿 Q9：不把普通 480p 变成会过期的样片）。</div>
+</div></div>
+</div>
+<div class="band D">
+<p class="sec">英文 · 暗色（最长的英文串）</p>
+<div class="grid">
+<div class="cell"><div class="ch"><b>E1 Ready</b> · 「Draft · 2 days left」+「Make HD」</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">Video</span><span class="ttl ell">Dawn pier, looking back at the lighthouse</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>Draft · 2 days left</span><button type="button" class="ob" title="Make 1080p HD version" aria-label="Make 1080p HD version, about 21.6 credits">Make HD<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+</div></div>
+<div class="cell"><div class="ch"><b>E2 Expired</b> · 「Redraft」一个词；悬停说清为什么</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">Video</span><span class="ttl ell">Dawn pier, looking back at the lighthouse</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st x" style="box-shadow:inset 0 0 0 1px var(--i40)"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>Draft · Expired</span><button type="button" class="ob"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>Redraft<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>5.4</span></button></div>
+<div class="tip tipw" style="left:15px;top:265px;width:290px">Drafts last 3 days. <span class="nw">This one expired,</span> <span class="nw">so it can’t be made HD.</span> <span class="nw">Redraft, then make HD.</span></div>
+</div></div>
+<div class="cell"><div class="ch"><b>E3 HD failed</b> · 最长的失败句整句折行</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:300px"><span class="kind">Video</span><span class="ttl ell">Dawn pier, looking back at the lighthouse</span></div>
+<div class="media" style="left:15px;top:54px;width:300px;height:169px"><div class="scene"></div><div class="sun" style="left:184px;top:26px;width:30px;height:30px"></div><div class="lh" style="left:236px;top:36px;width:5px;height:30px"></div><div class="fighead" style="left:88px;top:46px;width:11px;height:11px"></div><div class="fig" style="left:85px;top:57px;width:17px;height:30px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span><span class="mic num">0:05.0</span></div></div>
+<div class="strip" style="left:15px;top:229px;width:300px"><span class="st w"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>Draft · 48 min left</span><button type="button" class="ob" title="Make 1080p HD version" aria-label="Make 1080p HD version, about 21.6 credits">Make HD<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+<div class="err" style="left:15px;top:265px;width:300px"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-top:2px" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span>The HD version didn’t finish: upstream timed out. <span class="nw">Not charged.</span> <span class="nw">Your draft is kept.</span></span></div>
+</div></div>
+<div class="cell"><div class="ch"><b>E4 Second HD</b> · 格子比真框 380 窄才折行</div><div class="tile">
+<div class="dlg" role="dialog" aria-label="Make another HD version" style="left:12px;top:60px;width:296px"><span class="dic"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg></span><div style="display:flex;flex-direction:column;gap:6px"><span class="w6" style="font-size:16px;line-height:24px">This draft already has <span class="nw">a 1080p HD version</span></span><span class="c80" style="font-size:13px;line-height:20px">Another one charges the full 1080p price again.</span></div><div class="row" style="justify-content:flex-end;gap:8px;padding-top:4px"><button type="button" class="btn gh">Cancel</button><button type="button" class="btn pri" aria-label="Redo HD, about 21.6 credits" style="gap:6px">Redo HD · <svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg><span class="num">21.6</span></button></div></div>
+</div></div>
+<div class="cell"><div class="ch"><b>E5 Narrow node</b> · 英文这一行最长约 266 宽（「Draft · 48 min left」+「Make HD」），260、240 都折两行</div><div class="tile">
+<div class="lab" style="left:15px;top:20px;width:240px"><span class="kind">Video</span><span class="ttl ell">Rainy dawn on the seaside boardwalk, a girl turns back</span></div>
+<div class="media" style="left:15px;top:54px;width:240px;height:135px"><div class="scene"></div><div class="sun" style="left:150px;top:22px;width:24px;height:24px"></div><div class="lh" style="left:194px;top:30px;width:4px;height:26px"></div><div class="fighead" style="left:72px;top:38px;width:10px;height:10px"></div><div class="fig" style="left:69px;top:48px;width:15px;height:26px"></div><div class="vbar"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13 -8l-13 -8"></path></svg><span class="scrub"></span></div></div>
+<div class="strip wrap" style="left:15px;top:195px;width:240px;justify-content:flex-end"><span class="st" style="margin-right:auto"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path><path d="M12 7v5l3 3"></path></svg>Draft · 21 h left</span><button type="button" class="ob" title="Make 1080p HD version" aria-label="Make 1080p HD version, about 21.6 credits">Make HD<span class="cost num"><svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg>21.6</span></button></div>
+</div></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1760,"height":1880}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,9 +1,15 @@
 import type { AgentChatRequest } from '../../harness/agentChatContracts'
 
 export type {
+  AgentChatAttachment,
   AgentChatRequest,
+  AgentChatResponse,
+  AgentChatStatus,
   AgentChatToolDecision,
+  AgentChatUsage,
+  AgentToolProfile,
 } from '../../harness/agentChatContracts'
+export { AGENT_TOOL_PROFILES } from '../agentCapabilities/transportContracts'
 
 /**
  * The Host is the sole author of a turn's conversation history: the thread it

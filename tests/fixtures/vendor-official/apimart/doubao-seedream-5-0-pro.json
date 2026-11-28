@@ -30,6 +30,43 @@
           "quote": "Reference image URL list for single / multi-reference image-to-image, up to 10"
         }
       }
+    },
+    "layers": {
+      "why": "图层分离：一张图拆成底图 + 最多 16 张透明图层（层数不能选）",
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 1,
+          "min": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+          "fetchedAt": "2026-11-26",
+          "quote": "Exactly one PNG or JPEG image is required."
+        }
+      },
+      "discriminators": [
+        {
+          "key": "layer_decomposition",
+          "values": [
+            "true"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+          "fetchedAt": "2026-11-26",
+          "quote": "Whether to decompose the image into layers."
+        },
+        {
+          "key": "size",
+          "values": [
+            "1K",
+            "1.5K",
+            "2K",
+            "auto"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+          "fetchedAt": "2026-11-26",
+          "quote": "`size` accepts only `1K`, `1.5K`, `2K`, or `auto` and defaults to `auto`."
+        }
+      ],
+      "unverified": "No paid call covered 5.0 Pro layer decomposition; the page does not say whether resolution / background / watermark are ignored with it."
     }
   },
   "scope": "background transparency and layer_decomposition input constraints are not exercised by this matrix; no claim of complete conditional input coverage.",

@@ -10,7 +10,7 @@ import { MODEL_ARCHETYPES } from '../../../../../electron/shared/modelArchetypes
 import { parameterControlRole } from '../../../../workbench/generationCanvas/nodes/controls/parameterControlModel'
 
 const MIRRORS = [
-  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:342',
+  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:320',
   'src/workbench/generationCanvas/nodes/controls/AdvancedSettings.tsx:37',
   'src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts:211',
 ]

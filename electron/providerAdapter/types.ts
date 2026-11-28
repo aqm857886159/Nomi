@@ -14,7 +14,7 @@ import type {
   CertificationSettledResult,
   CertificationSubmissionState,
 } from "../integrationCertification/types";
-import type { AdapterRunStage as SharedAdapterRunStage } from "../shared/providerAdapterContract";
+import type { AdapterRunStage as SharedAdapterRunStage } from "../shared/contracts/providerAdapterContract";
 import type { TransportAbandonDisposition, TransportDelivery } from "../catalog/transportDelivery";
 import type { AdapterSelfCheckReason } from "./selfCheck";
 import type { DeclaredAssetIngestion, DeclaredSelfCheck } from "./declarationCard";

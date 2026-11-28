@@ -36,6 +36,8 @@ export interface ModelOption {
   unlisted?: true
   /** 这一行发出的型号名由档案提供还是就是这一行的 key（目录随行下发，见 ModelCatalogModelDto.modelNameSource）。 */
   modelNameSource?: ModelNameSource
+  /** 已单独挂了自定义调用脚本的模式 ID（如 modes.layers.script 非空），供能力准入排除结构化回执无法经脚本返回的模式。 */
+  customCallScriptModes?: readonly string[]
   meta?: unknown
   pricing?: ModelOptionPricing
   variant?: ModelOptionVariant

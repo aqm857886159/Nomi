@@ -27,14 +27,20 @@ export function CustomCallScopeSelector({
       trailing: savedScripts.fallback.trim() ? t('onboardingProviders.customCall.scopeConfigured') : undefined,
       trailingTone: 'accent' as const,
     },
-    ...modes.map((mode) => ({
-      value: mode.id,
-      label: mode.label,
-      trailing: savedScripts.modes[mode.id]?.trim()
-        ? t('onboardingProviders.customCall.scopeConfigured')
-        : mode.taskKind,
-      trailingTone: savedScripts.modes[mode.id]?.trim() ? 'accent' as const : 'muted' as const,
-    })),
+    ...modes.map((mode) => {
+      const hasSaved = Boolean(savedScripts.modes[mode.id]?.trim())
+      const unsupportedReason = mode.unsupportedReasonKey ? t(mode.unsupportedReasonKey) : undefined
+      return {
+        value: mode.id,
+        label: mode.label,
+        ...(unsupportedReason ? { description: unsupportedReason } : {}),
+        ...(unsupportedReason && !hasSaved ? { disabled: true } : {}),
+        trailing: hasSaved
+          ? t('onboardingProviders.customCall.scopeConfigured')
+          : mode.taskKind,
+        trailingTone: hasSaved ? 'accent' as const : 'muted' as const,
+      }
+    }),
   ]
 
   return (
@@ -54,13 +60,15 @@ export function CustomCallScopeSelector({
           className="max-w-full"
         />
         <span className="min-w-0 text-caption leading-relaxed text-nomi-ink-60">
-          {selectedMode
-            ? t('onboardingProviders.customCall.scopeModeHint', {
-                name: selectedMode.label,
-                taskKind: selectedMode.taskKind,
-                hint: selectedMode.hint,
-              })
-            : t('onboardingProviders.customCall.scopeFallbackHint')}
+          {selectedMode?.unsupportedReasonKey
+            ? t(selectedMode.unsupportedReasonKey)
+            : selectedMode
+              ? t('onboardingProviders.customCall.scopeModeHint', {
+                  name: selectedMode.label,
+                  taskKind: selectedMode.taskKind,
+                  hint: selectedMode.hint,
+                })
+              : t('onboardingProviders.customCall.scopeFallbackHint')}
         </span>
       </div>
     </fieldset>

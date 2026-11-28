@@ -2,6 +2,8 @@
 // 现算出的方式都守住这几条：没放输入 = 文生；偏好放得下全部才用；有方式放得下全部就一定放得下全部；都放不下时收得最多。
 // 反例：把 modeForInputs 改回「直接用存着的 modeId」→「放得下全部就放得下全部」「偏好放不下不算数」两组红；
 // 把自动换方式关掉（偏好放不下也照用）→ 同两组红。
+// 任务方式（图层分离 `layerSplit`）另一条规则：按输入挑绝不落到它；选定了它就照它发（多放的不会发、一件没放 = needsInput）。
+// 反例：③ 循环不跳过任务方式 → 「绝不自动落到任务方式」红；选定后仍按输入换走 → 「选定的任务方式照它发」红。
 import { describe, expect, it } from 'vitest'
 import { MODEL_ARCHETYPES } from './builtInCatalog'
 import { modeForInputs, modeTakenCount, modeTakesAllInputs, type ModeInput, type ModePreference } from './modeForInputs'
@@ -29,6 +31,9 @@ const cells = visual.flatMap((archetype) =>
       Object.entries(INPUTS).map(([inputName, inputs]) => ({
         archetype, preference: modeId === null ? null : ({ modeId, chosenBy } as ModePreference), inputName, inputs,
       })))))
+/** 偏好是一个任务方式（图层分离）：这几格走「选定就照它发」那条规则，不进按输入挑的几组。 */
+const prefersTaskChoice = (cell: (typeof cells)[number]) =>
+  Boolean(cell.preference && cell.archetype.modes.find((mode) => mode.id === cell.preference!.modeId)?.layerSplit)
 const label = (cell: (typeof cells)[number]) => `${cell.archetype.id}:${cell.preference?.modeId ?? '-'}/${cell.preference?.chosenBy ?? '-'}/${cell.inputName}`
 const requiredOk = (mode: (typeof visual)[number]['modes'][number], inputs: readonly ModeInput[]) =>
   modeTakenCount(mode, inputs) > 0 && modeForInputs({ ...visual[0]!, modes: [mode], defaultModeId: mode.id }, inputs, null).status === 'ok'
@@ -40,13 +45,13 @@ describe('modeForInputs 穷举（档案 × 存着的方式 × 输入）', () => 
   })
 
   it('① 没放输入、档案有文字生成 → 文生（偏好不起作用）', () => {
-    const wrong = cells.filter((cell) => !cell.inputs.length && cell.archetype.modes.some((mode) => mode.intent === 'text'))
+    const wrong = cells.filter((cell) => !cell.inputs.length && !prefersTaskChoice(cell) && cell.archetype.modes.some((mode) => mode.intent === 'text'))
       .filter((cell) => modeForInputs(cell.archetype, cell.inputs, cell.preference).mode.slots.length !== 0)
     expect(wrong.map(label)).toEqual([])
   })
 
   it('有方式放得下全部输入 → 现算的那种一定放得下全部（② ③ ④：自动换成放得下的）', () => {
-    const wrong = cells.filter((cell) => cell.inputs.length > 0 && cell.archetype.modes.some((mode) => modeTakesAllInputs(mode, cell.inputs)))
+    const wrong = cells.filter((cell) => cell.inputs.length > 0 && !prefersTaskChoice(cell) && cell.archetype.modes.some((mode) => modeTakesAllInputs(mode, cell.inputs)))
       .filter((cell) => {
         const result = modeForInputs(cell.archetype, cell.inputs, cell.preference)
         return !(result.status === 'ok' && result.taken === cell.inputs.length && modeTakesAllInputs(result.mode, cell.inputs))
@@ -92,6 +97,24 @@ describe('modeForInputs 穷举（档案 × 存着的方式 × 输入）', () => 
     const wrong = cells.filter((cell) => cell.inputs.length > 0).filter((cell) => {
       const result = modeForInputs(cell.archetype, cell.inputs, cell.preference)
       return result.status === 'ok' && result.taken === 0
+    })
+    expect(wrong.map(label)).toEqual([])
+  })
+
+  it('绝不自动落到任务方式：偏好不是任务方式（或没偏好），现算的就不是图层分离', () => {
+    const wrong = cells.filter((cell) => !prefersTaskChoice(cell))
+      .filter((cell) => Boolean(modeForInputs(cell.archetype, cell.inputs, cell.preference).mode.layerSplit))
+    expect(wrong.map(label)).toEqual([])
+  })
+
+  it('选定的任务方式照它发：放得下的收下、多放的不会发；一件没收 = needsInput（不退成文生）', () => {
+    const taskCells = cells.filter(prefersTaskChoice)
+    expect(taskCells.length).toBeGreaterThan(0)
+    const wrong = taskCells.filter((cell) => {
+      const preferred = cell.archetype.modes.find((mode) => mode.id === cell.preference!.modeId)!
+      const result = modeForInputs(cell.archetype, cell.inputs, cell.preference)
+      const taken = modeTakenCount(preferred, cell.inputs)
+      return result.mode.id !== preferred.id || result.taken !== taken || (result.status === 'ok') !== (taken > 0)
     })
     expect(wrong.map(label)).toEqual([])
   })

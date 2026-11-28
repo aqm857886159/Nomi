@@ -342,6 +342,10 @@ export function ParameterControlBody({
       />
     )
   }
+  // 数值 + 常用档（图层分离的层数 8 / 16 / 30）→ 一排可点项 + 「自定义」，自定义打开数字框（范围仍是 min–max）。
+  if (control.type === 'number' && control.presets?.length) {
+    return <ParameterPresetNumber control={control} value={controlInitialValue(control, meta)} onCommit={(v) => onParameterControlChange(control, v)} />
+  }
   // 数值 + min/max（时长秒数这类连续档）→ 滑杆 + 当前值（2026-07-17 用户拍板）。
   // 但步长切不出两档以上的区间（如未声明步长的 0–1）滑杆等于废掉，退回下面的数字框。
   if (
@@ -375,20 +379,105 @@ export function ParameterControlBody({
   )
 }
 
-/** 面板参数组 = 小标题 + 控件本体。 */
+/**
+ * 常用档 + 自定义（控件声明了 `presets`）：值落在常用档里就点亮那一档；不在（或点了「自定义」）就出数字框，
+ * 填的值钳进 min–max 再提交（填 1 落成 2、填 101 落成 100）。草稿口径同 ParameterTextInput：聚焦期间只显示草稿。
+ */
+function ParameterPresetNumber({ control, value, onCommit }: {
+  control: ModelParameterControl
+  value: string
+  onCommit: (value: string) => void
+}): JSX.Element {
+  const { t } = useTranslation()
+  const label = translateModelDisplayText(control.label)
+  const presets = (control.presets ?? []).map(String)
+  const [customOpen, setCustomOpen] = React.useState(() => value !== '' && !presets.includes(value))
+  const [draft, setDraft] = React.useState<string | null>(null)
+  const custom = customOpen || (value !== '' && !presets.includes(value))
+  const CUSTOM = '__custom__'
+  const clamp = (raw: string): string => {
+    const n = Math.round(Number(raw))
+    if (!Number.isFinite(n)) return value
+    return String(Math.min(control.max ?? n, Math.max(control.min ?? n, n)))
+  }
+  const commitDraft = (): void => {
+    if (draft !== null && isCompleteNumericDraft(draft)) {
+      const next = clamp(draft)
+      if (next !== value) onCommit(next)
+    }
+    setDraft(null)
+  }
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <NomiSegmented
+        ariaLabel={label}
+        value={custom ? CUSTOM : value}
+        options={[...presets.map((preset) => ({ value: preset, label: preset })), { value: CUSTOM, label: t('generationCommon.layerSplitComposer.custom') }]}
+        density="compact"
+        fit="fill"
+        onChange={(next) => {
+          if (next === CUSTOM) { setCustomOpen(true); return }
+          setCustomOpen(false)
+          setDraft(null)
+          if (next !== value) onCommit(next)
+        }}
+      />
+      {custom ? (
+        <div className="flex min-w-0 items-center gap-2" data-parameter-custom-number={control.key}>
+          <label className="flex h-7 w-20 shrink-0 items-center rounded-nomi border border-nomi-line px-2.5 focus-within:border-nomi-ink-40">
+            <input
+              className="w-full min-w-0 appearance-none border-0 bg-transparent text-caption text-nomi-ink-80 outline-0 tabular-nums"
+              aria-label={label}
+              type="number"
+              inputMode="numeric"
+              value={draft ?? value}
+              min={control.min}
+              max={control.max}
+              step={control.step ?? 1}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={commitDraft}
+              onKeyDown={(event) => { if (event.key === 'Enter') commitDraft() }}
+            />
+          </label>
+          {typeof control.min === 'number' && typeof control.max === 'number' ? (
+            <span className="text-micro text-nomi-ink-40">{t('generationCommon.layerSplitComposer.range', { min: control.min, max: control.max })}</span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** 一项下面的说明小字（档案声明的 `note`）+ 宿主挂的提醒（如层数多就贵）。 */
+function ParameterGroupNotes({ control, notice }: { control: DynamicModelControl; notice?: React.ReactNode }): JSX.Element | null {
+  const note = isParameterControl(control) && control.note ? translateModelDisplayText(control.note) : ''
+  if (!note && !notice) return null
+  return (
+    <>
+      {note ? <div className="text-micro leading-snug text-nomi-ink-40" data-parameter-note={control.key}>{note}</div> : null}
+      {notice ? <div className="text-micro leading-snug text-nomi-warning" data-parameter-notice={control.key}>{notice}</div> : null}
+    </>
+  )
+}
+
+/** 面板参数组 = 小标题 + 控件本体（+ 说明小字 / 宿主提醒）。 */
 export function ParameterPanelGroup({
   control,
   meta,
   onCatalogControlChange,
   onParameterControlChange,
-}: ParameterControlWiring & { control: DynamicModelControl }): JSX.Element {
+  notice,
+}: ParameterControlWiring & { control: DynamicModelControl; notice?: React.ReactNode }): JSX.Element {
   const label = translateModelDisplayText(control.label)
-  // boolean → Switch 行（label 左、开关右，2026-07-17 用户拍板）；组标题即行标题，不再另起。
+  // boolean → Switch 行（label 左、开关右，2026-07-17 用户拍板）；组标题即行标题，不再另起。说明小字在标题下面。
   if (isParameterControl(control) && control.type === 'boolean') {
     const on = (controlInitialValue(control, meta) || 'false') === 'true'
     return (
       <div className="flex items-center justify-between gap-2" style={{ minHeight: 26 }}>
-        <div className="text-micro font-semibold leading-none text-nomi-ink-40">{label}</div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="text-micro font-semibold leading-none text-nomi-ink-40">{label}</div>
+          <ParameterGroupNotes control={control} notice={notice} />
+        </div>
         <DesignSwitch
           size="sm"
           color="var(--nomi-accent)"
@@ -408,6 +497,7 @@ export function ParameterPanelGroup({
         onCatalogControlChange={onCatalogControlChange}
         onParameterControlChange={onParameterControlChange}
       />
+      <ParameterGroupNotes control={control} notice={notice} />
     </div>
   )
 }

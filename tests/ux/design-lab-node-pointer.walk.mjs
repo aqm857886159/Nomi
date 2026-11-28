@@ -1,5 +1,5 @@
 // 设计实验室 · 指向元素（NodePointer 板，2026-10-23 D2 第②步）走查。零额度：纯本地渲染。
-// 每一格截图（中英、光暗）+ 下面这些板断言。断言名就是 NodePointer.board.json 里各元素的 `assertion`（check:board-parity R4）。
+// 每一格截图（中英、光暗）+ 下面这些板断言。断言名就是 NodePointer.board.json 里各元素的 `assertions`。
 // 真画布那一头（投影 → 外壳上的 data-external-highlight、闪完清掉）由 canvas-focus-composer-visible.walk.mjs 在真 Electron 里钉。
 import { expect } from '@playwright/test'
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'

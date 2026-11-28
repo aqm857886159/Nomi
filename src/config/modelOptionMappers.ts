@@ -24,6 +24,14 @@ function toCatalogModelPricing(pricing: ModelCatalogModelDto['pricing']): ModelO
   return { cost: pricing.cost, enabled: pricing.enabled, specCosts }
 }
 
+function toCustomCallScriptModes(customCall: ModelCatalogModelDto['customCall']): readonly string[] | undefined {
+  if (!customCall?.modes || typeof customCall.modes !== 'object') return undefined
+  const ids = Object.entries(customCall.modes)
+    .filter(([, entry]) => typeof entry?.script === 'string' && entry.script.trim().length > 0)
+    .map(([modeId]) => modeId)
+  return ids.length > 0 ? ids : undefined
+}
+
 export function toCatalogModelOptions(items: ModelCatalogModelDto[]): ModelOption[] {
   if (!Array.isArray(items)) return []
   // 去重键必须带 vendor：modelKey 只在单个供应商内唯一，两个中转站可以各自提供同名模型
@@ -66,6 +74,7 @@ export function toCatalogModelOptions(items: ModelCatalogModelDto[]): ModelOptio
       kind: item.kind,
       ...(item?.unlisted === true ? { unlisted: true as const } : {}),
       ...(modelNameSource ? { modelNameSource } : {}),
+      ...(toCustomCallScriptModes(item?.customCall) ? { customCallScriptModes: toCustomCallScriptModes(item?.customCall) } : {}),
       meta,
       pricing: toCatalogModelPricing(item?.pricing),
       ...(variant ? { variant } : {}),

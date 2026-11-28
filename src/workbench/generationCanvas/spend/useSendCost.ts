@@ -1,6 +1,8 @@
+import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { VendorPricePreview } from '../../../../electron/shared/contracts/vendorPricePreview'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { SampleFacts } from '../model/sampleFacts'
 import type { ComposerGraph } from '../nodes/composerGraphSnapshot'
 import {
   sendCostDescription,
@@ -11,8 +13,8 @@ import {
   sendCostUnitSwitchAria,
   type SendCostUnitOption,
 } from './sendCostFormat'
-import { useSendCostUnit, type SendCostUnit } from './sendCostUnitStore'
-import { useNodePricePreview } from './useNodePricePreview'
+import { getSendCostUnit, useSendCostUnit, type SendCostUnit } from './sendCostUnitStore'
+import { readPricePreviewOnce, sampleFinalPriceRequest, useNodePricePreview, usePricePreview, type NodePricePreview } from './useNodePricePreview'
 
 /** 发送键那一格要说的：键上的约数、当前单位与切换菜单数据、悬停那一句、估价从哪来。 */
 export type SendCost = {
@@ -41,9 +43,28 @@ export type SendCost = {
  * 只是显示：能不能发、要不要确认，仍归原来的发送流程；这里没有任何一处能创建任务或授权。
  */
 export function useSendCost(node: GenerationCanvasNode, graph: ComposerGraph, { idle }: { idle: boolean }): SendCost {
+  return useCostOf(useNodePricePreview(node, graph), { idle })
+}
+
+/** 节点下方「出高清」钮上的价：样片冻结的请求按成片清晰度约价（同发送键一套暂留 / 防抖 / 不印 0）。 */
+export function useSampleFinalCost(sample: SampleFacts | null, resolution: string | undefined, { idle }: { idle: boolean }): SendCost {
+  const input = React.useMemo(() => (sample && resolution ? sampleFinalPriceRequest(sample, resolution) : null), [sample, resolution])
+  return useCostOf(usePricePreview(input), { idle })
+}
+
+/** 第二次出高清确认框主按钮上的价（一次性读，单位同发送键）：估不出 / 不走公开价 → undefined（按钮只写字，不印数、不写 0）。 */
+export async function sampleFinalCredits(sample: SampleFacts, resolution: string, locale: string): Promise<{ text: string; unit: SendCostUnit } | undefined> {
+  const input = sampleFinalPriceRequest(sample, resolution)
+  const quote = await readPricePreviewOnce(input)
+  const state = sendCostState({ vendorKey: input?.vendorKey, quote, pending: false }, { idle: true })
+  if (state.kind !== 'credits') return undefined
+  const unit = getSendCostUnit()
+  return { text: sendCostPillText(state.quote, locale, unit), unit }
+}
+
+function useCostOf(preview: NodePricePreview, { idle }: { idle: boolean }): SendCost {
   const { t, i18n } = useTranslation()
   const [unit, setUnit] = useSendCostUnit()
-  const preview = useNodePricePreview(node, graph)
   const state = sendCostState(preview, { idle })
   if (state.kind === 'none') return { vendorKey: preview.vendorKey }
   if (state.kind === 'unknown') {
