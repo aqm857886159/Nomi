@@ -91,6 +91,8 @@ export const COMPOSER_MIN_USABLE_HEIGHT = 150;
  */
 export const NODE_COMPOSER_WIDTH = 600;
 export const NODE_COMPOSER_GAP = 14;
+/** 节点下方那一行（样片行）离节点底边的缝（画布单位）；和上方标签行的 6 对称（板 sample.below-row）。 */
+export const NODE_BELOW_ROW_GAP = 6;
 // 文本节点的加工框（Claude Design「文本节点：会加工、看得见」）：和节点同宽、紧贴在下面；五个预设排得下的最小宽度兜底。
 export const TEXT_COMPOSER_GAP = 8;
 export const TEXT_COMPOSER_MIN_WIDTH = 380;

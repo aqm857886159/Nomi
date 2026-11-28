@@ -28,7 +28,7 @@ import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { firstFrameLeftEmpty, isImageUploadSlot, listPlacementInputs, normalizeReferenceListMeta, placeUploadedImages, readParkedReferences, readReferenceList, withReferenceList, type UploadPlacement } from './referenceList'
 import { readModePreference, withHumanModePreference } from './modePreference'
-import { modeForInputs, type ModeForInputsResult, type ModeInput } from '../../../../../electron/shared/modelArchetypes/modeForInputs'
+import { isLayerSplitMode, layerSplitModeOf, modeForInputs, type ModeForInputsResult, type ModeInput } from '../../../../../electron/shared/modelArchetypes/modeForInputs'
 import { declaredModeParams, type ModeParamsSelection } from '../../../../../electron/shared/modelArchetypes/modeParams'
 import { EDGE_MODE_SLOTS, isTextPromptEdge, referenceAssetKindForNode } from '../../../../../electron/shared/canvas/edgeAdmission'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../../model/generationCanvasTypes'
@@ -532,8 +532,12 @@ export function carryHumanModePreference(
 ): Record<string, unknown> {
   if (!fromArchetype || fromArchetype.id === toArchetype.id) return meta
   const preference = readModePreference(fromArchetype, meta)
-  const intent = preference?.chosenBy === 'human' ? fromArchetype.modes.find((mode) => mode.id === preference.modeId)?.intent : undefined
-  const carried = intent ? toArchetype.modes.find((mode) => mode.intent === intent) : undefined
+  const chosen = preference?.chosenBy === 'human' ? fromArchetype.modes.find((mode) => mode.id === preference.modeId) : undefined
+  // 图层分离是人选的任务、不是一种摆法：按「意图」它和普通改图同为 edit，换模型时只能落到新档案的图层分离方式，
+  // 绝不落成普通改图（那会把「拆图层」悄悄换成一次付费的普通改图）。新档案没有图层分离 → 不带，按输入现算。
+  const carried = !chosen ? undefined
+    : isLayerSplitMode(chosen) ? layerSplitModeOf(toArchetype)
+    : toArchetype.modes.find((mode) => mode.intent === chosen.intent && !isLayerSplitMode(mode))
   return carried ? withHumanModePreference(meta, toArchetype.id, carried.id) : meta
 }
 

@@ -1,0 +1,13 @@
+diff --git a/src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx b/src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx
+index a299a4fc7..0d18cd532 100644
+--- a/src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx
++++ b/src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx
+@@ -20,7 +20,7 @@ export function NodeGeneratingOverlay({ node, reportFeedback }: { reportFeedback
+   // 「视口外不跑 WebGL」那道准入门此前恒 true（这个参数从没传过）；复用媒体队列的可见性观察器接上真值。
+   const viewport = useDeferredNodeMediaVisibility()
+   // 出高清在路上归节点下方那一行（「高清生成中」）：样片照常能看能播，不盖等待面，落地也不放收尾动画。
+-  const sampleRowOwns = sampleRowOwnsProgress(node)
++  const sampleRowOwns = false && sampleRowOwnsProgress(node)
+   const [waiting, setWaiting] = React.useState(Boolean(feedback?.active) && !sampleRowOwns)
+   const finish = React.useCallback(() => setWaiting(false), [])
+   React.useEffect(() => { if (feedback?.active && !sampleRowOwns) setWaiting(true) }, [feedback?.active, sampleRowOwns])

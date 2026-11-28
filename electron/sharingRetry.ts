@@ -5,9 +5,10 @@
  * （POSIX 上不存在）。锁通常几十毫秒内释放——graceful-fs / write-file-atomic 一类的标准解法就是短退避重试。
  * 两种形态共用同一个判定和同一套退避表：
  *
- * 1. 同步调用方（`jsonFile.retryOnSharingViolation`，结构上无法 await 的保存事务、清单锁、同步 IPC 等）：
- *    在主进程上原地睡着退避。这是已知的冻结，留给「把保存搬出主进程」那一刀解决（方向检查 2026-11-13-main-thread-sync-wait）。
- * 2. 已经在 async 函数里的调用方：用 {@link retryOnSharingViolationAsync}，定时器退避，不睡。
+ * 1. 整份 JSON 原子读写由 `jsonFile.ts` 委托 `atomically`（异步版用定时器退避，不占事件循环）；
+ *    已有成品文件/目录的覆盖改名、删除、硬链接在 `async` 函数里走 {@link retryOnSharingViolationAsync}。
+ * 2. 结构上无法 await 的同步调用方（`jsonFile.retryOnSharingViolation`）共享同一份判定与总预算
+ *    {@link SHARING_RETRY_BUDGET_MS}（无 `Atomics.wait`）。
  */
 
 /** 别的进程（杀毒 / 索引器 / 同步盘）短暂开着这个文件或它下面的文件时，Windows 给的三种错误码。 */
@@ -16,8 +17,10 @@ export function isSharingViolation(error: unknown): boolean {
   return code === "EPERM" || code === "EBUSY" || code === "EACCES";
 }
 
-/** 默认退避表（总预算约 400ms）：同步助手用它；异步调用方不另给就也用它。 */
+/** 默认退避表（总预算 400ms）：同步与异步调用方的统一默认预算。 */
 export const SHARING_RETRY_DELAYS_MS: readonly number[] = [10, 30, 60, 100, 200];
+/** 默认退避总毫秒预算（400ms）：供 atomically 异步超时与同步单调时钟退避共用。 */
+export const SHARING_RETRY_BUDGET_MS: number = SHARING_RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0);
 /** 导出改名这类「值得多等一会」的异步调用方：总预算约 2.6 秒。 */
 export const SHARING_RETRY_LONG_DELAYS_MS: readonly number[] = [10, 30, 60, 100, 200, 400, 800, 1000];
 

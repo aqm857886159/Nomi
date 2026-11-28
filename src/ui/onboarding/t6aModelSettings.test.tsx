@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import fs from 'node:fs'
+import path from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import React, { act } from 'react'
@@ -14,6 +16,8 @@ import { ModelSettingsHome } from './ModelSettingsHome'
 
 import board from '../../../tests/fixtures/boards/model-surfaces-settings-home.json'
 import old from '../../../tests/fixtures/old-user-data/catalogs/v0.24.1-wizard/model-catalog.json'
+
+const m1EnBoardHtml = fs.readFileSync(path.join(process.cwd(), 'docs/design/boards/2026-11-07-model-surfaces/source/M1-en.dc.html'), 'utf8')
 
 const noop = () => {}
 const meta = (name: string, saved: boolean, enabled: boolean, builtinPreset = true): OnboardingVendorMeta =>
@@ -88,8 +92,11 @@ describe('ModelSurfaces connection ownership', () => {
       const account = '[data-model-account]'
       const assisted = '[data-model-home-assisted-onboarding]'
       const ways = '[data-model-home-action="other-ways"]'
+      const approvedDoc = new DOMParser().parseFromString(m1EnBoardHtml, 'text/html')
+      const approvedAssistedTitle = approvedDoc.querySelector('.card.row.g12 .bs.w6')?.textContent
+      expect(approvedAssistedTitle).toBeTruthy()
       expect(element('header p').textContent).toBe(board.englishSubtitle)
-      expect(element(assisted + ' [data-model-entry-title]').textContent).toBe(board.englishAssistedTitle)
+      expect(element(assisted + ' [data-model-entry-title]').textContent).toBe(approvedAssistedTitle)
       expect(element(ways + ' [data-model-entry-icon] path').getAttribute('d')).toBe(board.plugFirstPath)
       for (const selector of [account, assisted, ways]) expect(element(selector).classList).toContain('rounded-nomi')
       expect(Array.from(element('[data-model-key-storage]').classList)).toEqual(expect.arrayContaining(['font-mono', 'text-nomi-ink-60']))

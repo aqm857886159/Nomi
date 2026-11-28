@@ -1190,6 +1190,7 @@ export const zhOnboardingProviders = {
     scopeFallback: '所有模式（默认）',
     scopeFallbackHint: '没有单独设置脚本的模式会使用这里；需要区分模式时可读取 taskKind 和 modeId。',
     scopeModeHint: '只用于“{{name}}”（{{taskKind}}）。{{hint}} 没有单独脚本时会回退到“所有模式（默认）”或 Nomi 默认调用。',
+    scopeUnsupportedLayerSplit: '拆图层需要返回图层坐标与叠放顺序，请求脚本暂不支持',
     scopeConfigured: '已配置',
     currentScope: '当前：{{scope}}',
     scopeDiscardTitle: '切换脚本范围？',
@@ -2544,6 +2545,7 @@ export const enOnboardingProviders = {
       'Modes without a dedicated script use this default. Read taskKind and modeId only when the script needs mode-specific behavior.',
     scopeModeHint:
       'Used only for “{{name}}” ({{taskKind}}). {{hint}} Without a dedicated script, this mode falls back to the general script or Nomi’s default call.',
+    scopeUnsupportedLayerSplit: 'Splitting layers needs layer bounds and stacking order, which request scripts do not support',
     scopeConfigured: 'Configured',
     currentScope: 'Current: {{scope}}',
     scopeDiscardTitle: 'Switch script scope?',

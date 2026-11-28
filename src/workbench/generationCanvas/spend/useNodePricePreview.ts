@@ -6,27 +6,64 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ComposerGraph } from '../nodes/composerGraphSnapshot'
 import { buildCatalogTaskRequest } from '../runner/catalogTaskActions'
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
+import { layerSplitComposerState } from '../nodes/layerSplitComposerState'
+import { resolveModelArchetype, variantRecordedInMeta } from '../../../../electron/shared/modelArchetypes'
+import { sampleBillingRequest } from '../../../../electron/shared/videoCapabilities/sampleMode'
+import type { SampleFacts } from '../model/sampleFacts'
 
 /** 改参数后等这么久再问价（连着改只问最后一次）。 */
 export const PRICE_DEBOUNCE_MS = 100
 /** 改参数后旧数最多再留这么久：新价在这之内回来就直接换，不闪成箭头；过了还没回来就收成只剩箭头。 */
 export const PRICE_HOLD_MS = 300
 
+/** 图层分离还没放图时，问价用的占位输入图（只进约价请求、不上传不发；价目只数张数，不看图）。 */
+const LAYER_SPLIT_PRICE_PLACEHOLDER = 'nomi-local://asset/layer-split-price-placeholder.png'
+
 /**
  * 约价只读发送那一刻的最终请求（交接处 `archetype-panel-request` 的产出，`buildCatalogTaskRequest`），
  * 不另拼一份；提示词清掉再交主进程（价目和提示词无关，也不让正文过 IPC）。只读、不上传、不发。
+ * 图层分离一次只拆 1 张：还没放图（发送键灰着）时按「放进那一张之后」要发的请求问价——价只随层数 / 清晰度变，
+ * 键上的数不因参考被拿掉而消失（板 2026-11-26-layer-split · layers.no-image-hint「价照印」）。
  */
 export function priceRequest(node: GenerationCanvasNode, graph: ComposerGraph): VendorPriceRequest | null {
   if (!['image', 'video'].includes(node.kind)) return null
   try {
-    const references = resolveGenerationReferences(node, { nodes: graph.nodes, edges: graph.edges })
-    const draft = node.prompt?.trim() ? node : { ...node, prompt: '…' }
+    const prompted = node.prompt?.trim() ? node : { ...node, prompt: '…' }
+    const draft = layerSplitComposerState(node, graph)?.inputCount === 0
+      ? { ...prompted, meta: { ...(prompted.meta ?? {}), referenceImageUrls: [LAYER_SPLIT_PRICE_PLACEHOLDER] } }
+      : prompted
+    const references = resolveGenerationReferences(draft, { nodes: graph.nodes, edges: graph.edges })
     const { vendor, request } = buildCatalogTaskRequest(draft, { references })
     if (builtinVendorKeyOfKey(vendor) !== 'apimart') return null
-    return { vendorKey: vendor, request: { ...request, prompt: '', negativePrompt: undefined } }
+    // 样片行按它声明的那一行约价（sampleBillingRequest 是唯一的家）；别的行原样。
+    // 档案只从唯一入口拿（发送那一刻的 extras 带着 archetype.id 与 modelKey）。
+    const extras = request.extras ?? {}
+    const modelKey = typeof extras.modelKey === 'string' ? extras.modelKey : null
+    const archetype = resolveModelArchetype({ modelKey, vendorKey: vendor, meta: extras }, { variant: variantRecordedInMeta(extras, modelKey) })
+    const priced = sampleBillingRequest(request, archetype) ?? request
+    return { vendorKey: vendor, request: { ...priced, prompt: '', negativePrompt: undefined } }
   } catch {
     return null
   }
+}
+
+/**
+ * 出高清要约的价：样片当时冻结的请求，按样片档案声明的那一行、给定清晰度约价。
+ * 约哪一行、哪一档只有 `sampleBillingRequest` 一个家；出高清按钮和第二次出高清的确认框都从这里取。
+ * 不走公开价的那家 → null（钮上不印数）。
+ */
+export function sampleFinalPriceRequest(sample: SampleFacts, resolution: string): VendorPriceRequest | null {
+  const frozen = { kind: sample.taskKind as VendorPriceRequest['request']['kind'], prompt: '', extras: sample.extras }
+  const billed = sampleBillingRequest(frozen, sample.archetype, resolution)
+  if (!billed || builtinVendorKeyOfKey(sample.vendorKey) !== 'apimart') return null
+  return { vendorKey: sample.vendorKey, request: { ...billed, prompt: '' } }
+}
+
+/** 一次性读一份约价（确认框按钮上那个数）：读不到 / 不约价 → null。和下面的钩子走同一条 IPC。 */
+export async function readPricePreviewOnce(input: VendorPriceRequest | null): Promise<VendorPricePreview | null> {
+  const read = getDesktopBridge()?.onboarding?.vendorPricePreview
+  if (!input || !read) return null
+  return read(input).catch(() => null)
 }
 
 export type NodePricePreview = {
@@ -43,7 +80,11 @@ export type NodePricePreview = {
  * 改参数后旧数暂留 `PRICE_HOLD_MS`，新数回来直接替换，中间不闪箭头、不闪 0。
  */
 export function useNodePricePreview(node: GenerationCanvasNode, graph: ComposerGraph): NodePricePreview {
-  const input = React.useMemo(() => priceRequest(node, graph), [node, graph])
+  return usePricePreview(React.useMemo(() => priceRequest(node, graph), [node, graph]))
+}
+
+/** 一份约价请求的公开估价（节点发送键、出高清按钮共用这一套暂留 / 防抖 / 防倒灌）。null = 不约价。 */
+export function usePricePreview(input: VendorPriceRequest | null): NodePricePreview {
   const identity = input && JSON.stringify(input)
   const [result, setResult] = React.useState<{ identity: string; quote: VendorPricePreview | null }>()
   const [expiredFor, setExpiredFor] = React.useState<string | null>(null)

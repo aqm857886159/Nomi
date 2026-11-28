@@ -1,0 +1,232 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-28-layer-split-recovery",
+  "problem_type": "Layer-split paid job recovery and custom-script admission boundary",
+  "symptom": "Recovering a paid layer-split job across window close, restart or manual retrieve-again could lose layer metadata or archetype modeId, and attaching a custom call script to layer-split spent credits while returning a flat image without layers.",
+  "direct_cause": "CanvasTransportProvider omitted explicit layers typing and dropped archetype modeId on fallback fetchResult queries, while taskParams and customCallDispatch exempted script routes from the layer-split wire contract.",
+  "class_root": "Structured terminal semantics (layers) and structured output admission (layer-split vs script-only asset URLs) must be preserved and enforced at the shared canvas Run and pre-spend dispatch boundaries.",
+  "affected_population": [
+    "Creators running or recovering paid layer-split tasks on canvas nodes and configuring custom call scripts on image models"
+  ],
+  "scope_paths": [
+    "electron/ai/onboarding/vendorPricePreview.ts",
+    "electron/ai/onboarding/vendorPriceRequest.ts",
+    "electron/capabilityCore/canvasTransportProvider.ts",
+    "electron/catalog/apimartImages.ts",
+    "electron/catalog/apimartVendor.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/paramTranslate.ts",
+    "electron/catalog/taskParams.ts",
+    "electron/runtime.ts",
+    "electron/shared/agentCapabilities/availableModelsSchema.ts",
+    "electron/shared/canvas/canvasNodeLayout.ts",
+    "electron/shared/contracts/taskResultLayer.ts",
+    "electron/shared/contracts/vendorPricePreview.ts",
+    "electron/shared/modelArchetypes/modeForInputs.ts",
+    "electron/shared/modelArchetypes/seedream55.ts",
+    "electron/shared/modelArchetypes/seedream5Pro.ts",
+    "electron/shared/videoCapabilities/types.ts",
+    "electron/taskTypes.ts",
+    "electron/tasks/taskLayerReading.ts",
+    "src/config/modelOptionMappers.ts",
+    "src/ui/onboarding/CustomCallEditor.tsx",
+    "src/ui/onboarding/CustomCallScopeSelector.tsx",
+    "src/ui/onboarding/customCallScriptModes.ts",
+    "src/workbench/generationCanvas/quickActions/deriveFromNode.ts",
+    "src/workbench/generationCanvas/quickActions/useQuickActionHost.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "src/workbench/generationCanvas/runner/landTaskResults.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts"
+  ],
+  "entry_points": [
+    "Canvas single-shot background settlement, app restart replay/poll and manual retrieve-again",
+    "Canvas quick-action layer-split derivation, custom call scope selector and pre-spend task dispatch"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The canvas Run snapshot, task parameter pre-spend validation and custom call script contract are repository-owned boundaries.",
+  "invariants": [
+    "Every settled layer-split Run preserves layers[] in settledResult and forwards archetype modeId when querying unfinished jobs across restart, landing as one editable whiteboard with +0 extra POSTs.",
+    "Layer-split mode cannot be selected for or dispatched through a custom call script before spend."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "readSettledCanvasResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "symbol": "resolveCustomCallScriptModes"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/vendorPriceRequest.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "createCanvasTransportProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "createCanvasTransportProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "recoverAcceptedTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "recoverAcceptedTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "createCanvasTransportProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "runCustomCallTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/deriveFromNode.ts",
+      "symbol": "canLayerSplit"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "landTaskResults"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "landTaskResults"
+    }
+  ],
+  "door_reduction": {
+    "before": 14,
+    "after": 14,
+    "why_not": "Online generation and recovery already converge on readSettledCanvasResult and landTaskResults; pre-spend parameter validation and custom call dispatch share assertLayerSplitNotScriptRouted without adding new dispatch doors."
+  },
+  "generality_proof": "Any mode marked with layerSplit on its archetype is automatically rejected on script routes in both UI capability checks and main-process pre-spend validation, and its layers[] metadata rides the whole-object settledResult snapshot across background settlement, restart and manual retrieval.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "createCanvasTransportProvider",
+      "responsibility": "Forward frozen archetype modeId on fallback fetchResult queries and preserve layers[] in the settled Run snapshot across online completion, background settlement and restart replay."
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "applyHeadlessParamDefaults",
+      "responsibility": "Refuse layer-split requests routed to custom call scripts before spend or outbound HTTP."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "entry_point": "createCanvasTransportProvider",
+      "disposition": "enforced",
+      "evidence": "Forwards frozen archetype modeId on fallback fetchResult queries and preserves layers[] in materialized raw receipt."
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "applyHeadlessParamDefaults",
+      "disposition": "enforced",
+      "evidence": "Calls assertLayerSplitNotScriptRouted before spend on both Engine A and Engine B."
+    },
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "enforced",
+      "evidence": "Calls assertLayerSplitNotScriptRouted before local asset transport or spendGate."
+    },
+    {
+      "path": "src/workbench/generationCanvas/quickActions/deriveFromNode.ts",
+      "entry_point": "canLayerSplit",
+      "disposition": "enforced",
+      "evidence": "Excludes models with customCallScriptModes containing layers and surfaces layer-split-custom-script block reason."
+    },
+    {
+      "path": "src/ui/onboarding/CustomCallScopeSelector.tsx",
+      "entry_point": "CustomCallScopeSelector",
+      "disposition": "enforced",
+      "evidence": "Marks layer-split scope disabled with explicit explanation in the script scope selector."
+    }
+  ],
+  "recurrence_of": "2026-11-27-paid-result-recovery-foundation",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Structured task outputs (layers, transcripts, provenance) cross both Run snapshot replay and custom-script bypass routes.",
+    "same_class_scan": [
+      "door-map createCanvasTransportProvider readSettledCanvasResult recoverAcceptedTask landTaskResults applyHeadlessParamDefaults runCustomCallTask canLayerSplit resolveCustomCallScriptModes",
+      "Inspected all isLayerSplitMode and layerSplitWireReady call sites across electron/ and src/."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/taskParams.ts",
+    "invariant": "Layer-split tasks never execute via custom call scripts and always recover full layers[] from the Run envelope.",
+    "failure_mode": "Scripted layer-split fails pre-spend with ModeRouteMissingError; incomplete layer downloads fail into recoverable retrieval-download without polluting node version history.",
+    "exception_policy": "none",
+    "strategy": "Enforce at shared pre-spend taskParams/customCallDispatch boundary and Run settledResult snapshot.",
+    "artifacts": [
+      "electron/capabilityCore/canvasTransportProvider.ts",
+      "electron/catalog/taskParams.ts",
+      "electron/catalog/customCallDispatch.ts",
+      "src/workbench/generationCanvas/quickActions/deriveFromNode.ts",
+      "src/ui/onboarding/customCallScriptModes.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/layerSplitRecovery.test.ts",
+    "electron/catalog/taskParams.modeInputRoutes.test.ts",
+    "src/workbench/generationCanvas/quickActions/deriveFromNode.run.test.ts",
+    "electron/shared/agentCapabilities/agentModelEntryBoundary.class.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/layerSplitRecovery.test.ts",
+    "electron/catalog/taskParams.modeInputRoutes.test.ts",
+    "electron/shared/agentCapabilities/agentModelEntryBoundary.class.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/taskParams.ts"
+    ],
+    "rationale": "Removed the route.sends !== script exemption that allowed layer-split requests to bypass wire validation into custom call scripts."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Canvas Run snapshot and catalog task dispatch are repository-owned subsystems.",
+    "exit_criteria": []
+  },
+  "migration": "Existing Run snapshots with settledResult replay layers directly; models with a legacy saved layers script remain removable in CustomCallEditor while blocked from new layer-split runs.",
+  "residual_risks": [
+    "Live upstream APIMart layer payload shape verification requires the single real-paid check coordinated outside free rehearsal."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-12",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore",
+    "tests": [
+      "electron/capabilityCore/layerSplitRecovery.test.ts"
+    ]
+  }
+}

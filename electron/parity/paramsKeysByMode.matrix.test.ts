@@ -181,7 +181,8 @@ async function sendRun(ctx: SampleContext, params: Record<string, unknown>): Pro
       vendorKey: row.vendorKey,
       modelId: row.modelKey,
       mode: modeTransportFor(mode, archetype, row.vendorKey) ?? "",
-      ...(archetype.kind === "video" ? { modeId: mode.id } : {}),
+      // 图层分离是人选的任务（按输入挑方式绝不落到它），Run 路要点名方式才发它——与画布路同一个口径量。
+      ...(archetype.kind === "video" || mode.layerSplit ? { modeId: mode.id } : {}),
       prompt: "一个镜头",
       parameters: params,
       references: refs as never,

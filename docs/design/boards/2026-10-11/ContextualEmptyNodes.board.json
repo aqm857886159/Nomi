@@ -15,9 +15,9 @@
     {
       "id": "empty.node.contextual-guidance",
       "label": "浏览/多选只显示类型图标，单选展开原指导",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "guidance.group.icon-only",
+      "assertions": ["guidance.group.icon-only"],
       "states": [
         "empty",
         "selected",
@@ -30,9 +30,9 @@
     {
       "id": "empty.node.type-mark",
       "label": "未选中类型图标 24px / 圆底 48px，外部名称保留",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "guidance.kind.image",
+      "assertions": ["guidance.kind.image"],
       "states": [
         "empty",
         "zh-en",
@@ -44,9 +44,9 @@
     {
       "id": "empty.node.activation",
       "label": "上传/画板首次点击先选择，原入口继续可用",
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "guidance.whiteboard.activation",
+      "assertions": ["guidance.whiteboard.activation"],
       "states": [
         "empty",
         "selected",
@@ -56,7 +56,6 @@
       ]
     }
   ],
-  "decor": [],
   "functionCensus": [
     {
       "function": "各类型完整引导/模型能力/配方/文本加工",

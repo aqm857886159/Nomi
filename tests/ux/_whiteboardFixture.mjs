@@ -55,5 +55,5 @@ export function buildInlineWhiteboardProject({ repoMedia = false, frames = 1, le
   const recordPath = path.join(projectRoot, '.nomi/project.json')
   for (const name of ['project.json', '.nomi/project.json']) fs.writeFileSync(path.join(projectRoot, name), JSON.stringify(record))
   const readNode = (id) => JSON.parse(fs.readFileSync(recordPath, 'utf8')).payload.generationCanvas.nodes.find((node) => node.id === id)
-  return { root, projectsDir, projectId, record, recordPath, imagePath, nodes, readNode, source: { mode: useLibrary ? 'library-4k' : 'repository-shot', mediaId, width: size.width, height: size.height, uniqueImages: frames } }
+  return { root, projectsDir, projectId, record, recordPath, imagePath, nodes, sources, readNode, source: { mode: useLibrary ? 'library-4k' : 'repository-shot', mediaId, width: size.width, height: size.height, uniqueImages: frames } }
 }

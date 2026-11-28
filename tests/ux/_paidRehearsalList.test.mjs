@@ -14,9 +14,13 @@ const BRAIN_ONLY_BASELINE_20261115 = new Set(['agent-permission-two-tiers.paid.m
 const targets = rehearsalTargets(fs.readdirSync(path.join('tests', 'ux')))
 
 describe('paid rehearsal batch', () => {
-  it('targets every *.paid.mjs except the ones that do not open through openPaidWalk', () => {
+  it('targets every *.paid.mjs except the ones that do not open through openPaidWalk, and keeps run-retrieval-recovery-real.paid.mjs in the active nightly no-key set', () => {
     const files = ['b.paid.mjs', 'a.paid.mjs', 'x.walk.mjs', '_paidRun.mjs', 'skip.paid.mjs']
     expect(rehearsalTargets(files, [{ file: 'tests/ux/skip.paid.mjs' }])).toEqual(['a.paid.mjs', 'b.paid.mjs'])
+    expect(targets).toContain('run-retrieval-recovery-real.paid.mjs')
+    expect(rehearsalSkipOf('run-retrieval-recovery-real.paid.mjs', {})).toBeNull()
+    expect(Object.hasOwn(KNOWN_RED, 'run-retrieval-recovery-real.paid.mjs')).toBe(false)
+    expect(Object.hasOwn(BRAIN_ONLY, 'run-retrieval-recovery-real.paid.mjs')).toBe(false)
   })
   it('reason = the last [rehearsal] line, else the last error-looking line (stack frames ignored)', () => {
     expect(reasonFromLog('[paid] x\n[rehearsal] 付费走查出网被挡\n[rehearsal] 不过：没走到收窄花钱面\n')).toBe('不过：没走到收窄花钱面')

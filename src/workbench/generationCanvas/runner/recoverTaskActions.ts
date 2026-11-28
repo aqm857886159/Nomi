@@ -5,11 +5,10 @@ import type { ProjectExecutionContext } from '../../project/projectCanvasReadSur
 import type { GenerationCanvasNode, GenerationNodeRunRecord } from '../model/generationCanvasTypes'
 import { deliverRunOutcome, isRunTargetLoaded as isTargetLoaded, readRunGraph, type RunProjectTarget } from './runProjectDelivery'
 import type { CanvasShotSettledNotice } from '../../../../electron/shared/canvas/canvasShotSettled'
-import { localizeRemoteResultUrl } from './resultAssetLocalization'
+import { landTaskResults } from './landTaskResults'
 import { narrateProgress } from '../../observability/narrate'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { asTrimmedString, resolveTaskKind, selectedModelKey, selectedVendor } from './catalogTaskResolve'
-import { normalizeCatalogTaskResults } from './catalogTaskResultParse'
 import i18n from '../../../i18n'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { isRetrievalStageCode, matchNomiErrorCode, tagNomiError } from '../../../../electron/shared/nomiErrorCodes'
@@ -167,9 +166,9 @@ async function landRetrievedResult(target: RunProjectTarget, node: GenerationCan
   try {
     let mediaDimensions: MediaDimensions | undefined
     const onMediaDimensions = (dimensions: MediaDimensions) => { mediaDimensions = dimensions }
-    const normalized = normalizeCatalogTaskResults(current, node, onMediaDimensions)
-    // 结构闸（找回路径）：找回本身就发生在 CDN 快过期的时刻，此处尤其要把临时 URL 落地——落进任务所属项目（每张都落）。
-    const localized = await Promise.all(normalized.map((result) => localizeRemoteResultUrl(result, target.projectId, id, onMediaDimensions)))
+    // 结构闸（找回路径）：找回本身就发生在 CDN 快过期的时刻，此处尤其要把临时 URL 落地——落进任务所属项目（每张都落）；
+    // 图层分离那一笔收成一张白板。与生成那条路同一个函数。
+    const localized = await landTaskResults(current, node, target, onMediaDimensions)
     // 一次运行取回几张就落几张，每张都按这次的运行记录号投（与生成那条路同一个合并规则）。
     let landedInOpenProject = false
     for (const result of localized) {

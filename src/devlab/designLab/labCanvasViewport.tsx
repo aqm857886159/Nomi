@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { ReactFlowProvider, useStoreApi } from '@xyflow/react'
+import { NodeOutsideRowsViewport } from '../../workbench/generationCanvas/nodes/NodeLabelRow'
 
 /**
  * 实验室格子里的「画布视口」：节点浮条和生成浮框的反向缩放读的是 React Flow 的 transform
@@ -11,7 +12,7 @@ export function LabCanvasViewport({ zoom = 1, children }: { zoom?: number; child
   return (
     <ReactFlowProvider>
       <LabCanvasZoom zoom={zoom} />
-      {children}
+      <NodeOutsideRowsViewport>{children}</NodeOutsideRowsViewport>
     </ReactFlowProvider>
   )
 }

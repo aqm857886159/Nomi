@@ -51,6 +51,9 @@ jobs:
       # 旧版本号只在这里定一次：手动触发取输入，推送与发版硬门（workflow_call，无此输入）回落到 0.24.0。
       OLD_VERSION: ${{ inputs.old_version || '0.24.0' }}
     steps:
+      - name: Enable Git long paths on Windows
+        run: git config --global core.longpaths true
+
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4

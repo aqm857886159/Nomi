@@ -7,8 +7,8 @@ import type { LabState } from '../../labScreen'
 
 const SOURCE = 'docs/design/boards/2026-11-12-mode-bar/ModeBar.board.json（样张 A–J）'
 const MIRRORS = [
-  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:456',
-  'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:572',
+  'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:434',
+  'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:563',
   'src/workbench/generationCanvas/nodes/controls/referenceRowTail.tsx:1',
 ]
 const PROMPT = '她从清晨的码头走到傍晚的海堤，镜头缓慢推近。'

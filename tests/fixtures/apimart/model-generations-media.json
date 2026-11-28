@@ -4,7 +4,7 @@
     {
       "family": "seedance",
       "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": ["seedance2_5", "doubao-seedance-2.5"],
+      "latest": ["seedance2_5", "doubao-seedance-2.5", "doubao-seedance-2.5-sample"],
       "previous": ["seedance2", "seedance2_fast", "seedance2_mini", "bytedance/seedance-2", "doubao-seedance-2.0", "doubao-seedance-2-0-260128", "bytedance/seedance-2.0-global"],
       "older": []
     },

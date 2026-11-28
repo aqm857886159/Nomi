@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowUp, IconCoin, IconExternalLink, IconLoader2 } from '../../../vendor/tablerIcons'
+import { IconArrowUp, IconExternalLink, IconLoader2 } from '../../../vendor/tablerIcons'
 import { TEXT_BUTTON_PRESS } from '../../../design/motion'
 import { cn } from '../../../utils/cn'
 import { ICON_TIERS, WorkbenchButton } from '../../../design'
@@ -8,6 +8,7 @@ import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { ComposerBarYieldContext } from './composerBarYield'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design/tooltip'
 import { SendCostUnitMenuButton, type SendCostUnitMenuOption } from '../spend/SendCostUnitMenuButton'
+import { SendCostAmount } from '../spend/SendCostAmount'
 
 const sendPress = cn('transition-[transform,background-color,opacity]', TEXT_BUTTON_PRESS)
 
@@ -31,6 +32,8 @@ export type ComposerSendCostProp = {
   unitMenuAriaLabel?: string
   unitSwitchAriaLabel?: string
   onUnitChange?: (unit: ComposerSendCostUnit) => void
+  boardAnchor?: string
+  hoverBoardAnchor?: string
 }
 
 export type ComposerSendLowBalanceProp = {
@@ -225,6 +228,7 @@ export function ComposerSendButton({
             {cost.credits !== undefined && hasUnitSwitcher && cost.unitOptions && cost.onUnitChange ? (
               <span
                 data-send-cost-group=""
+                data-board={cost.boardAnchor}
                 className="-my-0.5 -mr-0.5 inline-flex h-[34px] shrink-0 items-center gap-1 rounded-pill bg-nomi-ink-10 py-0 pl-1 pr-0.5"
               >
                 <SendCostUnitMenuButton
@@ -267,11 +271,8 @@ export function ComposerSendButton({
                 onClick={onClick}
                 {...attrs}
               >
-                <span data-send-cost="credits" className="inline-flex items-center gap-1 whitespace-nowrap text-body-sm font-semibold tabular-nums text-nomi-ink-80" data-send-cost-unit={activeUnit}>
-                  {activeUnit === 'credits' ? (
-                    <IconCoin size={ICON_TIERS.corner.size} stroke={ICON_TIERS.corner.stroke} aria-hidden />
-                  ) : null}
-                  {cost.credits}
+                <span data-send-cost="credits" data-board={cost.boardAnchor} className="inline-flex items-center gap-1 whitespace-nowrap text-body-sm font-semibold tabular-nums text-nomi-ink-80" data-send-cost-unit={activeUnit}>
+                  <SendCostAmount text={cost.credits} unit={activeUnit} />
                 </span>
                 <span
                   aria-hidden
@@ -301,7 +302,7 @@ export function ComposerSendButton({
           </span>
         </TooltipTrigger>
         {unitMenuOpen ? null : (
-          <TooltipContent data-send-cost-hover="">
+          <TooltipContent data-send-cost-hover="" data-board={cost.hoverBoardAnchor}>
             {disabled && title ? `${title}\n${cost.description}` : cost.description}
           </TooltipContent>
         )}

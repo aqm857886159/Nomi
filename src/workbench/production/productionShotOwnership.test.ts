@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionJob, ProductionJobStatus, ProductionRun, ProductionRunStatus } from '../../../electron/shared/contracts/productionRunTypes'
 import { createGenerationNode } from '../generationCanvas/model/graphOps'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { planCanvasGenerationScope } from '../generationCanvas/runner/generationScopeFacts'

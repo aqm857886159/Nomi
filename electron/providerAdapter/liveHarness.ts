@@ -6,6 +6,7 @@ import type { BillingModelKind } from "../catalog/types";
 import type { ProviderAdapterRun } from "./types";
 import type { ConnectionCertificationService } from "../integrationCertification/service";
 import { redactAdapterSecrets } from "./redaction";
+import { isTerminalAdapterRunStage } from "../shared/contracts/providerAdapterContract";
 
 type LiveConfig = {
   invocationId: string;
@@ -18,18 +19,8 @@ type LiveConfig = {
   quit?: boolean;
 };
 
-const TERMINAL: ReadonlySet<ProviderAdapterRun["stage"]> = new Set([
-  "completed",
-  "partial",
-  "failed",
-  "needs_ai",
-  "cancelled",
-  "timed_out",
-  "stale",
-]);
-
 export function isLiveAdapterTerminalStage(stage: ProviderAdapterRun["stage"]): boolean {
-  return TERMINAL.has(stage);
+  return isTerminalAdapterRunStage(stage);
 }
 
 export function liveHarnessEnabled(env: Record<string, string | undefined>): boolean {

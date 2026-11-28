@@ -38,6 +38,29 @@ export async function expectText(locator, pattern, message, timeout = DEFAULT_TI
 }
 
 /**
+ * 断言容器内存在**元素本身可见**的文本（替代会匹配 `display:none` / `[hidden]` 隐藏后代的 `toContainText`）。
+ *
+ * 为什么不能用 `expect(container).toContainText(text)`（#1705 假绿复盘）：
+ *   `toContainText` 读的是容器的 `textContent`，会把 `display: none`、`[hidden]`、`visibility: hidden`
+ *   后代里的文字一并算进去。若外层弹窗可见、而关键警示句被藏了起来，`toContainText` 仍会报绿。
+ *   这里在容器内按文本定位承载该文案的元素并过滤 `visible: true`，再断言其自身 `toBeVisible()`，
+ *   保持 Playwright web-first 自动重试语义的同时，让任何隐藏后代当场报红。
+ */
+export async function expectVisibleText(container, text, { exact = false, message, timeout = DEFAULT_TIMEOUT_MS } = {}) {
+  if (typeof text === 'string') {
+    if (!text.trim()) {
+      throw new Error('expectVisibleText(container, text)：text 不能为空白串，空串会匹配任意可见元素造成假绿')
+    }
+  } else if (!(text instanceof RegExp)) {
+    throw new Error('expectVisibleText(container, text)：text 必须是 string 或 RegExp')
+  }
+  const label = typeof text === 'string' ? `「${text}」` : String(text)
+  const detail = message || `容器内未找到自身可见的文本 ${label}（隐藏后代不算通过）`
+  const target = container.getByText(text, { exact }).filter({ visible: true }).first()
+  await expect(target, detail).toBeVisible({ timeout })
+}
+
+/**
  * 点一个东西，点不到就**报红**。走查里所有点击都该走它。
  *
  * 为什么单独立一个 API：全仓的点击写法是

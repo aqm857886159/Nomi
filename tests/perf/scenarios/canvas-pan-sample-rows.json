@@ -1,0 +1,33 @@
+{
+  "id": "canvas-pan-sample-rows",
+  "feature": "200 个视频节点里 50 个是样片（节点下方常驻一行「样片 · 剩 2 天」+「出高清」），滚轮放大到不低于整卡线（--gesture-zoom 0.41；从适应视图滚一档实际落在约 0.54，同屏约 56 张整卡、14 行样片行在 DOM 里）后空格 + 拖平移一圈（约 2 秒），平移期间的帧间隔和长任务",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "V200S50",
+    "--scenarios",
+    "pan",
+    "--gesture-zoom",
+    "0.41",
+    "--warmup",
+    "1"
+  ],
+  "scale": "200 个视频节点（其中 50 个样片，各带节点下方那一行），边 100 条",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "group": "③ 平移和缩放",
+  "budgetStatus": "proposed",
+  "budgetBasis": "连续手势要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此（canvas-pan-mixed-media 同一预算）；剩余时间不开计时器，渲染时按当前时间算、共享反馈时钟刷新，所以 50 行不该多出每帧的活。设计卡 docs/plan/2026-11-26-sample-mode.md ★7",
+  "baseline": {
+    "median": 9.8,
+    "p95": 9.8,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-26",
+    "commit": "6a4d7689e",
+    "noisy": true
+  }
+}

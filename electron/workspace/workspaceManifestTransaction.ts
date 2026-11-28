@@ -3,12 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { readJsonFile, writeJsonFileAtomic } from "../jsonFile";
-import { assertInsideWorkspace, workspaceProjectFile } from "./workspacePaths";
+import { readJsonFile, readJsonFileAsync, writeJsonFileAtomic, writeJsonFileAtomicAsync } from "../jsonFile";
+import { assertInsideWorkspace, workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import {
   acquireWorkspaceManifestLock,
   assertWorkspaceManifestLockOwned,
+  assertWorkspaceManifestLockOwnedAsync,
   releaseWorkspaceManifestLock,
+  releaseWorkspaceManifestLockAsync,
   tryAcquireWorkspaceManifestLock,
   type WorkspaceManifestLockOptions,
   type WorkspaceManifestLockLease,
@@ -32,7 +34,13 @@ type StagedWorkspaceManifestOperation =
 type WorkspaceManifestTransactionExecution = {
   transaction: WorkspaceManifestTransaction;
   commit: () => void;
+  commitAsync: () => Promise<void>;
 };
+
+type PreloadedJsonEntry =
+  | { status: "missing" }
+  | { status: "ok"; value: unknown }
+  | { status: "error"; error: unknown };
 
 function canonicalTransactionPath(lease: WorkspaceManifestLockLease, filePath: string): string {
   const resolved = path.resolve(filePath);
@@ -40,6 +48,19 @@ function canonicalTransactionPath(lease: WorkspaceManifestLockLease, filePath: s
     return assertInsideWorkspace(lease.canonicalRootPath, fs.realpathSync(resolved));
   }
   return assertInsideWorkspace(lease.canonicalRootPath, resolved);
+}
+
+async function canonicalTransactionPathAsync(lease: WorkspaceManifestLockLease, filePath: string): Promise<string> {
+  const resolved = path.resolve(filePath);
+  try {
+    const real = await fs.promises.realpath(resolved);
+    return assertInsideWorkspace(lease.canonicalRootPath, real);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return assertInsideWorkspace(lease.canonicalRootPath, resolved);
+    }
+    throw error;
+  }
 }
 
 function serializableValue(value: unknown): unknown {
@@ -61,6 +82,17 @@ function persistJson(lease: WorkspaceManifestLockLease, target: string, expected
   return persisted;
 }
 
+async function persistJsonAsync(lease: WorkspaceManifestLockLease, target: string, expected: unknown): Promise<unknown> {
+  await assertWorkspaceManifestLockOwnedAsync(lease);
+  await writeJsonFileAtomicAsync(target, expected);
+  const persisted = await readJsonFileAsync(target);
+  if (!isDeepStrictEqual(persisted, expected)) {
+    throw new Error("Workspace manifest transaction verification failed");
+  }
+  await assertWorkspaceManifestLockOwnedAsync(lease);
+  return persisted;
+}
+
 function persistFile(lease: WorkspaceManifestLockLease, target: string, data: Uint8Array): void {
   assertWorkspaceManifestLockOwned(lease);
   const verifiedTarget = canonicalTransactionPath(lease, target);
@@ -69,31 +101,67 @@ function persistFile(lease: WorkspaceManifestLockLease, target: string, data: Ui
   assertWorkspaceManifestLockOwned(lease);
 }
 
+async function persistFileAsync(lease: WorkspaceManifestLockLease, target: string, data: Uint8Array): Promise<void> {
+  await assertWorkspaceManifestLockOwnedAsync(lease);
+  const verifiedTarget = await canonicalTransactionPathAsync(lease, target);
+  await fs.promises.mkdir(path.dirname(verifiedTarget), { recursive: true });
+  await fs.promises.writeFile(verifiedTarget, data);
+  await assertWorkspaceManifestLockOwnedAsync(lease);
+}
+
+async function preloadJsonCandidate(lease: WorkspaceManifestLockLease, candidatePath: string): Promise<[string, PreloadedJsonEntry]> {
+  const target = await canonicalTransactionPathAsync(lease, candidatePath);
+  try {
+    await fs.promises.access(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return [target, { status: "missing" }];
+    }
+    return [target, { status: "error", error }];
+  }
+  try {
+    return [target, { status: "ok", value: await readJsonFileAsync(target) }];
+  } catch (error) {
+    return [target, { status: "error", error }];
+  }
+}
+
 function createTransaction(
   lease: WorkspaceManifestLockLease,
   mode: "immediate" | "staged",
+  options: { skipStageSyncAssertOwned?: boolean; preloadedJson?: Map<string, PreloadedJsonEntry> } = {},
 ): WorkspaceManifestTransactionExecution {
   const operations: StagedWorkspaceManifestOperation[] = [];
   const stagedJson = new Map<string, unknown>();
   const stagedPaths = new Set<string>();
+  const checkStageOwner = (): void => {
+    if (!options.skipStageSyncAssertOwned) assertWorkspaceManifestLockOwned(lease);
+  };
 
   const exists = (filePath: string): boolean => {
-    assertWorkspaceManifestLockOwned(lease);
+    checkStageOwner();
     const target = canonicalTransactionPath(lease, filePath);
     return stagedPaths.has(target) || fs.existsSync(target);
   };
 
   const readJson = (filePath: string): unknown | null => {
-    assertWorkspaceManifestLockOwned(lease);
+    checkStageOwner();
     const target = canonicalTransactionPath(lease, filePath);
     if (stagedJson.has(target)) {
       return serializableValue(stagedJson.get(target));
+    }
+    const preloaded = options.preloadedJson?.get(target);
+    if (preloaded) {
+      options.preloadedJson?.delete(target);
+      if (preloaded.status === "missing") return null;
+      if (preloaded.status === "error") throw preloaded.error;
+      return preloaded.value;
     }
     return fs.existsSync(target) ? readJsonFile(target) : null;
   };
 
   const replaceJson = (filePath: string, value: unknown): unknown => {
-    assertWorkspaceManifestLockOwned(lease);
+    checkStageOwner();
     const target = canonicalTransactionPath(lease, filePath);
     const expected = serializableValue(value);
     if (mode === "staged") {
@@ -106,7 +174,7 @@ function createTransaction(
   };
 
   const copyFile = (sourcePath: string, targetPath: string): void => {
-    assertWorkspaceManifestLockOwned(lease);
+    checkStageOwner();
     const source = canonicalTransactionPath(lease, sourcePath);
     const target = canonicalTransactionPath(lease, targetPath);
     if (mode === "staged") {
@@ -122,7 +190,7 @@ function createTransaction(
   };
 
   const writeFile = (filePath: string, data: Uint8Array): void => {
-    assertWorkspaceManifestLockOwned(lease);
+    checkStageOwner();
     const target = canonicalTransactionPath(lease, filePath);
     const bytes = Uint8Array.from(data);
     if (mode === "staged") {
@@ -153,6 +221,19 @@ function createTransaction(
           assertWorkspaceManifestLockOwned(lease);
         } else {
           persistFile(lease, operation.target, operation.data);
+        }
+      }
+    },
+    async commitAsync() {
+      for (const operation of operations) {
+        await assertWorkspaceManifestLockOwnedAsync(lease);
+        if (operation.type === "replace-json") {
+          await persistJsonAsync(lease, operation.target, operation.expected);
+        } else if (operation.type === "copy-file") {
+          await fs.promises.copyFile(operation.source, operation.target);
+          await assertWorkspaceManifestLockOwnedAsync(lease);
+        } else {
+          await persistFileAsync(lease, operation.target, operation.data);
         }
       }
     },
@@ -200,6 +281,46 @@ function runTransactionSync<T>(
   return result as T;
 }
 
+async function runTransactionStagedAsync<T>(
+  lease: WorkspaceManifestLockLease,
+  callback: (transaction: WorkspaceManifestTransaction) => T,
+): Promise<T> {
+  let result: T | undefined;
+  let callbackError: unknown;
+  let callbackFailed = false;
+  try {
+    await assertWorkspaceManifestLockOwnedAsync(lease);
+    const preloadedEntries = await Promise.all([
+      preloadJsonCandidate(lease, workspaceProjectFile(lease.canonicalRootPath)),
+      preloadJsonCandidate(lease, workspaceProjectBackupFile(lease.canonicalRootPath)),
+    ]);
+    const execution = createTransaction(lease, "staged", {
+      skipStageSyncAssertOwned: true,
+      preloadedJson: new Map(preloadedEntries),
+    });
+    result = callback(execution.transaction);
+    if (isPromiseLike(result)) {
+      void result.then(undefined, () => undefined);
+      throw new TypeError("Synchronous workspace manifest transaction callback returned a Promise-like value");
+    }
+    await execution.commitAsync();
+  } catch (error) {
+    callbackFailed = true;
+    callbackError = error;
+  }
+
+  let releaseError: unknown;
+  try {
+    await releaseWorkspaceManifestLockAsync(lease);
+  } catch (error) {
+    releaseError = error;
+  }
+
+  if (callbackFailed) throw callbackError;
+  if (releaseError !== undefined) throw releaseError;
+  return result as T;
+}
+
 async function runTransactionAsync<T>(
   lease: WorkspaceManifestLockLease,
   callback: (transaction: WorkspaceManifestTransaction) => T | Promise<T>,
@@ -208,7 +329,7 @@ async function runTransactionAsync<T>(
   let callbackError: unknown;
   let callbackFailed = false;
   try {
-    assertWorkspaceManifestLockOwned(lease);
+    await assertWorkspaceManifestLockOwnedAsync(lease);
     result = await callback(createTransaction(lease, "immediate").transaction);
   } catch (error) {
     callbackFailed = true;
@@ -217,7 +338,7 @@ async function runTransactionAsync<T>(
 
   let releaseError: unknown;
   try {
-    releaseWorkspaceManifestLock(lease);
+    await releaseWorkspaceManifestLockAsync(lease);
   } catch (error) {
     releaseError = error;
   }
@@ -235,7 +356,7 @@ export function withWorkspaceManifestTransactionSync<T>(
   return runTransactionSync(tryAcquireWorkspaceManifestLock(actualRootPath, lockOptions), callback);
 }
 
-/** Wait without blocking the owner, then preserve synchronous staged validation and commit semantics. */
+/** Wait without blocking the owner, then preserve synchronous staged validation and async commit semantics. */
 const stagedTransactionLimits = new Map<string, ReturnType<typeof pLimit>>();
 
 export async function withWorkspaceManifestStagedTransaction<T>(
@@ -249,7 +370,7 @@ export async function withWorkspaceManifestStagedTransaction<T>(
   try {
     return await limit(async () => {
       const lease = await acquireWorkspaceManifestLock(canonicalRoot, lockOptions);
-      return runTransactionSync(lease, callback);
+      return runTransactionStagedAsync(lease, callback);
     });
   } finally {
     if (stagedTransactionLimits.get(canonicalRoot) === limit && limit.activeCount === 0 && limit.pendingCount === 0) stagedTransactionLimits.delete(canonicalRoot);

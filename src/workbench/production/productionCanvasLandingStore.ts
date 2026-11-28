@@ -8,7 +8,7 @@ import { declareStoreLifetime } from '../project/storeLifetime'
 // 以前这里只存「画布上第一个 Run」：画布上有两次 Agent 生成时，第二次的节点永远读不到自己的 Run。
 import { create } from 'zustand'
 
-import type { ProductionRun } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun } from '../../../electron/shared/contracts/productionRunTypes'
 import type { PendingSpendRead } from '../../desktop/productionRunBridgeTypes'
 import { offerShots } from '../../../electron/shared/productionGenerationPresentation'
 

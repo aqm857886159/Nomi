@@ -1,7 +1,7 @@
 {
   "registered": [
     {
-      "site": "electron/providerAdapter/liveHarness.ts:106 catch → writeJsonFileAtomic",
+      "site": "electron/providerAdapter/liveHarness.ts:97 catch → writeJsonFileAtomic",
       "reason": "这不是配置的读回落：liveHarness 写的是它**自己这次跑出来的结果文件**（--out 指定的报告路径），catch 分支写的是 { ok: false, error }，也就是「这次验证失败了」这个事实本身。没有任何用户配置被它读过或盖掉。"
     }
   ]

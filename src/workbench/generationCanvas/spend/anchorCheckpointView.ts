@@ -5,7 +5,7 @@ import type {
   ProductionGenerationShot,
   ProductionJob,
   ProductionRun,
-} from '../../../../electron/productionRun/productionRunTypes'
+} from '../../../../electron/shared/contracts/productionRunTypes'
 
 // P4 §3.2 形象确认卡的**只读投影**（纯函数，可单测）：一道 waiting 的 anchor_checkpoint 门 + 它的 Run
 // → 「哪些定妆照要过目、每张的缩略图/名称/是新拍还是复用/对应哪个 shotId（重拍要用）」。

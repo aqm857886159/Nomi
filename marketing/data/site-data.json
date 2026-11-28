@@ -565,7 +565,8 @@
         ],
         "modeTerms": [
           "文生图",
-          "改图"
+          "改图",
+          "图层分离"
         ],
         "references": {
           "image_ref": 10
@@ -1358,6 +1359,68 @@
           "max": 30
         },
         "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "seedance-2-5-apimart-sample",
+      "canonicalId": "seedance 2.5（样片模式）",
+      "label": "Seedance 2.5（样片模式）",
+      "kind": "video",
+      "lifecycle": "flagship",
+      "recognized": true,
+      "archetypeIds": [
+        "seedance-2.5-apimart-sample"
+      ],
+      "family": "seedance",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "single",
+          "firstlast",
+          "character",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生视频",
+          "首帧",
+          "首尾帧",
+          "全能参考",
+          "视频编辑",
+          "视频续写"
+        ],
+        "references": {
+          "first_frame": 1,
+          "last_frame": 1,
+          "image_ref": 30,
+          "video_ref": 10,
+          "audio_ref": 10
+        },
+        "resolutions": [
+          "480p"
+        ],
+        "aspectRatios": [
+          "adaptive",
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "21:9"
+        ],
+        "durationSeconds": {
+          "min": 4,
+          "max": 30
+        },
+        "audio": true,
         "variants": []
       }
     },
@@ -2682,7 +2745,8 @@
         ],
         "modeTerms": [
           "文生图",
-          "改图"
+          "改图",
+          "图层分离"
         ],
         "references": {
           "image_ref": 10

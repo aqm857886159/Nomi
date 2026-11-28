@@ -55,14 +55,13 @@ describe("同步调用方（结构上只能同步的那几类）：持续 300ms 
   });
 });
 
-describe("同步助手的退避表就是 sharingRetry 的默认表（只一份）", () => {
-  it("一直被占：按默认表睡 5 次、共试 6 次，抛原错误", () => {
-    const sleeps: number[] = [];
-    vi.spyOn(Atomics, "wait").mockImplementation((_array, _index, _value, timeout) => { sleeps.push(Number(timeout)); return "timed-out"; });
+describe("同步助手共享同一份预算且零 Atomics.wait", () => {
+  it("一直被占：零次 Atomics.wait、至少试满默认档数后如实抛原错误", () => {
+    const atomicsSpy = vi.spyOn(Atomics, "wait");
     let calls = 0;
     expect(() => retryOnSharingViolation(() => { calls += 1; throw errno("EBUSY"); })).toThrow(expect.objectContaining({ code: "EBUSY" }));
-    expect(calls).toBe(6);
-    expect(sleeps).toEqual([...SHARING_RETRY_DELAYS_MS]);
+    expect(atomicsSpy).not.toHaveBeenCalled();
+    expect(calls).toBeGreaterThanOrEqual(SHARING_RETRY_DELAYS_MS.length + 1);
   });
 });
 

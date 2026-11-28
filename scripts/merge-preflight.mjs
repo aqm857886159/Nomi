@@ -86,10 +86,60 @@ function fetchPrCommits(git, pr, baseBranch) {
 /** 报告引用是仓库内相对路径（不是链接、不是绝对路径、不含 ..）。 */
 const isRepoRef = isRepoRelativeRef
 
-/** 合并前扫描读验收报告：本机绝对路径直接读；仓库内相对路径从 PR 头读；外部链接读不了。读不到一律 null（判据按红处理）。 */
-export function readReportRef(ref, readRepoFile, readLocal = (file) => fs.readFileSync(file, 'utf8')) {
+/** 从 git origin 地址解析 GitHub `owner/name`；本地裸仓库等非 github.com 远端返回 null。 */
+export function repoSlugOfOrigin(remoteUrl) {
+  const match = /^(?:https?:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([^/\s]+\/[^/\s.]+?)(?:\.git)?\/?$/i.exec(String(remoteUrl ?? '').trim())
+  return match ? match[1] : null
+}
+
+/** 同仓库 PR / issue 评论链接 → `{ endpoint, expectedPath }`；外仓、非评论链接一律 null。 */
+function sameRepoCommentTarget(ref, repoSlug) {
+  if (!repoSlug) return null
   try {
-    if (/^https?:/i.test(ref)) return null
+    const parsed = new URL(String(ref ?? '').trim().replace(/\)+$/, ''))
+    if (parsed.protocol !== 'https:' || parsed.hostname.toLowerCase() !== 'github.com' || parsed.search !== '') return null
+    const pathMatch = /^\/([^/]+\/[^/]+)\/(pull|issues)\/([1-9]\d*)\/?$/.exec(parsed.pathname)
+    const commentMatch = /^#issuecomment-([1-9]\d*)$/.exec(parsed.hash)
+    if (!pathMatch || !commentMatch) return null
+    if (pathMatch[1].toLowerCase() !== String(repoSlug).toLowerCase()) return null
+    return {
+      endpoint: `repos/${pathMatch[1]}/issues/comments/${commentMatch[1]}`,
+      expectedPath: `/${pathMatch[1]}/${pathMatch[2]}/${pathMatch[3]}`,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** 同仓库 PR / issue 评论链接 → `repos/<owner>/<name>/issues/comments/<id>`；外仓、非评论链接一律 null。 */
+export function sameRepoCommentEndpoint(ref, repoSlug) {
+  return sameRepoCommentTarget(ref, repoSlug)?.endpoint ?? null
+}
+
+const TRUSTED_COMMENT_AUTHOR_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR'])
+
+/** 校验同仓库 PR / issue 评论 API 载荷（讨论串路径归属 + 仓库成员身份白名单 + 正文类型），任一项不满足一律 fail-closed 返回 null。 */
+export function extractSameRepoCommentBody(payload, expectedPath) {
+  if (typeof expectedPath !== 'string' || !expectedPath.trim()) return null
+  if (typeof payload?.html_url !== 'string' || typeof payload?.body !== 'string') return null
+  if (typeof payload?.author_association !== 'string' || !TRUSTED_COMMENT_AUTHOR_ASSOCIATIONS.has(payload.author_association)) return null
+  try {
+    const actualPath = new URL(payload.html_url).pathname.replace(/\/+$/, '')
+    if (actualPath.toLowerCase() !== expectedPath.toLowerCase()) return null
+    return payload.body
+  } catch {
+    return null
+  }
+}
+
+/** 合并前扫描读验收报告：本机绝对路径直接读；仓库内相对路径从 PR 头读；同仓库 PR/issue 评论走 gh api 读并核对讨论串归属与仓库成员身份；别的外链一律 null（判据按红处理）。 */
+export function readReportRef(ref, readRepoFile, readLocal = (file) => fs.readFileSync(file, 'utf8'), { repoSlug = null, readComment = null } = {}) {
+  try {
+    if (/^https?:/i.test(ref)) {
+      const target = sameRepoCommentTarget(ref, repoSlug)
+      if (!target || typeof readComment !== 'function') return null
+      return readComment(target.endpoint, target.expectedPath) ?? null
+    }
     if (isRepoRef(ref)) return readRepoFile(ref) ?? null
     return readLocal(ref)
   } catch { return null }
@@ -214,6 +264,11 @@ function run(argv, exec, git, root) {
   const headAllowlist = touchedAllowlist
     ? must(`PR 头上的 ${GENERATED_ALLOWLIST_FILE}`, () => (files.find((row) => row.path === GENERATED_ALLOWLIST_FILE)?.status === 'D' ? 'deleted' : parseAllowlist(showAt(headSha, GENERATED_ALLOWLIST_FILE))))
     : undefined
+  const originRepo = (() => {
+    try { return repoSlugOfOrigin(git(['remote', 'get-url', 'origin']).trim()) } catch { return null }
+  })()
+  const sameRepo = originRepo && repo && originRepo.toLowerCase() !== repo.toLowerCase() ? null : (originRepo ?? repo ?? null)
+  const readComment = (endpoint, expectedPath) => extractSameRepoCommentBody(JSON.parse(gh(['api', endpoint])), expectedPath)
   const judged = evaluatePrBody({
     table,
     baseAllowlist,
@@ -233,8 +288,8 @@ function run(argv, exec, git, root) {
     // 证据判「对不对」的输入（取数在这里，判据在 pr-body-criteria）：PR 当前 head、报告 / 原始结果怎么读、拍板图清单
     evidence: {
       headSha,
-      // 协调目录的报告在本机读（读不到 = null = 红）；仓库内路径从 PR 头读；外部链接读不了
-      readReport: (ref) => readReportRef(ref, (file) => showAt(headSha, file)),
+      // 协调目录的报告在本机读（读不到 = null = 红）；仓库内路径从 PR 头读；同仓库评论链接用 gh api 读；其余外部链接读不了
+      readReport: (ref) => readReportRef(ref, (file) => showAt(headSha, file), undefined, { repoSlug: sameRepo, readComment }),
       readRaw: (ref) => (isRepoRef(ref) ? showAt(headSha, ref) : null),
       // 拍板图清单和提交历史都取 PR head（PR 自己新增的板在 main 检出里读不到）；规则与判据仍从 base 读。取不到 = 取数失败（红）
       headRelation: (accepted, head) => {

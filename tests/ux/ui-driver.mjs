@@ -5,7 +5,7 @@
 // 参数见 uiDriverOptions.mjs；命令见 ui.mjs。证据（截图、命令流水 commands.jsonl、错误日志）落仓库外的证据目录。
 //
 // Electron 专用（Nomi 要主进程 + IPC 桥，普通浏览器预览工具附不上去）。
-import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
+import { cleanupTempRoot, exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -61,6 +61,15 @@ const saveVendorHits = () => {
   if (fakeVendor) fs.writeFileSync(path.join(OUT, 'vendor-requests.json'), JSON.stringify(fakeVendor.hits, null, 2))
 }
 const launchOptions = buildLaunchOptions(options, { tempRoot, settingsDir })
+if (options.isolated && tempRoot) {
+  // 目录归常驻驱动托管：冷重启（restart）只关旧 Electron 再起新进程，保留同一份隔离资料与项目落盘，退出时统一清。
+  delete launchOptions.tempRoot
+  launchOptions.userDataDir ??= path.join(tempRoot, 'user-data')
+  launchOptions.projectsDir = path.join(tempRoot, 'projects')
+  launchOptions.settingsDir = settingsDir ?? path.join(tempRoot, 'settings')
+  launchOptions.capabilityDir = path.join(tempRoot, 'capability')
+  launchOptions.hostConfigDir = path.join(tempRoot, 'host-config')
+}
 if (options.vendor) {
   const { startFakeApimartServer, writeFakeApimartCatalog } = await import('./_mcpL2Fixture.mjs')
   fakeVendor = await startFakeApimartServer({ pendingPolls: options.vendorPending, dropSubmits: options.vendorDropSubmit, failTasks: options.vendorFailTask })
@@ -90,13 +99,14 @@ if (options.vendor) {
     NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: fakeVendor.origin,
   })
 }
-const launched = await launchNomiApp(launchOptions).catch(async (error) => {
+let launched = await launchNomiApp(launchOptions).catch(async (error) => {
   saveVendorHits()
   await fakeVendor?.close()
+  if (tempRoot) cleanupTempRoot(tempRoot)
   exitIfWalkSkipped(error)
 })
-const { app } = launched
-const appPid = app.process()?.pid ?? null
+let { app } = launched
+let appPid = app.process()?.pid ?? null
 
 // 多窗口：打开项目会新开一个 studio 窗口、关掉起始窗口。命令前用 getWin() 取活窗口；新窗口一律套上点名的内容尺寸。
 async function applySize(page) {
@@ -383,6 +393,23 @@ async function run(cmd) {
     case 'fps-stop': { const m = await target().evaluate('window.__nomiProbe.readFps()'); return { fps: m } }
     case 'density': { const w = target(); await ensureProbe(w); return { density: await w.evaluate('window.__nomiProbe.density()') } }
     case 'contrast': { const w = target(); await ensureProbe(w); return { contrast: await w.evaluate(`window.__nomiProbe.contrast(${JSON.stringify(cmd.sel)})`) } }
+    case 'restart': {
+      await surface.lab?.close?.().catch(() => {})
+      surface.lab = null
+      await launched.close().catch(() => {})
+      saveVendorHits()
+      launched = await launchNomiApp(launchOptions)
+      app = launched.app
+      appPid = app.process()?.pid ?? null
+      win = launched.win
+      wireWin(win)
+      app.on('window', (w) => { wireWin(w); logErr('window', 'new window seen'); void applySize(w) })
+      await win.waitForLoadState('domcontentloaded')
+      await win.waitForTimeout(800)
+      state.appPid = appPid
+      writeUiIpcFile(path.join(DIR, 'state.json'), JSON.stringify(state, null, 2))
+      return { ok: 'restarted', appPid, shot: await shot('restarted') }
+    }
     case 'quit': return { quit: true }
     default: return { error: 'unknown action: ' + cmd.action }
   }
@@ -411,6 +438,7 @@ await surface.lab?.close?.().catch(() => {})
 await launched.close().catch(() => {})
 saveVendorHits()
 await fakeVendor?.close()
+if (tempRoot) cleanupTempRoot(tempRoot)
 releaseLock()
 console.log(`DRIVER STOPPED（证据留在 ${OUT}）`)
 process.exit(0)

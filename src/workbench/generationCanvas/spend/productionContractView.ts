@@ -1,5 +1,5 @@
-import type { ProductionGate, ProductionRun, TrustLevel } from '../../../../electron/productionRun/productionRunTypes'
-import { trustLevelOf } from '../../../../electron/productionRun/productionRunTypes'
+import type { ProductionGate, ProductionRun, TrustLevel } from '../../../../electron/shared/contracts/productionRunTypes'
+import { trustLevelOf } from '../../../../electron/shared/contracts/productionRunTypes'
 import {
   evaluateProductionPolicyReadiness,
   type ProductionPolicyReadiness,

@@ -1,6 +1,7 @@
 import type { ModelParameterControl } from "../videoCapabilities/types";
 import type { ModelArchetype } from "./types";
 import { runwayImageParams } from "../imageCapabilities/runwayImageWireFacts";
+import { LAYER_SPLIT_MODE_ID, LAYER_SPLIT_WIRE_KEY } from "./modeForInputs";
 
 // Seedream 5.0 Pro（apimart，字节 Seed 2026-07-08 发布）——照 docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation.md 对账。
 // 与 seedream(4.5) 档案分开建：参数域不同——resolution 仅 1K/1.5K/2K（3K/4K 会 400；1.5K 与 1K 同价、画质更好，文档 2026-11-12 页面新增）、size 8 档 + auto
@@ -48,7 +49,12 @@ export const SEEDREAM_5_PRO_ARCHETYPE: ModelArchetype = {
       "POST /v1/images/generations，model `seedream-5-0-pro`；resolution 1K(文档默认)|1.5K|2K，3K/4K 返回 400；" +
       "size 为比例 / 档位关键词 / 精确像素；image_urls 最多 10 张；n>1 不支持。档案默认 2K（不变）。" +
       "output_format jpeg(默认)|png；watermark；background opaque(默认)|transparent（仅改图、需自带 alpha 的单张输入、必须 png）。" +
-      "nsfw_check 布尔（默认关，提交前审核提示词与输入图）。替创作者定：optimize_prompt_options 只有 standard 一档。待定：layer_decomposition（结果是底图 + 多张透明图层，不是单图）、精确像素 size。",
+      "nsfw_check 布尔（默认关，提交前审核提示词与输入图）。替创作者定：optimize_prompt_options 只有 standard 一档。待定：精确像素 size。",
+  }, {
+    url: "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation.md", checkedAt: "2026-11-26", vendorKey: "apimart",
+    covers:
+      "图层分离：layer_decomposition 布尔，一张底图 + 最多 16 张透明图层（共 17 张），层数不能选、不识别文字；结果形状同 5.5（url[] 与 layers[] 平行）。" +
+      "只 APIMart 这条线缆读 layer_decomposition（别家没有，layerSplitWireReady 判，入口与发送口都拒）。未经真付费核过（只核 5.5）。",
   }],
   // `seedream5_pro` 是 Runway 侧的判别串（同一个产品的第二家接入，P4：档案 = 模型身份，供应商无关）。
   identifierPatterns: ["doubao-seedream-5-0-pro", "seedream-5-0-pro", "seedream-5.0-pro", "seedream5_pro"],
@@ -76,6 +82,19 @@ export const SEEDREAM_5_PRO_ARCHETYPE: ModelArchetype = {
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 10, inputKey: "image_urls" }],
       params: PARAMS,
       vendorParams: { runway: RUNWAY_PARAMS, apimart: APIMART_EDIT_PARAMS },
+    },
+    {
+      // 5.0 Pro 的图层分离没有选项：层数写死（底图 + 最多 16 层），不识别文字，清晰度走上游默认。
+      id: LAYER_SPLIT_MODE_ID,
+      intent: "edit",
+      vendorTerm: "图层分离",
+      hint: "把一张图拆成底图 + 最多 16 张透明图层",
+      promptRequired: false,
+      transportTaskKind: "image_edit",
+      slots: [{ kind: "image_ref", label: "要拆的图", min: 1, max: 1, inputKey: "image_urls" }],
+      params: [],
+      fixedParams: { [LAYER_SPLIT_WIRE_KEY]: "true" },
+      layerSplit: { maxLayers: 17 },
     },
   ],
 };

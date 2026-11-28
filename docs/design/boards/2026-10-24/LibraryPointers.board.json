@@ -11,7 +11,7 @@
   },
   "visualReview": "用户 2026-10-24 在 Claude Design 画布「技能库与提示词库排版改版（0.24 探索）」第 48 版上把 10 个问题全按默认定（https://claude.ai/artifact/A7vtfvcPzy8zCWJUdrJn9y，私有，只有仓库主人能开）。",
   "designCard": "docs/plan/2026-10-23-skill-prompt-library-layout.md",
-  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。候选由 scripts/board-extract.mjs 的抽取函数（extractBoard + renderCandidatesFile，同样的浏览器设置）在拼页上抽出，两次抽取逐字节一致。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
+  "sourceBoundary": "板源 = Claude Design 画布第 52 版里「修后」画板的原样副本（source/*.dc.html；第 52 版与用户 10-24 拍板的第 48 版内容一致，只修了右上两颗图标与新抽屉描边的对齐，并把源码里的素材编号改写成整段素材路径、画面不变）+ 画布索引公开版（source/canvas.json：只留修后画板；带产品名的先例便签与私有待办编号去掉，先例见设计卡 ★0 与本清单 priorArt）。preview/<板>.html 是把这些画板用画布运行时渲染后去壳拼成的静态页：每格样式加前缀隔离，图片去掉 src（画布素材不进仓库），抽屉板去掉外壳真截图、详情板去掉背景里压暗的库页；preview/<画板>.webp 是同一渲染的截图（1440×900，WebP 质量 90）。「修前」画板（现役真截图）不进清单，只作旧功能普查的 before 依据。",
   "designIntent": "别处只指回家：Agent「/」行、输入框芯片、节点「提示词预设」行与库里条目同一张缩略图、同一个名字；分类叫法与库一致；芯片按家分图标。",
   "artboards": [
     "Pointers"
@@ -109,14 +109,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "002-aside-Agent斜杠菜单",
-        "007-div-技能创作流程",
-        "014-div-提示词运镜"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.agent-slash.panel"
+      "assertions": ["board:LibraryPointers/pointers.agent-slash.panel"]
     },
     {
       "id": "pointers.agent-slash.search",
@@ -126,12 +122,10 @@
         "empty",
         "zh-en"
       ],
-      "candidates": [
-        "003-div-搜索技能和提示词"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.agent-slash.search"
+      "assertions": ["board:LibraryPointers/pointers.agent-slash.search"]
     },
     {
       "id": "pointers.agent-slash.categories",
@@ -141,14 +135,10 @@
         "selected",
         "zh-en"
       ],
-      "candidates": [
-        "004-span-全部",
-        "005-span-技能",
-        "006-span-提示词"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.agent-slash.categories"
+      "assertions": ["board:LibraryPointers/pointers.agent-slash.categories"]
     },
     {
       "id": "pointers.agent-slash.row",
@@ -161,21 +151,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "008-img",
-        "009-span-品牌宣传片",
-        "010-span-做产品品牌宣传片把产品文",
-        "011-img",
-        "012-span-分镜规划",
-        "013-span-把短故事拆成有序镜头整理",
-        "015-span-推轨跟拍",
-        "016-span-Smoothdollyt",
-        "017-span-过肩对话",
-        "018-span-Longlensover"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.agent-slash.row"
+      "assertions": ["board:LibraryPointers/pointers.agent-slash.row"]
     },
     {
       "id": "pointers.agent-slash.footer",
@@ -185,12 +164,10 @@
         "hover",
         "zh-en"
       ],
-      "candidates": [
-        "019-div-去Skill库"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.agent-slash.footer"
+      "assertions": ["board:LibraryPointers/pointers.agent-slash.footer"]
     },
     {
       "id": "pointers.agent-chip",
@@ -202,21 +179,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "020-span-分镜规划",
-        "021-svg",
-        "022-button-移除",
-        "023-svg",
-        "024-span-继续告诉Nomi要改什么",
-        "025-span-推轨跟拍",
-        "026-svg",
-        "027-button-移除",
-        "028-svg",
-        "029-span-继续告诉Nomi要改什么"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.agent-chip"
+      "assertions": ["board:LibraryPointers/pointers.agent-chip"]
     },
     {
       "id": "pointers.node-picker.panel",
@@ -226,13 +192,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "030-aside-节点提示词预设",
-        "036-div-构图8"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.node-picker.panel"
+      "assertions": ["board:LibraryPointers/pointers.node-picker.panel"]
     },
     {
       "id": "pointers.node-picker.search",
@@ -242,12 +205,10 @@
         "empty",
         "zh-en"
       ],
-      "candidates": [
-        "031-div-搜索提示词"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.node-picker.search"
+      "assertions": ["board:LibraryPointers/pointers.node-picker.search"]
     },
     {
       "id": "pointers.node-picker.categories",
@@ -257,15 +218,10 @@
         "selected",
         "zh-en"
       ],
-      "candidates": [
-        "032-span-全部",
-        "033-span-我的",
-        "034-span-内置",
-        "035-span-公开库"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.node-picker.categories"
+      "assertions": ["board:LibraryPointers/pointers.node-picker.categories"]
     },
     {
       "id": "pointers.node-picker.row",
@@ -278,17 +234,10 @@
         "zh-en",
         "dark"
       ],
-      "candidates": [
-        "037-span-画框构图",
-        "038-span-subjectframe",
-        "039-span-对角线构图",
-        "040-span-Strongdiagon",
-        "041-span-绝对对称",
-        "042-span-Deadcentersy"
-      ],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
-      "assertion": "board:LibraryPointers/pointers.node-picker.row"
+      "assertions": ["board:LibraryPointers/pointers.node-picker.row"]
     },
     {
       "id": "pointers.agent-skill-button",
@@ -298,11 +247,11 @@
         "selected",
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "不在本板画面。",
-      "assertion": "board:LibraryPointers/pointers.agent-skill-button"
+      "assertions": ["board:LibraryPointers/pointers.agent-skill-button"]
     },
     {
       "id": "pointers.message-badge",
@@ -311,7 +260,7 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-libraries",
       "note": "不在本板画面；只认技能的问题另修。"
@@ -324,11 +273,11 @@
         "empty",
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "不在本板画面。",
-      "assertion": "board:LibraryPointers/pointers.node-empty-chips"
+      "assertions": ["board:LibraryPointers/pointers.node-empty-chips"]
     },
     {
       "id": "pointers.rewrite-skill-chip",
@@ -337,11 +286,11 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "不在本板画面。",
-      "assertion": "board:LibraryPointers/pointers.rewrite-skill-chip"
+      "assertions": ["board:LibraryPointers/pointers.rewrite-skill-chip"]
     },
     {
       "id": "pointers.unchanged-elsewhere",
@@ -350,15 +299,12 @@
       "states": [
         "zh-en"
       ],
-      "candidates": [],
+      "anchor": "未定",
       "status": "implemented",
       "owner": "I-libraries",
       "note": "实现时只核不改。",
-      "assertion": "board:LibraryPointers/pointers.unchanged-elsewhere"
+      "assertions": ["board:LibraryPointers/pointers.unchanged-elsewhere"]
     }
-  ],
-  "decor": [
-    "001-h3-指向元素对齐只标名字和脸"
   ],
   "functionCensus": [
     {

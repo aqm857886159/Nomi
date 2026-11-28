@@ -15,7 +15,6 @@ import {
   confirmDialog,
 } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { EVERY_VARIANT, resolveModelArchetype } from '../../../electron/shared/modelArchetypes'
 import { getTextBrain } from '../../workbench/api/promptLibraryApi'
 import { runWorkbenchTextTaskStream, textTaskFailureText } from '../../workbench/api/taskApi'
 import { stripCodeFences } from './customCallIntent'
@@ -23,9 +22,9 @@ import { configPatchFromRows, configRowsFromMaskedEntries, hasCustomConfig, type
 import {
   customCallScriptPatch,
   readCustomCallScriptDrafts,
+  requiresCustomCallCapabilitySetup,
   resolveCustomCallScriptModes,
   updateCustomCallScriptDraft,
-  type CustomCallCatalogModel,
   type CustomCallScriptDrafts,
 } from './customCallScriptModes'
 import { CustomCallScopeSelector } from './CustomCallScopeSelector'
@@ -33,7 +32,7 @@ import { customCallPersistedStateSignature } from './customCallEditorDirty'
 import { CustomCallContractSidebar } from './CustomCallContractSidebar'
 import { CUSTOM_CALL_NAME_CLASS, CustomCallTitle } from './CustomCallTitle'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
-import { useCustomCallTestRun } from './useCustomCallTestRun'
+import { useCustomCallCatalogModel, useCustomCallTestRun } from './useCustomCallTestRun'
 
 export type CustomCallTarget = {
   vendorKey: string
@@ -77,22 +76,7 @@ export function CustomCallEditor({
 
   const bridge = getDesktopBridge()
   const targetKey = target ? `${target.vendorKey}\0${target.modelKey}` : ''
-  // 目录读是异步 IPC：按 targetKey 读一次落进 state（原始键作依赖：父组件刷新不许冲掉正在编辑的草稿）。
-  const [catalogModel, setCatalogModel] = React.useState<CustomCallCatalogModel | null>(null)
-  React.useEffect(() => {
-    setCatalogModel(null)
-    if (!target || !bridge) return
-    let alive = true
-    void Promise.resolve(bridge.modelCatalog.listModels({ vendorKey: target.vendorKey }))
-      .then((models) => {
-        if (!alive) return
-        const found = (models as CustomCallCatalogModel[]).find((model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey)
-        setCatalogModel(found ?? null)
-      })
-      .catch(() => { if (alive) setCatalogModel(null) })
-    return () => { alive = false }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bridge, targetKey])
+  const catalogModel = useCustomCallCatalogModel(target, targetKey)
   const scriptModes = React.useMemo(
     () => resolveCustomCallScriptModes(catalogModel, !target?.draft),
     [catalogModel, target?.draft],
@@ -103,23 +87,12 @@ export function CustomCallEditor({
   const script = selectedModeId ? scriptDrafts.modes[selectedModeId] ?? '' : scriptDrafts.fallback
   const { test, runTest, cancelTest } = useCustomCallTestRun({ target, script, selectedMode })
   const selectedScopeLabel = selectedMode?.label ?? t('onboardingProviders.customCall.scopeFallback')
-  const savedScripts = React.useMemo(
-    () => readCustomCallScriptDrafts(catalogModel, target?.script ?? ''),
-    [catalogModel, target?.script],
-  )
-  const hasSavedScript = Boolean(
-    (selectedModeId ? savedScripts.modes[selectedModeId] : savedScripts.fallback)?.trim(),
-  )
-  const savedScriptForSelectedScope = selectedModeId
-    ? savedScripts.modes[selectedModeId] ?? ''
-    : savedScripts.fallback
+  const savedScripts = React.useMemo(() => readCustomCallScriptDrafts(catalogModel, target?.script ?? ''), [catalogModel, target?.script])
+  const savedScriptForSelectedScope = selectedModeId ? savedScripts.modes[selectedModeId] ?? '' : savedScripts.fallback
+  const hasSavedScript = Boolean(savedScriptForSelectedScope.trim())
   const testPassed = test.phase === 'done' && test.ok
   const testOutcome = test.phase === 'done' ? test.ok : null
-  const requiresCapabilitySetup = Boolean(
-    catalogModel &&
-    catalogModel.kind !== 'text' &&
-    !resolveModelArchetype(catalogModel, { variant: EVERY_VARIANT }),
-  )
+  const requiresCapabilitySetup = requiresCustomCallCapabilitySetup(catalogModel)
 
   const setScriptForMode = React.useCallback((modeId: string | null, value: string) => {
     setScriptDrafts((drafts) => updateCustomCallScriptDraft(drafts, modeId, value))
@@ -356,6 +329,8 @@ export function CustomCallEditor({
     defaultValue: contract?.returnContract ?? '',
   })
   const testBusy = test.phase === 'running' || test.phase === 'cancelling'
+  const unsupportedScopeReason = selectedMode?.unsupportedReasonKey ? t(selectedMode.unsupportedReasonKey) : ''
+  const testPrimaryHint = unsupportedScopeReason || (!script.trim() ? t('onboardingProviders.customCall.testNeedsScript') : undefined)
   const dirty = Boolean(target && initialPersistedState.targetKey === targetKey && customCallPersistedStateSignature(scriptDrafts, configRows) !== initialPersistedState.signature)
   const runOrCancelTest = React.useCallback(async () => {
     if (testBusy) {
@@ -428,7 +403,7 @@ export function CustomCallEditor({
           {t('onboardingProviders.customCall.saveDraft')}
         </DesignButton>
       ) : undefined}
-      {...(testPassed
+      {...(testPassed && !unsupportedScopeReason
         ? {
           primaryLabel: requiresCapabilitySetup
             ? t('onboardingProviders.customCall.saveAndContinueCapability')
@@ -451,8 +426,8 @@ export function CustomCallEditor({
             </>
           ),
           onPrimary: () => { void runOrCancelTest() },
-          primaryDisabled: test.phase === 'cancelling' || (!testBusy && !script.trim()),
-          ...(!script.trim() ? { primaryHint: t('onboardingProviders.customCall.testNeedsScript') } : {}),
+          primaryDisabled: Boolean(unsupportedScopeReason) || test.phase === 'cancelling' || (!testBusy && !script.trim()),
+          ...(testPrimaryHint ? { primaryHint: testPrimaryHint } : {}),
           ...(testBusy ? { tone: 'danger' as const } : {}),
         })}
     />

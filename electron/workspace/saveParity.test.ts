@@ -1,7 +1,8 @@
-// 保存对外行为对照（设计卡 docs/plan/2026-11-13-save-hotpath-safe-subset.md ★9）：同一批输入跑真 saveWorkspaceProject，
-// 把「盘上文件集合 + 每个文件内容、修订号、备份、回执、错误类型和文字、同步等待档位」压成一份指纹，和 origin/main
-// （e45202755）上录下的那份逐字比。任何一处不同都红——这份测试只许在「有意改保存行为、并写明等价或已获批」时更新。
-// 故障按「项目目录 / 设置目录 + 哪种 fs 调用 + 第几次」注入（同 saveFaultSweep 的写法）；原地睡用假时钟跳过、只记请求的毫秒数。
+// 保存对外行为对照（设计卡 docs/plan/2026-11-13-save-hotpath-safe-subset.md ★9；2026-11-28 SM-durable
+// docs/plan/2026-11-28-sm-durable-atomically.md 将保存原子写与锁释放切至异步 atomically，syncWait.sleeps 归零）：
+// 同一批输入跑真 saveWorkspaceProject，把「盘上文件集合 + 每个文件内容、修订号、备份、回执、错误类型和文字、同步等待档位」
+// 压成一份指纹逐字比。任何一处不同都红——这份测试只许在「有意改保存行为、并写明等价或已获批」时更新。
+// 故障按「项目目录 / 设置目录 + 哪种 fs 调用 + 第几次」注入（同 saveFaultSweep 的写法）。
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -28,10 +29,18 @@ type Fault = Readonly<{
 }>;
 
 const native = {
+  readFile: fs.readFile.bind(fs),
+  rename: fs.rename.bind(fs),
+  writeFile: fs.writeFile.bind(fs),
   readFileSync: fs.readFileSync.bind(fs),
   renameSync: fs.renameSync.bind(fs),
   writeFileSync: fs.writeFileSync.bind(fs),
   rmSync: fs.rmSync.bind(fs),
+};
+const nativePromises = {
+  readFile: fs.promises.readFile.bind(fs.promises),
+  rename: fs.promises.rename.bind(fs.promises),
+  writeFile: fs.promises.writeFile.bind(fs.promises),
 };
 const roots: string[] = [];
 const previousDurability = getDurabilityMode();
@@ -59,8 +68,9 @@ function listFiles(root: string): string[] {
 }
 
 async function runSave(fault?: Fault) {
-  vi.useFakeTimers();
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
   vi.setSystemTime(new Date("2026-11-13T00:00:00Z"));
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
   setDurabilityMode("durable");
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-save-parity-")));
   roots.push(root);
@@ -107,29 +117,74 @@ async function runSave(fault?: Fault) {
     return "timed-out";
   });
   vi.spyOn(fs, "fsyncSync").mockImplementation(() => undefined);
+  vi.spyOn(fs, "fsync").mockImplementation(((_fd: number, cb: (err: NodeJS.ErrnoException | null) => void) => {
+    process.nextTick(() => cb(null));
+  }) as typeof fs.fsync);
   vi.spyOn(fs, "readFileSync").mockImplementation(((...args: Parameters<typeof fs.readFileSync>) => {
     maybeFail("read", args[0]);
     return native.readFileSync(...args);
   }) as typeof fs.readFileSync);
+  vi.spyOn(fs, "readFile").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1] as (err: unknown) => void;
+    try { maybeFail("read", args[0]); } catch (err) { process.nextTick(() => cb(err)); return; }
+    return (native.readFile as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.readFile);
+  vi.spyOn(fs.promises, "readFile").mockImplementation((async (...args: Parameters<typeof fs.promises.readFile>) => {
+    maybeFail("read", args[0]);
+    return nativePromises.readFile(...args);
+  }) as typeof fs.promises.readFile);
   vi.spyOn(fs, "writeFileSync").mockImplementation((...args: Parameters<typeof fs.writeFileSync>) => {
     // 写进 fd 的那一次：按 fd 打开时的临时文件名认不出来，只在给了 file 的故障里按「下一个改名目标」间接注入，这里不认 fd。
     if (typeof args[0] !== "number") maybeFail("write", args[0]);
     return native.writeFileSync(...args);
   });
+  vi.spyOn(fs, "writeFile").mockImplementation(((...args: unknown[]) => {
+    const cb = args[args.length - 1] as (err: unknown) => void;
+    try {
+      if (typeof args[0] !== "number") maybeFail("write", args[0]);
+    } catch (err) {
+      process.nextTick(() => cb(err));
+      return;
+    }
+    return (native.writeFile as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof fs.writeFile);
+  vi.spyOn(fs.promises, "writeFile").mockImplementation((async (...args: Parameters<typeof fs.promises.writeFile>) => {
+    if (typeof args[0] !== "number") maybeFail("write", args[0]);
+    return nativePromises.writeFile(...args);
+  }) as typeof fs.promises.writeFile);
   vi.spyOn(fs, "renameSync").mockImplementation((...args: Parameters<typeof fs.renameSync>) => {
     maybeFail("rename", args[1]);
     native.renameSync(...args);
     if (inProject(args[1])) renamed.add(path.basename(String(args[1])));
   });
+  vi.spyOn(fs, "rename").mockImplementation(((from: fs.PathLike, to: fs.PathLike, cb: fs.NoParamCallback) => {
+    try { maybeFail("rename", to); } catch (err) { process.nextTick(() => cb(err as NodeJS.ErrnoException)); return; }
+    native.rename(from, to, (err) => {
+      if (!err && inProject(to)) renamed.add(path.basename(String(to)));
+      cb(err);
+    });
+  }) as typeof fs.rename);
+  vi.spyOn(fs.promises, "rename").mockImplementation((async (from: fs.PathLike, to: fs.PathLike) => {
+    maybeFail("rename", to);
+    await nativePromises.rename(from, to);
+    if (inProject(to)) renamed.add(path.basename(String(to)));
+  }) as typeof fs.promises.rename);
 
   let error: unknown;
   let saved: unknown;
+  let settled = false;
   const startedAt = Date.now();
   const pending = saveWorkspaceProject(created.id, { payload: { text: "after" } }, deps).then(
-    (value) => { saved = value; },
-    (reason: unknown) => { error = reason; },
+    (value) => { saved = value; settled = true; },
+    (reason: unknown) => { error = reason; settled = true; },
   );
-  await vi.runAllTimersAsync();
+  for (let turn = 0; !settled && turn < 4096; turn += 1) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (!settled && vi.getTimerCount() > 0) {
+      await vi.advanceTimersByTimeAsync(10);
+    }
+  }
   await pending;
   const elapsedMs = Date.now() - startedAt;
   active = false;
@@ -263,8 +318,8 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
         "name": "Parity",
         "version": 2,
         "createdAt": 1794528000000,
-        "updatedAt": 1794528000400,
-        "savedAt": 1794528000400,
+        "updatedAt": 1794528000300,
+        "savedAt": 1794528000300,
         "revision": 1,
         "immutableProjectUuid": "<uuid>",
         "projectGeneration": 1,
@@ -279,7 +334,7 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
           "id": "<id>",
           "name": "Parity",
           "rootPath": "<root>/projects/project",
-          "lastOpenedAt": 1794528000400,
+          "lastOpenedAt": 1794528000300,
           "missing": false,
           "source": "native",
           "nativeRootPath": "<root>/projects"
@@ -302,21 +357,13 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
           "rename owner.json",
           "rename owner.json",
           "rename owner.json",
-          "rename owner.json",
-          "rename owner.json",
         ],
-        "receipt": "{"id":"<id>","name":"Parity","version":2,"createdAt":1794528000000,"updatedAt":1794528000400,"savedAt":1794528000400,"revision":1,"immutableProjectUuid":"<uuid>","projectGeneration":1,"lastKnownRootPath":"<root>/projects/project","payload":{"text":"after"}}",
+        "receipt": "{"id":"<id>","name":"Parity","version":2,"createdAt":1794528000000,"updatedAt":1794528000300,"savedAt":1794528000300,"revision":1,"immutableProjectUuid":"<uuid>","projectGeneration":1,"lastKnownRootPath":"<root>/projects/project","payload":{"text":"after"}}",
         "revision": 1,
         "syncWait": {
-          "elapsedMs": 400,
-          "sleeps": [
-            10,
-            30,
-            60,
-            100,
-            200,
-          ],
-          "totalMs": 400,
+          "elapsedMs": 300,
+          "sleeps": [],
+          "totalMs": 0,
         },
       }
     `);
@@ -404,20 +451,13 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
           "rename owner.json",
           "rename owner.json",
           "rename owner.json",
-          "rename owner.json",
         ],
         "receipt": null,
         "revision": 0,
         "syncWait": {
           "elapsedMs": 400,
-          "sleeps": [
-            10,
-            30,
-            60,
-            100,
-            200,
-          ],
-          "totalMs": 400,
+          "sleeps": [],
+          "totalMs": 0,
         },
       }
     `);
@@ -739,7 +779,7 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
           "id": "<id>",
           "name": "Parity",
           "rootPath": "<root>/projects/project",
-          "lastOpenedAt": 1794528000400,
+          "lastOpenedAt": 1794528000300,
           "missing": false,
           "source": "native",
           "nativeRootPath": "<root>/projects"
@@ -762,21 +802,13 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
           "rename project.json",
           "rename project.json",
           "rename project.json",
-          "rename project.json",
-          "rename project.json",
         ],
         "receipt": "{"id":"<id>","name":"Parity","version":2,"createdAt":1794528000000,"updatedAt":1794528000000,"savedAt":1794528000000,"revision":1,"immutableProjectUuid":"<uuid>","projectGeneration":1,"lastKnownRootPath":"<root>/projects/project","payload":{"text":"after"}}",
         "revision": 1,
         "syncWait": {
-          "elapsedMs": 400,
-          "sleeps": [
-            10,
-            30,
-            60,
-            100,
-            200,
-          ],
-          "totalMs": 400,
+          "elapsedMs": 300,
+          "sleeps": [],
+          "totalMs": 0,
         },
       }
     `);
@@ -864,20 +896,13 @@ describe("保存对外行为对照（和 origin/main 录下的指纹逐字相同
           "rename project.json",
           "rename project.json",
           "rename project.json",
-          "rename project.json",
         ],
         "receipt": null,
         "revision": 0,
         "syncWait": {
           "elapsedMs": 400,
-          "sleeps": [
-            10,
-            30,
-            60,
-            100,
-            200,
-          ],
-          "totalMs": 400,
+          "sleeps": [],
+          "totalMs": 0,
         },
       }
     `);

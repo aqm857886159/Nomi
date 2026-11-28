@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { writeFileAtomicSync } from '../lib/atomicFile.mjs'
 
 const require = createRequire(import.meta.url)
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -26,9 +27,7 @@ const outputRoot = path.join(root, 'docs/design/covers')
 const ledgerPath = path.join(outputRoot, 'generation-receipt.json')
 
 function saveLedger(ledger) {
-  fs.mkdirSync(outputRoot, { recursive: true })
-  fs.writeFileSync(`${ledgerPath}.tmp`, `${JSON.stringify(ledger, null, 2)}\n`)
-  fs.renameSync(`${ledgerPath}.tmp`, ledgerPath)
+  writeFileAtomicSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`)
 }
 function getEntries() {
   const { parseSkillFrontmatter } = require(path.join(root, 'dist-electron/skills/skillFrontmatter.js'))

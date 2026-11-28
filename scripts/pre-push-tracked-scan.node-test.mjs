@@ -15,7 +15,6 @@ export const REPO_SCAN_BASELINE = Object.freeze([
   'scripts/check-board-parity.mjs',
   'scripts/check-capability-lifecycle.mjs',
   'scripts/check-control-contract.mjs',
-  'scripts/check-canvas-edge-writers.mjs',
   'scripts/check-canvas-gesture-determinism.mjs',
   'scripts/check-dangling-tailwind.mjs',
   'scripts/check-design-lab.mjs',

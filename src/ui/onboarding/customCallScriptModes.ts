@@ -5,6 +5,7 @@ import {
   type ArchetypeReferenceSlot,
   type ArchetypeTransportTaskKind,
 } from '../../../electron/shared/modelArchetypes'
+import { isLayerSplitMode } from '../../../electron/shared/modelArchetypes/modeForInputs'
 import type { ModelParameterControl } from '../../config/modelCatalogMeta'
 
 export type CustomCallCatalogModel = {
@@ -26,6 +27,7 @@ export type CustomCallScriptMode = {
   slots: ArchetypeReferenceSlot[]
   parameters: ModelParameterControl[]
   fixedParams: Record<string, string>
+  unsupportedReasonKey?: 'onboardingProviders.customCall.scopeUnsupportedLayerSplit'
 }
 
 export type CustomCallScriptDrafts = {
@@ -67,6 +69,7 @@ export function resolveCustomCallScriptModes(
       options: parameter.options.map((option) => ({ ...option })),
     })),
     fixedParams: { ...(mode.fixedParams ?? {}) },
+    ...(isLayerSplitMode(mode) ? { unsupportedReasonKey: 'onboardingProviders.customCall.scopeUnsupportedLayerSplit' as const } : {}),
   }))
 }
 
@@ -100,4 +103,8 @@ export function updateCustomCallScriptDraft(
 export function customCallScriptPatch(modeId: string | null, script: string): UnknownRecord {
   if (!modeId) return { script }
   return { modes: { [modeId]: script.trim() ? { script } : null } }
+}
+
+export function requiresCustomCallCapabilitySetup(model: CustomCallCatalogModel | null): boolean {
+  return Boolean(model && model.kind !== 'text' && !resolveModelArchetype(model, { variant: EVERY_VARIANT }))
 }

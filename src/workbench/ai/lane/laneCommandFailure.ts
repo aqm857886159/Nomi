@@ -148,6 +148,10 @@ function assistantFaultText(fault: LaneAssistantFault, t: Translate): string {
   switch (fault.kind) {
     case 'context-overflow': return t('agentResident.faultContextOverflow')
     case 'stream-cut': return t('agentResident.faultStreamCut')
+    case 'output-truncated':
+      return fault.cutToolCall
+        ? t('agentResident.faultOutputTruncatedToolCall')
+        : t('agentResident.faultOutputTruncated')
     case 'model-timeout':
       return fault.phase === 'first-response' ? t('agentResident.faultFirstResponse', { seconds: fault.seconds })
         : fault.phase === 'first-token' ? t('agentResident.faultFirstToken', { seconds: fault.seconds })

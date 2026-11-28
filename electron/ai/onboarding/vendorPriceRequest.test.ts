@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { applyBuiltinSeeds } from '../../catalog/seedBuiltins'
 import { priceQueryFromRequest } from './vendorPriceRequest'
 import type { VendorPriceRequest } from '../../shared/contracts/vendorPricePreview'
+import { createGenerationNode } from '../../../src/workbench/generationCanvas/model/graphOps'
+import { priceRequest } from '../../../src/workbench/generationCanvas/spend/useNodePricePreview'
 
 const seeded = () => applyBuiltinSeeds({ version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, '2026-11-08T00:00:00Z').state
 const mini: VendorPriceRequest = {
@@ -79,5 +81,42 @@ describe('Seedance 2.5 text-to-video shows a price (output_format / return_last_
     const request: VendorPriceRequest = { vendorKey: 'apimart', request: { kind: 'text_to_image', prompt: 'x',
       extras: { modelKey, archetype: { id: modelKey, modeId: 't2i' }, archetypeInput: { size: '1:1', resolution: '2K' } } } }
     expect(priceQueryFromRequest(request, catalog)).toBeNull()
+  })
+})
+
+// 图层分离（设计卡 docs/plan/2026-11-26-layer-split.md ★9 第 8 条）：请求从渲染层发送键那一个取数口（priceRequest）来，
+// 不手拼——节点 meta 怎么存、参考怎么解，和真发送同一条。
+// 反例：把 priceQueryFromRequest 里「改图只有图层分离能算」那一行删掉 → 普通改图也去问价（第三条红）；
+// 把层数上限的读法删掉 → 查询里没有 layerSplit（第一条红）。
+describe('layer split asks for the reservation quote (layer cap + input image), nothing else in image edit does', () => {
+  const layerNode = (meta: Record<string, unknown>) => {
+    const node = createGenerationNode({ id: 'layer-node', kind: 'image', prompt: '' })
+    node.meta = { modelVendor: 'apimart', vendor: 'apimart', referenceImageUrls: ['nomi-local://asset/source.png'], ...meta }
+    return priceRequest(node, { nodes: [node], edges: [] })!
+  }
+  const seedream55 = { modelKey: 'seedream-5-5', archetype: { id: 'seedream-5-5', modeId: 'layers' } }
+
+  it('defaults: 30 layers, auto tier, one input image', () => {
+    const query = priceQueryFromRequest(layerNode(seedream55), seeded())
+    expect(query).toMatchObject({ kind: 'image', modelId: 'seedream-5-5', size: 'auto', count: 1, referenceCount: 1, layerSplit: { maxImages: 30 } })
+  })
+
+  it('0 images yet (reference removed): still a layer-split query, so the greyed send key keeps its price', () => {
+    const node = createGenerationNode({ id: 'layer-node', kind: 'image', prompt: '' })
+    node.meta = { modelVendor: 'apimart', vendor: 'apimart', ...seedream55 }
+    const query = priceQueryFromRequest(priceRequest(node, { nodes: [node], edges: [] })!, seeded())
+    expect(query).toMatchObject({ kind: 'image', modelId: 'seedream-5-5', referenceCount: 1, layerSplit: { maxImages: 30 } })
+  })
+
+  it('reads the chosen layer cap and tier', () => {
+    const query = priceQueryFromRequest(layerNode({ ...seedream55, layer_count: 8, layer_size: '1.5K' }), seeded())
+    expect(query).toMatchObject({ size: '1.5K', layerSplit: { maxImages: 8 } })
+  })
+
+  it('a plain edit with an input image, and 5.0 Pro layer split (no layer cap in the request), ask for no quote', () => {
+    expect(priceQueryFromRequest(layerNode({ ...seedream55, archetype: { id: 'seedream-5-5', modeId: 'edit' } }), seeded())).toBeNull()
+    const pro = layerNode({ modelKey: 'doubao-seedream-5-0-pro', archetype: { id: 'seedream-5-pro', modeId: 'layers' } })
+    expect(pro.request.kind).toBe('image_edit')
+    expect(priceQueryFromRequest(pro, seeded())).toBeNull()
   })
 })

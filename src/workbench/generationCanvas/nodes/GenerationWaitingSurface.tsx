@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import { ProgressRevealCanvas } from './ProgressRevealCanvas'
 /** Shared image/video boundary: no fabricated image, and final output cannot retain an overlay. */
 export function GenerationWaitingSurface({ audio = false, previewUrl, finalUrl, completed = false, onComplete,
-  previewLabel, percent, zoom = 1, inViewport = true, progressReveal, label }: {
+  previewLabel, percent, zoom = 1, inViewport = true, progressReveal, label, boardAnchor }: {
   audio?: boolean
   previewUrl?: string
   finalUrl?: string
@@ -18,12 +18,13 @@ export function GenerationWaitingSurface({ audio = false, previewUrl, finalUrl, 
   progressReveal?: { ratio: number; imageUrl?: string }
   /** 过程中的左上角小标签（完成即消失；不新增常驻控件）。 */
   label?: string
+  boardAnchor?: string
 }): JSX.Element {
   React.useEffect(() => {
     if (completed) onComplete?.()
   }, [completed, onComplete])
   const source = progressReveal ? undefined : completed ? finalUrl : previewUrl
-  return <div data-generation-waiting data-process-zoom={zoom} data-process-in-viewport={inViewport}
+  return <div data-generation-waiting data-board={boardAnchor} data-process-zoom={zoom} data-process-in-viewport={inViewport}
     className="absolute inset-0 overflow-hidden rounded-nomi bg-nomi-ink-05 pointer-events-none">
     {!audio ? <div data-process-static-grid aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,var(--nomi-ink-20),var(--nomi-ink-05)_70%)] [mask-image:repeating-linear-gradient(90deg,var(--nomi-ink)_0_14px,transparent_14px_16px),repeating-linear-gradient(0deg,var(--nomi-ink)_0_14px,transparent_14px_16px)] [mask-composite:intersect]" /> : null}
     {progressReveal ? <ProgressRevealCanvas imageUrl={progressReveal.imageUrl} ratio={progressReveal.ratio} /> : null}

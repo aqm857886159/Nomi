@@ -51,6 +51,12 @@ describe('pending media action', () => {
     expect(plain).not.toContain('data-node-try')
     expect(plain).not.toContain('derivedReady')
   })
+
+  it('派生出来但提示词是空的（图层分离：留空即自动拆）：不说「提示词已填好」，只留「选中它，点 ↑ 才开始生成」', () => {
+    const empty = html({ node: { ...node('image'), prompt: '' }, selected: false, derivedReady: true })
+    expect(empty).not.toContain('nodeEmpty.derivedReady.title')
+    expect(empty).toContain('nodeEmpty.derivedReady.description')
+  })
 })
 
 // 用户 10-08：「节点上那个什么试试以及那个大 icon 设计有点丑…排版都不对齐」→ Claude Design 拍板稿 EmptyStates：

@@ -47,8 +47,6 @@ const UNION_USERS = [
   'electron/shared/modelArchetypes/referenceKeys.ts',
   'electron/providerAdapter/promotionMeta.ts',
   'src/workbench/generationCanvas/model/storyboardOverrides.ts',
-  // 只问「这个模型有没有档案」，与哪一档无关。
-  'src/ui/onboarding/CustomCallEditor.tsx',
   // 名单层一行一模型（没分档的菜单行说的也是任一档）。
   'electron/catalog/agentModelEntriesFromCatalog.ts',
   'src/workbench/generationCanvas/agent/availableModels.ts',

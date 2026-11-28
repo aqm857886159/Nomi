@@ -32,7 +32,7 @@ import { useProductionCanvasLandingStore } from './productionCanvasLandingStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { receiptShotNodeIds } from '../ai/pointer/generationReceiptFacts'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
-import type { GenerationHandOver, ProductionRun } from '../../../electron/productionRun/productionRunTypes'
+import type { GenerationHandOver, ProductionRun } from '../../../electron/shared/contracts/productionRunTypes'
 import { IN_APP_AGENT_ORIGIN_HOST } from '../../../electron/shared/productionGenerationPresentation'
 
 const NOW = '2026-10-24T00:00:00.000Z'

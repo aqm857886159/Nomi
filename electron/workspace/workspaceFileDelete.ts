@@ -7,7 +7,7 @@ import { resolveWorkspaceFilePath } from "./workspaceFileIndex";
 import { broadcastAssetsUpdated } from "../assets/assetEvents";
 import type { ChildWindowProjectIssuer } from "../assets/projectInteractionCapture";
 
-type ProjectReader = (projectId: string) => unknown | null;
+type ProjectReader = (projectId: string) => unknown | Promise<unknown>;
 
 export function registerWorkspaceFileDeleteIpc({ readProject, childWindowProject }: { readProject: ProjectReader; childWindowProject: ChildWindowProjectIssuer }): void {
   // Child UI expresses deletion intent; the main renderer owns reference planning and undo.
@@ -36,7 +36,7 @@ export function registerWorkspaceFileDeleteIpc({ readProject, childWindowProject
     if (child && child.binding.projectId !== projectId) throw Object.assign(new Error("project_binding_stale"), { code: "project_binding_stale" });
     if (!relativePaths.length) return { ok: true, deletedCount: 0, failedCount: 0 };
 
-    const project = readProject(projectId) as { lastKnownRootPath?: unknown } | null;
+    const project = (await readProject(projectId)) as { lastKnownRootPath?: unknown } | null;
     const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
     if (!rootPath) throw new Error("Project folder is unavailable");
 

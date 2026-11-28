@@ -11,3 +11,7 @@
 *.icns binary
 
 marketing/pagefind/** binary
+
+docs/design/boards/**/source/** linguist-generated=true
+docs/design/boards/**/preview/** linguist-generated=true
+docs/evidence/** linguist-generated=true

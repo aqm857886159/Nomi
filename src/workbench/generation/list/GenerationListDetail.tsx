@@ -14,6 +14,7 @@ import { resolveLightweightNodePreview } from '../../generationCanvas/components
 import LazyNodeGenerationComposer from '../../generationCanvas/nodes/LazyNodeGenerationComposer'
 import { nodeHasGenerationComposer } from '../../generationCanvas/nodes/resolveRenderKind'
 import { nodeVersionEntries } from '../../generationCanvas/nodes/versionCards/nodeVersionEntries'
+import { NodeSampleRow } from '../../generationCanvas/nodes/sampleRow/NodeSampleRow'
 import { getGenerationNodeExecutionKind } from '../../generationCanvas/model/generationNodeKinds'
 import { resultIdentity } from '../../generationCanvas/model/nodeResultLifecycle'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
@@ -167,6 +168,8 @@ export function GenerationListDetail({ card, onBack }: { card: GenerationListCar
         <div className="mx-auto flex w-full max-w-[688px] flex-col px-8 pb-6 pt-1">
           <DetailPreview node={node} />
           {node ? <DetailVersions node={node} width={previewWidth} /> : null}
+          {/* 当前这一版是样片：和画布节点下方同一行（C-D8），在内容流里、和大预览同宽。 */}
+          {node ? <NodeSampleRow node={node} onFeedback={NO_FEEDBACK} flowWidth={previewWidth} /> : null}
           {node ? (
             nodeHasGenerationComposer(node.kind) ? (
               // 画布节点那张生成框原样（host="inline"：同一个组件、同一套排版，只是放在内容流里）；这里只给它一块地方。

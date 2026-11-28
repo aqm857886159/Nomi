@@ -874,6 +874,12 @@
   ],
   "retirements": [
     {
+      "contract": "docs/fixes/2026-08-29-agpl-only-no-cla.root-cause.json",
+      "path": "scripts/check-cla-workflow.node-test.mjs",
+      "symbol": "AGPL-only policy tests",
+      "reason": "2026-11-27 SM-gates-A 退役零真红灯墓碑门岗 check:cla-workflow 并整文件删除 scripts/check-cla-workflow.node-test.mjs（AGPL-only 已稳定且 CLA workflow 与签名账本早已删除；受保护分支直推风险由 check:workflow-protected-writes 持续守卫）。"
+    },
+    {
       "contract": "docs/fixes/2026-11-23-fa-local-blocks-and-unknown-telemetry.root-cause.json",
       "path": "src/workbench/generationCanvas/runner/generationRetryPolicy.ts",
       "symbol": "isRetryableGenerationError",
@@ -1463,11 +1469,6 @@
       "contract": "docs/fixes/2026-08-29-agpl-only-no-cla.root-cause.json",
       "path": "CLA.md",
       "symbol": "Nomi contribution policy"
-    },
-    {
-      "contract": "docs/fixes/2026-08-29-agpl-only-no-cla.root-cause.json",
-      "path": "scripts/check-cla-workflow.node-test.mjs",
-      "symbol": "AGPL-only policy tests"
     },
     {
       "contract": "docs/fixes/2026-09-01-creation-prosemirror-single-instance.root-cause.json",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readParameterReferenceContract } from './parameterReferenceContract'
+import { readParameterReferenceContract } from '../shared/contracts/parameterReferenceContract'
 
 const validSlot = { key: 'comfy_image_1', label: 'Reference', group: 'reference' }
 

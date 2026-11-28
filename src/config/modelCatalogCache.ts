@@ -130,6 +130,11 @@ async function getVendorNames(): Promise<Map<string, string>> {
   return vendorNamesPromise
 }
 
+/** 供应商显示名（内存里有就同步给；还没载 → undefined，调用方退回用 key）。挂载路径用，零 IO。 */
+export function peekVendorDisplayName(vendorKey: string): string | undefined {
+  return vendorNamesCache?.get(vendorKey.trim().toLowerCase())
+}
+
 /**
  * **全 App 唯一**一道「这个模型现在能不能用」的闸（2026-09-06 用户拍板放在这一层，
  * 2026-09-12 把判据本身收回主进程）：没接入的供应商、没走完认证的模型、钥匙解不开的家，

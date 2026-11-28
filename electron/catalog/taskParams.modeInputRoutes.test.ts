@@ -117,7 +117,16 @@ function scan(route: SendRoute): { cells: Cell[]; noMapping: number } {
 }
 
 /** 请求体真没有这个方式要的那一族素材的位置：APIMart 上 Suno V5.5 只有文生音乐那条路（续写 / 翻唱的原曲放不进去）。 */
-const ROUTE_MISSING = ["apimart/suno-v5.5/cover", "apimart/suno-v5.5/extend"];
+// 图层分离：5.0 Pro 与 Runway / fal 共用档案，那两家的线缆不读 layer_decomposition——发出去只是一次普通改图，发送前拒（taskParams 图层分离那一句）。
+const ROUTE_MISSING = ["apimart/suno-v5.5/cover", "apimart/suno-v5.5/extend", "fal/bytedance/seedream/v5/pro/layers", "runway/seedream5_pro/layers"];
+
+/** 图层分离在自定义脚本接管时确定拒发（自定义脚本拿不到拆图层回执契约，入口与发送口统一拒收）。 */
+const SCRIPT_ROUTE_MISSING = [
+  "apimart/doubao-seedream-5-0-pro/layers",
+  "apimart/seedream-5-5/layers",
+  "fal/bytedance/seedream/v5/pro/layers",
+  "runway/seedream5_pro/layers",
+];
 
 describe("性质：每个模型 × 每个方式，给足下限的素材，判定不许说「缺输入」", () => {
   it("按 mapping body 发（看得清）：缺输入 0 格；「这家没有这个方式」只在点名的格子", () => {
@@ -133,10 +142,14 @@ describe("性质：每个模型 × 每个方式，给足下限的素材，判定
     expect(cells.length).toBeGreaterThan(300);
   });
 
-  it("自定义脚本接管（看不清）：同一批格子，确定拒收 0 格", () => {
+  it("自定义脚本接管（看不清）：除图层分离确定拒收外，其余格子确定拒收 0 格", () => {
     const { cells } = scan(sendRouteFor("return 'x'"));
-    const refused = cells.filter((cell) => cell.outcome === "mode_input_missing" || cell.outcome === "mode_route_missing").map((cell) => `${cell.where}:${cell.outcome}`);
-    expect(refused).toEqual([]);
+    const missing = cells.filter((cell) => cell.outcome === "mode_input_missing").map((cell) => cell.where);
+    const routeMissing = cells.filter((cell) => cell.outcome === "mode_route_missing").map((cell) => cell.where).sort();
+    const others = cells.filter((cell) => cell.outcome.startsWith("other:")).map((cell) => cell.where).sort();
+    expect(missing).toEqual([]);
+    expect(routeMissing).toEqual(SCRIPT_ROUTE_MISSING);
+    expect(others).toEqual([]);
     expect(cells.length).toBeGreaterThan(300);
   });
 
@@ -224,6 +237,33 @@ describe("自定义脚本接管（目录里留着不带图的旧 mapping）", ()
     const record = await relayEdit("script-cc", false);
     expect(DEFINITE).not.toContain(record.failure?.code);
     expect(record.failure?.message).toMatch(/参考/);
+  });
+
+  it("图层分离挂了自定义脚本 → 发送前拒（脚本只返回裸地址、带不回图层坐标与顺序），零出网、不扣钱", async () => {
+    seedCustomVendor("script-layers");
+    upsertModelCatalogModel({
+      vendorKey: "script-layers",
+      modelKey: "seedream-5-5",
+      kind: "image",
+      enabled: true,
+      customCall: { modes: { layers: { script: "return 'data:image/png;base64,eA=='" } } },
+    });
+    upsertModelCatalogMapping({
+      vendorKey: "script-layers",
+      modelKey: "seedream-5-5",
+      taskKind: "image_edit",
+      name: "layers",
+      create: { method: "POST", path: "/layers", body: { prompt: "{{request.prompt}}", image_urls: "{{request.params.image_urls}}", layer_decomposition: "{{request.params.layer_decomposition}}" } },
+    });
+    const record = await driveEngineA(capture, {
+      vendorKey: "script-layers",
+      kind: "image_edit",
+      prompt: "",
+      extras: { modelKey: "seedream-5-5", nodeId: "parity-node", projectId: "parity-project", archetype: { id: "seedream-5-5", modeId: "layers" }, referenceImages: [IMG] },
+    });
+    expect(capture.calls).toHaveLength(0);
+    expect(record.failure?.code).toBe("mode_route_missing");
+    expect(record.failure?.message).toMatch(/自定义请求脚本|request scripts/);
   });
 });
 

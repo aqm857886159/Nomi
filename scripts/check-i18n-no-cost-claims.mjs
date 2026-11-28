@@ -73,13 +73,21 @@ export const COST_LABEL_EXACT = Object.freeze({
   'generationCommon.composer.sendCost.outputEstimate': Object.freeze({ 'zh-CN': '仅输出约 {{value}} 积分（{{usd}}）· 实际按 token 结算', en: 'Output estimate {{value}} credits ({{usd}}) · billed by actual tokens' }),
   'generationCommon.composer.sendCost.outputEstimateCny': Object.freeze({ 'zh-CN': '仅输出约 {{cny}}（{{value}} 积分）。按人民银行中间价（{{date}}，{{pair}}）估，实际按 token 结算。', en: 'Output estimate {{cny}} ({{value}} credits). Converted at PBOC midpoint ({{date}}, {{pair}}), billed by actual tokens.' }),
   'generationCommon.composer.sendCost.outputEstimateUsd': Object.freeze({ 'zh-CN': '仅输出约 {{usd}}（{{value}} 积分）。按 APIMart 公开价估，实际按 token 结算。', en: 'Output estimate {{usd}} ({{value}} credits). Estimated at the APIMart public rate, billed by actual tokens.' }),
+  // 按上限预扣的约价（口径 upper-bound，今天只有图层分离；板 2026-11-26-layer-split · layers.send-price）：键上「≤」，悬停这一句。
+  'generationCommon.composer.sendCost.upperBound': Object.freeze({ 'zh-CN': '最多约 {{value}} 积分（{{usd}}）。按 APIMart 公开价和层数上限估，实际按拆出的层数结算，出完按 APIMart 实际扣费记。', en: 'At most about {{value}} credits ({{usd}}). Estimated at the APIMart public rate for the layer limit; billed by the layers actually split out, recorded at the actual APIMart charge once done.' }),
+  'generationCommon.composer.sendCost.upperBoundCny': Object.freeze({ 'zh-CN': '最多约 {{cny}}（{{value}} 积分）。按 APIMart 公开价、层数上限与人民银行中间价（{{date}}，{{pair}}）估，实际按拆出的层数结算，出完按 APIMart 实际扣费记。', en: 'At most about {{cny}} ({{value}} credits). Converted at PBOC midpoint ({{date}}, {{pair}}) from the APIMart public rate for the layer limit; billed by the layers actually split out, recorded at the actual APIMart charge once done.' }),
+  'generationCommon.composer.sendCost.upperBoundUsd': Object.freeze({ 'zh-CN': '最多约 {{usd}}（{{value}} 积分）。按 APIMart 公开价和层数上限估，实际按拆出的层数结算，出完按 APIMart 实际扣费记。', en: 'At most about {{usd}} ({{value}} credits). Estimated at the APIMart public rate for the layer limit; billed by the layers actually split out, recorded at the actual APIMart charge once done.' }),
   'generationCommon.composer.sendCost.priceUnknown': Object.freeze({ 'zh-CN': '暂时估不出这次用量', en: 'No usage estimate yet' }),
+  // 同一条样片第二次出高清的确认框（板 SampleMode sample.confirm-second-hd，用户 2026-11-26 拍板原文；正文不印数）：只认这一句。
+  'generationCommon.sample.secondFinal.message': Object.freeze({ 'zh-CN': '再出一次会按 {{resolution}} 全价再扣一次。', en: 'Another one charges the full {{resolution}} price again.' }),
   'generationCommon.composer.sendCost.unitCredits': Object.freeze({ 'zh-CN': '积分', en: 'Credits' }),
   'generationCommon.composer.sendCostLowBalance.shortfall': Object.freeze({ 'zh-CN': '还差 {{value}} 积分', en: 'Short {{value}} credits' }),
   'generationCommon.composer.sendCostLowBalance.topUp': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
   'generationCommon.composer.sendCostLowBalance.topUpAria': Object.freeze({ 'zh-CN': '去 APIMart 充值（还差 {{value}} 积分）', en: 'Top up on APIMart (short {{value}} credits)' }),
   'generationCommon.composer.sendCostLowBalance.description': Object.freeze({ 'zh-CN': '当前余额约 {{balance}} 积分，这次约需 {{need}} 积分，还差 {{shortfall}} 积分。充值后返回即可继续生成。', en: 'Current balance is about {{balance}} credits; this run needs about {{need}} credits ({{shortfall}} short). Return after topping up to continue.' }),
   'modelSetup.apimartVerification.credits': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
+  // 图层分离 ≥50 层提醒句里的约价（板 2026-11-26-layer-split · layers.params-panel）：单位跟发送键，积分档时印这一句。
+  'generationCommon.layerSplitComposer.creditsAmount': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
   'modelSetup.apimartVerification.connectedBalance': Object.freeze({ 'zh-CN': ' · 余额 {{value}} 积分', en: ' · Balance {{value}} credits' }),
   'modelSetup.apimartVerification.topup': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
   'modelSetup.apimartVerification.topupBody': Object.freeze({ 'zh-CN': 'Key 已存好，就差充值：出图和上传素材都要余额大于 0。充好后回到 Nomi 会自动再查一次。', en: 'Key saved. Images and asset uploads need a balance above zero. Top up, then return to Nomi for an automatic check.' }),

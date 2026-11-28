@@ -129,6 +129,14 @@ function modesAreTaskChoices(archetype: ModelArchetype): boolean {
 }
 
 /**
+ * 单个方式本身是人选的任务（图层分离：输入和改图一样是一张图，要的结果完全不同）：按输入挑方式时绝不自动落到它；
+ * 人手选了它，多放一张图也不换走——照它发，放不下的那张淡显「不会发」（taken 少于输入数）。
+ */
+function modeIsTaskChoice(mode: ArchetypeMode): boolean {
+  return isLayerSplitMode(mode)
+}
+
+/**
  * 这一个方式能不能收下这次**全部**输入（菜单里能不能点它）：每件都落得进格子、必需格都满足。
  * 没有输入时只有文字类 / 没有必需格的方式收得下。
  */
@@ -201,11 +209,18 @@ export function modeForInputs(
     return { mode, status: fit.required ? 'ok' : 'needsInput', taken: fit.taken }
   }
 
+  // 选定的任务方式（图层分离；只有人手选 / 入口派生会存它，来历同一个规则）：有输入就照它发，放不下的淡显「不会发」；
+  // 一件都没放就要先放输入（不退成文生——人要的是拆图，不是生一张新图）。
+  if (preferred && modeIsTaskChoice(preferred)) {
+    const fit = fitInputs(preferred, inputs, options)
+    return { mode: preferred, status: fit.required ? 'ok' : 'needsInput', taken: fit.taken }
+  }
+
   // ① 没放任何东西 → 文字生成（偏好只在几个文字方式之间挑）。档案没有文字生成：挑一个不要必需格的，否则要先放输入。
   if (inputs.length === 0) {
     const textMode = textModeOf(archetype, preferred)
     if (textMode) return { mode: textMode, status: 'ok', taken: 0 }
-    const runnable = (mode: ArchetypeMode) => mode.slots.every((slot) => slot.min === 0)
+    const runnable = (mode: ArchetypeMode) => !modeIsTaskChoice(mode) && mode.slots.every((slot) => slot.min === 0)
     const empty = preferred && runnable(preferred) ? preferred : archetype.modes.find(runnable)
     if (empty) return { mode: empty, status: 'ok', taken: 0 }
     return { mode: preferred ?? fallback, status: 'needsInput', taken: 0 }
@@ -226,7 +241,7 @@ export function modeForInputs(
   let best: { mode: ArchetypeMode; fit: Fit } | null = null
   for (const mode of archetype.modes) {
     const fit = fits.get(mode.id)!
-    if (fit.taken === 0 || !fit.required) continue
+    if (fit.taken === 0 || !fit.required || modeIsTaskChoice(mode)) continue
     if (!best) { best = { mode, fit }; continue }
     const order = [
       Number(takesAll(fit)) - Number(takesAll(best.fit)),
@@ -243,4 +258,55 @@ export function modeForInputs(
   const textMode = textModeOf(archetype, preferred)
   if (textMode) return { mode: textMode, status: 'inputsNotAccepted', taken: 0 }
   return { mode: preferred ?? fallback, status: 'needsInput', taken: 0 }
+}
+
+// ── 图层分离（一张图 → 底图 + 若干透明图层）这件能力的通用名字与判定（设计卡 docs/plan/2026-11-26-layer-split.md）。
+// 住在这里，是因为「它是人选的任务、按输入挑方式时绝不自动落到它」本来就归这个文件（modeIsTaskChoice）。
+// 能力住在档案方式上（`ArchetypeMode.layerSplit`），不认供应商：哪家的线缆真发得出，只看它的 create body 读不读
+// `LAYER_SPLIT_WIRE_KEY` 这个通用参数键（`layerSplitWireReady`）。发送口与入口问同一句话——UI 说能拆、发出去却是一次普通改图，
+// 这种「花了钱只拿回一张图」的事从结构上做不出来。问的是已经从入口拿到、按档收窄过的档案 / 方式，不读表。
+
+/** 图层分离方式的 id（各档案同名：换模型时人选的「拆图层」这件事跟着走）。 */
+export const LAYER_SPLIT_MODE_ID = 'layers'
+/** 方式固定参数里的开关键：线缆 body 读它 = 这家发得出图层分离。 */
+export const LAYER_SPLIT_WIRE_KEY = 'layer_decomposition'
+/** 拆成几层（含底图，是上限）。 */
+export const LAYER_COUNT_KEY = 'layer_count'
+/** 清晰度档（auto / 1K / 1.5K / 2K）。和普通改图的比例 `size` 分开存，免得比例值串进分层请求。 */
+export const LAYER_SIZE_KEY = 'layer_size'
+/** 识别文字（文字层带出识别到的字）。 */
+export const TEXT_RECOGNITION_KEY = 'text_recognition'
+/** 层数达到这个数就提醒「层数多就贵」（只提醒，不拦）。 */
+export const LAYER_COUNT_COST_REMINDER_AT = 50
+
+/** 这个方式是不是图层分离。 */
+export function isLayerSplitMode(mode: Pick<ArchetypeMode, 'layerSplit'> | null | undefined): boolean {
+  return Boolean(mode?.layerSplit)
+}
+
+/** 档案里的图层分离方式；没有 → undefined。 */
+export function layerSplitModeOf(archetype: Pick<ModelArchetype, 'modes'> | null | undefined): ArchetypeMode | undefined {
+  return archetype?.modes.find((mode) => isLayerSplitMode(mode))
+}
+
+/** 这条线缆（create op 读到的参数键）发不发得出图层分离。 */
+export function layerSplitWireReady(wireParamKeys: readonly string[] | null | undefined): boolean {
+  return Boolean(wireParamKeys?.includes(LAYER_SPLIT_WIRE_KEY))
+}
+
+/**
+ * 这次要拆几层（含底图）。层数格可调的方式读存值、落在声明的范围里；层数写死的方式（只有上限）给上限。
+ * 读不出数 → 方式声明的默认 / 上限。
+ */
+export function requestedLayerCount(mode: Pick<ArchetypeMode, 'layerSplit' | 'params'>, stored: Readonly<Record<string, unknown>>): number | null {
+  const split = mode.layerSplit
+  if (!split) return null
+  const control = mode.params.find((candidate) => candidate.key === LAYER_COUNT_KEY)
+  if (!control) return split.maxLayers
+  const raw = Number(stored[LAYER_COUNT_KEY] ?? control.defaultValue)
+  const fallback = Number(control.defaultValue ?? split.maxLayers)
+  const value = Number.isFinite(raw) ? Math.round(raw) : fallback
+  const min = typeof control.min === 'number' ? control.min : 2
+  const max = typeof control.max === 'number' ? control.max : split.maxLayers
+  return Math.min(max, Math.max(min, value))
 }

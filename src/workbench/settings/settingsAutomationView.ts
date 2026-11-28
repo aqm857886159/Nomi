@@ -1,7 +1,7 @@
 import {
   DEFAULT_AUTOMATION_POLICY_SETTINGS,
   type AutomationPolicySettings,
-} from '../../../electron/settings/automationPolicyContract'
+} from '../../../electron/shared/contracts/automationPolicyContract'
 
 /**
  * `no-models`：连上了、但这家一个可用模型都没有。

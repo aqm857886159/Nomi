@@ -5,7 +5,7 @@ import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
 import { referenceInputParams } from "./archetypeInput";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { classifyReferenceKey, type ReferenceFamily } from "./referenceReachability";
-import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
+import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "../shared/contracts/parameterReferenceContract";
 import type { TaskParamsInput } from "./taskParams";
 
 export function firstReferenceImage(request: TaskParamsInput, selected?: ParameterReferenceSelection): string {

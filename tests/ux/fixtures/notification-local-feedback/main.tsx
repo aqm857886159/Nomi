@@ -20,7 +20,7 @@ import { NomiBrowserDialog } from '../../../../src/ui/browser/dialog/NomiBrowser
 import { writeBookmarks } from '../../../../src/ui/browser/dialog/NomiBrowserDialogModel'
 import { useToastStore } from '../../../../src/ui/toast'
 import { createProjectCanvasReadSurfaceCoordinator, registerProjectCanvasReadSurfaceCoordinator } from '../../../../src/workbench/project/projectCanvasReadSurface'
-import type { ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun } from '../../../../electron/shared/contracts/productionRunTypes'
 import type { CanvasReadSurfaceBridge } from '../../../../electron/shared/surfacePortBinding'
 
 const controls = { failCodex: true, failProduction: true, enabled: false, commandCalls: 0 }

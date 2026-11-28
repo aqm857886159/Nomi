@@ -22,7 +22,7 @@ const OWNER_HOMES: ReadonlyArray<readonly string[]> = [
 export function frameKind(file: string): FrameKind {
   const rel = repoRelative(file);
   if (!rel || rel.startsWith("node_modules/") || rel.includes("/node_modules/")) return "internal";
-  if (rel.startsWith("tests/setup/world/")) return "internal";
+  if (rel.startsWith("tests/setup/world/") || rel === "tests/setup/durability.ts") return "internal";
   if (rel.startsWith("tests/world/") && !isTestSideFile(rel)) return "world";
   if (isTestSideFile(rel)) return "test";
   return "product";

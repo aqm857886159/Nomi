@@ -31,7 +31,7 @@ import { markPublicSystemRequestHeaders, redactRequestSecrets, sensitiveRequestH
  *   · thrown：压根没拿到响应（连不上 / 被掐 / DNS）——抹过密钥的原因。
  */
 export type ModelCallAttempt =
-  | { kind: "response"; status: number; bodyBroken: boolean }
+  | { kind: "response"; status: number; bodyBroken: boolean; url?: string; sseErrorBody?: string }
   | { kind: "http"; status: number; url: string; body: string }
   | { kind: "thrown"; reason: string };
 export type ModelHttpFailure = Extract<ModelCallAttempt, { kind: "http" }>;
@@ -117,10 +117,86 @@ function jsonEchoVariants(secret: string): string[] {
   return [...forms];
 }
 
-/** 原样转交响应体，只在读的过程中出错时记一笔（流照样带着原错误交给 SDK）。 */
-function watchBody(response: Response, onBroken: (error: unknown) => void): Response {
+const MAX_SSE_FRAME_CHARS = MAX_BODY_CHARS * 4;
+
+function isEventStream(headers: Headers): boolean {
+  return (headers.get("content-type") ?? "").toLowerCase().includes("text/event-stream");
+}
+
+/**
+ * 识别通用流式协议（OpenAI Chat、OpenAI Responses、Anthropic Messages）在 HTTP 200 后发出的标准 SSE 错误帧：
+ *   · `event: error`；
+ *   · 顶层 JSON `{ error: ... }`（无 `choices` 数组，不会误中普通文本 delta）；
+ *   · Responses `type: "error"` / `type: "response.failed"`；
+ *   · Responses `type: "response.incomplete"` 且原因非输出长度上限（如 `content_filter`）。
+ */
+function extractSseErrorPayload(rawBlock: string): string | null {
+  let eventName = "";
+  const dataLines: string[] = [];
+  for (const rawLine of rawBlock.split(/\r?\n/)) {
+    if (rawLine.startsWith("event:")) eventName = rawLine.slice(6).trim();
+    else if (rawLine.startsWith("data:")) dataLines.push(rawLine.slice(5).trimStart());
+  }
+  const data = dataLines.join("\n").trim();
+  if (!data || data === "[DONE]") return null;
+  if (eventName === "error") return data;
+  if (!data.startsWith("{")) return null;
+  try {
+    const parsed = JSON.parse(data) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || Array.isArray(parsed.choices)) return null;
+    if (parsed.type === "error" || parsed.type === "response.failed") return data;
+    if (typeof parsed.type === "string" && parsed.type.endsWith("_error") && typeof parsed.message === "string") return data;
+    if (parsed.type === "response.incomplete") {
+      const response = parsed.response && typeof parsed.response === "object" ? (parsed.response as Record<string, unknown>) : undefined;
+      const details = response?.incomplete_details && typeof response.incomplete_details === "object"
+        ? (response.incomplete_details as Record<string, unknown>)
+        : undefined;
+      const reason = typeof details?.reason === "string" ? details.reason.trim() : "";
+      return reason && reason !== "max_output_tokens" ? data : null;
+    }
+    const err = parsed.error;
+    if (err !== undefined && err !== null && (typeof err === "string" || typeof err === "object")) return data;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/** 原样转交响应体，只在读的过程中出错或收到标准 SSE 错误帧时记下事实（字节流照样原封不动交给 SDK）。 */
+function watchBody(
+  response: Response,
+  onBroken: (error: unknown) => void,
+  onSseError?: (payload: string) => void,
+): Response {
   if (!response.body) return response;
   const reader = response.body.getReader();
+  const decoder = onSseError && isEventStream(response.headers) ? new TextDecoder("utf-8") : null;
+  let sseBuffer = "";
+  let oversizedFrame = false;
+  const scanSse = (text: string, flush: boolean) => {
+    if (!onSseError) return;
+    sseBuffer += text;
+    let boundary = sseBuffer.search(/\r?\n\r?\n/);
+    while (boundary >= 0) {
+      const sepLen = sseBuffer.startsWith("\r\n\r\n", boundary) ? 4 : 2;
+      const block = sseBuffer.slice(0, boundary);
+      sseBuffer = sseBuffer.slice(boundary + sepLen);
+      if (!oversizedFrame) {
+        const hit = extractSseErrorPayload(block);
+        if (hit) onSseError(hit);
+      }
+      oversizedFrame = false;
+      boundary = sseBuffer.search(/\r?\n\r?\n/);
+    }
+    if (sseBuffer.length > MAX_SSE_FRAME_CHARS) {
+      sseBuffer = "";
+      oversizedFrame = true;
+    } else if (flush && !oversizedFrame && sseBuffer.trim()) {
+      const hit = extractSseErrorPayload(sseBuffer);
+      if (hit) onSseError(hit);
+      sseBuffer = "";
+    }
+  };
   const body = new ReadableStream<Uint8Array>({
     async pull(controller) {
       let chunk: ReadableStreamReadResult<Uint8Array>;
@@ -132,8 +208,13 @@ function watchBody(response: Response, onBroken: (error: unknown) => void): Resp
         controller.error(error);
         return;
       }
-      if (chunk.done) controller.close();
-      else controller.enqueue(chunk.value);
+      if (chunk.done) {
+        if (decoder) scanSse(decoder.decode(), true);
+        controller.close();
+      } else {
+        if (decoder) scanSse(decoder.decode(chunk.value, { stream: true }), false);
+        controller.enqueue(chunk.value);
+      }
     },
     cancel(reason) { return reader.cancel(reason); },
   });
@@ -185,10 +266,17 @@ export function observeModelFetch(base: typeof globalThis.fetch, context: { mode
         lastAttempt = attempt;
         // SDK 读到 SSE 里的错误后自己掐流、用户点停止——都是 abort，不算「对端断了」。
         const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
-        return watchBody(response, (error) => {
-          if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) return;
-          attempt.bodyBroken = true;
-        });
+        return watchBody(
+          response,
+          (error) => {
+            if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) return;
+            attempt.bodyBroken = true;
+          },
+          (payload) => {
+            attempt.url = safeUrl;
+            attempt.sseErrorBody = redact(payload.slice(0, MAX_BODY_CHARS * 2), MAX_BODY_CHARS);
+          },
+        );
       }
       // 日志只记主机、模型、状态码、耗时——正文一个字都不进日志（见文件头「日志不记正文」）。
       logVendorCall({ vendor: hostOf(url), model: context.modelId, status: response.status, ms: Date.now() - started });

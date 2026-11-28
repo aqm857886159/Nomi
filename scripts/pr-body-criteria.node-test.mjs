@@ -208,7 +208,7 @@ test('推送档只警告不判红；生效日之前开的 PR 只警告；代码�
 })
 
 test('拍板图认领还没 implemented：推送档只提醒，合并档判红（翻 implemented 是验收线的事）', () => {
-  const boards = { Main: { elements: [{ id: 'topbar.title', status: 'implemented' }, { id: 'group.header', status: 'in-progress' }] } }
+  const boards = { Main: { elements: [{ id: 'topbar.title', anchor: '[data-board="topbar.title"]', status: 'implemented' }, { id: 'group.header', anchor: '未定', status: 'in-progress' }] } }
   const body = '## 拍板图\n- Main: topbar.title, group.header'
   const push = checkBoardClaim(body, { boards, stage: 'push' })
   assert.equal(push.ok, true)

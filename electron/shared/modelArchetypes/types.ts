@@ -15,6 +15,8 @@ import type {
   ArchetypeExpressionChannel as SharedArchetypeExpressionChannel,
   ArchetypeReferenceSlotKind as SharedArchetypeReferenceSlotKind,
   ArchetypeSource as SharedArchetypeSource,
+  ArchetypeSampleSpec as SharedArchetypeSampleSpec,
+  ArchetypeSampleOf as SharedArchetypeSampleOf,
 } from "../videoCapabilities/types";
 
 export type ArchetypeReferenceSlotKind = SharedArchetypeReferenceSlotKind;
@@ -127,6 +129,8 @@ export type ModelArchetypeVariant = {
  * 门岗：`pnpm run check:archetype-sources`（棘轮，只减不增）。
  */
 export type ArchetypeSource = SharedArchetypeSource;
+export type ArchetypeSampleSpec = SharedArchetypeSampleSpec;
+export type ArchetypeSampleOf = SharedArchetypeSampleOf;
 
 export type ModelArchetype = {
   /** Older shared profile IDs accepted only when model identity matches this profile. */
@@ -173,6 +177,10 @@ export type ModelArchetype = {
    * 使旧项目仍解析到本档案；具体落到哪个 variantId 由各 variant 的 identifierPatterns 决定（迁移层）。
    */
   identifierPatterns: string[];
+  /** 样片两步流程（见 videoCapabilities/types 的 ArchetypeSampleSpec）：只在父档案上。 */
+  sampleMode?: SharedArchetypeSampleSpec;
+  /** 由父档案推出的样片档案才有（videoCapabilities/sampleMode.deriveSampleArchetype）。 */
+  sampleOf?: SharedArchetypeSampleOf;
   /** Shared model names for handle suggestions across profiles with distinct wire contracts. */
   familyIdentifierPatterns?: readonly string[];
 };

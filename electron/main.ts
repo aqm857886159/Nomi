@@ -6,7 +6,7 @@ import { startCatalogReconciliation } from "./ai/onboarding/catalogReconciliatio
 import type { Rectangle, WebContents } from "electron";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createProject, deleteProject, diagnoseProject, listProjects, readProject, recoverProject, saveProject } from "./projects/repository";
+import { createProject, createProjectAsync, deleteProject, diagnoseProject, listProjects, readProject, readProjectAsync, recoverProject, saveProject } from "./projects/repository";
 import { registerProjectsIpc } from "./projects/projectsIpc";
 import { registerAssetsIpc } from "./assets/assetsIpc";
 import {
@@ -395,6 +395,7 @@ function registerIpc(): void {
     listProjects,
     createProject,
     readProject,
+    readProjectAsync,
     saveProject,
     deleteProject,
     diagnoseProject,
@@ -477,7 +478,7 @@ function registerIpc(): void {
   ipcMain.handle("nomi:workspace:open-folder", (event, payload) => {
     assertTrustedSender(event);
     return openWorkspaceFolder(payload, {
-      createProject,
+      createProject: createProjectAsync,
       selectedRootPaths: selectedWorkspaceRoots,
       confirmInitialize: async (rootPath) => {
         const result = await dialog.showMessageBox({
@@ -492,11 +493,11 @@ function registerIpc(): void {
       },
     });
   });
-  ipcMain.handle("nomi:workspace:list-files", (event, payload) => {
+  ipcMain.handle("nomi:workspace:list-files", async (event, payload) => {
     assertTrustedSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
     if (!projectId) throw new Error("projectId is required");
-    const project = readProject(projectId) as { lastKnownRootPath?: unknown } | null;
+    const project = (await readProjectAsync(projectId)) as { lastKnownRootPath?: unknown } | null;
     const rootPath = typeof project?.lastKnownRootPath === "string" ? project.lastKnownRootPath : "";
     if (!rootPath) throw new Error("Project folder is unavailable");
     return listWorkspaceFiles({
@@ -507,25 +508,25 @@ function registerIpc(): void {
           : undefined,
     });
   });
-  ipcMain.handle("nomi:workspace:reveal-file", (event, payload) => {
+  ipcMain.handle("nomi:workspace:reveal-file", async (event, payload) => {
     assertTrustedSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
     const relativePath = String((payload as { relativePath?: unknown } | null)?.relativePath || "").trim();
     if (!projectId) throw new Error("projectId is required");
-    const project = readProject(projectId) as { lastKnownRootPath?: unknown } | null;
+    const project = (await readProjectAsync(projectId)) as { lastKnownRootPath?: unknown } | null;
     const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
     if (!rootPath) throw new Error("Project folder is unavailable");
     const absolutePath = resolveWorkspaceFilePath(rootPath, relativePath);
     shell.showItemInFolder(absolutePath);
     return { ok: true };
   });
-  registerWorkspaceFileDeleteIpc({ readProject, childWindowProject });
-  registerWorkspaceSyncIpc({ readProject });
-  ipcMain.handle("nomi:workspace:reveal-project-folder", (event, payload) => {
+  registerWorkspaceFileDeleteIpc({ readProject: readProjectAsync, childWindowProject });
+  registerWorkspaceSyncIpc({ readProject: readProjectAsync });
+  ipcMain.handle("nomi:workspace:reveal-project-folder", async (event, payload) => {
     assertTrustedSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
     if (!projectId) throw new Error("projectId is required");
-    const project = readProject(projectId) as { lastKnownRootPath?: unknown } | null;
+    const project = (await readProjectAsync(projectId)) as { lastKnownRootPath?: unknown } | null;
     const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
     if (!rootPath) throw new Error("Project folder is unavailable");
     void shell.openPath(rootPath);

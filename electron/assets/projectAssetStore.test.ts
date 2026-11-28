@@ -185,7 +185,7 @@ describe("writeAsset canonical media filename", () => {
       const source = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-held-link-")), "source");
       fs.writeFileSync(source, mediaFixture("valid.mp4"));
       let links = 0;
-      const spy = vi.spyOn(fs, "linkSync").mockImplementation(() => {
+      const spy = vi.spyOn(fs.promises, "link").mockImplementation(async () => {
         links += 1;
         throw Object.assign(new Error("injected EBUSY"), { code: "EBUSY" });
       });

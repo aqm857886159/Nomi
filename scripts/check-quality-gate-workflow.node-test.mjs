@@ -6,6 +6,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { load } from 'js-yaml'
+import ts from 'typescript'
 
 import { makeTempDir } from './_test-temp.mjs'
 import { gitNameStatus } from './lib/gitPaths.mjs'
@@ -136,7 +137,7 @@ function prepareScopeCheckout(t, failures, diagnostic, { noBase, event = 'push' 
   git(remote, '-c', 'user.name=Scope Test', '-c', 'user.email=scope@example.invalid', 'commit', '-qam', 'head')
   const head = git(remote, 'rev-parse', 'HEAD')
 
-  // Only the fetch transport is replaced. A successful attempt runs real Git against file://.
+  // Only the fetch transport is replaced. A successful attempt runs real Git against a local file remote.
   fs.writeFileSync(path.join(root, 'git'), `#!/usr/bin/env node
 const fs = require('node:fs')
 const { execFileSync } = require('node:child_process')
@@ -852,10 +853,9 @@ test('PR Body check reruns the merge-stage body criteria on every body edit, wit
   assert.equal(job.steps.find((step) => step.uses === 'actions/setup-node@v7').with.cache, undefined, '不装依赖就不要包管理器缓存')
 })
 
-test('PR Body runs without node_modules: the body criteria import only node built-ins (lazy playwright stays behind --reextract)', () => {
+test('PR Body runs without node_modules: the body criteria import only node built-ins', () => {
   const builtins = new Set(builtinModules)
   const isBuiltin = (specifier) => specifier.startsWith('node:') || builtins.has(specifier.split('/')[0])
-  const SPECIFIER = /(?:\bfrom|\bimport)\s*(\()?\s*['"]([^'"]+)['"]/g
   const seen = new Set()
   const queue = ['scripts/check-pr-judgement.mjs']
   const external = []
@@ -863,19 +863,19 @@ test('PR Body runs without node_modules: the body criteria import only node buil
     const file = queue.shift()
     if (seen.has(file)) continue
     seen.add(file)
-    for (const [, dynamic, specifier] of fs.readFileSync(path.join(repoRoot, file), 'utf8').matchAll(SPECIFIER)) {
+    const source = fs.readFileSync(path.join(repoRoot, file), 'utf8')
+    for (const { fileName: specifier } of ts.preProcessFile(source, true, true).importedFiles) {
       if (specifier.startsWith('.')) {
         const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier))
         assert.ok(fs.existsSync(path.join(repoRoot, target)), `${file} imports ${specifier}, which does not resolve`)
         queue.push(target)
       } else if (!isBuiltin(specifier)) {
-        external.push(`${file} ${dynamic ? 'import()' : 'import'} ${specifier}`)
+        external.push(`${file} imports ${specifier}`)
       }
     }
   }
   assert.ok(seen.has('scripts/pr-body-criteria.mjs') && seen.has('scripts/lib/prBody.mjs'), '断言空转：闭包里没走到判据本身')
-  // 唯一的例外是看板重抽（--reextract）才懒加载的 playwright，判正文永远走不到那条路。
-  assert.deepEqual(external, ['scripts/board-extract.mjs import() playwright'], '判据闭包里出现了 npm 包：PR Body 检查不装依赖，会直接崩')
+  assert.deepEqual(external, [], '判据闭包里出现了 npm 包：PR Body 检查不装依赖，会直接崩')
 })
 
 test('Contracts judges only the push stage; the merge stage lives in PR Body and the merge preflight', () => {

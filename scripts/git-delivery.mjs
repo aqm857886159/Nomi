@@ -10,6 +10,7 @@ import {
   listBoardManifests,
   summarizeBoardDebt,
 } from './check-board-parity.mjs'
+import { writeFileAtomicSync } from './lib/atomicFile.mjs'
 import { gitNameStatus } from './lib/gitPaths.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 import { retryTransient } from './lib/transientRetry.mjs'
@@ -477,10 +478,7 @@ function readReceipt(receiptPath) {
 }
 
 function writeReceipt(receiptPath, receipt) {
-  fs.mkdirSync(path.dirname(receiptPath), { recursive: true })
-  const temporaryPath = `${receiptPath}.${process.pid}.tmp`
-  fs.writeFileSync(temporaryPath, `${JSON.stringify(receipt, null, 2)}\n`)
-  fs.renameSync(temporaryPath, receiptPath)
+  writeFileAtomicSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`)
 }
 
 function processIsAlive(pid) {

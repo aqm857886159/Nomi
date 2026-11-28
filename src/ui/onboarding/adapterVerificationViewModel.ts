@@ -1,17 +1,9 @@
 import type { DesktopProviderAdapterRun } from '../../desktop/bridge'
 
-const TERMINAL_STAGES = new Set<DesktopProviderAdapterRun['stage']>([
-  'completed',
-  'partial',
-  'failed',
-  'needs_ai',
-  'cancelled',
-  'timed_out',
-  'stale',
-])
+import { isTerminalAdapterRunStage } from '../../../electron/shared/contracts/providerAdapterContract'
 
 export function isAdapterRunTerminal(stage: DesktopProviderAdapterRun['stage']): boolean {
-  return TERMINAL_STAGES.has(stage)
+  return isTerminalAdapterRunStage(stage)
 }
 
 export type AdapterRunTerminalReasonKey =

@@ -1,0 +1,10 @@
+走查	本分支退出码	main 77ffa8221 退出码	说明
+send-cost-currency-topup.walk.mjs	0	-	发送键约价 / 单位菜单 / 充值
+send-cost-estimate.rehearsal.walk.mjs	0	-	约价演练
+seedance25-price.walk.mjs	1	1	两边红在同一句：走查在发送键里找 [data-send-cost="credits"]，main 上带单位切换时价在发送键旁的单位菜单钮里（ComposerSendButton 带切换器那一支），走查没跟上；不是本分支带来的
+composer-bar-send-hover.walk.mjs	0	-	发送键悬停
+node-params-and-version-pill.walk.mjs	0	-	版本角标
+version-one-per-click.walk.mjs	0	-	一次点击一个版本
+canvas-card-stack.walk.mjs	0	-	版本卡堆叠（跑完把仓库里 outputs/canvas-card-stack-20260827/ 的截图改写了，已 git checkout 还原）
+new-node-composer-in-view.walk.mjs	1	1	两边同样 6 条 FAIL：新视频节点的生成框真实高 236，落点只留了 220；不是本分支带来的
+composer-bar-fit-goals.walk.mjs	1	1	两边同样 8 条 FAIL（priced-scan 找不到约价胶囊、priced-lab-row-574 让位没恢复），与 seedance25-price 同一个原因；不是本分支带来的

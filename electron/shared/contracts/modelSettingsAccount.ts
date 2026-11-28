@@ -1,4 +1,4 @@
-import type { PublicPriceGap } from './vendorPricePreview'
+import type { PublicPriceGap, VendorPriceBasis } from './vendorPricePreview'
 
 export type ModelAccountBalance = {
   keySuffix: string
@@ -17,5 +17,5 @@ export type ModelUsagePeriods = Record<ModelUsagePeriod, ModelUsageRow[]>
 /** One model's public rate at the reference spec. `credits: null` means no fixed rate: `gap` says why, or null when it could not be read. */
 export type ModelUnitPrice = {
   modelKey: string; label: string; kind: 'image' | 'video'; credits: number | null
-  basis: 'output-estimate' | null; gap: PublicPriceGap | null
+  basis: VendorPriceBasis | null; gap: PublicPriceGap | null
 }

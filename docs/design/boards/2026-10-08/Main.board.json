@@ -7,9 +7,7 @@
     {
       "id": "topbar.brand",
       "label": "Nomi 标识",
-      "candidates": [
-        "001-svg-Nomi"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -22,10 +20,7 @@
     {
       "id": "topbar.project-title",
       "label": "项目名（顶栏）",
-      "candidates": [
-        "002-button-雨夜来信",
-        "003-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -38,12 +33,7 @@
     {
       "id": "topbar.phase-switch",
       "label": "阶段切换 创作/生成/预览（整窗居中）",
-      "candidates": [
-        "004-div-阶段",
-        "005-button-创作",
-        "006-button-生成",
-        "008-button-预览"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -56,10 +46,7 @@
     {
       "id": "topbar.phase-counters",
       "label": "阶段进度 5/6 与时长 0:26",
-      "candidates": [
-        "007-span-56",
-        "009-span-026"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -72,11 +59,7 @@
     {
       "id": "topbar.view-switch",
       "label": "视图 画布/列表",
-      "candidates": [
-        "010-div-视图",
-        "011-button-画布",
-        "012-button-列表"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -89,11 +72,7 @@
     {
       "id": "topbar.tasks",
       "label": "任务（带计数）",
-      "candidates": [
-        "013-button-任务",
-        "014-svg",
-        "015-span-1"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -106,10 +85,7 @@
     {
       "id": "topbar.browser",
       "label": "浏览器",
-      "candidates": [
-        "016-button-浏览器",
-        "017-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -122,10 +98,7 @@
     {
       "id": "topbar.update",
       "label": "新版本胶囊",
-      "candidates": [
-        "018-button-新版本",
-        "019-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -138,10 +111,7 @@
     {
       "id": "topbar.settings",
       "label": "设置",
-      "candidates": [
-        "020-button-设置",
-        "021-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -154,11 +124,7 @@
     {
       "id": "rail.resources",
       "label": "左栏 资源",
-      "candidates": [
-        "025-nav-资源",
-        "026-button",
-        "027-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -173,11 +139,7 @@
     {
       "id": "rail.docs",
       "label": "左栏 文稿",
-      "candidates": [
-        "028-span-文稿",
-        "029-button",
-        "030-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -192,11 +154,7 @@
     {
       "id": "rail.catalog",
       "label": "左栏 目录",
-      "candidates": [
-        "031-span-目录",
-        "032-button",
-        "033-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -211,11 +169,7 @@
     {
       "id": "rail.assets",
       "label": "左栏 素材",
-      "candidates": [
-        "034-span-素材",
-        "035-button",
-        "036-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -230,11 +184,7 @@
     {
       "id": "rail.flow",
       "label": "左栏 流程",
-      "candidates": [
-        "037-span-流程",
-        "038-button",
-        "039-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -249,11 +199,7 @@
     {
       "id": "rail.skill",
       "label": "左栏 Skill",
-      "candidates": [
-        "040-span-Skill",
-        "041-button",
-        "042-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -268,9 +214,7 @@
     {
       "id": "rail.prompts",
       "label": "左栏 提示词",
-      "candidates": [
-        "043-span-提示词"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -283,10 +227,7 @@
     {
       "id": "rail.collapse",
       "label": "收起左栏",
-      "candidates": [
-        "044-button-收起左栏",
-        "045-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -299,10 +240,7 @@
     {
       "id": "group.header.title-inside",
       "label": "分组框头：框内左上组名与计数",
-      "candidates": [
-        "046-span-分镜雨夜便利店",
-        "047-span-6镜"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-groupheader",
       "states": [
@@ -314,9 +252,7 @@
     {
       "id": "group.header.generate-all",
       "label": "分组框头：框内右上「生成全部」",
-      "candidates": [
-        "048-button-生成全部"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "I-groupheader",
       "states": [
@@ -328,11 +264,7 @@
     {
       "id": "canvas.node.shot-01",
       "label": "镜头节点 镜 01",
-      "candidates": [
-        "049-span-镜01",
-        "050-span-雨棚",
-        "051-div"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -344,11 +276,7 @@
     {
       "id": "canvas.node.shot-02",
       "label": "镜头节点 镜 02",
-      "candidates": [
-        "052-span-镜02",
-        "053-span-侧脸",
-        "054-div"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -360,11 +288,7 @@
     {
       "id": "canvas.node.shot-03",
       "label": "镜头节点 镜 03",
-      "candidates": [
-        "055-span-镜03",
-        "056-span-怀表",
-        "057-div"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -376,17 +300,7 @@
     {
       "id": "canvas.node.shot-04-empty",
       "label": "空镜头节点 镜 04（四种生成入口）",
-      "candidates": [
-        "058-span-镜04",
-        "059-span-车道",
-        "060-div",
-        "061-svg",
-        "062-span-图片",
-        "063-span-还没生成",
-        "064-button-文字生图",
-        "065-span",
-        "066-button-参考图生图"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -399,11 +313,7 @@
     {
       "id": "canvas.node.shot-05",
       "label": "镜头节点 镜 05",
-      "candidates": [
-        "067-span-镜05",
-        "068-span-转身",
-        "069-div"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -415,11 +325,7 @@
     {
       "id": "canvas.node.shot-06",
       "label": "镜头节点 镜 06",
-      "candidates": [
-        "070-span-镜06",
-        "071-span-表链",
-        "072-div"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-unassigned",
       "states": [
@@ -431,10 +337,7 @@
     {
       "id": "canvas.zoom.fit",
       "label": "缩放簇 适应画布",
-      "candidates": [
-        "073-button-适应画布",
-        "074-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -447,10 +350,7 @@
     {
       "id": "canvas.zoom.out",
       "label": "缩放簇 缩小",
-      "candidates": [
-        "075-button-缩小",
-        "076-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -463,9 +363,7 @@
     {
       "id": "canvas.zoom.percent",
       "label": "缩放簇 百分比",
-      "candidates": [
-        "077-span-100"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -478,10 +376,7 @@
     {
       "id": "canvas.zoom.in",
       "label": "缩放簇 放大",
-      "candidates": [
-        "078-button-放大",
-        "079-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -494,10 +389,7 @@
     {
       "id": "canvas.zoom.more-view",
       "label": "缩放簇 更多视图选项",
-      "candidates": [
-        "080-button-更多视图选项",
-        "081-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -510,10 +402,7 @@
     {
       "id": "canvas.nodebar.image",
       "label": "底部节点条 图片",
-      "candidates": [
-        "082-button-图片",
-        "083-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -526,10 +415,7 @@
     {
       "id": "canvas.nodebar.video",
       "label": "底部节点条 视频",
-      "candidates": [
-        "084-button-视频",
-        "085-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -542,10 +428,7 @@
     {
       "id": "canvas.nodebar.sound",
       "label": "底部节点条 声音",
-      "candidates": [
-        "086-button-声音",
-        "087-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -558,10 +441,7 @@
     {
       "id": "canvas.nodebar.text",
       "label": "底部节点条 文字",
-      "candidates": [
-        "088-button-文字",
-        "089-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -574,10 +454,7 @@
     {
       "id": "canvas.nodebar.clip",
       "label": "底部节点条 剪辑",
-      "candidates": [
-        "090-button-剪辑",
-        "091-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -590,10 +467,7 @@
     {
       "id": "canvas.nodebar.import",
       "label": "底部节点条 导入文件",
-      "candidates": [
-        "092-button-导入文件",
-        "093-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -606,10 +480,7 @@
     {
       "id": "canvas.nodebar.more",
       "label": "底部节点条 更多节点",
-      "candidates": [
-        "094-button-更多节点",
-        "095-svg"
-      ],
+      "anchor": "未定",
       "status": "in-progress",
       "owner": "I-shell",
       "states": [
@@ -622,10 +493,7 @@
     {
       "id": "agent.orb",
       "label": "Agent 小球（打开 Nomi Agent）",
-      "candidates": [
-        "096-button-打开NomiAgent",
-        "097-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "owner": "BP-unassigned",
       "states": [
@@ -641,14 +509,7 @@
     {
       "id": "timeline.strip",
       "label": "时间轴窄条（段数、时长、展开）",
-      "candidates": [
-        "098-div-时间轴",
-        "099-svg",
-        "100-span-时间轴",
-        "101-span-5段026",
-        "102-button-展开时间轴",
-        "103-svg"
-      ],
+      "anchor": "未定",
       "status": "missing",
       "owner": "BP-assertions",
       "states": [
@@ -657,11 +518,6 @@
       ],
       "note": "产品代码里有字样「时间轴」，待真 App 核并补走查断言（下一刀）"
     }
-  ],
-  "decor": [
-    "022-svg",
-    "023-svg",
-    "024-svg"
   ],
   "functionCensus": [
     {

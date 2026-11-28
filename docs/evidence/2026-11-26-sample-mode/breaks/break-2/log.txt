@@ -1,0 +1,13 @@
+[walkthrough] content viewport {"width":1100,"height":690}
+✓ zh-CN/light menu
+✓ zh-CN/light sample
+✗ zh-CN/light hd
+出高清请求体键集合：{"model":"seedance-2.5","prompt":"","draft_task_id":"mcp-l2-1","resolution":"1080p"}
++ actual - expected
+
+  [
+    'draft_task_id',
+    'model',
++   'prompt',
+    'resolution'
+证据：/Users/aoqimin/Nomi-coord/tmp/I-SD/breaks/break-2

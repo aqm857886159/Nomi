@@ -4,6 +4,7 @@ import {
   IconLayoutBoard,
   IconPlayerTrackNext,
   IconPlayerTrackPrev,
+  IconStack2,
   IconUser,
   IconViewportWide,
   IconZoomScan,
@@ -31,6 +32,7 @@ export type QuickActionId =
   | 'prev-moment'
   | 'three-view'
   | 'story-four-panel'
+  | 'layer-split'
   | 'upscale'
   | 'outpaint'
 
@@ -41,7 +43,7 @@ export type QuickActionGroup = 'featured' | 'more' | 'refine'
 export type QuickActionGrid = Readonly<{ rows: number; cols: number }>
 
 /** 这一项要目录里有什么样的模型才点得了（按能力说，不按供应商说——P4）。 */
-export type QuickActionRequirement = 'image-edit' | 'upscale'
+export type QuickActionRequirement = 'image-edit' | 'upscale' | 'layer-split'
 
 type QuickActionIcon = (props: { size?: number; stroke?: number }) => JSX.Element
 
@@ -55,6 +57,7 @@ export type QuickActionDefinition = Readonly<{
     | 'generationCommon.quickActions.actions.prevMoment'
     | 'generationCommon.quickActions.actions.threeView'
     | 'generationCommon.quickActions.actions.storyFourPanel'
+    | 'generationCommon.quickActions.actions.layerSplit'
     | 'generationCommon.quickActions.actions.upscale'
     | 'generationCommon.quickActions.actions.outpaint'
   icon: QuickActionIcon
@@ -64,13 +67,16 @@ export type QuickActionDefinition = Readonly<{
 
 const icon = (component: unknown): QuickActionIcon => component as QuickActionIcon
 
-/** 顺序即菜单顺序：按常用程度排，高的在上（多机位直接放在浮条上，推演次之，剧情四宫格垫底）。 */
+/** 顺序即菜单顺序：按常用程度排，高的在上（多机位直接放在浮条上，推演次之，剧情四宫格垫底；「改图」里图层分离在最前）。 */
 export const QUICK_ACTIONS: readonly QuickActionDefinition[] = [
   { id: 'multi-angle-grid', group: 'featured', effectId: 'effect-multi-angle-grid', labelKey: 'generationCommon.quickActions.actions.multiAngleGrid', icon: icon(IconCamera), requires: 'image-edit', grid: { rows: 3, cols: 3 } },
   { id: 'next-moment', group: 'more', effectId: 'effect-next-moment', labelKey: 'generationCommon.quickActions.actions.nextMoment', icon: icon(IconPlayerTrackNext), requires: 'image-edit' },
   { id: 'prev-moment', group: 'more', effectId: 'effect-prev-moment', labelKey: 'generationCommon.quickActions.actions.prevMoment', icon: icon(IconPlayerTrackPrev), requires: 'image-edit' },
   { id: 'three-view', group: 'more', effectId: 'effect-character-three-view', labelKey: 'generationCommon.quickActions.actions.threeView', icon: icon(IconUser), requires: 'image-edit', grid: { rows: 1, cols: 3 } },
   { id: 'story-four-panel', group: 'more', effectId: 'effect-story-four-panel', labelKey: 'generationCommon.quickActions.actions.storyFourPanel', icon: icon(IconLayoutBoard), requires: 'image-edit', grid: { rows: 2, cols: 2 } },
+  // 图层分离（2026-11-26 拍板 D-1126-sdse-libtv，照 LibTV）：「生成新图」组第一项。没有模板——要的是档案里有「图层分离」方式、
+  // 渠道线缆真发得出它的模型；派生时把新节点的方式定成图层分离（人手选的那一种），提示词留空（留空 = 自动识别）。
+  { id: 'layer-split', group: 'refine', effectId: null, labelKey: 'generationCommon.quickActions.actions.layerSplit', icon: icon(IconStack2), requires: 'layer-split' },
   { id: 'upscale', group: 'refine', effectId: null, labelKey: 'generationCommon.quickActions.actions.upscale', icon: icon(IconZoomScan), requires: 'upscale' },
   { id: 'outpaint', group: 'refine', effectId: 'effect-fill-outpaint', labelKey: 'generationCommon.quickActions.actions.outpaint', icon: icon(IconViewportWide), requires: 'image-edit' },
 ]

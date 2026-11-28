@@ -3,7 +3,7 @@
   "approvedOn": "2026-10-18",
   "stage": "built",
   "visualReview": "用户 10-18 在画布评论里确认了 WD1 的交互（任务书 I-rewrite 转述：AI 图标用 Nomi 标记；结果就地显示，段尾只留 ✓ ✕）。实现后的真组件截图与样张并排对账见 docs/evidence/2026-10-19-creation-ai-rewrite/compare-WD1.png，不一致处逐条写在 PR 正文与 docs/plan/2026-10-19-creation-ai-rewrite.md。",
-  "sourceBoundary": "板源 = Claude Design 画布「Nomi 0.24 交互方案」里的 WD1 一格（source/CreationAiRewrite.dc.html 是它的原样副本，取自 docs/design/proposals/2026-10-18/source/WD1-ai-menu.dc.html）。preview/CreationAiRewrite.html 是把画布运行时的 <x-dc> 包装拆掉的静态页（样式一字未改，不联网），candidates 由 board-extract 的抽取函数在它上面抽出。WD2（空行按空格续写）、WA3 以及画布里其它格不在本板。",
+  "sourceBoundary": "板源 = Claude Design 画布「Nomi 0.24 交互方案」里的 WD1 一格（source/CreationAiRewrite.dc.html 是它的原样副本，取自 docs/design/proposals/2026-10-18/source/WD1-ai-menu.dc.html）。preview/CreationAiRewrite.html 是把画布运行时的 <x-dc> 包装拆掉的静态页（样式一字未改，不联网）。WD2（空行按空格续写）、WA3 以及画布里其它格不在本板。",
   "designIntent": "写作区结构一概不动，只加「选中文字 → AI 编辑 → 就地出结果」这一件事：浮条多一颗「AI 编辑」；点开是输入框 + 常用改法 + 用户的写作 Skill；结果直接叠在原文里，段尾只有 ✓ ✕；输入框保留上一次要求、右端 ↻ 重来。不要「候选 1/3」、不要三视图、不要一排四个按钮。",
   "priorArt": [
     {
@@ -63,11 +63,9 @@
       "id": "popover.shell",
       "label": "选区浮条外壳（原有；加一颗「AI 编辑」后加宽到 344px）",
       "change": "restyle",
-      "candidates": [
-        "004-div"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "popover.locator('[data-selection-action]')",
+      "assertions": ["popover.locator('[data-selection-action]')"],
       "states": [
         "selected",
         "zh-en",
@@ -78,10 +76,7 @@
       "id": "popover.bold",
       "label": "浮条 · 加粗",
       "change": "remove",
-      "candidates": [
-        "005-button-Bold",
-        "006-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "selected",
@@ -97,10 +92,7 @@
       "id": "popover.italic",
       "label": "浮条 · 斜体",
       "change": "remove",
-      "candidates": [
-        "007-button-Italic",
-        "008-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "selected",
@@ -116,10 +108,7 @@
       "id": "popover.h1",
       "label": "浮条 · 一级标题",
       "change": "remove",
-      "candidates": [
-        "009-button-H1",
-        "010-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "selected",
@@ -135,10 +124,7 @@
       "id": "popover.h2",
       "label": "浮条 · 二级标题",
       "change": "remove",
-      "candidates": [
-        "011-button-H2",
-        "012-svg"
-      ],
+      "anchor": "未定",
       "status": "dropped",
       "states": [
         "selected",
@@ -154,12 +140,9 @@
       "id": "popover.ai",
       "label": "浮条 · 「AI 编辑」（Nomi 标记带底 + 字，强调色字）",
       "change": "new",
-      "candidates": [
-        "013-button-AI编辑",
-        "014-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": ".workbench-selection-popover__tool--ai",
+      "assertions": [".workbench-selection-popover__tool--ai"],
       "states": [
         "selected",
         "zh-en",
@@ -170,12 +153,9 @@
       "id": "popover.image",
       "label": "浮条 · 生成图片（原有，不动）",
       "change": "keep",
-      "candidates": [
-        "015-button-生成图片",
-        "016-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "button[data-selection-action=\"image\"]",
+      "assertions": ["button[data-selection-action=\"image\"]"],
       "states": [
         "selected",
         "zh-en",
@@ -186,12 +166,9 @@
       "id": "popover.video",
       "label": "浮条 · 生成视频（原有，不动）",
       "change": "keep",
-      "candidates": [
-        "017-button-生成视频",
-        "018-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "button[data-selection-action=\"video\"]",
+      "assertions": ["button[data-selection-action=\"video\"]"],
       "states": [
         "selected",
         "zh-en",
@@ -203,12 +180,9 @@
       "label": "浮条 · 拆成镜头（原有，不动；没有分镜入口时灰）",
       "change": "keep",
       "note": "2026-11-12 用户选样张 B：图标换成分镜、挪到「AI 编辑」右边，以 2026-11-12-selection-storyboard/SelectionStoryboard 板为准。",
-      "candidates": [
-        "019-button-拆成镜头",
-        "020-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "button[data-selection-action=\"storyboard\"]",
+      "assertions": ["button[data-selection-action=\"storyboard\"]"],
       "states": [
         "selected",
         "disabled",
@@ -220,12 +194,9 @@
       "id": "selection.pending",
       "label": "待改的那段字：淡蓝底标记（选中后到出结果前）",
       "change": "new",
-      "candidates": [
-        "021-span-她盯着纸条看了很久才慢慢",
-        "026-span-她盯着纸条看了很久才慢慢"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "待改的字没有被标出来",
+      "assertions": ["待改的字没有被标出来"],
       "states": [
         "selected",
         "zh-en",
@@ -236,12 +207,9 @@
       "id": "bar.logo",
       "label": "AI 编辑条 · 输入框前的 Nomi 标记（带底，16px）",
       "change": "new",
-      "candidates": [
-        "027-svg",
-        "051-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "输入框前没有 Nomi 标记",
+      "assertions": ["输入框前没有 Nomi 标记"],
       "states": [
         "selected",
         "zh-en",
@@ -252,11 +220,9 @@
       "id": "bar.input",
       "label": "AI 编辑条 · 输入框「告诉 Nomi 怎么改…」",
       "change": "new",
-      "candidates": [
-        "028-span-告诉Nomi怎么改"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "输入框占位文字不对",
+      "assertions": ["输入框占位文字不对"],
       "states": [
         "empty",
         "selected",
@@ -269,11 +235,9 @@
       "id": "bar.send",
       "label": "AI 编辑条 · ↑ 发送钮（菜单态；输入为空时灰）",
       "change": "new",
-      "candidates": [
-        "029-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "菜单态没有发送钮",
+      "assertions": ["菜单态没有发送钮"],
       "states": [
         "empty",
         "disabled",
@@ -285,11 +249,9 @@
       "id": "bar.chip.rewrite",
       "label": "常用改法 · 改写",
       "change": "new",
-      "candidates": [
-        "030-button-改写"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "常用改法缺",
+      "assertions": ["常用改法缺"],
       "states": [
         "selected",
         "zh-en",
@@ -300,11 +262,9 @@
       "id": "bar.chip.shorter",
       "label": "常用改法 · 缩短",
       "change": "new",
-      "candidates": [
-        "031-button-缩短"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "常用改法缺",
+      "assertions": ["常用改法缺"],
       "states": [
         "selected",
         "zh-en",
@@ -315,11 +275,9 @@
       "id": "bar.chip.longer",
       "label": "常用改法 · 扩写",
       "change": "new",
-      "candidates": [
-        "032-button-扩写"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "常用改法缺",
+      "assertions": ["常用改法缺"],
       "states": [
         "selected",
         "zh-en",
@@ -330,12 +288,9 @@
       "id": "bar.chip.tone",
       "label": "常用改法 · 改语气 ▾（点开一行：更正式 / 更口语 / 更克制 / 更温暖）",
       "change": "new",
-      "candidates": [
-        "033-button-改语气",
-        "034-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "常用改法缺",
+      "assertions": ["常用改法缺"],
       "states": [
         "selected",
         "zh-en",
@@ -346,12 +301,9 @@
       "id": "bar.chip.translate",
       "label": "常用改法 · 翻译 ▾（点开一行：英文 / 中文 / 日文）",
       "change": "new",
-      "candidates": [
-        "035-button-翻译",
-        "036-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "常用改法缺",
+      "assertions": ["常用改法缺"],
       "states": [
         "selected",
         "zh-en",
@@ -362,12 +314,9 @@
       "id": "bar.chip.skill",
       "label": "用户已有的写作 Skill（可多个，强调色字 + 技能库同款图标）",
       "change": "new",
-      "candidates": [
-        "037-button-编剧Kasdan",
-        "038-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "用户的写作 Skill 没出现在常用改法后面",
+      "assertions": ["用户的写作 Skill 没出现在常用改法后面"],
       "states": [
         "empty",
         "long-text",
@@ -379,11 +328,9 @@
       "id": "result.del",
       "label": "结果 · 删掉的字：划线 + 红淡底",
       "change": "new",
-      "candidates": [
-        "044-span-盯着纸条看了很久才慢慢展"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "结果里有划线的删除部分",
+      "assertions": ["结果里有划线的删除部分"],
       "states": [
         "selected",
         "zh-en",
@@ -394,11 +341,9 @@
       "id": "result.add",
       "label": "结果 · 新加的字：绿淡底 + 下划线",
       "change": "new",
-      "candidates": [
-        "045-span-慢慢展开纸条"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "结果态没有标出来的新增部分",
+      "assertions": ["结果态没有标出来的新增部分"],
       "states": [
         "selected",
         "zh-en",
@@ -409,11 +354,9 @@
       "id": "result.tip",
       "label": "结果 · 悬停 ✓ 的提示「接受 Enter」（✕ 同理「放弃 Esc」）",
       "change": "new",
-      "candidates": [
-        "046-span-接受Enter"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "悬停 ✓ 没有「接受 Enter」提示",
+      "assertions": ["悬停 ✓ 没有「接受 Enter」提示"],
       "states": [
         "hover",
         "zh-en",
@@ -424,12 +367,9 @@
       "id": "result.accept",
       "label": "结果 · 段尾 ✓ 接受（Enter）",
       "change": "new",
-      "candidates": [
-        "047-button-接受",
-        "048-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "段尾应当只有 ✓ ✕ 两个小图标",
+      "assertions": ["段尾应当只有 ✓ ✕ 两个小图标"],
       "states": [
         "selected",
         "zh-en",
@@ -440,12 +380,9 @@
       "id": "result.discard",
       "label": "结果 · 段尾 ✕ 放弃（Esc）",
       "change": "new",
-      "candidates": [
-        "049-button-放弃",
-        "050-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "段尾应当只有 ✓ ✕ 两个小图标",
+      "assertions": ["段尾应当只有 ✓ ✕ 两个小图标"],
       "states": [
         "selected",
         "zh-en",
@@ -456,11 +393,9 @@
       "id": "result.requirement",
       "label": "结果态输入框：保留上一次的要求（改了再回车 = 追加要求）",
       "change": "new",
-      "candidates": [
-        "052-span-更短一点保留原意"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "输入框没有保留这一次的要求",
+      "assertions": ["输入框没有保留这一次的要求"],
       "states": [
         "long-text",
         "zh-en",
@@ -471,33 +406,15 @@
       "id": "result.retry",
       "label": "结果态输入框右端 ↻：用原要求重来",
       "change": "new",
-      "candidates": [
-        "053-button-用原要求重来",
-        "054-svg"
-      ],
+      "anchor": "未定",
       "status": "implemented",
-      "assertion": "输入框右端没有 ↻",
+      "assertions": ["输入框右端没有 ↻"],
       "states": [
         "disabled",
         "zh-en",
         "dark"
       ]
     }
-  ],
-  "decor": [
-    "001-div-①选中一段浮条上点AI编",
-    "002-h2-第3场林薇家夜",
-    "003-p-林薇回到家没开大灯台灯下",
-    "022-p-纸上的字被潮气洇开只认得",
-    "023-div-②输入要求或点一项",
-    "024-h2-第3场林薇家夜",
-    "025-p-林薇回到家没开大灯台灯下",
-    "039-p-纸上的字被潮气洇开只认得",
-    "040-div-③结果就地出现",
-    "041-h2-第3场林薇家夜",
-    "042-p-林薇回到家没开大灯台灯下",
-    "043-p-她",
-    "055-p-纸上的字被潮气洇开只认得"
   ],
   "functionCensus": [
     {

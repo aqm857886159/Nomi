@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { readNodeMediaAspectRatio, resolveNodeVisualSize } from '../nodes/nodeSizing'
-import { nodeRunOutcomePatch } from './nodeRunOutcome'
+import { nodeRunOutcomePatch, projectNodeDisplay } from './nodeRunOutcome'
 import { normalizeNodeResultVersionNumbers, removeNodeResult } from '../model/nodeResultLifecycle'
 
 const imageResult: GenerationNodeResult = {
@@ -104,4 +104,18 @@ it('keeps main frame dimensions when a superseded image arrives for history', ()
     result: { ...imageResult, id: 'old-image' }, mediaDimensions: { width: 90, height: 160 } })
   expect(patch.history?.[0].id).toBe('old-image')
   expect({ ...current, ...patch }).toMatchObject({ result: imageResult, meta: current.meta })
+})
+
+describe('出高清没成：节点照成功画（样片还在），别的失败照旧', () => {
+  const at = 1_800_000_000_000
+  const sample = { id: 's1', type: 'video', url: 'nomi-local://asset/p/s1.mp4', createdAt: at } as GenerationNodeResult
+  const failedFinal = { id: 'r2', status: 'error' as const, error: 'HTTP 500', startedAt: at, updatedAt: at, attempt: { vendorKey: 'apimart', modelKey: 'm', draftTaskId: 'draft-1' } }
+  const failedPlain = { id: 'r3', status: 'error' as const, error: 'HTTP 500', startedAt: at, updatedAt: at, attempt: { vendorKey: 'apimart', modelKey: 'm' } }
+  it('最新一次是出高清且没成、手上有样片 → success、不挂错误（范围重试 / 分镜行 / 失败卡都不会按普通生成重发）', () => {
+    expect(projectNodeDisplay({ status: 'error', result: sample }, [failedFinal])).toEqual({ status: 'success', error: undefined, progress: undefined })
+  })
+  it('反例：普通失败、没有样片的出高清失败（老记录）照旧是 error', () => {
+    expect(projectNodeDisplay({ status: 'error', result: sample }, [failedPlain]).status).toBe('error')
+    expect(projectNodeDisplay({ status: 'error' }, [failedFinal]).status).toBe('error')
+  })
 })

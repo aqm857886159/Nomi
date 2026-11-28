@@ -73,6 +73,7 @@ import {
   applyCanvasDragPositionChanges,
 } from './canvasDragDraft'
 import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, endKernelNodeDrag, finishCanvasNodeDrag, isKeyboardMoveBatch, keyboardMoveScope, restoreDisownedKernelPositions } from './canvasDragWriteback'
+import { NodeOutsideRowsViewport } from '../nodes/NodeLabelRow'
 import { GenerationFlowHandleMenuScope } from './generationFlowNodeContext'
 import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOverlays'
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
@@ -753,7 +754,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
 export default function GenerationCanvasReactFlow(props: GenerationCanvasReactFlowProps): JSX.Element {
   return (
     <ReactFlowProvider>
-      <GenerationCanvasReactFlowInner {...props} />
+      <NodeOutsideRowsViewport>
+        <GenerationCanvasReactFlowInner {...props} />
+      </NodeOutsideRowsViewport>
     </ReactFlowProvider>
   )
 }

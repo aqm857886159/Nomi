@@ -108,6 +108,11 @@ export type GenerationNodeProgress = {
   phase?: string
   message?: string
   percent?: number
+  /**
+   * 这次在跑的是从这条样片出高清（样片号，和运行记录 attempt.draftTaskId 同一个值）。
+   * 花钱的那条路在主进程准入前只占显示、不写记录，那一段只有进度认得出是出高清（runOwnOutcomes 每一帧都盖上）。
+   */
+  draftTaskId?: string
   updatedAt: number
 }
 
@@ -119,7 +124,12 @@ export type GenerationNodeRunStatus = Exclude<GenerationNodeStatus, 'idle'> | 'c
  * （2026-09-29：用户点了提示里的「切到另一家」，旧失败还挂在节点上，提示按新选的那家去点名，说它失败了。）
  * 旧记录没有这一栏：读不出是谁失败的，就不替它点名。
  */
-export type GenerationNodeRunAttempt = { vendorKey: string; modelKey: string }
+export type GenerationNodeRunAttempt = {
+  vendorKey: string
+  modelKey: string
+  /** 这次是从这条样片出高清（提交那一刻从请求的 draft_task_id 记下）；普通发送不带。 */
+  draftTaskId?: string
+}
 
 export type GenerationNodeRunRecord = {
   id: string

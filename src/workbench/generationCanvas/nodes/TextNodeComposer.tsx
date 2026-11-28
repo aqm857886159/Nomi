@@ -321,6 +321,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
                     className="shrink-0 rounded-pill px-3 font-semibold"
                     data-bar-segment="generate"
                     data-text-composer="connect"
+                    data-board="entry.composer-connect"
                     data-composer-connect="true"
                     onClick={(event) => { event.stopPropagation(); openApimartConnect() }}
                   >

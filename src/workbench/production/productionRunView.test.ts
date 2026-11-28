@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProductionRun, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
+import type { ProductionRun, ProductionRunStatus } from '../../../electron/shared/contracts/productionRunTypes'
 import { RETRIEVAL_UNAVAILABLE_MESSAGE } from '../../../electron/shared/nomiErrorCodes'
 import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
 import { buildProductionRunView, isProductionRunTask, productionRunStatusGroup, type ProductionRunTone } from './productionRunView'

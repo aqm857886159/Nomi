@@ -10,6 +10,7 @@
 // 账放在仓库外的缓存目录。账上只有编号和元数据，没有摘要和留言：原文在 `feedback/` 下面，要看去报告里看。
 import fs from 'node:fs'
 import path from 'node:path'
+import { writeFileAtomicSync } from '../atomicFile.mjs'
 
 const INBOX_FILE = 'inbox.json'
 
@@ -37,11 +38,7 @@ export function readInbox(cacheDir) {
 
 /** 先写临时文件再改名：雷达跑超时会被 hook 杀掉，账不能写到一半。 */
 export function writeInbox(cacheDir, inbox) {
-  fs.mkdirSync(cacheDir, { recursive: true })
-  const file = inboxPath(cacheDir)
-  const temp = `${file}.${process.pid}.tmp`
-  fs.writeFileSync(temp, `${JSON.stringify({ schemaVersion: 1, items: inbox.items }, null, 2)}\n`)
-  fs.renameSync(temp, file)
+  writeFileAtomicSync(inboxPath(cacheDir), `${JSON.stringify({ schemaVersion: 1, items: inbox.items }, null, 2)}\n`)
 }
 
 /**

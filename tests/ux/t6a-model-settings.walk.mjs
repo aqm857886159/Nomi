@@ -24,6 +24,7 @@ import homeBoard from '../fixtures/boards/model-surfaces-settings-home.json' wit
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const output = path.resolve(root, process.env.NOMI_WALK_OUT || 'docs/evidence/2026-11-24-t6a-model-settings')
 const board = path.join(root, 'docs/design/boards/2026-11-07-model-surfaces/preview')
+const m1EnBoardHtml = fs.readFileSync(path.join(root, 'docs/design/boards/2026-11-07-model-surfaces/source/M1-en.dc.html'), 'utf8')
 const oldFixture = path.join(root, 'tests/fixtures/old-user-data/catalogs/v0.24.1-wizard')
 const { values: perf } = parseArgs({ options: { runs: { type: 'string' }, out: { type: 'string' } } })
 const requests = []
@@ -94,7 +95,9 @@ async function checkConnectedHome(home, { locale, width, labelFor }) {
   await expect(storage).toHaveCSS('color', ink60)
   await expect(ways.locator('[data-model-entry-icon] path').first()).toHaveAttribute('d', homeBoard.plugFirstPath)
   if (locale === 'en') {
-    await expect(assisted.locator('[data-model-entry-title]')).toHaveText(homeBoard.englishAssistedTitle)
+    const englishAssistedTitle = uiText('en', 'onboardingProviders.assistedOnboarding.title')
+    assert(m1EnBoardHtml.includes(`<span class="bs w6">${englishAssistedTitle}</span>`), 'M1-en board matches assisted onboarding title')
+    await expect(assisted.locator('[data-model-entry-title]')).toHaveText(englishAssistedTitle)
     await expect(header.locator('p')).toHaveText(/^APIMart connected · Image \d+ · Video \d+ · Audio \d+ · Text \d+$/)
   }
   const entryProof = await proveProbe(assisted.locator('summary'), 'The assisted entry is mounted')
