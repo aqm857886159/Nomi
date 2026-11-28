@@ -1,0 +1,30 @@
+{
+  "id": "USER-20261128-fc-agent-stream-errors",
+  "since": "2026-11-28",
+  "source": "协作看板 #1586 · F-C（0.25 切版清单 3.3b：Agent 对话剩余线上参数、回答截断与流内报错收口）",
+  "category": "claims-and-outcomes",
+  "problem": "HTTP 200 SSE 流内结构化报错与通用协议级 invalid_request_error / context_length_exceeded 落入「服务商返回了一个没见过的错误」，且模型因单次输出长度上限截断时被误报「对话太长」或静默断尾。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-28-fc-agent-stream-errors.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/agentLane/fcAgentScenarios.test.ts"
+  },
+  "evidence": [
+    "electron/agentLane/fcAgentScenarios.test.ts",
+    "electron/agentLane/laneModelCall.test.ts",
+    "electron/vendor/vendorFailureCorpus.test.ts",
+    "src/workbench/ai/lane/laneCommandFailure.test.ts",
+    "tests/agent-runtime/lane-resilience.test.mts"
+  ],
+  "completionCommits": [
+    "49bdfd822"
+  ]
+}

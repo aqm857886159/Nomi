@@ -4,8 +4,8 @@
 
 ### 功能分类
 
+- [x] Agent 行为
 - 改动类型：Bug 修复与协议级错误归一收口（非新增功能；触及 `src/i18n/locales/` 用户可见文案词条，按 `check-pr-judgement.mjs` 走**标准档**，并补齐 ★0 外部协议核查与 ★1–★9 关键格）。
-- 路由测试类别：`agent`（`electron/agentLane/`、`src/workbench/ai/`）。
 
 ---
 
