@@ -22,6 +22,7 @@
     "wrangler.json",
     "marketing/_headers",
     "scripts/build-marketing-site.mjs",
+    "scripts/pre-push-scan-guards.mjs",
     "workers/nomi-asset-relay/src/index.mjs",
     "infra/feedback-worker/src/worker.mjs"
   ],
@@ -183,6 +184,7 @@
       "worker/mediaAssetSizes.ts",
       "marketing/_headers",
       "scripts/build-marketing-site.mjs",
+      "scripts/pre-push-scan-guards.mjs",
       "workers/nomi-asset-relay/src/index.mjs",
       "infra/feedback-worker/src/worker.mjs"
     ]

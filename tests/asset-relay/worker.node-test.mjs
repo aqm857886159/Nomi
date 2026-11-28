@@ -147,6 +147,28 @@ test("consecutive uploads reuse the short-TTL usage cache with incremental byte 
   assert.equal(e.ASSETS.calls.list.length, 1);
 });
 
+test("usage cache enforces a fixed 60s TTL window rather than sliding infinitely on steady uploads", async (t) => {
+  const e = env();
+  e.ASSETS.seed("assets/existing", { size: 10, expiresAt: FUTURE });
+
+  let nowMs = 1_795_000_000_000;
+  t.mock.method(Date, "now", () => nowMs);
+
+  // t = 0s: initial upload triggers first bucket scan (list === 1).
+  assert.equal(await uploadStatus(e, "a".repeat(5)), 201);
+  assert.equal(e.ASSETS.calls.list.length, 1);
+
+  // t = 40s (< 60s): hits cache and increments bytes without resetting cachedAtMs.
+  nowMs += 40_000;
+  assert.equal(await uploadStatus(e, "b".repeat(5)), 201);
+  assert.equal(e.ASSETS.calls.list.length, 1);
+
+  // t = 61s (> 60s since initial scan, even though only 21s after second upload): must re-scan R2!
+  nowMs += 21_000;
+  assert.equal(await uploadStatus(e, "c".repeat(5)), 201);
+  assert.equal(e.ASSETS.calls.list.length, 2, "fixed-window TTL must expire at 60s to reconcile cross-isolate writes/cleanups");
+});
+
 test("lazy deletion of an expired asset on read invalidates the usage cache so freed headroom is usable", async () => {
   const e = env();
   e.MAX_STORAGE_BYTES = "20";

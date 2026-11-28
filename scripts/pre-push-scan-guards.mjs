@@ -165,7 +165,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/timeline/timelineGesture.structure.test.ts', roots: ['src/workbench/timeline', 'src/workbench/generationCanvas/nodes', 'src/workbench/preview'] },
   // ── 脚本 / 走查 / 站点 / 测试清单 ──
   { file: 'scripts/agent-runtime-wiring.test.mjs', roots: ['tests/agent-runtime'], files: ['electron/tsconfig.json', 'tests/agent-runtime/tsconfig.json'] }, // 11 秒
-  { file: 'scripts/marketing/serving-contract.test.mjs', roots: ['marketing'], exts: '*', files: ['wrangler.json'] },
+  { file: 'scripts/marketing/serving-contract.test.mjs', roots: ['marketing'], exts: '*', files: ['wrangler.json', 'worker/mediaAssetSizes.ts'] },
   { file: 'scripts/vitest-lanes.test.ts', match: TEST_STYLE_FILE }, // 全仓每个测试样式文件都必须被某条车道认领；vitest.config.ts 在闭包里
   { file: 'tests/ux/_launchApp.test.mjs', roots: ['tests/ux', 'scripts'], exts: ['mjs'] }, // 每个字面凭据夹具都显式声明隔离合成存储（3 秒）
   { file: 'tests/ux/_paidRun.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 每个 *.paid.mjs 都走 openPaidWalk 或在例外表里

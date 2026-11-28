@@ -82,6 +82,7 @@ function resolveAssetSize(
 
 function buildEdgeCacheHeaders(sourceHeaders: Headers, size: number): Headers {
   const cacheHeaders = new Headers(sourceHeaders);
+  cacheHeaders.delete("Content-Range");
   cacheHeaders.set("Accept-Ranges", "bytes");
   cacheHeaders.set("Content-Length", String(size));
   const cc = cacheHeaders.get("Cache-Control") ?? "";
@@ -147,7 +148,7 @@ export async function serveAssetWithRanges(
 
   const size = resolveAssetSize(request.url, response.headers, knownAssetSizes);
   const headers = new Headers(response.headers);
-  headers.set("Accept-Ranges", "bytes");
+  if (size !== null) headers.set("Accept-Ranges", "bytes");
   const body = response.body;
 
   // Range is defined for GET only (RFC 9110 §14.2); HEAD and the rest get the plain answer.
@@ -156,14 +157,14 @@ export async function serveAssetWithRanges(
     return new Response(body, { status: 200, headers });
   }
 
-  const cacheControl = headers.get("Cache-Control") ?? "";
+  const cacheControl = response.headers.get("Cache-Control") ?? "";
   const canCache = edgeCache !== undefined && size !== null && !/\b(?:no-store|private)\b/i.test(cacheControl);
   const putFullInEdgeCache = (stream: ReadableStream<Uint8Array>): Promise<void> => {
     const putPromise = edgeCache!.put(
       new Request(request.url, { method: "GET" }),
       new Response(stream.pipeThrough(fixedLength(size!)), {
         status: 200,
-        headers: buildEdgeCacheHeaders(headers, size!),
+        headers: buildEdgeCacheHeaders(response.headers, size!),
       }),
     );
     ctx?.waitUntil(putPromise.catch(() => {}));

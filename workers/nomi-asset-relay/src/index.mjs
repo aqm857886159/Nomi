@@ -22,20 +22,24 @@ const ALLOWED_MEDIA = new Set(["image", "video", "audio"]);
 const usageCacheByBucketObject = new WeakMap();
 const usageCacheByOriginKey = new Map();
 
-function readUsageCache(env, now = Date.now()) {
+function readUsageCacheEntry(env, now = Date.now()) {
   const bucket = env?.ASSETS;
   if (!bucket || typeof bucket !== "object") return null;
   const entry = bucket.constructor?.name === "R2Bucket"
     ? usageCacheByOriginKey.get(String(env.PUBLIC_BASE_URL || "default"))
     : usageCacheByBucketObject.get(bucket);
   if (!entry || now - entry.cachedAtMs > USAGE_CACHE_TTL_MS) return null;
-  return entry.snapshot;
+  return entry;
 }
 
-function writeUsageCache(env, snapshot, now = Date.now()) {
+function readUsageCache(env, now = Date.now()) {
+  return readUsageCacheEntry(env, now)?.snapshot ?? null;
+}
+
+function writeUsageCache(env, snapshot, cachedAtMs = Date.now()) {
   const bucket = env?.ASSETS;
   if (!bucket || typeof bucket !== "object") return;
-  const entry = { snapshot: { ...snapshot }, cachedAtMs: now };
+  const entry = { snapshot: { ...snapshot }, cachedAtMs };
   if (bucket.constructor?.name === "R2Bucket") {
     usageCacheByOriginKey.set(String(env.PUBLIC_BASE_URL || "default"), entry);
   } else {
@@ -53,16 +57,20 @@ function invalidateUsageCache(env) {
   }
 }
 
-function recordUploadedAssetInCache(env, sizeBytes) {
-  const cached = readUsageCache(env);
-  if (!cached) return;
-  const storageBytes = cached.storageBytes + sizeBytes;
-  writeUsageCache(env, {
-    ...cached,
-    objectCount: cached.objectCount + 1,
-    storageBytes,
-    estimatedMonthlyStorageUsd: storageEstimateUsd(storageBytes),
-  });
+function recordUploadedAssetInCache(env, sizeBytes, now = Date.now()) {
+  const entry = readUsageCacheEntry(env, now);
+  if (!entry) return;
+  const storageBytes = entry.snapshot.storageBytes + sizeBytes;
+  writeUsageCache(
+    env,
+    {
+      ...entry.snapshot,
+      objectCount: entry.snapshot.objectCount + 1,
+      storageBytes,
+      estimatedMonthlyStorageUsd: storageEstimateUsd(storageBytes),
+    },
+    entry.cachedAtMs,
+  );
 }
 
 function json(body, status = 200) {

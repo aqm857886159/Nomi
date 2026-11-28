@@ -321,12 +321,18 @@ describe("site worker byte ranges (Safari/iOS media playback & <1ms CPU budget)"
     expect(Array.from(new Uint8Array(await coldTail.arrayBuffer()))).toEqual([60, 61, 62, 63]);
     expect(assetFetches).toBe(1);
     expect(edgeCache.puts).toBe(1);
+    expect(edgeCache.entries.get(FILM)?.headers.get("content-range")).toBeNull();
     expect(waitUntilPromises.length).toBeGreaterThanOrEqual(1);
     expect(customTransformCount).toBe(0);
 
     FixedLengthStreamStandIn.lengths = [];
 
-    // Subsequent Range probes, mid-seeks, 416, unsupported multi-range, and HEAD all hit caches.default directly.
+    // Subsequent Range probes, mid-seeks, 416, plain GET, unsupported multi-range, and HEAD all hit caches.default directly without Content-Range leakage on 200/HEAD.
+    const plain = await worker.fetch(new Request(FILM), env, ctx);
+    expect(plain.status).toBe(200);
+    expect(plain.headers.get("content-range")).toBeNull();
+    expect((await plain.arrayBuffer()).byteLength).toBe(64);
+
     const probe = await worker.fetch(new Request(FILM, { headers: { Range: "bytes=0-1" } }), env, ctx);
     expect(probe.status).toBe(206);
     expect(Array.from(new Uint8Array(await probe.arrayBuffer()))).toEqual([0, 1]);
@@ -341,16 +347,34 @@ describe("site worker byte ranges (Safari/iOS media playback & <1ms CPU budget)"
 
     const multi = await worker.fetch(new Request(FILM, { headers: { Range: "bytes=0-1,4-5" } }), env, ctx);
     expect(multi.status).toBe(200);
+    expect(multi.headers.get("content-range")).toBeNull();
     expect((await multi.arrayBuffer()).byteLength).toBe(64);
 
     const head = await worker.fetch(new Request(FILM, { method: "HEAD", headers: { Range: "bytes=0-1" } }), env, ctx);
     expect(head.status).toBe(200);
     expect(head.headers.get("accept-ranges")).toBe("bytes");
+    expect(head.headers.get("content-range")).toBeNull();
     expect(await head.text()).toBe("");
 
     expect(assetFetches).toBe(1);
     expect(FixedLengthStreamStandIn.lengths).toEqual([]);
     expect(customTransformCount).toBe(0);
+
+    // Also verify cold `bytes=0-` and cold `416` cache fills never leak Content-Range into the cached 200 entry.
+    for (const coldRange of ["bytes=0-", "bytes=999-"]) {
+      const freshCache = createEdgeCacheStandIn();
+      vi.stubGlobal("caches", { default: freshCache });
+      const pending: Promise<unknown>[] = [];
+      const coldResp = await worker.fetch(new Request(FILM, { headers: { Range: coldRange } }), env, {
+        waitUntil: (promise) => { pending.push(promise); },
+      });
+      await coldResp.arrayBuffer();
+      await Promise.all(pending);
+      expect(freshCache.entries.get(FILM)?.headers.get("content-range"), coldRange).toBeNull();
+      const cachedGet = await worker.fetch(new Request(FILM), env);
+      expect(cachedGet.status, coldRange).toBe(200);
+      expect(cachedGet.headers.get("content-range"), coldRange).toBeNull();
+    }
   });
 
   it("falls back cleanly to 200 in 1 fetch when an unmapped asset has no Content-Length", async () => {
@@ -368,6 +392,7 @@ describe("site worker byte ranges (Safari/iOS media playback & <1ms CPU budget)"
       env,
     );
     expect(response.status).toBe(200);
+    expect(response.headers.get("accept-ranges")).toBeNull();
     expect((await response.arrayBuffer()).byteLength).toBe(64);
     expect(fetches).toBe(1);
   });
