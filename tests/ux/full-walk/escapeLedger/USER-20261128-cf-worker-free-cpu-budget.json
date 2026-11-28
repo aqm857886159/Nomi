@@ -1,0 +1,29 @@
+{
+  "id": "USER-20261128-cf-worker-free-cpu-budget",
+  "since": "2026-11-28",
+  "source": "用户 2026-11-28 生产告警：Cloudflare Worker 过去 24 小时至少 100 次触及免费层 10ms CPU 时间限制",
+  "category": "performance-coverage",
+  "problem": "Cloudflare Worker 过去 24 小时至少 100 次触及免费层 10ms CPU 时间限制：官网 7.6MB 视频 Range 请求在 JS 全流读计数并逐块丢弃前缀，素材中转站每次上传全表列桶 Date.parse 且单次清理跑满 900 页。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-28-cloudflare-worker-free-cpu-budget.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "scripts/marketing/serving-contract.test.mjs"
+  },
+  "evidence": [
+    "docs/plan/2026-11-28-cloudflare-worker-free-cpu-budget.md",
+    "electron/catalog/siteWorkerByteRange.test.ts",
+    "scripts/marketing/serving-contract.test.mjs",
+    "tests/asset-relay/worker.node-test.mjs",
+    "infra/feedback-worker/test/worker.node-test.mjs"
+  ],
+  "completionCommits": [
+    "018d87866"
+  ],
+  "fixedInPr": 1750
+}

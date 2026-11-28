@@ -76,6 +76,48 @@ test('body 太大 413；content-length 撒谎也拦得住', async () => {
   assert.equal(lying.status, 413)
 })
 
+test('常规体与超长 ASCII 体跳过 TextEncoder.encode 整块分配，中间带多字节超限仍精确返回 413', async (t) => {
+  const { env, puts } = fakeEnv()
+  const wireBytes = new TextEncoder()
+  const normal = JSON.stringify({ summary: '诊断摘要'.repeat(20_000) })
+  const hugeAscii = JSON.stringify({ blob: 'a'.repeat(2 * 1024 * 1024 + 64) })
+  const cjkOversize = JSON.stringify({ blob: '中'.repeat(800_000) })
+  const middleAscii = JSON.stringify({ blob: 'b'.repeat(1_500_000) })
+
+  const wirePost = (bytes) =>
+    new Request('https://intake.example/v1/feedback', {
+      method: 'POST',
+      headers: { authorization: 'Bearer dev-token', 'content-type': 'application/json', 'content-length': '1' },
+      body: bytes,
+    })
+
+  const normalReq = wirePost(wireBytes.encode(normal))
+  const hugeAsciiReq = wirePost(wireBytes.encode(hugeAscii))
+  const cjkOversizeReq = wirePost(wireBytes.encode(cjkOversize))
+  const middleAsciiReq = wirePost(wireBytes.encode(middleAscii))
+
+  const encodeSpy = t.mock.method(TextEncoder.prototype, 'encode')
+  const largeEncodes = () => encodeSpy.mock.calls.filter((call) => String(call.arguments[0] ?? '').length > 1024).length
+
+  // 1) raw.length * 3 <= 2 MiB：数学保证 UTF-8 <= 2 MiB，0 次大包 TextEncoder.encode 拷贝
+  assert.ok(normal.length * 3 <= 2 * 1024 * 1024)
+  assert.equal((await worker.fetch(normalReq, env)).status, 200)
+  assert.equal(largeEncodes(), 0)
+
+  // 2) raw.length > 2 MiB 且谎报 content-length：数学保证 UTF-8 > 2 MiB，同样 0 次大包 TextEncoder.encode 拷贝
+  assert.equal((await worker.fetch(hugeAsciiReq, env)).status, 413)
+  assert.equal(largeEncodes(), 0)
+
+  // 3) 中间带（字符数 < 2 MiB 但 raw.length * 3 > 2 MiB）：多字节中文实际 2.4MB > 2 MiB → 精确拦截 413
+  assert.ok(cjkOversize.length < 2 * 1024 * 1024 && cjkOversize.length * 3 > 2 * 1024 * 1024)
+  assert.equal((await worker.fetch(cjkOversizeReq, env)).status, 413)
+  assert.equal(largeEncodes(), 1)
+
+  // 4) 中间带合法 ASCII（1.5MB <= 2 MiB）→ 正常放行 200
+  assert.equal((await worker.fetch(middleAsciiReq, env)).status, 200)
+  assert.equal(puts.length, 2)
+})
+
 test('不是 JSON 对象一律 400', async () => {
   const { env, puts } = fakeEnv()
   for (const body of ['not json', '[]', 'null', '"a string"', '42']) {

@@ -1,10 +1,12 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { MEDIA_ASSET_SIZES } from '../../worker/mediaAssetSizes.ts'
 
-// How nomiaqm.com serves marketing/ is decided by two files Cloudflare reads at deploy time:
-// wrangler.json (which requests reach the site worker first) and marketing/_headers.
+// How nomiaqm.com serves marketing/ is decided by three artifacts synced at build/deploy time:
+// wrangler.json (which requests reach the site worker first), marketing/_headers, and
+// worker/mediaAssetSizes.ts (静态媒体字节清单，彻底消除运行时读流计数).
 // _headers patterns are Cloudflare globs: `*` is `.*`, anchored at both ends
 // (workers-shared asset-worker/src/utils/rules-engine.ts, generateGlobOnlyRuleRegExp).
 
@@ -68,6 +70,7 @@ function customHeaders(rules, pathname) {
 }
 
 const paths = servedPaths()
+const mediaPaths = paths.filter((pathname) => MEDIA_EXTENSIONS.has(path.extname(pathname).toLowerCase())).sort()
 const headerRules = parseHeaderRules(readFileSync(path.join(siteDir, '_headers'), 'utf8'))
 
 describe('marketing site serving contract', () => {
@@ -80,13 +83,12 @@ describe('marketing site serving contract', () => {
   it('sends every media type through the site worker so Range requests get 206, and nothing else', () => {
     // Worker-first routes are only `/*.<ext>` for media extensions, so pages and images stay
     // on the direct asset path, and a new media type fails here until it is routed.
-    const mediaExtensions = [...new Set(paths.map((pathname) => path.extname(pathname).toLowerCase()))]
-      .filter((extension) => MEDIA_EXTENSIONS.has(extension))
+    const mediaExtensions = [...new Set(mediaPaths.map((pathname) => path.extname(pathname).toLowerCase()))]
     expect(mediaExtensions).toContain('.mp4')
     expect([...config.assets.run_worker_first].sort()).toEqual(mediaExtensions.map((extension) => `/*${extension}`).sort())
   })
 
-  it('gives every served file at most one Cache-Control value', () => {
+  it('gives every served file at most one Cache-Control value and gives every media file a positive max-age for edge caching', () => {
     const conflicting = paths
       .map((pathname) => [pathname, customHeaders(headerRules, pathname).get('cache-control') ?? []])
       .filter(([, values]) => values.length > 1)
@@ -95,5 +97,19 @@ describe('marketing site serving contract', () => {
       .toEqual(['public, max-age=3600, must-revalidate'])
     expect(customHeaders(headerRules, '/assets/promo-0.22/cover-zh-light.jpg').get('cache-control'))
       .toEqual(['public, max-age=31536000, immutable'])
+
+    for (const mediaPath of mediaPaths) {
+      const cc = customHeaders(headerRules, mediaPath).get('cache-control') ?? []
+      expect(cc, `${mediaPath} needs a single cacheable Cache-Control header for caches.default`).toHaveLength(1)
+      expect(cc[0], mediaPath).toMatch(/\bmax-age=[1-9]\d*/)
+    }
+  })
+
+  it('census: keeps MEDIA_ASSET_SIZES 100% aligned with the exact stat.size of every media file under marketing/', () => {
+    const actualSizes = Object.fromEntries(
+      mediaPaths.map((pathname) => [pathname, statSync(path.join(siteDir, pathname.slice(1))).size]),
+    )
+    expect(Object.keys(actualSizes).length).toBeGreaterThan(0)
+    expect(MEDIA_ASSET_SIZES).toEqual(actualSizes)
   })
 })

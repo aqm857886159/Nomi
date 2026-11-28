@@ -4,17 +4,74 @@ const DEFAULT_TTL_SECONDS = 24 * 60 * 60;
 const ASSET_PREFIX = "assets/";
 // R2 caps both a list() page and a delete([keys]) call at 1000.
 const R2_BATCH_LIMIT = 1000;
-// R2 calls are subrequests to an internal service: at most 1,000 per invocation on Workers Free and 10,000 by
-// default on Paid (https://developers.cloudflare.com/workers/platform/limits/#subrequests). One scan or cleanup
-// spends at most this many, under the Free limit with room for the put/get around it, so a long bucket ends the
-// run on our terms instead of the runtime killing it half-way with "Too many subrequests".
-const R2_CALL_BUDGET = 900;
+// Workers Free enforces both a 1,000-subrequest limit AND a hard 10ms CPU budget per invocation
+// (https://developers.cloudflare.com/workers/platform/limits/#cpu-time). Bounding each scan/cleanup
+// to at most 32 R2 subrequests and 10,000 objects keeps worst-case JS CPU around ~1ms while still
+// covering up to 10,000 objects per invocation; keys start with the upload epoch ms (assetKey), so
+// oldest expired objects are always drained first and later hourly cron runs continue cleanly.
+const R2_CALL_BUDGET = 32;
+const R2_OBJECT_BUDGET = 10_000;
+const USAGE_CACHE_TTL_MS = 60_000;
 const DEFAULT_MAX_BYTES = 200 * 1024 * 1024;
 const DEFAULT_MAX_STORAGE_BYTES = 8_000_000_000;
 const DEFAULT_MAX_MONTHLY_BUDGET_USD = 0;
 const FREE_STORAGE_BYTES = 10_000_000_000;
 const STORAGE_USD_PER_GB_MONTH = 0.015;
 const ALLOWED_MEDIA = new Set(["image", "video", "audio"]);
+
+const usageCacheByBucketObject = new WeakMap();
+const usageCacheByOriginKey = new Map();
+
+function readUsageCacheEntry(env, now = Date.now()) {
+  const bucket = env?.ASSETS;
+  if (!bucket || typeof bucket !== "object") return null;
+  const entry = bucket.constructor?.name === "R2Bucket"
+    ? usageCacheByOriginKey.get(String(env.PUBLIC_BASE_URL || "default"))
+    : usageCacheByBucketObject.get(bucket);
+  if (!entry || now - entry.cachedAtMs > USAGE_CACHE_TTL_MS) return null;
+  return entry;
+}
+
+function readUsageCache(env, now = Date.now()) {
+  return readUsageCacheEntry(env, now)?.snapshot ?? null;
+}
+
+function writeUsageCache(env, snapshot, cachedAtMs = Date.now()) {
+  const bucket = env?.ASSETS;
+  if (!bucket || typeof bucket !== "object") return;
+  const entry = { snapshot: { ...snapshot }, cachedAtMs };
+  if (bucket.constructor?.name === "R2Bucket") {
+    usageCacheByOriginKey.set(String(env.PUBLIC_BASE_URL || "default"), entry);
+  } else {
+    usageCacheByBucketObject.set(bucket, entry);
+  }
+}
+
+function invalidateUsageCache(env) {
+  const bucket = env?.ASSETS;
+  if (!bucket || typeof bucket !== "object") return;
+  if (bucket.constructor?.name === "R2Bucket") {
+    usageCacheByOriginKey.delete(String(env.PUBLIC_BASE_URL || "default"));
+  } else {
+    usageCacheByBucketObject.delete(bucket);
+  }
+}
+
+function recordUploadedAssetInCache(env, sizeBytes, now = Date.now()) {
+  const entry = readUsageCacheEntry(env, now);
+  if (!entry) return;
+  const storageBytes = entry.snapshot.storageBytes + sizeBytes;
+  writeUsageCache(
+    env,
+    {
+      ...entry.snapshot,
+      objectCount: entry.snapshot.objectCount + 1,
+      storageBytes,
+      estimatedMonthlyStorageUsd: storageEstimateUsd(storageBytes),
+    },
+    entry.cachedAtMs,
+  );
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -93,38 +150,50 @@ function assetPath(request) {
 }
 
 function r2CallBudget() {
-  return { limit: R2_CALL_BUDGET, used: 0, exhausted: false };
+  return { limit: R2_CALL_BUDGET, used: 0, objectLimit: R2_OBJECT_BUDGET, objects: 0, exhausted: false };
 }
 
 // The only place that lists the bucket. R2 returns customMetadata from list() only when it is asked for
 // with `include` (compatibility_date >= 2022-08-04); without it every object looks like it never expires,
 // which is how cleanup silently deleted nothing. Every scan goes through here so the option cannot be forgotten.
-// It also owns the per-invocation call budget: a page is only listed while the budget still covers the list
-// plus `callsPerPage` follow-up calls the caller makes for that page; otherwise it stops and marks the budget
-// exhausted, so callers can tell a finished scan from a cut-short one.
+// It also owns both per-invocation budgets (R2 calls and scanned objects): a page is only listed while both
+// budgets still have room; otherwise it stops and marks the budget exhausted.
 async function* assetPages(env, budget, callsPerPage = 0) {
   let cursor;
   do {
-    if (budget.limit - budget.used < 1 + callsPerPage) {
+    if (budget.limit - budget.used < 1 + callsPerPage || budget.objects >= budget.objectLimit) {
       budget.exhausted = true;
       return;
     }
+    const pageLimit = Math.min(R2_BATCH_LIMIT, budget.objectLimit - budget.objects);
     budget.used += 1;
-    const page = await env.ASSETS.list({ prefix: ASSET_PREFIX, cursor, limit: R2_BATCH_LIMIT, include: ["customMetadata"] });
-    yield page.objects || [];
+    const page = await env.ASSETS.list({ prefix: ASSET_PREFIX, cursor, limit: pageLimit, include: ["customMetadata"] });
+    const objects = page.objects || [];
+    budget.objects += objects.length;
+    yield objects;
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
 }
 
-// Epoch ms the object expires at, or null when it carries no usable expiresAt (never delete those).
+// Epoch ms the object expires at, or null when it carries no usable expiry (never delete those).
+// Prefers numeric `expiresAtMs` in O(1) to avoid Date.parse overhead; falls back to legacy ISO `expiresAt`.
 function assetExpiryMs(object) {
-  const parsed = Date.parse(object.customMetadata?.expiresAt || "");
+  const meta = object.customMetadata;
+  if (!meta) return null;
+  const rawMs = meta.expiresAtMs;
+  if (rawMs !== undefined && rawMs !== "") {
+    const numeric = Number(rawMs);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  }
+  const rawIso = meta.expiresAt;
+  if (!rawIso) return null;
+  const parsed = Date.parse(rawIso);
   return Number.isNaN(parsed) ? null : parsed;
 }
 
 // storageBytes is everything still in the bucket, expired or not: R2 bills what is stored, so the hard cap
-// has to see the same bytes the bill does. A scan cut short by the call budget cannot vouch for the total, so
-// it throws and the upload / usage callers answer usage_unavailable (fail closed) instead of guessing low.
+// has to see the same bytes the bill does. A scan cut short by the call/object budget cannot vouch for the
+// total, so it throws and the upload / usage callers answer usage_unavailable (fail closed) instead of guessing low.
 async function usageSnapshot(env) {
   const now = Date.now();
   const budget = r2CallBudget();
@@ -146,8 +215,8 @@ async function usageSnapshot(env) {
       }
     }
   }
-  if (budget.exhausted) throw new Error(`usage scan stopped at the ${budget.limit}-call R2 budget`);
-  return {
+  if (budget.exhausted) throw new Error(`usage scan stopped at the ${budget.limit}-call / ${budget.objectLimit}-object R2 budget`);
+  const snapshot = {
     objectCount,
     storageBytes,
     expiredObjectCount,
@@ -155,6 +224,12 @@ async function usageSnapshot(env) {
     untrackedObjectCount,
     estimatedMonthlyStorageUsd: storageEstimateUsd(storageBytes),
   };
+  writeUsageCache(env, snapshot, now);
+  return snapshot;
+}
+
+async function cachedUsageSnapshot(env) {
+  return readUsageCache(env) ?? usageSnapshot(env);
 }
 
 function usagePayload(request, env, snapshot) {
@@ -181,7 +256,7 @@ function usageResponse(request, env, snapshot) {
 }
 
 async function enforceStorageBudget(env, incomingBytes) {
-  const snapshot = await usageSnapshot(env);
+  const snapshot = await cachedUsageSnapshot(env);
   const projectedStorageBytes = snapshot.storageBytes + incomingBytes;
   if (projectedStorageBytes > maxStorageBytes(env)) {
     return { snapshot, error: json({ error: "storage_limit_reached", ...usagePayload(null, env, snapshot) }, 507) };
@@ -220,12 +295,14 @@ async function upload(request, env) {
   }
   if (budget.error) return budget.error;
   const ttlSeconds = Math.max(15 * 60, Number(env.ASSET_TTL_SECONDS || DEFAULT_TTL_SECONDS));
-  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+  const expiresAtMs = Date.now() + ttlSeconds * 1000;
+  const expiresAt = new Date(expiresAtMs).toISOString();
   const key = assetKey(file.name);
   await env.ASSETS.put(key, file.stream(), {
     httpMetadata: { contentType: file.type || "application/octet-stream", cacheControl: "private, max-age=300" },
-    customMetadata: { expiresAt, originalName: safeFileName(file.name) },
+    customMetadata: { expiresAt, expiresAtMs: String(expiresAtMs), originalName: safeFileName(file.name) },
   });
+  recordUploadedAssetInCache(env, file.size);
   return json({ url: `${publicBaseUrl(request, env)}/v1/assets/${encodeURIComponent(key)}`, expiresAt, channel: access.mode }, 201);
 }
 
@@ -237,23 +314,25 @@ async function readAsset(request, env) {
   const expiresAtMs = assetExpiryMs(object);
   if (expiresAtMs !== null && expiresAtMs <= Date.now()) {
     await env.ASSETS.delete(key);
+    invalidateUsageCache(env);
     return json({ error: "expired" }, 404);
   }
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("Cache-Control", "private, max-age=300");
-  headers.set("X-Nomi-Asset-Expires-At", object.customMetadata?.expiresAt || "");
+  headers.set(
+    "X-Nomi-Asset-Expires-At",
+    object.customMetadata?.expiresAt || (expiresAtMs !== null ? new Date(expiresAtMs).toISOString() : ""),
+  );
   if (Number.isFinite(object.size)) headers.set("Content-Length", String(object.size));
   return new Response(request.method === "HEAD" ? null : object.body, { headers });
 }
 
-// Deletes objects whose expiresAt has passed, one batched delete per listed page (a page holds at most
-// R2_BATCH_LIMIT keys, so it is always one call). Objects without a usable expiresAt are left alone and only
-// counted. A backlog longer than one run's call budget ends the run with complete: false; keys start with the
-// upload time (assetKey), so the listing goes oldest first, a cut-short run has removed the oldest expired
-// objects, and the next hourly run carries on from there. Objects that stay (live, or without expiresAt) are
-// listed again by every run; that only stalls cleanup once they fill the whole budget (~900 pages, about
-// 900k objects at R2's usual 1000 per page).
+// Deletes objects whose expiry has passed, one batched delete per listed page (a page holds at most
+// R2_BATCH_LIMIT keys, so it is always one call). Objects without a usable expiry are left alone and only
+// counted. A backlog longer than one run's 10ms-CPU-safe call/object budget ends the run with complete: false;
+// keys start with the upload time (assetKey), so the listing goes oldest first, a cut-short run has removed
+// the oldest expired objects, and the next hourly run carries on from there.
 export async function cleanup(env) {
   const now = Date.now();
   const budget = r2CallBudget();
@@ -273,6 +352,7 @@ export async function cleanup(env) {
     deleted += expired.length;
     deletedBytes += expired.reduce((sum, object) => sum + Number(object.size || 0), 0);
   }
+  invalidateUsageCache(env);
   return { deleted, deletedBytes, untrackedObjectCount, r2Calls: budget.used, complete: !budget.exhausted };
 }
 
