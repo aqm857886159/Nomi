@@ -219,6 +219,20 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
       glyph: 'AG',
     })] : []),
   ]
-  return { knownCards, otherVendorGroups, comfyuiInstances, comfyuiConnected, codexImageEnabled,
+  const localOptions = [...homeConnections, ...availableHomeConnections].filter(c =>
+    isComfyuiVendorKey(c.vendorKey) || c.vendorKey === LOCAL_TEXT_VENDOR_KEY || c.vendorKey === 'local-speech')
+  const accounts = homeConnections.filter(c => {
+    const meta = vendorMeta.get(c.vendorKey)
+    return builtinVendorKeyOfKey(c.vendorKey) === 'apimart' && meta?.enabled && meta.hasApiKey
+  })
+  const previous = [...homeConnections, ...availableHomeConnections].filter(c => {
+    if (accounts.includes(c) || c.vendorKey === 'local-speech') return false
+    const meta = vendorMeta.get(c.vendorKey)
+    if (meta?.credentialMaterialSaved || meta?.hasApiKey) return true
+    if (!homeConnections.includes(c)) return false
+    return c.kind !== 'api' || meta?.builtinPreset === false
+  }).map(c => availableHomeConnections.includes(c)
+    ? { ...c, onOpen: () => openPage({ type: 'connection', vendorKey: c.vendorKey }) } : c)
+  return { accounts, previous, localOptions, knownCards, otherVendorGroups, comfyuiInstances, comfyuiConnected, codexImageEnabled,
     antigravityEnabled, connectionTitle, homeConnections, availableHomeConnections }
 }

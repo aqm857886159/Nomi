@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand'
 import i18n from '../i18n'
 import { createEmptyStoryboardPlan, isEmptyStoryboardPlan, type StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
+import { selectPreviewAspectRatio, type PreviewAspect } from './preview/previewAspectRatios'
 import {
   createDefaultWorkbenchDocument,
   mintStoryboardDesignId,
@@ -108,6 +109,7 @@ export type WorkbenchDocumentSlice = {
 type WorkbenchState = {
   persistRevision: number
   activeDocumentId: string
+  previewAspect?: PreviewAspect
 } & WorkbenchDocumentSlice
 
 type WorkbenchSliceCreator<T> = StateCreator<
@@ -265,7 +267,7 @@ export const createWorkbenchDocumentSlice = (
     const document = state.workbenchDocuments.find((item) => item.id === target)
     if (!document) return null
     if (identity && findDesign(state, identity.id, target)) return null
-    const plan = source ? reconcilePlanShotDurations(source) : createEmptyStoryboardPlan()
+    const plan = source ? reconcilePlanShotDurations(source) : createEmptyStoryboardPlan(selectPreviewAspectRatio(state))
     const existing = state.storyboardDesignsByDocumentId[target] ?? []
     const fallback = i18n.t('storyboardEditor.planCard.defaultTitle')
     // 模型给了名字就用模型的（2026-09-21 拍板：Agent 方案标题 = 模型给的）；

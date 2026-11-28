@@ -310,9 +310,9 @@ try {
   const aboutButtons = await settingsDialog(win).locator('button').allTextContents()
   expect(aboutButtons.some((txt) => txt.includes('开屏') || txt.toLowerCase().includes('splash')), 'Q18 onb.drop.splash-replay').toBe(false)
 
-  // 3b) 在设置 › 模型 › 已适配平台点第一行（APIMart）→ 自动关掉设置弹窗，打开整窗「连接 APIMart」大页
+  // 3b) 设置 › 模型点 APIMart 入口 → 自动关掉设置弹窗，打开整窗「连接 APIMart」大页
   await openModelSettings(win, { label: BOARD.entryRouting })
-  const apimartRowBtn = win.locator('[data-model-home-adapted-platforms] button').first()
+  const apimartRowBtn = win.locator('[data-model-home-available="apimart"]')
   await clickOrFail(apimartRowBtn, `${BOARD.entryRouting}（设置 › 模型 › APIMart 行）`)
   await expectHidden(settingsDialog(win), `${BOARD.entryRouting}：进整窗大页前先自动关掉设置弹窗`)
   const bigPage = win.locator('[data-apimart-connect-page]')

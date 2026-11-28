@@ -1,5 +1,3 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ChipModel } from './ModelChipGroups'
 import { connectionHomeStatus, countModelHomeStates, modelHomeStatus } from './modelSettingsHomeState'
@@ -52,38 +50,3 @@ describe('model settings home status', () => {
     for (const row of models) expect(counts[modelHomeStatus(row).state]).toBeGreaterThan(0)
   })
 })
-
-describe('model settings home', () => {
-  it('uses the Nomi primitives and keeps the direct-script action inside the advanced section', () => {
-    const home = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'), 'utf8')
-    const wizard = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/OnboardingWizard.tsx'), 'utf8')
-    expect(home).toContain('DesignSearchInput')
-    expect(home).toContain('DesignButton')
-    expect(home).toContain('NomiLoadingMark')
-    expect(home).toContain('data-model-home-direct-script')
-    const advancedSection = home.slice(home.indexOf('data-model-home-advanced'))
-    expect(advancedSection).toContain('dataMarker="direct-script"')
-    expect(advancedSection).toContain('directScript')
-    const rowGroup = home.slice(home.indexOf('function RowGroup'), home.indexOf('function ActionRow'))
-    expect(rowGroup).toContain('bg-nomi-ink-05')
-    expect(rowGroup).toContain('border-nomi-line-soft')
-    expect(rowGroup).not.toContain('border border-nomi-line')
-    expect(wizard).not.toContain('<DirectScriptDraftEntry')
-  })
-
-  it('puts adapted platforms before custom APIs and does not render empty-state controls', () => {
-    const home = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'), 'utf8')
-
-    expect(home).toContain("import { translateModelDisplayText } from '../../i18n/modelDisplayText'")
-    expect(home).toContain('const displayName = translateModelDisplayText(connection.name)')
-    expect(home).toContain('data-model-home-adapted-platforms')
-    expect(home).toContain('data-model-home-other-methods')
-    expect(home).toContain('data-model-home-advanced')
-    expect(home.indexOf('data-model-home-adapted-platforms')).toBeLessThan(home.indexOf('data-model-home-other-methods'))
-    expect(home.indexOf('data-model-home-other-methods')).toBeLessThan(home.indexOf('data-model-home-advanced'))
-    expect(home).toContain("const showSearch = hasConnections &&")
-    expect(home).toContain('data-model-home-task-strip')
-    expect(home).not.toContain("kind: 'api' | 'local' | 'account' | 'assistant'")
-  })
-})
-

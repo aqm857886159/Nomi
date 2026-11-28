@@ -1531,11 +1531,6 @@
       "count": 1
     }
   },
-  "tests/ux/asset-transport-settings.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/asset-video-preview.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2112,11 +2107,6 @@
       "count": 1
     }
   },
-  "tests/ux/model-availability-agreement.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    }
-  },
   "tests/ux/model-box-tidy.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2251,11 +2241,6 @@
     }
   },
   "tests/ux/pr720-ux-geometry.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/preview-export-busy.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

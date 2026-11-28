@@ -42,7 +42,7 @@ describe('model settings workspace structure', () => {
     expect(settings).toContain('data-settings-model-workspace')
     // 2026-08-25 起带 pageRequest：设置里的「去配置 KIE」要能直达那家的 Key 输入页，
     // 而模型工作区首访后常驻挂载，只能靠这个请求值把它推到目标页（详见 useModelPageRequest）。
-    expect(settings).toContain('<OnboardingDrawer pageRequest={modelPageRequest} />')
+    expect(settings).toContain('<OnboardingDrawer pageRequest={modelPageRequest}')
     expect(drawer).not.toContain('data-model-settings-detail-panel')
     expect(drawer).not.toContain('data-model-settings-detail-context')
     expect(drawer).not.toContain('INERT_HTML_ATTRIBUTE')
@@ -253,10 +253,8 @@ describe('model settings workspace structure', () => {
     const home = read('src/ui/onboarding/ModelSettingsHome.tsx')
     expect(home).not.toContain('useVendorHealth')
     expect(home).not.toContain('data-model-home-unreachable')
-    expect(home).toContain('connectionHomeStatus(connection)')
-    expect(home).toContain('<ModelStatusMark status={status} variant="row" />')
-    expect(home).toContain('countModelHomeStates(allModels)')
-    expect(home).toContain("presentStatusCount('ready', counts.ready)")
+    expect(home).toContain('<ModelStatusMark status={connectionHomeStatus(c)} variant="row" />')
+    expect(home).toContain('m.availability?.usable')
     const connections = read('src/ui/onboarding/onboardingDrawerConnections.ts')
     expect(connections).not.toContain('skipHealthProbe')
     expect(connections).not.toContain('credentialVerificationPending')

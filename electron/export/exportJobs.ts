@@ -386,7 +386,9 @@ export async function cancelExportJob(projectIdentity: ExportJobProjectIdentity,
   const identity = exportProjectIdentity(projectIdentity);
   const job = exportJobManager.getJobForProject(identity, id);
   activeExportAbortControllers.get(id)?.abort();
-  await exportJobManager.cancelJobForProject(identity, id);
+  if (job.status !== "cancelled") {
+    await exportJobManager.cancelJobForProject(identity, id);
+  }
   removeExportTempInput(job);
   preparedFiltergraphExports.delete(id);
   return { ok: true };
@@ -550,11 +552,14 @@ export async function finishExportTempInput(
     });
     return result;
   } catch (error) {
-    if (error instanceof ExportCancelledError || exportJobManager.getJob(job.id)?.cancelled) {
-      await exportJobManager.cancelJob(job.id);
-    } else {
-      exportJobManager.failJob(job.id, error);
+    const current = exportJobManager.getJob(job.id);
+    if (error instanceof ExportCancelledError || current?.cancelled || current?.status === "cancelled") {
+      if (current && current.status !== "cancelled") {
+        await exportJobManager.cancelJob(job.id);
+      }
+      throw error instanceof ExportCancelledError ? error : new ExportCancelledError();
     }
+    exportJobManager.failJob(job.id, error);
     throw error;
   } finally {
     activeExportAbortControllers.delete(job.id);

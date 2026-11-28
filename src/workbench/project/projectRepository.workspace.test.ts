@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createLocalProject, readLocalProject, saveProjectRecord } from './projectRepository'
+import { isEmptyStoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
+import { planDefaultAspect } from '../generationCanvas/agent/storyboardShotScope'
 import { migrateProjectRecord } from './projectCategoryMigration'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopBridge } from '../../desktop/bridge'
@@ -62,12 +64,55 @@ describe('projectRepository workspace project creation', () => {
     expect(payload.workbenchDocuments?.[0]?.id).toBe(documentId)
     const starter = documentId ? payload.storyboardDesignsByDocumentId?.[documentId]?.[0]?.plan : undefined
 
-    expect(starter).toMatchObject({ title: '', anchors: [] })
+    expect(starter).toMatchObject({ title: '', anchors: [], aspectRatio: '16:9' })
+    expect(isEmptyStoryboardPlan(starter!)).toBe(true)
+    expect(planDefaultAspect(starter!)).toBe('16:9')
     expect(starter?.shots).toHaveLength(2)
     expect(starter?.shots.map((shot) => ({ index: shot.index, prompt: shot.prompt, anchorIds: shot.anchorIds }))).toEqual([
       { index: 1, prompt: '', anchorIds: [] },
       { index: 2, prompt: '', anchorIds: [] },
     ])
+  })
+
+  it('reading an existing project preserves legacy storyboard plans without aspectRatio', () => {
+    const legacyPlan = {
+      title: '老项目分镜',
+      anchors: [],
+      shots: [{ index: 1, shotId: 'shot-1', shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '旧镜' }],
+    }
+    const v2Record = {
+      id: 'ws-legacy-aspect',
+      name: 'Legacy Aspect Project',
+      version: 2,
+      createdAt: 1,
+      updatedAt: 2,
+      savedAt: 2,
+      revision: 3,
+      payload: {
+        workbenchDocuments: [{ id: 'doc-legacy', version: 1, title: '旧稿', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
+        activeDocumentId: 'doc-legacy',
+        timeline: null,
+        generationCanvas: { nodes: [], edges: [], selectedNodeIds: [], groups: [] },
+        storyboardDesignsByDocumentId: {
+          'doc-legacy': [{
+            id: 'sb-legacy',
+            documentId: 'doc-legacy',
+            title: '老项目分镜',
+            plan: legacyPlan,
+            committed: false,
+            status: 'draft',
+            sourceDocumentUpdatedAt: 1,
+            createdAt: 1,
+            updatedAt: 2,
+          }],
+        },
+      },
+    }
+    mockedGetDesktopBridge.mockReturnValue(stubBridge({ read: vi.fn(() => v2Record) }))
+    const opened = readLocalProject('ws-legacy-aspect')
+    const reopenedPlan = opened?.payload.storyboardDesignsByDocumentId?.['doc-legacy']?.[0]?.plan
+    expect(reopenedPlan?.aspectRatio).toBeUndefined()
+    expect(planDefaultAspect(reopenedPlan!)).toBe('')
   })
 
   it('same project title still creates independent project records', () => {

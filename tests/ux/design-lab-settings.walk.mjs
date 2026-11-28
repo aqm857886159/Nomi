@@ -41,6 +41,12 @@ await walkDesignLabScreen({
   // 舞台 516 宽（settingsLabKit.SETTINGS_CELL_WIDTH）。
   cellWidth: 516,
   columns: 2,
+  // 模型页上这张卡没有进度时收成一行（ModelSurfaces Main），创作者点开才看到主动作；这一格看整卡，先照真实操作点开。
+  beforeCapture: async (page, state) => {
+    if (!state.id.startsWith('assisted-')) return
+    const card = page.locator('[data-model-home-assisted-onboarding]')
+    if (!(await card.evaluate((node) => node.open))) await card.locator(':scope > summary').click()
+  },
   assertState: async (page, state, record) => {
     const expected = EXPECTED_STATE[state.id]
     // 新加了一格却没在上面认领 → 当场说出来，而不是安静地放它过去（那就又多一格没人验的图）。
