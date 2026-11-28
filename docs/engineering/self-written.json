@@ -1642,7 +1642,7 @@
     },
     {
       "id": "gate-family",
-      "capability": "仓库门岗族：一百多个 check:* 脚本（棘轮、登记表、合同、文档记账）",
+      "capability": "仓库门岗族：现役 90 道 gates:contracts 门岗与 5 道链外 check:* 脚本（SM-gates A/B1/B2 已退役 14 道独立扫描器并迁入 tsc / ESLint / dependency-cruiser / Vitest）",
       "status": "under-review",
       "reviewBy": "2026-11-30",
       "renewed": [

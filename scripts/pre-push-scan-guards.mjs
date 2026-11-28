@@ -35,7 +35,7 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
-  { file: 'scripts/model-status-one-home.test.mjs', roots: ['src', 'electron'], files: ['eslint.config.mjs', 'scripts/check-model-availability.mjs'] }, // 退役验证入口和状态词出口扫描；与 ESLint 共用 AST 判据
+  { file: 'scripts/model-status-one-home.test.mjs', roots: ['src', 'electron'], files: ['eslint.config.mjs', 'scripts/model-status-one-home.mjs'] }, // 退役验证入口、状态词出口与第二份可用性判据扫描；与 ESLint 共用 AST 判据
   // 多个概念共用的阳性对照：各概念管什么写在这份测试自己里，这一行不带说明（并行 PR 各往行尾加一句，并主分支就冲突）。
   { file: 'scripts/check-concept-owners.node-test.mjs', roots: ['src', 'electron'], files: ['scripts/concept-owners-scan.mjs'] },
   // 2026-11-20：付费放行只在一个家判（spend.approval-decision）；遍历 src、electron 找误导性的恒真「算批准」回执（<1 秒）。

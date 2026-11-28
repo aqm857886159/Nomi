@@ -19,6 +19,14 @@
   "invariants": [
     "Replace with a structural condition that must remain true"
   ],
+  "invariant_owner_layer": {
+    "layer": "replace/with/changed-production-path.ts",
+    "tests": [
+      "replace/with/changed-production.test.ts"
+    ]
+  },
+  "detected_by": "ci",
+  "recurrence_check_on": "YYYY-MM-DD",
   "doors": [
     {
       "kind": "write",
@@ -68,11 +76,13 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
+    "poka_yoke_tier": "impossible-by-construction",
+    "source_mechanism": "shared-core",
     "enforcement_path": "replace/with/changed-production-path.ts",
     "invariant": "State the condition enforced for every caller.",
-    "failure_mode": "State how invalid input or state fails closed.",
+    "failure_mode": "State how invalid input or state is unrepresentable or fails closed at the shared boundary.",
     "exception_policy": "none",
-    "strategy": "Explain how the earliest shared boundary prevents recurrence.",
+    "strategy": "Explain how the error path is eliminated at source (route-deletion | type-or-schema | shared-core). If poka_yoke_tier is post-hoc-gate instead, omit source_mechanism and provide why_not_impossible_by_construction (>=16 chars).",
     "artifacts": [
       "replace/with/changed-production-path.ts"
     ]

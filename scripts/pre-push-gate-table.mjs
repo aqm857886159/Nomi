@@ -55,7 +55,6 @@ export const CI_ONLY = Object.freeze([
       'check:boundaries', // 约 24 秒
       'check:i18n', // 22–29 秒（完整版）；推送前只跑其中的抄文案一项，见 PARTIAL_LOCAL
       'check:quality-gate-workflow', // 约 13 秒，且只在改 .github / 校验策略时有意义
-      'check:llm-stream-owner', // 本机 11–16 秒：全库四个根目录逐文件解 TS 语法树，几乎每个 PR 都会命中输入范围
       'lint:ci', // 全库 eslint；推送前只查改动文件，见 PARTIAL_LOCAL
     ],
   },
@@ -90,7 +89,6 @@ export const CI_ONLY = Object.freeze([
       'check:design-lab',
       'check:package-budget',
       'check:feedback-worker',
-      'check:e2e-launch',
       'check:site',
       'check:gates-lock', // python3 锁（Windows 上 python3 商店别名会让它假红）
       'check:electron-install', // 要 electron 二进制已下载

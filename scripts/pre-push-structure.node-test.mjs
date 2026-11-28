@@ -71,11 +71,9 @@ const SCANNER_READS = {
   'check:error-surface': ['src/a.tsx', 'electron/b.ts', 'scripts/error-surface-baseline.json', 'scripts/check-error-surface.mjs'],
   'check:heavy-path': ['src/a.ts', 'electron/b.mts', 'electron/c.cts', 'scripts/heavy-path-baseline.json'],
   'check:read-path-writes': ['src/a.ts', 'electron/b.tsx', 'scripts/read-path-writes-baseline.json'],
-  'check:batch-machines': ['src/a.ts', 'electron/b.cts', 'scripts/batch-machines-baseline.json'],
   'check:capability-lifecycle': ['src/a.tsx', 'electron/b.ts', 'scripts/check-capability-lifecycle.mjs'],
   'check:no-default-overwrite': ['src/a.ts', 'electron/b.ts', 'workers/c.ts', 'scripts/no-default-overwrite-baseline.json'],
   'check:media-import-owner': ['electron/a.ts', 'src/b.tsx', 'scripts/media-import-owner-baseline.json'],
-  'check:script-network-retry': ['scripts/some-delivery-script.mjs', 'scripts/lib/transientRetry.mjs', 'scripts/probe.ts', 'scripts/check-script-network-retry.mjs'],
   'check:storyboard-owner': ['src/workbench/a.ts', 'src/workbench/creation/b.tsx', 'scripts/check-storyboard-owner.mjs', 'scripts/lib/repoPaths.mjs'],
   'check:dangling-tokens': ['src/theme/nomi-tokens.css', 'src/a.tsx', 'tailwind.config.ts', 'scripts/check-dangling-tokens.mjs'],
   'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
@@ -110,11 +108,11 @@ test('门岗清单：每一项都在 package.json 的 gates:contracts 里、命�
 })
 
 test('命令选取：平时只跑检查脚本本体；改到门岗自己的单测 / 脚本时连单测一起跑', () => {
-  const script = pkg.scripts['check:mjs-parse']
-  assert.deepEqual(gateCommands(script, ['src/a.ts']), [['./scripts/check-mjs-parse.mjs']])
-  const withTests = gateCommands(script, ['scripts/check-mjs-parse.node-test.mjs'])
+  const script = pkg.scripts['check:test-waits']
+  assert.deepEqual(gateCommands(script, ['src/a.ts']), [['./scripts/check-test-waits.mjs']])
+  const withTests = gateCommands(script, ['scripts/check-test-waits.node-test.mjs'])
   assert.equal(withTests.length, 2)
-  assert.deepEqual(withTests[0].slice(0, 2), ['--test', './scripts/check-mjs-parse.node-test.mjs'])
+  assert.deepEqual(withTests[0].slice(0, 2), ['--test', './scripts/check-test-waits.node-test.mjs'])
   assert.throws(() => gateCommands('pnpm exec tsx scripts/x.ts', []), /只认 node 命令/)
 })
 
@@ -124,9 +122,9 @@ test('按改动选门岗：该片地没动就不跑；纯文档只跑登记类�
   assert.deepEqual(selectGates(['docs/engineering/x.md']), always)
   const electron = selectGates(['electron/main.ts'])
   assert.ok(electron.includes('check:ipc-sender-binding') && electron.includes('check:test-waits') && electron.includes('lint:changed'))
-  assert.ok(!electron.includes('check:mjs-parse'), 'electron/ 下没有 .mjs/.cjs 改动，不必跑 mjs-parse')
+  assert.ok(!electron.includes('test:temp-helper'), 'electron/ 下没有 scripts/tests 改动，不必跑 test:temp-helper')
   const scripts = selectGates(['scripts/foo.mjs'])
-  assert.ok(scripts.includes('check:mjs-parse') && !scripts.includes('check:ipc-sender-binding'))
+  assert.ok(scripts.includes('test:temp-helper') && scripts.includes('lint:changed') && !scripts.includes('check:ipc-sender-binding'))
   const everything = selectGates(null)
   for (const gate of PRE_PUSH_GATES) assert.ok(everything.includes(gate.name))
   assert.ok(everything.includes('lint:changed'))
@@ -245,7 +243,7 @@ test('契约：选择器只用 GATE_INPUTS，pre-push-contracts.mjs 里没有手
 })
 
 test('结构：gates:contracts 的完整门列表（不按名字前缀过滤）里，每道门恰好声明一次——推送前跑 / 别名 / 只在 CI + 理由', () => {
-  assert.ok(CI_GATES.length > 90, `解析出的门数量不对：${CI_GATES.length}`)
+  assert.ok(CI_GATES.length >= 80, `解析出的门数量不对：${CI_GATES.length}`)
   assert.deepEqual(declarationProblems(CI_GATES, PRE_PUSH_NAMES), [])
 })
 
@@ -478,9 +476,9 @@ test('选择规则：改动的测试自己、同名测试、按引号提到它�
   // 改动的测试文件本身
   assert.deepEqual(relatedTests(['scripts/electron-build.test.mjs'], { root: repoRoot }).vitest, ['scripts/electron-build.test.mjs'])
   // 同名约定：foo.mjs ↔ foo.node-test.mjs
-  assert.ok(relatedTests(['scripts/check-mjs-parse.mjs'], { root: repoRoot }).node.includes('scripts/check-mjs-parse.node-test.mjs'))
+  assert.ok(relatedTests(['scripts/check-test-waits.mjs'], { root: repoRoot }).node.includes('scripts/check-test-waits.node-test.mjs'))
   // 已有别的门岗跑的测试不重复
-  assert.ok(!relatedTests(['scripts/check-mjs-parse.mjs'], { root: repoRoot, exclude: new Set(['scripts/check-mjs-parse.node-test.mjs']) }).node.includes('scripts/check-mjs-parse.node-test.mjs'))
+  assert.ok(!relatedTests(['scripts/check-test-waits.mjs'], { root: repoRoot, exclude: new Set(['scripts/check-test-waits.node-test.mjs']) }).node.includes('scripts/check-test-waits.node-test.mjs'))
   // 文件主名规则
   assert.equal(stemOf('src/ui/Foo.test.tsx'), 'Foo')
   assert.equal(stemOf('scripts/a.node-test.mjs'), 'a')
