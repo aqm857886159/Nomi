@@ -1239,6 +1239,8 @@
       "paths": [
         "electron/agentLane/laneHost.mts",
         "electron/agentLane/laneHostDrive.mts",
+        "electron/agentLane/laneHostRecovery.mts",
+        "electron/shared/agentLane/laneSnapshotTypes.ts",
         "electron/agentLane/laneRuntimePort.ts",
         "electron/agentLane/laneIpc.ts",
         "electron/agentLane/laneCommandCodec.ts",
