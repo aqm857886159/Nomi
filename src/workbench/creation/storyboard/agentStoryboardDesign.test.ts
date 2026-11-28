@@ -3,6 +3,7 @@ import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentSto
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { planDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
 
 const context = vi.hoisted(() => ({ projectId: 'p', current: true }))
 vi.mock('../../project/projectCanvasReadSurface', () => ({
@@ -19,6 +20,7 @@ const upsert = (designId: string, value: StoryboardPlan, initiator: 'user' | 'ag
 
 beforeEach(() => {
   context.projectId = 'p'; context.current = true
+  useWorkbenchStore.setState({ previewAspect: undefined })
   const store = useWorkbenchStore.getState()
   store.hydrateWorkbenchDocuments([{ id: 'doc', version: 1, title: 'Doc', updatedAt: 1, contentJson: { type: 'doc', content: [] } }], 'doc')
   store.hydrateStoryboardDesigns({})
@@ -207,5 +209,36 @@ describe('a refused plan is explained in the shared field words, never as raw zo
     expect(text).not.toMatch(/"code"|"expected"|"received"|Expected number/)
     expect(text).not.toContain('soon')
     expect(designs()).toEqual([])
+  })
+})
+
+describe('Agent / 划词拆镜新建方案的默认画幅跟随当前项目画幅（UX-B3）', () => {
+  it('未指定画幅且各镜未统一钉死画幅时，新建方案跟随项目画幅（默认 16:9，切换后跟 9:16）', () => {
+    upsert('op-default', plan('Landscape', 'A'))
+    expect(designs().find(d => d.id === 'op-default')?.plan.aspectRatio).toBe('16:9')
+    expect(planDefaultAspect(designs().find(d => d.id === 'op-default')!.plan)).toBe('16:9')
+
+    useWorkbenchStore.getState().setPreviewAspectRatio('9:16')
+    upsert('op-portrait', plan('Portrait', 'B'), 'user')
+    expect(designs().find(d => d.id === 'op-portrait')?.plan.aspectRatio).toBe('9:16')
+    expect(planDefaultAspect(designs().find(d => d.id === 'op-portrait')!.plan)).toBe('9:16')
+  })
+
+  it('Agent 显式指定画幅或全镜钉死同一画幅时原样保留，不被项目画幅覆盖', () => {
+    upsert('op-explicit', { ...plan('Explicit', 'A'), aspectRatio: '9:16' })
+    expect(planDefaultAspect(designs().find(d => d.id === 'op-explicit')!.plan)).toBe('9:16')
+
+    const uniformShots: StoryboardPlan = {
+      title: 'Uniform',
+      anchors: [],
+      shots: [
+        { index: 1, shotId: 'shot-1', shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'A', params: { aspect_ratio: '1:1' } },
+        { index: 2, shotId: 'shot-2', shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'B', params: { aspect_ratio: '1:1' } },
+      ],
+    }
+    upsert('op-uniform', uniformShots)
+    const savedUniform = designs().find(d => d.id === 'op-uniform')!.plan
+    expect(savedUniform.aspectRatio).toBeUndefined()
+    expect(planDefaultAspect(savedUniform)).toBe('1:1')
   })
 })
