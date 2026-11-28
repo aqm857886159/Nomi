@@ -10,8 +10,9 @@
   ],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
+  "fixedInPr": 1732,
   "rootCauseContract": "docs/fixes/2026-11-28-fc-agent-stream-errors.root-cause.json",
   "classCheck": {
     "kind": "matrix",
@@ -25,6 +26,6 @@
     "tests/agent-runtime/lane-resilience.test.mts"
   ],
   "completionCommits": [
-    "49bdfd822"
+    "1faf5596c"
   ]
 }
