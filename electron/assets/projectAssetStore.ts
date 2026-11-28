@@ -6,7 +6,6 @@ import type { ProjectAgentAttachmentClaim, ProjectAgentAttachmentRef } from '../
 import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
-import type { ProviderNetworkConfig } from "../providerNetwork";
 import { fetchProviderMedia } from "./providerMediaFetch";
 import { nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
@@ -28,13 +27,13 @@ import {
   localAssetUrl,
   stableAssetId,
 } from "./assetPaths";
-import { finalizeAssetMeta, type AssetSourceFact } from "./assetSourceEvidence";
+import { finalizeAssetMeta, type GeneratedRemoteAssetImportPayload, type MoveAssetFileMeta, type NonGeneratedRemoteAssetImportOptions, type NonGeneratedRemoteAssetImportPayload, type RemoteAssetImportOptions, type UntrustedIpcRemoteAssetImportOptions } from "./assetSourceEvidence";
+export type { GeneratedRemoteAssetImportPayload, MoveAssetFileMeta, NonGeneratedRemoteAssetImportOptions, NonGeneratedRemoteAssetImportPayload, RemoteAssetImportOptions, UntrustedIpcRemoteAssetImportOptions };
 import { mediaKindFromContentType, resolveContentType } from "./mediaTypes";
 import { contentTypeFromStoredFile, effectiveContentType, storedAssetFileParts, uniqueAssetPath } from "./storedAssetFile";
 import { validateGlbStructure } from "../shared/contracts/model3dValidation";
-import { isGeneratedAssetMeta, prepareVerifiedGeneratedAsset, type GeneratedAssetMeta, type NotGeneratedKind, type UserAssetMeta, type VerifiedStagedAsset } from "./generatedAssetStaging";
+import { isGeneratedAssetMeta, prepareVerifiedGeneratedAsset, type GeneratedAssetMeta, type UserAssetMeta, type VerifiedStagedAsset } from "./generatedAssetStaging";
 import { localizedAssetTypeOf, type LocalizedAssetType } from "./localizedAsset";
-import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";
 
 type LocalAssetRecord = {
   id: string;
@@ -351,12 +350,12 @@ export async function copyProjectAsset(input: {
   )
 }
 
-export function moveAssetFile(
+export function moveAssetFile<K extends string = string>(
   projectId: string,
   sourcePath: string,
   fileName: string,
   contentType: string,
-  rawMeta: JsonRecord,
+  rawMeta: MoveAssetFileMeta<K>,
 ): unknown {
   // 唯一 sidecar 写入者之二：与 writeAsset 同一道收口（捕获族隐私 + 来源清洗）。
   const meta = finalizeAssetMeta(rawMeta);
@@ -408,37 +407,11 @@ export function moveAssetFile(
   };
 }
 
-type RemoteAssetImportOptions = {
-  assertCurrent?: () => void;
-  certificationEvidence?: CertificationMediaEvidence;
-  /**
-   * 来源事实只收主进程调用方经这里给的（连接器）；渲染层 IPC 载荷里的 sourceEvidence 一律不读——
-   * 主进程核实不了渲染层的自称（Electron 安全清单：主进程不信渲染层载荷）。
-   */
-  sourceEvidence?: AssetSourceFact;
-  /**
-   * 产出这条 URL 的那家 vendor 的自有线路配置（`Vendor.network`）。
-   *
-   * 不带它就是 2026-09-06 验收那个不对称的另一半：给某家供应商单独配了代理时，提交走那条代理、
-   * 取回却走应用默认线路——同一次生成的两半在两条路上。谁产的 URL 就用谁的路。
-   * 传配置而不是传 dispatcher，是为了让连接池的生命周期收在本模块内（建了必关，只属于这一次下载），
-   * 不散给每一个调用方各记一遍。
-   */
-  providerNetwork?: ProviderNetworkConfig;
-};
-
-/**
- * 远端（http / data: / nomi-local）导入的载荷。运行时 kind 不写时，http / data: 当生成产物，nomi-local 当 upload；
- * 类型上按最严的读：不写 kind 或写 "generated"，就必须给出它该是的那一类，给 null 编译不过；用户的东西
- * （reference / upload）把 kind 写明，期望类型不写或给 null。渲染层经 IPC 来的载荷不过类型系统，
- * 主进程照样按 localizedAssetTypeOf 再读一遍，生成产物没说清在落盘关口被拒（generatedExpectation）。
- */
-export type RemoteAssetImportPayload<K extends string = string> = JsonRecord & { projectId: string; url: string } & (
-  | { kind?: "generated"; expectedKind: LocalizedAssetType }
-  | { kind: NotGeneratedKind<K>; expectedKind?: null }
-);
-
-export async function importRemoteAsset<K extends string = string>(payload: RemoteAssetImportPayload<K>, options: RemoteAssetImportOptions = {}): Promise<unknown> {
+export type RemoteAssetImportPayload<K extends string = string> = GeneratedRemoteAssetImportPayload | NonGeneratedRemoteAssetImportPayload<K>;
+export function importRemoteAsset(payload: GeneratedRemoteAssetImportPayload, options?: RemoteAssetImportOptions): Promise<unknown>;
+export function importRemoteAsset(payload: unknown, options: UntrustedIpcRemoteAssetImportOptions): Promise<unknown>;
+export function importRemoteAsset<K extends string = string>(payload: NonGeneratedRemoteAssetImportPayload<K>, options: NonGeneratedRemoteAssetImportOptions): Promise<unknown>;
+export async function importRemoteAsset(payload: unknown, options: RemoteAssetImportOptions = {}): Promise<unknown> {
   // 画布预览（图片缩略 / 视频 poster）在落盘边界统一派生：三种来源（项目内引用 / data: / http(s)）出同一扇门。
   return attachStoredAssetPreview(await importRemoteAssetToStore(payload, options));
 }

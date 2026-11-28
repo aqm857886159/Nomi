@@ -304,7 +304,7 @@ describe("runtime workspace asset storage", () => {
       fileName: "capture.png",
       kind: "browser-capture",
       expectedKind: null,
-    });
+    }, { sourceEvidence: { source: "browser", pageUrl: "https://example.com" } });
     await importLocalFile({
       projectId: workspace.id,
       bytes: new Uint8Array([4, 5, 6]),

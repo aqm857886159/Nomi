@@ -81,7 +81,7 @@ describe("retypeModelCatalogModel", () => {
     const spendGate = vi.fn(async () => {});
     const { runTask } = await import("../runtime");
     const failure = await runTask(
-      { vendor: "relay", request: { kind: "text_to_video", prompt: "a marble", extras: { modelKey: "kling-v2" } } },
+      { vendor: "relay", request: { kind: "text_to_video", prompt: "a marble", extras: { modelKey: "kling-v2", grantId: "test-grant" } } },
       { spendGate },
     ).then(() => null, (error: unknown) => error as Error);
     expect(failure?.message).toMatch(/not published/);
