@@ -584,13 +584,7 @@ export function createLaneHostDrive(deps: {
           agent.followUp(item.message);
         }
       }
-      trace.onRunEnd({
-        runId,
-        fromTipId,
-        tipId: session.getTipId(),
-        endedAt,
-        status,
-      });
+      trace.onRunEnd({ runId, fromTipId, tipId: session.getTipId(), endedAt, status });
       publish();
     }
   }
@@ -605,18 +599,9 @@ export function createLaneHostDrive(deps: {
 
   if (interrupted.unpairedCalls.length > 0 && interrupted.assistantMessage) {
     activeDrivePromise = replayInterruptedToolCalls({
-      laneName,
-      session,
-      history,
-      interrupted,
-      executableTools,
-      runBeforeToolHook,
-      flushDeferredNotes,
-      publish,
-      driveOperation,
-    }).finally(() => {
-      activeDrivePromise = null;
-    });
+      laneName, session, history, interrupted, executableTools,
+      runBeforeToolHook, flushDeferredNotes, publish, driveOperation,
+    }).finally(() => { activeDrivePromise = null; });
   }
 
   return {

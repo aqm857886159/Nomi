@@ -12,7 +12,7 @@ import type { SkillRecord } from '../../electron/skills/skillStore.js';
 test('production native resources read installed Skill metadata without widening sandbox settings access', async (t) => {
   const fixture = await createLaneFixture(t, []);
   const settingsRoot = await mkdtemp(path.join(tmpdir(), 'nomi-native-settings-'));
-  t.after(() => rm(settingsRoot, { recursive: true, force: true }));
+  fixture.after(() => rm(settingsRoot, { recursive: true, force: true }));
   const root = path.join(settingsRoot, 'skills', 'demo');
   await mkdir(root, { recursive: true });
   const filePath = path.join(root, 'SKILL.md');
@@ -21,7 +21,7 @@ test('production native resources read installed Skill metadata without widening
   const skill: SkillRecord = { name: 'fixture', directoryName: 'demo', filePath, packageDir: root, description: 'Temporary metadata fixture', body,
     content: 'No user content.', manifest: null, origin: 'user', audience: 'internal', packageVersion: 'nomi-skill-v1', contentHash: 'fixture', requiresCodingTools: false };
   const desktop = await openLaneNativeDesktop({ projectDir: fixture.projectDir, settingsRoot, skills: [skill] });
-  t.after(() => desktop.close());
+  fixture.after(() => desktop.close());
   assert.equal(desktop.skillIndex.current().entries.length, 1);
   assert.equal(desktop.tools.length, process.platform === 'win32' ? 10 : 9);
   const read = desktop.tools.find((tool) => tool.name === 'read')!;
@@ -55,7 +55,7 @@ test('Windows platform assembly wires pi 1.7.0 PowerShell tool alongside bash an
     skills: [],
     platform: 'win32',
   });
-  t.after(() => desktop.close());
+  fixture.after(() => desktop.close());
   assert.equal(desktop.tools.length, 10);
   assert.ok(desktop.tools.some((tool) => tool.name === 'powershell'));
   assert.ok(desktop.promptSections.snippets.some((line) => line.startsWith('powershell:')));
