@@ -1,5 +1,7 @@
 # PR0 · 找回付费画布单镜
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 协作看板 #1586，拍板 D-1127-recovery-foundation。实现线 Codex。范围和验收以 [#1708 的方向复盘](../engineering/direction-checks/2026-11-27-paid-result-recovery-direction-check.md) 及本次派活单为准。
 
 ## ★0 先查别人

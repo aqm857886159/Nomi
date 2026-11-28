@@ -1,5 +1,7 @@
 # Contracts 检出状态方向检查
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 自写登记 `gate-family` 命中。独立复盘线对 `origin/main` 只读核对。交接处登记表外，全图是 `.github/workflows/quality-gate.yml:159` 检出并安装 → `scripts/run-gates-contracts.mjs:154` 逐门执行 → `scripts/check-hook-behavior.mjs:322` 运行登记表 → `.claude/settings.json:83` 执行 SessionStart。行号以修前基线为准。
 
 ## 0. 类根因

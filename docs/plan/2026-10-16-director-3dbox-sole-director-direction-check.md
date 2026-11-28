@@ -1,5 +1,7 @@
 # 方向检查：3D-BOX 成为唯一导演台——删开关与旧导演台分支（2026-10-16）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 命中 `verbs/writeVerbs.ts`（14 天第 5 个）、`agentLane/laneHost.mts`（第 5 个）、`preload.ts`（第 5 个）、`agentLane/laneDesktopTools.ts`（第 3 个）、`DirectorEditor.tsx`（第 3 个）、`ai/resident/residentToolDisplay.ts`（第 5 个，目录第 7 个；本刀在那里只补 §8 那一处，它的门岗本来就从注册表派生、是它抓到的，缺的是「开关开」这一支从来不跑单测——类根因就是开关分叉，本刀删掉）。
 > 用户 10-16：「我觉得可以打开给大家用吧 因为本身这部分也是提升用户价值的」；「为什么要切回旧导演台？功能完全一致、还优化了交互，它为什么要去切换呢？」协调采纳，按 P1「加新必删旧」：默认打开，同一个 PR 删掉开关和旧导演台分支，不留并行版、不留切回入口、不留 fallback。
 > 方案正本 `docs/plan/2026-10-04-director-3dbox-phase3.md` §11「切换 PR」。旧导演台功能普查：`docs/design/boards/2026-10-16/Director3dbox.board.json` 的 functionCensus（22 项）。

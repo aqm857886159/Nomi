@@ -1,5 +1,7 @@
 # 方向检查：画布与常驻面板整屏重复表面与角色舞台移交（类根因复盘）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 **这一处的全图在哪**：表外（跨顶栏 `ShellNomiEntry` 与右侧 `AgentPanelV4Panel` 头部及流内恢复卡、`GenerationCanvasReactFlow` 底栏与 `GenerationCanvasReactFlowOverlays` 空态、以及 `tests/ux/_feel.mjs` / `gate-family` 视口扫描链）。
 
 ### 0. 一句话根因

@@ -1,5 +1,7 @@
 # UX-simple PR-UX3 · 预览与时间轴
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Phase 1 #6、#16 前半和 #21，协调批复 [#issuecomment-7126279479](https://github.com/aqm857886159/Nomi/issues/1586#issuecomment-7126279479)。既有预览、时间轴与顶栏的小修。验收依照批复里的文案、状态和实际截图。
 
 ## ★0 先查别人

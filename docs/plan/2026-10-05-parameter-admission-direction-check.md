@@ -1,5 +1,7 @@
 # 方向检查：参数准入（起草时的两类静默，铁律 ⑩）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：提交 hook 的 RW 统计——概念「参数准入」（owner `electron/capabilityCore/executionContract.ts#compileParameters`）近 14 天第 10 个 fix；`mcpGenerationVideoResolve.ts` 第 7 个、`generationTransportAdapters.ts` 第 6 个。
 > 交给协调会话拍板；本页只陈述，不改产品方向。
 

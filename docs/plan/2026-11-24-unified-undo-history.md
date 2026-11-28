@@ -1,5 +1,7 @@
 # 第⑥刀设计卡 · 一次撤销只撤当前编辑面的那一步
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 设计线 `t8-r6-undo-plan`，源码基线 `6ed4c34b8`。本文供实现前拍板。建议共用一个会话历史契约，时间轴和导演台接 zundo，画布用 Immer 的正反补丁。白板沿用 Mantine。普查另发现剪辑面板布局有 20 步 undo-only 历史，建议在时间轴这刀一并接入路由，保留独立的撤销对象。一次 Ctrl+Z 的归属由输入面决定；用户在导演台摆好机位后切回画布，两个面的历史各有自己的寿命。[协调拍板](https://github.com/aqm857886159/Nomi/issues/1586#issuecomment-7103051778) · [白板与 React Flow 胶合沿用的原决定](https://github.com/aqm857886159/Nomi/issues/1586#issuecomment-7082205132)
 
 ### 功能分类

@@ -1,5 +1,7 @@
 # 设计卡：T-5 接入引导第二批切片（S7a 全部剩余入口指路收口 + F-D 4 条 noGenericContract 反馈核对）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：T-5 接入引导 S7a + F-D 核对            线/负责人：t5-onboarding-s7a-impl            类别：[新界面]
 ```

@@ -1,5 +1,7 @@
 # T-6a 模型设置方向复盘 · 2026-11-24
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 **全图**　交接处表外。已批 [ModelSurfaces 清单](../design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json) 给出七个样张，分别覆盖账户、旧连接、用量、策略、英文、暗色与窄窗。[七组实窗对照](../evidence/2026-11-24-t6a-model-settings/walkthrough.md) 的修前版本在 `97f03c5d7`。合并的另一侧 `1730b7ea3` 已交付 S6 的账户和 Key 双读面。
 
 ### 0. 一句话根因

@@ -1,5 +1,7 @@
 # 方向检查：导演编辑器「谁把工程写回节点」按开关分叉（S2，2026-10-16）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`node scripts/fix-churn.mjs src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx` 命中（14 天内第 3 个 fix）。
 > 背景：用户 10-16 拍板 3D-BOX 默认打开、开关代码保留、留「切回旧导演台」入口；协调定入口**只切界面**（全屏、底部 AI 胶囊、默认进精修），单写者同步与 Agent 工具面都不切。
 > F7 原题（「中途关导演台，同一轮下一次请求还带 stage_shot」）按入口 a 关账：a = 开关开时 stage_shot 一直常驻，主进程没有「当前场景」这个状态，这是预期行为，不是缺陷。

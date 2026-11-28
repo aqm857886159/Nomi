@@ -1,3 +1,5 @@
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 概述
 CI 安装前统一恢复 Electron 与 Playwright Chromium 二进制缓存，避免每个任务重复请求外部下载服务。保持版本、下载源、校验和、安装身份检查以及现有 Chromium 超时策略不变。
 

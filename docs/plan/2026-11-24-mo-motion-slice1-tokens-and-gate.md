@@ -1,5 +1,7 @@
 # MO-motion Phase 2 · Slice 1
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 依据 #1586 的 Phase 1 普查及协调裁决 #issuecomment-7126073004。
 
 ## GPT 交叉评审补充

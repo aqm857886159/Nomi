@@ -1,5 +1,7 @@
 # 设计卡：Seedance 2.5 样片模式（S-D）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - 线号：I-SD-sample-mode；分支 `feat/sd-sample-mode`；基线 `origin/main` `daa685c9a`。
 - 拍板：用户 11-26，决策 D-1126-sdse-libtv。原话：「两个设计…你看一下，然后微调一下，然后就去做就好了」，以及「重点是参考它的交互…名称…Icon…具体的这些逻辑还要基于我们的中转站去做」。
 - 画布：https://claude.ai/artifact/8whUqf2fPJsSNQQ1gr3x7F（第 12 版）。

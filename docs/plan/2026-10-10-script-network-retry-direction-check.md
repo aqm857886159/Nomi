@@ -1,5 +1,7 @@
 # 方向检查：脚本网络调用的瞬断重试（gate-family 触发项）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`node scripts/fix-churn.mjs scripts/check-network-entry.mjs` 命中自写登记 `gate-family`（30 天内第 2 个以上 fix）。本次并不修改 `check-network-entry.mjs`，但新门岗落在同一族（`scripts/check-*.mjs`），所以按规则写这一页。
 
 ## 0. 一句话根因

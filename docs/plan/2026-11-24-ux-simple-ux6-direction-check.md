@@ -1,5 +1,7 @@
 # UX6 方向检查 · 从空文稿到打开项目
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 独立复盘基线 `8ac07cffb`。近 14 天 `WorkbenchEditor.tsx`、`src/workbench/library/` 和 `editor.rich-text-actions` 各有 2 个 fix，本次再改触发第三次检查。计数说明改动频繁，不能据此把打开项目和富文本归成同一个代码缺陷。
 
 **全图**　提示 → 选区 / 全文 → 分镜启动器或画布节点；线程用量投影 → Agent 标题栏；项目卡 → 打开项目或提交新名称。这三段交互在基线 `docs/engineering/seams.json` 表外。格式命令的既有登记见 `docs/engineering/concept-owners/editor.rich-text-actions.json`。下列行号均指基线。

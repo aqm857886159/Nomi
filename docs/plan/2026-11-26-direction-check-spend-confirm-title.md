@@ -1,5 +1,7 @@
 # 方向检查：花钱确认框反复被修与弹窗标题截断类根因复盘（RW-spend）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 写的线：未参与过 `SpendConfirmDialog.tsx` 近 14 天任何一轮修改与 `feat/sd-sample-mode` 实现的独立复盘线（Gemini 4 Carbon） · 2026-11-26 · 只读源码与历史后提交本文档。
 > 触发：`node scripts/fix-churn.mjs src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx` 命中双热点——① 文件近 14 天已有 **4** 个 `fix` 提交，下一刀是第 **5** 个；② 目录 `src/workbench/generationCanvas/spend/` 近 14 天已有 **6** 个 `fix` 提交（涉及 5 个文件），下一刀是第 **7** 个。
 

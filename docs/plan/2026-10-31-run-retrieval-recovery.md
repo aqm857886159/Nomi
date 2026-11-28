@@ -1,5 +1,7 @@
 # 设计卡：钱花了、任务号还在的单子只取回
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：单镜 Run 的取回恢复（B4 / T1 / T10，加本机查不了、窗口开着放手）　线：实现线本线，独立验收由协调派　类别：[花钱][可打断]
 方向检查：`docs/engineering/direction-checks/2026-10-31-run-recovery-materialize.md`（用户 2026-10-31「都按推荐」「并进本 PR」）。
 

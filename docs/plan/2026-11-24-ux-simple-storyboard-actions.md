@@ -1,5 +1,7 @@
 # UX-simple Phase 2 · PR-UX4
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 2026-11-24 · 分镜编辑器 · Phase 1 #8 和 #17①，基线为 `1730b7ea3`。 [协调批准](https://github.com/aqm857886159/Nomi/issues/1586#issuecomment-7126279479) · [验收要求](https://github.com/aqm857886159/Nomi/issues/1586#issuecomment-7125128356)
 
 ## ★0 先查别人

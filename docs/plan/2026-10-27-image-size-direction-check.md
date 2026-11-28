@@ -1,5 +1,7 @@
 # Direction check: image-size policy at the shared parameter boundary
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 0. Class root
 
 One persisted transform ID is used for both image and video operations, but its numeric policy has no operation context. Applying the GPT Image area floor globally changes video requests too.

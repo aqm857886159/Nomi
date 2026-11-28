@@ -1,5 +1,7 @@
 # 语义状态色透明摊薄淡底门岗（Q-semantic-tint）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 实现线 `q-semantic-tint-impl`。纯设计 token 门岗加固（短档）。
 
 ## 短版设计卡

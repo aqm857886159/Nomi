@@ -1,5 +1,7 @@
 # 夜跑存量红分诊清单（2026-10-23，只出清单、不改代码）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 来源：协调线 F-nightly-build-gate PR-3。只读 `gh run download`（nightly-walks-* artifact），未写 GitHub、未改任何代码和 `tests/ux/nightly-ci-exclusions.json`。排期归协调。
 
 ## 0. 先答三问

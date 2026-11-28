@@ -1,5 +1,7 @@
 # 核心任务版本对比
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 短版设计卡
 
 - ★1 用户怎么用：发版协调构建上一正式版和候选版的隔离源码副本，用同一输入文件、中文故事、文本模型（`DEFAULT_PAID_BRAIN`）、图片模型及参数各跑一次，再读两份 JSON；量具为 `tests/ux/release-core-compare.paid.mjs`、共用步骤的 `release-core-compare.rehearsal.walk.mjs` 和结果比较脚本；目标是没有退化且证据齐全。演练覆盖两版 × zh/en，故事内容固定中文；真实质量与平台打包差异不由假模型证明。1b 不改产品界面；1c 不触碰真实旧资料或迁移，只有自建隔离项目。

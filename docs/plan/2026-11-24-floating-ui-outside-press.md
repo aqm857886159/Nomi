@@ -1,5 +1,7 @@
 # 7 大替换第⑤刀：`outsidePress.ts` 迁 `@floating-ui/react` 并同提交删旧
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：7 大替换第⑤刀（`@floating-ui/react` `useFloating` + `useDismiss` 替换 `src/design/outsidePress.ts`）  
 实现线：`t8-r5-impl`  
 验收线：`t8-r5-verify`  

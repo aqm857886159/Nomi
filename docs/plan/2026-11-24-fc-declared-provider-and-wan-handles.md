@@ -1,5 +1,7 @@
 # #975 G1/G2 与 NF-1119-0001
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ### ★0 先查现有做法
 
 - `electron/catalog/catalogModelAvailability.ts:32` 免密目录项直接就绪，确认正式生成可复用该判据。

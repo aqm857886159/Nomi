@@ -1,5 +1,7 @@
 # 全维度匿名产品数据闭环（第 1 刀）与反馈包 Agent 故障归因修复 — 设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - 日期：2026-11-28
 - 分支：`feat/product-telemetry-funnel-v2`
 - 状态：实现中

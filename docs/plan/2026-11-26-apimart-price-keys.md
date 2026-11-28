@@ -1,5 +1,7 @@
 # APIMart 约价：Seedance 2.5 的三个键 + 名单分类
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：apimart-price-keys　线/负责人：L11-price-keys　类别：[花钱]（只改发送键旁的约价口径，发给供应商的请求体不变）
 
 ## 功能分类

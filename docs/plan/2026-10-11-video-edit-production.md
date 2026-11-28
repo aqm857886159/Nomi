@@ -1,5 +1,7 @@
 # 原卡截帧与剪辑：生产接线
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 实现线 D-video-edit-production；独立验收线 clip_review。用户已批准样张并要求实现、性能测试和交互测试。基线 4e1eecd，与本轮 delivery:preflight 刷新的 origin/main 相同；dirty 项均为本任务已批准样张。
 
 | 格 | 合同与证据 |

@@ -1,5 +1,7 @@
 # #1121 Nightly walkthroughs and no-key rehearsals
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## ★0 Prior art
 
 - [Node.js `fs.mkdtempSync`](https://nodejs.org/api/fs.html#fsmkdtempsyncprefix-options) allocates a unique directory under a caller-provided prefix. Use it under `os.tmpdir()` for retained walkthrough evidence.

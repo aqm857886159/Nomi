@@ -1,5 +1,7 @@
 # 设计卡：Nomi 入口收进顶栏（删右下小球）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：Nomi 入口收进顶栏            线/负责人：实现 L-nomi-entry-topbar（清单线 B-nomi-entry-board 写卡）            类别：[新界面]
 ```

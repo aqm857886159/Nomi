@@ -1,5 +1,7 @@
 # 设计卡：脚本存文件、本机进程两处入口——没项目先拒，生成文件走同一道落盘关口（2026-11-09）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 计划表 A4d「同类延后」。上一刀（配音落盘，复盘 `docs/engineering/direction-checks/2026-11-07-tts-save-expected-kind.md`）把「结果只能写成项目文件」收成一个判据、配音改走生成产物关口，同时登记了两处同类、受影响、延后的入口：自定义调用脚本的 `saveFile`、进程类（即梦 CLI、Codex 本机生图、Antigravity）的本地下载。这一刀把这两处接上。根因合同 `docs/fixes/2026-11-09-a4d-deferred-entries.root-cause.json`。
 
 这次碰了花钱路径（没项目时在付费闸之前拒），按四类填 9 格。

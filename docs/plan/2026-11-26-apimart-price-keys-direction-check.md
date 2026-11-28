@@ -1,5 +1,7 @@
 # 方向检查：APIMart 约价键名单（RW 复盘）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 命中情况：`electron/ai/onboarding/` 目录近 14 天 2 个 fix（bacbc2539、252d06033，都是 S6 账户余额），`vendorPriceRequest.ts` 本身近 14 天只有 1 个 feat（3d96e7254，建文件）。只因目录命中、文件本身没命中，改法是换（同一提交删掉单份 `PRICE_FIELDS`），不新增分支或特例；协调按例外代批（11-26），因钩子没有例外口子，仍附这份复盘。设计卡见 `docs/plan/2026-11-26-apimart-price-keys.md`。
 
 **这一处的全图在哪**：表外。约价口径只有一条链：画布 `useNodePricePreview` → 桥 `vendorPricePreview` → `onboardingIpc.ts:45` → `priceQueryFromRequest`；门表 1 扇（`node scripts/door-map.mjs priceQueryFromRequest`）。
