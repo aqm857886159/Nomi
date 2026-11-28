@@ -1,1 +1,43 @@
-{"runs":9,"noisy":false,"metrics":{"response":[80.5,65,65.1,64.5,65,65.1,65,66.7,63.2]}}
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "f7cf00e85",
+  "head": "f7cf00e857dc5cb8d8423e9a50ef53fad4f0325e",
+  "dirty": false,
+  "sourceTree": "9be11e9bb2f5e6d4e2511abb6073a4ae6ef054f2",
+  "date": "2026-11-25",
+  "runs": 5,
+  "results": [
+    {
+      "id": "model-settings-usage-open",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 39.2,
+          "p95": 52.6
+        }
+      },
+      "samples": {
+        "response": [
+          55.6,
+          39.2,
+          38.4,
+          32.2,
+          40.6
+        ]
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 64.9,
+        "p95": 65.1,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 16GB",
+        "date": "2026-11-24",
+        "commit": "cabce4bb8"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
