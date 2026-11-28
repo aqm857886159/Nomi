@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeFileAtomicSync } from './lib/atomicFile.mjs'
 import { shared } from './marketing/content.mjs'
 import { loadSiteData } from './marketing/library/data.mjs'
 import { formatPageDates, loadPageDates, PAGE_DATES_FILE } from './marketing/page-dates.mjs'
@@ -90,12 +91,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
       console.log('MARKETING SITEMAP CHECK PASS')
     }
   } else {
-    const temporary = `${output}.${process.pid}.tmp`
-    fs.writeFileSync(temporary, sitemapXml)
-    fs.renameSync(temporary, output)
-    const robotsTmp = `${robotsOutput}.${process.pid}.tmp`
-    fs.writeFileSync(robotsTmp, robotsTxt)
-    fs.renameSync(robotsTmp, robotsOutput)
+    writeFileAtomicSync(output, sitemapXml, { fsync: false })
+    writeFileAtomicSync(robotsOutput, robotsTxt, { fsync: false })
     fs.mkdirSync(path.dirname(PAGE_DATES_FILE), { recursive: true })
     fs.writeFileSync(PAGE_DATES_FILE, datesJson)
     console.log(`Generated ${path.relative(root, output)} (${entries.length} URLs), ${path.relative(root, robotsOutput)}, and ${path.relative(root, PAGE_DATES_FILE)}`)

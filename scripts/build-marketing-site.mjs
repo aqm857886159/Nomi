@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeFileAtomicSync } from './lib/atomicFile.mjs'
 import { assertLocaleParity, shared } from './marketing/content.mjs'
 import { assertFeaturesParity } from './marketing/features.mjs'
 import { listHtmlFiles } from './marketing/html-scan.mjs'
@@ -46,10 +47,7 @@ if (checkOnly) {
 } else {
   for (const { relativePath, contents } of outputs) {
     const target = path.join(root, relativePath)
-    fs.mkdirSync(path.dirname(target), { recursive: true })
-    const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}.tmp`)
-    fs.writeFileSync(temporary, contents)
-    fs.renameSync(temporary, target)
+    writeFileAtomicSync(target, contents, { fsync: false })
     console.log(`Generated ${relativePath}`)
   }
   for (const relativePath of orphans) {
