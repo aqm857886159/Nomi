@@ -870,6 +870,56 @@
         "symbol": "rendererSyncIpcSelectors"
       },
       "reason": "2026-11-23 T-8 门岗收口：check:renderer-sync-ipc 迁入 eslint.config.mjs（scripts/t8-structural-guards.mjs rendererSyncIpcSelectors + eslint-suppressions.json），原独立脚本与基线文件同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-asset-source-evidence-v2.root-cause.json",
+      "path": "scripts/check-asset-evidence.mjs",
+      "symbol": "check:asset-evidence",
+      "anchor": {
+        "path": "electron/assets/projectAssetStore.ts",
+        "symbol": "NonGeneratedRemoteAssetImportOptions / MoveAssetFileMeta"
+      },
+      "reason": "2026-11-28 SM-gates-B1：check:asset-evidence 退役并由 TypeScript 编译期类型收紧（importRemoteAsset 非生成分支必填 NonGeneratedRemoteAssetImportOptions.sourceEvidence、moveAssetFile 必填 MoveAssetFileMeta.sourceEvidence）与 eslint.config.mjs asset-rights-status 禁令接管，原独立脚本与全零基线同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-client-confirmation-surface-unreachable.root-cause.json",
+      "path": "scripts/check-transport-assembly.mjs",
+      "symbol": "SURFACES",
+      "anchor": {
+        "path": "electron/capabilityCore/mcpProtocol.ts",
+        "symbol": "createNomiMcpServer"
+      },
+      "reason": "2026-11-28 SM-gates-B1：check:transport-assembly 退役并由 createNomiMcpServer(host: Required<McpHost>) 编译期必填约束接管，原独立脚本同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-client-elicitation-receipt-assembly.root-cause.json",
+      "path": "scripts/check-transport-assembly.mjs",
+      "symbol": "SURFACES[McpTransport].unwired",
+      "anchor": {
+        "path": "electron/capabilityCore/mcpProtocol.ts",
+        "symbol": "createNomiMcpServer"
+      },
+      "reason": "2026-11-28 SM-gates-B1：check:transport-assembly 退役并由 createNomiMcpServer(host: Required<McpHost>) 编译期必填约束接管（unwired 早已清零），原独立脚本同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-packaged-transport-callback-omitted.root-cause.json",
+      "path": "scripts/check-transport-assembly.mjs",
+      "symbol": "SURFACES",
+      "anchor": {
+        "path": "electron/capabilityCore/mcpProtocol.ts",
+        "symbol": "createNomiMcpServer"
+      },
+      "reason": "2026-11-28 SM-gates-B1：check:transport-assembly 退役并由 createNomiMcpServer(host: Required<McpHost>) 编译期必填约束接管，原独立脚本同提交删除。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-12-run-task-grant-class.root-cause.json",
+      "path": "scripts/check-run-task-grant.mjs",
+      "symbol": "check:run-task-grant",
+      "anchor": {
+        "path": "electron/runtime.ts",
+        "symbol": "RunTaskPayload / GrantedTaskRequest"
+      },
+      "reason": "2026-11-28 SM-gates-B1：check:run-task-grant 退役并由 electron/runtime.ts runTask(RunTaskPayload / GrantedTaskRequest) 编译期必填 grantId 与 eslint.config.mjs run-task-grant AST 选择器双层接管，原独立脚本及单测同提交删除。"
     }
   ],
   "retirements": [
@@ -1541,11 +1591,6 @@
       "symbol": "Runway 图像身份三条不变量"
     },
     {
-      "contract": "docs/fixes/2026-09-03-client-elicitation-receipt-assembly.root-cause.json",
-      "path": "scripts/check-transport-assembly.mjs",
-      "symbol": "SURFACES[McpTransport].unwired"
-    },
-    {
       "contract": "docs/fixes/2026-09-03-dangling-tailwind-token-mapping.root-cause.json",
       "path": "scripts/check-dangling-tailwind.mjs",
       "symbol": "正向棘轮（offenders）+ 反向棘轮（unmapped）"
@@ -1854,11 +1899,6 @@
       "contract": "docs/fixes/2026-09-12-model-availability-single-owner.root-cause.json",
       "path": "scripts/check-model-availability.mjs",
       "symbol": "scanSource + READERS 普查表"
-    },
-    {
-      "contract": "docs/fixes/2026-09-12-run-task-grant-class.root-cause.json",
-      "path": "scripts/check-run-task-grant.mjs",
-      "symbol": "check:run-task-grant"
     },
     {
       "contract": "docs/fixes/2026-09-12-storyboard-plan-defaults-passthrough.root-cause.json",

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MCP_VERIFY_PROBE_NAME, mcpHttpIdentityHeaders } from './mcpHttpEndpoint'
 import { startMcpHttpServer, type McpHttpServerHandle } from './mcpHttpServer'
 import { createNomiMcpServer } from './mcpProtocol'
+import { createTestMcpHost } from './__tests__/mcpHostTestUtils'
 import { ensureToken, signMcpClient } from './security'
 
 let capabilityDir: string
@@ -23,11 +24,11 @@ beforeEach(async () => {
   server = await startMcpHttpServer({
     port: 0,
     onClientConnected: connected,
-    sessionFor: (identity) => createNomiMcpServer({
+    sessionFor: (identity) => createNomiMcpServer(createTestMcpHost({
       invoke: async () => ({}),
       isAppOpen: () => true,
       getAuthenticatedClient: () => identity.connection.authenticatedClient,
-    }),
+    })),
   })
 })
 

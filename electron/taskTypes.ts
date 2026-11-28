@@ -21,6 +21,21 @@ export type TaskRequest = {
   cfgScale?: number;
   extras?: Record<string, unknown> & { executionBinding?: import("./productionRun/productionExecutionBinding").ProductionExecutionBinding };
 };
+/** 自己组装内联 `request` 发任务时，编译器强制要求 `extras.grantId: string`（替代已退役的 check:run-task-grant）。 */
+export type GrantedTaskRequest = Omit<TaskRequest, "kind" | "extras"> & {
+  kind: TaskRequest["kind"] | (string & {});
+  extras: NonNullable<TaskRequest["extras"]> & { grantId: string };
+};
+/**
+ * 传入内联 `{ vendor, request }` 时，编译器强制要求 `request.extras.grantId: string`；
+ * 转发型调用（IPC / 传输层原样转发上游 `unknown`、不透明记录或 `{ vendor, request: unknown }`）照常放行。
+ */
+export type RunTaskPayload<T = unknown> =
+  [T] extends [never] ? never
+  : unknown extends T ? T
+  : T extends { request: infer R }
+    ? (unknown extends R ? T : string extends keyof T ? T : { vendor: string; request: GrantedTaskRequest })
+    : T;
 export type CachedTask = {
   vendor: string;
   request: TaskRequest;

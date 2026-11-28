@@ -1129,6 +1129,36 @@ export default tseslint.config(
       'asset-source-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('assetSourceEvidence', ['finalizeAssetMeta', 'reconcileReuse'], '素材来源只由主进程素材库定：入口只交来源事实（AssetSourceFact），不自己定稿 meta。')],
     },
   },
+  {
+    // B1-3（替代已退役的 check:asset-evidence）：旧字段 rightsStatus 已弃用，不得写入任何素材元数据路径（usageStatus 为唯一取代字段）。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES],
+    plugins: { 'asset-rights-status': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'asset-rights-status/no-restricted-syntax': ['error', {
+        selector: "Property:matches([key.name='rightsStatus'], [key.value='rightsStatus'])",
+        message: '旧字段 rightsStatus 已弃用，不得出现在写入路径；请改用 usageStatus（由 finalizeAssetMeta 按来源事实定稿）。',
+      }],
+    },
+  },
+  {
+    // B1-2（替代已退役的 check:run-task-grant）：任何自拼内联 request 调用 runTask / runTaskFn（含无类型/类型断言调用）必须在实参中显式带 grantId。
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'electron/**/*.{ts,tsx,mts,cts}'],
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/runtime.ts'],
+    plugins: { 'run-task-grant': boundaryPlugin('no-restricted-syntax') },
+    rules: {
+      'run-task-grant/no-restricted-syntax': ['error',
+        {
+          selector: "CallExpression:matches([callee.name=/^(runTask|runTaskFn)$/], [callee.property.name=/^(runTask|runTaskFn)$/]) > ObjectExpression.arguments:first-child:has(> Property[key.name='request']):not(:has(Property[key.name='grantId']))",
+          message: '付费出口缺少 grantId：自拼内联 request 调用 runTask / runTaskFn 必须在 extras 中显式携带 grantId（先经 spendConfirmGrant / spendConfirm 铸令牌）。',
+        },
+        {
+          selector: "CallExpression:matches([callee.name=/^(runTask|runTaskFn)$/], [callee.property.name=/^(runTask|runTaskFn)$/]) > TSAsExpression.arguments:first-child > ObjectExpression:has(> Property[key.name='request']):not(:has(Property[key.name='grantId']))",
+          message: '付费出口缺少 grantId：不得用类型断言绕过 runTask / runTaskFn 内联 request 的 grantId 必填约束。',
+        },
+      ],
+    },
+  },
   // T-8 结构防错规则 + 原独立推送前语法门岗收口（存量入 eslint-suppressions.json 只减不增）
   {
     files: ['src/**/*.{ts,tsx}'],
